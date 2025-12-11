@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { SubscriptionRecord } from "../../tables/schema";
 import {
   sendPaymentFailedEmail,
   sendGracePeriodExpiringEmail,
   sendSubscriptionDowngradedEmail,
   sendSubscriptionCancelledEmail,
 } from "../subscriptionEmails";
-import type { SubscriptionRecord } from "../../tables/schema";
 
 // Mock dependencies using vi.hoisted
 const { mockSendEmail, mockGetPlanLimits } = vi.hoisted(() => {
@@ -61,7 +61,7 @@ describe("subscriptionEmails", () => {
 
       const callArgs = mockSendEmail.mock.calls[0][0];
       expect(callArgs.html).toContain(
-        "https://app.lemonsqueezy.com/customer/ls-cust-123"
+        "https://app.lemonsqueezy.com/my-account/customer/ls-cust-123"
       );
       expect(callArgs.html).toContain("starter");
     });

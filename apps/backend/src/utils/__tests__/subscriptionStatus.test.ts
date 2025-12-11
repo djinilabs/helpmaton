@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import type { SubscriptionRecord } from "../../tables/schema";
 import {
   isSubscriptionActive,
   getEffectivePlan,
   shouldSendGracePeriodWarning,
   checkGracePeriod,
 } from "../subscriptionStatus";
-import type { SubscriptionRecord } from "../../tables/schema";
 
 // Mock dependencies using vi.hoisted
 const {
@@ -48,6 +48,7 @@ describe("subscriptionStatus", () => {
         sk: "subscription",
         userId: "user-123",
         plan: "free",
+        status: "active",
         createdAt: new Date().toISOString(),
         version: 1,
       };

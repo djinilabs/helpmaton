@@ -368,11 +368,11 @@ async function handleSubscriptionCancelled(
   }
 
   // Fallback to email lookup if subscription ID not found
+  let lemonSqueezySub;
+  let userEmail: string | undefined;
   if (!subscription) {
-    const lemonSqueezySub = await getLemonSqueezySubscription(
-      subscriptionData.id
-    );
-    const userEmail = lemonSqueezySub.attributes.user_email;
+    lemonSqueezySub = await getLemonSqueezySubscription(subscriptionData.id);
+    userEmail = lemonSqueezySub.attributes.user_email;
 
     const userId = await findUserIdByEmail(userEmail);
     if (!userId) {
@@ -381,12 +381,16 @@ async function handleSubscriptionCancelled(
     }
 
     subscription = await getUserSubscription(userId);
+  } else {
+    // Get user email from subscription userId
+    const { getUserEmailById } = await import("../../utils/subscriptionUtils");
+    userEmail = await getUserEmailById(subscription.userId);
   }
 
-  const lemonSqueezySub = await getLemonSqueezySubscription(
-    subscriptionData.id
-  );
-  const userEmail = lemonSqueezySub.attributes.user_email;
+  // Fetch Lemon Squeezy subscription data if we haven't already
+  if (!lemonSqueezySub) {
+    lemonSqueezySub = await getLemonSqueezySubscription(subscriptionData.id);
+  }
 
   await db.subscription.update({
     ...subscription,
@@ -397,7 +401,9 @@ async function handleSubscriptionCancelled(
 
   // Send cancellation email
   try {
-    await sendSubscriptionCancelledEmail(subscription, userEmail);
+    if (userEmail) {
+      await sendSubscriptionCancelledEmail(subscription, userEmail);
+    }
   } catch (error) {
     console.error(`[Webhook] Failed to send cancellation email:`, error);
   }

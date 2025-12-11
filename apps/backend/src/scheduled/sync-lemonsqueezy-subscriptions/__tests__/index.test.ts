@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ScheduledEvent } from "aws-lambda";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import type { DatabaseSchema } from "../../../tables/schema";
 import { handler } from "../index";
 
 // Mock dependencies
@@ -33,7 +34,13 @@ vi.mock("../../utils/subscriptionUtils", () => ({
 }));
 
 describe("sync-lemonsqueezy-subscriptions", () => {
-  let mockDb: any;
+  let mockDb: {
+    subscription: {
+      get: ReturnType<typeof vi.fn>;
+      update: ReturnType<typeof vi.fn>;
+      query: ReturnType<typeof vi.fn>;
+    };
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -54,6 +61,7 @@ describe("sync-lemonsqueezy-subscriptions", () => {
   describe("handler", () => {
     it("should process scheduled event", async () => {
       const event: ScheduledEvent = {
+        version: "0",
         "detail-type": "Scheduled Event",
         source: "aws.events",
         account: "123456789012",
@@ -61,6 +69,7 @@ describe("sync-lemonsqueezy-subscriptions", () => {
         region: "us-east-1",
         detail: {},
         id: "test-event-id",
+        resources: [],
       };
 
       // Handler should complete without errors
@@ -73,6 +82,7 @@ describe("sync-lemonsqueezy-subscriptions", () => {
       mockDatabase.mockRejectedValue(new Error("Database error"));
 
       const event: ScheduledEvent = {
+        version: "0",
         "detail-type": "Scheduled Event",
         source: "aws.events",
         account: "123456789012",
@@ -80,6 +90,7 @@ describe("sync-lemonsqueezy-subscriptions", () => {
         region: "us-east-1",
         detail: {},
         id: "test-event-id",
+        resources: [],
       };
 
       // Should not throw - errors are handled by handlingScheduledErrors
@@ -116,6 +127,7 @@ describe("sync-lemonsqueezy-subscriptions", () => {
       // Note: syncSubscription is not exported, so we test it indirectly through handler
       // In a real scenario, you might want to export it for direct testing
       const event: ScheduledEvent = {
+        version: "0",
         "detail-type": "Scheduled Event",
         source: "aws.events",
         account: "123456789012",
@@ -123,6 +135,7 @@ describe("sync-lemonsqueezy-subscriptions", () => {
         region: "us-east-1",
         detail: {},
         id: "test-event-id",
+        resources: [],
       };
 
       // Note: Current implementation doesn't actually query subscriptions
@@ -132,20 +145,12 @@ describe("sync-lemonsqueezy-subscriptions", () => {
     });
 
     it("should skip subscriptions without Lemon Squeezy ID", async () => {
-      const subscription = {
-        pk: "subscriptions/sub-123",
-        sk: "subscription",
-        userId: "user-123",
-        plan: "free",
-        createdAt: new Date().toISOString(),
-        version: 1,
-      };
-
-      // This subscription has no lemonSqueezySubscriptionId, so syncSubscription should skip it
+      // This test verifies that subscriptions without lemonSqueezySubscriptionId are skipped
       // Since syncAllSubscriptions only processes subscriptions with lemonSqueezySubscriptionId,
       // this subscription won't be synced
 
       const event: ScheduledEvent = {
+        version: "0",
         "detail-type": "Scheduled Event",
         source: "aws.events",
         account: "123456789012",
@@ -153,6 +158,7 @@ describe("sync-lemonsqueezy-subscriptions", () => {
         region: "us-east-1",
         detail: {},
         id: "test-event-id",
+        resources: [],
       };
 
       await handler(event);
@@ -193,6 +199,7 @@ describe("sync-lemonsqueezy-subscriptions", () => {
       mockGetUserEmailById.mockResolvedValue("user@example.com");
 
       const event: ScheduledEvent = {
+        version: "0",
         "detail-type": "Scheduled Event",
         source: "aws.events",
         account: "123456789012",
@@ -200,6 +207,7 @@ describe("sync-lemonsqueezy-subscriptions", () => {
         region: "us-east-1",
         detail: {},
         id: "test-event-id",
+        resources: [],
       };
 
       // Note: Current implementation doesn't actually query subscriptions
@@ -235,6 +243,7 @@ describe("sync-lemonsqueezy-subscriptions", () => {
       });
 
       const event: ScheduledEvent = {
+        version: "0",
         "detail-type": "Scheduled Event",
         source: "aws.events",
         account: "123456789012",
@@ -242,6 +251,7 @@ describe("sync-lemonsqueezy-subscriptions", () => {
         region: "us-east-1",
         detail: {},
         id: "test-event-id",
+        resources: [],
       };
 
       // Note: Current implementation doesn't actually query subscriptions
@@ -272,6 +282,7 @@ describe("sync-lemonsqueezy-subscriptions", () => {
       });
 
       const event: ScheduledEvent = {
+        version: "0",
         "detail-type": "Scheduled Event",
         source: "aws.events",
         account: "123456789012",
@@ -279,6 +290,7 @@ describe("sync-lemonsqueezy-subscriptions", () => {
         region: "us-east-1",
         detail: {},
         id: "test-event-id",
+        resources: [],
       };
 
       // Note: Current implementation doesn't actually query subscriptions

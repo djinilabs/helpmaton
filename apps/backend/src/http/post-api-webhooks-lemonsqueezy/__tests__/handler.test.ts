@@ -1,8 +1,8 @@
-import type { APIGatewayProxyResultV2 } from "aws-lambda";
+import type { APIGatewayProxyResultV2, Callback, Context } from "aws-lambda";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { DatabaseSchema } from "../../../tables/schema";
 import { createAPIGatewayEventV2 } from "../../utils/__tests__/test-helpers";
-
 import { handler } from "../index";
 
 // Mock dependencies using vi.hoisted
@@ -74,7 +74,20 @@ vi.mock("crypto", () => ({
 }));
 
 describe("Lemon Squeezy Webhook Handler", () => {
-  let mockDb: any;
+  let mockDb: {
+    subscription: {
+      update: ReturnType<typeof vi.fn>;
+      get: ReturnType<typeof vi.fn>;
+      query: ReturnType<typeof vi.fn>;
+    };
+    workspace: {
+      get: ReturnType<typeof vi.fn>;
+      atomicUpdate: ReturnType<typeof vi.fn>;
+    };
+    "next-auth": {
+      query: ReturnType<typeof vi.fn>;
+    };
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -122,7 +135,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
       });
 
       // Handler is wrapped by adaptHttpHandler which returns a Promise
-      const result = (await handler(event, {} as any, () => {})) as any;
+      const mockContext: Context = {} as Context;
+      const mockCallback: Callback = () => {};
+      const result = (await handler(event, mockContext, mockCallback)) as any;
 
       expect(result.statusCode).toBe(401);
       expect(JSON.parse(result.body || "{}")).toEqual({
@@ -143,7 +158,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const result = (await handler(event, {} as any, () => {})) as any;
+      const mockContext: Context = {} as Context;
+      const mockCallback: Callback = () => {};
+      const result = (await handler(event, mockContext, mockCallback)) as any;
 
       expect(result.statusCode).toBe(401);
       expect(JSON.parse(result.body || "{}")).toEqual({
@@ -196,11 +213,13 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const result = (await handler(event, {} as any, () => {})) as any;
+      const mockContext: Context = {} as Context;
+      const mockCallback: Callback = () => {};
+      const result = (await handler(event, mockContext, mockCallback)) as any;
 
       expect(result.statusCode).toBe(200);
       expect(mockGetSubscriptionById).toHaveBeenCalledWith("sub-123");
-      expect(mockDb.subscription.update).toHaveBeenCalled();
+      expect(mockDb.subscription?.update).toHaveBeenCalled();
     });
 
     it("should fallback to email lookup if subscription ID not found", async () => {
@@ -250,7 +269,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
         items: [{ id: "user-123" }],
       });
 
-      const result = (await handler(event, {} as any, () => {})) as any;
+      const mockContext: Context = {} as Context;
+      const mockCallback: Callback = () => {};
+      const result = (await handler(event, mockContext, mockCallback)) as any;
 
       expect(result.statusCode).toBe(200);
       expect(mockGetUserSubscription).toHaveBeenCalled();
@@ -302,10 +323,12 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const result = (await handler(event, {} as any, () => {})) as any;
+      const mockContext: Context = {} as Context;
+      const mockCallback: Callback = () => {};
+      const result = (await handler(event, mockContext, mockCallback)) as any;
 
       expect(result.statusCode).toBe(200);
-      expect(mockDb.subscription.update).toHaveBeenCalled();
+      expect(mockDb.subscription?.update).toHaveBeenCalled();
     });
   });
 
@@ -343,7 +366,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const result = await handler(event);
+      const mockContext: Context = {} as Context;
+      const mockCallback: Callback = () => {};
+      const result = (await handler(event, mockContext, mockCallback)) as any;
 
       expect(result.statusCode).toBe(200);
       expect(mockDb.subscription.update).toHaveBeenCalledWith(
@@ -396,7 +421,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const result = await handler(event);
+      const mockContext: Context = {} as Context;
+      const mockCallback: Callback = () => {};
+      const result = (await handler(event, mockContext, mockCallback)) as any;
 
       expect(result.statusCode).toBe(200);
       expect(mockDb.subscription.update).toHaveBeenCalledWith(
@@ -416,7 +443,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
         creditBalance: 100,
       };
 
-      mockDb.workspace.get.mockResolvedValue(workspace);
+      mockDb.workspace?.get.mockResolvedValue(workspace);
       mockGetLemonSqueezyOrder.mockResolvedValue({
         attributes: {
           total: 5000, // 50.00 EUR in cents
@@ -442,10 +469,12 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const result = await handler(event);
+      const mockContext: Context = {} as Context;
+      const mockCallback: Callback = () => {};
+      const result = (await handler(event, mockContext, mockCallback)) as any;
 
       expect(result.statusCode).toBe(200);
-      expect(mockDb.workspace.atomicUpdate).toHaveBeenCalled();
+      expect(mockDb.workspace?.atomicUpdate).toHaveBeenCalled();
     });
 
     it("should return early if workspace ID is missing", async () => {
@@ -466,10 +495,12 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const result = await handler(event);
+      const mockContext: Context = {} as Context;
+      const mockCallback: Callback = () => {};
+      const result = (await handler(event, mockContext, mockCallback)) as any;
 
       expect(result.statusCode).toBe(200);
-      expect(mockDb.workspace.atomicUpdate).not.toHaveBeenCalled();
+      expect(mockDb.workspace?.atomicUpdate).not.toHaveBeenCalled();
     });
   });
 
@@ -508,7 +539,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
       });
 
       // Should still return 200 to prevent Lemon Squeezy from retrying
-      const result = (await handler(event, {} as any, () => {})) as any;
+      const mockContext: Context = {} as Context;
+      const mockCallback: Callback = () => {};
+      const result = (await handler(event, mockContext, mockCallback)) as any;
       expect(result.statusCode).toBe(200);
     });
   });
