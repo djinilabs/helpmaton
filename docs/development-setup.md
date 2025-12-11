@@ -96,6 +96,16 @@ SENTRY_DSN=your-sentry-dsn
 VITE_SENTRY_DSN=your-sentry-dsn
 VITE_POSTHOG_API_KEY=your-posthog-key
 POSTHOG_API_KEY=your-posthog-key
+
+# Lemon Squeezy (Payment Integration)
+LEMON_SQUEEZY_API_KEY=sk_test_your_api_key_here
+LEMON_SQUEEZY_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+LEMON_SQUEEZY_STORE_ID=12345
+LEMON_SQUEEZY_STARTER_VARIANT_ID=67890
+LEMON_SQUEEZY_PRO_VARIANT_ID=67891
+LEMON_SQUEEZY_CREDIT_PRODUCT_ID=123456
+LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL=http://localhost:5173/subscription?success=true
+LEMON_SQUEEZY_CHECKOUT_CANCEL_URL=http://localhost:5173/subscription?cancelled=true
 ```
 
 **Note**: See [Environment Variables](./deployment.md#environment-variables) for detailed descriptions.

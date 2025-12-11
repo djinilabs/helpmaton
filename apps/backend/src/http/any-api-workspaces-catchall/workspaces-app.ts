@@ -59,6 +59,7 @@ import { registerPostTestEmailConnection } from "./routes/post-test-email-connec
 import { registerPostTrialCreditRequest } from "./routes/post-trial-credit-request";
 import { registerPostWorkspaceAgents } from "./routes/post-workspace-agents";
 import { registerPostWorkspaceChannels } from "./routes/post-workspace-channels";
+import { registerPostWorkspaceCreditsPurchase } from "./routes/post-workspace-credits-purchase";
 import { registerPostWorkspaceDocuments } from "./routes/post-workspace-documents";
 import { registerPostWorkspaceInvite } from "./routes/post-workspace-invite";
 import { registerPostWorkspaceMembers } from "./routes/post-workspace-members";
@@ -138,6 +139,7 @@ export const createApp: () => express.Application = () => {
   registerPutWorkspaceChannel(app);
   registerDeleteWorkspaceChannel(app);
   registerPostTestChannel(app);
+  registerPostWorkspaceCreditsPurchase(app);
   registerGetEmailConnection(app);
   registerPostEmailConnection(app);
   registerPutEmailConnection(app);

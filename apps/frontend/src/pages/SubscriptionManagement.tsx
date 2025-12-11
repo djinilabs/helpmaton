@@ -3,11 +3,15 @@ import { useState } from "react";
 import type { FC } from "react";
 
 import { LoadingScreen } from "../components/LoadingScreen";
+import { PlanComparison } from "../components/PlanComparison";
 import {
   useSubscription,
   useUserByEmail,
   useAddSubscriptionManager,
   useRemoveSubscriptionManager,
+  useSubscriptionCheckout,
+  useSubscriptionCancel,
+  useSubscriptionPortal,
 } from "../hooks/useSubscription";
 
 const SubscriptionManagement: FC = () => {
@@ -19,6 +23,9 @@ const SubscriptionManagement: FC = () => {
 
   const addManagerMutation = useAddSubscriptionManager();
   const removeManagerMutation = useRemoveSubscriptionManager();
+  const checkoutMutation = useSubscriptionCheckout();
+  const cancelMutation = useSubscriptionCancel();
+  const portalQuery = useSubscriptionPortal();
 
   // Only query user by email when email is provided and valid format
   const shouldQueryUser = email.trim().length > 0 && email.includes("@");
@@ -169,6 +176,38 @@ const SubscriptionManagement: FC = () => {
               <div className="text-3xl font-bold text-neutral-900 mb-2">
                 {planName} Plan
               </div>
+              {subscription.status && (
+                <div className="text-base mb-2">
+                  {subscription.status === "past_due" && (
+                    <span className="text-error-600 font-semibold">
+                      Payment Past Due
+                    </span>
+                  )}
+                  {subscription.status === "active" && (
+                    <span className="text-green-600 font-semibold">Active</span>
+                  )}
+                  {subscription.status === "cancelled" && (
+                    <span className="text-neutral-600 font-semibold">
+                      Cancelled
+                    </span>
+                  )}
+                </div>
+              )}
+              {subscription.gracePeriodEndsAt && (
+                <div className="text-base text-orange-600 mb-2">
+                  <span className="font-semibold">
+                    Grace period ends:{" "}
+                    {new Date(
+                      subscription.gracePeriodEndsAt
+                    ).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+              {subscription.renewsAt && (
+                <div className="text-base text-neutral-600 mb-2">
+                  Renews: {new Date(subscription.renewsAt).toLocaleDateString()}
+                </div>
+              )}
               {expiresAt && (
                 <div className="text-base text-neutral-600 mb-2">
                   {isExpired ? (
@@ -185,11 +224,80 @@ const SubscriptionManagement: FC = () => {
                   )}
                 </div>
               )}
-              <div className="text-sm text-neutral-600 font-mono">
+              <div className="text-sm text-neutral-600 font-mono mb-4">
                 Subscription ID: {subscription.subscriptionId}
+              </div>
+              <div className="flex gap-4">
+                {subscription.status === "past_due" && (
+                  <button
+                    onClick={() => {
+                      portalQuery.refetch().then((result) => {
+                        if (result.data?.portalUrl) {
+                          window.open(result.data.portalUrl, "_blank");
+                        }
+                      });
+                    }}
+                    className="px-6 py-3 bg-error-600 text-white font-semibold rounded-xl hover:bg-error-700 transition-colors"
+                  >
+                    Update Payment Method
+                  </button>
+                )}
+                {(subscription.plan === "starter" ||
+                  subscription.plan === "pro") && (
+                  <button
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          "Are you sure you want to cancel your subscription? It will remain active until the end of the billing period."
+                        )
+                      ) {
+                        cancelMutation.mutate();
+                      }
+                    }}
+                    disabled={cancelMutation.isPending}
+                    className="px-6 py-3 border border-neutral-300 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-colors disabled:opacity-50"
+                  >
+                    {cancelMutation.isPending
+                      ? "Cancelling..."
+                      : "Cancel Subscription"}
+                  </button>
+                )}
+                {subscription.lemonSqueezyCustomerId && (
+                  <button
+                    onClick={() => {
+                      portalQuery.refetch().then((result) => {
+                        if (result.data?.portalUrl) {
+                          window.open(result.data.portalUrl, "_blank");
+                        }
+                      });
+                    }}
+                    className="px-6 py-3 border border-neutral-300 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-colors"
+                  >
+                    Manage Payment
+                  </button>
+                )}
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-medium p-8 mb-8 border border-neutral-200">
+          <h2 className="text-2xl font-semibold text-neutral-900 mb-6">
+            Upgrade or Downgrade Plan
+          </h2>
+          <PlanComparison
+            currentPlan={subscription.plan}
+            onUpgrade={(plan) => checkoutMutation.mutate(plan)}
+            onDowngrade={() => {
+              if (
+                window.confirm(
+                  "Are you sure you want to downgrade? You will lose access to premium features."
+                )
+              ) {
+                cancelMutation.mutate();
+              }
+            }}
+          />
         </div>
 
         <div className="bg-white rounded-2xl shadow-medium p-8 mb-8 border border-neutral-200">

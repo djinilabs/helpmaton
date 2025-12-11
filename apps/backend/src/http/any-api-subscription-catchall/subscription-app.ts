@@ -1,6 +1,18 @@
-import { boomify, forbidden, notFound, unauthorized } from "@hapi/boom";
+import {
+  badRequest,
+  boomify,
+  forbidden,
+  notFound,
+  unauthorized,
+} from "@hapi/boom";
 import express from "express";
 
+import { database } from "../../tables";
+import {
+  createCheckout,
+  cancelSubscription as cancelLemonSqueezySubscription,
+  getCustomerPortalUrl,
+} from "../../utils/lemonSqueezy";
 import { getPlanLimits } from "../../utils/subscriptionPlans";
 import {
   getUserSubscription,
@@ -254,6 +266,11 @@ export const createApp: () => express.Application = () => {
         plan: subscription.plan,
         expiresAt: subscription.expiresAt || null,
         createdAt: subscription.createdAt,
+        // Lemon Squeezy fields
+        status: subscription.status || "active",
+        renewsAt: subscription.renewsAt || null,
+        endsAt: subscription.endsAt || null,
+        gracePeriodEndsAt: subscription.gracePeriodEndsAt || null,
         managers,
         limits: {
           maxWorkspaces: limits.maxWorkspaces,
@@ -446,6 +463,123 @@ export const createApp: () => express.Application = () => {
       await removeSubscriptionManager(subscriptionId, targetUserId);
 
       res.status(204).send();
+    })
+  );
+
+  // POST /api/subscription/checkout - Create Lemon Squeezy checkout for plan upgrade
+  app.post(
+    "/api/subscription/checkout",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const currentUserRef = req.userRef;
+      if (!currentUserRef) {
+        throw unauthorized();
+      }
+      const currentUserId = currentUserRef.replace("users/", "");
+
+      const { plan } = req.body;
+      if (plan !== "starter" && plan !== "pro") {
+        throw badRequest('Plan must be "starter" or "pro"');
+      }
+
+      // Get variant ID for the plan
+      const variantId =
+        plan === "starter"
+          ? process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID
+          : process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
+
+      if (!variantId) {
+        throw new Error(
+          `LEMON_SQUEEZY_${plan.toUpperCase()}_VARIANT_ID is not configured`
+        );
+      }
+
+      // Get store ID
+      const storeId = process.env.LEMON_SQUEEZY_STORE_ID;
+      if (!storeId) {
+        throw new Error("LEMON_SQUEEZY_STORE_ID is not configured");
+      }
+
+      // Create checkout
+      const checkout = await createCheckout({
+        store_id: storeId,
+        variant_id: variantId,
+        checkout_data: {
+          custom: {
+            userId: currentUserId,
+          },
+          email: req.session?.user?.email || undefined,
+        },
+        checkout_options: {
+          embed: false,
+          media: false,
+        },
+      });
+
+      res.json({
+        checkoutUrl: checkout.url,
+      });
+    })
+  );
+
+  // POST /api/subscription/cancel - Cancel subscription
+  app.post(
+    "/api/subscription/cancel",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const currentUserRef = req.userRef;
+      if (!currentUserRef) {
+        throw unauthorized();
+      }
+      const currentUserId = currentUserRef.replace("users/", "");
+
+      const subscription = await getUserSubscription(currentUserId);
+
+      if (!subscription.lemonSqueezySubscriptionId) {
+        throw badRequest("Subscription is not associated with Lemon Squeezy");
+      }
+
+      // Cancel subscription via Lemon Squeezy
+      await cancelLemonSqueezySubscription(
+        subscription.lemonSqueezySubscriptionId
+      );
+
+      // Update subscription status (webhook will also update it, but update immediately)
+      const db = await database();
+      await db.subscription.update({
+        ...subscription,
+        status: "cancelled",
+      });
+
+      res.json({ success: true });
+    })
+  );
+
+  // GET /api/subscription/portal - Get customer portal URL
+  app.get(
+    "/api/subscription/portal",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const currentUserRef = req.userRef;
+      if (!currentUserRef) {
+        throw unauthorized();
+      }
+      const currentUserId = currentUserRef.replace("users/", "");
+
+      const subscription = await getUserSubscription(currentUserId);
+
+      if (!subscription.lemonSqueezyCustomerId) {
+        throw badRequest("Subscription is not associated with Lemon Squeezy");
+      }
+
+      // Get customer portal URL
+      const portalUrl = await getCustomerPortalUrl(
+        subscription.lemonSqueezyCustomerId!
+      );
+
+      res.json({
+        portalUrl,
+      });
     })
   );
 

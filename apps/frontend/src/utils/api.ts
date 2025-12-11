@@ -1439,6 +1439,18 @@ export interface Subscription {
   plan: "free" | "starter" | "pro";
   expiresAt: string | null;
   createdAt: string;
+  // Lemon Squeezy fields
+  status?:
+    | "active"
+    | "past_due"
+    | "unpaid"
+    | "cancelled"
+    | "expired"
+    | "on_trial";
+  renewsAt?: string | null;
+  endsAt?: string | null;
+  gracePeriodEndsAt?: string | null;
+  lemonSqueezyCustomerId?: string | null;
   managers: SubscriptionManager[];
   limits: {
     maxWorkspaces: number;
@@ -1490,6 +1502,43 @@ export async function removeSubscriptionManager(userId: string): Promise<void> {
   await apiFetch(`/api/subscription/managers/${userId}`, {
     method: "DELETE",
   });
+}
+
+export async function createSubscriptionCheckout(
+  plan: "starter" | "pro"
+): Promise<{ checkoutUrl: string }> {
+  const response = await apiFetch("/api/subscription/checkout", {
+    method: "POST",
+    body: JSON.stringify({ plan }),
+  });
+  return response.json();
+}
+
+export async function cancelSubscription(): Promise<void> {
+  await apiFetch("/api/subscription/cancel", {
+    method: "POST",
+  });
+}
+
+export async function getSubscriptionPortalUrl(): Promise<{
+  portalUrl: string;
+}> {
+  const response = await apiFetch("/api/subscription/portal");
+  return response.json();
+}
+
+export async function purchaseCredits(
+  workspaceId: string,
+  amount: number
+): Promise<{ checkoutUrl: string }> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/credits/purchase`,
+    {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    }
+  );
+  return response.json();
 }
 
 // Workspace member management

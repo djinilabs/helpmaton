@@ -5,6 +5,10 @@ import {
   getUserByEmail,
   addSubscriptionManager,
   removeSubscriptionManager,
+  createSubscriptionCheckout,
+  cancelSubscription,
+  getSubscriptionPortalUrl,
+  purchaseCredits,
 } from "../utils/api";
 
 import { useToast } from "./useToast";
@@ -57,3 +61,66 @@ export function useRemoveSubscriptionManager() {
   });
 }
 
+export function useSubscriptionCheckout() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (plan: "starter" | "pro") => createSubscriptionCheckout(plan),
+    onSuccess: (data) => {
+      // Redirect to checkout URL
+      window.location.href = data.checkoutUrl;
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to create checkout");
+    },
+  });
+}
+
+export function useSubscriptionCancel() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: () => cancelSubscription(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      toast.success("Subscription cancelled successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to cancel subscription");
+    },
+  });
+}
+
+export function useSubscriptionPortal() {
+  return useQuery({
+    queryKey: ["subscription", "portal"],
+    queryFn: () => getSubscriptionPortalUrl(),
+    enabled: false, // Only fetch when explicitly called
+  });
+}
+
+// Note: queryClient is intentionally unused in useSubscriptionCheckout
+// as we redirect immediately and don't need to invalidate queries
+
+export function useCreditPurchase() {
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: ({
+      workspaceId,
+      amount,
+    }: {
+      workspaceId: string;
+      amount: number;
+    }) => purchaseCredits(workspaceId, amount),
+    onSuccess: (data) => {
+      // Redirect to checkout URL
+      window.location.href = data.checkoutUrl;
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to create checkout");
+    },
+  });
+}

@@ -73,6 +73,8 @@ export const tableSchemas = {
     trialCreditApproved: z.boolean().optional(),
     trialCreditApprovedAt: z.string().datetime().optional(),
     trialCreditAmount: z.number().optional(),
+    // Lemon Squeezy integration fields
+    lemonSqueezyOrderId: z.string().optional(), // Lemon Squeezy order ID for credit purchases
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),
@@ -269,6 +271,27 @@ export const tableSchemas = {
     expiresAt: z.string().datetime().optional(), // expiration date (deprecated - free plans no longer expire)
     apiKeyId: z.string().optional(), // API Gateway API key ID for throttling
     lastLimitEmailSentAt: z.string().datetime().optional(), // last time limit email was sent
+    // Lemon Squeezy integration fields
+    lemonSqueezySubscriptionId: z.string().optional(), // Lemon Squeezy subscription ID
+    lemonSqueezyCustomerId: z.string().optional(), // Lemon Squeezy customer ID
+    lemonSqueezyOrderId: z.string().optional(), // Lemon Squeezy order ID (for one-time purchases)
+    lemonSqueezyVariantId: z.string().optional(), // Lemon Squeezy variant ID (plan variant)
+    status: z
+      .enum([
+        "active",
+        "past_due",
+        "unpaid",
+        "cancelled",
+        "expired",
+        "on_trial",
+      ])
+      .default("active"), // Subscription status from Lemon Squeezy
+    renewsAt: z.string().datetime().optional(), // Next renewal date (ISO datetime)
+    endsAt: z.string().datetime().optional(), // Subscription end date if cancelled (ISO datetime)
+    trialEndsAt: z.string().datetime().optional(), // Trial end date (ISO datetime)
+    gracePeriodEndsAt: z.string().datetime().optional(), // Grace period end date for failed payments (7 days from past_due)
+    lastSyncedAt: z.string().datetime().optional(), // Last time subscription was synced from Lemon Squeezy
+    lastPaymentEmailSentAt: z.string().datetime().optional(), // Last time payment issue email was sent
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),
