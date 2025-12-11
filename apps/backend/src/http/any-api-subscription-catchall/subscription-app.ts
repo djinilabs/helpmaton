@@ -502,15 +502,15 @@ export const createApp: () => express.Application = () => {
 
       // Create checkout
       const checkout = await createCheckout({
-        store_id: storeId,
-        variant_id: variantId,
-        checkout_data: {
+        storeId,
+        variantId,
+        checkoutData: {
           custom: {
             userId: currentUserId,
           },
           email: req.session?.user?.email || undefined,
         },
-        checkout_options: {
+        checkoutOptions: {
           embed: false,
           media: false,
         },

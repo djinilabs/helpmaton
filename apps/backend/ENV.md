@@ -397,7 +397,7 @@ LEMON_SQUEEZY_WEBHOOK_SECRET=whsec_your_webhook_secret_here
 LEMON_SQUEEZY_STORE_ID=12345
 LEMON_SQUEEZY_STARTER_VARIANT_ID=67890
 LEMON_SQUEEZY_PRO_VARIANT_ID=67891
-LEMON_SQUEEZY_CREDIT_PRODUCT_ID=123456
+LEMON_SQUEEZY_CREDIT_VARIANT_ID=123456
 LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL=http://localhost:5173/subscription?success=true
 LEMON_SQUEEZY_CHECKOUT_CANCEL_URL=http://localhost:5173/subscription?cancelled=true
 ```
@@ -510,17 +510,17 @@ pnpm arc deploy --production --no-hydrate --verbose
   3. Create a variant with price: 99 EUR, billing period: Monthly
   4. Copy the Variant ID (numeric value)
 
-### `LEMON_SQUEEZY_CREDIT_PRODUCT_ID`
+### `LEMON_SQUEEZY_CREDIT_VARIANT_ID`
 
-- **Description**: Lemon Squeezy product ID for credit purchases (used for custom amount purchases)
+- **Description**: Lemon Squeezy variant ID for credit purchases (used for custom amount purchases)
 - **Required**: Yes (for credit purchase functionality)
 - **Example**: `123456`
 - **How to obtain**:
   1. In Lemon Squeezy Dashboard, go to Products
   2. Create a new product named "Credits" or "Workspace Credits"
-  3. Create a single variant (price will be set dynamically via API)
-  4. Copy the Product ID (numeric value)
-- **Note**: The checkout API will allow setting a custom price for this product, so only one product/variant is needed
+  3. Create a single variant with any price (e.g., 1 EUR) - the price will be overridden with `custom_price` during checkout
+  4. Copy the Variant ID (numeric value)
+- **Note**: Even though we use `custom_price` to set the exact amount, Lemon Squeezy requires a variant ID. The variant's default price will be overridden by the custom price you specify.
 
 ### `LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL`
 

@@ -47,10 +47,13 @@ export function registerPostWorkspaceCreditsPurchase(
         throw badRequest("Workspace not found");
       }
 
-      // Get credit product ID
-      const creditProductId = process.env.LEMON_SQUEEZY_CREDIT_PRODUCT_ID;
-      if (!creditProductId) {
-        throw new Error("LEMON_SQUEEZY_CREDIT_PRODUCT_ID is not configured");
+      // Get credit variant ID
+      // Note: Even with custom prices, we need a variant ID
+      // The variant should be from a "Credits" product with a default price
+      // The custom_price will override the variant's price
+      const creditVariantId = process.env.LEMON_SQUEEZY_CREDIT_VARIANT_ID;
+      if (!creditVariantId) {
+        throw new Error("LEMON_SQUEEZY_CREDIT_VARIANT_ID is not configured");
       }
 
       // Get store ID
@@ -60,20 +63,21 @@ export function registerPostWorkspaceCreditsPurchase(
       }
 
       // Create checkout with custom price
+      // We use the credit variant ID and override the price with custom_price
       const checkout = await createCheckout({
-        store_id: storeId,
-        product_id: creditProductId,
-        custom_price: amount * 100, // Convert to cents
-        checkout_data: {
+        storeId,
+        variantId: creditVariantId,
+        customPrice: amount * 100, // Convert to cents
+        checkoutData: {
           custom: {
             workspaceId,
           },
         },
-        product_options: {
+        productOptions: {
           name: "Workspace Credits",
           description: `Add ${amount} EUR in credits to your workspace`,
         },
-        checkout_options: {
+        checkoutOptions: {
           embed: false,
           media: false,
         },

@@ -101,13 +101,14 @@ The following secrets must be configured in your GitHub repository settings (Set
   - Copy the Variant ID (numeric value)
   - Required for Pro plan checkout
 
-- **`LEMON_SQUEEZY_CREDIT_PRODUCT_ID`**: Lemon Squeezy product ID for credit purchases
+- **`LEMON_SQUEEZY_CREDIT_VARIANT_ID`**: Lemon Squeezy variant ID for credit purchases
 
   - Obtain from: https://app.lemonsqueezy.com → Products
   - Create a new product named "Credits" or "Workspace Credits"
-  - Create a single variant (price will be set dynamically via API)
-  - Copy the Product ID (numeric value)
+  - Create a single variant with any price (e.g., 1 EUR) - the price will be overridden with custom_price during checkout
+  - Copy the Variant ID (numeric value)
   - Required for credit purchase functionality
+  - Note: Even with custom prices, a variant ID is required
 
 - **`LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL`**: (Optional) URL to redirect users after successful payment
 
@@ -179,7 +180,7 @@ The deployment workflow automatically sets the following environment variables i
 - `LEMON_SQUEEZY_STORE_ID` - Lemon Squeezy store ID
 - `LEMON_SQUEEZY_STARTER_VARIANT_ID` - Starter plan variant ID
 - `LEMON_SQUEEZY_PRO_VARIANT_ID` - Pro plan variant ID
-- `LEMON_SQUEEZY_CREDIT_PRODUCT_ID` - Credit purchase product ID
+- `LEMON_SQUEEZY_CREDIT_VARIANT_ID` - Credit purchase variant ID
 - `LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL` - (Optional) Success redirect URL
 - `LEMON_SQUEEZY_CHECKOUT_CANCEL_URL` - (Optional) Cancel redirect URL
 
@@ -307,7 +308,7 @@ export LEMON_SQUEEZY_WEBHOOK_SECRET="whsec_your_webhook_secret"
 export LEMON_SQUEEZY_STORE_ID="12345"
 export LEMON_SQUEEZY_STARTER_VARIANT_ID="67890"
 export LEMON_SQUEEZY_PRO_VARIANT_ID="67891"
-export LEMON_SQUEEZY_CREDIT_PRODUCT_ID="123456"
+export LEMON_SQUEEZY_CREDIT_VARIANT_ID="123456"
 
 # Build frontend
 pnpm build
@@ -326,7 +327,7 @@ pnpm arc env --add --env production LEMON_SQUEEZY_WEBHOOK_SECRET "${LEMON_SQUEEZ
 pnpm arc env --add --env production LEMON_SQUEEZY_STORE_ID "${LEMON_SQUEEZY_STORE_ID}"
 pnpm arc env --add --env production LEMON_SQUEEZY_STARTER_VARIANT_ID "${LEMON_SQUEEZY_STARTER_VARIANT_ID}"
 pnpm arc env --add --env production LEMON_SQUEEZY_PRO_VARIANT_ID "${LEMON_SQUEEZY_PRO_VARIANT_ID}"
-pnpm arc env --add --env production LEMON_SQUEEZY_CREDIT_PRODUCT_ID "${LEMON_SQUEEZY_CREDIT_PRODUCT_ID}"
+pnpm arc env --add --env production LEMON_SQUEEZY_CREDIT_VARIANT_ID "${LEMON_SQUEEZY_CREDIT_VARIANT_ID}"
 pnpm arc deploy --production --no-hydrate --verbose
 ```
 

@@ -133,11 +133,10 @@ interface LemonSqueezyVariant {
 }
 
 interface CheckoutData {
-  store_id: string;
-  variant_id?: string;
-  product_id?: string;
-  custom_price?: number;
-  product_options?: {
+  storeId: string;
+  variantId: string; // Required - even for custom price checkouts
+  customPrice?: number;
+  productOptions?: {
     name?: string;
     description?: string;
     media?: unknown[];
@@ -146,7 +145,7 @@ interface CheckoutData {
     receipt_link_url?: string;
     receipt_thank_you_note?: string;
   };
-  checkout_options?: {
+  checkoutOptions?: {
     embed?: boolean;
     media?: boolean;
     logo?: boolean;
@@ -156,14 +155,14 @@ interface CheckoutData {
     subscription_preview?: boolean;
     button_color?: string;
   };
-  checkout_data?: {
+  checkoutData?: {
     email?: string;
     name?: string;
     custom?: Record<string, unknown>;
   };
-  expires_at?: string;
+  expiresAt?: string;
   preview?: boolean;
-  test_mode?: boolean;
+  testMode?: boolean;
 }
 
 interface CheckoutResponse {
@@ -312,18 +311,74 @@ export async function getVariant(
 
 /**
  * Create checkout session
+ * Uses JSON:API format with relationships for store and variant
  */
 export async function createCheckout(
   data: CheckoutData
 ): Promise<{ url: string }> {
+  // Build attributes object (excluding store/variant IDs which go in relationships)
+  const attributes: Record<string, unknown> = {};
+
+  if (data.customPrice !== undefined) {
+    attributes.custom_price = data.customPrice;
+  }
+  if (data.productOptions) {
+    attributes.product_options = data.productOptions;
+  }
+  if (data.checkoutOptions) {
+    attributes.checkout_options = data.checkoutOptions;
+  }
+  if (data.checkoutData) {
+    attributes.checkout_data = data.checkoutData;
+  }
+  if (data.expiresAt) {
+    attributes.expires_at = data.expiresAt;
+  }
+  if (data.preview !== undefined) {
+    attributes.preview = data.preview;
+  }
+
+  // Build relationships object
+  const relationships: Record<string, { data: { type: string; id: string } }> =
+    {};
+
+  // Store is required
+  relationships.store = {
+    data: {
+      type: "stores",
+      id: data.storeId,
+    },
+  };
+
+  // Variant is required for all checkouts (even with custom prices)
+  if (data.variantId) {
+    relationships.variant = {
+      data: {
+        type: "variants",
+        id: data.variantId,
+      },
+    };
+  } else {
+    throw new Error("variantId is required for checkout creation");
+  }
+
+  const requestBody: {
+    data: {
+      type: string;
+      attributes: Record<string, unknown>;
+      relationships: Record<string, { data: { type: string; id: string } }>;
+    };
+  } = {
+    data: {
+      type: "checkouts",
+      attributes,
+      relationships,
+    },
+  };
+
   const response = await apiRequest<CheckoutResponse>("/checkouts", {
     method: "POST",
-    body: JSON.stringify({
-      data: {
-        type: "checkouts",
-        attributes: data,
-      },
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   return { url: response.data.attributes.url };
