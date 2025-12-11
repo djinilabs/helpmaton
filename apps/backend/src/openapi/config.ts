@@ -1,0 +1,151 @@
+/**
+ * OpenAPI 3.1.1 base configuration
+ */
+
+export const openApiConfig = {
+  openapi: "3.1.1",
+  info: {
+    title: "Helpmaton API",
+    version: "0.0.2",
+    description:
+      "RESTful API for Helpmaton - AI agent workspace management and operations",
+  },
+  servers: [
+    {
+      url: process.env.BASE_URL || "https://localhost:5173",
+      description: "Helpmaton API",
+    },
+  ],
+  tags: [
+    { name: "Workspaces", description: "Workspace management operations" },
+    {
+      name: "Workspace Members",
+      description: "Workspace member management operations",
+    },
+    {
+      name: "Workspace Invites",
+      description: "Workspace invite management operations",
+    },
+    {
+      name: "Spending Limits",
+      description: "Spending limit management for workspaces and agents",
+    },
+    { name: "Trial Credits", description: "Trial credit requests and status" },
+    {
+      name: "Workspace Settings",
+      description: "Workspace configuration and settings",
+    },
+    { name: "Agents", description: "AI agent management" },
+    { name: "Documents", description: "Document management" },
+    { name: "Channels", description: "Notification channel management" },
+    { name: "Email", description: "Email connection management" },
+    { name: "MCP Servers", description: "MCP server management" },
+    { name: "Subscription", description: "Subscription management" },
+    { name: "User", description: "User settings and API key management" },
+    { name: "Auth", description: "Authentication operations" },
+    { name: "Usage", description: "Usage statistics" },
+    { name: "Webhooks", description: "Webhook endpoints" },
+    { name: "Streams", description: "Streaming endpoints" },
+  ],
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: "http",
+        scheme: "bearer",
+        bearerFormat: "JWT",
+        description:
+          "Bearer token authentication using JWT access tokens. Use the format: Authorization: Bearer <access-token>. Access tokens are obtained via /api/user/generate-tokens or /api/user/refresh-token.",
+      },
+      cookieAuth: {
+        type: "apiKey",
+        in: "cookie",
+        name: "authjs.session-token",
+        description:
+          "Session cookie authentication (used only for initial token generation via /api/user/generate-tokens)",
+      },
+      apiKeyAuth: {
+        type: "apiKey",
+        in: "header",
+        name: "X-API-Key",
+        description: "API key authentication",
+      },
+    },
+    responses: {
+      Unauthorized: {
+        description: "Authentication required or invalid",
+        content: {
+          "application/json": {
+            schema: {
+              $ref: "#/components/schemas/Error",
+            },
+            example: {
+              statusCode: 401,
+              error: "Unauthorized",
+              message: "Authentication required",
+            },
+          },
+        },
+      },
+      Forbidden: {
+        description: "Insufficient permissions",
+        content: {
+          "application/json": {
+            schema: {
+              $ref: "#/components/schemas/Error",
+            },
+            example: {
+              statusCode: 403,
+              error: "Forbidden",
+              message: "Insufficient permissions",
+            },
+          },
+        },
+      },
+      BadRequest: {
+        description: "Invalid request",
+        content: {
+          "application/json": {
+            schema: {
+              $ref: "#/components/schemas/Error",
+            },
+            example: {
+              statusCode: 400,
+              error: "Bad Request",
+              message: "Invalid request parameters",
+            },
+          },
+        },
+      },
+      NotFound: {
+        description: "Resource not found",
+        content: {
+          "application/json": {
+            schema: {
+              $ref: "#/components/schemas/Error",
+            },
+            example: {
+              statusCode: 404,
+              error: "Not Found",
+              message: "Resource not found",
+            },
+          },
+        },
+      },
+      InternalServerError: {
+        description: "Internal server error",
+        content: {
+          "application/json": {
+            schema: {
+              $ref: "#/components/schemas/Error",
+            },
+            example: {
+              statusCode: 500,
+              error: "Internal Server Error",
+              message: "An unexpected error occurred",
+            },
+          },
+        },
+      },
+    },
+  },
+};

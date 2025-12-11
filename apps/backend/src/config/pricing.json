@@ -1,0 +1,121 @@
+{
+  "_comment": "Pricing configuration for AI models. All prices are per 1 million tokens. The normalizeModelName function in pricing.ts handles mapping preview/variant model names to their base models, so duplicate entries for preview versions are not necessary. Supports both flat pricing (backward compatible) and tiered pricing (for models with different rates based on token count thresholds). Flat pricing uses 'input' and 'output' fields. Tiered pricing uses 'tiers' array with threshold-based rates. Reasoning tokens can be specified with 'reasoning' field (flat) or 'reasoning' in tiers.",
+  "providers": {
+    "google": {
+      "models": {
+        "gemini-2.5-flash": {
+          "usd": {
+            "input": 0.075,
+            "output": 0.3
+          },
+          "eur": {
+            "input": 0.064,
+            "output": 0.258
+          },
+          "gbp": {
+            "input": 0.056,
+            "output": 0.225
+          }
+        },
+        "gemini-2.0-flash-exp": {
+          "usd": {
+            "input": 0.075,
+            "output": 0.3
+          },
+          "eur": {
+            "input": 0.064,
+            "output": 0.258
+          },
+          "gbp": {
+            "input": 0.056,
+            "output": 0.225
+          }
+        },
+        "gemini-2.5-flash-lite": {
+          "usd": {
+            "input": 0.075,
+            "output": 0.3
+          },
+          "eur": {
+            "input": 0.064,
+            "output": 0.258
+          },
+          "gbp": {
+            "input": 0.056,
+            "output": 0.225
+          }
+        },
+        "gemini-2.5-flash-preview-09-2025": {
+          "usd": {
+            "input": 0.075,
+            "output": 0.3
+          },
+          "eur": {
+            "input": 0.064,
+            "output": 0.258
+          },
+          "gbp": {
+            "input": 0.056,
+            "output": 0.225
+          }
+        },
+        "gemini-2.5-flash-lite-preview-09-2025": {
+          "usd": {
+            "input": 0.075,
+            "output": 0.3
+          },
+          "eur": {
+            "input": 0.064,
+            "output": 0.258
+          },
+          "gbp": {
+            "input": 0.056,
+            "output": 0.225
+          }
+        },
+        "gemini-2.5-pro": {
+          "usd": {
+            "tiers": [
+              {
+                "threshold": 200000,
+                "input": 1.25,
+                "output": 10
+              },
+              {
+                "input": 2.5,
+                "output": 15
+              }
+            ]
+          },
+          "eur": {
+            "tiers": [
+              {
+                "threshold": 200000,
+                "input": 1.074,
+                "output": 8.595
+              },
+              {
+                "input": 2.149,
+                "output": 12.893
+              }
+            ]
+          },
+          "gbp": {
+            "tiers": [
+              {
+                "threshold": 200000,
+                "input": 0.939,
+                "output": 7.513
+              },
+              {
+                "input": 1.878,
+                "output": 11.27
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "lastUpdated": "2025-12-11T00:17:36.479Z"
+}

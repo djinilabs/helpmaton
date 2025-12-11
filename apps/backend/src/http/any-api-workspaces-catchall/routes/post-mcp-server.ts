@@ -1,0 +1,202 @@
+import { randomUUID } from "crypto";
+
+import { badRequest, unauthorized } from "@hapi/boom";
+import express from "express";
+
+import { database } from "../../../tables";
+import { PERMISSION_LEVELS } from "../../../tables/schema";
+import {
+  checkSubscriptionLimits,
+  ensureWorkspaceSubscription,
+} from "../../../utils/subscriptionUtils";
+import { handleError, requireAuth, requirePermission } from "../middleware";
+
+/**
+ * @openapi
+ * /api/workspaces/{workspaceId}/mcp-servers:
+ *   post:
+ *     summary: Create workspace MCP server
+ *     description: Creates a new MCP (Model Context Protocol) server for a workspace
+ *     tags:
+ *       - MCP Servers
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: workspaceId
+ *         in: path
+ *         required: true
+ *         description: Workspace ID
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - url
+ *               - authType
+ *               - config
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: MCP server name
+ *               url:
+ *                 type: string
+ *                 format: uri
+ *                 description: MCP server URL
+ *               authType:
+ *                 type: string
+ *                 enum: [none, header, basic]
+ *                 description: Authentication type
+ *               config:
+ *                 type: object
+ *                 description: Authentication configuration
+ *                 properties:
+ *                   headerValue:
+ *                     type: string
+ *                     description: Header value (required for header auth)
+ *                   username:
+ *                     type: string
+ *                     description: Username (required for basic auth)
+ *                   password:
+ *                     type: string
+ *                     description: Password (required for basic auth)
+ *     responses:
+ *       201:
+ *         description: MCP server created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 url:
+ *                   type: string
+ *                 authType:
+ *                   type: string
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *                 updatedAt:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+export const registerPostMcpServer = (app: express.Application) => {
+  app.post(
+    "/api/workspaces/:workspaceId/mcp-servers",
+    requireAuth,
+    requirePermission(PERMISSION_LEVELS.WRITE),
+    async (req, res, next) => {
+      try {
+        const { name, url, authType, config } = req.body;
+        if (!name || typeof name !== "string") {
+          throw badRequest("name is required and must be a string");
+        }
+        if (!url || typeof url !== "string") {
+          throw badRequest("url is required and must be a string");
+        }
+        // Validate URL format
+        try {
+          new URL(url);
+        } catch {
+          throw badRequest("url must be a valid URL");
+        }
+        if (!authType || typeof authType !== "string") {
+          throw badRequest("authType is required and must be a string");
+        }
+        if (!["none", "header", "basic"].includes(authType)) {
+          throw badRequest(
+            'authType must be one of: "none", "header", "basic"'
+          );
+        }
+        if (typeof config !== "object" || config === null) {
+          throw badRequest("config is required and must be a non-null object");
+        }
+
+        // Validate config based on authType
+        if (authType === "header") {
+          if (!config.headerValue || typeof config.headerValue !== "string") {
+            throw badRequest(
+              "config.headerValue is required for header authentication"
+            );
+          }
+        } else if (authType === "basic") {
+          if (!config.username || typeof config.username !== "string") {
+            throw badRequest(
+              "config.username is required for basic authentication"
+            );
+          }
+          if (!config.password || typeof config.password !== "string") {
+            throw badRequest(
+              "config.password is required for basic authentication"
+            );
+          }
+        }
+
+        const db = await database();
+        const workspaceResource = req.workspaceResource;
+        if (!workspaceResource) {
+          throw badRequest("Workspace resource not found");
+        }
+        const currentUserRef = req.userRef;
+        if (!currentUserRef) {
+          throw unauthorized();
+        }
+        const workspaceId = req.params.workspaceId;
+
+        // Ensure workspace has a subscription and check MCP server limit
+        const userId = currentUserRef.replace("users/", "");
+        const subscriptionId = await ensureWorkspaceSubscription(
+          workspaceId,
+          userId
+        );
+        await checkSubscriptionLimits(subscriptionId, "mcpServer", 1);
+
+        const serverId = randomUUID();
+        const pk = `mcp-servers/${workspaceId}/${serverId}`;
+        const sk = "server";
+
+        // Create MCP server
+        const server = await db["mcp-server"].create({
+          pk,
+          sk,
+          workspaceId,
+          name,
+          url,
+          authType: authType as "none" | "header" | "basic",
+          config,
+          createdBy: currentUserRef,
+        });
+
+        res.status(201).json({
+          id: serverId,
+          name: server.name,
+          url: server.url,
+          authType: server.authType,
+          createdAt: server.createdAt,
+          updatedAt: server.updatedAt,
+        });
+      } catch (error) {
+        handleError(
+          error,
+          next,
+          "POST /api/workspaces/:workspaceId/mcp-servers"
+        );
+      }
+    }
+  );
+};

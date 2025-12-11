@@ -1,0 +1,173 @@
+import { randomUUID } from "crypto";
+
+import { badRequest, unauthorized } from "@hapi/boom";
+import express from "express";
+
+import { database } from "../../../tables";
+import { PERMISSION_LEVELS } from "../../../tables/schema";
+import {
+  checkSubscriptionLimits,
+  ensureWorkspaceSubscription,
+} from "../../../utils/subscriptionUtils";
+import { handleError, requireAuth, requirePermission } from "../middleware";
+
+/**
+ * @openapi
+ * /api/workspaces/{workspaceId}/channels:
+ *   post:
+ *     summary: Create workspace channel
+ *     description: Creates a new notification channel for a workspace
+ *     tags:
+ *       - Channels
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: workspaceId
+ *         in: path
+ *         required: true
+ *         description: Workspace ID
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - type
+ *               - name
+ *               - config
+ *             properties:
+ *               type:
+ *                 type: string
+ *                 enum: [discord]
+ *                 description: Channel type
+ *               name:
+ *                 type: string
+ *                 description: Channel name
+ *               config:
+ *                 type: object
+ *                 description: Channel-specific configuration
+ *                 properties:
+ *                   botToken:
+ *                     type: string
+ *                     description: Discord bot token (required for discord type)
+ *                   discordChannelId:
+ *                     type: string
+ *                     description: Discord channel ID (required for discord type)
+ *     responses:
+ *       201:
+ *         description: Channel created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 name:
+ *                   type: string
+ *                 type:
+ *                   type: string
+ *                 createdAt:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+export const registerPostWorkspaceChannels = (app: express.Application) => {
+  app.post(
+    "/api/workspaces/:workspaceId/channels",
+    requireAuth,
+    requirePermission(PERMISSION_LEVELS.WRITE),
+    async (req, res, next) => {
+      try {
+        const { type, name, config } = req.body;
+        if (!type || typeof type !== "string") {
+          throw badRequest("type is required and must be a string");
+        }
+        if (!name || typeof name !== "string") {
+          throw badRequest("name is required and must be a string");
+        }
+        if (!config || typeof config !== "object") {
+          throw badRequest("config is required and must be an object");
+        }
+
+        // Validate type-specific config
+        if (type === "discord") {
+          if (!config.botToken || typeof config.botToken !== "string") {
+            throw badRequest(
+              "config.botToken is required for Discord channels"
+            );
+          }
+          if (
+            !config.discordChannelId ||
+            typeof config.discordChannelId !== "string"
+          ) {
+            throw badRequest(
+              "config.discordChannelId is required for Discord channels"
+            );
+          }
+          // Validate bot token format (Discord tokens contain dots and are typically 59+ characters)
+          // Format: [base64].[timestamp].[hmac] - typically 59-70 characters
+          if (!/^[A-Za-z0-9._-]{59,}$/.test(config.botToken)) {
+            throw badRequest("Invalid Discord bot token format");
+          }
+        } else {
+          throw badRequest(`Unsupported channel type: ${type}`);
+        }
+
+        const db = await database();
+        const workspaceResource = req.workspaceResource;
+        if (!workspaceResource) {
+          throw badRequest("Workspace resource not found");
+        }
+        const currentUserRef = req.userRef;
+        if (!currentUserRef) {
+          throw unauthorized();
+        }
+        const workspaceId = req.params.workspaceId;
+
+        // Ensure workspace has a subscription and check channel limit
+        const userId = currentUserRef.replace("users/", "");
+        const subscriptionId = await ensureWorkspaceSubscription(
+          workspaceId,
+          userId
+        );
+        await checkSubscriptionLimits(subscriptionId, "channel", 1);
+
+        const channelId = randomUUID();
+        const channelPk = `output-channels/${workspaceId}/${channelId}`;
+        const channelSk = "channel";
+
+        // Create channel entity
+        const channel = await db["output_channel"].create({
+          pk: channelPk,
+          sk: channelSk,
+          workspaceId,
+          channelId,
+          type,
+          name,
+          config,
+          createdBy: currentUserRef,
+        });
+
+        res.status(201).json({
+          id: channel.channelId,
+          name: channel.name,
+          type: channel.type,
+          createdAt: channel.createdAt,
+        });
+      } catch (error) {
+        handleError(error, next, "POST /api/workspaces/:workspaceId/channels");
+      }
+    }
+  );
+};

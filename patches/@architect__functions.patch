@@ -1,0 +1,13 @@
+diff --git a/src/tables/factory.js b/src/tables/factory.js
+index 2c48eaf86bc9379ed3ca78e70ef17d481cf421ca..df88b64e513126f5a6b80c7f63401c453e7c7237 100644
+--- a/src/tables/factory.js
++++ b/src/tables/factory.js
+@@ -37,7 +37,7 @@ module.exports = function factory ({ services, options = {} }, callback) {
+         }
+         getAwsClient(config, (err, aws) => {
+           if (err) callback(err)
+-          else dynamoConstructor({ aws, local, options, tables }, callback)
++          else dynamoConstructor({ aws, local, options, tables, port }, callback)
+         })
+       }
+     })

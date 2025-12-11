@@ -1,0 +1,25 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+apps/backend/.env
+
+# Local database files
+apps/backend/db
+apps/backend/db2
+
+# Local S3 emulation data
+apps/backend/.s3rver_data
+apps/backend/**/.s3rver_data
+
+# Public build output
+apps/backend/public
+
+# E2E test results
+test-results
+playwright-report
+.test-processes.json
+
+# Auto-generated CloudFormation/SAM templates (may contain secrets)
+apps/backend/sam.json
+**/sam.json
