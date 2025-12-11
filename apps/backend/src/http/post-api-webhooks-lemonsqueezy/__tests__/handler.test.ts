@@ -1,0 +1,515 @@
+import type { APIGatewayProxyResultV2 } from "aws-lambda";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { createAPIGatewayEventV2 } from "../../utils/__tests__/test-helpers";
+
+import { handler } from "../index";
+
+// Mock dependencies using vi.hoisted
+const {
+  mockDatabase,
+  mockVerifyWebhookSignature,
+  mockGetLemonSqueezySubscription,
+  mockGetLemonSqueezyOrder,
+  mockGetUserSubscription,
+  mockGetSubscriptionById,
+  mockSendPaymentFailedEmail,
+  mockSendSubscriptionCancelledEmail,
+  mockGetUserEmailById,
+} = vi.hoisted(() => {
+  const database = vi.fn();
+  const verifyWebhookSignature = vi.fn();
+  const getSubscription = vi.fn();
+  const getOrder = vi.fn();
+  const getUserSubscription = vi.fn();
+  const getSubscriptionById = vi.fn();
+  const sendPaymentFailedEmail = vi.fn();
+  const sendSubscriptionCancelledEmail = vi.fn();
+  const getUserEmailById = vi.fn().mockResolvedValue("user@example.com");
+  return {
+    mockDatabase: database,
+    mockVerifyWebhookSignature: verifyWebhookSignature,
+    mockGetLemonSqueezySubscription: getSubscription,
+    mockGetLemonSqueezyOrder: getOrder,
+    mockGetUserSubscription: getUserSubscription,
+    mockGetSubscriptionById: getSubscriptionById,
+    mockSendPaymentFailedEmail: sendPaymentFailedEmail,
+    mockSendSubscriptionCancelledEmail: sendSubscriptionCancelledEmail,
+    mockGetUserEmailById: getUserEmailById,
+  };
+});
+
+vi.mock("../../../tables", () => ({
+  database: () => mockDatabase(),
+}));
+
+vi.mock("../../../utils/lemonSqueezy", () => ({
+  verifyWebhookSignature: mockVerifyWebhookSignature,
+  getSubscription: mockGetLemonSqueezySubscription,
+  getOrder: mockGetLemonSqueezyOrder,
+}));
+
+vi.mock("../../../utils/subscriptionUtils", () => ({
+  getUserSubscription: mockGetUserSubscription,
+  getSubscriptionById: mockGetSubscriptionById,
+  getUserEmailById: mockGetUserEmailById,
+}));
+
+vi.mock("../../../utils/subscriptionEmails", () => ({
+  sendPaymentFailedEmail: mockSendPaymentFailedEmail,
+  sendSubscriptionCancelledEmail: mockSendSubscriptionCancelledEmail,
+}));
+
+// Mock crypto for signature verification
+const mockCreateHmac = vi.fn();
+const mockHmacUpdate = vi.fn();
+const mockHmacDigest = vi.fn();
+const mockTimingSafeEqual = vi.fn();
+
+vi.mock("crypto", () => ({
+  default: {
+    createHmac: mockCreateHmac,
+    timingSafeEqual: mockTimingSafeEqual,
+  },
+}));
+
+describe("Lemon Squeezy Webhook Handler", () => {
+  let mockDb: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.LEMON_SQUEEZY_WEBHOOK_SECRET = "test-secret";
+    process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID = "var-starter";
+    process.env.LEMON_SQUEEZY_PRO_VARIANT_ID = "var-pro";
+
+    mockDb = {
+      subscription: {
+        update: vi.fn().mockResolvedValue(undefined),
+        get: vi.fn(),
+        query: vi.fn(),
+      },
+      workspace: {
+        get: vi.fn(),
+        atomicUpdate: vi.fn().mockResolvedValue(undefined),
+      },
+      "next-auth": {
+        query: vi.fn(),
+      },
+    };
+
+    mockDatabase.mockResolvedValue(mockDb);
+    mockVerifyWebhookSignature.mockReturnValue(true);
+
+    // Setup crypto mocks
+    const mockHmac = {
+      update: mockHmacUpdate,
+      digest: mockHmacDigest,
+    };
+    mockHmacUpdate.mockReturnValue(mockHmac);
+    mockCreateHmac.mockReturnValue(mockHmac);
+    mockHmacDigest.mockReturnValue("valid-signature");
+    mockTimingSafeEqual.mockReturnValue(true);
+  });
+
+  describe("signature verification", () => {
+    it("should return 401 if signature is missing", async () => {
+      const event = createAPIGatewayEventV2({
+        headers: {},
+        body: JSON.stringify({
+          meta: { event_name: "subscription_created" },
+          data: { id: "sub-123", type: "subscriptions", attributes: {} },
+        }),
+      });
+
+      // Handler is wrapped by adaptHttpHandler which returns a Promise
+      const result = (await handler(event, {} as any, () => {})) as any;
+
+      expect(result.statusCode).toBe(401);
+      expect(JSON.parse(result.body || "{}")).toEqual({
+        error: "Missing signature",
+      });
+    });
+
+    it("should return 401 if signature is invalid", async () => {
+      mockVerifyWebhookSignature.mockReturnValue(false);
+
+      const event = createAPIGatewayEventV2({
+        headers: {
+          "x-signature": "invalid-signature",
+        },
+        body: JSON.stringify({
+          meta: { event_name: "subscription_created" },
+          data: { id: "sub-123", type: "subscriptions", attributes: {} },
+        }),
+      });
+
+      const result = (await handler(event, {} as any, () => {})) as any;
+
+      expect(result.statusCode).toBe(401);
+      expect(JSON.parse(result.body || "{}")).toEqual({
+        error: "Invalid signature",
+      });
+    });
+  });
+
+  describe("subscription_created", () => {
+    it("should handle subscription_created with subscription ID from custom data", async () => {
+      const subscription = {
+        pk: "subscriptions/sub-123",
+        sk: "subscription",
+        userId: "user-123",
+        plan: "free",
+        createdAt: new Date().toISOString(),
+        version: 1,
+      };
+
+      mockGetSubscriptionById.mockResolvedValue(subscription);
+
+      const event = createAPIGatewayEventV2({
+        headers: {
+          "x-signature": "valid-signature",
+        },
+        body: JSON.stringify({
+          meta: {
+            event_name: "subscription_created",
+            custom_data: {
+              subscriptionId: "sub-123",
+              userId: "user-123",
+            },
+          },
+          data: {
+            id: "ls-sub-123",
+            type: "subscriptions",
+            attributes: {
+              store_id: 1,
+              customer_id: 1,
+              order_id: 1,
+              variant_id: "var-starter",
+              user_email: "user@example.com",
+              status: "active",
+              renews_at: "2025-02-01T00:00:00Z",
+              ends_at: null,
+              trial_ends_at: null,
+              created_at: new Date().toISOString(),
+            },
+          },
+        }),
+      });
+
+      const result = (await handler(event, {} as any, () => {})) as any;
+
+      expect(result.statusCode).toBe(200);
+      expect(mockGetSubscriptionById).toHaveBeenCalledWith("sub-123");
+      expect(mockDb.subscription.update).toHaveBeenCalled();
+    });
+
+    it("should fallback to email lookup if subscription ID not found", async () => {
+      mockGetSubscriptionById.mockResolvedValue(undefined);
+
+      const subscription = {
+        pk: "subscriptions/sub-123",
+        sk: "subscription",
+        userId: "user-123",
+        plan: "free",
+        createdAt: new Date().toISOString(),
+        version: 1,
+      };
+
+      mockGetUserSubscription.mockResolvedValue(subscription);
+
+      const event = createAPIGatewayEventV2({
+        headers: {
+          "x-signature": "valid-signature",
+        },
+        body: JSON.stringify({
+          meta: {
+            event_name: "subscription_created",
+            custom_data: {},
+          },
+          data: {
+            id: "ls-sub-123",
+            type: "subscriptions",
+            attributes: {
+              store_id: 1,
+              customer_id: 1,
+              order_id: 1,
+              variant_id: "var-starter",
+              user_email: "user@example.com",
+              status: "active",
+              renews_at: "2025-02-01T00:00:00Z",
+              ends_at: null,
+              trial_ends_at: null,
+              created_at: new Date().toISOString(),
+            },
+          },
+        }),
+      });
+
+      // Mock findUserIdByEmail by querying next-auth table
+      mockDb["next-auth"].query.mockResolvedValue({
+        items: [{ id: "user-123" }],
+      });
+
+      const result = (await handler(event, {} as any, () => {})) as any;
+
+      expect(result.statusCode).toBe(200);
+      expect(mockGetUserSubscription).toHaveBeenCalled();
+    });
+  });
+
+  describe("subscription_updated", () => {
+    it("should handle subscription_updated event", async () => {
+      const subscription = {
+        pk: "subscriptions/sub-123",
+        sk: "subscription",
+        userId: "user-123",
+        plan: "starter",
+        status: "active",
+        lemonSqueezySubscriptionId: "ls-sub-123",
+        createdAt: new Date().toISOString(),
+        version: 1,
+      };
+
+      mockGetSubscriptionById.mockResolvedValue(subscription);
+      mockGetLemonSqueezySubscription.mockResolvedValue({
+        attributes: {
+          user_email: "user@example.com",
+        },
+      });
+
+      const event = createAPIGatewayEventV2({
+        headers: {
+          "x-signature": "valid-signature",
+        },
+        body: JSON.stringify({
+          meta: {
+            event_name: "subscription_updated",
+            custom_data: {
+              subscriptionId: "sub-123",
+            },
+          },
+          data: {
+            id: "ls-sub-123",
+            type: "subscriptions",
+            attributes: {
+              status: "active",
+              renews_at: "2025-02-01T00:00:00Z",
+              ends_at: null,
+              trial_ends_at: null,
+              variant_id: "var-starter",
+            },
+          },
+        }),
+      });
+
+      const result = (await handler(event, {} as any, () => {})) as any;
+
+      expect(result.statusCode).toBe(200);
+      expect(mockDb.subscription.update).toHaveBeenCalled();
+    });
+  });
+
+  describe("subscription_past_due", () => {
+    it("should handle subscription_past_due event", async () => {
+      const subscription = {
+        pk: "subscriptions/sub-123",
+        sk: "subscription",
+        userId: "user-123",
+        plan: "starter",
+        status: "active",
+        lemonSqueezySubscriptionId: "ls-sub-123",
+        createdAt: new Date().toISOString(),
+        version: 1,
+      };
+
+      mockGetSubscriptionById.mockResolvedValue(subscription);
+
+      const event = createAPIGatewayEventV2({
+        headers: {
+          "x-signature": "valid-signature",
+        },
+        body: JSON.stringify({
+          meta: {
+            event_name: "subscription_past_due",
+            custom_data: {
+              subscriptionId: "sub-123",
+            },
+          },
+          data: {
+            id: "ls-sub-123",
+            type: "subscriptions",
+            attributes: {},
+          },
+        }),
+      });
+
+      const result = await handler(event);
+
+      expect(result.statusCode).toBe(200);
+      expect(mockDb.subscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "past_due",
+          gracePeriodEndsAt: expect.any(String),
+        })
+      );
+      expect(mockSendPaymentFailedEmail).toHaveBeenCalled();
+    });
+  });
+
+  describe("subscription_cancelled", () => {
+    it("should handle subscription_cancelled event", async () => {
+      const subscription = {
+        pk: "subscriptions/sub-123",
+        sk: "subscription",
+        userId: "user-123",
+        plan: "starter",
+        status: "active",
+        lemonSqueezySubscriptionId: "ls-sub-123",
+        createdAt: new Date().toISOString(),
+        version: 1,
+      };
+
+      mockGetSubscriptionById.mockResolvedValue(subscription);
+      mockGetLemonSqueezySubscription.mockResolvedValue({
+        attributes: {
+          user_email: "user@example.com",
+          ends_at: "2025-03-01T00:00:00Z",
+        },
+      });
+
+      const event = createAPIGatewayEventV2({
+        headers: {
+          "x-signature": "valid-signature",
+        },
+        body: JSON.stringify({
+          meta: {
+            event_name: "subscription_cancelled",
+            custom_data: {
+              subscriptionId: "sub-123",
+            },
+          },
+          data: {
+            id: "ls-sub-123",
+            type: "subscriptions",
+            attributes: {},
+          },
+        }),
+      });
+
+      const result = await handler(event);
+
+      expect(result.statusCode).toBe(200);
+      expect(mockDb.subscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "cancelled",
+        })
+      );
+      expect(mockSendSubscriptionCancelledEmail).toHaveBeenCalled();
+    });
+  });
+
+  describe("order_created", () => {
+    it("should handle order_created event for credit purchase", async () => {
+      const workspace = {
+        pk: "workspaces/ws-123",
+        sk: "workspace",
+        creditBalance: 100,
+      };
+
+      mockDb.workspace.get.mockResolvedValue(workspace);
+      mockGetLemonSqueezyOrder.mockResolvedValue({
+        attributes: {
+          total: 5000, // 50.00 EUR in cents
+        },
+      });
+
+      const event = createAPIGatewayEventV2({
+        headers: {
+          "x-signature": "valid-signature",
+        },
+        body: JSON.stringify({
+          meta: {
+            event_name: "order_created",
+            custom_data: {
+              workspaceId: "ws-123",
+            },
+          },
+          data: {
+            id: "order-123",
+            type: "orders",
+            attributes: {},
+          },
+        }),
+      });
+
+      const result = await handler(event);
+
+      expect(result.statusCode).toBe(200);
+      expect(mockDb.workspace.atomicUpdate).toHaveBeenCalled();
+    });
+
+    it("should return early if workspace ID is missing", async () => {
+      const event = createAPIGatewayEventV2({
+        headers: {
+          "x-signature": "valid-signature",
+        },
+        body: JSON.stringify({
+          meta: {
+            event_name: "order_created",
+            custom_data: {},
+          },
+          data: {
+            id: "order-123",
+            type: "orders",
+            attributes: {},
+          },
+        }),
+      });
+
+      const result = await handler(event);
+
+      expect(result.statusCode).toBe(200);
+      expect(mockDb.workspace.atomicUpdate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("error handling", () => {
+    it("should return 200 even if handler throws error", async () => {
+      mockGetSubscriptionById.mockRejectedValue(new Error("Database error"));
+
+      const event = createAPIGatewayEventV2({
+        headers: {
+          "x-signature": "valid-signature",
+        },
+        body: JSON.stringify({
+          meta: {
+            event_name: "subscription_created",
+            custom_data: {
+              subscriptionId: "sub-123",
+            },
+          },
+          data: {
+            id: "ls-sub-123",
+            type: "subscriptions",
+            attributes: {
+              store_id: 1,
+              customer_id: 1,
+              order_id: 1,
+              variant_id: "var-starter",
+              user_email: "user@example.com",
+              status: "active",
+              renews_at: "2025-02-01T00:00:00Z",
+              ends_at: null,
+              trial_ends_at: null,
+              created_at: new Date().toISOString(),
+            },
+          },
+        }),
+      });
+
+      // Should still return 200 to prevent Lemon Squeezy from retrying
+      const result = (await handler(event, {} as any, () => {})) as any;
+      expect(result.statusCode).toBe(200);
+    });
+  });
+});
