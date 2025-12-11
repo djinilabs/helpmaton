@@ -1,5 +1,5 @@
 import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { FC } from "react";
 
 import { LoadingScreen } from "../components/LoadingScreen";
@@ -12,6 +12,7 @@ import {
   useSubscriptionCheckout,
   useSubscriptionCancel,
   useSubscriptionPortal,
+  useSubscriptionSync,
 } from "../hooks/useSubscription";
 
 const SubscriptionManagement: FC = () => {
@@ -26,6 +27,20 @@ const SubscriptionManagement: FC = () => {
   const checkoutMutation = useSubscriptionCheckout();
   const cancelMutation = useSubscriptionCancel();
   const portalQuery = useSubscriptionPortal();
+  const syncMutation = useSubscriptionSync();
+  const hasSyncedRef = useRef(false);
+
+  // Sync subscription from Lemon Squeezy when page loads (only once)
+  useEffect(() => {
+    if (!isLoading && subscription && !hasSyncedRef.current) {
+      // Only sync if subscription has Lemon Squeezy data (status or renewsAt indicates Lemon Squeezy subscription)
+      if (subscription.status || subscription.renewsAt) {
+        hasSyncedRef.current = true;
+        syncMutation.mutate();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, subscription?.subscriptionId]);
 
   // Only query user by email when email is provided and valid format
   const shouldQueryUser = email.trim().length > 0 && email.includes("@");

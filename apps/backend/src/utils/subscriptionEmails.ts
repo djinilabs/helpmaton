@@ -3,9 +3,9 @@
  * Sends emails for payment issues and subscription changes
  */
 
+import { sendEmail } from "../send-email";
 import type { SubscriptionRecord } from "../tables/schema";
 
-import { sendEmail } from "../send-email";
 import { getPlanLimits } from "./subscriptionPlans";
 
 const BASE_URL = process.env.BASE_URL || "https://app.helpmaton.com";

@@ -197,6 +197,26 @@ function getApiKey(): string {
 }
 
 /**
+ * Check if we're in test mode
+ * Test mode is determined by:
+ * 1. NODE_ENV not being "production" (development, test, staging, etc.)
+ * 2. Or explicit LEMON_SQUEEZY_TEST_MODE environment variable (overrides NODE_ENV)
+ */
+function isTestMode(): boolean {
+  // Check explicit environment variable first (overrides NODE_ENV)
+  if (process.env.LEMON_SQUEEZY_TEST_MODE === "true") {
+    return true;
+  }
+  if (process.env.LEMON_SQUEEZY_TEST_MODE === "false") {
+    return false;
+  }
+
+  // Use NODE_ENV: if not production, use test mode
+  const nodeEnv = process.env.NODE_ENV || process.env.ARC_ENV;
+  return nodeEnv !== "production";
+}
+
+/**
  * Make authenticated request to Lemon Squeezy API
  */
 async function apiRequest<T>(
@@ -218,9 +238,29 @@ async function apiRequest<T>(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(
-      `Lemon Squeezy API error: ${response.status} ${response.statusText} - ${errorText}`
-    );
+    let errorMessage = `Lemon Squeezy API error: ${response.status} ${response.statusText}`;
+
+    // Try to parse error details for better error messages
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.errors && Array.isArray(errorJson.errors)) {
+        const errorDetails = errorJson.errors
+          .map((err: { detail?: string; source?: { pointer?: string } }) => {
+            const pointer = err.source?.pointer || "unknown";
+            const detail = err.detail || "Unknown error";
+            return `${pointer}: ${detail}`;
+          })
+          .join("; ");
+        errorMessage += ` - ${errorDetails}`;
+      } else {
+        errorMessage += ` - ${errorText}`;
+      }
+    } catch {
+      // If parsing fails, use the raw error text
+      errorMessage += ` - ${errorText}`;
+    }
+
+    throw new Error(errorMessage);
   }
 
   return response.json();
@@ -338,6 +378,14 @@ export async function createCheckout(
     attributes.preview = data.preview;
   }
 
+  // Set test_mode based on API key or explicit configuration
+  // If testMode is explicitly set in data, use that; otherwise auto-detect
+  if (data.testMode !== undefined) {
+    attributes.test_mode = data.testMode;
+  } else {
+    attributes.test_mode = isTestMode();
+  }
+
   // Build relationships object
   const relationships: Record<string, { data: { type: string; id: string } }> =
     {};
@@ -376,12 +424,46 @@ export async function createCheckout(
     },
   };
 
-  const response = await apiRequest<CheckoutResponse>("/checkouts", {
-    method: "POST",
-    body: JSON.stringify(requestBody),
+  // Log the request for debugging (without sensitive data)
+  const testMode = data.testMode !== undefined ? data.testMode : isTestMode();
+  console.log("[createCheckout] Creating checkout:", {
+    storeId: data.storeId,
+    variantId: data.variantId,
+    hasCustomPrice: data.customPrice !== undefined,
+    customPrice: data.customPrice,
+    testMode,
   });
 
-  return { url: response.data.attributes.url };
+  try {
+    const response = await apiRequest<CheckoutResponse>("/checkouts", {
+      method: "POST",
+      body: JSON.stringify(requestBody),
+    });
+
+    return { url: response.data.attributes.url };
+  } catch (error) {
+    // Provide more helpful error messages
+    if (error instanceof Error) {
+      if (error.message.includes("404") && error.message.includes("variant")) {
+        throw new Error(
+          `Variant ID ${data.variantId} not found. Please verify:
+1. The variant ID is correct in your environment variable
+2. The variant belongs to store ${data.storeId}
+3. The variant exists in your Lemon Squeezy dashboard
+Original error: ${error.message}`
+        );
+      }
+      if (error.message.includes("404") && error.message.includes("store")) {
+        throw new Error(
+          `Store ID ${data.storeId} not found. Please verify:
+1. The store ID is correct in your environment variable
+2. The store exists in your Lemon Squeezy dashboard
+Original error: ${error.message}`
+        );
+      }
+    }
+    throw error;
+  }
 }
 
 /**

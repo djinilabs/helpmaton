@@ -56,7 +56,8 @@ function variantIdToPlan(variantId: string): "starter" | "pro" {
  * Handle subscription_created event
  */
 async function handleSubscriptionCreated(
-  subscriptionData: LemonSqueezyWebhookEvent["data"]
+  subscriptionData: LemonSqueezyWebhookEvent["data"],
+  customData?: Record<string, unknown>
 ): Promise<void> {
   const db = await database();
   const attributes = subscriptionData.attributes as {
@@ -72,17 +73,37 @@ async function handleSubscriptionCreated(
     created_at: string;
   };
 
-  // Find user by email
-  const userId = await findUserIdByEmail(attributes.user_email);
-  if (!userId) {
-    console.error(
-      `[Webhook] User not found for email ${attributes.user_email}`
+  // Try to get subscription ID from custom data first (more efficient)
+  const subscriptionIdFromCustom = customData?.subscriptionId as
+    | string
+    | undefined;
+  let subscription;
+
+  if (subscriptionIdFromCustom) {
+    // Use subscription ID from custom data
+    const { getSubscriptionById } = await import(
+      "../../utils/subscriptionUtils"
     );
-    return;
+    subscription = await getSubscriptionById(subscriptionIdFromCustom);
+    if (!subscription) {
+      console.error(
+        `[Webhook] Subscription ${subscriptionIdFromCustom} not found, falling back to email lookup`
+      );
+    }
   }
 
-  // Get or create user subscription
-  const subscription = await getUserSubscription(userId);
+  // Fallback to email lookup if subscription ID not found
+  if (!subscription) {
+    const userId = await findUserIdByEmail(attributes.user_email);
+    if (!userId) {
+      console.error(
+        `[Webhook] User not found for email ${attributes.user_email}`
+      );
+      return;
+    }
+    subscription = await getUserSubscription(userId);
+  }
+
   const subscriptionId = subscription.pk.replace("subscriptions/", "");
 
   // Determine plan from variant ID
@@ -113,7 +134,8 @@ async function handleSubscriptionCreated(
  * Handle subscription_updated event
  */
 async function handleSubscriptionUpdated(
-  subscriptionData: LemonSqueezyWebhookEvent["data"]
+  subscriptionData: LemonSqueezyWebhookEvent["data"],
+  customData?: Record<string, unknown>
 ): Promise<void> {
   const db = await database();
   const attributes = subscriptionData.attributes as {
@@ -124,22 +146,41 @@ async function handleSubscriptionUpdated(
     variant_id: number;
   };
 
-  // Find subscription by Lemon Squeezy subscription ID
-  // We'll fetch the subscription from Lemon Squeezy to get customer email
+  // Try to get subscription ID from custom data first (more efficient)
+  const subscriptionIdFromCustom = customData?.subscriptionId as
+    | string
+    | undefined;
+  let subscription;
 
-  // Get full subscription from Lemon Squeezy to find customer
-  const lemonSqueezySub = await getLemonSqueezySubscription(
-    subscriptionData.id
-  );
-  const userEmail = lemonSqueezySub.attributes.user_email;
-
-  const userId = await findUserIdByEmail(userEmail);
-  if (!userId) {
-    console.error(`[Webhook] User not found for email ${userEmail}`);
-    return;
+  if (subscriptionIdFromCustom) {
+    // Use subscription ID from custom data
+    const { getSubscriptionById } = await import(
+      "../../utils/subscriptionUtils"
+    );
+    subscription = await getSubscriptionById(subscriptionIdFromCustom);
+    if (!subscription) {
+      console.error(
+        `[Webhook] Subscription ${subscriptionIdFromCustom} not found, falling back to email lookup`
+      );
+    }
   }
 
-  const subscription = await getUserSubscription(userId);
+  // Fallback to email lookup if subscription ID not found
+  if (!subscription) {
+    // Get full subscription from Lemon Squeezy to find customer
+    const lemonSqueezySub = await getLemonSqueezySubscription(
+      subscriptionData.id
+    );
+    const userEmail = lemonSqueezySub.attributes.user_email;
+
+    const userId = await findUserIdByEmail(userEmail);
+    if (!userId) {
+      console.error(`[Webhook] User not found for email ${userEmail}`);
+      return;
+    }
+
+    subscription = await getUserSubscription(userId);
+  }
   const plan = variantIdToPlan(String(attributes.variant_id));
 
   // Update subscription
@@ -169,21 +210,50 @@ async function handleSubscriptionUpdated(
  * Handle subscription_past_due event
  */
 async function handleSubscriptionPastDue(
-  subscriptionData: LemonSqueezyWebhookEvent["data"]
+  subscriptionData: LemonSqueezyWebhookEvent["data"],
+  customData?: Record<string, unknown>
 ): Promise<void> {
   const db = await database();
-  const lemonSqueezySub = await getLemonSqueezySubscription(
-    subscriptionData.id
-  );
-  const userEmail = lemonSqueezySub.attributes.user_email;
 
-  const userId = await findUserIdByEmail(userEmail);
-  if (!userId) {
-    console.error(`[Webhook] User not found for email ${userEmail}`);
-    return;
+  // Try to get subscription ID from custom data first (more efficient)
+  const subscriptionIdFromCustom = customData?.subscriptionId as
+    | string
+    | undefined;
+  let subscription;
+
+  if (subscriptionIdFromCustom) {
+    // Use subscription ID from custom data
+    const { getSubscriptionById } = await import(
+      "../../utils/subscriptionUtils"
+    );
+    subscription = await getSubscriptionById(subscriptionIdFromCustom);
+    if (!subscription) {
+      console.error(
+        `[Webhook] Subscription ${subscriptionIdFromCustom} not found, falling back to email lookup`
+      );
+    }
   }
 
-  const subscription = await getUserSubscription(userId);
+  // Fallback to email lookup if subscription ID not found
+  let userEmail: string | undefined;
+  if (!subscription) {
+    const lemonSqueezySub = await getLemonSqueezySubscription(
+      subscriptionData.id
+    );
+    userEmail = lemonSqueezySub.attributes.user_email;
+
+    const userId = await findUserIdByEmail(userEmail);
+    if (!userId) {
+      console.error(`[Webhook] User not found for email ${userEmail}`);
+      return;
+    }
+
+    subscription = await getUserSubscription(userId);
+  } else {
+    // Get user email for sending notification
+    const { getUserEmailById } = await import("../../utils/subscriptionUtils");
+    userEmail = await getUserEmailById(subscription.userId);
+  }
 
   // Set grace period to 7 days from now
   const gracePeriodEndsAt = new Date();
@@ -198,11 +268,13 @@ async function handleSubscriptionPastDue(
 
   // Send payment failed email
   try {
-    await sendPaymentFailedEmail(subscription, userEmail);
-    await db.subscription.update({
-      ...subscription,
-      lastPaymentEmailSentAt: new Date().toISOString(),
-    });
+    if (userEmail) {
+      await sendPaymentFailedEmail(subscription, userEmail);
+      await db.subscription.update({
+        ...subscription,
+        lastPaymentEmailSentAt: new Date().toISOString(),
+      });
+    }
   } catch (error) {
     console.error(`[Webhook] Failed to send payment failed email:`, error);
     // Don't throw - email failure shouldn't block webhook processing
@@ -215,21 +287,45 @@ async function handleSubscriptionPastDue(
  * Handle subscription_resumed event
  */
 async function handleSubscriptionResumed(
-  subscriptionData: LemonSqueezyWebhookEvent["data"]
+  subscriptionData: LemonSqueezyWebhookEvent["data"],
+  customData?: Record<string, unknown>
 ): Promise<void> {
   const db = await database();
-  const lemonSqueezySub = await getLemonSqueezySubscription(
-    subscriptionData.id
-  );
-  const userEmail = lemonSqueezySub.attributes.user_email;
 
-  const userId = await findUserIdByEmail(userEmail);
-  if (!userId) {
-    console.error(`[Webhook] User not found for email ${userEmail}`);
-    return;
+  // Try to get subscription ID from custom data first (more efficient)
+  const subscriptionIdFromCustom = customData?.subscriptionId as
+    | string
+    | undefined;
+  let subscription;
+
+  if (subscriptionIdFromCustom) {
+    // Use subscription ID from custom data
+    const { getSubscriptionById } = await import(
+      "../../utils/subscriptionUtils"
+    );
+    subscription = await getSubscriptionById(subscriptionIdFromCustom);
+    if (!subscription) {
+      console.error(
+        `[Webhook] Subscription ${subscriptionIdFromCustom} not found, falling back to email lookup`
+      );
+    }
   }
 
-  const subscription = await getUserSubscription(userId);
+  // Fallback to email lookup if subscription ID not found
+  if (!subscription) {
+    const lemonSqueezySub = await getLemonSqueezySubscription(
+      subscriptionData.id
+    );
+    const userEmail = lemonSqueezySub.attributes.user_email;
+
+    const userId = await findUserIdByEmail(userEmail);
+    if (!userId) {
+      console.error(`[Webhook] User not found for email ${userEmail}`);
+      return;
+    }
+
+    subscription = await getUserSubscription(userId);
+  }
 
   await db.subscription.update({
     ...subscription,
@@ -247,21 +343,50 @@ async function handleSubscriptionResumed(
  * Handle subscription_cancelled event
  */
 async function handleSubscriptionCancelled(
-  subscriptionData: LemonSqueezyWebhookEvent["data"]
+  subscriptionData: LemonSqueezyWebhookEvent["data"],
+  customData?: Record<string, unknown>
 ): Promise<void> {
   const db = await database();
+
+  // Try to get subscription ID from custom data first (more efficient)
+  const subscriptionIdFromCustom = customData?.subscriptionId as
+    | string
+    | undefined;
+  let subscription;
+
+  if (subscriptionIdFromCustom) {
+    // Use subscription ID from custom data
+    const { getSubscriptionById } = await import(
+      "../../utils/subscriptionUtils"
+    );
+    subscription = await getSubscriptionById(subscriptionIdFromCustom);
+    if (!subscription) {
+      console.error(
+        `[Webhook] Subscription ${subscriptionIdFromCustom} not found, falling back to email lookup`
+      );
+    }
+  }
+
+  // Fallback to email lookup if subscription ID not found
+  if (!subscription) {
+    const lemonSqueezySub = await getLemonSqueezySubscription(
+      subscriptionData.id
+    );
+    const userEmail = lemonSqueezySub.attributes.user_email;
+
+    const userId = await findUserIdByEmail(userEmail);
+    if (!userId) {
+      console.error(`[Webhook] User not found for email ${userEmail}`);
+      return;
+    }
+
+    subscription = await getUserSubscription(userId);
+  }
+
   const lemonSqueezySub = await getLemonSqueezySubscription(
     subscriptionData.id
   );
   const userEmail = lemonSqueezySub.attributes.user_email;
-
-  const userId = await findUserIdByEmail(userEmail);
-  if (!userId) {
-    console.error(`[Webhook] User not found for email ${userEmail}`);
-    return;
-  }
-
-  const subscription = await getUserSubscription(userId);
 
   await db.subscription.update({
     ...subscription,
@@ -284,21 +409,45 @@ async function handleSubscriptionCancelled(
  * Handle subscription_expired event
  */
 async function handleSubscriptionExpired(
-  subscriptionData: LemonSqueezyWebhookEvent["data"]
+  subscriptionData: LemonSqueezyWebhookEvent["data"],
+  customData?: Record<string, unknown>
 ): Promise<void> {
   const db = await database();
-  const lemonSqueezySub = await getLemonSqueezySubscription(
-    subscriptionData.id
-  );
-  const userEmail = lemonSqueezySub.attributes.user_email;
 
-  const userId = await findUserIdByEmail(userEmail);
-  if (!userId) {
-    console.error(`[Webhook] User not found for email ${userEmail}`);
-    return;
+  // Try to get subscription ID from custom data first (more efficient)
+  const subscriptionIdFromCustom = customData?.subscriptionId as
+    | string
+    | undefined;
+  let subscription;
+
+  if (subscriptionIdFromCustom) {
+    // Use subscription ID from custom data
+    const { getSubscriptionById } = await import(
+      "../../utils/subscriptionUtils"
+    );
+    subscription = await getSubscriptionById(subscriptionIdFromCustom);
+    if (!subscription) {
+      console.error(
+        `[Webhook] Subscription ${subscriptionIdFromCustom} not found, falling back to email lookup`
+      );
+    }
   }
 
-  const subscription = await getUserSubscription(userId);
+  // Fallback to email lookup if subscription ID not found
+  if (!subscription) {
+    const lemonSqueezySub = await getLemonSqueezySubscription(
+      subscriptionData.id
+    );
+    const userEmail = lemonSqueezySub.attributes.user_email;
+
+    const userId = await findUserIdByEmail(userEmail);
+    if (!userId) {
+      console.error(`[Webhook] User not found for email ${userEmail}`);
+      return;
+    }
+
+    subscription = await getUserSubscription(userId);
+  }
 
   // Downgrade to free plan
   await db.subscription.update({
@@ -476,22 +625,22 @@ export const handler = adaptHttpHandler(
       try {
         switch (eventName) {
           case "subscription_created":
-            await handleSubscriptionCreated(webhookEvent.data);
+            await handleSubscriptionCreated(webhookEvent.data, customData);
             break;
           case "subscription_updated":
-            await handleSubscriptionUpdated(webhookEvent.data);
+            await handleSubscriptionUpdated(webhookEvent.data, customData);
             break;
           case "subscription_past_due":
-            await handleSubscriptionPastDue(webhookEvent.data);
+            await handleSubscriptionPastDue(webhookEvent.data, customData);
             break;
           case "subscription_resumed":
-            await handleSubscriptionResumed(webhookEvent.data);
+            await handleSubscriptionResumed(webhookEvent.data, customData);
             break;
           case "subscription_cancelled":
-            await handleSubscriptionCancelled(webhookEvent.data);
+            await handleSubscriptionCancelled(webhookEvent.data, customData);
             break;
           case "subscription_expired":
-            await handleSubscriptionExpired(webhookEvent.data);
+            await handleSubscriptionExpired(webhookEvent.data, customData);
             break;
           case "order_created":
             await handleOrderCreated(webhookEvent.data, customData);

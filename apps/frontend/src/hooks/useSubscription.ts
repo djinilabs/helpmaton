@@ -9,6 +9,7 @@ import {
   cancelSubscription,
   getSubscriptionPortalUrl,
   purchaseCredits,
+  syncSubscription,
 } from "../utils/api";
 
 import { useToast } from "./useToast";
@@ -62,7 +63,6 @@ export function useRemoveSubscriptionManager() {
 }
 
 export function useSubscriptionCheckout() {
-  const queryClient = useQueryClient();
   const toast = useToast();
 
   return useMutation({
@@ -121,6 +121,25 @@ export function useCreditPurchase() {
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to create checkout");
+    },
+  });
+}
+
+export function useSubscriptionSync() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: () => syncSubscription(),
+    onSuccess: (data) => {
+      // Invalidate subscription query to refetch fresh data
+      queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      if (data.synced) {
+        toast.success("Subscription synced successfully");
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to sync subscription");
     },
   });
 }

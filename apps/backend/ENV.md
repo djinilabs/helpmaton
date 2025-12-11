@@ -460,13 +460,18 @@ pnpm arc deploy --production --no-hydrate --verbose
 
 - **Description**: Lemon Squeezy API key for authenticating API requests
 - **Required**: Yes (for subscription management and checkout creation)
-- **Example**: `sk_live_1234567890abcdefghijklmnopqrstuvwxyz`
+- **Example**:
+  - Production: `sk_live_1234567890abcdefghijklmnopqrstuvwxyz`
+  - Test: `sk_test_1234567890abcdefghijklmnopqrstuvwxyz`
 - **How to obtain**:
   1. Log in to [Lemon Squeezy Dashboard](https://app.lemonsqueezy.com)
   2. Go to Settings → API
   3. Create a new API key or copy existing key
   4. Use the "Secret Key" (starts with `sk_live_` for production or `sk_test_` for test mode)
-- **Note**: Keep this secret secure and never commit it to version control
+- **Note**:
+  - Keep this secret secure and never commit it to version control
+  - Use test API keys (`sk_test_`) for development/staging and live API keys (`sk_live_`) for production
+  - Test mode for checkouts is determined by `NODE_ENV` (see `LEMON_SQUEEZY_TEST_MODE` below)
 
 ### `LEMON_SQUEEZY_WEBHOOK_SECRET`
 
@@ -535,6 +540,23 @@ pnpm arc deploy --production --no-hydrate --verbose
 - **Required**: No (defaults to `{BASE_URL}/subscription?cancelled=true`)
 - **Example**: `https://app.helpmaton.com/subscription?cancelled=true`
 - **Note**: Should point to subscription management page
+
+### `LEMON_SQUEEZY_TEST_MODE`
+
+- **Description**: Explicitly enable or disable test mode for checkouts
+- **Required**: No (auto-detected from `NODE_ENV` if not set)
+- **Example**: `true` or `false`
+- **How it works**:
+  - If not set, test mode is automatically determined by `NODE_ENV`:
+    - `NODE_ENV !== "production"` → test mode enabled (development, test, staging, etc.)
+    - `NODE_ENV === "production"` → test mode disabled (live mode)
+  - If set to `true`, forces test mode regardless of `NODE_ENV`
+  - If set to `false`, forces live mode regardless of `NODE_ENV`
+- **Note**:
+  - In test mode, checkouts use test payment methods (e.g., card `4242 4242 4242 4242`)
+  - Test mode checkouts don't process real payments
+  - Use test mode for development and staging environments
+  - The API key type (`sk_test_` vs `sk_live_`) should match your environment, but doesn't control test mode
 
 **Important Notes**:
 

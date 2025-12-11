@@ -1527,6 +1527,16 @@ export async function getSubscriptionPortalUrl(): Promise<{
   return response.json();
 }
 
+export async function syncSubscription(): Promise<{
+  message: string;
+  synced: boolean;
+}> {
+  const response = await apiFetch("/api/subscription/sync", {
+    method: "POST",
+  });
+  return response.json();
+}
+
 export async function purchaseCredits(
   workspaceId: string,
   amount: number

@@ -12,8 +12,10 @@ import {
   createCheckout,
   cancelSubscription as cancelLemonSqueezySubscription,
   getCustomerPortalUrl,
+  getSubscription as getLemonSqueezySubscription,
 } from "../../utils/lemonSqueezy";
 import { getPlanLimits } from "../../utils/subscriptionPlans";
+import { checkGracePeriod } from "../../utils/subscriptionStatus";
 import {
   getUserSubscription,
   isSubscriptionManager,
@@ -489,7 +491,7 @@ export const createApp: () => express.Application = () => {
           : process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
 
       if (!variantId) {
-        throw new Error(
+        throw badRequest(
           `LEMON_SQUEEZY_${plan.toUpperCase()}_VARIANT_ID is not configured`
         );
       }
@@ -500,6 +502,21 @@ export const createApp: () => express.Application = () => {
         throw new Error("LEMON_SQUEEZY_STORE_ID is not configured");
       }
 
+      // Get user's subscription to include subscription ID in checkout
+      const subscription = await getUserSubscription(currentUserId);
+      const subscriptionId = subscription.pk.replace("subscriptions/", "");
+
+      // Log for debugging
+      console.log(
+        `[POST /api/subscription/checkout] Creating checkout for ${plan} plan:`,
+        {
+          storeId,
+          variantId,
+          userId: currentUserId,
+          subscriptionId,
+        }
+      );
+
       // Create checkout
       const checkout = await createCheckout({
         storeId,
@@ -507,6 +524,7 @@ export const createApp: () => express.Application = () => {
         checkoutData: {
           custom: {
             userId: currentUserId,
+            subscriptionId,
           },
           email: req.session?.user?.email || undefined,
         },
@@ -580,6 +598,97 @@ export const createApp: () => express.Application = () => {
       res.json({
         portalUrl,
       });
+    })
+  );
+
+  // POST /api/subscription/sync - Sync subscription from Lemon Squeezy
+  app.post(
+    "/api/subscription/sync",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const currentUserRef = req.userRef;
+      if (!currentUserRef) {
+        throw unauthorized();
+      }
+      const currentUserId = currentUserRef.replace("users/", "");
+
+      console.log(
+        `[POST /api/subscription/sync] Syncing subscription for user ${currentUserId}`
+      );
+
+      const subscription = await getUserSubscription(currentUserId);
+
+      if (!subscription.lemonSqueezySubscriptionId) {
+        // No Lemon Squeezy subscription to sync
+        res.json({
+          message: "Subscription is not associated with Lemon Squeezy",
+          synced: false,
+        });
+        return;
+      }
+
+      const db = await database();
+
+      try {
+        // Fetch latest data from Lemon Squeezy
+        const lemonSqueezySub = await getLemonSqueezySubscription(
+          subscription.lemonSqueezySubscriptionId
+        );
+        const attributes = lemonSqueezySub.attributes;
+
+        // Map variant ID to plan
+        const starterVariantId = process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID;
+        const proVariantId = process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
+        const variantId = String(attributes.variant_id);
+        const plan =
+          variantId === starterVariantId
+            ? "starter"
+            : variantId === proVariantId
+            ? "pro"
+            : "starter"; // Default fallback
+
+        // Update subscription record
+        await db.subscription.update({
+          ...subscription,
+          plan,
+          status: attributes.status as
+            | "active"
+            | "past_due"
+            | "unpaid"
+            | "cancelled"
+            | "expired"
+            | "on_trial",
+          renewsAt: attributes.renews_at,
+          endsAt: attributes.ends_at || undefined,
+          trialEndsAt: attributes.trial_ends_at || undefined,
+          lemonSqueezyVariantId: variantId,
+          lastSyncedAt: new Date().toISOString(),
+        });
+
+        // Check grace period if needed
+        const updatedSubscription = await db.subscription.get(
+          subscription.pk,
+          subscription.sk
+        );
+        if (updatedSubscription) {
+          await checkGracePeriod(updatedSubscription);
+        }
+
+        console.log(
+          `[POST /api/subscription/sync] Successfully synced subscription ${subscription.pk}`
+        );
+
+        res.json({
+          message: "Subscription synced successfully",
+          synced: true,
+        });
+      } catch (error) {
+        console.error(
+          `[POST /api/subscription/sync] Error syncing subscription:`,
+          error
+        );
+        throw error;
+      }
     })
   );
 

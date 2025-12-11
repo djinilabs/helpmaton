@@ -7,8 +7,8 @@ import type { ScheduledEvent } from "aws-lambda";
 
 import { database } from "../../tables";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
-import { sendGracePeriodExpiringEmail } from "../../utils/subscriptionEmails";
 import { getSubscription as getLemonSqueezySubscription } from "../../utils/lemonSqueezy";
+import { sendGracePeriodExpiringEmail } from "../../utils/subscriptionEmails";
 import {
   checkGracePeriod,
   shouldSendGracePeriodWarning,
