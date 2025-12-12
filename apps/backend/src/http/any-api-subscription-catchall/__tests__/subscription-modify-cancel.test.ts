@@ -145,41 +145,50 @@ describe("Subscription Modify and Cancel Endpoints", () => {
                 targetVariantId
               );
 
+              // Sync the subscription to verify the variant and get updated status
               const db = await mockDatabase();
               const lemonSqueezySub = await mockGetLemonSqueezySubscription(
                 subscription.lemonSqueezySubscriptionId
               );
               const attributes = lemonSqueezySub.attributes;
+              const actualVariantId = String(attributes.variant_id);
 
-              await db.subscription.update({
-                ...subscription,
-                plan,
-                status: attributes.status as
-                  | "active"
-                  | "past_due"
-                  | "unpaid"
-                  | "cancelled"
-                  | "expired"
-                  | "on_trial",
-                renewsAt: attributes.renews_at,
-                endsAt: attributes.ends_at || undefined,
-                trialEndsAt: attributes.trial_ends_at || undefined,
-                lemonSqueezyVariantId: String(attributes.variant_id),
-                lemonSqueezySyncKey: "ACTIVE",
-                lastSyncedAt: new Date().toISOString(),
-              });
+              // If variant didn't change, Lemon Squeezy likely requires payment confirmation
+              // Fall through to create a checkout URL
+              if (actualVariantId !== targetVariantId) {
+                // Fall through to create a new checkout
+              } else {
+                // Variant is correct, update subscription record
+                await db.subscription.update({
+                  ...subscription,
+                  plan,
+                  status: attributes.status as
+                    | "active"
+                    | "past_due"
+                    | "unpaid"
+                    | "cancelled"
+                    | "expired"
+                    | "on_trial",
+                  renewsAt: attributes.renews_at,
+                  endsAt: attributes.ends_at || undefined,
+                  trialEndsAt: attributes.trial_ends_at || undefined,
+                  lemonSqueezyVariantId: actualVariantId,
+                  lemonSqueezySyncKey: "ACTIVE",
+                  lastSyncedAt: new Date().toISOString(),
+                });
 
-              await mockAssociateSubscriptionWithPlan(
-                subscriptionIdFromSub,
-                plan
-              );
+                await mockAssociateSubscriptionWithPlan(
+                  subscriptionIdFromSub,
+                  plan
+                );
 
-              res.json({
-                success: true,
-                message: `Subscription reactivated successfully. You are now on the ${plan} plan.`,
-                reactivated: true,
-              });
-              return;
+                res.json({
+                  success: true,
+                  message: `Subscription reactivated successfully. You are now on the ${plan} plan.`,
+                  reactivated: true,
+                });
+                return;
+              }
             } catch {
               // Fall through to create checkout
             }
@@ -190,41 +199,50 @@ describe("Subscription Modify and Cancel Endpoints", () => {
                 targetVariantId
               );
 
+              // Sync the subscription to verify the variant actually changed
               const db = await mockDatabase();
               const lemonSqueezySub = await mockGetLemonSqueezySubscription(
                 subscription.lemonSqueezySubscriptionId
               );
               const attributes = lemonSqueezySub.attributes;
+              const actualVariantId = String(attributes.variant_id);
 
-              await db.subscription.update({
-                ...subscription,
-                plan,
-                status: attributes.status as
-                  | "active"
-                  | "past_due"
-                  | "unpaid"
-                  | "cancelled"
-                  | "expired"
-                  | "on_trial",
-                renewsAt: attributes.renews_at,
-                endsAt: attributes.ends_at || undefined,
-                trialEndsAt: attributes.trial_ends_at || undefined,
-                lemonSqueezyVariantId: String(attributes.variant_id),
-                lemonSqueezySyncKey: "ACTIVE",
-                lastSyncedAt: new Date().toISOString(),
-              });
+              // If variant didn't change, Lemon Squeezy likely requires payment confirmation
+              // Fall through to create a checkout URL
+              if (actualVariantId !== targetVariantId) {
+                // Fall through to create a new checkout
+              } else {
+                // Variant changed successfully, update local database
+                await db.subscription.update({
+                  ...subscription,
+                  plan,
+                  status: attributes.status as
+                    | "active"
+                    | "past_due"
+                    | "unpaid"
+                    | "cancelled"
+                    | "expired"
+                    | "on_trial",
+                  renewsAt: attributes.renews_at,
+                  endsAt: attributes.ends_at || undefined,
+                  trialEndsAt: attributes.trial_ends_at || undefined,
+                  lemonSqueezyVariantId: actualVariantId,
+                  lemonSqueezySyncKey: "ACTIVE",
+                  lastSyncedAt: new Date().toISOString(),
+                });
 
-              await mockAssociateSubscriptionWithPlan(
-                subscriptionIdFromSub,
-                plan
-              );
+                await mockAssociateSubscriptionWithPlan(
+                  subscriptionIdFromSub,
+                  plan
+                );
 
-              res.json({
-                success: true,
-                message: `Subscription reactivated and changed to ${plan} plan.`,
-                reactivated: true,
-              });
-              return;
+                res.json({
+                  success: true,
+                  message: `Subscription reactivated and changed to ${plan} plan.`,
+                  reactivated: true,
+                });
+                return;
+              }
             } catch {
               // Fall through to create checkout
             }
@@ -660,6 +678,75 @@ describe("Subscription Modify and Cancel Endpoints", () => {
       });
       expect(res.statusCode).toBe(200);
       // Verify subscription plan NOT changed
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should fall back to checkout when variant doesn't change after update (cancelled, same plan)", async () => {
+      const mockDb = createMockDatabase();
+      const mockUpdate = vi.fn();
+      mockDb.subscription.update = mockUpdate;
+      mockDatabase.mockResolvedValue(mockDb);
+
+      const mockSubscription = {
+        pk: `subscriptions/${subscriptionId}`,
+        plan: "starter" as const,
+        status: "cancelled" as const,
+        lemonSqueezySubscriptionId,
+        lemonSqueezyVariantId: starterVariantId,
+      };
+      mockGetUserSubscription.mockResolvedValue(mockSubscription);
+
+      // updateSubscriptionVariant succeeds, but variant doesn't actually change
+      // (Lemon Squeezy requires payment confirmation)
+      // In this case, we're requesting starter (same as current), but Lemon Squeezy
+      // might require payment to reactivate, so the variant stays cancelled/unchanged
+      // We'll simulate this by returning a different variant_id (pro) to indicate
+      // the update didn't work as expected, OR we can return the same variant but
+      // with cancelled status to indicate it needs payment
+      // Actually, let's simulate: we request starter, but Lemon Squeezy returns
+      // a different variant (pro) because the update didn't work
+      const mockLemonSqueezySub: MockLemonSqueezySubscription = {
+        id: lemonSqueezySubscriptionId,
+        attributes: {
+          status: "cancelled",
+          variant_id: parseInt(proVariantId, 10), // Different variant - update didn't work
+          renews_at: "2024-12-31T23:59:59Z",
+          ends_at: "2024-12-31T23:59:59Z",
+          trial_ends_at: null,
+        },
+      };
+      mockUpdateSubscriptionVariant.mockResolvedValue(mockLemonSqueezySub);
+      mockGetLemonSqueezySubscription.mockResolvedValue(mockLemonSqueezySub);
+
+      const checkoutUrl = "https://checkout.lemonsqueezy.com/checkout/test";
+      mockCreateCheckout.mockResolvedValue({ url: checkoutUrl });
+
+      const req = createMockRequest({
+        userRef: `users/${userId}`,
+        body: { plan: "starter" },
+        session: {
+          user: { id: userId, email: "test@example.com" },
+          expires: new Date(Date.now() + 3600000).toISOString(),
+        },
+      });
+      const res = createMockResponse();
+      const next = vi.fn();
+
+      await callCheckoutHandler(req, res, next);
+
+      expect(mockUpdateSubscriptionVariant).toHaveBeenCalledWith(
+        lemonSqueezySubscriptionId,
+        starterVariantId
+      );
+      expect(mockGetLemonSqueezySubscription).toHaveBeenCalledWith(
+        lemonSqueezySubscriptionId
+      );
+      expect(mockCreateCheckout).toHaveBeenCalled();
+      expect((res as express.Response & { body: unknown }).body).toEqual({
+        checkoutUrl,
+      });
+      expect(res.statusCode).toBe(200);
+      // Verify subscription plan NOT changed (variant didn't change to requested one)
       expect(mockUpdate).not.toHaveBeenCalled();
     });
 
