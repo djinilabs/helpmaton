@@ -59,6 +59,12 @@ vi.mock("../../../utils/subscriptionEmails", () => ({
   sendSubscriptionCancelledEmail: mockSendSubscriptionCancelledEmail,
 }));
 
+// Mock apiGatewayUsagePlans module
+const mockAssociateSubscriptionWithPlan = vi.fn().mockResolvedValue(undefined);
+vi.mock("../../../utils/apiGatewayUsagePlans", () => ({
+  associateSubscriptionWithPlan: mockAssociateSubscriptionWithPlan,
+}));
+
 // Mock crypto for signature verification
 const mockCreateHmac = vi.fn();
 const mockHmacUpdate = vi.fn();
@@ -96,7 +102,10 @@ describe("Lemon Squeezy Webhook Handler", () => {
 
     mockDb = {
       subscription: {
-        update: vi.fn().mockResolvedValue(undefined),
+        update: vi.fn().mockImplementation((subscription) => {
+          // Return the updated subscription object
+          return Promise.resolve(subscription);
+        }),
         get: vi.fn(),
         query: vi.fn(),
       },

@@ -12,6 +12,20 @@ interface LemonSqueezyResponse<T> {
   meta?: unknown;
 }
 
+interface LemonSqueezyListResponse<T> {
+  data: T[];
+  meta?: {
+    page?: {
+      currentPage?: number;
+      from?: number;
+      lastPage?: number;
+      perPage?: number;
+      to?: number;
+      total?: number;
+    };
+  };
+}
+
 interface LemonSqueezySubscription {
   id: string;
   type: string;
@@ -501,6 +515,21 @@ export async function updateSubscriptionVariant(
   });
 
   return response.data;
+}
+
+/**
+ * List subscriptions for a customer
+ * @param customerId - Lemon Squeezy customer ID
+ * @returns Array of subscriptions for the customer
+ */
+export async function listSubscriptionsByCustomer(
+  customerId: string
+): Promise<LemonSqueezySubscription[]> {
+  // Lemon Squeezy API supports filtering subscriptions by customer_id
+  const response = await apiRequest<
+    LemonSqueezyListResponse<LemonSqueezySubscription>
+  >(`/subscriptions?filter[customer_id]=${customerId}`);
+  return response.data || [];
 }
 
 /**

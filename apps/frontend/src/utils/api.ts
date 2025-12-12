@@ -1482,8 +1482,17 @@ export interface UserByEmail {
 }
 
 export async function getSubscription(): Promise<Subscription> {
+  console.log("[api.getSubscription] Fetching subscription from API");
   const response = await apiFetch("/api/subscription");
-  return response.json();
+  const data = await response.json();
+  console.log("[api.getSubscription] Subscription data received:", {
+    plan: data.plan,
+    status: data.status,
+    subscriptionId: data.subscriptionId,
+    renewsAt: data.renewsAt,
+    expiresAt: data.expiresAt,
+  });
+  return data;
 }
 
 export async function getUserByEmail(email: string): Promise<UserByEmail> {
@@ -1506,7 +1515,12 @@ export async function removeSubscriptionManager(userId: string): Promise<void> {
 
 export async function createSubscriptionCheckout(
   plan: "starter" | "pro"
-): Promise<{ checkoutUrl?: string; success?: boolean; message?: string; reactivated?: boolean }> {
+): Promise<{
+  checkoutUrl?: string;
+  success?: boolean;
+  message?: string;
+  reactivated?: boolean;
+}> {
   const response = await apiFetch("/api/subscription/checkout", {
     method: "POST",
     body: JSON.stringify({ plan }),
@@ -1541,10 +1555,13 @@ export async function syncSubscription(): Promise<{
   message: string;
   synced: boolean;
 }> {
+  console.log("[api.syncSubscription] Calling sync API");
   const response = await apiFetch("/api/subscription/sync", {
     method: "POST",
   });
-  return response.json();
+  const data = await response.json();
+  console.log("[api.syncSubscription] Sync response:", data);
+  return data;
 }
 
 export async function purchaseCredits(

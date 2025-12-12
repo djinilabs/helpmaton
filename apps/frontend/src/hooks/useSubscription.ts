@@ -159,15 +159,22 @@ export function useSubscriptionSync() {
   const toast = useToast();
 
   return useMutation({
-    mutationFn: () => syncSubscription(),
+    mutationFn: () => {
+      console.log("[useSubscriptionSync] Calling syncSubscription API");
+      return syncSubscription();
+    },
     onSuccess: (data) => {
+      console.log("[useSubscriptionSync] Sync succeeded:", data);
       // Invalidate subscription query to refetch fresh data
       queryClient.invalidateQueries({ queryKey: ["subscription"] });
       if (data.synced) {
         toast.success("Subscription synced successfully");
+      } else {
+        console.warn("[useSubscriptionSync] Sync returned synced: false", data);
       }
     },
     onError: (error: Error) => {
+      console.error("[useSubscriptionSync] Sync failed:", error);
       toast.error(error.message || "Failed to sync subscription");
     },
   });

@@ -1,11 +1,22 @@
-import { badRequest, internal, unauthorized } from "@hapi/boom";
+import { badRequest, internal, unauthorized, Boom } from "@hapi/boom";
 import express from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// Type for mock Lemon Squeezy subscription (partial match)
+type MockLemonSqueezySubscription = {
+  id: string;
+  attributes: {
+    status: string;
+    variant_id: number;
+    renews_at: string;
+    ends_at: string | null;
+    trial_ends_at: string | null;
+  };
+};
 
 import {
   createMockRequest,
   createMockResponse,
-  createMockNext,
   createMockDatabase,
 } from "../../utils/__tests__/test-helpers";
 
@@ -169,7 +180,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
                 reactivated: true,
               });
               return;
-            } catch (error) {
+            } catch {
               // Fall through to create checkout
             }
           } else {
@@ -214,7 +225,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
                 reactivated: true,
               });
               return;
-            } catch (error) {
+            } catch {
               // Fall through to create checkout
             }
           }
@@ -356,67 +367,63 @@ describe("Subscription Modify and Cancel Endpoints", () => {
         }
 
         try {
+          await mockUpdateSubscriptionVariant(
+            subscription.lemonSqueezySubscriptionId,
+            variantId
+          );
+
+          const db = await mockDatabase();
           try {
-            await mockUpdateSubscriptionVariant(
-              subscription.lemonSqueezySubscriptionId,
-              variantId
+            const lemonSqueezySub = await mockGetLemonSqueezySubscription(
+              subscription.lemonSqueezySubscriptionId
             );
+            const attributes = lemonSqueezySub.attributes;
 
-            const db = await mockDatabase();
-            try {
-              const lemonSqueezySub = await mockGetLemonSqueezySubscription(
-                subscription.lemonSqueezySubscriptionId
-              );
-              const attributes = lemonSqueezySub.attributes;
+            const starterVariantIdEnv =
+              process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID;
+            const proVariantIdEnv = process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
+            const newVariantId = String(attributes.variant_id);
+            const newPlan =
+              newVariantId === starterVariantIdEnv
+                ? "starter"
+                : newVariantId === proVariantIdEnv
+                ? "pro"
+                : "starter";
 
-              const starterVariantIdEnv =
-                process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID;
-              const proVariantIdEnv = process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
-              const newVariantId = String(attributes.variant_id);
-              const newPlan =
-                newVariantId === starterVariantIdEnv
-                  ? "starter"
-                  : newVariantId === proVariantIdEnv
-                  ? "pro"
-                  : "starter";
+            await db.subscription.update({
+              ...subscription,
+              plan: newPlan,
+              status: attributes.status as
+                | "active"
+                | "past_due"
+                | "unpaid"
+                | "cancelled"
+                | "expired"
+                | "on_trial",
+              renewsAt: attributes.renews_at,
+              endsAt: attributes.ends_at || undefined,
+              trialEndsAt: attributes.trial_ends_at || undefined,
+              lemonSqueezyVariantId: newVariantId,
+              lemonSqueezySyncKey: subscription.lemonSqueezySubscriptionId
+                ? "ACTIVE"
+                : undefined,
+              lastSyncedAt: new Date().toISOString(),
+            });
 
-              await db.subscription.update({
-                ...subscription,
-                plan: newPlan,
-                status: attributes.status as
-                  | "active"
-                  | "past_due"
-                  | "unpaid"
-                  | "cancelled"
-                  | "expired"
-                  | "on_trial",
-                renewsAt: attributes.renews_at,
-                endsAt: attributes.ends_at || undefined,
-                trialEndsAt: attributes.trial_ends_at || undefined,
-                lemonSqueezyVariantId: newVariantId,
-                lemonSqueezySyncKey: subscription.lemonSqueezySubscriptionId
-                  ? "ACTIVE"
-                  : undefined,
-                lastSyncedAt: new Date().toISOString(),
-              });
-
-              const subscriptionIdFromSub = subscription.pk.replace(
-                "subscriptions/",
-                ""
-              );
-              await mockAssociateSubscriptionWithPlan(
-                subscriptionIdFromSub,
-                newPlan
-              );
-            } catch (error) {
-              // Don't fail the request
-            }
-          } catch (error) {
-            // Don't fail the request - the webhook will update it eventually
-            // This handles cases where payment is required or other API errors occur
+            const subscriptionIdFromSub = subscription.pk.replace(
+              "subscriptions/",
+              ""
+            );
+            await mockAssociateSubscriptionWithPlan(
+              subscriptionIdFromSub,
+              newPlan
+            );
+          } catch {
+            // Don't fail the request
           }
-        } catch (error) {
-          // Don't fail the request - webhook will update eventually
+        } catch {
+          // Don't fail the request - the webhook will update it eventually
+          // This handles cases where payment is required or other API errors occur
         }
 
         res.json({
@@ -525,7 +532,9 @@ describe("Subscription Modify and Cancel Endpoints", () => {
           media: false,
         },
       });
-      expect((res as any).body).toEqual({ checkoutUrl });
+      expect((res as express.Response & { body: unknown }).body).toEqual({
+        checkoutUrl,
+      });
       expect(res.statusCode).toBe(200);
       // Verify subscription plan NOT changed
       expect(mockUpdate).not.toHaveBeenCalled();
@@ -544,7 +553,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
       };
       mockGetUserSubscription.mockResolvedValue(mockSubscription);
 
-      const mockLemonSqueezySub = {
+      const mockLemonSqueezySub: MockLemonSqueezySubscription = {
         id: lemonSqueezySubscriptionId,
         attributes: {
           status: "active",
@@ -553,7 +562,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
           ends_at: null,
           trial_ends_at: null,
         },
-      } as any;
+      };
       mockUpdateSubscriptionVariant.mockResolvedValue(mockLemonSqueezySub);
       mockGetLemonSqueezySubscription.mockResolvedValue(mockLemonSqueezySub);
 
@@ -598,7 +607,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
         subscriptionId,
         "starter"
       );
-      expect((res as any).body).toEqual({
+      expect((res as express.Response & { body: unknown }).body).toEqual({
         success: true,
         message:
           "Subscription reactivated successfully. You are now on the starter plan.",
@@ -646,7 +655,9 @@ describe("Subscription Modify and Cancel Endpoints", () => {
 
       expect(mockUpdateSubscriptionVariant).toHaveBeenCalled();
       expect(mockCreateCheckout).toHaveBeenCalled();
-      expect((res as any).body).toEqual({ checkoutUrl });
+      expect((res as express.Response & { body: unknown }).body).toEqual({
+        checkoutUrl,
+      });
       expect(res.statusCode).toBe(200);
       // Verify subscription plan NOT changed
       expect(mockUpdate).not.toHaveBeenCalled();
@@ -665,7 +676,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
       };
       mockGetUserSubscription.mockResolvedValue(mockSubscription);
 
-      const mockLemonSqueezySub = {
+      const mockLemonSqueezySub: MockLemonSqueezySubscription = {
         id: lemonSqueezySubscriptionId,
         attributes: {
           status: "active",
@@ -674,7 +685,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
           ends_at: null,
           trial_ends_at: null,
         },
-      } as any;
+      };
       mockUpdateSubscriptionVariant.mockResolvedValue(mockLemonSqueezySub);
       mockGetLemonSqueezySubscription.mockResolvedValue(mockLemonSqueezySub);
 
@@ -718,7 +729,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
         subscriptionId,
         "pro"
       );
-      expect((res as any).body).toEqual({
+      expect((res as express.Response & { body: unknown }).body).toEqual({
         success: true,
         message: "Subscription reactivated and changed to pro plan.",
         reactivated: true,
@@ -768,7 +779,9 @@ describe("Subscription Modify and Cancel Endpoints", () => {
           variantId: proVariantId,
         })
       );
-      expect((res as any).body).toEqual({ checkoutUrl });
+      expect((res as express.Response & { body: unknown }).body).toEqual({
+        checkoutUrl,
+      });
       expect(res.statusCode).toBe(200);
       // Verify plan NOT changed
       expect(mockUpdate).not.toHaveBeenCalled();
@@ -810,7 +823,9 @@ describe("Subscription Modify and Cancel Endpoints", () => {
           variantId: proVariantId,
         })
       );
-      expect((res as any).body).toEqual({ checkoutUrl });
+      expect((res as express.Response & { body: unknown }).body).toEqual({
+        checkoutUrl,
+      });
       expect(res.statusCode).toBe(200);
       // Verify plan NOT changed until checkout completes
       expect(mockUpdate).not.toHaveBeenCalled();
@@ -837,7 +852,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
 
       expect(mockGetUserSubscription).toHaveBeenCalledWith(userId);
       expect(next).toHaveBeenCalled();
-      const errorCall = next.mock.calls[0]?.[0];
+      const errorCall = next.mock.calls[0]?.[0] as Boom<unknown> | undefined;
       expect(errorCall?.output?.statusCode).toBe(400);
       expect(errorCall?.message).toContain("No active subscription found");
     });
@@ -860,7 +875,9 @@ describe("Subscription Modify and Cancel Endpoints", () => {
 
       await callChangePlanHandler(req, res, next);
 
-      const errorCall = (next as any).mock.calls[0]?.[0];
+      const errorCall = (
+        next as unknown as { mock: { calls: Array<[unknown]> } }
+      ).mock.calls[0]?.[0] as Boom<unknown> | undefined;
       expect(errorCall?.output?.statusCode).toBe(400);
       expect(errorCall?.message).toContain("Cannot change plan for free");
     });
@@ -883,7 +900,9 @@ describe("Subscription Modify and Cancel Endpoints", () => {
 
       await callChangePlanHandler(req, res, next);
 
-      const errorCall = (next as any).mock.calls[0]?.[0];
+      const errorCall = (
+        next as unknown as { mock: { calls: Array<[unknown]> } }
+      ).mock.calls[0]?.[0] as Boom<unknown> | undefined;
       expect(errorCall?.output?.statusCode).toBe(400);
       expect(errorCall?.message).toContain(
         "Cannot change plan for free or expired"
@@ -909,7 +928,9 @@ describe("Subscription Modify and Cancel Endpoints", () => {
 
       await callChangePlanHandler(req, res, next);
 
-      const errorCall = (next as any).mock.calls[0]?.[0];
+      const errorCall = (
+        next as unknown as { mock: { calls: Array<[unknown]> } }
+      ).mock.calls[0]?.[0] as Boom<unknown> | undefined;
       expect(errorCall?.output?.statusCode).toBe(400);
       expect(errorCall?.message).toContain(
         "You are already on the starter plan"
@@ -929,7 +950,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
       };
       mockGetUserSubscription.mockResolvedValue(mockSubscription);
 
-      const mockLemonSqueezySub = {
+      const mockLemonSqueezySub: MockLemonSqueezySubscription = {
         id: lemonSqueezySubscriptionId,
         attributes: {
           status: "active",
@@ -938,7 +959,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
           ends_at: null,
           trial_ends_at: null,
         },
-      } as any;
+      };
       mockUpdateSubscriptionVariant.mockResolvedValue(mockLemonSqueezySub);
       mockGetLemonSqueezySubscription.mockResolvedValue(mockLemonSqueezySub);
 
@@ -970,7 +991,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
           lemonSqueezySyncKey: "ACTIVE",
         })
       );
-      expect((res as any).body).toEqual({
+      expect((res as express.Response & { body: unknown }).body).toEqual({
         success: true,
         message:
           "Subscription reactivated successfully. You are now on the starter plan.",
@@ -991,7 +1012,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
       };
       mockGetUserSubscription.mockResolvedValue(mockSubscription);
 
-      const mockLemonSqueezySub = {
+      const mockLemonSqueezySub: MockLemonSqueezySubscription = {
         id: lemonSqueezySubscriptionId,
         attributes: {
           status: "active",
@@ -1000,7 +1021,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
           ends_at: null,
           trial_ends_at: null,
         },
-      } as any;
+      };
       mockUpdateSubscriptionVariant.mockResolvedValue(mockLemonSqueezySub);
       mockGetLemonSqueezySubscription.mockResolvedValue(mockLemonSqueezySub);
 
@@ -1039,7 +1060,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
         subscriptionId,
         "pro"
       );
-      expect((res as any).body).toEqual({
+      expect((res as express.Response & { body: unknown }).body).toEqual({
         success: true,
         message: "Plan changed to pro successfully.",
       });
@@ -1078,7 +1099,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
       // Error is caught and logged, but request still succeeds
       // (webhook will update eventually)
       expect(mockUpdateSubscriptionVariant).toHaveBeenCalled();
-      expect((res as any).body).toEqual({
+      expect((res as express.Response & { body: unknown }).body).toEqual({
         success: true,
         message: "Plan changed to pro successfully.",
       });
@@ -1099,7 +1120,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
       };
       mockGetUserSubscription.mockResolvedValue(mockSubscription);
 
-      const mockLemonSqueezySub = {
+      const mockLemonSqueezySub: MockLemonSqueezySubscription = {
         id: lemonSqueezySubscriptionId,
         attributes: {
           status: "active",
@@ -1108,7 +1129,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
           ends_at: null,
           trial_ends_at: null,
         },
-      } as any;
+      };
       mockUpdateSubscriptionVariant.mockResolvedValue(mockLemonSqueezySub);
       mockGetLemonSqueezySubscription.mockResolvedValue(mockLemonSqueezySub);
 
@@ -1132,7 +1153,7 @@ describe("Subscription Modify and Cancel Endpoints", () => {
 
       expect(mockUpdateSubscriptionVariant).toHaveBeenCalled();
       expect(mockUpdate).toHaveBeenCalled();
-      expect((res as any).body).toEqual({
+      expect((res as express.Response & { body: unknown }).body).toEqual({
         success: true,
         message: "Plan changed to pro successfully.",
       });
@@ -1155,7 +1176,9 @@ describe("Subscription Modify and Cancel Endpoints", () => {
 
       await callCancelHandler(req, res, next);
 
-      const errorCall = (next as any).mock.calls[0]?.[0];
+      const errorCall = (
+        next as unknown as { mock: { calls: Array<[unknown]> } }
+      ).mock.calls[0]?.[0] as Boom<unknown> | undefined;
       expect(errorCall?.output?.statusCode).toBe(400);
       expect(errorCall?.message).toContain(
         "Subscription is not associated with Lemon Squeezy"
@@ -1214,7 +1237,9 @@ describe("Subscription Modify and Cancel Endpoints", () => {
           lemonSqueezySyncKey: undefined,
         })
       );
-      expect((res as any).body).toEqual({ success: true });
+      expect((res as express.Response & { body: unknown }).body).toEqual({
+        success: true,
+      });
       expect(res.statusCode).toBe(200);
     });
 
@@ -1258,7 +1283,9 @@ describe("Subscription Modify and Cancel Endpoints", () => {
 
       expect(mockCancelSubscription).toHaveBeenCalled();
       expect(mockUpdate).toHaveBeenCalled();
-      expect((res as any).body).toEqual({ success: true });
+      expect((res as express.Response & { body: unknown }).body).toEqual({
+        success: true,
+      });
     });
 
     it("should propagate error when cancelSubscription fails", async () => {

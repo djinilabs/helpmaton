@@ -60,6 +60,14 @@ async function handleSubscriptionCreated(
   subscriptionData: LemonSqueezyWebhookEvent["data"],
   customData?: Record<string, unknown>
 ): Promise<void> {
+  console.log(
+    `[Webhook subscription_created] Processing subscription_created event:`,
+    {
+      lemonSqueezySubscriptionId: subscriptionData.id,
+      customData,
+    }
+  );
+
   const db = await database();
   const attributes = subscriptionData.attributes as {
     store_id: number;
@@ -74,11 +82,24 @@ async function handleSubscriptionCreated(
     created_at: string;
   };
 
+  console.log(`[Webhook subscription_created] Subscription attributes:`, {
+    variant_id: attributes.variant_id,
+    user_email: attributes.user_email,
+    status: attributes.status,
+    customer_id: attributes.customer_id,
+    order_id: attributes.order_id,
+  });
+
   // Try to get subscription ID from custom data first (more efficient)
   const subscriptionIdFromCustom = customData?.subscriptionId as
     | string
     | undefined;
   let subscription;
+
+  console.log(`[Webhook subscription_created] Looking up subscription:`, {
+    subscriptionIdFromCustom,
+    hasCustomData: !!customData,
+  });
 
   if (subscriptionIdFromCustom) {
     // Use subscription ID from custom data
@@ -88,13 +109,23 @@ async function handleSubscriptionCreated(
     subscription = await getSubscriptionById(subscriptionIdFromCustom);
     if (!subscription) {
       console.error(
-        `[Webhook] Subscription ${subscriptionIdFromCustom} not found, falling back to email lookup`
+        `[Webhook subscription_created] Subscription ${subscriptionIdFromCustom} not found, falling back to email lookup`
       );
+    } else {
+      console.log(`[Webhook subscription_created] Found subscription by ID:`, {
+        subscriptionId: subscriptionIdFromCustom,
+        currentPlan: subscription.plan,
+        currentStatus: subscription.status,
+        hasLemonSqueezyId: !!subscription.lemonSqueezySubscriptionId,
+      });
     }
   }
 
   // Fallback to email lookup if subscription ID not found
   if (!subscription) {
+    console.log(
+      `[Webhook subscription_created] Looking up user by email: ${attributes.user_email}`
+    );
     const userId = await findUserIdByEmail(attributes.user_email);
     if (!userId) {
       // CRITICAL: Both custom data and email lookup failed
@@ -109,7 +140,7 @@ async function handleSubscriptionCreated(
         `User email: ${attributes.user_email}, ` +
         `User lookup result: not found. ` +
         `This may indicate a webhook event for a user that doesn't exist in our system.`;
-      console.error(`[Webhook] CRITICAL: ${errorMessage}`);
+      console.error(`[Webhook subscription_created] CRITICAL: ${errorMessage}`);
       // Throw error - this will be caught by handlingErrors, reported to Sentry, and returned as 500
       throw internal(errorMessage, {
         lemonSqueezySubscriptionId: subscriptionData.id,
@@ -118,7 +149,15 @@ async function handleSubscriptionCreated(
         eventType: "subscription_created",
       });
     }
+    console.log(
+      `[Webhook subscription_created] Found user by email: ${userId}`
+    );
     subscription = await getUserSubscription(userId);
+    console.log(`[Webhook subscription_created] Got subscription for user:`, {
+      subscriptionId: subscription.pk.replace("subscriptions/", ""),
+      currentPlan: subscription.plan,
+      currentStatus: subscription.status,
+    });
   }
 
   const subscriptionId = subscription.pk.replace("subscriptions/", "");
@@ -126,8 +165,25 @@ async function handleSubscriptionCreated(
   // Determine plan from variant ID
   const plan = variantIdToPlan(String(attributes.variant_id));
 
+  console.log(`[Webhook subscription_created] Updating subscription:`, {
+    subscriptionId,
+    currentPlan: subscription.plan,
+    newPlan: plan,
+    variantId: attributes.variant_id,
+    lemonSqueezySubscriptionId: subscriptionData.id,
+    status: attributes.status,
+    customerId: attributes.customer_id,
+    orderId: attributes.order_id,
+    isUpgradeFromFree:
+      subscription.plan === "free" && (plan === "starter" || plan === "pro"),
+  });
+
   // Update subscription with Lemon Squeezy data
-  await db.subscription.update({
+  // This is critical for free-to-paid upgrades - the subscription plan must be updated
+  console.log(
+    `[Webhook subscription_created] Calling db.subscription.update for subscription ${subscriptionId}`
+  );
+  const updatedSubscription = await db.subscription.update({
     ...subscription,
     plan,
     lemonSqueezySubscriptionId: subscriptionData.id,
@@ -143,26 +199,53 @@ async function handleSubscriptionCreated(
     lastSyncedAt: new Date().toISOString(),
   });
 
+  console.log(
+    `[Webhook subscription_created] Database update completed. Verifying update:`,
+    {
+      subscriptionId,
+      updatedPlan: updatedSubscription.plan,
+      updatedStatus: updatedSubscription.status,
+      updatedLemonSqueezySubscriptionId:
+        updatedSubscription.lemonSqueezySubscriptionId,
+      updatedLemonSqueezyVariantId: updatedSubscription.lemonSqueezyVariantId,
+      planUpdateSuccessful: updatedSubscription.plan === plan,
+    }
+  );
+
+  console.log(
+    `[Webhook subscription_created] Subscription updated in database:`,
+    {
+      subscriptionId,
+      plan: updatedSubscription.plan,
+      status: updatedSubscription.status,
+      lemonSqueezySubscriptionId:
+        updatedSubscription.lemonSqueezySubscriptionId,
+    }
+  );
+
   // Associate subscription with API Gateway usage plan immediately
   // This ensures the plan change takes effect right away
   try {
     const { associateSubscriptionWithPlan } = await import(
       "../../utils/apiGatewayUsagePlans"
     );
+    console.log(
+      `[Webhook subscription_created] Associating subscription ${subscriptionId} with ${plan} usage plan`
+    );
     await associateSubscriptionWithPlan(subscriptionId, plan);
     console.log(
-      `[Webhook] Associated subscription ${subscriptionId} with ${plan} usage plan`
+      `[Webhook subscription_created] Successfully associated subscription ${subscriptionId} with ${plan} usage plan`
     );
   } catch (error) {
     console.error(
-      `[Webhook] Error associating subscription ${subscriptionId} with usage plan:`,
+      `[Webhook subscription_created] Error associating subscription ${subscriptionId} with usage plan:`,
       error
     );
     // Don't throw - subscription is updated, usage plan association can be retried
   }
 
   console.log(
-    `[Webhook] Updated subscription ${subscriptionId} with Lemon Squeezy data`
+    `[Webhook subscription_created] Successfully updated subscription ${subscriptionId} from ${subscription.plan} to ${plan} plan`
   );
 }
 
@@ -930,6 +1013,8 @@ export const handler = adaptHttpHandler(
       console.log(`[Webhook] Received event: ${eventName}`, {
         customData,
         dataId: webhookEvent.data.id,
+        dataType: webhookEvent.data.type,
+        fullMeta: webhookEvent.meta,
       });
 
       // Handle different event types
@@ -937,9 +1022,16 @@ export const handler = adaptHttpHandler(
       // 1. Boomify the error
       // 2. Report to Sentry with full HTTP request context
       // 3. Return boom error payload as response
+      console.log(`[Webhook] Processing event type: ${eventName} with handler`);
       switch (eventName) {
         case "subscription_created":
+          console.log(
+            `[Webhook] Calling handleSubscriptionCreated for subscription ${webhookEvent.data.id}`
+          );
           await handleSubscriptionCreated(webhookEvent.data, customData);
+          console.log(
+            `[Webhook] Successfully processed subscription_created event for subscription ${webhookEvent.data.id}`
+          );
           break;
         case "subscription_updated":
           await handleSubscriptionUpdated(webhookEvent.data, customData);
@@ -974,5 +1066,3 @@ export const handler = adaptHttpHandler(
     }
   )
 );
-
-

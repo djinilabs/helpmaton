@@ -14,6 +14,7 @@ import {
   cancelSubscription as cancelLemonSqueezySubscription,
   getCustomerPortalUrl,
   getSubscription as getLemonSqueezySubscription,
+  listSubscriptionsByCustomer,
   updateSubscriptionVariant,
 } from "../../utils/lemonSqueezy";
 import { getPlanLimits } from "../../utils/subscriptionPlans";
@@ -218,6 +219,32 @@ export const createApp: () => express.Application = () => {
 
       // Get effective plan (returns "free" if subscription is cancelled/expired)
       const effectivePlan = getEffectivePlan(subscription);
+
+      console.log(`[GET /api/subscription] Subscription plan details:`, {
+        subscriptionId,
+        rawPlan: subscription.plan,
+        effectivePlan,
+        status: subscription.status,
+        lemonSqueezySubscriptionId: subscription.lemonSqueezySubscriptionId,
+        lemonSqueezyVariantId: subscription.lemonSqueezyVariantId,
+        lemonSqueezyCustomerId: subscription.lemonSqueezyCustomerId,
+        endsAt: subscription.endsAt,
+        lastSyncedAt: subscription.lastSyncedAt,
+        isActive:
+          subscription.status === "active" ||
+          subscription.status === "on_trial",
+        isCancelled: subscription.status === "cancelled",
+        hasEndsAt: !!subscription.endsAt,
+        willShowAsFree: effectivePlan === "free",
+        reasonForFree:
+          effectivePlan === "free"
+            ? subscription.status === "cancelled"
+              ? "cancelled"
+              : !subscription.lemonSqueezySubscriptionId
+              ? "no_lemon_squeezy_id"
+              : "inactive"
+            : "none",
+      });
 
       // Get plan limits based on effective plan
       const limits = getPlanLimits(effectivePlan);
@@ -510,8 +537,23 @@ export const createApp: () => express.Application = () => {
       }
 
       // Get user's subscription to include subscription ID in checkout
+      console.log(
+        `[POST /api/subscription/checkout] Getting subscription for user ${currentUserId}`
+      );
       const subscription = await getUserSubscription(currentUserId);
       const subscriptionId = subscription.pk.replace("subscriptions/", "");
+
+      console.log(
+        `[POST /api/subscription/checkout] Current subscription state:`,
+        {
+          subscriptionId,
+          currentPlan: subscription.plan,
+          status: subscription.status,
+          lemonSqueezySubscriptionId: subscription.lemonSqueezySubscriptionId,
+          lemonSqueezyVariantId: subscription.lemonSqueezyVariantId,
+          requestedPlan: plan,
+        }
+      );
 
       // Check if user has a cancelled subscription with the same plan
       // If so, we should reactivate it instead of creating a new checkout
@@ -660,10 +702,23 @@ export const createApp: () => express.Application = () => {
           variantId,
           userId: currentUserId,
           subscriptionId,
+          currentPlan: subscription.plan,
+          hasLemonSqueezySubscription:
+            !!subscription.lemonSqueezySubscriptionId,
         }
       );
 
       // Create checkout (for new subscriptions or if reactivation failed)
+      // Note: For free subscriptions, this will create a new Lemon Squeezy subscription
+      // The webhook (subscription_created) will update the subscription when checkout completes
+      console.log(
+        `[POST /api/subscription/checkout] Calling createCheckout with custom data:`,
+        {
+          userId: currentUserId,
+          subscriptionId,
+        }
+      );
+
       const checkout = await createCheckout({
         storeId,
         variantId,
@@ -680,9 +735,22 @@ export const createApp: () => express.Application = () => {
         },
       });
 
+      console.log(`[POST /api/subscription/checkout] Checkout created:`, {
+        checkoutUrl: checkout.url,
+        hasUrl: !!checkout.url,
+      });
+
       if (!checkout.url) {
+        console.error(
+          `[POST /api/subscription/checkout] ERROR: Checkout URL not returned from Lemon Squeezy`
+        );
         throw internal("Checkout URL not returned from Lemon Squeezy");
       }
+
+      console.log(
+        `[POST /api/subscription/checkout] Returning checkout URL to user. ` +
+          `Subscription will be updated via webhook (subscription_created) when checkout completes.`
+      );
 
       res.json({
         checkoutUrl: checkout.url,
@@ -975,15 +1043,162 @@ export const createApp: () => express.Application = () => {
       const currentUserId = currentUserRef.replace("users/", "");
 
       console.log(
-        `[POST /api/subscription/sync] Syncing subscription for user ${currentUserId}`
+        `[POST /api/subscription/sync] Starting sync for user ${currentUserId}`
       );
 
       const subscription = await getUserSubscription(currentUserId);
+      const subscriptionId = subscription.pk.replace("subscriptions/", "");
+
+      console.log(`[POST /api/subscription/sync] Current subscription state:`, {
+        subscriptionId,
+        plan: subscription.plan,
+        status: subscription.status,
+        lemonSqueezySubscriptionId: subscription.lemonSqueezySubscriptionId,
+        lemonSqueezyVariantId: subscription.lemonSqueezyVariantId,
+        lemonSqueezyCustomerId: subscription.lemonSqueezyCustomerId,
+        lastSyncedAt: subscription.lastSyncedAt,
+      });
+
+      // Helper to map variant ID to plan
+      const variantIdToPlan = (variantId: string): "starter" | "pro" => {
+        const starterVariantId = process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID;
+        const proVariantId = process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
+
+        if (variantId === starterVariantId) {
+          return "starter";
+        }
+        if (variantId === proVariantId) {
+          return "pro";
+        }
+
+        console.warn(
+          `[POST /api/subscription/sync] Unknown variant ID ${variantId}, defaulting to starter`
+        );
+        return "starter";
+      };
 
       if (!subscription.lemonSqueezySubscriptionId) {
         // No Lemon Squeezy subscription to sync
+        // This can happen if:
+        // 1. User is on free plan and hasn't completed checkout yet
+        // 2. User just completed checkout but webhook hasn't processed yet
+        // In case 2, we should try to find the subscription by customer ID or email
+        console.log(
+          `[POST /api/subscription/sync] No Lemon Squeezy subscription ID found for subscription ${subscriptionId}. ` +
+            `Attempting to find subscription by customer ID or email...`
+        );
+
+        // Try to find subscription by customer ID if we have it
+        if (subscription.lemonSqueezyCustomerId) {
+          console.log(
+            `[POST /api/subscription/sync] Attempting to find subscription by customer ID: ${subscription.lemonSqueezyCustomerId}`
+          );
+          try {
+            const customerSubscriptions = await listSubscriptionsByCustomer(
+              subscription.lemonSqueezyCustomerId
+            );
+
+            console.log(
+              `[POST /api/subscription/sync] Found ${customerSubscriptions.length} subscription(s) for customer ${subscription.lemonSqueezyCustomerId}`
+            );
+
+            if (customerSubscriptions.length > 0) {
+              // Get the most recent active subscription (not cancelled)
+              const activeSubscription =
+                customerSubscriptions.find(
+                  (sub) => sub.attributes.status !== "cancelled"
+                ) || customerSubscriptions[0];
+
+              console.log(
+                `[POST /api/subscription/sync] Using subscription ${activeSubscription.id} from customer lookup`
+              );
+
+              // Update subscription with the found Lemon Squeezy subscription ID
+              const db = await database();
+              const attributes = activeSubscription.attributes;
+              const plan = variantIdToPlan(String(attributes.variant_id));
+
+              console.log(
+                `[POST /api/subscription/sync] Updating subscription ${subscriptionId} with found Lemon Squeezy subscription:`,
+                {
+                  lemonSqueezySubscriptionId: activeSubscription.id,
+                  plan,
+                  variantId: attributes.variant_id,
+                  status: attributes.status,
+                }
+              );
+
+              const updatedSubscription = await db.subscription.update({
+                ...subscription,
+                plan,
+                lemonSqueezySubscriptionId: activeSubscription.id,
+                lemonSqueezyCustomerId: String(attributes.customer_id),
+                lemonSqueezyOrderId: String(attributes.order_id),
+                lemonSqueezyVariantId: String(attributes.variant_id),
+                status: attributes.status as
+                  | "active"
+                  | "past_due"
+                  | "unpaid"
+                  | "cancelled"
+                  | "expired"
+                  | "on_trial",
+                renewsAt: attributes.renews_at,
+                endsAt: attributes.ends_at || undefined,
+                trialEndsAt: attributes.trial_ends_at || undefined,
+                lemonSqueezySyncKey: "ACTIVE",
+                lastSyncedAt: new Date().toISOString(),
+              });
+
+              console.log(
+                `[POST /api/subscription/sync] Successfully updated subscription ${subscriptionId} from customer lookup:`,
+                {
+                  oldPlan: subscription.plan,
+                  newPlan: updatedSubscription.plan,
+                  status: updatedSubscription.status,
+                }
+              );
+
+              // Update API Gateway usage plan association
+              try {
+                const { associateSubscriptionWithPlan } = await import(
+                  "../../utils/apiGatewayUsagePlans"
+                );
+                await associateSubscriptionWithPlan(subscriptionId, plan);
+                console.log(
+                  `[POST /api/subscription/sync] Associated subscription ${subscriptionId} with ${plan} usage plan`
+                );
+              } catch (error) {
+                console.error(
+                  `[POST /api/subscription/sync] Error associating subscription with usage plan:`,
+                  error
+                );
+              }
+
+              res.json({
+                message:
+                  "Subscription synced successfully from customer lookup",
+                synced: true,
+              });
+              return;
+            }
+          } catch (error) {
+            console.error(
+              `[POST /api/subscription/sync] Error looking up subscriptions by customer ID:`,
+              error
+            );
+            // Continue to fallback behavior
+          }
+        }
+
+        // Fallback: Try to find by user email if we have it
+        console.log(
+          `[POST /api/subscription/sync] Customer ID lookup failed or no customer ID. ` +
+            `Subscription may not be associated with Lemon Squeezy yet, or webhook hasn't processed.`
+        );
+
         res.json({
-          message: "Subscription is not associated with Lemon Squeezy",
+          message:
+            "Subscription is not associated with Lemon Squeezy. If you just completed checkout, please wait a moment and refresh.",
           synced: false,
         });
         return;
@@ -992,25 +1207,43 @@ export const createApp: () => express.Application = () => {
       const db = await database();
 
       try {
+        console.log(
+          `[POST /api/subscription/sync] Fetching subscription from Lemon Squeezy: ${subscription.lemonSqueezySubscriptionId}`
+        );
         // Fetch latest data from Lemon Squeezy
         const lemonSqueezySub = await getLemonSqueezySubscription(
           subscription.lemonSqueezySubscriptionId
         );
         const attributes = lemonSqueezySub.attributes;
 
+        console.log(
+          `[POST /api/subscription/sync] Lemon Squeezy subscription data:`,
+          {
+            variant_id: attributes.variant_id,
+            status: attributes.status,
+            renews_at: attributes.renews_at,
+            ends_at: attributes.ends_at,
+          }
+        );
+
         // Map variant ID to plan
-        const starterVariantId = process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID;
-        const proVariantId = process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
         const variantId = String(attributes.variant_id);
-        const plan =
-          variantId === starterVariantId
-            ? "starter"
-            : variantId === proVariantId
-            ? "pro"
-            : "starter"; // Default fallback
+        const plan = variantIdToPlan(variantId);
+
+        const starterVariantIdEnv =
+          process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID;
+        const proVariantIdEnv = process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
+        console.log(`[POST /api/subscription/sync] Plan mapping:`, {
+          variantId,
+          starterVariantId: starterVariantIdEnv,
+          proVariantId: proVariantIdEnv,
+          mappedPlan: plan,
+          currentPlan: subscription.plan,
+          planWillChange: plan !== subscription.plan,
+        });
 
         // Update subscription record
-        await db.subscription.update({
+        const updatedSubscription = await db.subscription.update({
           ...subscription,
           plan,
           status: attributes.status as
@@ -1030,17 +1263,45 @@ export const createApp: () => express.Application = () => {
           lastSyncedAt: new Date().toISOString(),
         });
 
+        console.log(`[POST /api/subscription/sync] Subscription updated:`, {
+          subscriptionId,
+          oldPlan: subscription.plan,
+          newPlan: updatedSubscription.plan,
+          status: updatedSubscription.status,
+          lemonSqueezyVariantId: updatedSubscription.lemonSqueezyVariantId,
+        });
+
+        // Update API Gateway usage plan association
+        try {
+          const { associateSubscriptionWithPlan } = await import(
+            "../../utils/apiGatewayUsagePlans"
+          );
+          console.log(
+            `[POST /api/subscription/sync] Associating subscription ${subscriptionId} with ${plan} usage plan`
+          );
+          await associateSubscriptionWithPlan(subscriptionId, plan);
+          console.log(
+            `[POST /api/subscription/sync] Successfully associated subscription ${subscriptionId} with ${plan} usage plan`
+          );
+        } catch (error) {
+          console.error(
+            `[POST /api/subscription/sync] Error associating subscription ${subscriptionId} with usage plan:`,
+            error
+          );
+          // Don't throw - subscription is updated, usage plan association can be retried
+        }
+
         // Check grace period if needed
-        const updatedSubscription = await db.subscription.get(
+        const subscriptionAfterUpdate = await db.subscription.get(
           subscription.pk,
           subscription.sk
         );
-        if (updatedSubscription) {
-          await checkGracePeriod(updatedSubscription);
+        if (subscriptionAfterUpdate) {
+          await checkGracePeriod(subscriptionAfterUpdate);
         }
 
         console.log(
-          `[POST /api/subscription/sync] Successfully synced subscription ${subscription.pk}`
+          `[POST /api/subscription/sync] Successfully synced subscription ${subscriptionId} from ${subscription.plan} to ${plan}`
         );
 
         res.json({
@@ -1049,7 +1310,7 @@ export const createApp: () => express.Application = () => {
         });
       } catch (error) {
         console.error(
-          `[POST /api/subscription/sync] Error syncing subscription:`,
+          `[POST /api/subscription/sync] Error syncing subscription ${subscriptionId}:`,
           error
         );
         throw error;

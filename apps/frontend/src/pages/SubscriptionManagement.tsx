@@ -43,22 +43,93 @@ const SubscriptionManagement: FC = () => {
   useEffect(() => {
     const success = searchParams.get("success");
     if (success === "true") {
+      console.log(
+        "[SubscriptionManagement] Checkout success detected, syncing subscription"
+      );
       // Remove success parameter from URL
       const newSearchParams = new URLSearchParams(searchParams);
       newSearchParams.delete("success");
       setSearchParams(newSearchParams, { replace: true });
 
-      // Refresh subscription data immediately
-      queryClient.invalidateQueries({ queryKey: ["subscription"] });
-      refetch();
-      toast.success("Subscription activated successfully!");
+      // Immediately sync subscription from Lemon Squeezy to get latest data
+      // This ensures we get the updated plan even if webhook hasn't processed yet
+      console.log(
+        "[SubscriptionManagement] Calling sync mutation after checkout success"
+      );
+      syncMutation.mutate(undefined, {
+        onSuccess: (data) => {
+          console.log(
+            "[SubscriptionManagement] Sync mutation succeeded:",
+            data
+          );
+          // After sync, refresh subscription data
+          console.log(
+            "[SubscriptionManagement] Invalidating subscription query and refetching"
+          );
+          queryClient.invalidateQueries({ queryKey: ["subscription"] });
+          refetch().then((result) => {
+            console.log(
+              "[SubscriptionManagement] Refetch completed:",
+              result.data
+                ? {
+                    plan: result.data.plan,
+                    status: result.data.status,
+                    subscriptionId: result.data.subscriptionId,
+                  }
+                : "no data"
+            );
+            toast.success("Subscription activated successfully!");
+          });
+        },
+        onError: (error) => {
+          console.error(
+            "[SubscriptionManagement] Error syncing after checkout:",
+            error
+          );
+          // Still refresh subscription data even if sync fails
+          console.log(
+            "[SubscriptionManagement] Sync failed, but still refreshing subscription data"
+          );
+          queryClient.invalidateQueries({ queryKey: ["subscription"] });
+          refetch().then((result) => {
+            console.log(
+              "[SubscriptionManagement] Refetch after sync error completed:",
+              result.data
+                ? {
+                    plan: result.data.plan,
+                    status: result.data.status,
+                    subscriptionId: result.data.subscriptionId,
+                  }
+                : "no data"
+            );
+            toast.success("Subscription activated successfully!");
+          });
+        },
+      });
     }
-  }, [searchParams, setSearchParams, queryClient, refetch, toast]);
+  }, [
+    searchParams,
+    setSearchParams,
+    queryClient,
+    refetch,
+    toast,
+    syncMutation,
+  ]);
 
   // Sync subscription from Lemon Squeezy when page loads (only if not synced recently)
   useEffect(() => {
     if (!isLoading && subscription && !hasSyncedRef.current) {
+      console.log(
+        "[SubscriptionManagement] Checking if subscription needs sync:",
+        {
+          hasStatus: !!subscription.status,
+          hasRenewsAt: !!subscription.renewsAt,
+          plan: subscription.plan,
+          subscriptionId: subscription.subscriptionId,
+        }
+      );
       // Only sync if subscription has Lemon Squeezy data (status or renewsAt indicates Lemon Squeezy subscription)
+      // OR if subscription is free but might have just completed checkout (webhook might not have processed yet)
       if (subscription.status || subscription.renewsAt) {
         const now = Date.now();
         const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
@@ -68,10 +139,23 @@ const SubscriptionManagement: FC = () => {
           lastSyncTimeRef.current === null ||
           now - lastSyncTimeRef.current > fiveMinutes
         ) {
+          console.log(
+            "[SubscriptionManagement] Auto-syncing subscription on page load"
+          );
           hasSyncedRef.current = true;
           lastSyncTimeRef.current = now;
           syncMutation.mutate();
+        } else {
+          console.log(
+            `[SubscriptionManagement] Skipping auto-sync (last sync was ${Math.round(
+              (now - (lastSyncTimeRef.current || 0)) / 1000
+            )}s ago)`
+          );
         }
+      } else {
+        console.log(
+          "[SubscriptionManagement] Subscription has no Lemon Squeezy data, skipping auto-sync"
+        );
       }
     }
     // Note: syncMutation.mutate is stable and doesn't need to be in deps
@@ -84,6 +168,23 @@ const SubscriptionManagement: FC = () => {
   const { data: userByEmail, isLoading: isLoadingUser } = useUserByEmail(
     shouldQueryUser ? email : null
   );
+
+  // Log subscription data whenever it changes
+  useEffect(() => {
+    if (subscription) {
+      console.log("[SubscriptionManagement] Subscription data received:", {
+        subscriptionId: subscription.subscriptionId,
+        plan: subscription.plan,
+        status: subscription.status,
+        renewsAt: subscription.renewsAt,
+        expiresAt: subscription.expiresAt,
+        lemonSqueezySubscriptionId: subscription.lemonSqueezySubscriptionId,
+        hasStatus: !!subscription.status,
+        hasRenewsAt: !!subscription.renewsAt,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, [subscription]);
 
   if (isLoading) {
     return (
@@ -130,6 +231,14 @@ const SubscriptionManagement: FC = () => {
         (expiresAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
       )
     : null;
+
+  console.log("[SubscriptionManagement] Rendering with plan:", {
+    plan: subscription.plan,
+    planName,
+    status: subscription.status,
+    isExpired,
+    daysUntilExpiry,
+  });
 
   // Check if manager limit is reached
   const maxManagers = subscription.limits.maxManagers;
