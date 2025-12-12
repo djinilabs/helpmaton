@@ -29,12 +29,12 @@ export function isSubscriptionActive(
     return true;
   }
 
-  // Check status
-  if (
-    subscription.status === "cancelled" ||
-    subscription.status === "expired"
-  ) {
-    return false;
+  // Check if subscription has ended (check endsAt first, before status)
+  if (subscription.endsAt) {
+    const endsAt = new Date(subscription.endsAt);
+    if (endsAt < new Date()) {
+      return false;
+    }
   }
 
   // Check if past grace period
@@ -45,12 +45,16 @@ export function isSubscriptionActive(
     }
   }
 
-  // Check if subscription has ended
-  if (subscription.endsAt) {
-    const endsAt = new Date(subscription.endsAt);
-    if (endsAt < new Date()) {
-      return false;
-    }
+  // Check status - cancelled subscriptions remain active until endsAt
+  // expired subscriptions are always inactive
+  if (subscription.status === "expired") {
+    return false;
+  }
+
+  // Cancelled subscriptions are active until endsAt (checked above)
+  // If endsAt is not set, cancelled subscriptions are immediately inactive
+  if (subscription.status === "cancelled" && !subscription.endsAt) {
+    return false;
   }
 
   // Allow access during grace period for past_due subscriptions
@@ -65,10 +69,16 @@ export function isSubscriptionActive(
 /**
  * Get effective plan for a subscription
  * Returns "free" if subscription is expired, cancelled, or past grace period
+ * Note: Cancelled subscriptions show as "free" immediately, even if they still have access until endsAt
  */
 export function getEffectivePlan(
   subscription: SubscriptionRecord
 ): SubscriptionPlan {
+  // Cancelled subscriptions show as "free" immediately (even if still active until endsAt)
+  if (subscription.status === "cancelled") {
+    return "free";
+  }
+
   if (!isSubscriptionActive(subscription)) {
     return "free";
   }

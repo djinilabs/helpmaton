@@ -15,7 +15,7 @@ import {
   getSubscription as getLemonSqueezySubscription,
 } from "../../utils/lemonSqueezy";
 import { getPlanLimits } from "../../utils/subscriptionPlans";
-import { checkGracePeriod } from "../../utils/subscriptionStatus";
+import { checkGracePeriod, getEffectivePlan } from "../../utils/subscriptionStatus";
 import {
   getUserSubscription,
   isSubscriptionManager,
@@ -211,13 +211,16 @@ export const createApp: () => express.Application = () => {
         managers = [];
       }
 
-      // Get plan limits
-      const limits = getPlanLimits(subscription.plan);
+      // Get effective plan (returns "free" if subscription is cancelled/expired)
+      const effectivePlan = getEffectivePlan(subscription);
+
+      // Get plan limits based on effective plan
+      const limits = getPlanLimits(effectivePlan);
       if (!limits) {
         console.error(
-          `[GET /api/subscription] Invalid plan: ${subscription.plan}`
+          `[GET /api/subscription] Invalid plan: ${effectivePlan}`
         );
-        throw new Error(`Invalid subscription plan: ${subscription.plan}`);
+        throw new Error(`Invalid subscription plan: ${effectivePlan}`);
       }
 
       // Get usage statistics
@@ -265,7 +268,7 @@ export const createApp: () => express.Application = () => {
 
       const response = {
         subscriptionId,
-        plan: subscription.plan,
+        plan: effectivePlan,
         expiresAt: subscription.expiresAt || null,
         createdAt: subscription.createdAt,
         // Lemon Squeezy fields
@@ -564,11 +567,19 @@ export const createApp: () => express.Application = () => {
         subscription.lemonSqueezySubscriptionId
       );
 
+      // Fetch updated subscription from Lemon Squeezy to get endsAt date
+      const lemonSqueezySub = await getLemonSqueezySubscription(
+        subscription.lemonSqueezySubscriptionId
+      );
+
       // Update subscription status (webhook will also update it, but update immediately)
       const db = await database();
       await db.subscription.update({
         ...subscription,
         status: "cancelled",
+        endsAt: lemonSqueezySub.attributes.ends_at || undefined,
+        lemonSqueezySyncKey: undefined, // Remove from GSI when cancelled
+        lastSyncedAt: new Date().toISOString(),
       });
 
       res.json({ success: true });
