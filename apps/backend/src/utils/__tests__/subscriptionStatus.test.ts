@@ -170,9 +170,9 @@ describe("subscriptionStatus", () => {
         version: 1,
       };
 
-      // past_due status is not "active" or "on_trial", so it returns false
-      // even though grace period hasn't expired
-      expect(isSubscriptionActive(subscription)).toBe(false);
+      // past_due subscriptions should remain active during grace period
+      // This allows users to continue using the service while they fix payment issues
+      expect(isSubscriptionActive(subscription)).toBe(true);
     });
   });
 

@@ -505,7 +505,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
   });
 
   describe("error handling", () => {
-    it("should return 200 even if handler throws error", async () => {
+    it("should return 500 for critical errors (database, network)", async () => {
       mockGetSubscriptionById.mockRejectedValue(new Error("Database error"));
 
       const event = createAPIGatewayEventV2({
@@ -538,7 +538,50 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      // Should still return 200 to prevent Lemon Squeezy from retrying
+      // Critical errors (like database failures) should return 500 to trigger retry
+      const mockContext: Context = {} as Context;
+      const mockCallback: Callback = () => {};
+      const result = (await handler(event, mockContext, mockCallback)) as any;
+      expect(result.statusCode).toBe(500);
+    });
+
+    it("should return 200 for non-critical errors", async () => {
+      mockGetSubscriptionById.mockRejectedValue(
+        new Error("Invalid subscription data")
+      );
+
+      const event = createAPIGatewayEventV2({
+        headers: {
+          "x-signature": "valid-signature",
+        },
+        body: JSON.stringify({
+          meta: {
+            event_name: "subscription_created",
+            custom_data: {
+              subscriptionId: "sub-123",
+            },
+          },
+          data: {
+            id: "ls-sub-123",
+            type: "subscriptions",
+            attributes: {
+              store_id: 1,
+              customer_id: 1,
+              order_id: 1,
+              variant_id: "var-starter",
+              user_email: "user@example.com",
+              status: "active",
+              renews_at: "2025-02-01T00:00:00Z",
+              ends_at: null,
+              trial_ends_at: null,
+              created_at: new Date().toISOString(),
+            },
+          },
+        }),
+      });
+
+      // Non-critical errors should return 200 to prevent retries
+      // These will be handled by the scheduled sync job
       const mockContext: Context = {} as Context;
       const mockCallback: Callback = () => {};
       const result = (await handler(event, mockContext, mockCallback)) as any;

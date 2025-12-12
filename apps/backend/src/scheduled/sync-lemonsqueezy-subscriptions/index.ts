@@ -180,6 +180,18 @@ async function syncAllSubscriptions(): Promise<void> {
   // Since we don't have a direct index, we'll rely on webhooks for most updates
   // This sync is primarily for grace period checking and email notifications
 
+  // NOTE: This is intentionally a placeholder implementation.
+  // Without a GSI (Global Secondary Index) on lemonSqueezySubscriptionId,
+  // querying all subscriptions with Lemon Squeezy IDs would require a full table scan,
+  // which is inefficient and expensive.
+  //
+  // The current architecture relies on webhooks for real-time updates, which is the
+  // recommended approach. This scheduled sync serves as a backup mechanism for:
+  // 1. Grace period checking and email notifications
+  // 2. Catching any missed webhook events
+  //
+  // To implement full sync functionality, add a GSI on lemonSqueezySubscriptionId
+  // and update this function to query that index.
   const allSubscriptions: Array<{
     pk: string;
     sk?: string;
@@ -191,10 +203,6 @@ async function syncAllSubscriptions(): Promise<void> {
     lastSyncedAt?: string;
     version?: number;
   }> = [];
-
-  // TODO: Implement proper query logic when GSI is added
-  // For now, this is a placeholder - webhooks handle most updates in real-time
-  // The sync primarily serves to check grace periods and send reminder emails
 
   console.log(
     `[Sync] Processing subscriptions (relying on webhooks for most updates)`

@@ -29,14 +29,25 @@ const SubscriptionManagement: FC = () => {
   const portalQuery = useSubscriptionPortal();
   const syncMutation = useSubscriptionSync();
   const hasSyncedRef = useRef(false);
+  const lastSyncTimeRef = useRef<number | null>(null);
 
-  // Sync subscription from Lemon Squeezy when page loads (only once)
+  // Sync subscription from Lemon Squeezy when page loads (only if not synced recently)
   useEffect(() => {
     if (!isLoading && subscription && !hasSyncedRef.current) {
       // Only sync if subscription has Lemon Squeezy data (status or renewsAt indicates Lemon Squeezy subscription)
       if (subscription.status || subscription.renewsAt) {
-        hasSyncedRef.current = true;
-        syncMutation.mutate();
+        const now = Date.now();
+        const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+        // Only sync if we haven't synced in the last 5 minutes
+        if (
+          lastSyncTimeRef.current === null ||
+          now - lastSyncTimeRef.current > fiveMinutes
+        ) {
+          hasSyncedRef.current = true;
+          lastSyncTimeRef.current = now;
+          syncMutation.mutate();
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -277,7 +288,7 @@ const SubscriptionManagement: FC = () => {
                       : "Cancel Subscription"}
                   </button>
                 )}
-                {subscription.lemonSqueezyCustomerId && (
+                {(subscription.status || subscription.renewsAt) && (
                   <button
                     onClick={() => {
                       portalQuery.refetch().then((result) => {

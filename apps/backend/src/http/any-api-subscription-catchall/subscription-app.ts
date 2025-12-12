@@ -592,7 +592,7 @@ export const createApp: () => express.Application = () => {
 
       // Get customer portal URL
       const portalUrl = await getCustomerPortalUrl(
-        subscription.lemonSqueezyCustomerId!
+        subscription.lemonSqueezyCustomerId
       );
 
       res.json({

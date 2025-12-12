@@ -53,7 +53,13 @@ export function isSubscriptionActive(
     }
   }
 
-  return subscription.status === "active" || subscription.status === "on_trial";
+  // Allow access during grace period for past_due subscriptions
+  // past_due subscriptions should remain active until grace period expires
+  return (
+    subscription.status === "active" ||
+    subscription.status === "on_trial" ||
+    subscription.status === "past_due"
+  );
 }
 
 /**

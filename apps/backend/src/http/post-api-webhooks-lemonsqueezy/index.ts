@@ -659,11 +659,40 @@ export const handler = adaptHttpHandler(
         }
       } catch (error) {
         console.error(`[Webhook] Error handling event ${eventName}:`, error);
-        // Still return 200 to prevent Lemon Squeezy from retrying
-        // We'll handle errors in scheduled sync
+
+        // Determine if this is a critical error that should trigger retry
+        // Critical errors: database failures, network issues, etc.
+        // Non-critical errors: invalid data, business logic errors, etc.
+        const isCriticalError =
+          error instanceof Error &&
+          (error.message.includes("database") ||
+            error.message.includes("Database") ||
+            error.message.includes("network") ||
+            error.message.includes("Network") ||
+            error.message.includes("timeout") ||
+            error.message.includes("Timeout") ||
+            error.message.includes("ECONNREFUSED") ||
+            error.message.includes("ENOTFOUND"));
+
+        if (isCriticalError) {
+          // Return 500 for critical errors to trigger Lemon Squeezy retry
+          console.error(
+            `[Webhook] Critical error occurred, returning 500 to trigger retry`
+          );
+          return {
+            statusCode: 500,
+            body: JSON.stringify({ error: "Internal server error" }),
+          };
+        }
+
+        // For non-critical errors, return 200 to prevent retries
+        // These errors will be handled by the scheduled sync job
+        console.warn(
+          `[Webhook] Non-critical error occurred, returning 200 (will be handled by scheduled sync)`
+        );
       }
 
-      // Always return 200 OK to acknowledge receipt
+      // Return 200 OK to acknowledge successful processing
       return {
         statusCode: 200,
         body: JSON.stringify({ received: true }),

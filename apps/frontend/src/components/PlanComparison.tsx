@@ -201,3 +201,4 @@ function getPlanLimits(plan: "free" | "starter" | "pro") {
   };
   return limits[plan];
 }
+

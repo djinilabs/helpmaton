@@ -1450,7 +1450,6 @@ export interface Subscription {
   renewsAt?: string | null;
   endsAt?: string | null;
   gracePeriodEndsAt?: string | null;
-  lemonSqueezyCustomerId?: string | null;
   managers: SubscriptionManager[];
   limits: {
     maxWorkspaces: number;
