@@ -55,58 +55,61 @@ export const handlingErrors = (
         },
       });
 
-      // Report ALL errors to Sentry with full context
-      // This ensures we capture all failures for monitoring and debugging
-      Sentry.captureException(ensureError(error), {
-        tags: {
-          handler: "APIGatewayProxyHandlerV2",
-          statusCode: boomed.output.statusCode,
-          isServer: boomed.isServer,
-        },
-        contexts: {
-          request: {
-            method: event.requestContext?.http?.method || "UNKNOWN",
-            url: event.rawPath || event.requestContext?.http?.path || "UNKNOWN",
-            path:
-              event.rawPath || event.requestContext?.http?.path || "UNKNOWN",
-            headers: event.headers || {},
-            queryString:
-              event.rawQueryString || event.queryStringParameters || {},
-            body: event.body
-              ? event.body.length > 10000
-                ? "[truncated]"
-                : event.body
-              : undefined,
-          },
-          lambda: {
-            requestId: context.awsRequestId,
-            functionName: context.functionName,
-            functionVersion: context.functionVersion,
-            memoryLimitInMB: context.memoryLimitInMB,
-            remainingTimeInMillis:
-              typeof context.getRemainingTimeInMillis === "function"
-                ? context.getRemainingTimeInMillis()
-                : undefined,
-          },
-        },
-        extra: {
-          event: {
-            path: event.rawPath || event.requestContext?.http?.path,
-            method: event.requestContext?.http?.method,
-            headers: event.headers,
-            queryStringParameters: event.queryStringParameters,
-            pathParameters: event.pathParameters,
-            stageVariables: event.stageVariables,
-            requestContext: event.requestContext,
-          },
-          boom: {
+      if (boomed.isServer) {
+        // Report ALL errors to Sentry with full context
+        // This ensures we capture all failures for monitoring and debugging
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            handler: "APIGatewayProxyHandlerV2",
             statusCode: boomed.output.statusCode,
-            message: boomed.message,
             isServer: boomed.isServer,
-            payload: boomed.output.payload,
           },
-        },
-      });
+          contexts: {
+            request: {
+              method: event.requestContext?.http?.method || "UNKNOWN",
+              url:
+                event.rawPath || event.requestContext?.http?.path || "UNKNOWN",
+              path:
+                event.rawPath || event.requestContext?.http?.path || "UNKNOWN",
+              headers: event.headers || {},
+              queryString:
+                event.rawQueryString || event.queryStringParameters || {},
+              body: event.body
+                ? event.body.length > 10000
+                  ? "[truncated]"
+                  : event.body
+                : undefined,
+            },
+            lambda: {
+              requestId: context.awsRequestId,
+              functionName: context.functionName,
+              functionVersion: context.functionVersion,
+              memoryLimitInMB: context.memoryLimitInMB,
+              remainingTimeInMillis:
+                typeof context.getRemainingTimeInMillis === "function"
+                  ? context.getRemainingTimeInMillis()
+                  : undefined,
+            },
+          },
+          extra: {
+            event: {
+              path: event.rawPath || event.requestContext?.http?.path,
+              method: event.requestContext?.http?.method,
+              headers: event.headers,
+              queryStringParameters: event.queryStringParameters,
+              pathParameters: event.pathParameters,
+              stageVariables: event.stageVariables,
+              requestContext: event.requestContext,
+            },
+            boom: {
+              statusCode: boomed.output.statusCode,
+              message: boomed.message,
+              isServer: boomed.isServer,
+              payload: boomed.output.payload,
+            },
+          },
+        });
+      }
 
       const { statusCode, headers, payload } = boomed.output;
 

@@ -469,8 +469,9 @@ export const createApp: () => express.Application = () => {
   );
 
   // POST /api/subscription/checkout - Create Lemon Squeezy checkout for plan upgrade
+  // Note: API Gateway strips /api/subscription prefix for catchall routes, so we use /checkout
   app.post(
-    "/api/subscription/checkout",
+    "/checkout",
     requireAuth,
     asyncHandler(async (req, res) => {
       const currentUserRef = req.userRef;
@@ -541,8 +542,9 @@ export const createApp: () => express.Application = () => {
   );
 
   // POST /api/subscription/cancel - Cancel subscription
+  // Note: API Gateway strips /api/subscription prefix for catchall routes, so we use /cancel
   app.post(
-    "/api/subscription/cancel",
+    "/cancel",
     requireAuth,
     asyncHandler(async (req, res) => {
       const currentUserRef = req.userRef;
@@ -574,8 +576,9 @@ export const createApp: () => express.Application = () => {
   );
 
   // GET /api/subscription/portal - Get customer portal URL
+  // Note: API Gateway strips /api/subscription prefix for catchall routes, so we use /portal
   app.get(
-    "/api/subscription/portal",
+    "/portal",
     requireAuth,
     asyncHandler(async (req, res) => {
       const currentUserRef = req.userRef;
@@ -602,8 +605,9 @@ export const createApp: () => express.Application = () => {
   );
 
   // POST /api/subscription/sync - Sync subscription from Lemon Squeezy
+  // Note: API Gateway strips /api/subscription prefix for catchall routes, so we use /sync
   app.post(
-    "/api/subscription/sync",
+    "/sync",
     requireAuth,
     asyncHandler(async (req, res) => {
       const currentUserRef = req.userRef;
