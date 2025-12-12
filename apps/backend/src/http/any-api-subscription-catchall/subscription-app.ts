@@ -662,6 +662,9 @@ export const createApp: () => express.Application = () => {
           endsAt: attributes.ends_at || undefined,
           trialEndsAt: attributes.trial_ends_at || undefined,
           lemonSqueezyVariantId: variantId,
+          lemonSqueezySyncKey: subscription.lemonSqueezySubscriptionId
+            ? "ACTIVE"
+            : undefined, // Maintain GSI key if subscription has Lemon Squeezy ID
           lastSyncedAt: new Date().toISOString(),
         });
 

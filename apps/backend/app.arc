@@ -164,6 +164,11 @@ workspace-api-key
   pk **String
   name byWorkspaceId
 
+subscription
+  lemonSqueezySyncKey *String
+  pk **String
+  name byLemonSqueezySubscription
+
 workspace-document
   workspaceId *String
   pk **String

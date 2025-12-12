@@ -124,6 +124,7 @@ export async function checkGracePeriod(
       lemonSqueezySubscriptionId: undefined,
       lemonSqueezyCustomerId: undefined,
       lemonSqueezyVariantId: undefined,
+      lemonSqueezySyncKey: undefined, // Remove from GSI when downgraded to free
       renewsAt: undefined,
       endsAt: undefined,
     });

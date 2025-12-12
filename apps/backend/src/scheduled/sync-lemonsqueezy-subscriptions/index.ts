@@ -6,6 +6,7 @@
 import type { ScheduledEvent } from "aws-lambda";
 
 import { database } from "../../tables";
+import type { SubscriptionRecord } from "../../tables/schema";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
 import { getSubscription as getLemonSqueezySubscription } from "../../utils/lemonSqueezy";
 import { sendGracePeriodExpiringEmail } from "../../utils/subscriptionEmails";
@@ -36,15 +37,9 @@ function variantIdToPlan(variantId: string): "starter" | "pro" {
 /**
  * Sync a single subscription from Lemon Squeezy
  */
-async function syncSubscription(subscription: {
-  pk: string;
-  sk?: string;
-  lemonSqueezySubscriptionId?: string;
-  userId: string;
-  status?: string;
-  gracePeriodEndsAt?: string;
-  lastPaymentEmailSentAt?: string;
-}): Promise<void> {
+async function syncSubscription(
+  subscription: SubscriptionRecord
+): Promise<void> {
   if (!subscription.lemonSqueezySubscriptionId) {
     // Skip subscriptions without Lemon Squeezy ID
     return;
@@ -55,27 +50,16 @@ async function syncSubscription(subscription: {
   try {
     // Fetch latest data from Lemon Squeezy
     const lemonSqueezySub = await getLemonSqueezySubscription(
-      subscription.lemonSqueezySubscriptionId
+      subscription.lemonSqueezySubscriptionId!
     );
     const attributes = lemonSqueezySub.attributes;
 
     // Determine plan from variant ID
     const plan = variantIdToPlan(String(attributes.variant_id));
 
-    // Update subscription record
-    const subscriptionRecord = await db.subscription.get(
-      subscription.pk,
-      subscription.sk
-    );
-    if (!subscriptionRecord) {
-      console.error(
-        `[Sync] Subscription ${subscription.pk} not found in database`
-      );
-      return;
-    }
-
-    await db.subscription.update({
-      ...subscriptionRecord,
+    // Update subscription record with latest data from Lemon Squeezy
+    const updatedSubscription = await db.subscription.update({
+      ...subscription,
       plan,
       status: attributes.status as
         | "active"
@@ -88,51 +72,50 @@ async function syncSubscription(subscription: {
       endsAt: attributes.ends_at || undefined,
       trialEndsAt: attributes.trial_ends_at || undefined,
       lemonSqueezyVariantId: String(attributes.variant_id),
+      lemonSqueezySyncKey: "ACTIVE", // Maintain GSI key for sync
       lastSyncedAt: new Date().toISOString(),
     });
 
     // Check grace period
-    if (subscriptionRecord) {
-      await checkGracePeriod(subscriptionRecord);
+    await checkGracePeriod(updatedSubscription);
 
-      // Check if grace period warning should be sent
-      if (shouldSendGracePeriodWarning(subscriptionRecord)) {
-        const gracePeriodEnd = new Date(subscriptionRecord.gracePeriodEndsAt!);
-        const now = new Date();
-        const daysRemaining = Math.ceil(
-          (gracePeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-        );
+    // Check if grace period warning should be sent
+    if (shouldSendGracePeriodWarning(updatedSubscription)) {
+      const gracePeriodEnd = new Date(updatedSubscription.gracePeriodEndsAt!);
+      const now = new Date();
+      const daysRemaining = Math.ceil(
+        (gracePeriodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      );
 
-        // Only send if we haven't sent recently (avoid duplicate emails)
-        const lastSent = subscriptionRecord.lastPaymentEmailSentAt
-          ? new Date(subscriptionRecord.lastPaymentEmailSentAt)
-          : null;
-        const hoursSinceLastSent = lastSent
-          ? (now.getTime() - lastSent.getTime()) / (1000 * 60 * 60)
-          : Infinity;
+      // Only send if we haven't sent recently (avoid duplicate emails)
+      const lastSent = updatedSubscription.lastPaymentEmailSentAt
+        ? new Date(updatedSubscription.lastPaymentEmailSentAt)
+        : null;
+      const hoursSinceLastSent = lastSent
+        ? (now.getTime() - lastSent.getTime()) / (1000 * 60 * 60)
+        : Infinity;
 
-        // Send warning if more than 24 hours since last email
-        if (hoursSinceLastSent > 24) {
-          try {
-            const userEmail = await getUserEmailById(subscription.userId);
-            if (userEmail && subscriptionRecord) {
-              await sendGracePeriodExpiringEmail(
-                subscriptionRecord,
-                userEmail,
-                daysRemaining
-              );
-              await db.subscription.update({
-                ...subscriptionRecord,
-                lastPaymentEmailSentAt: new Date().toISOString(),
-              });
-            }
-          } catch (error) {
-            console.error(
-              `[Sync] Failed to send grace period warning email for subscription ${subscription.pk}:`,
-              error
+      // Send warning if more than 24 hours since last email
+      if (hoursSinceLastSent > 24) {
+        try {
+          const userEmail = await getUserEmailById(subscription.userId);
+          if (userEmail) {
+            await sendGracePeriodExpiringEmail(
+              updatedSubscription,
+              userEmail,
+              daysRemaining
             );
-            // Don't throw - email failure shouldn't block sync
+            await db.subscription.update({
+              ...updatedSubscription,
+              lastPaymentEmailSentAt: new Date().toISOString(),
+            });
           }
+        } catch (error) {
+          console.error(
+            `[Sync] Failed to send grace period warning email for subscription ${subscription.pk}:`,
+            error
+          );
+          // Don't throw - email failure shouldn't block sync
         }
       }
     }
@@ -151,68 +134,44 @@ async function syncSubscription(subscription: {
 
 /**
  * Main sync function
+ * Queries all subscriptions with Lemon Squeezy IDs using the byLemonSqueezySubscription GSI
  */
 async function syncAllSubscriptions(): Promise<void> {
   console.log("[Sync] Starting subscription sync from Lemon Squeezy");
 
-  // Query all subscriptions with Lemon Squeezy IDs
-  // Note: We need to scan or use a different approach since we don't have an index on lemonSqueezySubscriptionId
-  // For now, we'll query by userId and filter
-  // This is not ideal but works for the initial implementation
+  const db = await database();
 
-  // Get all subscriptions (we'll need to scan or use a pagination approach)
-  // For now, let's use a scan-like approach by querying all users
-  // This is a limitation - in production, consider adding a GSI on lemonSqueezySubscriptionId
+  // Query all subscriptions with Lemon Squeezy IDs using the GSI
+  // The GSI uses lemonSqueezySyncKey = "ACTIVE" as the partition key
+  // to efficiently query all subscriptions that have Lemon Squeezy integration
+  let subscriptionCount = 0;
 
-  // Alternative: Query subscriptions that have been synced recently or need syncing
-  // For simplicity, we'll query a sample and rely on webhooks for real-time updates
-
-  // Since we don't have a direct way to query by lemonSqueezySubscriptionId,
-  // we'll rely on webhooks for most updates and only sync subscriptions that
-  // have a grace period or need attention
-
-  // Query subscriptions with grace periods (these need regular checking)
-  // Note: Without a GSI on lemonSqueezySubscriptionId, we rely primarily on webhooks
-  // This sync function serves as a backup to catch any missed updates
-  // In production, consider adding a GSI for better performance
-
-  // For now, we'll query subscriptions that have grace periods or need attention
-  // Since we don't have a direct index, we'll rely on webhooks for most updates
-  // This sync is primarily for grace period checking and email notifications
-
-  // NOTE: This is intentionally a placeholder implementation.
-  // Without a GSI (Global Secondary Index) on lemonSqueezySubscriptionId,
-  // querying all subscriptions with Lemon Squeezy IDs would require a full table scan,
-  // which is inefficient and expensive.
-  //
-  // The current architecture relies on webhooks for real-time updates, which is the
-  // recommended approach. This scheduled sync serves as a backup mechanism for:
-  // 1. Grace period checking and email notifications
-  // 2. Catching any missed webhook events
-  //
-  // To implement full sync functionality, add a GSI on lemonSqueezySubscriptionId
-  // and update this function to query that index.
-  const allSubscriptions: Array<{
-    pk: string;
-    sk?: string;
-    lemonSqueezySubscriptionId?: string;
-    userId: string;
-    status?: string;
-    gracePeriodEndsAt?: string;
-    lastPaymentEmailSentAt?: string;
-    lastSyncedAt?: string;
-    version?: number;
-  }> = [];
-
-  console.log(
-    `[Sync] Processing subscriptions (relying on webhooks for most updates)`
-  );
-
-  // Sync each subscription
-  for (const subscription of allSubscriptions) {
-    if (subscription.lemonSqueezySubscriptionId) {
-      await syncSubscription(subscription);
+  try {
+    // Use queryAsync to iterate through all subscriptions with Lemon Squeezy IDs
+    // This uses the byLemonSqueezySubscription GSI which indexes subscriptions
+    // where lemonSqueezySyncKey = "ACTIVE"
+    for await (const subscription of db.subscription.queryAsync({
+      IndexName: "byLemonSqueezySubscription",
+      KeyConditionExpression: "lemonSqueezySyncKey = :syncKey",
+      ExpressionAttributeValues: {
+        ":syncKey": "ACTIVE",
+      },
+    })) {
+      // Only sync subscriptions that actually have a Lemon Squeezy subscription ID
+      // (defensive check in case the GSI key is set but the ID is missing)
+      if (subscription.lemonSqueezySubscriptionId) {
+        await syncSubscription(subscription);
+        subscriptionCount++;
+      }
     }
+
+    console.log(
+      `[Sync] Processed ${subscriptionCount} subscriptions with Lemon Squeezy IDs`
+    );
+  } catch (error) {
+    console.error("[Sync] Error querying subscriptions:", error);
+    // Don't throw - log the error but allow the function to complete
+    // This prevents the scheduled job from failing completely
   }
 
   console.log("[Sync] Completed subscription sync");

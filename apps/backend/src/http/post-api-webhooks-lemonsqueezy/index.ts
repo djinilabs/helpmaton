@@ -122,6 +122,7 @@ async function handleSubscriptionCreated(
     endsAt: attributes.ends_at || undefined,
     trialEndsAt: attributes.trial_ends_at || undefined,
     gracePeriodEndsAt: undefined,
+    lemonSqueezySyncKey: "ACTIVE", // Set GSI key for efficient querying
     lastSyncedAt: new Date().toISOString(),
   });
 
@@ -184,6 +185,7 @@ async function handleSubscriptionUpdated(
   const plan = variantIdToPlan(String(attributes.variant_id));
 
   // Update subscription
+  // Keep lemonSqueezySyncKey as "ACTIVE" if subscription still has Lemon Squeezy ID
   await db.subscription.update({
     ...subscription,
     plan,
@@ -198,6 +200,9 @@ async function handleSubscriptionUpdated(
     endsAt: attributes.ends_at || undefined,
     trialEndsAt: attributes.trial_ends_at || undefined,
     lemonSqueezyVariantId: String(attributes.variant_id),
+    lemonSqueezySyncKey: subscription.lemonSqueezySubscriptionId
+      ? "ACTIVE"
+      : undefined, // Maintain GSI key if subscription has Lemon Squeezy ID
     lastSyncedAt: new Date().toISOString(),
   });
 
@@ -263,6 +268,7 @@ async function handleSubscriptionPastDue(
     ...subscription,
     status: "past_due",
     gracePeriodEndsAt: gracePeriodEndsAt.toISOString(),
+    lemonSqueezySyncKey: "ACTIVE", // Maintain GSI key for sync
     lastSyncedAt: new Date().toISOString(),
   });
 
@@ -331,6 +337,7 @@ async function handleSubscriptionResumed(
     ...subscription,
     status: "active",
     gracePeriodEndsAt: undefined,
+    lemonSqueezySyncKey: "ACTIVE", // Maintain GSI key for sync
     lastSyncedAt: new Date().toISOString(),
   });
 
@@ -396,6 +403,7 @@ async function handleSubscriptionCancelled(
     ...subscription,
     status: "cancelled",
     endsAt: lemonSqueezySub.attributes.ends_at || undefined,
+    lemonSqueezySyncKey: undefined, // Remove from GSI when cancelled
     lastSyncedAt: new Date().toISOString(),
   });
 
@@ -461,6 +469,7 @@ async function handleSubscriptionExpired(
     plan: "free",
     status: "expired",
     gracePeriodEndsAt: undefined,
+    lemonSqueezySyncKey: undefined, // Remove from GSI when expired
     lemonSqueezySubscriptionId: undefined,
     lemonSqueezyCustomerId: undefined,
     lemonSqueezyVariantId: undefined,

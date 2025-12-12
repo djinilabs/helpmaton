@@ -292,6 +292,7 @@ export const tableSchemas = {
     gracePeriodEndsAt: z.string().datetime().optional(), // Grace period end date for failed payments (7 days from past_due)
     lastSyncedAt: z.string().datetime().optional(), // Last time subscription was synced from Lemon Squeezy
     lastPaymentEmailSentAt: z.string().datetime().optional(), // Last time payment issue email was sent
+    lemonSqueezySyncKey: z.string().optional(), // GSI partition key for querying all Lemon Squeezy subscriptions (set to "ACTIVE" when subscription has Lemon Squeezy ID)
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),
