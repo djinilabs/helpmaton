@@ -22,7 +22,6 @@ import { useToast } from "../hooks/useToast";
 const SubscriptionManagement: FC = () => {
   const { data: session } = useSession();
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const toast = useToast();
   const { data: subscription, isLoading, error, refetch } = useSubscription();
