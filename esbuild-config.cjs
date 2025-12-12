@@ -64,7 +64,6 @@ const ENV_VARS_TO_INJECT = [
 function buildDefine() {
   const define = {};
   const arcEnv = process.env.ARC_ENV || process.env.NODE_ENV;
-  const isLocal = arcEnv === 'testing' || (arcEnv !== 'production' && arcEnv !== 'staging');
 
   // In local development, we may want to skip injection to allow runtime env vars
   // However, for consistency and to test the build process, we'll still inject if values are set
