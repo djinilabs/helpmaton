@@ -809,68 +809,79 @@ export const createApp: () => express.Application = () => {
       );
 
       // Update subscription variant in Lemon Squeezy
-      await updateSubscriptionVariant(
-        subscription.lemonSqueezySubscriptionId,
-        variantId
-      );
-
-      // The webhook will update the subscription when Lemon Squeezy processes the change
-      // But we can also sync immediately to get the updated data
-      const db = await database();
+      // If this fails (e.g., payment required), we still return success
+      // as the webhook will update the subscription eventually
       try {
-        const lemonSqueezySub = await getLemonSqueezySubscription(
-          subscription.lemonSqueezySubscriptionId
+        await updateSubscriptionVariant(
+          subscription.lemonSqueezySubscriptionId,
+          variantId
         );
-        const attributes = lemonSqueezySub.attributes;
 
-        // Map variant ID to plan
-        const starterVariantId = process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID;
-        const proVariantId = process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
-        const newVariantId = String(attributes.variant_id);
-        const newPlan =
-          newVariantId === starterVariantId
-            ? "starter"
-            : newVariantId === proVariantId
-            ? "pro"
-            : "starter"; // Default fallback
+        // The webhook will update the subscription when Lemon Squeezy processes the change
+        // But we can also sync immediately to get the updated data
+        const db = await database();
+        try {
+          const lemonSqueezySub = await getLemonSqueezySubscription(
+            subscription.lemonSqueezySubscriptionId
+          );
+          const attributes = lemonSqueezySub.attributes;
 
-        // Update subscription record
-        await db.subscription.update({
-          ...subscription,
-          plan: newPlan,
-          status: attributes.status as
-            | "active"
-            | "past_due"
-            | "unpaid"
-            | "cancelled"
-            | "expired"
-            | "on_trial",
-          renewsAt: attributes.renews_at,
-          endsAt: attributes.ends_at || undefined,
-          trialEndsAt: attributes.trial_ends_at || undefined,
-          lemonSqueezyVariantId: newVariantId,
-          lemonSqueezySyncKey: subscription.lemonSqueezySubscriptionId
-            ? "ACTIVE"
-            : undefined,
-          lastSyncedAt: new Date().toISOString(),
-        });
+          // Map variant ID to plan
+          const starterVariantId = process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID;
+          const proVariantId = process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
+          const newVariantId = String(attributes.variant_id);
+          const newPlan =
+            newVariantId === starterVariantId
+              ? "starter"
+              : newVariantId === proVariantId
+              ? "pro"
+              : "starter"; // Default fallback
 
-        // Update API Gateway usage plan association
-        const subscriptionId = subscription.pk.replace("subscriptions/", "");
-        const { associateSubscriptionWithPlan } = await import(
-          "../../utils/apiGatewayUsagePlans"
-        );
-        await associateSubscriptionWithPlan(subscriptionId, newPlan);
+          // Update subscription record
+          await db.subscription.update({
+            ...subscription,
+            plan: newPlan,
+            status: attributes.status as
+              | "active"
+              | "past_due"
+              | "unpaid"
+              | "cancelled"
+              | "expired"
+              | "on_trial",
+            renewsAt: attributes.renews_at,
+            endsAt: attributes.ends_at || undefined,
+            trialEndsAt: attributes.trial_ends_at || undefined,
+            lemonSqueezyVariantId: newVariantId,
+            lemonSqueezySyncKey: subscription.lemonSqueezySubscriptionId
+              ? "ACTIVE"
+              : undefined,
+            lastSyncedAt: new Date().toISOString(),
+          });
 
-        console.log(
-          `[POST /api/subscription/change-plan] Successfully changed plan to ${newPlan}`
-        );
+          // Update API Gateway usage plan association
+          const subscriptionId = subscription.pk.replace("subscriptions/", "");
+          const { associateSubscriptionWithPlan } = await import(
+            "../../utils/apiGatewayUsagePlans"
+          );
+          await associateSubscriptionWithPlan(subscriptionId, newPlan);
+
+          console.log(
+            `[POST /api/subscription/change-plan] Successfully changed plan to ${newPlan}`
+          );
+        } catch (error) {
+          console.error(
+            `[POST /api/subscription/change-plan] Error syncing subscription after plan change:`,
+            error
+          );
+          // Don't fail the request - the webhook will update it eventually
+        }
       } catch (error) {
         console.error(
-          `[POST /api/subscription/change-plan] Error syncing subscription after plan change:`,
+          `[POST /api/subscription/change-plan] Error updating subscription variant:`,
           error
         );
         // Don't fail the request - the webhook will update it eventually
+        // This handles cases where payment is required or other API errors occur
       }
 
       res.json({
