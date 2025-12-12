@@ -138,7 +138,11 @@ describe("Lemon Squeezy Webhook Handler", () => {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
       const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as any;
+      const result = (await handler(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
 
       expect(result.statusCode).toBe(401);
       expect(JSON.parse(result.body || "{}")).toEqual({
@@ -163,7 +167,11 @@ describe("Lemon Squeezy Webhook Handler", () => {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
       const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as any;
+      const result = (await handler(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
 
       expect(result.statusCode).toBe(401);
       expect(JSON.parse(result.body || "{}")).toEqual({
@@ -220,7 +228,11 @@ describe("Lemon Squeezy Webhook Handler", () => {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
       const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as any;
+      const result = (await handler(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
 
       expect(result.statusCode).toBe(200);
       expect(mockGetSubscriptionById).toHaveBeenCalledWith("sub-123");
@@ -278,7 +290,11 @@ describe("Lemon Squeezy Webhook Handler", () => {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
       const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as any;
+      const result = (await handler(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
 
       expect(result.statusCode).toBe(200);
       expect(mockGetUserSubscription).toHaveBeenCalled();
@@ -334,7 +350,11 @@ describe("Lemon Squeezy Webhook Handler", () => {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
       const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as any;
+      const result = (await handler(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
 
       expect(result.statusCode).toBe(200);
       expect(mockDb.subscription?.update).toHaveBeenCalled();
@@ -379,7 +399,11 @@ describe("Lemon Squeezy Webhook Handler", () => {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
       const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as any;
+      const result = (await handler(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
 
       expect(result.statusCode).toBe(200);
       expect(mockDb.subscription.update).toHaveBeenCalledWith(
@@ -436,7 +460,11 @@ describe("Lemon Squeezy Webhook Handler", () => {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
       const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as any;
+      const result = (await handler(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
 
       expect(result.statusCode).toBe(200);
       expect(mockDb.subscription.update).toHaveBeenCalledWith(
@@ -486,7 +514,11 @@ describe("Lemon Squeezy Webhook Handler", () => {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
       const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as any;
+      const result = (await handler(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
 
       expect(result.statusCode).toBe(200);
       expect(mockDb.workspace?.atomicUpdate).toHaveBeenCalled();
@@ -514,7 +546,11 @@ describe("Lemon Squeezy Webhook Handler", () => {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
       const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as any;
+      const result = (await handler(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
 
       // Unrecoverable failure - should return 500 and report to Sentry
       expect(result.statusCode).toBe(500);
@@ -561,7 +597,11 @@ describe("Lemon Squeezy Webhook Handler", () => {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
       const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as any;
+      const result = (await handler(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
       expect(result.statusCode).toBe(500);
     });
 
@@ -605,7 +645,11 @@ describe("Lemon Squeezy Webhook Handler", () => {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
       const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as any;
+      const result = (await handler(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
       expect(result.statusCode).toBe(500);
     });
   });
