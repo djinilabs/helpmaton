@@ -438,10 +438,8 @@ describe("lemonSqueezy", () => {
       const url = await getCustomerPortalUrl("cust-123");
 
       expect(url).toBe(
-        "https://app.lemonsqueezy.com/my-account/customer/cust-123"
+        "https://helpmaton.lemonsqueezy.com/my-account/customer/cust-123"
       );
     });
   });
 });
-
-

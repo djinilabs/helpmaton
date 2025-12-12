@@ -18,7 +18,7 @@ export async function sendPaymentFailedEmail(
   userEmail: string
 ): Promise<void> {
   const portalUrl = subscription.lemonSqueezyCustomerId
-    ? `https://app.lemonsqueezy.com/my-account/customer/${subscription.lemonSqueezyCustomerId}`
+    ? `https://helpmaton.lemonsqueezy.com/my-account/customer/${subscription.lemonSqueezyCustomerId}`
     : `${BASE_URL}/subscription`;
 
   const subject = "Payment Failed - Action Required";
@@ -97,7 +97,7 @@ export async function sendGracePeriodExpiringEmail(
   daysRemaining: number
 ): Promise<void> {
   const portalUrl = subscription.lemonSqueezyCustomerId
-    ? `https://app.lemonsqueezy.com/my-account/customer/${subscription.lemonSqueezyCustomerId}`
+    ? `https://helpmaton.lemonsqueezy.com/my-account/customer/${subscription.lemonSqueezyCustomerId}`
     : `${BASE_URL}/subscription`;
 
   const subject = "Your Subscription Will Expire Soon";
@@ -366,5 +366,3 @@ The Helpmaton Team
     html,
   });
 }
-
-

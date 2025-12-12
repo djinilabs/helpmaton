@@ -61,7 +61,7 @@ describe("subscriptionEmails", () => {
 
       const callArgs = mockSendEmail.mock.calls[0][0];
       expect(callArgs.html).toContain(
-        "https://app.lemonsqueezy.com/my-account/customer/ls-cust-123"
+        "https://helpmaton.lemonsqueezy.com/my-account/customer/ls-cust-123"
       );
       expect(callArgs.html).toContain("starter");
     });
@@ -208,5 +208,3 @@ describe("subscriptionEmails", () => {
     });
   });
 });
-
-

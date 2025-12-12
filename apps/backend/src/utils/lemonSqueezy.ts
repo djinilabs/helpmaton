@@ -480,14 +480,13 @@ export async function cancelSubscription(
 /**
  * Get customer portal URL
  * Note: Lemon Squeezy customer portal URL is typically available in subscription attributes
- * For now, we construct it based on customer ID
+ * For now, we construct it based on customer ID using the store's custom domain
  */
 export async function getCustomerPortalUrl(
   customerId: string
 ): Promise<string> {
-  // Lemon Squeezy customer portal URL format
-  // This might need adjustment based on actual Lemon Squeezy implementation
-  return `https://app.lemonsqueezy.com/my-account/customer/${customerId}`;
+  // Lemon Squeezy customer portal URL format using custom store domain
+  return `https://helpmaton.lemonsqueezy.com/my-account/customer/${customerId}`;
 }
 
 // Export types for use in other files
@@ -498,4 +497,3 @@ export type {
   LemonSqueezyVariant,
   CheckoutData,
 };
-
