@@ -489,6 +489,10 @@ export type TableAPI<
     query: Query,
     version?: string | null
   ) => Promise<QueryResponse<TTableRecord>>;
+  queryAsync: (
+    query: Query,
+    version?: string | null
+  ) => AsyncGenerator<TTableRecord, void, unknown>;
   merge: (
     pk: string,
     sk: string,
