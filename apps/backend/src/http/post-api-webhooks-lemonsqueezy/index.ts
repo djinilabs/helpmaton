@@ -143,6 +143,24 @@ async function handleSubscriptionCreated(
     lastSyncedAt: new Date().toISOString(),
   });
 
+  // Associate subscription with API Gateway usage plan immediately
+  // This ensures the plan change takes effect right away
+  try {
+    const { associateSubscriptionWithPlan } = await import(
+      "../../utils/apiGatewayUsagePlans"
+    );
+    await associateSubscriptionWithPlan(subscriptionId, plan);
+    console.log(
+      `[Webhook] Associated subscription ${subscriptionId} with ${plan} usage plan`
+    );
+  } catch (error) {
+    console.error(
+      `[Webhook] Error associating subscription ${subscriptionId} with usage plan:`,
+      error
+    );
+    // Don't throw - subscription is updated, usage plan association can be retried
+  }
+
   console.log(
     `[Webhook] Updated subscription ${subscriptionId} with Lemon Squeezy data`
   );
@@ -217,6 +235,7 @@ async function handleSubscriptionUpdated(
 
     subscription = await getUserSubscription(userId);
   }
+  const subscriptionId = subscription.pk.replace("subscriptions/", "");
   const plan = variantIdToPlan(String(attributes.variant_id));
 
   // Update subscription
@@ -240,6 +259,24 @@ async function handleSubscriptionUpdated(
       : undefined, // Maintain GSI key if subscription has Lemon Squeezy ID
     lastSyncedAt: new Date().toISOString(),
   });
+
+  // Associate subscription with API Gateway usage plan immediately
+  // This ensures the plan change takes effect right away
+  try {
+    const { associateSubscriptionWithPlan } = await import(
+      "../../utils/apiGatewayUsagePlans"
+    );
+    await associateSubscriptionWithPlan(subscriptionId, plan);
+    console.log(
+      `[Webhook] Associated subscription ${subscriptionId} with ${plan} usage plan`
+    );
+  } catch (error) {
+    console.error(
+      `[Webhook] Error associating subscription ${subscriptionId} with usage plan:`,
+      error
+    );
+    // Don't throw - subscription is updated, usage plan association can be retried
+  }
 
   console.log(
     `[Webhook] Updated subscription ${subscription.pk} with new status: ${attributes.status}`
@@ -937,4 +974,5 @@ export const handler = adaptHttpHandler(
     }
   )
 );
+
 

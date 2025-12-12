@@ -1,6 +1,8 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect, useRef } from "react";
 import type { FC } from "react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { LoadingScreen } from "../components/LoadingScreen";
 import { PlanComparison } from "../components/PlanComparison";
@@ -15,10 +17,15 @@ import {
   useSubscriptionPortal,
   useSubscriptionSync,
 } from "../hooks/useSubscription";
+import { useToast } from "../hooks/useToast";
 
 const SubscriptionManagement: FC = () => {
   const { data: session } = useSession();
-  const { data: subscription, isLoading, error } = useSubscription();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const { data: subscription, isLoading, error, refetch } = useSubscription();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -32,6 +39,22 @@ const SubscriptionManagement: FC = () => {
   const syncMutation = useSubscriptionSync();
   const hasSyncedRef = useRef(false);
   const lastSyncTimeRef = useRef<number | null>(null);
+
+  // Check for success parameter from checkout redirect and refresh subscription
+  useEffect(() => {
+    const success = searchParams.get("success");
+    if (success === "true") {
+      // Remove success parameter from URL
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete("success");
+      setSearchParams(newSearchParams, { replace: true });
+
+      // Refresh subscription data immediately
+      queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      refetch();
+      toast.success("Subscription activated successfully!");
+    }
+  }, [searchParams, setSearchParams, queryClient, refetch, toast]);
 
   // Sync subscription from Lemon Squeezy when page loads (only if not synced recently)
   useEffect(() => {
@@ -318,10 +341,17 @@ const SubscriptionManagement: FC = () => {
           <PlanComparison
             currentPlan={subscription.plan}
             onUpgrade={(plan) => {
-              // If user has an active subscription, change plan instead of creating checkout
-              if (subscription.status || subscription.renewsAt) {
+              // If user has an active Lemon Squeezy subscription (not free plan), change plan instead of creating checkout
+              // Free plans should always go through checkout to create a new subscription
+              if (
+                subscription.lemonSqueezySubscriptionId &&
+                subscription.status &&
+                subscription.status !== "cancelled" &&
+                subscription.status !== "expired"
+              ) {
                 changePlanMutation.mutate(plan);
               } else {
+                // Free plan or cancelled/expired subscription - create new checkout
                 checkoutMutation.mutate(plan);
               }
             }}
