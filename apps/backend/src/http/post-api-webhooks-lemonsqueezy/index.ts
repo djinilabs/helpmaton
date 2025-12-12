@@ -796,11 +796,12 @@ async function handleOrderRefunded(
       if (!workspace) {
         throw new Error(`Workspace ${workspaceId} not found`);
       }
-      const newBalance =
-        Math.max(
-          0,
-          Math.round((workspace.creditBalance || 0) - creditAmount) * 1_000_000
-        ) / 1_000_000;
+      const newBalance = Math.max(
+        0,
+        Math.round(
+          ((workspace.creditBalance || 0) - creditAmount) * 1_000_000
+        ) / 1_000_000
+      );
       return {
         pk: workspacePk,
         sk: "workspace",
