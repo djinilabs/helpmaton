@@ -10,11 +10,11 @@
           },
           "eur": {
             "input": 0.064,
-            "output": 0.258
+            "output": 0.256
           },
           "gbp": {
             "input": 0.056,
-            "output": 0.225
+            "output": 0.224
           }
         },
         "gemini-2.0-flash-exp": {
@@ -24,11 +24,11 @@
           },
           "eur": {
             "input": 0.064,
-            "output": 0.258
+            "output": 0.256
           },
           "gbp": {
             "input": 0.056,
-            "output": 0.225
+            "output": 0.224
           }
         },
         "gemini-2.5-flash-lite": {
@@ -38,11 +38,11 @@
           },
           "eur": {
             "input": 0.064,
-            "output": 0.258
+            "output": 0.256
           },
           "gbp": {
             "input": 0.056,
-            "output": 0.225
+            "output": 0.224
           }
         },
         "gemini-2.5-flash-preview-09-2025": {
@@ -52,11 +52,11 @@
           },
           "eur": {
             "input": 0.064,
-            "output": 0.258
+            "output": 0.256
           },
           "gbp": {
             "input": 0.056,
-            "output": 0.225
+            "output": 0.224
           }
         },
         "gemini-2.5-flash-lite-preview-09-2025": {
@@ -66,11 +66,11 @@
           },
           "eur": {
             "input": 0.064,
-            "output": 0.258
+            "output": 0.256
           },
           "gbp": {
             "input": 0.056,
-            "output": 0.225
+            "output": 0.224
           }
         },
         "gemini-2.5-pro": {
@@ -91,12 +91,12 @@
             "tiers": [
               {
                 "threshold": 200000,
-                "input": 1.074,
-                "output": 8.595
+                "input": 1.067,
+                "output": 8.537
               },
               {
-                "input": 2.149,
-                "output": 12.893
+                "input": 2.134,
+                "output": 12.805
               }
             ]
           },
@@ -104,12 +104,12 @@
             "tiers": [
               {
                 "threshold": 200000,
-                "input": 0.939,
-                "output": 7.513
+                "input": 0.934,
+                "output": 7.471
               },
               {
-                "input": 1.878,
-                "output": 11.27
+                "input": 1.868,
+                "output": 11.206
               }
             ]
           }
@@ -117,5 +117,5 @@
       }
     }
   },
-  "lastUpdated": "2025-12-11T00:17:36.479Z"
+  "lastUpdated": "2025-12-12T00:14:38.651Z"
 }
