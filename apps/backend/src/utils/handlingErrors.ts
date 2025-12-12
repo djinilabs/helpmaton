@@ -55,18 +55,58 @@ export const handlingErrors = (
         },
       });
 
-      if (boomed.isServer) {
-        console.error("Server error details:", boomed);
-        // Report 500 errors to Sentry
-        Sentry.captureException(ensureError(error), {
-          tags: {
-            handler: "APIGatewayProxyHandlerV2",
-            statusCode: boomed.output.statusCode,
+      // Report ALL errors to Sentry with full context
+      // This ensures we capture all failures for monitoring and debugging
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          handler: "APIGatewayProxyHandlerV2",
+          statusCode: boomed.output.statusCode,
+          isServer: boomed.isServer,
+        },
+        contexts: {
+          request: {
+            method: event.requestContext?.http?.method || "UNKNOWN",
+            url: event.rawPath || event.requestContext?.http?.path || "UNKNOWN",
+            path:
+              event.rawPath || event.requestContext?.http?.path || "UNKNOWN",
+            headers: event.headers || {},
+            queryString:
+              event.rawQueryString || event.queryStringParameters || {},
+            body: event.body
+              ? event.body.length > 10000
+                ? "[truncated]"
+                : event.body
+              : undefined,
           },
-        });
-      } else {
-        console.warn("Client error:", boomed);
-      }
+          lambda: {
+            requestId: context.awsRequestId,
+            functionName: context.functionName,
+            functionVersion: context.functionVersion,
+            memoryLimitInMB: context.memoryLimitInMB,
+            remainingTimeInMillis:
+              typeof context.getRemainingTimeInMillis === "function"
+                ? context.getRemainingTimeInMillis()
+                : undefined,
+          },
+        },
+        extra: {
+          event: {
+            path: event.rawPath || event.requestContext?.http?.path,
+            method: event.requestContext?.http?.method,
+            headers: event.headers,
+            queryStringParameters: event.queryStringParameters,
+            pathParameters: event.pathParameters,
+            stageVariables: event.stageVariables,
+            requestContext: event.requestContext,
+          },
+          boom: {
+            statusCode: boomed.output.statusCode,
+            message: boomed.message,
+            isServer: boomed.isServer,
+            payload: boomed.output.payload,
+          },
+        },
+      });
 
       const { statusCode, headers, payload } = boomed.output;
 
@@ -77,9 +117,8 @@ export const handlingErrors = (
       }
 
       // Flush Sentry events before returning (critical for Lambda)
-      if (boomed.isServer) {
-        await flushSentry();
-      }
+      // Always flush to ensure all errors are reported, not just server errors
+      await flushSentry();
 
       // Flush PostHog events before returning (critical for Lambda)
       await flushPostHog();

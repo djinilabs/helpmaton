@@ -3,6 +3,7 @@
  * Handles webhook events from Lemon Squeezy for subscriptions and orders
  */
 
+import { internal, notFound } from "@hapi/boom";
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 
 import { database } from "../../tables";
@@ -96,10 +97,26 @@ async function handleSubscriptionCreated(
   if (!subscription) {
     const userId = await findUserIdByEmail(attributes.user_email);
     if (!userId) {
-      console.error(
-        `[Webhook] User not found for email ${attributes.user_email}`
-      );
-      return;
+      // CRITICAL: Both custom data and email lookup failed
+      // This indicates a webhook event for a user/subscription that doesn't exist in our system
+      // This is an unrecoverable failure - throw error to be caught and reported to Sentry
+      const errorMessage =
+        `Failed to find subscription for event "subscription_created". ` +
+        `Lemon Squeezy subscription ID: ${subscriptionData.id}, ` +
+        `Custom data subscription ID: ${
+          subscriptionIdFromCustom || "not provided"
+        }, ` +
+        `User email: ${attributes.user_email}, ` +
+        `User lookup result: not found. ` +
+        `This may indicate a webhook event for a user that doesn't exist in our system.`;
+      console.error(`[Webhook] CRITICAL: ${errorMessage}`);
+      // Throw error - this will be caught by handlingErrors, reported to Sentry, and returned as 500
+      throw internal(errorMessage, {
+        lemonSqueezySubscriptionId: subscriptionData.id,
+        customDataSubscriptionId: subscriptionIdFromCustom,
+        userEmail: attributes.user_email,
+        eventType: "subscription_created",
+      });
     }
     subscription = await getUserSubscription(userId);
   }
@@ -176,8 +193,26 @@ async function handleSubscriptionUpdated(
 
     const userId = await findUserIdByEmail(userEmail);
     if (!userId) {
-      console.error(`[Webhook] User not found for email ${userEmail}`);
-      return;
+      // CRITICAL: Both custom data and email lookup failed
+      // This indicates a webhook event for a user/subscription that doesn't exist in our system
+      // This is an unrecoverable failure - throw error to be caught and reported to Sentry
+      const errorMessage =
+        `Failed to find subscription for event "subscription_updated". ` +
+        `Lemon Squeezy subscription ID: ${subscriptionData.id}, ` +
+        `Custom data subscription ID: ${
+          subscriptionIdFromCustom || "not provided"
+        }, ` +
+        `User email: ${userEmail}, ` +
+        `User lookup result: not found. ` +
+        `This may indicate a webhook event for a user that doesn't exist in our system.`;
+      console.error(`[Webhook] CRITICAL: ${errorMessage}`);
+      // Throw error - this will be caught by handlingErrors, reported to Sentry, and returned as 500
+      throw internal(errorMessage, {
+        lemonSqueezySubscriptionId: subscriptionData.id,
+        customDataSubscriptionId: subscriptionIdFromCustom,
+        userEmail,
+        eventType: "subscription_updated",
+      });
     }
 
     subscription = await getUserSubscription(userId);
@@ -249,8 +284,26 @@ async function handleSubscriptionPastDue(
 
     const userId = await findUserIdByEmail(userEmail);
     if (!userId) {
-      console.error(`[Webhook] User not found for email ${userEmail}`);
-      return;
+      // CRITICAL: Both custom data and email lookup failed
+      // This indicates a webhook event for a user/subscription that doesn't exist in our system
+      // This is an unrecoverable failure - throw error to be caught and reported to Sentry
+      const errorMessage =
+        `Failed to find subscription for event "subscription_past_due". ` +
+        `Lemon Squeezy subscription ID: ${subscriptionData.id}, ` +
+        `Custom data subscription ID: ${
+          subscriptionIdFromCustom || "not provided"
+        }, ` +
+        `User email: ${userEmail}, ` +
+        `User lookup result: not found. ` +
+        `This may indicate a webhook event for a user that doesn't exist in our system.`;
+      console.error(`[Webhook] CRITICAL: ${errorMessage}`);
+      // Throw error - this will be caught by handlingErrors, reported to Sentry, and returned as 500
+      throw internal(errorMessage, {
+        lemonSqueezySubscriptionId: subscriptionData.id,
+        customDataSubscriptionId: subscriptionIdFromCustom,
+        userEmail,
+        eventType: "subscription_past_due",
+      });
     }
 
     subscription = await getUserSubscription(userId);
@@ -326,8 +379,26 @@ async function handleSubscriptionResumed(
 
     const userId = await findUserIdByEmail(userEmail);
     if (!userId) {
-      console.error(`[Webhook] User not found for email ${userEmail}`);
-      return;
+      // CRITICAL: Both custom data and email lookup failed
+      // This indicates a webhook event for a user/subscription that doesn't exist in our system
+      // This is an unrecoverable failure - throw error to be caught and reported to Sentry
+      const errorMessage =
+        `Failed to find subscription for event "subscription_resumed". ` +
+        `Lemon Squeezy subscription ID: ${subscriptionData.id}, ` +
+        `Custom data subscription ID: ${
+          subscriptionIdFromCustom || "not provided"
+        }, ` +
+        `User email: ${userEmail}, ` +
+        `User lookup result: not found. ` +
+        `This may indicate a webhook event for a user that doesn't exist in our system.`;
+      console.error(`[Webhook] CRITICAL: ${errorMessage}`);
+      // Throw error - this will be caught by handlingErrors, reported to Sentry, and returned as 500
+      throw internal(errorMessage, {
+        lemonSqueezySubscriptionId: subscriptionData.id,
+        customDataSubscriptionId: subscriptionIdFromCustom,
+        userEmail,
+        eventType: "subscription_resumed",
+      });
     }
 
     subscription = await getUserSubscription(userId);
@@ -383,8 +454,26 @@ async function handleSubscriptionCancelled(
 
     const userId = await findUserIdByEmail(userEmail);
     if (!userId) {
-      console.error(`[Webhook] User not found for email ${userEmail}`);
-      return;
+      // CRITICAL: Both custom data and email lookup failed
+      // This indicates a webhook event for a user/subscription that doesn't exist in our system
+      // This is an unrecoverable failure - throw error to be caught and reported to Sentry
+      const errorMessage =
+        `Failed to find subscription for event "subscription_cancelled". ` +
+        `Lemon Squeezy subscription ID: ${subscriptionData.id}, ` +
+        `Custom data subscription ID: ${
+          subscriptionIdFromCustom || "not provided"
+        }, ` +
+        `User email: ${userEmail}, ` +
+        `User lookup result: not found. ` +
+        `This may indicate a webhook event for a user that doesn't exist in our system.`;
+      console.error(`[Webhook] CRITICAL: ${errorMessage}`);
+      // Throw error - this will be caught by handlingErrors, reported to Sentry, and returned as 500
+      throw internal(errorMessage, {
+        lemonSqueezySubscriptionId: subscriptionData.id,
+        customDataSubscriptionId: subscriptionIdFromCustom,
+        userEmail,
+        eventType: "subscription_cancelled",
+      });
     }
 
     subscription = await getUserSubscription(userId);
@@ -456,8 +545,26 @@ async function handleSubscriptionExpired(
 
     const userId = await findUserIdByEmail(userEmail);
     if (!userId) {
-      console.error(`[Webhook] User not found for email ${userEmail}`);
-      return;
+      // CRITICAL: Both custom data and email lookup failed
+      // This indicates a webhook event for a user/subscription that doesn't exist in our system
+      // This is an unrecoverable failure - throw error to be caught and reported to Sentry
+      const errorMessage =
+        `Failed to find subscription for event "subscription_expired". ` +
+        `Lemon Squeezy subscription ID: ${subscriptionData.id}, ` +
+        `Custom data subscription ID: ${
+          subscriptionIdFromCustom || "not provided"
+        }, ` +
+        `User email: ${userEmail}, ` +
+        `User lookup result: not found. ` +
+        `This may indicate a webhook event for a user that doesn't exist in our system.`;
+      console.error(`[Webhook] CRITICAL: ${errorMessage}`);
+      // Throw error - this will be caught by handlingErrors, reported to Sentry, and returned as 500
+      throw internal(errorMessage, {
+        lemonSqueezySubscriptionId: subscriptionData.id,
+        customDataSubscriptionId: subscriptionIdFromCustom,
+        userEmail,
+        eventType: "subscription_expired",
+      });
     }
 
     subscription = await getUserSubscription(userId);
@@ -500,21 +607,33 @@ async function handleOrderCreated(
   const workspaceId = customData?.workspaceId as string | undefined;
 
   if (!workspaceId) {
-    console.error(
-      `[Webhook] No workspace ID in order custom data for order ${orderData.id}. Custom data:`,
-      JSON.stringify(customData)
-    );
-    // Try to get from order attributes as fallback
-    // Note: Lemon Squeezy might store custom data differently
-    return;
+    // Unrecoverable failure - cannot process order without workspace ID
+    const errorMessage =
+      `No workspace ID in order custom data for order ${orderData.id}. ` +
+      `Custom data: ${JSON.stringify(customData)}. ` +
+      `Cannot process order without workspace ID.`;
+    console.error(`[Webhook] CRITICAL: ${errorMessage}`);
+    // Throw error - this will be caught by handlingErrors, reported to Sentry, and returned as 500
+    throw internal(errorMessage, {
+      lemonSqueezyOrderId: orderData.id,
+      customData,
+      eventType: "order_created",
+    });
   }
 
   // Get workspace
   const workspacePk = `workspaces/${workspaceId}`;
   const workspace = await db.workspace.get(workspacePk, "workspace");
   if (!workspace) {
-    console.error(`[Webhook] Workspace ${workspaceId} not found`);
-    return;
+    // Unrecoverable failure - workspace not found
+    const errorMessage = `Workspace ${workspaceId} not found for order ${orderData.id}. Cannot process order.`;
+    console.error(`[Webhook] CRITICAL: ${errorMessage}`);
+    // Throw error - this will be caught by handlingErrors, reported to Sentry, and returned as 500
+    throw notFound(errorMessage, {
+      workspaceId,
+      lemonSqueezyOrderId: orderData.id,
+      eventType: "order_created",
+    });
   }
 
   // Extract credit amount from order total (in cents, convert to currency units)
@@ -547,13 +666,116 @@ async function handleOrderCreated(
  * Handle order_refunded event (for credit purchase refunds)
  */
 async function handleOrderRefunded(
-  orderData: LemonSqueezyWebhookEvent["data"]
+  orderData: LemonSqueezyWebhookEvent["data"],
+  customData?: Record<string, unknown>
 ): Promise<void> {
-  // Find workspace by order ID
-  // For now, we'll need to store workspace ID in the order custom data
-  // This is a limitation - we should improve this
-  console.warn(
-    `[Webhook] Order refunded for ${orderData.id}, but workspace lookup not implemented`
+  const db = await database();
+
+  // Try to extract workspaceId from webhook event custom data
+  let workspaceId = customData?.workspaceId as string | undefined;
+
+  // If not present, fetch order from Lemon Squeezy and try to extract custom data
+  if (!workspaceId) {
+    try {
+      const order = await getLemonSqueezyOrder(orderData.id);
+      // Try to extract from order attributes (checkout_data.custom)
+      // Note: Lemon Squeezy stores custom data in checkout_data.custom when creating the checkout
+      // The checkout_data field may not be in the order attributes type, so we access it safely
+      const checkoutData = (order.attributes as Record<string, unknown>)
+        .checkout_data as { custom?: { workspaceId?: string } } | undefined;
+      workspaceId = checkoutData?.custom?.workspaceId;
+    } catch (err) {
+      console.error(
+        `[Webhook] Failed to fetch order ${orderData.id} for refund:`,
+        err
+      );
+    }
+  }
+
+  if (!workspaceId) {
+    // Unrecoverable failure - cannot process refund without workspace ID
+    const errorMessage =
+      `No workspace ID found for refunded order ${orderData.id}. ` +
+      `Cannot process refund without workspace ID.`;
+    console.error(`[Webhook] CRITICAL: ${errorMessage}`);
+    // Throw error - this will be caught by handlingErrors, reported to Sentry, and returned as 500
+    throw internal(errorMessage, {
+      lemonSqueezyOrderId: orderData.id,
+      customData,
+      eventType: "order_refunded",
+    });
+  }
+
+  // Get workspace
+  const workspacePk = `workspaces/${workspaceId}`;
+  const workspace = await db.workspace.get(workspacePk, "workspace");
+  if (!workspace) {
+    // Unrecoverable failure - workspace not found
+    const errorMessage = `Workspace ${workspaceId} not found for refunded order ${orderData.id}. Cannot process refund.`;
+    console.error(`[Webhook] CRITICAL: ${errorMessage}`);
+    // Throw error - this will be caught by handlingErrors, reported to Sentry, and returned as 500
+    throw notFound(errorMessage, {
+      workspaceId,
+      lemonSqueezyOrderId: orderData.id,
+      eventType: "order_refunded",
+    });
+  }
+
+  // Get the order total (in cents, convert to currency units)
+  let creditAmount: number | undefined;
+  if (orderData.attributes?.total) {
+    creditAmount = (orderData.attributes.total as number) / 100;
+  } else {
+    // Fallback: fetch order from Lemon Squeezy
+    try {
+      const order = await getLemonSqueezyOrder(orderData.id);
+      creditAmount = order?.attributes?.total
+        ? order.attributes.total / 100
+        : undefined;
+    } catch (err) {
+      console.error(
+        `[Webhook] Failed to fetch order total for refund ${orderData.id}:`,
+        err
+      );
+    }
+  }
+
+  if (!creditAmount) {
+    // Unrecoverable failure - cannot process refund without credit amount
+    const errorMessage = `Could not determine credit amount for refunded order ${orderData.id}. Cannot process refund.`;
+    console.error(`[Webhook] CRITICAL: ${errorMessage}`);
+    // Throw error - this will be caught by handlingErrors, reported to Sentry, and returned as 500
+    throw internal(errorMessage, {
+      lemonSqueezyOrderId: orderData.id,
+      workspaceId,
+      eventType: "order_refunded",
+    });
+  }
+
+  // Deduct credits from workspace using atomic update
+  await db.workspace.atomicUpdate(
+    workspacePk,
+    "workspace",
+    async (workspace) => {
+      if (!workspace) {
+        throw new Error(`Workspace ${workspaceId} not found`);
+      }
+      const newBalance =
+        Math.max(
+          0,
+          Math.round((workspace.creditBalance || 0) - creditAmount) * 1_000_000
+        ) / 1_000_000;
+      return {
+        pk: workspacePk,
+        sk: "workspace",
+        creditBalance: newBalance,
+        lemonSqueezyOrderId: orderData.id,
+      };
+    }
+  );
+
+  console.log(
+    `[Webhook] Deducted ${creditAmount} credits from workspace ${workspaceId} due to refund of order ${orderData.id}`
   );
 }
 
@@ -637,68 +859,37 @@ export const handler = adaptHttpHandler(
       });
 
       // Handle different event types
-      try {
-        switch (eventName) {
-          case "subscription_created":
-            await handleSubscriptionCreated(webhookEvent.data, customData);
-            break;
-          case "subscription_updated":
-            await handleSubscriptionUpdated(webhookEvent.data, customData);
-            break;
-          case "subscription_past_due":
-            await handleSubscriptionPastDue(webhookEvent.data, customData);
-            break;
-          case "subscription_resumed":
-            await handleSubscriptionResumed(webhookEvent.data, customData);
-            break;
-          case "subscription_cancelled":
-            await handleSubscriptionCancelled(webhookEvent.data, customData);
-            break;
-          case "subscription_expired":
-            await handleSubscriptionExpired(webhookEvent.data, customData);
-            break;
-          case "order_created":
-            await handleOrderCreated(webhookEvent.data, customData);
-            break;
-          case "order_refunded":
-            await handleOrderRefunded(webhookEvent.data);
-            break;
-          default:
-            console.log(`[Webhook] Unhandled event type: ${eventName}`);
-        }
-      } catch (error) {
-        console.error(`[Webhook] Error handling event ${eventName}:`, error);
-
-        // Determine if this is a critical error that should trigger retry
-        // Critical errors: database failures, network issues, etc.
-        // Non-critical errors: invalid data, business logic errors, etc.
-        const isCriticalError =
-          error instanceof Error &&
-          (error.message.includes("database") ||
-            error.message.includes("Database") ||
-            error.message.includes("network") ||
-            error.message.includes("Network") ||
-            error.message.includes("timeout") ||
-            error.message.includes("Timeout") ||
-            error.message.includes("ECONNREFUSED") ||
-            error.message.includes("ENOTFOUND"));
-
-        if (isCriticalError) {
-          // Return 500 for critical errors to trigger Lemon Squeezy retry
-          console.error(
-            `[Webhook] Critical error occurred, returning 500 to trigger retry`
-          );
-          return {
-            statusCode: 500,
-            body: JSON.stringify({ error: "Internal server error" }),
-          };
-        }
-
-        // For non-critical errors, return 200 to prevent retries
-        // These errors will be handled by the scheduled sync job
-        console.warn(
-          `[Webhook] Non-critical error occurred, returning 200 (will be handled by scheduled sync)`
-        );
+      // All errors will bubble up to handlingErrors wrapper which will:
+      // 1. Boomify the error
+      // 2. Report to Sentry with full HTTP request context
+      // 3. Return boom error payload as response
+      switch (eventName) {
+        case "subscription_created":
+          await handleSubscriptionCreated(webhookEvent.data, customData);
+          break;
+        case "subscription_updated":
+          await handleSubscriptionUpdated(webhookEvent.data, customData);
+          break;
+        case "subscription_past_due":
+          await handleSubscriptionPastDue(webhookEvent.data, customData);
+          break;
+        case "subscription_resumed":
+          await handleSubscriptionResumed(webhookEvent.data, customData);
+          break;
+        case "subscription_cancelled":
+          await handleSubscriptionCancelled(webhookEvent.data, customData);
+          break;
+        case "subscription_expired":
+          await handleSubscriptionExpired(webhookEvent.data, customData);
+          break;
+        case "order_created":
+          await handleOrderCreated(webhookEvent.data, customData);
+          break;
+        case "order_refunded":
+          await handleOrderRefunded(webhookEvent.data, customData);
+          break;
+        default:
+          console.log(`[Webhook] Unhandled event type: ${eventName}`);
       }
 
       // Return 200 OK to acknowledge successful processing

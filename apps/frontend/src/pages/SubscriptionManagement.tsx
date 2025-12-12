@@ -50,6 +50,8 @@ const SubscriptionManagement: FC = () => {
         }
       }
     }
+    // Note: syncMutation.mutate is stable and doesn't need to be in deps
+    // hasSyncedRef and lastSyncTimeRef are refs and don't need to be in deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, subscription?.subscriptionId]);
 

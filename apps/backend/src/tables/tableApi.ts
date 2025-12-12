@@ -619,6 +619,8 @@ export const tableApi = <
         let lastEvaluatedKey: Record<string, unknown> | undefined = undefined;
 
         // Handle pagination by continuing to query until no more results
+        // The do-while pattern ensures we always execute at least one query
+        // and continue while there are more pages (indicated by LastEvaluatedKey)
         do {
           const response = (await lowLevelTable.query({
             ...query,
@@ -852,7 +854,9 @@ export const tableApi = <
       }
 
       throw conflict(
-        `Failed to atomically update record after ${maxRetries} retries: ${lastError?.message || "Unknown error"}`
+        `Failed to atomically update record after ${maxRetries} retries: ${
+          lastError?.message || "Unknown error"
+        }`
       );
     },
   };

@@ -293,6 +293,8 @@ export const tableSchemas = {
     lastSyncedAt: z.string().datetime().optional(), // Last time subscription was synced from Lemon Squeezy
     lastPaymentEmailSentAt: z.string().datetime().optional(), // Last time payment issue email was sent
     lemonSqueezySyncKey: z.string().optional(), // GSI partition key for querying all Lemon Squeezy subscriptions (set to "ACTIVE" when subscription has Lemon Squeezy ID)
+    // Note: Using a single partition key value ("ACTIVE") could create a hot partition if there are many subscriptions.
+    // For high-scale scenarios, consider sharding (e.g., "ACTIVE#YYYY-MM" for monthly sharding) to distribute load.
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),

@@ -33,7 +33,8 @@ export function registerPostWorkspaceCreditsPurchase(
       }
 
       // Validate amount has at most 2 decimal places
-      if (Math.round(amount * 100) !== amount * 100) {
+      // Use regex to avoid floating-point precision issues
+      if (!/^\d+(\.\d{1,2})?$/.test(String(amount))) {
         throw badRequest("Amount must have at most 2 decimal places");
       }
 
@@ -89,4 +90,3 @@ export function registerPostWorkspaceCreditsPurchase(
     })
   );
 }
-

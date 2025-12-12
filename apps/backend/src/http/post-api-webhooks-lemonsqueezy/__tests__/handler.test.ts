@@ -134,7 +134,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
       });
 
       // Handler is wrapped by adaptHttpHandler which returns a Promise
-      const mockContext: Context = {} as Context;
+      const mockContext: Context = {
+        getRemainingTimeInMillis: () => 30000,
+      } as Context;
       const mockCallback: Callback = () => {};
       const result = (await handler(event, mockContext, mockCallback)) as any;
 
@@ -157,7 +159,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const mockContext: Context = {} as Context;
+      const mockContext: Context = {
+        getRemainingTimeInMillis: () => 30000,
+      } as Context;
       const mockCallback: Callback = () => {};
       const result = (await handler(event, mockContext, mockCallback)) as any;
 
@@ -212,7 +216,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const mockContext: Context = {} as Context;
+      const mockContext: Context = {
+        getRemainingTimeInMillis: () => 30000,
+      } as Context;
       const mockCallback: Callback = () => {};
       const result = (await handler(event, mockContext, mockCallback)) as any;
 
@@ -268,7 +274,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
         items: [{ id: "user-123" }],
       });
 
-      const mockContext: Context = {} as Context;
+      const mockContext: Context = {
+        getRemainingTimeInMillis: () => 30000,
+      } as Context;
       const mockCallback: Callback = () => {};
       const result = (await handler(event, mockContext, mockCallback)) as any;
 
@@ -322,7 +330,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const mockContext: Context = {} as Context;
+      const mockContext: Context = {
+        getRemainingTimeInMillis: () => 30000,
+      } as Context;
       const mockCallback: Callback = () => {};
       const result = (await handler(event, mockContext, mockCallback)) as any;
 
@@ -365,7 +375,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const mockContext: Context = {} as Context;
+      const mockContext: Context = {
+        getRemainingTimeInMillis: () => 30000,
+      } as Context;
       const mockCallback: Callback = () => {};
       const result = (await handler(event, mockContext, mockCallback)) as any;
 
@@ -420,7 +432,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const mockContext: Context = {} as Context;
+      const mockContext: Context = {
+        getRemainingTimeInMillis: () => 30000,
+      } as Context;
       const mockCallback: Callback = () => {};
       const result = (await handler(event, mockContext, mockCallback)) as any;
 
@@ -468,7 +482,9 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const mockContext: Context = {} as Context;
+      const mockContext: Context = {
+        getRemainingTimeInMillis: () => 30000,
+      } as Context;
       const mockCallback: Callback = () => {};
       const result = (await handler(event, mockContext, mockCallback)) as any;
 
@@ -476,7 +492,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       expect(mockDb.workspace?.atomicUpdate).toHaveBeenCalled();
     });
 
-    it("should return early if workspace ID is missing", async () => {
+    it("should throw error if workspace ID is missing", async () => {
       const event = createAPIGatewayEventV2({
         headers: {
           "x-signature": "valid-signature",
@@ -494,11 +510,14 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      const mockContext: Context = {} as Context;
+      const mockContext: Context = {
+        getRemainingTimeInMillis: () => 30000,
+      } as Context;
       const mockCallback: Callback = () => {};
       const result = (await handler(event, mockContext, mockCallback)) as any;
 
-      expect(result.statusCode).toBe(200);
+      // Unrecoverable failure - should return 500 and report to Sentry
+      expect(result.statusCode).toBe(500);
       expect(mockDb.workspace?.atomicUpdate).not.toHaveBeenCalled();
     });
   });
@@ -537,14 +556,16 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      // Critical errors (like database failures) should return 500 to trigger retry
-      const mockContext: Context = {} as Context;
+      // All errors now return 500 and are reported to Sentry
+      const mockContext: Context = {
+        getRemainingTimeInMillis: () => 30000,
+      } as Context;
       const mockCallback: Callback = () => {};
       const result = (await handler(event, mockContext, mockCallback)) as any;
       expect(result.statusCode).toBe(500);
     });
 
-    it("should return 200 for non-critical errors", async () => {
+    it("should return 500 for all errors (all errors are now reported to Sentry)", async () => {
       mockGetSubscriptionById.mockRejectedValue(
         new Error("Invalid subscription data")
       );
@@ -579,12 +600,13 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
       });
 
-      // Non-critical errors should return 200 to prevent retries
-      // These will be handled by the scheduled sync job
-      const mockContext: Context = {} as Context;
+      // All errors now return 500 and are reported to Sentry with full context
+      const mockContext: Context = {
+        getRemainingTimeInMillis: () => 30000,
+      } as Context;
       const mockCallback: Callback = () => {};
       const result = (await handler(event, mockContext, mockCallback)) as any;
-      expect(result.statusCode).toBe(200);
+      expect(result.statusCode).toBe(500);
     });
   });
 });
