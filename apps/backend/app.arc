@@ -159,6 +159,11 @@ workspace
   pk **String
   name bySubscriptionId
 
+workspace
+  lemonSqueezyOrderId *String
+  pk **String
+  name byLemonSqueezyOrderId
+
 workspace-api-key
   workspaceId *String
   pk **String

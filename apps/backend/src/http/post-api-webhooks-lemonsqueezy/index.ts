@@ -692,10 +692,46 @@ async function handleOrderRefunded(
     }
   }
 
+  // Fallback: Look up workspace by lemonSqueezyOrderId using GSI
+  // This handles cases where custom data is missing but the workspace has the order ID stored
+  if (!workspaceId) {
+    try {
+      console.log(
+        `[Webhook] Workspace ID not found in custom data, attempting lookup by order ID ${orderData.id}`
+      );
+      const workspacesQuery = await db.workspace.query({
+        IndexName: "byLemonSqueezyOrderId",
+        KeyConditionExpression: "lemonSqueezyOrderId = :orderId",
+        ExpressionAttributeValues: {
+          ":orderId": orderData.id,
+        },
+      });
+
+      if (workspacesQuery.items.length > 0) {
+        // Extract workspace ID from pk (format: "workspaces/{workspaceId}")
+        const workspacePk = workspacesQuery.items[0].pk;
+        workspaceId = workspacePk.replace("workspaces/", "");
+        console.log(
+          `[Webhook] Found workspace ${workspaceId} by order ID ${orderData.id}`
+        );
+      } else {
+        console.warn(
+          `[Webhook] No workspace found with lemonSqueezyOrderId ${orderData.id}`
+        );
+      }
+    } catch (err) {
+      console.error(
+        `[Webhook] Failed to lookup workspace by order ID ${orderData.id}:`,
+        err
+      );
+    }
+  }
+
   if (!workspaceId) {
     // Unrecoverable failure - cannot process refund without workspace ID
     const errorMessage =
       `No workspace ID found for refunded order ${orderData.id}. ` +
+      `Tried: custom data, order checkout_data, and workspace lookup by order ID. ` +
       `Cannot process refund without workspace ID.`;
     console.error(`[Webhook] CRITICAL: ${errorMessage}`);
     // Throw error - this will be caught by handlingErrors, reported to Sentry, and returned as 500
