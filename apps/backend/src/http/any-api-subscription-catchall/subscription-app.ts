@@ -587,48 +587,68 @@ export const createApp: () => express.Application = () => {
               targetVariantId
             );
 
-            // Sync the subscription to get updated status
+            // Sync the subscription to verify the variant and get updated status
             const db = await database();
             const lemonSqueezySub = await getLemonSqueezySubscription(
               subscription.lemonSqueezySubscriptionId
             );
             const attributes = lemonSqueezySub.attributes;
-
-            // Update subscription record
-            await db.subscription.update({
-              ...subscription,
-              plan,
-              status: attributes.status as
-                | "active"
-                | "past_due"
-                | "unpaid"
-                | "cancelled"
-                | "expired"
-                | "on_trial",
-              renewsAt: attributes.renews_at,
-              endsAt: attributes.ends_at || undefined,
-              trialEndsAt: attributes.trial_ends_at || undefined,
-              lemonSqueezyVariantId: String(attributes.variant_id),
-              lemonSqueezySyncKey: "ACTIVE", // Restore GSI key
-              lastSyncedAt: new Date().toISOString(),
-            });
-
-            // Update API Gateway usage plan association
-            const { associateSubscriptionWithPlan } = await import(
-              "../../utils/apiGatewayUsagePlans"
-            );
-            await associateSubscriptionWithPlan(subscriptionId, plan);
+            const actualVariantId = String(attributes.variant_id);
 
             console.log(
-              `[POST /api/subscription/checkout] Successfully reactivated subscription for ${plan} plan`
+              `[POST /api/subscription/checkout] Variant update verification:`,
+              {
+                requestedVariantId: targetVariantId,
+                actualVariantId,
+                variantChanged: actualVariantId === targetVariantId,
+              }
             );
 
-            res.json({
-              success: true,
-              message: `Subscription reactivated successfully. You are now on the ${plan} plan.`,
-              reactivated: true,
-            });
-            return;
+            // If variant didn't change, Lemon Squeezy likely requires payment confirmation
+            // Fall through to create a checkout URL
+            if (actualVariantId !== targetVariantId) {
+              console.log(
+                `[POST /api/subscription/checkout] Variant did not change (${actualVariantId} !== ${targetVariantId}). ` +
+                  `Lemon Squeezy likely requires payment confirmation. Creating checkout URL.`
+              );
+              // Fall through to create a new checkout
+            } else {
+              // Variant is correct, update subscription record
+              await db.subscription.update({
+                ...subscription,
+                plan,
+                status: attributes.status as
+                  | "active"
+                  | "past_due"
+                  | "unpaid"
+                  | "cancelled"
+                  | "expired"
+                  | "on_trial",
+                renewsAt: attributes.renews_at,
+                endsAt: attributes.ends_at || undefined,
+                trialEndsAt: attributes.trial_ends_at || undefined,
+                lemonSqueezyVariantId: actualVariantId,
+                lemonSqueezySyncKey: "ACTIVE", // Restore GSI key
+                lastSyncedAt: new Date().toISOString(),
+              });
+
+              // Update API Gateway usage plan association
+              const { associateSubscriptionWithPlan } = await import(
+                "../../utils/apiGatewayUsagePlans"
+              );
+              await associateSubscriptionWithPlan(subscriptionId, plan);
+
+              console.log(
+                `[POST /api/subscription/checkout] Successfully reactivated subscription for ${plan} plan`
+              );
+
+              res.json({
+                success: true,
+                message: `Subscription reactivated successfully. You are now on the ${plan} plan.`,
+                reactivated: true,
+              });
+              return;
+            }
           } catch (error) {
             console.error(
               `[POST /api/subscription/checkout] Error reactivating subscription:`,
@@ -648,42 +668,67 @@ export const createApp: () => express.Application = () => {
               targetVariantId
             );
 
-            // Sync the subscription
+            // Sync the subscription to verify the variant actually changed
             const db = await database();
             const lemonSqueezySub = await getLemonSqueezySubscription(
               subscription.lemonSqueezySubscriptionId
             );
             const attributes = lemonSqueezySub.attributes;
+            const actualVariantId = String(attributes.variant_id);
 
-            await db.subscription.update({
-              ...subscription,
-              plan,
-              status: attributes.status as
-                | "active"
-                | "past_due"
-                | "unpaid"
-                | "cancelled"
-                | "expired"
-                | "on_trial",
-              renewsAt: attributes.renews_at,
-              endsAt: attributes.ends_at || undefined,
-              trialEndsAt: attributes.trial_ends_at || undefined,
-              lemonSqueezyVariantId: String(attributes.variant_id),
-              lemonSqueezySyncKey: "ACTIVE",
-              lastSyncedAt: new Date().toISOString(),
-            });
-
-            const { associateSubscriptionWithPlan } = await import(
-              "../../utils/apiGatewayUsagePlans"
+            console.log(
+              `[POST /api/subscription/checkout] Variant update verification:`,
+              {
+                requestedVariantId: targetVariantId,
+                actualVariantId,
+                variantChanged: actualVariantId === targetVariantId,
+              }
             );
-            await associateSubscriptionWithPlan(subscriptionId, plan);
 
-            res.json({
-              success: true,
-              message: `Subscription reactivated and changed to ${plan} plan.`,
-              reactivated: true,
-            });
-            return;
+            // If variant didn't change, Lemon Squeezy likely requires payment confirmation
+            // Fall through to create a checkout URL
+            if (actualVariantId !== targetVariantId) {
+              console.log(
+                `[POST /api/subscription/checkout] Variant did not change (${actualVariantId} !== ${targetVariantId}). ` +
+                  `Lemon Squeezy likely requires payment confirmation. Creating checkout URL.`
+              );
+              // Fall through to create a new checkout
+            } else {
+              // Variant changed successfully, update local database
+              await db.subscription.update({
+                ...subscription,
+                plan,
+                status: attributes.status as
+                  | "active"
+                  | "past_due"
+                  | "unpaid"
+                  | "cancelled"
+                  | "expired"
+                  | "on_trial",
+                renewsAt: attributes.renews_at,
+                endsAt: attributes.ends_at || undefined,
+                trialEndsAt: attributes.trial_ends_at || undefined,
+                lemonSqueezyVariantId: actualVariantId,
+                lemonSqueezySyncKey: "ACTIVE",
+                lastSyncedAt: new Date().toISOString(),
+              });
+
+              const { associateSubscriptionWithPlan } = await import(
+                "../../utils/apiGatewayUsagePlans"
+              );
+              await associateSubscriptionWithPlan(subscriptionId, plan);
+
+              console.log(
+                `[POST /api/subscription/checkout] Successfully reactivated and changed subscription to ${plan} plan`
+              );
+
+              res.json({
+                success: true,
+                message: `Subscription reactivated and changed to ${plan} plan.`,
+                reactivated: true,
+              });
+              return;
+            }
           } catch (error) {
             console.error(
               `[POST /api/subscription/checkout] Error reactivating and changing plan:`,
