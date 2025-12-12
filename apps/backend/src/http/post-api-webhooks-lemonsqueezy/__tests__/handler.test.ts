@@ -1,7 +1,6 @@
-import type { APIGatewayProxyResultV2, Callback, Context } from "aws-lambda";
+import type { Callback, Context } from "aws-lambda";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DatabaseSchema } from "../../../tables/schema";
 import { createAPIGatewayEventV2 } from "../../utils/__tests__/test-helpers";
 import { handler } from "../index";
 

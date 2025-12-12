@@ -1,7 +1,6 @@
 import type { ScheduledEvent } from "aws-lambda";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import type { DatabaseSchema } from "../../../tables/schema";
 import { handler } from "../index";
 
 // Mock dependencies
@@ -299,4 +298,3 @@ describe("sync-lemonsqueezy-subscriptions", () => {
     });
   });
 });
-
