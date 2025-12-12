@@ -2,6 +2,7 @@ import {
   badRequest,
   boomify,
   forbidden,
+  internal,
   notFound,
   unauthorized,
 } from "@hapi/boom";
@@ -678,6 +679,10 @@ export const createApp: () => express.Application = () => {
           media: false,
         },
       });
+
+      if (!checkout.url) {
+        throw internal("Checkout URL not returned from Lemon Squeezy");
+      }
 
       res.json({
         checkoutUrl: checkout.url,

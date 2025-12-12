@@ -1506,7 +1506,7 @@ export async function removeSubscriptionManager(userId: string): Promise<void> {
 
 export async function createSubscriptionCheckout(
   plan: "starter" | "pro"
-): Promise<{ checkoutUrl: string }> {
+): Promise<{ checkoutUrl?: string; success?: boolean; message?: string; reactivated?: boolean }> {
   const response = await apiFetch("/api/subscription/checkout", {
     method: "POST",
     body: JSON.stringify({ plan }),

@@ -64,13 +64,25 @@ export function useRemoveSubscriptionManager() {
 }
 
 export function useSubscriptionCheckout() {
+  const queryClient = useQueryClient();
   const toast = useToast();
 
   return useMutation({
     mutationFn: (plan: "starter" | "pro") => createSubscriptionCheckout(plan),
     onSuccess: (data) => {
-      // Redirect to checkout URL
-      window.location.href = data.checkoutUrl;
+      // If subscription was reactivated, refresh data and show message
+      if (data.reactivated) {
+        queryClient.invalidateQueries({ queryKey: ["subscription"] });
+        toast.success(data.message || "Subscription reactivated successfully");
+        return;
+      }
+
+      // Otherwise, redirect to checkout URL
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        toast.error("No checkout URL received");
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to create checkout");
