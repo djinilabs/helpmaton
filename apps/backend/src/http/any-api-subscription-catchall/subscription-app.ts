@@ -522,7 +522,14 @@ export const createApp: () => express.Application = () => {
         const starterVariantId = process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID;
         const proVariantId = process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
         const currentVariantId = subscription.lemonSqueezyVariantId;
-        const targetVariantId = plan === "starter" ? starterVariantId : proVariantId;
+        const targetVariantId =
+          plan === "starter" ? starterVariantId : proVariantId;
+
+        if (!targetVariantId) {
+          throw badRequest(
+            `LEMON_SQUEEZY_${plan.toUpperCase()}_VARIANT_ID is not configured`
+          );
+        }
 
         // If same plan, try to reactivate by updating the variant (this reactivates the subscription)
         if (currentVariantId === targetVariantId) {
@@ -573,11 +580,12 @@ export const createApp: () => express.Application = () => {
               `[POST /api/subscription/checkout] Successfully reactivated subscription for ${plan} plan`
             );
 
-            return res.json({
+            res.json({
               success: true,
               message: `Subscription reactivated successfully. You are now on the ${plan} plan.`,
               reactivated: true,
             });
+            return;
           } catch (error) {
             console.error(
               `[POST /api/subscription/checkout] Error reactivating subscription:`,
@@ -627,11 +635,12 @@ export const createApp: () => express.Application = () => {
             );
             await associateSubscriptionWithPlan(subscriptionId, plan);
 
-            return res.json({
+            res.json({
               success: true,
               message: `Subscription reactivated and changed to ${plan} plan.`,
               reactivated: true,
             });
+            return;
           } catch (error) {
             console.error(
               `[POST /api/subscription/checkout] Error reactivating and changing plan:`,
@@ -705,7 +714,11 @@ export const createApp: () => express.Application = () => {
       }
 
       // Check if user is on free plan (should use checkout, not change-plan)
-      if (subscription.plan === "free" || !subscription.status || subscription.status === "expired") {
+      if (
+        subscription.plan === "free" ||
+        !subscription.status ||
+        subscription.status === "expired"
+      ) {
         throw badRequest(
           "Cannot change plan for free or expired subscriptions. Please use the checkout endpoint to upgrade."
         );
@@ -775,11 +788,12 @@ export const createApp: () => express.Application = () => {
             `[POST /api/subscription/change-plan] Successfully reactivated subscription for ${plan} plan`
           );
 
-          return res.json({
+          res.json({
             success: true,
             message: `Subscription reactivated successfully. You are now on the ${plan} plan.`,
             reactivated: true,
           });
+          return;
         } else {
           throw badRequest(`You are already on the ${plan} plan`);
         }
