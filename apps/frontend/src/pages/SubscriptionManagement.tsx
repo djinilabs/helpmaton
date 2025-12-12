@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
 import { useState, useEffect, useRef } from "react";
 import type { FC } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 
 import { LoadingScreen } from "../components/LoadingScreen";
 import { PlanComparison } from "../components/PlanComparison";
