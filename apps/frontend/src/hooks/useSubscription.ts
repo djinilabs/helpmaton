@@ -7,6 +7,7 @@ import {
   removeSubscriptionManager,
   createSubscriptionCheckout,
   cancelSubscription,
+  changeSubscriptionPlan,
   getSubscriptionPortalUrl,
   purchaseCredits,
   syncSubscription,
@@ -89,6 +90,22 @@ export function useSubscriptionCancel() {
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to cancel subscription");
+    },
+  });
+}
+
+export function useSubscriptionChangePlan() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (plan: "starter" | "pro") => changeSubscriptionPlan(plan),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      toast.success(data.message || "Plan changed successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to change plan");
     },
   });
 }

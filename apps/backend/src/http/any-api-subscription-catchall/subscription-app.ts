@@ -13,9 +13,13 @@ import {
   cancelSubscription as cancelLemonSqueezySubscription,
   getCustomerPortalUrl,
   getSubscription as getLemonSqueezySubscription,
+  updateSubscriptionVariant,
 } from "../../utils/lemonSqueezy";
 import { getPlanLimits } from "../../utils/subscriptionPlans";
-import { checkGracePeriod, getEffectivePlan } from "../../utils/subscriptionStatus";
+import {
+  checkGracePeriod,
+  getEffectivePlan,
+} from "../../utils/subscriptionStatus";
 import {
   getUserSubscription,
   isSubscriptionManager,
@@ -217,9 +221,7 @@ export const createApp: () => express.Application = () => {
       // Get plan limits based on effective plan
       const limits = getPlanLimits(effectivePlan);
       if (!limits) {
-        console.error(
-          `[GET /api/subscription] Invalid plan: ${effectivePlan}`
-        );
+        console.error(`[GET /api/subscription] Invalid plan: ${effectivePlan}`);
         throw new Error(`Invalid subscription plan: ${effectivePlan}`);
       }
 
@@ -540,6 +542,128 @@ export const createApp: () => express.Application = () => {
 
       res.json({
         checkoutUrl: checkout.url,
+      });
+    })
+  );
+
+  // POST /api/subscription/change-plan - Change subscription plan (upgrade or downgrade)
+  // Note: API Gateway strips /api/subscription prefix for catchall routes, so we use /change-plan
+  app.post(
+    "/change-plan",
+    requireAuth,
+    asyncHandler(async (req, res) => {
+      const currentUserRef = req.userRef;
+      if (!currentUserRef) {
+        throw unauthorized();
+      }
+      const currentUserId = currentUserRef.replace("users/", "");
+
+      const { plan } = req.body;
+      if (plan !== "starter" && plan !== "pro") {
+        throw badRequest('Plan must be "starter" or "pro"');
+      }
+
+      // Get user's subscription
+      const subscription = await getUserSubscription(currentUserId);
+
+      // Check if user has an active Lemon Squeezy subscription
+      if (!subscription.lemonSqueezySubscriptionId) {
+        // No existing subscription, create a checkout instead
+        throw badRequest(
+          "No active subscription found. Please use the checkout endpoint to create a new subscription."
+        );
+      }
+
+      // Get variant ID for the new plan
+      const variantId =
+        plan === "starter"
+          ? process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID
+          : process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
+
+      if (!variantId) {
+        throw badRequest(
+          `LEMON_SQUEEZY_${plan.toUpperCase()}_VARIANT_ID is not configured`
+        );
+      }
+
+      // Check if already on this plan
+      const currentVariantId = subscription.lemonSqueezyVariantId;
+      if (currentVariantId === variantId) {
+        throw badRequest(`You are already on the ${plan} plan`);
+      }
+
+      console.log(
+        `[POST /api/subscription/change-plan] Changing plan for subscription ${subscription.lemonSqueezySubscriptionId} from variant ${currentVariantId} to ${variantId}`
+      );
+
+      // Update subscription variant in Lemon Squeezy
+      await updateSubscriptionVariant(
+        subscription.lemonSqueezySubscriptionId,
+        variantId
+      );
+
+      // The webhook will update the subscription when Lemon Squeezy processes the change
+      // But we can also sync immediately to get the updated data
+      const db = await database();
+      try {
+        const lemonSqueezySub = await getLemonSqueezySubscription(
+          subscription.lemonSqueezySubscriptionId
+        );
+        const attributes = lemonSqueezySub.attributes;
+
+        // Map variant ID to plan
+        const starterVariantId = process.env.LEMON_SQUEEZY_STARTER_VARIANT_ID;
+        const proVariantId = process.env.LEMON_SQUEEZY_PRO_VARIANT_ID;
+        const newVariantId = String(attributes.variant_id);
+        const newPlan =
+          newVariantId === starterVariantId
+            ? "starter"
+            : newVariantId === proVariantId
+            ? "pro"
+            : "starter"; // Default fallback
+
+        // Update subscription record
+        await db.subscription.update({
+          ...subscription,
+          plan: newPlan,
+          status: attributes.status as
+            | "active"
+            | "past_due"
+            | "unpaid"
+            | "cancelled"
+            | "expired"
+            | "on_trial",
+          renewsAt: attributes.renews_at,
+          endsAt: attributes.ends_at || undefined,
+          trialEndsAt: attributes.trial_ends_at || undefined,
+          lemonSqueezyVariantId: newVariantId,
+          lemonSqueezySyncKey: subscription.lemonSqueezySubscriptionId
+            ? "ACTIVE"
+            : undefined,
+          lastSyncedAt: new Date().toISOString(),
+        });
+
+        // Update API Gateway usage plan association
+        const subscriptionId = subscription.pk.replace("subscriptions/", "");
+        const { associateSubscriptionWithPlan } = await import(
+          "../../utils/apiGatewayUsagePlans"
+        );
+        await associateSubscriptionWithPlan(subscriptionId, newPlan);
+
+        console.log(
+          `[POST /api/subscription/change-plan] Successfully changed plan to ${newPlan}`
+        );
+      } catch (error) {
+        console.error(
+          `[POST /api/subscription/change-plan] Error syncing subscription after plan change:`,
+          error
+        );
+        // Don't fail the request - the webhook will update it eventually
+      }
+
+      res.json({
+        success: true,
+        message: `Plan changed to ${plan}. The change will take effect on your next billing cycle.`,
       });
     })
   );

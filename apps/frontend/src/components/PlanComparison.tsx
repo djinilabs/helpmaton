@@ -5,7 +5,7 @@ import { useSubscriptionCheckout } from "../hooks/useSubscription";
 interface PlanComparisonProps {
   currentPlan: "free" | "starter" | "pro";
   onUpgrade?: (plan: "starter" | "pro") => void;
-  onDowngrade?: () => void;
+  onDowngrade?: (plan: "free" | "starter" | "pro") => void;
 }
 
 export const PlanComparison: FC<PlanComparisonProps> = ({
@@ -146,7 +146,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
 
             {canDowngrade && onDowngrade && (
               <button
-                onClick={onDowngrade}
+                onClick={() => onDowngrade(plan.plan)}
                 className="w-full border border-neutral-300 text-neutral-700 font-semibold py-3 px-6 rounded-xl hover:bg-neutral-50 transition-all duration-200"
               >
                 Downgrade
@@ -201,5 +201,6 @@ function getPlanLimits(plan: "free" | "starter" | "pro") {
   };
   return limits[plan];
 }
+
 
 

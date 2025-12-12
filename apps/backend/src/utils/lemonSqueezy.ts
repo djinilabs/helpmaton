@@ -478,6 +478,32 @@ export async function cancelSubscription(
 }
 
 /**
+ * Update subscription variant (change plan)
+ * This allows upgrading or downgrading an existing subscription
+ */
+export async function updateSubscriptionVariant(
+  subscriptionId: string,
+  variantId: string
+): Promise<LemonSqueezySubscription> {
+  const response = await apiRequest<
+    LemonSqueezyResponse<LemonSqueezySubscription>
+  >(`/subscriptions/${subscriptionId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      data: {
+        type: "subscriptions",
+        id: subscriptionId,
+        attributes: {
+          variant_id: parseInt(variantId, 10),
+        },
+      },
+    }),
+  });
+
+  return response.data;
+}
+
+/**
  * Get customer portal URL
  * Note: Lemon Squeezy customer portal URL is typically available in subscription attributes
  * For now, we construct it based on customer ID using the store's custom domain

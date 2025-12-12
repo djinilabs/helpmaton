@@ -1519,6 +1519,16 @@ export async function cancelSubscription(): Promise<void> {
   });
 }
 
+export async function changeSubscriptionPlan(
+  plan: "starter" | "pro"
+): Promise<{ success: boolean; message: string }> {
+  const response = await apiFetch("/api/subscription/change-plan", {
+    method: "POST",
+    body: JSON.stringify({ plan }),
+  });
+  return response.json();
+}
+
 export async function getSubscriptionPortalUrl(): Promise<{
   portalUrl: string;
 }> {

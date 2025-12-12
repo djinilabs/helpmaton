@@ -11,6 +11,7 @@ import {
   useRemoveSubscriptionManager,
   useSubscriptionCheckout,
   useSubscriptionCancel,
+  useSubscriptionChangePlan,
   useSubscriptionPortal,
   useSubscriptionSync,
 } from "../hooks/useSubscription";
@@ -26,6 +27,7 @@ const SubscriptionManagement: FC = () => {
   const removeManagerMutation = useRemoveSubscriptionManager();
   const checkoutMutation = useSubscriptionCheckout();
   const cancelMutation = useSubscriptionCancel();
+  const changePlanMutation = useSubscriptionChangePlan();
   const portalQuery = useSubscriptionPortal();
   const syncMutation = useSubscriptionSync();
   const hasSyncedRef = useRef(false);
@@ -315,14 +317,33 @@ const SubscriptionManagement: FC = () => {
           </h2>
           <PlanComparison
             currentPlan={subscription.plan}
-            onUpgrade={(plan) => checkoutMutation.mutate(plan)}
-            onDowngrade={() => {
-              if (
-                window.confirm(
-                  "Are you sure you want to downgrade? You will lose access to premium features."
-                )
-              ) {
-                cancelMutation.mutate();
+            onUpgrade={(plan) => {
+              // If user has an active subscription, change plan instead of creating checkout
+              if (subscription.status || subscription.renewsAt) {
+                changePlanMutation.mutate(plan);
+              } else {
+                checkoutMutation.mutate(plan);
+              }
+            }}
+            onDowngrade={(targetPlan) => {
+              if (targetPlan === "free") {
+                // Downgrading to free = cancel subscription
+                if (
+                  window.confirm(
+                    "Are you sure you want to cancel your subscription? It will remain active until the end of the billing period."
+                  )
+                ) {
+                  cancelMutation.mutate();
+                }
+              } else {
+                // Downgrading to a different paid plan (e.g., pro to starter)
+                if (
+                  window.confirm(
+                    `Are you sure you want to downgrade to ${targetPlan}? The change will take effect on your next billing cycle.`
+                  )
+                ) {
+                  changePlanMutation.mutate(targetPlan);
+                }
               }
             }}
           />
