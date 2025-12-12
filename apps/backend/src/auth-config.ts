@@ -25,15 +25,12 @@ async function isUserAllowedToSignIn(email: string): Promise<boolean> {
   const allowedEmails =
     process.env.ALLOWED_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) ||
     [];
-  if (allowedEmails.length > 0) {
-    if (allowedEmails.includes(normalizedEmail)) {
-      return true;
-    }
-    return false;
+  if (allowedEmails.includes(normalizedEmail)) {
+    return true;
   }
 
-  // If no whitelist is configured, allow all emails
-  return true;
+  // If no whitelist is configured, deny all emails
+  return false;
 }
 
 export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
