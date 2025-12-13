@@ -1,11 +1,11 @@
-import { badRequest } from "@hapi/boom";
 import express from "express";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// eslint-disable-next-line import/order
 import {
+  createMockDatabase,
   createMockRequest,
   createMockResponse,
-  createMockDatabase,
 } from "../../../utils/__tests__/test-helpers";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
@@ -20,9 +20,43 @@ vi.mock("../../../../tables", () => ({
   database: mockDatabase,
 }));
 
+// Mock middleware to pass through
+vi.mock("../middleware", () => ({
+  requireAuth: (
+    _req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction
+  ) => {
+    next();
+  },
+  requirePermission:
+    () =>
+    (
+      _req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction
+    ) => {
+      next();
+    },
+  handleError: (error: unknown, next: express.NextFunction) => {
+    next(error);
+  },
+}));
+
+// Import the actual route handler after mocks are set up
+import { registerDeleteWorkspaceApiKey } from "../delete-workspace-api-key";
+
+import { createTestAppWithHandlerCapture } from "./route-test-helpers";
+
 describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
+  let testApp: ReturnType<typeof createTestAppWithHandlerCapture>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    testApp = createTestAppWithHandlerCapture();
+
+    // Register the actual route handler
+    registerDeleteWorkspaceApiKey(testApp.app);
   });
 
   async function callRouteHandler(
@@ -30,84 +64,17 @@ describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
     res: Partial<express.Response>,
     next: express.NextFunction
   ) {
-    // Extract the handler logic directly
-    const handler = async (
-      req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => {
-      try {
-        const db = await mockDatabase();
-        const workspaceResource = (req as { workspaceResource?: string })
-          .workspaceResource;
-        if (!workspaceResource) {
-          throw badRequest("Workspace resource not found");
-        }
-        const workspaceId = req.params.workspaceId;
-        const provider = req.query.provider as string;
+    // Get the actual route handler that was registered
+    const routeHandler = testApp.deleteHandler(
+      "/api/workspaces/:workspaceId/api-key"
+    );
+    if (!routeHandler) {
+      throw new Error(
+        "Route handler not found - route may not be registered correctly"
+      );
+    }
 
-        if (!provider || typeof provider !== "string") {
-          throw badRequest("provider query parameter is required");
-        }
-
-        // Validate provider is one of the supported values
-        const validProviders = ["google", "openai", "anthropic"];
-        if (!validProviders.includes(provider)) {
-          throw badRequest(
-            `provider must be one of: ${validProviders.join(", ")}`
-          );
-        }
-
-        const pk = `workspace-api-keys/${workspaceId}/${provider}`;
-        const sk = "key";
-
-        // Delete key in new format
-        // Only catch "not found" errors, let other errors propagate
-        try {
-          await db["workspace-api-key"].delete(pk, sk);
-        } catch (error) {
-          // Check if it's a "not found" error - if so, continue
-          // Otherwise, re-throw the error
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          if (
-            !errorMessage.includes("not found") &&
-            !errorMessage.includes("Not found") &&
-            !errorMessage.includes("does not exist")
-          ) {
-            throw error;
-          }
-          // Key doesn't exist in new format, continue to check old format
-        }
-
-        // Backward compatibility: also delete old format key for Google provider
-        if (provider === "google") {
-          const oldPk = `workspace-api-keys/${workspaceId}`;
-          try {
-            await db["workspace-api-key"].delete(oldPk, sk);
-          } catch (error) {
-            // Check if it's a "not found" error - if so, continue
-            // Otherwise, re-throw the error
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
-            if (
-              !errorMessage.includes("not found") &&
-              !errorMessage.includes("Not found") &&
-              !errorMessage.includes("does not exist")
-            ) {
-              throw error;
-            }
-            // Old key doesn't exist, that's fine
-          }
-        }
-
-        res.status(204).send();
-      } catch (error) {
-        next(error);
-      }
-    };
-
-    await handler(req as express.Request, res as express.Response, next);
+    await routeHandler(req as express.Request, res as express.Response, next);
   }
 
   it("should delete API key successfully", async () => {

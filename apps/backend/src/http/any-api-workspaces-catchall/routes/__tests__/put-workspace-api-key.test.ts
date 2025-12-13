@@ -1,11 +1,11 @@
-import { badRequest, unauthorized } from "@hapi/boom";
 import express from "express";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// eslint-disable-next-line import/order
 import {
+  createMockDatabase,
   createMockRequest,
   createMockResponse,
-  createMockDatabase,
 } from "../../../utils/__tests__/test-helpers";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
@@ -20,9 +20,43 @@ vi.mock("../../../../tables", () => ({
   database: mockDatabase,
 }));
 
+// Mock middleware to pass through
+vi.mock("../middleware", () => ({
+  requireAuth: (
+    _req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction
+  ) => {
+    next();
+  },
+  requirePermission:
+    () =>
+    (
+      _req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction
+    ) => {
+      next();
+    },
+  handleError: (error: unknown, next: express.NextFunction) => {
+    next(error);
+  },
+}));
+
+// Import the actual route handler after mocks are set up
+import { registerPutWorkspaceApiKey } from "../put-workspace-api-key";
+
+import { createTestAppWithHandlerCapture } from "./route-test-helpers";
+
 describe("PUT /api/workspaces/:workspaceId/api-key", () => {
+  let testApp: ReturnType<typeof createTestAppWithHandlerCapture>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    testApp = createTestAppWithHandlerCapture();
+
+    // Register the actual route handler
+    registerPutWorkspaceApiKey(testApp.app);
   });
 
   async function callRouteHandler(
@@ -30,138 +64,17 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     res: Partial<express.Response>,
     next: express.NextFunction
   ) {
-    // Extract the handler logic directly
-    const handler = async (
-      req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => {
-      try {
-        const db = await mockDatabase();
-        const workspaceResource = (req as { workspaceResource?: string })
-          .workspaceResource;
-        if (!workspaceResource) {
-          throw badRequest("Workspace resource not found");
-        }
-        const workspaceId = req.params.workspaceId;
-        const { key, provider } = req.body;
+    // Get the actual route handler that was registered
+    const routeHandler = testApp.putHandler(
+      "/api/workspaces/:workspaceId/api-key"
+    );
+    if (!routeHandler) {
+      throw new Error(
+        "Route handler not found - route may not be registered correctly"
+      );
+    }
 
-        if (key === undefined) {
-          throw badRequest("key is required");
-        }
-
-        if (!provider || typeof provider !== "string") {
-          throw badRequest("provider is required");
-        }
-
-        // Validate provider is one of the supported values
-        const validProviders = ["google", "openai", "anthropic"];
-        if (!validProviders.includes(provider)) {
-          throw badRequest(
-            `provider must be one of: ${validProviders.join(", ")}`
-          );
-        }
-
-        const currentUserRef = (req as { userRef?: string }).userRef;
-        if (!currentUserRef) {
-          throw unauthorized();
-        }
-
-        const pk = `workspace-api-keys/${workspaceId}/${provider}`;
-        const sk = "key";
-
-        if (!key || key === "") {
-          // Delete the key if it exists (new format)
-          try {
-            await db["workspace-api-key"].delete(pk, sk);
-          } catch {
-            // Key doesn't exist, that's fine
-          }
-
-          // Also try to delete old format key for backward compatibility (Google only)
-          if (provider === "google") {
-            const oldPk = `workspace-api-keys/${workspaceId}`;
-            try {
-              await db["workspace-api-key"].delete(oldPk, sk);
-            } catch {
-              // Old key doesn't exist, that's fine
-            }
-          }
-
-          res.status(204).send();
-          return;
-        }
-
-        // Check if key already exists in new format
-        let existing;
-        try {
-          existing = await db["workspace-api-key"].get(pk, sk);
-        } catch {
-          // Key doesn't exist in new format
-        }
-
-        // For Google provider, also check old format for backward compatibility
-        if (!existing && provider === "google") {
-          const oldPk = `workspace-api-keys/${workspaceId}`;
-          try {
-            const oldKey = await db["workspace-api-key"].get(oldPk, sk);
-            if (oldKey) {
-              // Migrate old key to new format
-              try {
-                await db["workspace-api-key"].create({
-                  pk,
-                  sk,
-                  workspaceId,
-                  key: oldKey.key,
-                  provider: "google",
-                  createdBy: oldKey.createdBy || currentUserRef,
-                  createdAt: oldKey.createdAt,
-                });
-                // Delete old key after migration
-                try {
-                  await db["workspace-api-key"].delete(oldPk, sk);
-                } catch {
-                  // Ignore deletion errors
-                }
-                existing = await db["workspace-api-key"].get(pk, sk);
-              } catch {
-                // Migration failed, continue with update
-              }
-            }
-          } catch {
-            // Old key doesn't exist
-          }
-        }
-
-        if (existing) {
-          // Update existing key
-          await db["workspace-api-key"].update({
-            pk,
-            sk,
-            key,
-            provider,
-            updatedBy: currentUserRef,
-            updatedAt: new Date().toISOString(),
-          });
-        } else {
-          // Create new key
-          await db["workspace-api-key"].create({
-            pk,
-            sk,
-            workspaceId,
-            key,
-            provider,
-            createdBy: currentUserRef,
-          });
-        }
-
-        res.status(200).json({ success: true });
-      } catch (error) {
-        next(error);
-      }
-    };
-
-    await handler(req as express.Request, res as express.Response, next);
+    await routeHandler(req as express.Request, res as express.Response, next);
   }
 
   it("should create new API key when key does not exist", async () => {

@@ -1,12 +1,12 @@
-import { badRequest } from "@hapi/boom";
 import express from "express";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// eslint-disable-next-line import/order
 import {
+  createMockDatabase,
+  createMockNext,
   createMockRequest,
   createMockResponse,
-  createMockNext,
-  createMockDatabase,
 } from "../../../utils/__tests__/test-helpers";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
@@ -21,9 +21,43 @@ vi.mock("../../../../tables", () => ({
   database: mockDatabase,
 }));
 
+// Mock middleware to pass through
+vi.mock("../middleware", () => ({
+  requireAuth: (
+    _req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction
+  ) => {
+    next();
+  },
+  requirePermission:
+    () =>
+    (
+      _req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction
+    ) => {
+      next();
+    },
+  handleError: (error: unknown, next: express.NextFunction) => {
+    next(error);
+  },
+}));
+
+// Import the actual route handler after mocks are set up
+import { registerGetWorkspaceApiKey } from "../get-workspace-api-key";
+
+import { createTestAppWithHandlerCapture } from "./route-test-helpers";
+
 describe("GET /api/workspaces/:workspaceId/api-key", () => {
+  let testApp: ReturnType<typeof createTestAppWithHandlerCapture>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    testApp = createTestAppWithHandlerCapture();
+
+    // Register the actual route handler
+    registerGetWorkspaceApiKey(testApp.app);
   });
 
   async function callRouteHandler(
@@ -31,61 +65,17 @@ describe("GET /api/workspaces/:workspaceId/api-key", () => {
     res: Partial<express.Response>,
     next: express.NextFunction
   ) {
-    // Extract the handler logic directly
-    const handler = async (
-      req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => {
-      try {
-        const db = await mockDatabase();
-        const workspaceResource = (req as { workspaceResource?: string })
-          .workspaceResource;
-        if (!workspaceResource) {
-          throw badRequest("Workspace resource not found");
-        }
-        const workspaceId = req.params.workspaceId;
-        const provider = req.query.provider as string;
+    // Get the actual route handler that was registered
+    const routeHandler = testApp.getHandler(
+      "/api/workspaces/:workspaceId/api-key"
+    );
+    if (!routeHandler) {
+      throw new Error(
+        "Route handler not found - route may not be registered correctly"
+      );
+    }
 
-        if (!provider || typeof provider !== "string") {
-          throw badRequest("provider query parameter is required");
-        }
-
-        // Validate provider is one of the supported values
-        const validProviders = ["google", "openai", "anthropic"];
-        if (!validProviders.includes(provider)) {
-          throw badRequest(
-            `provider must be one of: ${validProviders.join(", ")}`
-          );
-        }
-
-        const pk = `workspace-api-keys/${workspaceId}/${provider}`;
-        const sk = "key";
-
-        let workspaceKey;
-        try {
-          workspaceKey = await db["workspace-api-key"].get(pk, sk);
-        } catch {
-          // Key doesn't exist in new format
-        }
-
-        // Backward compatibility: check old format for Google provider only
-        if (!workspaceKey && provider === "google") {
-          const oldPk = `workspace-api-keys/${workspaceId}`;
-          try {
-            workspaceKey = await db["workspace-api-key"].get(oldPk, sk);
-          } catch {
-            // Old key doesn't exist either
-          }
-        }
-
-        res.json({ hasKey: !!workspaceKey });
-      } catch (error) {
-        next(error);
-      }
-    };
-
-    await handler(req as express.Request, res as express.Response, next);
+    await routeHandler(req as express.Request, res as express.Response, next);
   }
 
   it("should return hasKey as true when API key exists", async () => {
