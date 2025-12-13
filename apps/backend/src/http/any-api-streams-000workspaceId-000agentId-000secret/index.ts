@@ -36,6 +36,7 @@ import { database } from "../../tables";
 import {
   extractTokenUsage,
   startConversation,
+  updateConversation,
 } from "../../utils/conversationLogger";
 import {
   InsufficientCreditsError,
@@ -113,6 +114,7 @@ interface StreamRequestContext {
   usesByok: boolean;
   reservationId: string | undefined;
   finalModelName: string;
+  conversationId: string | undefined;
 }
 
 const DEFAULT_CONTENT_TYPE = "text/event-stream; charset=utf-8";
@@ -298,17 +300,45 @@ function extractRequestBody(event: LambdaUrlEvent): string {
  * Converts the request body to model messages
  * Supports both plain text and JSON message arrays (for tool results)
  * When messages are from useChat, they are in ai-sdk UIMessage format
+ * Also extracts conversationId if present in the request body
  */
 function convertRequestBodyToMessages(bodyText: string): {
   uiMessage: UIMessage;
   modelMessages: ModelMessage[];
+  conversationId?: string;
 } {
   // Try to parse as JSON first (for messages with tool results)
   let messages: UIMessage[] | null = null;
+  let conversationId: string | undefined;
   try {
     const parsed = JSON.parse(bodyText);
-    // Check if it's an array of messages (from useChat)
-    if (Array.isArray(parsed) && parsed.length > 0) {
+    // Check if it's an object with messages array and optional conversationId
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "messages" in parsed &&
+      Array.isArray(parsed.messages) &&
+      parsed.messages.length > 0
+    ) {
+      // Validate that it looks like UIMessage array
+      const firstMessage = parsed.messages[0];
+      if (
+        typeof firstMessage === "object" &&
+        firstMessage !== null &&
+        "role" in firstMessage &&
+        "content" in firstMessage
+      ) {
+        messages = parsed.messages as UIMessage[];
+        // Extract conversationId if present
+        if (
+          "conversationId" in parsed &&
+          typeof parsed.conversationId === "string"
+        ) {
+          conversationId = parsed.conversationId;
+        }
+      }
+    } else if (Array.isArray(parsed) && parsed.length > 0) {
+      // Check if it's an array of messages (from useChat)
       // Validate that it looks like UIMessage array
       const firstMessage = parsed[0];
       if (
@@ -372,7 +402,7 @@ function convertRequestBodyToMessages(bodyText: string): {
       throw error;
     }
 
-    return { uiMessage, modelMessages };
+    return { uiMessage, modelMessages, conversationId };
   }
 
   // Fallback to plain text handling
@@ -382,7 +412,7 @@ function convertRequestBodyToMessages(bodyText: string): {
     uiMessage,
   ]);
 
-  return { uiMessage, modelMessages };
+  return { uiMessage, modelMessages, conversationId };
 }
 
 /**
@@ -688,7 +718,8 @@ async function logConversationAsync(
   fullStreamedText: string,
   tokenUsage: ReturnType<typeof extractTokenUsage>,
   usesByok: boolean,
-  finalModelName: string
+  finalModelName: string,
+  conversationId?: string
 ): Promise<void> {
   if (!tokenUsage) {
     return Promise.resolve();
@@ -715,24 +746,46 @@ async function logConversationAsync(
     );
 
     // Run this asynchronously without blocking
-    await startConversation(db, {
-      workspaceId,
-      agentId,
-      conversationType: "stream", // Use 'stream' type for streaming endpoint
-      messages: validMessages,
-      tokenUsage,
-      modelName: finalModelName,
-      provider: "google",
-      usesByok,
-    }).catch((error) => {
-      // Log error but don't fail the request
-      console.error("[Stream Handler] Error logging conversation:", {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
+    if (conversationId && typeof conversationId === "string") {
+      // Update existing conversation
+      await updateConversation(
+        db,
         workspaceId,
         agentId,
+        conversationId,
+        validMessages,
+        tokenUsage
+      ).catch((error) => {
+        // Log error but don't fail the request
+        console.error("[Stream Handler] Error logging conversation:", {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          workspaceId,
+          agentId,
+          conversationId,
+        });
       });
-    });
+    } else {
+      // Start new conversation
+      await startConversation(db, {
+        workspaceId,
+        agentId,
+        conversationType: "stream", // Use 'stream' type for streaming endpoint
+        messages: validMessages,
+        tokenUsage,
+        modelName: finalModelName,
+        provider: "google",
+        usesByok,
+      }).catch((error) => {
+        // Log error but don't fail the request
+        console.error("[Stream Handler] Error logging conversation:", {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          workspaceId,
+          agentId,
+        });
+      });
+    }
   } catch (error) {
     // Log error but don't fail the request
     console.error("[Stream Handler] Error preparing conversation log:", {
@@ -831,7 +884,8 @@ async function buildRequestContext(
     throw new Error("Request body is required");
   }
 
-  const { uiMessage, modelMessages } = convertRequestBodyToMessages(bodyText);
+  const { uiMessage, modelMessages, conversationId } =
+    convertRequestBodyToMessages(bodyText);
 
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
@@ -903,6 +957,7 @@ async function buildRequestContext(
     usesByok,
     reservationId,
     finalModelName,
+    conversationId,
   };
 }
 
@@ -1168,7 +1223,8 @@ const internalHandler = async (
       fullStreamedText,
       tokenUsage,
       context.usesByok,
-      context.finalModelName
+      context.finalModelName,
+      context.conversationId
     );
   } catch (error) {
     const boomed = boomify(error as Error);
