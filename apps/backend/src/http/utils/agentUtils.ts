@@ -7,7 +7,10 @@ import { z } from "zod";
 
 import { database } from "../../tables";
 import { getDefined } from "../../utils";
-import { extractTokenUsage } from "../../utils/conversationLogger";
+import {
+  extractTokenUsage,
+  type TokenUsage,
+} from "../../utils/conversationLogger";
 import {
   adjustCreditReservation,
   refundReservation,
@@ -765,7 +768,7 @@ async function callAgentInternal(
   let reservationId: string | undefined;
   let llmCallAttempted = false;
   let result: Awaited<ReturnType<typeof generateText>> | undefined;
-  let tokenUsage: ReturnType<typeof extractTokenUsage> | undefined;
+  let tokenUsage: TokenUsage | undefined;
 
   try {
     // Reserve credits before LLM call
@@ -829,7 +832,7 @@ async function callAgentInternal(
     llmCallAttempted = true;
 
     // Extract and track token usage for credit adjustment
-    tokenUsage = extractTokenUsage(result);
+    tokenUsage = await extractTokenUsage(result);
     if (
       isCreditDeductionEnabled() &&
       reservationId &&
@@ -926,7 +929,7 @@ async function callAgentInternal(
       } else {
         // Error after LLM call - try to get token usage from error if available
         // If model error without token usage, assume reserved credits were consumed
-        let errorTokenUsage: ReturnType<typeof extractTokenUsage> | undefined;
+        let errorTokenUsage: TokenUsage | undefined;
         try {
           // Try to extract token usage from error if it has a result property
           if (
@@ -935,7 +938,7 @@ async function callAgentInternal(
             "result" in error &&
             error.result
           ) {
-            errorTokenUsage = extractTokenUsage(error.result);
+            errorTokenUsage = await extractTokenUsage(error.result);
           }
         } catch {
           // Ignore extraction errors

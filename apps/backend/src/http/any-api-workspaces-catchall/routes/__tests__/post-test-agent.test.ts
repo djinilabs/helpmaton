@@ -287,7 +287,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
         const { extractTokenUsage } = await import(
           "../../../../utils/conversationLogger"
         );
-        const tokenUsage = extractTokenUsage(result);
+        const tokenUsage = await extractTokenUsage(result);
 
         // Adjust credit reservation based on actual cost
         if (

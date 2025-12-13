@@ -13,6 +13,7 @@ import { database } from "../../tables";
 import {
   extractTokenUsage,
   startConversation,
+  type TokenUsage,
 } from "../../utils/conversationLogger";
 import {
   InsufficientCreditsError,
@@ -138,7 +139,7 @@ export const handler = adaptHttpHandler(
       let reservationId: string | undefined;
       let llmCallAttempted = false;
       let result: Awaited<ReturnType<typeof generateText>> | undefined;
-      let tokenUsage: ReturnType<typeof extractTokenUsage> | undefined;
+      let tokenUsage: TokenUsage | undefined;
 
       try {
         // Convert tools object to array format for estimation
@@ -203,7 +204,7 @@ export const handler = adaptHttpHandler(
         });
 
         // Extract token usage
-        tokenUsage = extractTokenUsage(result);
+        tokenUsage = await extractTokenUsage(result);
         console.log("[Webhook Handler] Token usage extracted:", {
           tokenUsage,
           hasTokenUsage: !!tokenUsage,
@@ -343,9 +344,7 @@ export const handler = adaptHttpHandler(
           } else {
             // Error after LLM call - try to get token usage from error if available
             // If model error without token usage, assume reserved credits were consumed
-            let errorTokenUsage:
-              | ReturnType<typeof extractTokenUsage>
-              | undefined;
+            let errorTokenUsage: TokenUsage | undefined;
             try {
               // Try to extract token usage from error if it has a result property
               if (
@@ -354,7 +353,7 @@ export const handler = adaptHttpHandler(
                 "result" in error &&
                 error.result
               ) {
-                errorTokenUsage = extractTokenUsage(error.result);
+                errorTokenUsage = await extractTokenUsage(error.result);
               }
             } catch {
               // Ignore extraction errors

@@ -40,7 +40,7 @@ export async function processNonStreamingResponse(
     throw error;
   }
 
-  const initialTokenUsage = extractTokenUsage(result);
+  const initialTokenUsage = await extractTokenUsage(result);
   const hasText = finalText && finalText.trim().length > 0;
   const hasToolResults = toolResults && toolResults.length > 0;
 

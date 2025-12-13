@@ -37,6 +37,7 @@ import {
   extractTokenUsage,
   startConversation,
   updateConversation,
+  type TokenUsage,
 } from "../../utils/conversationLogger";
 import {
   InsufficientCreditsError,
@@ -643,7 +644,7 @@ async function adjustCreditsAfterStream(
   agentId: string,
   reservationId: string | undefined,
   finalModelName: string,
-  tokenUsage: ReturnType<typeof extractTokenUsage>,
+  tokenUsage: TokenUsage | undefined,
   usesByok: boolean
 ): Promise<void> {
   // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
@@ -743,7 +744,7 @@ async function logConversationAsync(
   agentId: string,
   allMessages: UIMessage[],
   fullStreamedText: string,
-  tokenUsage: ReturnType<typeof extractTokenUsage>,
+  tokenUsage: TokenUsage | undefined,
   usesByok: boolean,
   finalModelName: string,
   conversationId?: string
@@ -1171,7 +1172,7 @@ const internalHandler = async (
           }
         } else {
           // Error after LLM call - try to get token usage from error if available
-          let errorTokenUsage: ReturnType<typeof extractTokenUsage> | undefined;
+          let errorTokenUsage: TokenUsage | undefined;
           try {
             if (
               error &&
@@ -1179,7 +1180,7 @@ const internalHandler = async (
               "result" in error &&
               error.result
             ) {
-              errorTokenUsage = extractTokenUsage(error.result);
+              errorTokenUsage = await extractTokenUsage(error.result);
             }
           } catch {
             // Ignore extraction errors
@@ -1243,7 +1244,7 @@ const internalHandler = async (
     }
 
     // Extract token usage from stream result
-    const tokenUsage = extractTokenUsage(streamResult);
+    const tokenUsage = await extractTokenUsage(streamResult);
 
     // Post-processing: adjust credit reservation, track usage, log conversation
     await adjustCreditsAfterStream(

@@ -117,18 +117,33 @@ export function aggregateTokenUsage(
 }
 
 /**
- * Extract token usage from generateText result
+ * Extract token usage from generateText or streamText result
  * Handles Google AI SDK response format including reasoning tokens
+ * For streamText, usage is a Promise that needs to be awaited
  */
-export function extractTokenUsage(
+export async function extractTokenUsage(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   result: any
-): TokenUsage | undefined {
+): Promise<TokenUsage | undefined> {
   if (!result || typeof result !== "object") {
     return undefined;
   }
 
-  const usage = result.usage;
+  // For streamText, usage is a Promise that needs to be awaited
+  // For generateText, usage is a direct object
+  let usage: any;
+  if (result.usage && typeof result.usage.then === "function") {
+    // usage is a Promise
+    try {
+      usage = await result.usage;
+    } catch (error) {
+      console.warn("[extractTokenUsage] Error awaiting usage Promise:", error);
+      return undefined;
+    }
+  } else {
+    usage = result.usage;
+  }
+
   if (!usage || typeof usage !== "object") {
     return undefined;
   }

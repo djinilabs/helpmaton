@@ -14,7 +14,7 @@ import {
 
 describe("conversationLogger", () => {
   describe("extractTokenUsage", () => {
-    it("should extract token usage from standard AI SDK format", () => {
+    it("should extract token usage from standard AI SDK format", async () => {
       const result = {
         usage: {
           promptTokens: 1000,
@@ -23,7 +23,7 @@ describe("conversationLogger", () => {
         },
       };
 
-      const usage = extractTokenUsage(result);
+      const usage = await extractTokenUsage(result);
 
       expect(usage).toEqual({
         promptTokens: 1000,
@@ -32,7 +32,7 @@ describe("conversationLogger", () => {
       });
     });
 
-    it("should extract token usage from inputTokens/outputTokens format", () => {
+    it("should extract token usage from inputTokens/outputTokens format", async () => {
       const result = {
         usage: {
           inputTokens: 1000,
@@ -41,7 +41,7 @@ describe("conversationLogger", () => {
         },
       };
 
-      const usage = extractTokenUsage(result);
+      const usage = await extractTokenUsage(result);
 
       expect(usage).toEqual({
         promptTokens: 1000,
@@ -50,7 +50,7 @@ describe("conversationLogger", () => {
       });
     });
 
-    it("should extract reasoning tokens when present", () => {
+    it("should extract reasoning tokens when present", async () => {
       const result = {
         usage: {
           promptTokens: 1000,
@@ -60,7 +60,7 @@ describe("conversationLogger", () => {
         },
       };
 
-      const usage = extractTokenUsage(result);
+      const usage = await extractTokenUsage(result);
 
       expect(usage).toEqual({
         promptTokens: 1000,
@@ -70,7 +70,7 @@ describe("conversationLogger", () => {
       });
     });
 
-    it("should extract reasoning tokens from nested location", () => {
+    it("should extract reasoning tokens from nested location", async () => {
       const result = {
         usage: {
           promptTokens: 1000,
@@ -80,7 +80,7 @@ describe("conversationLogger", () => {
         reasoningTokens: 200,
       };
 
-      const usage = extractTokenUsage(result);
+      const usage = await extractTokenUsage(result);
 
       expect(usage).toEqual({
         promptTokens: 1000,
@@ -90,7 +90,7 @@ describe("conversationLogger", () => {
       });
     });
 
-    it("should not include reasoningTokens when zero or missing", () => {
+    it("should not include reasoningTokens when zero or missing", async () => {
       const result1 = {
         usage: {
           promptTokens: 1000,
@@ -108,32 +108,51 @@ describe("conversationLogger", () => {
         },
       };
 
-      const usage1 = extractTokenUsage(result1);
-      const usage2 = extractTokenUsage(result2);
+      const usage1 = await extractTokenUsage(result1);
+      const usage2 = await extractTokenUsage(result2);
 
       expect(usage1?.reasoningTokens).toBeUndefined();
       expect(usage2?.reasoningTokens).toBeUndefined();
     });
 
-    it("should return undefined for invalid result", () => {
-      expect(extractTokenUsage(null)).toBeUndefined();
-      expect(extractTokenUsage(undefined)).toBeUndefined();
-      expect(extractTokenUsage({})).toBeUndefined();
-      expect(extractTokenUsage({ usage: null })).toBeUndefined();
+    it("should return undefined for invalid result", async () => {
+      expect(await extractTokenUsage(null)).toBeUndefined();
+      expect(await extractTokenUsage(undefined)).toBeUndefined();
+      expect(await extractTokenUsage({})).toBeUndefined();
+      expect(await extractTokenUsage({ usage: null })).toBeUndefined();
     });
 
-    it("should handle missing token fields gracefully", () => {
+    it("should handle missing token fields gracefully", async () => {
       const result = {
         usage: {
           totalTokens: 1500,
         },
       };
 
-      const usage = extractTokenUsage(result);
+      const usage = await extractTokenUsage(result);
 
       expect(usage).toEqual({
         promptTokens: 0,
         completionTokens: 0,
+        totalTokens: 1500,
+      });
+    });
+
+    it("should handle Promise usage from streamText", async () => {
+      const usageValue = {
+        promptTokens: 1000,
+        completionTokens: 500,
+        totalTokens: 1500,
+      };
+      const result = {
+        usage: Promise.resolve(usageValue),
+      };
+
+      const usage = await extractTokenUsage(result);
+
+      expect(usage).toEqual({
+        promptTokens: 1000,
+        completionTokens: 500,
         totalTokens: 1500,
       });
     });

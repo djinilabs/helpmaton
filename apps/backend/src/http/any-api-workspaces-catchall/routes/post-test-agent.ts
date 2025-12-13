@@ -9,6 +9,7 @@ import {
   extractTokenUsage,
   startConversation,
   updateConversation,
+  type TokenUsage,
 } from "../../../utils/conversationLogger";
 import {
   InsufficientCreditsError,
@@ -334,9 +335,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           } else {
             // Error after LLM call - try to get token usage from error if available
             // If model error without token usage, assume reserved credits were consumed
-            let errorTokenUsage:
-              | ReturnType<typeof extractTokenUsage>
-              | undefined;
+            let errorTokenUsage: TokenUsage | undefined;
             try {
               // Try to extract token usage from error if it has a result property
               if (
@@ -345,7 +344,7 @@ export const registerPostTestAgent = (app: express.Application) => {
                 "result" in error &&
                 error.result
               ) {
-                errorTokenUsage = extractTokenUsage(error.result);
+                errorTokenUsage = await extractTokenUsage(error.result);
               }
             } catch {
               // Ignore extraction errors
@@ -474,29 +473,36 @@ export const registerPostTestAgent = (app: express.Application) => {
       const body = new TextDecoder().decode(combined);
 
       // Extract token usage from streamText result (after stream is consumed)
-      const tokenUsage = extractTokenUsage(result);
+      // For streamText, usage is a Promise that needs to be awaited
+      const tokenUsage = await extractTokenUsage(result);
 
-      // Extract assistant's response from the SSE stream
-      // The stream is in SSE format: "data: {json}\n\n"
-      let assistantText = "";
-      const lines = body.split("\n");
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-        if (trimmedLine.startsWith("data: ")) {
-          try {
-            const jsonStr = trimmedLine.substring(6); // Remove "data: " prefix
-            if (jsonStr === "[DONE]") {
-              continue;
+      // Extract assistant's response
+      // First try to get it directly from the result object (most reliable)
+      let assistantText: string = "";
+      if (result.text && typeof result.text === "string") {
+        assistantText = result.text;
+      } else {
+        // Fallback: parse the SSE stream if result.text is not available
+        // The stream is in SSE format: "data: {json}\n\n"
+        const lines = body.split("\n");
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (trimmedLine.startsWith("data: ")) {
+            try {
+              const jsonStr = trimmedLine.substring(6); // Remove "data: " prefix
+              if (jsonStr === "[DONE]") {
+                continue;
+              }
+              const chunk = JSON.parse(jsonStr);
+              // Accumulate text from text-delta or text chunks
+              if (chunk.type === "text-delta" && chunk.textDelta) {
+                assistantText += chunk.textDelta;
+              } else if (chunk.type === "text" && chunk.text) {
+                assistantText += chunk.text;
+              }
+            } catch {
+              // Not JSON or parsing failed, skip
             }
-            const chunk = JSON.parse(jsonStr);
-            // Accumulate text from text-delta or text chunks
-            if (chunk.type === "text-delta" && chunk.textDelta) {
-              assistantText += chunk.textDelta;
-            } else if (chunk.type === "text" && chunk.text) {
-              assistantText += chunk.text;
-            }
-          } catch {
-            // Not JSON or parsing failed, skip
           }
         }
       }
@@ -591,21 +597,78 @@ export const registerPostTestAgent = (app: express.Application) => {
       }
 
       // Get valid messages for logging - include both input messages and assistant response
-      const validMessages: UIMessage[] = messages.filter(
-        (msg): msg is UIMessage =>
-          msg != null &&
-          typeof msg === "object" &&
-          "role" in msg &&
-          typeof msg.role === "string" &&
-          (msg.role === "user" ||
-            msg.role === "assistant" ||
-            msg.role === "system" ||
-            msg.role === "tool") &&
-          "content" in msg
-      );
+      // Handle both ai-sdk format (with 'parts') and our format (with 'content')
+      const validMessages: UIMessage[] = messages
+        .filter((msg) => {
+          if (!msg || typeof msg !== "object") {
+            return false;
+          }
+          // Check if it has a valid role
+          if (!("role" in msg) || typeof msg.role !== "string") {
+            return false;
+          }
+          const role = msg.role;
+          if (
+            role !== "user" &&
+            role !== "assistant" &&
+            role !== "system" &&
+            role !== "tool"
+          ) {
+            return false;
+          }
+          // Accept messages with either 'content' or 'parts' (ai-sdk format)
+          return "content" in msg || "parts" in msg;
+        })
+        .map((msg) => {
+          // Convert ai-sdk format (with 'parts') to our format (with 'content')
+          if ("parts" in msg && !("content" in msg)) {
+            // This is ai-sdk format, convert it
+            const parts = (msg as { parts?: unknown[] }).parts;
+            if (Array.isArray(parts) && parts.length > 0) {
+              // Extract text from parts
+              const textParts = parts
+                .filter(
+                  (part) =>
+                    part &&
+                    typeof part === "object" &&
+                    "type" in part &&
+                    part.type === "text" &&
+                    "text" in part
+                )
+                .map((part) => (part as { text: string }).text)
+                .join("");
+              return {
+                ...msg,
+                content: textParts || "",
+              } as UIMessage;
+            }
+            // If parts array is empty or doesn't have text, create empty content
+            return {
+              ...msg,
+              content: "",
+            } as UIMessage;
+          }
+          return msg as UIMessage;
+        })
+        .filter((msg) => {
+          // Final validation: ensure message has content (string or array)
+          if (!msg || typeof msg !== "object") {
+            return false;
+          }
+          // Accept messages with content (string or array)
+          if ("content" in msg) {
+            const content = msg.content;
+            return (
+              typeof content === "string" ||
+              Array.isArray(content) ||
+              content !== null
+            );
+          }
+          return false;
+        });
 
       // Add assistant's response if we extracted any text
-      if (assistantText.trim().length > 0) {
+      if (assistantText && assistantText.trim().length > 0) {
         validMessages.push({
           role: "assistant",
           content: assistantText,
@@ -613,6 +676,37 @@ export const registerPostTestAgent = (app: express.Application) => {
       }
 
       // Log conversation (non-blocking)
+      // Always log messages even if assistant text is empty - user messages should be recorded
+      if (validMessages.length === 0) {
+        console.warn("[Agent Test Handler] No valid messages to log:", {
+          workspaceId,
+          agentId,
+          originalMessageCount: messages.length,
+          messages: messages.map((m) => ({
+            role:
+              m && typeof m === "object" && "role" in m ? m.role : "unknown",
+            hasContent: m && typeof m === "object" && "content" in m,
+            hasParts: m && typeof m === "object" && "parts" in m,
+          })),
+        });
+      }
+
+      console.log("[Agent Test Handler] Logging conversation:", {
+        workspaceId,
+        agentId,
+        conversationId: conversationId || "new",
+        messageCount: validMessages.length,
+        hasAssistantMessage: assistantText.trim().length > 0,
+        assistantTextLength: assistantText.length,
+        tokenUsage: tokenUsage
+          ? {
+              promptTokens: tokenUsage.promptTokens,
+              completionTokens: tokenUsage.completionTokens,
+              totalTokens: tokenUsage.totalTokens,
+            }
+          : null,
+      });
+
       try {
         if (
           conversationId &&

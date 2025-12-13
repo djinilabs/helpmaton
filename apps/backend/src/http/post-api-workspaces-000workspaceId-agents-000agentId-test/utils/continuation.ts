@@ -179,7 +179,7 @@ export async function handleToolContinuation(
 
   // Get continuation text and token usage
   let continuationText: string;
-  const continuationTokenUsage = extractTokenUsage(continuationResult);
+  const continuationTokenUsage = await extractTokenUsage(continuationResult);
   try {
     continuationText = continuationResult.text;
   } catch (error) {
