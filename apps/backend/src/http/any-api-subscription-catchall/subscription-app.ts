@@ -601,6 +601,9 @@ export const createApp: () => express.Application = () => {
                 requestedVariantId: targetVariantId,
                 actualVariantId,
                 variantChanged: actualVariantId === targetVariantId,
+                status: attributes.status,
+                renewsAt: attributes.renews_at,
+                endsAt: attributes.ends_at,
               }
             );
 
@@ -612,8 +615,22 @@ export const createApp: () => express.Application = () => {
                   `Lemon Squeezy likely requires payment confirmation. Creating checkout URL.`
               );
               // Fall through to create a new checkout
+            } else if (
+              attributes.status === "cancelled" ||
+              attributes.status === "expired"
+            ) {
+              // Variant changed but status is still cancelled/expired
+              // This means Lemon Squeezy requires payment confirmation to reactivate
+              // If we update with cancelled status, getEffectivePlan will return "free"
+              // So we need to create a checkout URL instead
+              console.log(
+                `[POST /api/subscription/checkout] Variant changed but status is still ${attributes.status}. ` +
+                  `Lemon Squeezy requires payment confirmation to reactivate. ` +
+                  `If we update now, subscription will show as "free" due to cancelled status. Creating checkout URL.`
+              );
+              // Fall through to create a new checkout
             } else {
-              // Variant is correct, update subscription record
+              // Variant is correct and status is active, update subscription record
               await db.subscription.update({
                 ...subscription,
                 plan,
@@ -682,6 +699,9 @@ export const createApp: () => express.Application = () => {
                 requestedVariantId: targetVariantId,
                 actualVariantId,
                 variantChanged: actualVariantId === targetVariantId,
+                status: attributes.status,
+                renewsAt: attributes.renews_at,
+                endsAt: attributes.ends_at,
               }
             );
 
@@ -693,8 +713,22 @@ export const createApp: () => express.Application = () => {
                   `Lemon Squeezy likely requires payment confirmation. Creating checkout URL.`
               );
               // Fall through to create a new checkout
+            } else if (
+              attributes.status === "cancelled" ||
+              attributes.status === "expired"
+            ) {
+              // Variant changed but status is still cancelled/expired
+              // This means Lemon Squeezy requires payment confirmation to reactivate
+              // If we update with cancelled status, getEffectivePlan will return "free"
+              // So we need to create a checkout URL instead
+              console.log(
+                `[POST /api/subscription/checkout] Variant changed but status is still ${attributes.status}. ` +
+                  `Lemon Squeezy requires payment confirmation to reactivate. ` +
+                  `If we update now, subscription will show as "free" due to cancelled status. Creating checkout URL.`
+              );
+              // Fall through to create a new checkout
             } else {
-              // Variant changed successfully, update local database
+              // Variant changed successfully and status is active, update local database
               await db.subscription.update({
                 ...subscription,
                 plan,

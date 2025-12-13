@@ -157,8 +157,17 @@ describe("Subscription Modify and Cancel Endpoints", () => {
               // Fall through to create a checkout URL
               if (actualVariantId !== targetVariantId) {
                 // Fall through to create a new checkout
+              } else if (
+                attributes.status === "cancelled" ||
+                attributes.status === "expired"
+              ) {
+                // Variant changed but status is still cancelled/expired
+                // This means Lemon Squeezy requires payment confirmation to reactivate
+                // If we update with cancelled status, getEffectivePlan will return "free"
+                // So we need to create a checkout URL instead
+                // Fall through to create a new checkout
               } else {
-                // Variant is correct, update subscription record
+                // Variant is correct and status is active, update subscription record
                 await db.subscription.update({
                   ...subscription,
                   plan,
@@ -211,8 +220,17 @@ describe("Subscription Modify and Cancel Endpoints", () => {
               // Fall through to create a checkout URL
               if (actualVariantId !== targetVariantId) {
                 // Fall through to create a new checkout
+              } else if (
+                attributes.status === "cancelled" ||
+                attributes.status === "expired"
+              ) {
+                // Variant changed but status is still cancelled/expired
+                // This means Lemon Squeezy requires payment confirmation to reactivate
+                // If we update with cancelled status, getEffectivePlan will return "free"
+                // So we need to create a checkout URL instead
+                // Fall through to create a new checkout
               } else {
-                // Variant changed successfully, update local database
+                // Variant changed successfully and status is active, update local database
                 await db.subscription.update({
                   ...subscription,
                   plan,
@@ -750,6 +768,69 @@ describe("Subscription Modify and Cancel Endpoints", () => {
       expect(mockUpdate).not.toHaveBeenCalled();
     });
 
+    it("should fall back to checkout when status is still cancelled after variant update (cancelled, same plan)", async () => {
+      const mockDb = createMockDatabase();
+      const mockUpdate = vi.fn();
+      mockDb.subscription.update = mockUpdate;
+      mockDatabase.mockResolvedValue(mockDb);
+
+      const mockSubscription = {
+        pk: `subscriptions/${subscriptionId}`,
+        plan: "starter" as const,
+        status: "cancelled" as const,
+        lemonSqueezySubscriptionId,
+        lemonSqueezyVariantId: starterVariantId,
+      };
+      mockGetUserSubscription.mockResolvedValue(mockSubscription);
+
+      // updateSubscriptionVariant succeeds and variant matches, but status is still cancelled
+      // (Lemon Squeezy requires payment confirmation to reactivate)
+      const mockLemonSqueezySub: MockLemonSqueezySubscription = {
+        id: lemonSqueezySubscriptionId,
+        attributes: {
+          status: "cancelled", // Still cancelled - needs payment to reactivate
+          variant_id: parseInt(starterVariantId, 10), // Variant matches
+          renews_at: "2024-12-31T23:59:59Z",
+          ends_at: "2024-12-31T23:59:59Z",
+          trial_ends_at: null,
+        },
+      };
+      mockUpdateSubscriptionVariant.mockResolvedValue(mockLemonSqueezySub);
+      mockGetLemonSqueezySubscription.mockResolvedValue(mockLemonSqueezySub);
+
+      const checkoutUrl = "https://checkout.lemonsqueezy.com/checkout/test";
+      mockCreateCheckout.mockResolvedValue({ url: checkoutUrl });
+
+      const req = createMockRequest({
+        userRef: `users/${userId}`,
+        body: { plan: "starter" },
+        session: {
+          user: { id: userId, email: "test@example.com" },
+          expires: new Date(Date.now() + 3600000).toISOString(),
+        },
+      });
+      const res = createMockResponse();
+      const next = vi.fn();
+
+      await callCheckoutHandler(req, res, next);
+
+      expect(mockUpdateSubscriptionVariant).toHaveBeenCalledWith(
+        lemonSqueezySubscriptionId,
+        starterVariantId
+      );
+      expect(mockGetLemonSqueezySubscription).toHaveBeenCalledWith(
+        lemonSqueezySubscriptionId
+      );
+      expect(mockCreateCheckout).toHaveBeenCalled();
+      expect((res as express.Response & { body: unknown }).body).toEqual({
+        checkoutUrl,
+      });
+      expect(res.statusCode).toBe(200);
+      // Verify subscription plan NOT changed (status still cancelled, needs payment)
+      // If we updated with cancelled status, getEffectivePlan would return "free"
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
     it("should reactivate cancelled subscription and change to different plan", async () => {
       const mockDb = createMockDatabase();
       mockDatabase.mockResolvedValue(mockDb);
@@ -871,6 +952,69 @@ describe("Subscription Modify and Cancel Endpoints", () => {
       });
       expect(res.statusCode).toBe(200);
       // Verify plan NOT changed
+      expect(mockUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should fall back to checkout when status is still cancelled after variant update (cancelled, different plan)", async () => {
+      const mockDb = createMockDatabase();
+      const mockUpdate = vi.fn();
+      mockDb.subscription.update = mockUpdate;
+      mockDatabase.mockResolvedValue(mockDb);
+
+      const mockSubscription = {
+        pk: `subscriptions/${subscriptionId}`,
+        plan: "starter" as const,
+        status: "cancelled" as const,
+        lemonSqueezySubscriptionId,
+        lemonSqueezyVariantId: starterVariantId,
+      };
+      mockGetUserSubscription.mockResolvedValue(mockSubscription);
+
+      // updateSubscriptionVariant succeeds and variant changed, but status is still cancelled
+      // (Lemon Squeezy requires payment confirmation to reactivate)
+      const mockLemonSqueezySub: MockLemonSqueezySubscription = {
+        id: lemonSqueezySubscriptionId,
+        attributes: {
+          status: "cancelled", // Still cancelled - needs payment to reactivate
+          variant_id: parseInt(proVariantId, 10), // Variant changed to pro
+          renews_at: "2024-12-31T23:59:59Z",
+          ends_at: "2024-12-31T23:59:59Z",
+          trial_ends_at: null,
+        },
+      };
+      mockUpdateSubscriptionVariant.mockResolvedValue(mockLemonSqueezySub);
+      mockGetLemonSqueezySubscription.mockResolvedValue(mockLemonSqueezySub);
+
+      const checkoutUrl = "https://checkout.lemonsqueezy.com/checkout/test";
+      mockCreateCheckout.mockResolvedValue({ url: checkoutUrl });
+
+      const req = createMockRequest({
+        userRef: `users/${userId}`,
+        body: { plan: "pro" },
+        session: {
+          user: { id: userId, email: "test@example.com" },
+          expires: new Date(Date.now() + 3600000).toISOString(),
+        },
+      });
+      const res = createMockResponse();
+      const next = vi.fn();
+
+      await callCheckoutHandler(req, res, next);
+
+      expect(mockUpdateSubscriptionVariant).toHaveBeenCalledWith(
+        lemonSqueezySubscriptionId,
+        proVariantId
+      );
+      expect(mockGetLemonSqueezySubscription).toHaveBeenCalledWith(
+        lemonSqueezySubscriptionId
+      );
+      expect(mockCreateCheckout).toHaveBeenCalled();
+      expect((res as express.Response & { body: unknown }).body).toEqual({
+        checkoutUrl,
+      });
+      expect(res.statusCode).toBe(200);
+      // Verify subscription plan NOT changed (status still cancelled, needs payment)
+      // If we updated with cancelled status, getEffectivePlan would return "free"
       expect(mockUpdate).not.toHaveBeenCalled();
     });
 
