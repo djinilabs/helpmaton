@@ -6,11 +6,19 @@ import { useCreditPurchase } from "../hooks/useSubscription";
 interface CreditPurchaseProps {
   workspaceId?: string;
   workspaces?: Array<{ id: string; name: string }>;
+  currency?: "usd" | "eur" | "gbp";
 }
+
+const CURRENCY_SYMBOLS: Record<"usd" | "eur" | "gbp", string> = {
+  usd: "$",
+  eur: "€",
+  gbp: "£",
+};
 
 export const CreditPurchase: FC<CreditPurchaseProps> = ({
   workspaceId,
   workspaces,
+  currency = "eur",
 }) => {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(
     workspaceId || ""
@@ -30,7 +38,7 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
     if (value && (isNaN(numValue) || numValue <= 0)) {
       setAmountError("Amount must be a positive number");
     } else if (value && numValue < 1) {
-      setAmountError("Minimum purchase amount is 1 EUR");
+      setAmountError(`Minimum purchase amount is 1 ${currency.toUpperCase()}`);
     } else if (value && !/^\d+(\.\d{1,2})?$/.test(value)) {
       setAmountError("Amount must have at most 2 decimal places");
     }
@@ -44,7 +52,7 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
 
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount < 1) {
-      setAmountError("Amount must be at least 1 EUR");
+      setAmountError(`Amount must be at least 1 ${currency.toUpperCase()}`);
       return;
     }
 
@@ -95,11 +103,11 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
             htmlFor="amount"
             className="block text-sm font-semibold text-neutral-900 mb-2"
           >
-            Credit Amount (EUR)
+            Credit Amount ({currency.toUpperCase()})
           </label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600 font-medium">
-              €
+              {CURRENCY_SYMBOLS[currency]}
             </span>
             <input
               id="amount"
@@ -118,8 +126,8 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
             </div>
           )}
           <div className="mt-2 text-sm text-neutral-600">
-            Minimum: 1 EUR. The exact amount you enter will be added as credits
-            to your workspace.
+            Minimum: 1 {currency.toUpperCase()}. The exact amount you enter will
+            be added as credits to your workspace.
           </div>
         </div>
 
@@ -140,5 +148,3 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
     </div>
   );
 };
-
-
