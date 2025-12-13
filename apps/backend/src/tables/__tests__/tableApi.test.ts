@@ -226,13 +226,6 @@ describe("tableApi", () => {
         createdAt: new Date().toISOString(),
       };
 
-      const updatedItem = {
-        ...existingItem,
-        name: "Updated",
-        version: 4,
-        updatedAt: expect.any(String),
-      };
-
       mockLowLevelTable.get.mockResolvedValue(existingItem);
       mockLowLevelClient.PutItem.mockResolvedValue({});
 

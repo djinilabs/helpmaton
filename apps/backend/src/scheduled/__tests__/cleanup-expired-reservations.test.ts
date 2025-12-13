@@ -243,10 +243,6 @@ describe("cleanupExpiredReservations", () => {
   });
 
   it("should handle query errors gracefully (continues with next hour bucket)", async () => {
-    const now = Math.floor(Date.now() / 1000);
-    const currentHour = Math.floor(now / 3600) * 3600;
-    const previousHour = currentHour - 3600;
-
     // First query fails, second succeeds
     mockQuery
       .mockRejectedValueOnce(new Error("Query failed"))

@@ -1,54 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock dependencies using vi.hoisted to ensure they're set up before imports
-const { mockGetS3Client } = vi.hoisted(() => {
-  return {
-    mockGetS3Client: vi.fn(),
-  };
-});
-
-// Mock the s3 module - we'll need to mock getS3Client
-// Since getS3Client is not exported, we'll need to mock the S3 client operations directly
-// by mocking the module and intercepting the internal getS3Client calls
-
 // Import after mocks are set up
-import {
-  normalizeFolderPath,
-  buildS3Key,
-  checkFilenameExists,
-  generateUniqueFilename,
-  uploadDocument,
-  getDocument,
-  deleteDocument,
-  renameDocument,
-} from "../s3";
+import { normalizeFolderPath, buildS3Key } from "../s3";
 
 describe("s3 utilities", () => {
-  let mockS3Client: {
-    HeadObject: ReturnType<typeof vi.fn>;
-    PutObject: ReturnType<typeof vi.fn>;
-    GetObject: ReturnType<typeof vi.fn>;
-    DeleteObject: ReturnType<typeof vi.fn>;
-    CopyObject: ReturnType<typeof vi.fn>;
-  };
-
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
-
-    // Create mock S3 client
-    mockS3Client = {
-      HeadObject: vi.fn(),
-      PutObject: vi.fn(),
-      GetObject: vi.fn(),
-      DeleteObject: vi.fn(),
-      CopyObject: vi.fn(),
-    };
-
-    // Mock the internal getS3Client by intercepting aws-lite client creation
-    // We'll need to mock the module that uses getS3Client
-    // Since getS3Client is internal, we'll mock the S3 operations directly
-    // by using vi.spyOn on the module after import
   });
 
   describe("normalizeFolderPath", () => {
@@ -241,7 +199,6 @@ describe("s3 utilities", () => {
   describe("renameDocument", () => {
     it("should build new key with new filename", () => {
       const workspaceId = "workspace-123";
-      const oldS3Key = "workspaces/workspace-123/documents/old.txt";
       const newFilename = "new.txt";
       const folderPath = "";
 
@@ -251,7 +208,6 @@ describe("s3 utilities", () => {
 
     it("should preserve folder path when renaming", () => {
       const workspaceId = "workspace-123";
-      const oldS3Key = "workspaces/workspace-123/documents/folder/old.txt";
       const newFilename = "new.txt";
       const folderPath = "folder";
 
