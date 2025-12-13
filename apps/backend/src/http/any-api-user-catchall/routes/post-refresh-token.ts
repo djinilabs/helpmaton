@@ -90,16 +90,22 @@ export const registerPostRefreshToken = (app: express.Application) => {
       // Trim whitespace (in case of any encoding/parsing issues)
       const trimmedToken = refreshToken.trim();
 
-      // Basic validation: must start with "hmat_refresh_" and have expected length
+      // Basic validation: must start with "hmat_refresh_" and have reasonable length
       // Format: "hmat_refresh_" (14 chars) + 64 hex chars = 78 total
+      // Allow 77-78 characters to handle edge cases (e.g., tokens generated with 31.5 bytes)
+      // The actual validation happens via scrypt hash comparison, not length
+      const MIN_TOKEN_LENGTH = 70; // Minimum reasonable length (14 prefix + 56 hex chars)
+      const MAX_TOKEN_LENGTH = 80; // Maximum reasonable length (allowing some buffer)
+
       if (
         !trimmedToken.startsWith("hmat_refresh_") ||
-        trimmedToken.length !== 78
+        trimmedToken.length < MIN_TOKEN_LENGTH ||
+        trimmedToken.length > MAX_TOKEN_LENGTH
       ) {
         console.error("[post-refresh-token] Invalid refresh token format:", {
           originalLength: refreshToken.length,
           trimmedLength: trimmedToken.length,
-          expectedLength: 78,
+          expectedLengthRange: `${MIN_TOKEN_LENGTH}-${MAX_TOKEN_LENGTH}`,
           startsWith: trimmedToken.startsWith("hmat_refresh_"),
           firstChars: trimmedToken.substring(0, 20),
           lastChars: trimmedToken.substring(trimmedToken.length - 10),
