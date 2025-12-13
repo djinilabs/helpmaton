@@ -483,27 +483,60 @@ export const registerPostTestAgent = (app: express.Application) => {
         assistantText = result.text;
       } else {
         // Fallback: parse the SSE stream if result.text is not available
-        // The stream is in SSE format: "data: {json}\n\n"
-        const lines = body.split("\n");
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (trimmedLine.startsWith("data: ")) {
-            try {
-              const jsonStr = trimmedLine.substring(6); // Remove "data: " prefix
-              if (jsonStr === "[DONE]") {
-                continue;
-              }
-              const chunk = JSON.parse(jsonStr);
-              // Accumulate text from text-delta or text chunks
-              if (chunk.type === "text-delta" && chunk.textDelta) {
+        // The stream is in SSE format: "data: {json}\n\n" or "data: \n{json}\n\n"
+        // Find all "data: " markers and extract JSON blocks
+        const dataMarker = "data: ";
+        let startIndex = 0;
+
+        while (true) {
+          const dataIndex = body.indexOf(dataMarker, startIndex);
+          if (dataIndex === -1) {
+            break;
+          }
+
+          // Find the start of the JSON (skip "data: " and any whitespace/newlines)
+          let jsonStart = dataIndex + dataMarker.length;
+          while (jsonStart < body.length && /\s/.test(body[jsonStart])) {
+            jsonStart++;
+          }
+
+          // Find the end of this data block (next "data: " or end of string)
+          const nextDataIndex = body.indexOf(dataMarker, jsonStart);
+          const blockEnd = nextDataIndex === -1 ? body.length : nextDataIndex;
+
+          // Extract and trim the JSON block
+          let jsonBlock = body.substring(jsonStart, blockEnd).trim();
+
+          // Remove trailing newlines that might be before the next "data: "
+          jsonBlock = jsonBlock.replace(/\n+$/, "");
+
+          if (!jsonBlock || jsonBlock === "[DONE]") {
+            startIndex = blockEnd;
+            continue;
+          }
+
+          try {
+            // Parse the JSON block (may span multiple lines)
+            const chunk = JSON.parse(jsonBlock);
+            // Accumulate text from text-delta or text chunks
+            // AI SDK uses "delta" field, not "textDelta"
+            if (chunk.type === "text-delta") {
+              if (chunk.delta) {
+                assistantText += chunk.delta;
+              } else if (chunk.textDelta) {
+                // Fallback for older format
                 assistantText += chunk.textDelta;
-              } else if (chunk.type === "text" && chunk.text) {
+              }
+            } else if (chunk.type === "text") {
+              if (chunk.text) {
                 assistantText += chunk.text;
               }
-            } catch {
-              // Not JSON or parsing failed, skip
             }
+          } catch {
+            // Not valid JSON, skip this block
           }
+
+          startIndex = blockEnd;
         }
       }
 
@@ -598,6 +631,20 @@ export const registerPostTestAgent = (app: express.Application) => {
 
       // Get valid messages for logging - include both input messages and assistant response
       // Handle both ai-sdk format (with 'parts') and our format (with 'content')
+      console.log("[Agent Test Handler] Processing messages for logging:", {
+        originalMessageCount: messages.length,
+        messages: messages.map((m, i) => ({
+          index: i,
+          role: m && typeof m === "object" && "role" in m ? m.role : "unknown",
+          hasContent: m && typeof m === "object" && "content" in m,
+          hasParts: m && typeof m === "object" && "parts" in m,
+          contentType:
+            m && typeof m === "object" && "content" in m
+              ? typeof m.content
+              : "none",
+        })),
+      });
+
       const validMessages: UIMessage[] = messages
         .filter((msg) => {
           if (!msg || typeof msg !== "object") {
@@ -668,6 +715,12 @@ export const registerPostTestAgent = (app: express.Application) => {
         });
 
       // Add assistant's response if we extracted any text
+      console.log("[Agent Test Handler] Assistant text extraction:", {
+        assistantTextLength: assistantText.length,
+        assistantTextPreview: assistantText.substring(0, 100),
+        hasAssistantText: assistantText.trim().length > 0,
+      });
+
       if (assistantText && assistantText.trim().length > 0) {
         validMessages.push({
           role: "assistant",
