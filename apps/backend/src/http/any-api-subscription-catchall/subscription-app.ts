@@ -216,6 +216,38 @@ export const createApp: () => express.Application = () => {
         managers = [];
       }
 
+      // Clean up free plans that have incorrect data (cancelled status, renewsAt, etc.)
+      // Free plans should not have Lemon Squeezy data or cancelled status
+      if (
+        subscription.plan === "free" &&
+        !subscription.lemonSqueezySubscriptionId &&
+        (subscription.status === "cancelled" ||
+          subscription.status === "expired" ||
+          subscription.renewsAt ||
+          subscription.endsAt)
+      ) {
+        console.log(
+          `[GET /api/subscription] Cleaning up free plan with incorrect data:`,
+          {
+            subscriptionId,
+            status: subscription.status,
+            renewsAt: subscription.renewsAt,
+            endsAt: subscription.endsAt,
+          }
+        );
+        const db = await database();
+        subscription = await db.subscription.update({
+          ...subscription,
+          status: "active", // Free plans are always active
+          renewsAt: undefined, // Free plans don't renew
+          endsAt: undefined, // Free plans don't end
+          gracePeriodEndsAt: undefined, // Free plans don't have grace periods
+        });
+        console.log(
+          `[GET /api/subscription] Cleaned up free plan subscription ${subscriptionId}`
+        );
+      }
+
       // Get effective plan (returns "free" if subscription is cancelled/expired)
       const effectivePlan = getEffectivePlan(subscription);
 

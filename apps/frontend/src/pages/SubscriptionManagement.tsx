@@ -347,11 +347,12 @@ const SubscriptionManagement: FC = () => {
                   {subscription.status === "active" && (
                     <span className="text-green-600 font-semibold">Active</span>
                   )}
-                  {subscription.status === "cancelled" && (
-                    <span className="text-neutral-600 font-semibold">
-                      Cancelled
-                    </span>
-                  )}
+                  {subscription.status === "cancelled" &&
+                    subscription.plan !== "free" && (
+                      <span className="text-neutral-600 font-semibold">
+                        Cancelled
+                      </span>
+                    )}
                 </div>
               )}
               {subscription.gracePeriodEndsAt && (
@@ -364,7 +365,7 @@ const SubscriptionManagement: FC = () => {
                   </span>
                 </div>
               )}
-              {subscription.renewsAt && (
+              {subscription.renewsAt && subscription.plan !== "free" && (
                 <div className="text-base text-neutral-600 mb-2">
                   Renews: {new Date(subscription.renewsAt).toLocaleDateString()}
                 </div>
