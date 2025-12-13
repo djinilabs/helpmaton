@@ -1,6 +1,8 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
+import { database } from "../tables/database";
+
 // scrypt with options signature: (password, salt, keylen, options, callback)
 // When promisified, it becomes: (password, salt, keylen, options)
 const scryptAsync = promisify(
@@ -135,4 +137,69 @@ export function maskApiKey(key: string): string {
   const prefix = getKeyPrefix(key);
   const last4 = key.substring(key.length - 4);
   return `${prefix}...${last4}`;
+}
+
+/**
+ * Validate API key and return user ID
+ * Queries the database using GSI lookup hash, validates the key using scrypt,
+ * and updates the lastUsedAt timestamp if validation succeeds.
+ * @param token - Bearer token from Authorization header
+ * @returns User ID if valid, null otherwise
+ */
+export async function validateApiKeyAndGetUserId(
+  token: string
+): Promise<string | null> {
+  try {
+    const db = await database();
+
+    // Query API key using GSI for fast O(1) lookup
+    // We use a deterministic SHA256 hash of the key for the GSI partition key
+    const keyLookupHash = generateKeyLookupHash(token);
+
+    // Query the GSI to find the key record
+    const result = await db["user-api-key"].query({
+      IndexName: "byKeyHash",
+      KeyConditionExpression: "keyLookupHash = :lookupHash",
+      ExpressionAttributeValues: {
+        ":lookupHash": keyLookupHash,
+      },
+    });
+
+    // Find and validate the matching key
+    // There should be at most one match, but we check all results
+    for (const keyRecord of result.items) {
+      // Validate the key using scrypt (the lookup hash is just for fast lookup)
+      if (keyRecord.keyHash && keyRecord.keySalt) {
+        const isValid = await validateApiKey(
+          token,
+          keyRecord.keyHash,
+          keyRecord.keySalt
+        );
+
+        if (isValid) {
+          // Update lastUsedAt
+          await db["user-api-key"].update({
+            pk: keyRecord.pk,
+            sk: keyRecord.sk,
+            userId: keyRecord.userId,
+            keyHash: keyRecord.keyHash,
+            keySalt: keyRecord.keySalt,
+            keyLookupHash: keyRecord.keyLookupHash,
+            keyPrefix: keyRecord.keyPrefix,
+            name: keyRecord.name,
+            createdAt: keyRecord.createdAt,
+            version: keyRecord.version,
+            lastUsedAt: new Date().toISOString(),
+          });
+
+          return keyRecord.userId;
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error("[apiKeyUtils] Error validating API key:", error);
+    return null;
+  }
 }

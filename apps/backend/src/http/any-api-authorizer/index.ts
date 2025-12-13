@@ -6,7 +6,7 @@ import type {
 
 import { database } from "../../tables/database";
 import { associateSubscriptionWithPlan } from "../../utils/apiGatewayUsagePlans";
-import { generateKeyLookupHash, validateApiKey } from "../../utils/apiKeyUtils";
+import { validateApiKeyAndGetUserId } from "../../utils/apiKeyUtils";
 import {
   initSentry,
   Sentry,
@@ -71,69 +71,6 @@ function extractBearerToken(headers: Record<string, string>): string | null {
   }
 
   return token;
-}
-
-/**
- * Validate API key and return user ID
- * @param token - Bearer token from Authorization header
- * @returns User ID if valid, null otherwise
- */
-async function validateApiKeyAndGetUserId(
-  token: string
-): Promise<string | null> {
-  try {
-    const db = await database();
-
-    // Query API key using GSI for fast O(1) lookup
-    // We use a deterministic SHA256 hash of the key for the GSI partition key
-    const keyLookupHash = generateKeyLookupHash(token);
-
-    // Query the GSI to find the key record
-    const result = await db["user-api-key"].query({
-      IndexName: "byKeyHash",
-      KeyConditionExpression: "keyLookupHash = :lookupHash",
-      ExpressionAttributeValues: {
-        ":lookupHash": keyLookupHash,
-      },
-    });
-
-    // Find and validate the matching key
-    // There should be at most one match, but we check all results
-    for (const keyRecord of result.items) {
-      // Validate the key using scrypt (the lookup hash is just for fast lookup)
-      if (keyRecord.keyHash && keyRecord.keySalt) {
-        const isValid = await validateApiKey(
-          token,
-          keyRecord.keyHash,
-          keyRecord.keySalt
-        );
-
-        if (isValid) {
-          // Update lastUsedAt
-          await db["user-api-key"].update({
-            pk: keyRecord.pk,
-            sk: keyRecord.sk,
-            userId: keyRecord.userId,
-            keyHash: keyRecord.keyHash,
-            keySalt: keyRecord.keySalt,
-            keyLookupHash: keyRecord.keyLookupHash,
-            keyPrefix: keyRecord.keyPrefix,
-            name: keyRecord.name,
-            createdAt: keyRecord.createdAt,
-            version: keyRecord.version,
-            lastUsedAt: new Date().toISOString(),
-          });
-
-          return keyRecord.userId;
-        }
-      }
-    }
-
-    return null;
-  } catch (error) {
-    console.error("[api-authorizer] Error validating API key:", error);
-    return null;
-  }
 }
 
 /**
