@@ -235,6 +235,7 @@ export async function startConversation(
           costUsd: mergedCosts.usd > 0 ? mergedCosts.usd : undefined,
           costEur: mergedCosts.eur > 0 ? mergedCosts.eur : undefined,
           costGbp: mergedCosts.gbp > 0 ? mergedCosts.gbp : undefined,
+          startedAt: current.startedAt, // Preserve original conversation start time
           lastMessageAt: now,
           expires: calculateTTL(),
         };
@@ -277,7 +278,10 @@ export async function updateConversation(
   agentId: string,
   conversationId: string,
   newMessages: UIMessage[],
-  additionalTokenUsage?: TokenUsage
+  additionalTokenUsage?: TokenUsage,
+  modelName?: string,
+  provider?: string,
+  usesByok?: boolean
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
@@ -293,9 +297,12 @@ export async function updateConversation(
         const toolResults = extractToolResults(newMessages);
 
         // Calculate costs for new conversation
+        const finalProvider = provider;
+        const finalModelName = modelName;
+        const finalUsesByok = usesByok;
         const costs = calculateConversationCosts(
-          undefined, // provider
-          undefined, // modelName
+          finalProvider,
+          finalModelName,
           additionalTokenUsage
         );
 
@@ -309,6 +316,9 @@ export async function updateConversation(
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
           tokenUsage: additionalTokenUsage,
+          modelName: finalModelName,
+          provider: finalProvider,
+          usesByok: finalUsesByok,
           startedAt: now,
           lastMessageAt: now,
           expires: calculateTTL(),
@@ -334,11 +344,12 @@ export async function updateConversation(
       );
 
       // Recalculate costs with aggregated token usage
-      const provider = existing.provider;
-      const modelName = existing.modelName;
+      // Use existing values if available, otherwise fall back to function parameters
+      const finalProvider = existing.provider || provider;
+      const finalModelName = existing.modelName || modelName;
       const costs = calculateConversationCosts(
-        provider,
-        modelName,
+        finalProvider,
+        finalModelName,
         aggregatedTokenUsage
       );
 
@@ -371,17 +382,12 @@ export async function updateConversation(
         costGbp: costs.gbp > 0 ? costs.gbp : undefined,
       };
 
-      // Preserve existing modelName and provider if they exist
-      if (existing.modelName) {
-        updateData.modelName = existing.modelName;
-      }
-      if (existing.provider) {
-        updateData.provider = existing.provider;
-      }
-      // Preserve usesByok if it exists
-      if (existing.usesByok !== undefined) {
-        updateData.usesByok = existing.usesByok;
-      }
+      // Preserve existing modelName and provider if they exist, otherwise use function parameters
+      updateData.modelName = existing.modelName || modelName;
+      updateData.provider = existing.provider || provider;
+      // Preserve usesByok if it exists, otherwise use function parameter
+      updateData.usesByok =
+        existing.usesByok !== undefined ? existing.usesByok : usesByok;
 
       return updateData;
     }

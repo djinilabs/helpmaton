@@ -656,7 +656,11 @@ export const registerPostTestAgent = (app: express.Application) => {
 
       // Log conversation (non-blocking)
       try {
-        if (conversationId && typeof conversationId === "string") {
+        if (
+          conversationId &&
+          typeof conversationId === "string" &&
+          conversationId.trim().length > 0
+        ) {
           // Update existing conversation
           await updateConversation(
             db,
@@ -664,7 +668,10 @@ export const registerPostTestAgent = (app: express.Application) => {
             agentId,
             conversationId,
             validMessages,
-            tokenUsage
+            tokenUsage,
+            MODEL_NAME,
+            "google",
+            usesByok
           );
         } else {
           // Start new conversation

@@ -746,7 +746,11 @@ async function logConversationAsync(
     );
 
     // Run this asynchronously without blocking
-    if (conversationId && typeof conversationId === "string") {
+    if (
+      conversationId &&
+      typeof conversationId === "string" &&
+      conversationId.trim().length > 0
+    ) {
       // Update existing conversation
       await updateConversation(
         db,
@@ -754,7 +758,10 @@ async function logConversationAsync(
         agentId,
         conversationId,
         validMessages,
-        tokenUsage
+        tokenUsage,
+        finalModelName,
+        "google",
+        usesByok
       ).catch((error) => {
         // Log error but don't fail the request
         console.error("[Stream Handler] Error logging conversation:", {
