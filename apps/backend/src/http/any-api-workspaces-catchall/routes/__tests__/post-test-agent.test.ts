@@ -25,6 +25,7 @@ const {
   mockAdjustCreditReservation,
   mockIncrementRequestBucket,
   mockStartConversation,
+  mockUpdateConversation,
   mockIsCreditDeductionEnabled,
 } = vi.hoisted(() => {
   return {
@@ -40,6 +41,7 @@ const {
     mockAdjustCreditReservation: vi.fn(),
     mockIncrementRequestBucket: vi.fn(),
     mockStartConversation: vi.fn(),
+    mockUpdateConversation: vi.fn(),
     mockIsCreditDeductionEnabled: vi.fn(),
   };
 });
@@ -78,6 +80,7 @@ vi.mock("../../../../utils/creditValidation", () => ({
 vi.mock("../../../../utils/conversationLogger", () => ({
   extractTokenUsage: mockExtractTokenUsage,
   startConversation: mockStartConversation,
+  updateConversation: mockUpdateConversation,
 }));
 
 vi.mock("../../../../utils/creditManagement", () => ({
@@ -115,7 +118,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
     ) => {
       try {
         const { workspaceId, agentId } = req.params;
-        const { messages } = req.body;
+        const { messages, conversationId } = req.body;
 
         if (!workspaceId || !agentId) {
           throw badRequest("workspaceId and agentId are required");
@@ -312,27 +315,42 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
 
         // Log conversation (non-blocking)
         try {
-          await mockStartConversation(db, {
-            workspaceId,
-            agentId,
-            conversationType: "test",
-            messages: messages.filter(
-              (msg): msg is unknown =>
-                msg != null &&
-                typeof msg === "object" &&
-                "role" in msg &&
-                typeof msg.role === "string" &&
-                (msg.role === "user" ||
-                  msg.role === "assistant" ||
-                  msg.role === "system" ||
-                  msg.role === "tool") &&
-                "content" in msg
-            ),
-            tokenUsage: tokenUsage,
-            modelName: MODEL_NAME,
-            provider: "google",
-            usesByok,
-          });
+          const validMessages = messages.filter(
+            (msg): msg is unknown =>
+              msg != null &&
+              typeof msg === "object" &&
+              "role" in msg &&
+              typeof msg.role === "string" &&
+              (msg.role === "user" ||
+                msg.role === "assistant" ||
+                msg.role === "system" ||
+                msg.role === "tool") &&
+              "content" in msg
+          );
+
+          if (conversationId && typeof conversationId === "string") {
+            // Update existing conversation
+            await mockUpdateConversation(
+              db,
+              workspaceId,
+              agentId,
+              conversationId,
+              validMessages,
+              tokenUsage
+            );
+          } else {
+            // Start new conversation
+            await mockStartConversation(db, {
+              workspaceId,
+              agentId,
+              conversationType: "test",
+              messages: validMessages,
+              tokenUsage: tokenUsage,
+              modelName: MODEL_NAME,
+              provider: "google",
+              usesByok,
+            });
+          }
         } catch {
           // Log error but don't fail the request
         }
@@ -776,6 +794,201 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
 
     expect(mockCheckDailyRequestLimit).not.toHaveBeenCalled();
     expect(mockIncrementRequestBucket).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should use updateConversation when conversationId is provided", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-123";
+    const conversationId = "conversation-789";
+    const messages = [{ role: "user", content: "Hello" }];
+    const reservationId = "reservation-123";
+    const mockDb = {};
+
+    mockDatabase.mockResolvedValue(mockDb as any);
+    mockGetWorkspaceSubscription.mockResolvedValue({
+      pk: "subscriptions/sub-123",
+    });
+    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: undefined,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: false,
+    });
+    mockConvertToModelMessages.mockReturnValue([
+      { role: "user", content: "Hello" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId,
+      reservedAmount: 10.0,
+    });
+
+    // Mock streamText result
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockExtractTokenUsage.mockReturnValue({
+      promptTokens: 10,
+      completionTokens: 20,
+      totalTokens: 30,
+    });
+    mockAdjustCreditReservation.mockResolvedValue(undefined);
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockUpdateConversation.mockResolvedValue(undefined);
+
+    const req = createMockRequest({
+      params: {
+        workspaceId,
+        agentId,
+      },
+      body: {
+        messages,
+        conversationId,
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockUpdateConversation).toHaveBeenCalledWith(
+      mockDb,
+      workspaceId,
+      agentId,
+      conversationId,
+      expect.any(Array),
+      expect.objectContaining({
+        promptTokens: 10,
+        completionTokens: 20,
+        totalTokens: 30,
+      })
+    );
+    expect(mockStartConversation).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should use startConversation when conversationId is not provided", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-123";
+    const messages = [{ role: "user", content: "Hello" }];
+    const reservationId = "reservation-123";
+    const mockDb = {};
+
+    mockDatabase.mockResolvedValue(mockDb as any);
+    mockGetWorkspaceSubscription.mockResolvedValue({
+      pk: "subscriptions/sub-123",
+    });
+    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: undefined,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: false,
+    });
+    mockConvertToModelMessages.mockReturnValue([
+      { role: "user", content: "Hello" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId,
+      reservedAmount: 10.0,
+    });
+
+    // Mock streamText result
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockExtractTokenUsage.mockReturnValue({
+      promptTokens: 10,
+      completionTokens: 20,
+      totalTokens: 30,
+    });
+    mockAdjustCreditReservation.mockResolvedValue(undefined);
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue("new-conversation-id");
+
+    const req = createMockRequest({
+      params: {
+        workspaceId,
+        agentId,
+      },
+      body: {
+        messages,
+        // No conversationId
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockStartConversation).toHaveBeenCalledWith(
+      mockDb,
+      expect.objectContaining({
+        workspaceId,
+        agentId,
+        conversationType: "test",
+        messages: expect.any(Array),
+        tokenUsage: expect.objectContaining({
+          promptTokens: 10,
+          completionTokens: 20,
+          totalTokens: 30,
+        }),
+      })
+    );
+    expect(mockUpdateConversation).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
   });
 });

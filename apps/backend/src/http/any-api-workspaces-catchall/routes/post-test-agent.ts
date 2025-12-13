@@ -8,6 +8,7 @@ import { PERMISSION_LEVELS } from "../../../tables/schema";
 import {
   extractTokenUsage,
   startConversation,
+  updateConversation,
 } from "../../../utils/conversationLogger";
 import {
   InsufficientCreditsError,
@@ -138,7 +139,7 @@ export const registerPostTestAgent = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.READ),
     asyncHandler(async (req, res) => {
       const { workspaceId, agentId } = req.params;
-      const { messages } = req.body;
+      const { messages, conversationId } = req.body;
 
       if (!workspaceId || !agentId) {
         throw badRequest("workspaceId and agentId are required");
@@ -655,16 +656,29 @@ export const registerPostTestAgent = (app: express.Application) => {
 
       // Log conversation (non-blocking)
       try {
-        await startConversation(db, {
-          workspaceId,
-          agentId,
-          conversationType: "test",
-          messages: validMessages,
-          tokenUsage: tokenUsage,
-          modelName: MODEL_NAME,
-          provider: "google",
-          usesByok,
-        });
+        if (conversationId && typeof conversationId === "string") {
+          // Update existing conversation
+          await updateConversation(
+            db,
+            workspaceId,
+            agentId,
+            conversationId,
+            validMessages,
+            tokenUsage
+          );
+        } else {
+          // Start new conversation
+          await startConversation(db, {
+            workspaceId,
+            agentId,
+            conversationType: "test",
+            messages: validMessages,
+            tokenUsage: tokenUsage,
+            modelName: MODEL_NAME,
+            provider: "google",
+            usesByok,
+          });
+        }
       } catch (error) {
         // Log error but don't fail the request
         console.error("[Agent Test Handler] Error logging conversation:", {
@@ -672,6 +686,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           stack: error instanceof Error ? error.stack : undefined,
           workspaceId,
           agentId,
+          conversationId,
         });
       }
 

@@ -146,10 +146,7 @@ export function extractTokenUsage(
   // - usage.reasoningTokens
   // - nested in usage object
   const reasoningTokens =
-    usage.reasoningTokens ??
-    usage.reasoning ??
-    result.reasoningTokens ??
-    0;
+    usage.reasoningTokens ?? usage.reasoning ?? result.reasoningTokens ?? 0;
 
   const tokenUsage: TokenUsage = {
     promptTokens,
@@ -167,6 +164,7 @@ export function extractTokenUsage(
 
 /**
  * Start a new conversation
+ * Uses atomicUpdate to handle race conditions when creating conversations
  */
 export async function startConversation(
   db: DatabaseSchema,
@@ -189,32 +187,89 @@ export async function startConversation(
     data.tokenUsage
   );
 
-  await db["agent-conversations"].create({
+  // Use atomicUpdate to atomically create the conversation
+  // This handles race conditions if the same conversationId is created concurrently
+  await db["agent-conversations"].atomicUpdate(
     pk,
-    workspaceId: data.workspaceId,
-    agentId: data.agentId,
-    conversationId,
-    conversationType: data.conversationType,
-    messages: data.messages as unknown[],
-    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-    toolResults: toolResults.length > 0 ? toolResults : undefined,
-    tokenUsage: data.tokenUsage,
-    modelName: data.modelName,
-    provider: data.provider,
-    usesByok: data.usesByok,
-    costUsd: costs.usd > 0 ? costs.usd : undefined,
-    costEur: costs.eur > 0 ? costs.eur : undefined,
-    costGbp: costs.gbp > 0 ? costs.gbp : undefined,
-    startedAt: now,
-    lastMessageAt: now,
-    expires: calculateTTL(),
-  });
+    undefined,
+    async (current) => {
+      // If conversation already exists (shouldn't happen with UUID, but handle gracefully)
+      if (current) {
+        // Merge messages if conversation exists
+        const existingMessages = (current.messages || []) as UIMessage[];
+        const allMessages = [...existingMessages, ...data.messages];
+
+        // Extract all tool calls and results from merged messages
+        const mergedToolCalls = extractToolCalls(allMessages);
+        const mergedToolResults = extractToolResults(allMessages);
+
+        // Aggregate token usage
+        const existingTokenUsage = current.tokenUsage as TokenUsage | undefined;
+        const aggregatedTokenUsage = aggregateTokenUsage(
+          existingTokenUsage,
+          data.tokenUsage
+        );
+
+        // Recalculate costs with aggregated token usage
+        const mergedCosts = calculateConversationCosts(
+          current.provider || data.provider,
+          current.modelName || data.modelName,
+          aggregatedTokenUsage
+        );
+
+        return {
+          pk,
+          workspaceId: data.workspaceId,
+          agentId: data.agentId,
+          conversationId,
+          conversationType: data.conversationType,
+          messages: allMessages as unknown[],
+          toolCalls: mergedToolCalls.length > 0 ? mergedToolCalls : undefined,
+          toolResults:
+            mergedToolResults.length > 0 ? mergedToolResults : undefined,
+          tokenUsage: aggregatedTokenUsage,
+          modelName: current.modelName || data.modelName,
+          provider: current.provider || data.provider,
+          usesByok:
+            current.usesByok !== undefined ? current.usesByok : data.usesByok,
+          costUsd: mergedCosts.usd > 0 ? mergedCosts.usd : undefined,
+          costEur: mergedCosts.eur > 0 ? mergedCosts.eur : undefined,
+          costGbp: mergedCosts.gbp > 0 ? mergedCosts.gbp : undefined,
+          lastMessageAt: now,
+          expires: calculateTTL(),
+        };
+      }
+
+      // Create new conversation
+      return {
+        pk,
+        workspaceId: data.workspaceId,
+        agentId: data.agentId,
+        conversationId,
+        conversationType: data.conversationType,
+        messages: data.messages as unknown[],
+        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+        toolResults: toolResults.length > 0 ? toolResults : undefined,
+        tokenUsage: data.tokenUsage,
+        modelName: data.modelName,
+        provider: data.provider,
+        usesByok: data.usesByok,
+        costUsd: costs.usd > 0 ? costs.usd : undefined,
+        costEur: costs.eur > 0 ? costs.eur : undefined,
+        costGbp: costs.gbp > 0 ? costs.gbp : undefined,
+        startedAt: now,
+        lastMessageAt: now,
+        expires: calculateTTL(),
+      };
+    }
+  );
 
   return conversationId;
 }
 
 /**
  * Update an existing conversation with new messages and token usage
+ * Uses atomicUpdate to handle race conditions when updating conversations
  */
 export async function updateConversation(
   db: DatabaseSchema,
@@ -226,84 +281,109 @@ export async function updateConversation(
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
-  // Get existing conversation
-  const existing = await db["agent-conversations"].get(pk);
-  if (!existing) {
-    // If conversation doesn't exist, create it
-    await startConversation(db, {
-      workspaceId,
-      agentId,
-      conversationType: "test", // Default to test if updating non-existent conversation
-      messages: newMessages,
-      tokenUsage: additionalTokenUsage,
-    });
-    return;
-  }
-
-  // Merge messages
-  const existingMessages = (existing.messages || []) as UIMessage[];
-  const allMessages = [...existingMessages, ...newMessages];
-
-  // Extract all tool calls and results from merged messages
-  const toolCalls = extractToolCalls(allMessages);
-  const toolResults = extractToolResults(allMessages);
-
-  // Aggregate token usage
-  const existingTokenUsage = existing.tokenUsage as TokenUsage | undefined;
-  const aggregatedTokenUsage = aggregateTokenUsage(
-    existingTokenUsage,
-    additionalTokenUsage
-  );
-
-  // Recalculate costs with aggregated token usage
-  const provider = existing.provider;
-  const modelName = existing.modelName;
-  const costs = calculateConversationCosts(
-    provider,
-    modelName,
-    aggregatedTokenUsage
-  );
-
-  // Update conversation
-  // Preserve existing modelName and provider if they exist, don't overwrite
-  const updateData: {
-    pk: string;
-    messages: unknown[];
-    toolCalls?: unknown[];
-    toolResults?: unknown[];
-    tokenUsage: TokenUsage;
-    lastMessageAt: string;
-    expires: number;
-    modelName?: string;
-    provider?: string;
-    usesByok?: boolean;
-    costUsd?: number;
-    costEur?: number;
-    costGbp?: number;
-  } = {
+  // Use atomicUpdate to atomically read, merge, and update the conversation
+  await db["agent-conversations"].atomicUpdate(
     pk,
-    messages: allMessages as unknown[],
-    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-    toolResults: toolResults.length > 0 ? toolResults : undefined,
-    tokenUsage: aggregatedTokenUsage,
-    lastMessageAt: new Date().toISOString(),
-    expires: calculateTTL(),
-    costUsd: costs.usd > 0 ? costs.usd : undefined,
-    costEur: costs.eur > 0 ? costs.eur : undefined,
-    costGbp: costs.gbp > 0 ? costs.gbp : undefined,
-  };
+    undefined,
+    async (existing) => {
+      // If conversation doesn't exist, create it
+      if (!existing) {
+        const now = new Date().toISOString();
+        const toolCalls = extractToolCalls(newMessages);
+        const toolResults = extractToolResults(newMessages);
 
-  // Preserve existing modelName and provider if they exist
-  if (existing.modelName) {
-    updateData.modelName = existing.modelName;
-  }
-  if (existing.provider) {
-    updateData.provider = existing.provider;
-  }
-  // Preserve usesByok if it exists
-  if (existing.usesByok !== undefined) {
-    updateData.usesByok = existing.usesByok;
-  }
+        // Calculate costs for new conversation
+        const costs = calculateConversationCosts(
+          undefined, // provider
+          undefined, // modelName
+          additionalTokenUsage
+        );
 
-  await db["agent-conversations"].update(updateData);
+        return {
+          pk,
+          workspaceId,
+          agentId,
+          conversationId,
+          conversationType: "test", // Default to test if updating non-existent conversation
+          messages: newMessages as unknown[],
+          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+          toolResults: toolResults.length > 0 ? toolResults : undefined,
+          tokenUsage: additionalTokenUsage,
+          startedAt: now,
+          lastMessageAt: now,
+          expires: calculateTTL(),
+          costUsd: costs.usd > 0 ? costs.usd : undefined,
+          costEur: costs.eur > 0 ? costs.eur : undefined,
+          costGbp: costs.gbp > 0 ? costs.gbp : undefined,
+        };
+      }
+
+      // Merge messages
+      const existingMessages = (existing.messages || []) as UIMessage[];
+      const allMessages = [...existingMessages, ...newMessages];
+
+      // Extract all tool calls and results from merged messages
+      const toolCalls = extractToolCalls(allMessages);
+      const toolResults = extractToolResults(allMessages);
+
+      // Aggregate token usage
+      const existingTokenUsage = existing.tokenUsage as TokenUsage | undefined;
+      const aggregatedTokenUsage = aggregateTokenUsage(
+        existingTokenUsage,
+        additionalTokenUsage
+      );
+
+      // Recalculate costs with aggregated token usage
+      const provider = existing.provider;
+      const modelName = existing.modelName;
+      const costs = calculateConversationCosts(
+        provider,
+        modelName,
+        aggregatedTokenUsage
+      );
+
+      // Update conversation
+      // Preserve existing modelName and provider if they exist, don't overwrite
+      const updateData: {
+        pk: string;
+        messages: unknown[];
+        toolCalls?: unknown[];
+        toolResults?: unknown[];
+        tokenUsage: TokenUsage;
+        lastMessageAt: string;
+        expires: number;
+        modelName?: string;
+        provider?: string;
+        usesByok?: boolean;
+        costUsd?: number;
+        costEur?: number;
+        costGbp?: number;
+      } = {
+        pk,
+        messages: allMessages as unknown[],
+        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+        toolResults: toolResults.length > 0 ? toolResults : undefined,
+        tokenUsage: aggregatedTokenUsage,
+        lastMessageAt: new Date().toISOString(),
+        expires: calculateTTL(),
+        costUsd: costs.usd > 0 ? costs.usd : undefined,
+        costEur: costs.eur > 0 ? costs.eur : undefined,
+        costGbp: costs.gbp > 0 ? costs.gbp : undefined,
+      };
+
+      // Preserve existing modelName and provider if they exist
+      if (existing.modelName) {
+        updateData.modelName = existing.modelName;
+      }
+      if (existing.provider) {
+        updateData.provider = existing.provider;
+      }
+      // Preserve usesByok if it exists
+      if (existing.usesByok !== undefined) {
+        updateData.usesByok = existing.usesByok;
+      }
+
+      return updateData;
+    }
+  );
 }

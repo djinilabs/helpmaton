@@ -1,8 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import type {
+  AgentConversationRecord,
+  DatabaseSchema,
+} from "../../tables/schema";
 import {
   aggregateTokenUsage,
   extractTokenUsage,
+  startConversation,
+  updateConversation,
   type TokenUsage,
 } from "../conversationLogger";
 
@@ -263,5 +269,350 @@ describe("conversationLogger", () => {
       expect(aggregated.reasoningTokens).toBe(200);
     });
   });
-});
 
+  describe("startConversation", () => {
+    let mockDb: DatabaseSchema;
+    let mockAtomicUpdate: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockAtomicUpdate = vi.fn();
+
+      mockDb = {
+        "agent-conversations": {
+          atomicUpdate: mockAtomicUpdate,
+        },
+      } as unknown as DatabaseSchema;
+    });
+
+    it("should create a new conversation using atomicUpdate", async () => {
+      const conversationData = {
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        conversationType: "test" as const,
+        messages: [
+          {
+            role: "user" as const,
+            content: "Hello",
+          },
+        ],
+        tokenUsage: {
+          promptTokens: 100,
+          completionTokens: 50,
+          totalTokens: 150,
+        },
+        modelName: "gemini-2.5-flash",
+        provider: "google",
+        usesByok: false,
+      };
+
+      const createdConversation: AgentConversationRecord = {
+        pk: "conversations/workspace-123/agent-456/test-conv-id",
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        conversationId: "test-conv-id",
+        conversationType: "test",
+        messages: conversationData.messages as unknown[],
+        tokenUsage: conversationData.tokenUsage,
+        modelName: conversationData.modelName,
+        provider: conversationData.provider,
+        usesByok: false,
+        startedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      mockAtomicUpdate.mockImplementation(async (pk, sk, updater) => {
+        const result = await updater(undefined);
+        return {
+          ...createdConversation,
+          ...result,
+          pk,
+        };
+      });
+
+      const conversationId = await startConversation(mockDb, conversationData);
+
+      expect(conversationId).toBeDefined();
+      expect(mockAtomicUpdate).toHaveBeenCalledWith(
+        expect.stringContaining("conversations/workspace-123/agent-456/"),
+        undefined,
+        expect.any(Function)
+      );
+
+      // Verify the updater function creates a new conversation when current is undefined
+      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
+      const result = await updaterCall(undefined);
+      expect(result.workspaceId).toBe("workspace-123");
+      expect(result.agentId).toBe("agent-456");
+      expect(result.conversationType).toBe("test");
+      expect(result.messages).toEqual(conversationData.messages);
+    });
+
+    it("should merge messages if conversation already exists", async () => {
+      const existingConversation: AgentConversationRecord = {
+        pk: "conversations/workspace-123/agent-456/existing-conv-id",
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        conversationId: "existing-conv-id",
+        conversationType: "test",
+        messages: [
+          {
+            role: "user",
+            content: "First message",
+          },
+        ] as unknown[],
+        tokenUsage: {
+          promptTokens: 50,
+          completionTokens: 25,
+          totalTokens: 75,
+        },
+        modelName: "gemini-2.5-flash",
+        provider: "google",
+        usesByok: false,
+        startedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      const newMessages = [
+        {
+          role: "user" as const,
+          content: "Second message",
+        },
+      ];
+
+      mockAtomicUpdate.mockImplementation(async (pk, sk, updater) => {
+        const result = await updater(existingConversation);
+        return {
+          ...existingConversation,
+          ...result,
+        };
+      });
+
+      const conversationId = await startConversation(mockDb, {
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        conversationType: "test",
+        messages: newMessages,
+        tokenUsage: {
+          promptTokens: 100,
+          completionTokens: 50,
+          totalTokens: 150,
+        },
+      });
+
+      expect(conversationId).toBeDefined();
+      expect(mockAtomicUpdate).toHaveBeenCalled();
+
+      // Verify the updater function merges messages when conversation exists
+      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
+      const result = await updaterCall(existingConversation);
+      expect(result.messages).toHaveLength(2);
+      expect((result.messages as unknown[])[0]).toMatchObject({
+        role: "user",
+        content: "First message",
+      });
+      expect((result.messages as unknown[])[1]).toMatchObject({
+        role: "user",
+        content: "Second message",
+      });
+      expect(result.tokenUsage?.totalTokens).toBe(225); // 75 + 150
+    });
+  });
+
+  describe("updateConversation", () => {
+    let mockDb: DatabaseSchema;
+    let mockAtomicUpdate: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockAtomicUpdate = vi.fn();
+
+      mockDb = {
+        "agent-conversations": {
+          atomicUpdate: mockAtomicUpdate,
+        },
+      } as unknown as DatabaseSchema;
+    });
+
+    it("should update existing conversation with new messages using atomicUpdate", async () => {
+      const existingConversation: AgentConversationRecord = {
+        pk: "conversations/workspace-123/agent-456/conversation-789",
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        conversationId: "conversation-789",
+        conversationType: "test",
+        messages: [
+          {
+            role: "user",
+            content: "First message",
+          },
+        ] as unknown[],
+        tokenUsage: {
+          promptTokens: 50,
+          completionTokens: 25,
+          totalTokens: 75,
+        },
+        modelName: "gemini-2.5-flash",
+        provider: "google",
+        usesByok: false,
+        startedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      const newMessages = [
+        {
+          role: "assistant" as const,
+          content: "Response message",
+        },
+      ];
+
+      const additionalTokenUsage: TokenUsage = {
+        promptTokens: 100,
+        completionTokens: 50,
+        totalTokens: 150,
+      };
+
+      mockAtomicUpdate.mockImplementation(async (pk, sk, updater) => {
+        const result = await updater(existingConversation);
+        return {
+          ...existingConversation,
+          ...result,
+        };
+      });
+
+      await updateConversation(
+        mockDb,
+        "workspace-123",
+        "agent-456",
+        "conversation-789",
+        newMessages,
+        additionalTokenUsage
+      );
+
+      expect(mockAtomicUpdate).toHaveBeenCalledWith(
+        "conversations/workspace-123/agent-456/conversation-789",
+        undefined,
+        expect.any(Function)
+      );
+
+      // Verify the updater function merges messages and aggregates token usage
+      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
+      const result = await updaterCall(existingConversation);
+      expect(result.messages).toHaveLength(2);
+      expect((result.messages as unknown[])[1]).toMatchObject({
+        role: "assistant",
+        content: "Response message",
+      });
+      expect(result.tokenUsage?.totalTokens).toBe(225); // 75 + 150
+      expect(result.tokenUsage?.promptTokens).toBe(150); // 50 + 100
+      expect(result.tokenUsage?.completionTokens).toBe(75); // 25 + 50
+    });
+
+    it("should create new conversation if it doesn't exist", async () => {
+      const newMessages = [
+        {
+          role: "user" as const,
+          content: "New message",
+        },
+      ];
+
+      const tokenUsage: TokenUsage = {
+        promptTokens: 100,
+        completionTokens: 50,
+        totalTokens: 150,
+      };
+
+      const createdConversation: AgentConversationRecord = {
+        pk: "conversations/workspace-123/agent-456/conversation-789",
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        conversationId: "conversation-789",
+        conversationType: "test",
+        messages: newMessages as unknown[],
+        tokenUsage,
+        startedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      mockAtomicUpdate.mockImplementation(async (pk, sk, updater) => {
+        const result = await updater(undefined);
+        return {
+          ...createdConversation,
+          ...result,
+        };
+      });
+
+      await updateConversation(
+        mockDb,
+        "workspace-123",
+        "agent-456",
+        "conversation-789",
+        newMessages,
+        tokenUsage
+      );
+
+      expect(mockAtomicUpdate).toHaveBeenCalled();
+
+      // Verify the updater function creates a new conversation when current is undefined
+      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
+      const result = await updaterCall(undefined);
+      expect(result.workspaceId).toBe("workspace-123");
+      expect(result.agentId).toBe("agent-456");
+      expect(result.conversationId).toBe("conversation-789");
+      expect(result.conversationType).toBe("test");
+      expect(result.messages).toEqual(newMessages);
+      expect(result.tokenUsage).toEqual(tokenUsage);
+    });
+
+    it("should preserve existing modelName and provider when updating", async () => {
+      const existingConversation: AgentConversationRecord = {
+        pk: "conversations/workspace-123/agent-456/conversation-789",
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        conversationId: "conversation-789",
+        conversationType: "test",
+        messages: [] as unknown[],
+        modelName: "gemini-2.5-flash",
+        provider: "google",
+        startedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      mockAtomicUpdate.mockImplementation(async (pk, sk, updater) => {
+        const result = await updater(existingConversation);
+        return {
+          ...existingConversation,
+          ...result,
+        };
+      });
+
+      await updateConversation(
+        mockDb,
+        "workspace-123",
+        "agent-456",
+        "conversation-789",
+        [{ role: "user" as const, content: "Test" }]
+      );
+
+      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
+      const result = await updaterCall(existingConversation);
+      expect(result.modelName).toBe("gemini-2.5-flash");
+      expect(result.provider).toBe("google");
+    });
+  });
+});
