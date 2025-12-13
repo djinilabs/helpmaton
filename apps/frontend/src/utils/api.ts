@@ -207,7 +207,9 @@ function getRefreshToken(): string | null {
   if (typeof window === "undefined") {
     return null;
   }
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
+  const token = localStorage.getItem(REFRESH_TOKEN_KEY);
+  // Trim whitespace in case it was accidentally stored with whitespace
+  return token ? token.trim() : null;
 }
 
 /**
@@ -253,6 +255,20 @@ async function refreshAccessToken(): Promise<string | null> {
   // Create the refresh promise and store it
   refreshTokenPromise = (async () => {
     try {
+      // Debug logging
+      console.log("[api] Refreshing token:", {
+        refreshTokenType: typeof refreshToken,
+        refreshTokenLength: refreshToken ? refreshToken.length : null,
+        refreshTokenStartsWith: refreshToken
+          ? refreshToken.startsWith("hmat_refresh_")
+          : false,
+        refreshTokenPreview: refreshToken
+          ? `${refreshToken.substring(0, 20)}...${refreshToken.substring(
+              refreshToken.length - 10
+            )}`
+          : null,
+      });
+
       // Use the original fetch to avoid recursion
       const response = await originalFetch("/api/user/refresh-token", {
         method: "POST",
@@ -480,10 +496,10 @@ export function setupGlobalFetchOverride(): void {
             credentials: init?.credentials,
           });
         } else {
-          // Refresh failed - clear tokens and redirect to login
+          // Refresh failed - clear tokens and reload page at current path
           clearTokens();
           if (typeof window !== "undefined") {
-            window.location.href = "/";
+            window.location.reload();
           }
           throw new Error("Session expired. Please sign in again.");
         }
