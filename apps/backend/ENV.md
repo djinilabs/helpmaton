@@ -390,6 +390,16 @@ VITE_POSTHOG_API_KEY=phc_your-posthog-api-key
 VITE_POSTHOG_API_HOST=https://us.i.posthog.com
 POSTHOG_API_KEY=phc_your-posthog-api-key
 POSTHOG_API_HOST=https://us.i.posthog.com
+
+# Lemon Squeezy Configuration
+LEMON_SQUEEZY_API_KEY=sk_test_your_api_key_here
+LEMON_SQUEEZY_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+LEMON_SQUEEZY_STORE_ID=12345
+LEMON_SQUEEZY_STARTER_VARIANT_ID=67890
+LEMON_SQUEEZY_PRO_VARIANT_ID=67891
+LEMON_SQUEEZY_CREDIT_VARIANT_ID=123456
+LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL=http://localhost:5173/subscription?success=true
+LEMON_SQUEEZY_CHECKOUT_CANCEL_URL=http://localhost:5173/subscription?cancelled=true
 ```
 
 Or set them directly when running the sandbox:
@@ -444,14 +454,131 @@ pnpm arc deploy --production --no-hydrate --verbose
 - Changes to environment variables require a new deployment
 - Variables are visible in the compiled bundle (acceptable for Lambda functions)
 
+## Lemon Squeezy Configuration
+
+### `LEMON_SQUEEZY_API_KEY`
+
+- **Description**: Lemon Squeezy API key for authenticating API requests
+- **Required**: Yes (for subscription management and checkout creation)
+- **Example**:
+  - Production: `sk_live_1234567890abcdefghijklmnopqrstuvwxyz`
+  - Test: `sk_test_1234567890abcdefghijklmnopqrstuvwxyz`
+- **How to obtain**:
+  1. Log in to [Lemon Squeezy Dashboard](https://app.lemonsqueezy.com)
+  2. Go to Settings → API
+  3. Create a new API key or copy existing key
+  4. Use the "Secret Key" (starts with `sk_live_` for production or `sk_test_` for test mode)
+- **Note**:
+  - Keep this secret secure and never commit it to version control
+  - Use test API keys (`sk_test_`) for development/staging and live API keys (`sk_live_`) for production
+  - Test mode for checkouts is determined by `NODE_ENV` (see `LEMON_SQUEEZY_TEST_MODE` below)
+
+### `LEMON_SQUEEZY_WEBHOOK_SECRET`
+
+- **Description**: Webhook signing secret for verifying webhook authenticity
+- **Required**: Yes (for webhook signature verification)
+- **Example**: `whsec_1234567890abcdefghijklmnopqrstuvwxyz`
+- **How to obtain**:
+  1. In Lemon Squeezy Dashboard, go to Settings → Webhooks
+  2. Create a new webhook endpoint: `https://app.helpmaton.com/api/webhooks/lemonsqueezy`
+  3. Copy the "Signing Secret" (starts with `whsec_`)
+- **Note**: This secret is used to verify that webhooks are actually from Lemon Squeezy
+
+### `LEMON_SQUEEZY_STORE_ID`
+
+- **Description**: Your Lemon Squeezy store ID
+- **Required**: Yes (for creating checkout sessions)
+- **Example**: `12345`
+- **How to obtain**:
+  1. In Lemon Squeezy Dashboard, go to Settings → General
+  2. Copy your Store ID (numeric value)
+
+### `LEMON_SQUEEZY_STARTER_VARIANT_ID`
+
+- **Description**: Lemon Squeezy variant ID for Starter plan (29 EUR/month)
+- **Required**: Yes (for Starter plan checkout)
+- **Example**: `67890`
+- **How to obtain**:
+  1. In Lemon Squeezy Dashboard, go to Products
+  2. Create or select your Starter plan product
+  3. Create a variant with price: 29 EUR, billing period: Monthly
+  4. Copy the Variant ID (numeric value)
+
+### `LEMON_SQUEEZY_PRO_VARIANT_ID`
+
+- **Description**: Lemon Squeezy variant ID for Pro plan (99 EUR/month)
+- **Required**: Yes (for Pro plan checkout)
+- **Example**: `67891`
+- **How to obtain**:
+  1. In Lemon Squeezy Dashboard, go to Products
+  2. Create or select your Pro plan product
+  3. Create a variant with price: 99 EUR, billing period: Monthly
+  4. Copy the Variant ID (numeric value)
+
+### `LEMON_SQUEEZY_CREDIT_VARIANT_ID`
+
+- **Description**: Lemon Squeezy variant ID for credit purchases (used for custom amount purchases)
+- **Required**: Yes (for credit purchase functionality)
+- **Example**: `123456`
+- **How to obtain**:
+  1. In Lemon Squeezy Dashboard, go to Products
+  2. Create a new product named "Credits" or "Workspace Credits"
+  3. Create a single variant with any price (e.g., 1 EUR) - the price will be overridden with `custom_price` during checkout
+  4. Copy the Variant ID (numeric value)
+- **Note**: Even though we use `custom_price` to set the exact amount, Lemon Squeezy requires a variant ID. The variant's default price will be overridden by the custom price you specify.
+
+### `LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL`
+
+- **Description**: URL to redirect users after successful payment
+- **Required**: No (defaults to `{BASE_URL}/subscription?success=true`)
+- **Example**: `https://app.helpmaton.com/subscription?success=true`
+- **Note**: Should point to subscription management page with success message
+
+### `LEMON_SQUEEZY_CHECKOUT_CANCEL_URL`
+
+- **Description**: URL to redirect users if they cancel checkout
+- **Required**: No (defaults to `{BASE_URL}/subscription?cancelled=true`)
+- **Example**: `https://app.helpmaton.com/subscription?cancelled=true`
+- **Note**: Should point to subscription management page
+
+### `LEMON_SQUEEZY_TEST_MODE`
+
+- **Description**: Explicitly enable or disable test mode for checkouts
+- **Required**: No (auto-detected from `NODE_ENV` if not set)
+- **Example**: `true` or `false`
+- **How it works**:
+  - If not set, test mode is automatically determined by `NODE_ENV`:
+    - `NODE_ENV !== "production"` → test mode enabled (development, test, staging, etc.)
+    - `NODE_ENV === "production"` → test mode disabled (live mode)
+  - If set to `true`, forces test mode regardless of `NODE_ENV`
+  - If set to `false`, forces live mode regardless of `NODE_ENV`
+- **Note**:
+  - In test mode, checkouts use test payment methods (e.g., card `4242 4242 4242 4242`)
+  - Test mode checkouts don't process real payments
+  - Use test mode for development and staging environments
+  - The API key type (`sk_test_` vs `sk_live_`) should match your environment, but doesn't control test mode
+
+**Important Notes**:
+
+- Use test mode keys (`sk_test_`) for development and staging
+- Use production keys (`sk_live_`) only for production environment
+- Webhook URL must be publicly accessible: `https://app.helpmaton.com/api/webhooks/lemonsqueezy`
+- Configure webhook in Lemon Squeezy Dashboard to send all subscription and order events
+- Credit purchases use custom amounts (user enters any amount, that exact amount is charged and credited)
+
 ## Security Notes
 
 1. **Never commit secrets to version control**: Always use environment variables or secure secret management systems
 2. **Use different secrets per environment**: Use different `AUTH_SECRET` values for development, staging, and production
-3. **Rotate secrets regularly**: Periodically rotate your `AUTH_SECRET`, `MAILGUN_KEY`, and S3 credentials
+3. **Rotate secrets regularly**: Periodically rotate your `AUTH_SECRET`, `MAILGUN_KEY`, S3 credentials, and Lemon Squeezy API keys
 4. **Restrict email access**: In production, consider setting `ALLOWED_EMAILS` to restrict who can sign in
 5. **S3 credentials security**:
    - Never commit `HELPMATON_S3_ACCESS_KEY_ID` or `HELPMATON_S3_SECRET_ACCESS_KEY` to version control
    - Use IAM roles when possible instead of access keys
    - Grant S3 credentials only the minimum permissions needed (read/write to the specific bucket)
    - Rotate S3 credentials regularly
+6. **Lemon Squeezy security**:
+   - Never commit `LEMON_SQUEEZY_API_KEY` or `LEMON_SQUEEZY_WEBHOOK_SECRET` to version control
+   - Use test mode keys for development and staging
+   - Rotate API keys regularly
+   - Verify all webhook signatures to prevent unauthorized access

@@ -8,13 +8,16 @@ export const Toaster: FC = () => {
       toastOptions={{
         classNames: {
           toast:
-            "border border-neutral-200 rounded-xl bg-white text-neutral-900 shadow-medium",
+            "border-2 border-neutral-300 rounded-xl bg-white text-neutral-900 shadow-large transition-all duration-200",
           title: "font-semibold",
-          description: "font-normal text-neutral-600",
-          success: "bg-white border-green-200",
-          error: "bg-white border-red-200",
-          info: "bg-white border-blue-200",
-          warning: "bg-white border-yellow-200",
+          description: "font-normal opacity-80",
+          success:
+            "bg-success-50 border-success-400 text-success-900 shadow-colored",
+          error:
+            "bg-error-50 border-error-400 text-error-900 shadow-error",
+          info: "bg-primary-50 border-primary-400 text-primary-900 shadow-colored",
+          warning:
+            "bg-amber-50 border-amber-400 text-amber-900 shadow-accent",
         },
       }}
     />

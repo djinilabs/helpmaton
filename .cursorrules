@@ -13,12 +13,16 @@
 
 ## AWS access
 
-3. You can use the AWS CLI to fetch any setting in AWS, or browse the logs
+3. You can use the AWS CLI to fetch any setting in AWS, or browse the logs.
 
 ## PR deployments
 
-4. Each PR in Github creates a Cloudformation stack with a replica of the production environment.
+4. Each PR in Github creates a Cloudformation stack with a replica of the production environment. Use the AWS CLI to query it.
 
 ## Github access
 
 5. You can use the gh CLI to get access to any result or setting in Github
+
+## Infrastructure as code
+
+6. Never make any changes to the AWS infrastructure directly. Instead, you can make infrastructure changes by editing app.arc, any of the Architect plugins we use or the code in the lambda functions.

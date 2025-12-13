@@ -385,6 +385,7 @@ describe("subscriptionUtils - checkSubscriptionLimits", () => {
         sk: "subscription",
         userId: "user-123",
         plan: "free",
+        status: "active",
         version: 1,
         createdAt: "2024-01-01T00:00:00.000Z",
       };
@@ -427,6 +428,7 @@ describe("subscriptionUtils - checkSubscriptionLimits", () => {
         sk: "subscription",
         userId: "user-123",
         plan: "free",
+        status: "active",
         version: 1,
         createdAt: "2024-01-01T00:00:00.000Z",
       };
@@ -507,6 +509,7 @@ describe("subscriptionUtils - checkSubscriptionLimits", () => {
         sk: "subscription",
         userId: "user-123",
         plan: "free",
+        status: "active",
         version: 1,
         createdAt: "2024-01-01T00:00:00.000Z",
       };
@@ -582,6 +585,7 @@ describe("subscriptionUtils - checkSubscriptionLimits", () => {
         sk: "subscription",
         userId: "user-123",
         plan: "free",
+        status: "active",
         version: 1,
         createdAt: "2024-01-01T00:00:00.000Z",
       };
@@ -621,6 +625,7 @@ describe("subscriptionUtils - checkSubscriptionLimits", () => {
         sk: "subscription",
         userId: "user-123",
         plan: "free",
+        status: "active",
         version: 1,
         createdAt: "2024-01-01T00:00:00.000Z",
       };
@@ -689,6 +694,7 @@ describe("subscriptionUtils - checkSubscriptionLimits", () => {
         sk: "subscription",
         userId: "user-123",
         plan: "free",
+        status: "active",
         version: 1,
         createdAt: "2024-01-01T00:00:00.000Z",
       };
@@ -728,6 +734,7 @@ describe("subscriptionUtils - checkSubscriptionLimits", () => {
         sk: "subscription",
         userId: "user-123",
         plan: "pro",
+        status: "active",
         version: 1,
         createdAt: "2024-01-01T00:00:00.000Z",
       };
@@ -818,6 +825,7 @@ describe("subscriptionUtils - checkSubscriptionLimits", () => {
         sk: "subscription",
         userId: "user-123",
         plan: "invalid-plan" as "free" | "starter" | "pro",
+        status: "active",
         version: 1,
         createdAt: "2024-01-01T00:00:00.000Z",
       };

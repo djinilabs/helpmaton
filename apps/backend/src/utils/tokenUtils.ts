@@ -125,7 +125,23 @@ export async function verifyAccessToken(
  */
 export function generateRefreshToken(): string {
   const randomPart = randomBytes(REFRESH_TOKEN_LENGTH).toString("hex");
-  return `${REFRESH_TOKEN_PREFIX}${randomPart}`;
+  const token = `${REFRESH_TOKEN_PREFIX}${randomPart}`;
+
+  // Validate generated token length (should be 78: 14 prefix + 64 hex chars)
+  const expectedLength = REFRESH_TOKEN_PREFIX.length + REFRESH_TOKEN_LENGTH * 2;
+  if (token.length !== expectedLength) {
+    // This should never happen, but log it if it does
+    console.error("[tokenUtils] Generated token has unexpected length:", {
+      tokenLength: token.length,
+      expectedLength,
+      prefixLength: REFRESH_TOKEN_PREFIX.length,
+      randomPartLength: randomPart.length,
+      expectedRandomPartLength: REFRESH_TOKEN_LENGTH * 2,
+    });
+    // Still return the token - the validation endpoint will handle invalid tokens
+  }
+
+  return token;
 }
 
 /**

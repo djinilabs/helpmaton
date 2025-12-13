@@ -32,6 +32,7 @@ The following secrets must be configured in your GitHub repository settings (Set
 ### AWS Credentials
 
 - **`AWS_ACCESS_KEY_ID`**: AWS access key ID for deployment
+
   - Required permissions: CloudFormation, Lambda, API Gateway, DynamoDB, S3, Route53, ACM
   - How to create: AWS IAM → Users → Create user with programmatic access → Attach policies
 
@@ -41,17 +42,21 @@ The following secrets must be configured in your GitHub repository settings (Set
 ### Application Secrets
 
 - **`AUTH_SECRET`**: JWT token signing secret
+
   - Generate using: `openssl rand -base64 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
   - Must be a cryptographically secure random string
 
 - **`MAILGUN_KEY`**: Mailgun API key for sending authentication emails
+
   - Obtain from: https://www.mailgun.com → Domain settings → API keys
 
 - **`MAILGUN_DOMAIN`**: (Optional) Mailgun domain for sending emails
+
   - Defaults to `helpmaton.com` if not set
   - Example: `mg.helpmaton.com` or `helpmaton.com`
 
 - **`BASE_URL`**: Production base URL
+
   - Example: `https://app.helpmaton.com`
   - Used for generating magic link URLs in authentication emails
 
@@ -59,9 +64,65 @@ The following secrets must be configured in your GitHub repository settings (Set
   - Obtain from: https://makersuite.google.com/app/apikey
   - Required for agent webhook functionality
 
+### Lemon Squeezy (Payment Integration)
+
+- **`LEMON_SQUEEZY_API_KEY`**: Lemon Squeezy API key for authenticating API requests
+
+  - Obtain from: https://app.lemonsqueezy.com → Settings → API
+  - Use test mode keys (`sk_test_`) for staging, production keys (`sk_live_`) for production
+  - Required for subscription management and checkout creation
+
+- **`LEMON_SQUEEZY_WEBHOOK_SECRET`**: Webhook signing secret for verifying webhook authenticity
+
+  - Obtain from: https://app.lemonsqueezy.com → Settings → Webhooks
+  - Create webhook endpoint: `https://app.helpmaton.com/api/webhooks/lemonsqueezy`
+  - Copy the "Signing Secret" (starts with `whsec_`)
+  - Required for webhook signature verification
+
+- **`LEMON_SQUEEZY_STORE_ID`**: Your Lemon Squeezy store ID
+
+  - Obtain from: https://app.lemonsqueezy.com → Settings → General
+  - Copy your Store ID (numeric value)
+  - Required for creating checkout sessions
+
+- **`LEMON_SQUEEZY_STARTER_VARIANT_ID`**: Lemon Squeezy variant ID for Starter plan (29 EUR/month)
+
+  - Obtain from: https://app.lemonsqueezy.com → Products
+  - Create or select your Starter plan product
+  - Create a variant with price: 29 EUR, billing period: Monthly
+  - Copy the Variant ID (numeric value)
+  - Required for Starter plan checkout
+
+- **`LEMON_SQUEEZY_PRO_VARIANT_ID`**: Lemon Squeezy variant ID for Pro plan (99 EUR/month)
+
+  - Obtain from: https://app.lemonsqueezy.com → Products
+  - Create or select your Pro plan product
+  - Create a variant with price: 99 EUR, billing period: Monthly
+  - Copy the Variant ID (numeric value)
+  - Required for Pro plan checkout
+
+- **`LEMON_SQUEEZY_CREDIT_VARIANT_ID`**: Lemon Squeezy variant ID for credit purchases
+
+  - Obtain from: https://app.lemonsqueezy.com → Products
+  - Create a new product named "Credits" or "Workspace Credits"
+  - Create a single variant with any price (e.g., 1 EUR) - the price will be overridden with custom_price during checkout
+  - Copy the Variant ID (numeric value)
+  - Required for credit purchase functionality
+  - Note: Even with custom prices, a variant ID is required
+
+- **`LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL`**: (Optional) URL to redirect users after successful payment
+
+  - Defaults to `{BASE_URL}/subscription?success=true`
+  - Example: `https://app.helpmaton.com/subscription?success=true`
+
+- **`LEMON_SQUEEZY_CHECKOUT_CANCEL_URL`**: (Optional) URL to redirect users if they cancel checkout
+  - Defaults to `{BASE_URL}/subscription?cancelled=true`
+  - Example: `https://app.helpmaton.com/subscription?cancelled=true`
+
 ### Discord Integration (Optional)
 
 - **`DISCORD_APPLICATION_ID`**: Discord application ID for slash command registration
+
   - Obtain from: https://discord.com/developers/applications → Your Application → General Information
   - Required for Discord slash command registration
 
@@ -73,10 +134,12 @@ The following secrets must be configured in your GitHub repository settings (Set
 ### Domain Configuration
 
 - **`HELPMATON_CUSTOM_DOMAIN`**: Custom domain name for the application
+
   - Example: `app.helpmaton.com`
   - This is the domain that will be configured in API Gateway and CloudFront
 
 - **`AWS_CERTIFICATE_ARN`**: ACM certificate ARN for the domain
+
   - Must be in the `eu-west-2` region (same as API Gateway)
   - Must cover the custom domain (e.g., `app.helpmaton.com`)
   - How to create:
@@ -112,6 +175,14 @@ The deployment workflow automatically sets the following environment variables i
 - `HELPMATON_CUSTOM_DOMAIN` - Custom domain name
 - `AWS_CERTIFICATE_ARN` - ACM certificate ARN
 - `AWS_ZONE_ID` - Route53 hosted zone ID
+- `LEMON_SQUEEZY_API_KEY` - Lemon Squeezy API key
+- `LEMON_SQUEEZY_WEBHOOK_SECRET` - Lemon Squeezy webhook signing secret
+- `LEMON_SQUEEZY_STORE_ID` - Lemon Squeezy store ID
+- `LEMON_SQUEEZY_STARTER_VARIANT_ID` - Starter plan variant ID
+- `LEMON_SQUEEZY_PRO_VARIANT_ID` - Pro plan variant ID
+- `LEMON_SQUEEZY_CREDIT_VARIANT_ID` - Credit purchase variant ID
+- `LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL` - (Optional) Success redirect URL
+- `LEMON_SQUEEZY_CHECKOUT_CANCEL_URL` - (Optional) Cancel redirect URL
 
 These are set using `arc env --add --env production` during deployment.
 
@@ -133,6 +204,7 @@ The deployment uses a custom domain plugin (`apps/backend/src/plugins/custom-dom
 - SSL/TLS certificate association
 
 The plugin reads the following environment variables:
+
 - `HELPMATON_CUSTOM_DOMAIN` - The domain name to configure
 - `AWS_CERTIFICATE_ARN` - The ACM certificate ARN
 - `AWS_ZONE_ID` - The Route53 hosted zone ID
@@ -157,6 +229,7 @@ The application uses a CloudFront function to handle SPA (Single Page Applicatio
 #### Setting Up CloudFront Function
 
 1. **Create the CloudFront Function:**
+
    - Go to AWS Console → CloudFront → Functions
    - Click **Create function**
    - Enter a function name (e.g., `spa-routing`)
@@ -164,10 +237,12 @@ The application uses a CloudFront function to handle SPA (Single Page Applicatio
    - Click **Create function**
 
 2. **Publish the Function:**
+
    - After creating the function, click **Publish** to make it available for use
    - Note the function ARN or name for the next step
 
 3. **Associate Function with CloudFront Distribution:**
+
    - Go to CloudFront → Distributions
    - Select your distribution (the one serving your custom domain)
    - Go to the **Behaviors** tab
@@ -179,6 +254,7 @@ The application uses a CloudFront function to handle SPA (Single Page Applicatio
    - Click **Save changes**
 
 4. **Remove Error Page Configuration:**
+
    - In the same behavior settings, scroll to **Custom error responses**
    - Remove any custom error responses that redirect 404/403 to `/index.html`
    - These are no longer needed since the CloudFront function handles routing
@@ -197,6 +273,7 @@ The CloudFront function intercepts viewer requests before they reach the origin:
 - **Query Strings**: Query strings are preserved when rewriting to `/index.html`
 
 This approach is more efficient than error pages because:
+
 - It only applies to HTML document requests
 - It rewrites the URI before querying the origin (no need to wait for a 404/403 response)
 - Static assets are never affected
@@ -226,6 +303,12 @@ export GEMINI_API_KEY="your-key"
 export HELPMATON_CUSTOM_DOMAIN="app.helpmaton.com"
 export AWS_CERTIFICATE_ARN="arn:aws:acm:eu-west-2:..."
 export AWS_ZONE_ID="Z..."
+export LEMON_SQUEEZY_API_KEY="sk_live_your_api_key"
+export LEMON_SQUEEZY_WEBHOOK_SECRET="whsec_your_webhook_secret"
+export LEMON_SQUEEZY_STORE_ID="12345"
+export LEMON_SQUEEZY_STARTER_VARIANT_ID="67890"
+export LEMON_SQUEEZY_PRO_VARIANT_ID="67891"
+export LEMON_SQUEEZY_CREDIT_VARIANT_ID="123456"
 
 # Build frontend
 pnpm build
@@ -239,6 +322,12 @@ pnpm arc env --add --env production GEMINI_API_KEY "${GEMINI_API_KEY}"
 pnpm arc env --add --env production HELPMATON_CUSTOM_DOMAIN "${HELPMATON_CUSTOM_DOMAIN}"
 pnpm arc env --add --env production AWS_CERTIFICATE_ARN "${AWS_CERTIFICATE_ARN}"
 pnpm arc env --add --env production AWS_ZONE_ID "${AWS_ZONE_ID}"
+pnpm arc env --add --env production LEMON_SQUEEZY_API_KEY "${LEMON_SQUEEZY_API_KEY}"
+pnpm arc env --add --env production LEMON_SQUEEZY_WEBHOOK_SECRET "${LEMON_SQUEEZY_WEBHOOK_SECRET}"
+pnpm arc env --add --env production LEMON_SQUEEZY_STORE_ID "${LEMON_SQUEEZY_STORE_ID}"
+pnpm arc env --add --env production LEMON_SQUEEZY_STARTER_VARIANT_ID "${LEMON_SQUEEZY_STARTER_VARIANT_ID}"
+pnpm arc env --add --env production LEMON_SQUEEZY_PRO_VARIANT_ID "${LEMON_SQUEEZY_PRO_VARIANT_ID}"
+pnpm arc env --add --env production LEMON_SQUEEZY_CREDIT_VARIANT_ID "${LEMON_SQUEEZY_CREDIT_VARIANT_ID}"
 pnpm arc deploy --production --no-hydrate --verbose
 ```
 
@@ -278,4 +367,3 @@ pnpm arc deploy --production --no-hydrate --verbose
 - [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/)
 - [Route53 Documentation](https://docs.aws.amazon.com/route53/)
 - [GitHub Actions Secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
-

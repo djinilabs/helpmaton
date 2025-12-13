@@ -6,6 +6,7 @@ spa true
 
 @http
 post /api/webhook/:workspaceId/:agentId/:key
+post /api/webhooks/lemonsqueezy
 get /api/usage
 get /api/models
 get /api/streams/url
@@ -158,10 +159,20 @@ workspace
   pk **String
   name bySubscriptionId
 
+workspace
+  lemonSqueezyOrderId *String
+  pk **String
+  name byLemonSqueezyOrderId
+
 workspace-api-key
   workspaceId *String
   pk **String
   name byWorkspaceId
+
+subscription
+  lemonSqueezySyncKey *String
+  pk **String
+  name byLemonSqueezySubscription
 
 workspace-document
   workspaceId *String
@@ -236,6 +247,7 @@ credit-reservations
 @scheduled
 aggregate-token-usage rate(1 day)
 cleanup-expired-reservations rate(10 minutes)
+sync-lemonsqueezy-subscriptions rate(1 hour)
 
 @api-throttling
 free

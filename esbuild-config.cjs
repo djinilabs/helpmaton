@@ -47,6 +47,14 @@ const ENV_VARS_TO_INJECT = [
   'HTTP_TO_REST_MIGRATION_PHASE',
   'DEBUG_TEMPLATE',
   'DEFAULT_REFERER',
+  'LEMON_SQUEEZY_API_KEY',
+  'LEMON_SQUEEZY_WEBHOOK_SECRET',
+  'LEMON_SQUEEZY_STORE_ID',
+  'LEMON_SQUEEZY_STARTER_VARIANT_ID',
+  'LEMON_SQUEEZY_PRO_VARIANT_ID',
+  'LEMON_SQUEEZY_CREDIT_VARIANT_ID',
+  'LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL',
+  'LEMON_SQUEEZY_CHECKOUT_CANCEL_URL',
 ];
 
 /**
@@ -56,7 +64,6 @@ const ENV_VARS_TO_INJECT = [
 function buildDefine() {
   const define = {};
   const arcEnv = process.env.ARC_ENV || process.env.NODE_ENV;
-  const isLocal = arcEnv === 'testing' || (arcEnv !== 'production' && arcEnv !== 'staging');
 
   // In local development, we may want to skip injection to allow runtime env vars
   // However, for consistency and to test the build process, we'll still inject if values are set

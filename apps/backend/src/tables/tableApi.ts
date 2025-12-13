@@ -602,6 +602,63 @@ export const tableApi = <
     },
 
     /**
+     * Queries items from the table using DynamoDB query expressions
+     * Returns an async generator that yields items one by one without buffering all results
+     * Supports pagination and version-specific queries
+     *
+     * @param query - The DynamoDB query parameters
+     * @param version - Version to query (optional)
+     * @returns Async generator that yields TTableRecord items
+     */
+    queryAsync: async function* (
+      query: Query,
+      version?: string | null
+    ): AsyncGenerator<TTableRecord, void, unknown> {
+      // console.info("queryAsync", { query, version });
+      try {
+        let lastEvaluatedKey: Record<string, unknown> | undefined = undefined;
+
+        // Handle pagination by continuing to query until no more results
+        // The do-while pattern ensures we always execute at least one query
+        // and continue while there are more pages (indicated by LastEvaluatedKey)
+        do {
+          const response = (await lowLevelTable.query({
+            ...query,
+            ExclusiveStartKey: lastEvaluatedKey,
+          })) as unknown as {
+            Items: TTableRecord[];
+            LastEvaluatedKey: Record<string, unknown>;
+          };
+
+          // Process each item in the current page and yield immediately
+          for (const item of response.Items) {
+            const versionedItem = getVersion(
+              parseItem(item, "queryAsync") as TTableRecord,
+              version
+            );
+
+            // Only yield valid items (not undefined)
+            if (versionedItem.item) {
+              yield versionedItem.item;
+            }
+          }
+
+          lastEvaluatedKey = response.LastEvaluatedKey;
+        } while (lastEvaluatedKey);
+      } catch (err: unknown) {
+        console.error("Error querying table", tableName, query, err);
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const error = new Error(
+          `Error querying table ${tableName}: ${errorMessage}`
+        );
+        if (err instanceof Error && err.stack) {
+          error.stack = err.stack;
+        }
+        throw error;
+      }
+    },
+
+    /**
      * Merges a version into the main item, making draft changes permanent
      * This is the final step in the versioning workflow
      *
@@ -797,7 +854,9 @@ export const tableApi = <
       }
 
       throw conflict(
-        `Failed to atomically update record after ${maxRetries} retries: ${lastError?.message || "Unknown error"}`
+        `Failed to atomically update record after ${maxRetries} retries: ${
+          lastError?.message || "Unknown error"
+        }`
       );
     },
   };

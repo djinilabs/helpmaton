@@ -37,6 +37,11 @@ const CreditBalance = lazy(() =>
     default: module.CreditBalance,
   }))
 );
+const CreditPurchase = lazy(() =>
+  import("../components/CreditPurchase").then((module) => ({
+    default: module.CreditPurchase,
+  }))
+);
 const DocumentList = lazy(() =>
   import("../components/DocumentList").then((module) => ({
     default: module.DocumentList,
@@ -550,6 +555,14 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                 currency={workspace.currency || "usd"}
                 canEdit={!!canEdit}
               />
+              {canEdit && (
+                <div className="mt-6">
+                  <CreditPurchase
+                    workspaceId={id!}
+                    currency={workspace.currency || "usd"}
+                  />
+                </div>
+              )}
             </LazyAccordionContent>
           </AccordionSection>
 

@@ -138,74 +138,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check migration state
-        id: migration-check
-        env:
-          AWS_REGION: "eu-west-2"
-        run: |
-          PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
-          STACK_NAME="HelpmatonStagingPR${PR_NUMBER}"
-
-          echo "🔍 Checking migration state for stack: ${STACK_NAME}"
-
-          # Check if stack exists
-          if aws cloudformation describe-stacks --stack-name "${STACK_NAME}" --region eu-west-2 >/dev/null 2>&1; then
-            echo "✅ Stack exists, checking HTTP resource type..."
-            
-            # Get HTTP resource type from stack
-            HTTP_RESOURCE_TYPE=$(aws cloudformation describe-stack-resources \
-              --stack-name "${STACK_NAME}" \
-              --region eu-west-2 \
-              --query "StackResources[?LogicalResourceId=='HTTP'].ResourceType" \
-              --output text 2>/dev/null || echo "")
-            
-            # Check if HTTPRestApi exists (use list-stack-resources as it's more reliable)
-            HTTP_REST_API_EXISTS=$(aws cloudformation list-stack-resources \
-              --stack-name "${STACK_NAME}" \
-              --region eu-west-2 \
-              --query "StackResourceSummaries[?LogicalResourceId=='HTTPRestApi'].LogicalResourceId" \
-              --output text 2>/dev/null || echo "")
-            
-            echo "HTTP resource type: ${HTTP_RESOURCE_TYPE}"
-            echo "HTTPRestApi exists: ${HTTP_REST_API_EXISTS}"
-            
-            # Determine migration state
-            if [[ "${HTTP_RESOURCE_TYPE}" == "AWS::ApiGatewayV2::Api" ]] || [[ "${HTTP_RESOURCE_TYPE}" == "AWS::Serverless::HttpApi" ]]; then
-              if [[ -n "${HTTP_REST_API_EXISTS}" ]]; then
-                echo "🔄 Migration Phase 2 needed: HTTPRestApi exists, HTTP is still HTTP API v2"
-                MIGRATION_NEEDED="true"
-                MIGRATION_PHASE="2"
-              else
-                echo "🔄 Migration Phase 1 needed: HTTP is HTTP API v2, HTTPRestApi doesn't exist"
-                MIGRATION_NEEDED="true"
-                MIGRATION_PHASE="1"
-              fi
-            elif [[ "${HTTP_RESOURCE_TYPE}" == "AWS::ApiGateway::RestApi" ]]; then
-              echo "✅ Already migrated: HTTP is already REST API"
-              MIGRATION_NEEDED="false"
-              MIGRATION_PHASE="0"
-            else
-              echo "ℹ️  Fresh stack or unknown state: HTTP resource type is '${HTTP_RESOURCE_TYPE}'"
-              MIGRATION_NEEDED="false"
-              MIGRATION_PHASE="0"
-            fi
-          else
-            echo "🆕 Stack doesn't exist - fresh deployment"
-            echo "✅ Fresh deployment: Will create REST API directly (no migration needed)"
-            MIGRATION_NEEDED="false"
-            MIGRATION_PHASE="0"
-          fi
-
-          # Export to GITHUB_ENV for use in subsequent steps
-          echo "MIGRATION_NEEDED=${MIGRATION_NEEDED}" >> $GITHUB_ENV
-          echo "MIGRATION_PHASE=${MIGRATION_PHASE}" >> $GITHUB_ENV
-
-          # Echo the values for debugging (using shell variables, not GITHUB_ENV)
-          echo "Migration needed: ${MIGRATION_NEEDED}"
-          echo "Migration phase: ${MIGRATION_PHASE}"
-
-      - name: Deploy PR - Phase 1 (if needed)
-        if: env.MIGRATION_NEEDED == 'true' && env.MIGRATION_PHASE == '1'
+      - name: Deploy PR
         env:
           NODE_ENV: "production"
           VITE_ENV: "production"
@@ -236,233 +169,17 @@ jobs:
           GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
           OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
           OUTLOOK_CLIENT_SECRET: ${{ secrets.OUTLOOK_CLIENT_SECRET }}
-          HTTP_TO_REST_MIGRATION: "true"
-          HTTP_TO_REST_MIGRATION_PHASE: "1"
+          LEMON_SQUEEZY_API_KEY: ${{ secrets.LEMON_SQUEEZY_API_KEY }}
+          LEMON_SQUEEZY_WEBHOOK_SECRET: ${{ secrets.LEMON_SQUEEZY_WEBHOOK_SECRET }}
+          LEMON_SQUEEZY_STORE_ID: ${{ secrets.LEMON_SQUEEZY_STORE_ID }}
+          LEMON_SQUEEZY_STARTER_VARIANT_ID: ${{ secrets.LEMON_SQUEEZY_STARTER_VARIANT_ID }}
+          LEMON_SQUEEZY_PRO_VARIANT_ID: ${{ secrets.LEMON_SQUEEZY_PRO_VARIANT_ID }}
+          LEMON_SQUEEZY_CREDIT_VARIANT_ID: ${{ secrets.LEMON_SQUEEZY_CREDIT_VARIANT_ID }}
+          LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL: ${{ secrets.LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL }}
+          LEMON_SQUEEZY_CHECKOUT_CANCEL_URL: ${{ secrets.LEMON_SQUEEZY_CHECKOUT_CANCEL_URL }}
         run: |
           PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
-          echo "🔄 Phase 1: Creating HTTPRestApi alongside existing HTTP API v2"
-
-          # Set URL environment variables using PR_NUMBER
-          export BASE_URL="https://${PR_NUMBER}.helpmaton.com"
-          export HELPMATON_CUSTOM_DOMAIN="${PR_NUMBER}.helpmaton.com"
-          export OAUTH_REDIRECT_BASE_URL="https://${PR_NUMBER}.helpmaton.com"
-          export FRONTEND_URL="https://${PR_NUMBER}.helpmaton.com"
-
-          echo "✅ BASE_URL: ${BASE_URL}"
-          echo "✅ HELPMATON_CUSTOM_DOMAIN: ${HELPMATON_CUSTOM_DOMAIN}"
-          echo "✅ OAUTH_REDIRECT_BASE_URL: ${OAUTH_REDIRECT_BASE_URL}"
-          echo "✅ FRONTEND_URL: ${FRONTEND_URL}"
-
-          cd apps/backend
-          export PATH=../../node_modules/.bin:$PATH
-          export AWS_CERTIFICATE_ARN="${AWS_PR_DEPLOY_CERTIFICATE_ARN}"
-          export AWS_CLOUDFRONT_CERTIFICATE_ARN="${AWS_CLOUDFRONT_CERTIFICATE_ARN}"
-          export HTTP_TO_REST_MIGRATION="${HTTP_TO_REST_MIGRATION:-true}"
-
-          # Build array of environment variables to set in batch
-          ENV_VARS=(
-            AUTH_SECRET "${AUTH_SECRET}"
-            MAILGUN_KEY "${MAILGUN_KEY}"
-            BASE_URL "${BASE_URL}"
-            GEMINI_API_KEY "${GEMINI_API_KEY}"
-            HELPMATON_CUSTOM_DOMAIN "${HELPMATON_CUSTOM_DOMAIN}"
-            OAUTH_REDIRECT_BASE_URL "${OAUTH_REDIRECT_BASE_URL}"
-            FRONTEND_URL "${FRONTEND_URL}"
-            AWS_CERTIFICATE_ARN "${AWS_PR_DEPLOY_CERTIFICATE_ARN}"
-            AWS_ZONE_ID "${AWS_ZONE_ID}"
-            ENABLE_CREDIT_VALIDATION "${ENABLE_CREDIT_VALIDATION}"
-            ENABLE_CREDIT_DEDUCTION "${ENABLE_CREDIT_DEDUCTION}"
-            ENABLE_SPENDING_LIMIT_CHECKS "${ENABLE_SPENDING_LIMIT_CHECKS}"
-            HTTP_TO_REST_MIGRATION "${HTTP_TO_REST_MIGRATION}"
-            HTTP_TO_REST_MIGRATION_PHASE "1"
-          )
-
-          # Add conditional variables if they're set
-          [ -n "${MAILGUN_DOMAIN}" ] && ENV_VARS+=(MAILGUN_DOMAIN "${MAILGUN_DOMAIN}")
-          [ -n "${HELPMATON_S3_BUCKET}" ] && ENV_VARS+=(HELPMATON_S3_BUCKET "${HELPMATON_S3_BUCKET}")
-          [ -n "${HELPMATON_S3_ACCESS_KEY_ID}" ] && ENV_VARS+=(HELPMATON_S3_ACCESS_KEY_ID "${HELPMATON_S3_ACCESS_KEY_ID}")
-          [ -n "${HELPMATON_S3_SECRET_ACCESS_KEY}" ] && ENV_VARS+=(HELPMATON_S3_SECRET_ACCESS_KEY "${HELPMATON_S3_SECRET_ACCESS_KEY}")
-          [ -n "${HELPMATON_S3_REGION}" ] && ENV_VARS+=(HELPMATON_S3_REGION "${HELPMATON_S3_REGION}")
-          [ -n "${HELPMATON_S3_ENDPOINT}" ] && ENV_VARS+=(HELPMATON_S3_ENDPOINT "${HELPMATON_S3_ENDPOINT}")
-          [ -n "${SENTRY_DSN}" ] && ENV_VARS+=(SENTRY_DSN "${SENTRY_DSN}")
-          [ -n "${DISCORD_PUBLIC_KEY}" ] && ENV_VARS+=(DISCORD_PUBLIC_KEY "${DISCORD_PUBLIC_KEY}")
-          [ -n "${DISCORD_CS_USERS}" ] && ENV_VARS+=(DISCORD_CS_USERS "${DISCORD_CS_USERS}")
-          [ -n "${GMAIL_CLIENT_ID}" ] && ENV_VARS+=(GMAIL_CLIENT_ID "${GMAIL_CLIENT_ID}")
-          [ -n "${GMAIL_CLIENT_SECRET}" ] && ENV_VARS+=(GMAIL_CLIENT_SECRET "${GMAIL_CLIENT_SECRET}")
-          [ -n "${OUTLOOK_CLIENT_ID}" ] && ENV_VARS+=(OUTLOOK_CLIENT_ID "${OUTLOOK_CLIENT_ID}")
-          [ -n "${OUTLOOK_CLIENT_SECRET}" ] && ENV_VARS+=(OUTLOOK_CLIENT_SECRET "${OUTLOOK_CLIENT_SECRET}")
-          [ -n "${CLOUDFLARE_TURNSTILE_SECRET_KEY}" ] && ENV_VARS+=(CLOUDFLARE_TURNSTILE_SECRET_KEY "${CLOUDFLARE_TURNSTILE_SECRET_KEY}")
-          [ -n "${DISCORD_BOT_TOKEN}" ] && ENV_VARS+=(DISCORD_BOT_TOKEN "${DISCORD_BOT_TOKEN}")
-          [ -n "${DISCORD_TRIAL_CREDIT_CHANNEL_ID}" ] && ENV_VARS+=(DISCORD_TRIAL_CREDIT_CHANNEL_ID "${DISCORD_TRIAL_CREDIT_CHANNEL_ID}")
-
-          # Environment variables are now injected directly into Lambda bundles at build time
-          # via esbuild's define option (see esbuild-config.cjs). This ensures each PR deployment
-          # has isolated environment variables without relying on SSM Parameter Store.
-          # All environment variables set in the 'env:' section above will be automatically
-          # injected during the build process.
-          echo "📝 Environment variables will be injected into Lambda bundles at build time..."
-
-          cd ../..
-          # Verify Cloudflare Turnstile environment variable is set
-          if [ -z "${CLOUDFLARE_TURNSTILE_SITE_KEY}" ]; then
-            echo "⚠️  Warning: CLOUDFLARE_TURNSTILE_SITE_KEY is not set. CAPTCHA will not work."
-          else
-            echo "✅ CLOUDFLARE_TURNSTILE_SITE_KEY is set (length: ${#CLOUDFLARE_TURNSTILE_SITE_KEY})"
-          fi
-          pnpm build
-          cd apps/backend
-
-          # Set ARC_STACK_NAME so the lambda-urls plugin can determine the DNS name at plugin time
-          export ARC_STACK_NAME="HelpmatonStagingPR${PR_NUMBER}"
-          pnpm arc deploy --name "PR${PR_NUMBER}" --staging --no-hydrate --verbose
-
-      - name: Deploy PR - Phase 2 (if Phase 1 completed)
-        if: env.MIGRATION_NEEDED == 'true' && env.MIGRATION_PHASE == '2'
-        env:
-          NODE_ENV: "production"
-          VITE_ENV: "production"
-          NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
-          MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
-          MAILGUN_DOMAIN: "helpmaton.com"
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          AWS_PR_DEPLOY_CERTIFICATE_ARN: ${{ secrets.AWS_PR_DEPLOY_CERTIFICATE_ARN }}
-          AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
-          AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
-          HELPMATON_S3_BUCKET: ${{ secrets.HELPMATON_PR_ENV_S3_BUCKET }}
-          HELPMATON_S3_ENDPOINT: ${{ secrets.HELPMATON_S3_ENDPOINT }}
-          HELPMATON_S3_ACCESS_KEY_ID: ${{ secrets.HELPMATON_S3_ACCESS_KEY_ID }}
-          HELPMATON_S3_SECRET_ACCESS_KEY: ${{ secrets.HELPMATON_S3_SECRET_ACCESS_KEY }}
-          HELPMATON_S3_REGION: ${{ secrets.HELPMATON_S3_REGION }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
-          CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
-          DISCORD_TRIAL_CREDIT_CHANNEL_ID: ${{ secrets.DISCORD_TRIAL_CREDIT_CHANNEL_ID }}
-          ENABLE_CREDIT_VALIDATION: "false"
-          ENABLE_CREDIT_DEDUCTION: "false"
-          ENABLE_SPENDING_LIMIT_CHECKS: "false"
-          DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
-          DISCORD_CS_USERS: ${{ secrets.DISCORD_CS_USERS }}
-          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
-          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
-          OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
-          OUTLOOK_CLIENT_SECRET: ${{ secrets.OUTLOOK_CLIENT_SECRET }}
-          HTTP_TO_REST_MIGRATION: "true"
-          HTTP_TO_REST_MIGRATION_PHASE: "2"
-        run: |
-          PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
-          echo "🔄 Phase 2: Completing migration - removing HTTP API v2, keeping HTTPRestApi"
-
-          # Set URL environment variables using PR_NUMBER
-          export BASE_URL="https://${PR_NUMBER}.helpmaton.com"
-          export HELPMATON_CUSTOM_DOMAIN="${PR_NUMBER}.helpmaton.com"
-          export OAUTH_REDIRECT_BASE_URL="https://${PR_NUMBER}.helpmaton.com"
-          export FRONTEND_URL="https://${PR_NUMBER}.helpmaton.com"
-
-          echo "✅ BASE_URL: ${BASE_URL}"
-          echo "✅ HELPMATON_CUSTOM_DOMAIN: ${HELPMATON_CUSTOM_DOMAIN}"
-          echo "✅ OAUTH_REDIRECT_BASE_URL: ${OAUTH_REDIRECT_BASE_URL}"
-          echo "✅ FRONTEND_URL: ${FRONTEND_URL}"
-
-          cd apps/backend
-          export PATH=../../node_modules/.bin:$PATH
-          export AWS_CERTIFICATE_ARN="${AWS_PR_DEPLOY_CERTIFICATE_ARN}"
-          export AWS_CLOUDFRONT_CERTIFICATE_ARN="${AWS_CLOUDFRONT_CERTIFICATE_ARN}"
-          export HTTP_TO_REST_MIGRATION="${HTTP_TO_REST_MIGRATION:-true}"
-
-          # Build array of environment variables to set in batch
-          ENV_VARS=(
-            AUTH_SECRET "${AUTH_SECRET}"
-            MAILGUN_KEY "${MAILGUN_KEY}"
-            BASE_URL "${BASE_URL}"
-            GEMINI_API_KEY "${GEMINI_API_KEY}"
-            HELPMATON_CUSTOM_DOMAIN "${HELPMATON_CUSTOM_DOMAIN}"
-            OAUTH_REDIRECT_BASE_URL "${OAUTH_REDIRECT_BASE_URL}"
-            FRONTEND_URL "${FRONTEND_URL}"
-            AWS_CERTIFICATE_ARN "${AWS_PR_DEPLOY_CERTIFICATE_ARN}"
-            AWS_ZONE_ID "${AWS_ZONE_ID}"
-            ENABLE_CREDIT_VALIDATION "${ENABLE_CREDIT_VALIDATION}"
-            ENABLE_CREDIT_DEDUCTION "${ENABLE_CREDIT_DEDUCTION}"
-            ENABLE_SPENDING_LIMIT_CHECKS "${ENABLE_SPENDING_LIMIT_CHECKS}"
-            HTTP_TO_REST_MIGRATION "${HTTP_TO_REST_MIGRATION}"
-            HTTP_TO_REST_MIGRATION_PHASE "2"
-          )
-
-          # Add conditional variables if they're set
-          [ -n "${MAILGUN_DOMAIN}" ] && ENV_VARS+=(MAILGUN_DOMAIN "${MAILGUN_DOMAIN}")
-          [ -n "${HELPMATON_S3_BUCKET}" ] && ENV_VARS+=(HELPMATON_S3_BUCKET "${HELPMATON_S3_BUCKET}")
-          [ -n "${HELPMATON_S3_ACCESS_KEY_ID}" ] && ENV_VARS+=(HELPMATON_S3_ACCESS_KEY_ID "${HELPMATON_S3_ACCESS_KEY_ID}")
-          [ -n "${HELPMATON_S3_SECRET_ACCESS_KEY}" ] && ENV_VARS+=(HELPMATON_S3_SECRET_ACCESS_KEY "${HELPMATON_S3_SECRET_ACCESS_KEY}")
-          [ -n "${HELPMATON_S3_REGION}" ] && ENV_VARS+=(HELPMATON_S3_REGION "${HELPMATON_S3_REGION}")
-          [ -n "${HELPMATON_S3_ENDPOINT}" ] && ENV_VARS+=(HELPMATON_S3_ENDPOINT "${HELPMATON_S3_ENDPOINT}")
-          [ -n "${SENTRY_DSN}" ] && ENV_VARS+=(SENTRY_DSN "${SENTRY_DSN}")
-          [ -n "${DISCORD_PUBLIC_KEY}" ] && ENV_VARS+=(DISCORD_PUBLIC_KEY "${DISCORD_PUBLIC_KEY}")
-          [ -n "${DISCORD_CS_USERS}" ] && ENV_VARS+=(DISCORD_CS_USERS "${DISCORD_CS_USERS}")
-          [ -n "${GMAIL_CLIENT_ID}" ] && ENV_VARS+=(GMAIL_CLIENT_ID "${GMAIL_CLIENT_ID}")
-          [ -n "${GMAIL_CLIENT_SECRET}" ] && ENV_VARS+=(GMAIL_CLIENT_SECRET "${GMAIL_CLIENT_SECRET}")
-          [ -n "${OUTLOOK_CLIENT_ID}" ] && ENV_VARS+=(OUTLOOK_CLIENT_ID "${OUTLOOK_CLIENT_ID}")
-          [ -n "${OUTLOOK_CLIENT_SECRET}" ] && ENV_VARS+=(OUTLOOK_CLIENT_SECRET "${OUTLOOK_CLIENT_SECRET}")
-          [ -n "${CLOUDFLARE_TURNSTILE_SECRET_KEY}" ] && ENV_VARS+=(CLOUDFLARE_TURNSTILE_SECRET_KEY "${CLOUDFLARE_TURNSTILE_SECRET_KEY}")
-          [ -n "${DISCORD_BOT_TOKEN}" ] && ENV_VARS+=(DISCORD_BOT_TOKEN "${DISCORD_BOT_TOKEN}")
-          [ -n "${DISCORD_TRIAL_CREDIT_CHANNEL_ID}" ] && ENV_VARS+=(DISCORD_TRIAL_CREDIT_CHANNEL_ID "${DISCORD_TRIAL_CREDIT_CHANNEL_ID}")
-
-          # Environment variables are now injected directly into Lambda bundles at build time
-          # via esbuild's define option (see esbuild-config.cjs). This ensures each PR deployment
-          # has isolated environment variables without relying on SSM Parameter Store.
-          # All environment variables set in the 'env:' section above will be automatically
-          # injected during the build process.
-          echo "📝 Environment variables will be injected into Lambda bundles at build time..."
-
-          cd ../..
-          # Verify Cloudflare Turnstile environment variable is set
-          if [ -z "${CLOUDFLARE_TURNSTILE_SITE_KEY}" ]; then
-            echo "⚠️  Warning: CLOUDFLARE_TURNSTILE_SITE_KEY is not set. CAPTCHA will not work."
-          else
-            echo "✅ CLOUDFLARE_TURNSTILE_SITE_KEY is set (length: ${#CLOUDFLARE_TURNSTILE_SITE_KEY})"
-          fi
-          pnpm build
-          cd apps/backend
-
-          # Set ARC_STACK_NAME so the lambda-urls plugin can determine the DNS name at plugin time
-          export ARC_STACK_NAME="HelpmatonStagingPR${PR_NUMBER}"
-          pnpm arc deploy --name "PR${PR_NUMBER}" --staging --no-hydrate --verbose
-
-      - name: Deploy PR - Normal deployment (no migration)
-        if: env.MIGRATION_NEEDED == 'false'
-        env:
-          NODE_ENV: "production"
-          VITE_ENV: "production"
-          NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
-          MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
-          MAILGUN_DOMAIN: "helpmaton.com"
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          AWS_PR_DEPLOY_CERTIFICATE_ARN: ${{ secrets.AWS_PR_DEPLOY_CERTIFICATE_ARN }}
-          AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
-          AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
-          HELPMATON_S3_BUCKET: ${{ secrets.HELPMATON_PR_ENV_S3_BUCKET }}
-          HELPMATON_S3_ENDPOINT: ${{ secrets.HELPMATON_S3_ENDPOINT }}
-          HELPMATON_S3_ACCESS_KEY_ID: ${{ secrets.HELPMATON_S3_ACCESS_KEY_ID }}
-          HELPMATON_S3_SECRET_ACCESS_KEY: ${{ secrets.HELPMATON_S3_SECRET_ACCESS_KEY }}
-          HELPMATON_S3_REGION: ${{ secrets.HELPMATON_S3_REGION }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
-          CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
-          DISCORD_TRIAL_CREDIT_CHANNEL_ID: ${{ secrets.DISCORD_TRIAL_CREDIT_CHANNEL_ID }}
-          ENABLE_CREDIT_VALIDATION: "false"
-          ENABLE_CREDIT_DEDUCTION: "false"
-          ENABLE_SPENDING_LIMIT_CHECKS: "false"
-          DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
-          DISCORD_CS_USERS: ${{ secrets.DISCORD_CS_USERS }}
-          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
-          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
-          OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
-          OUTLOOK_CLIENT_SECRET: ${{ secrets.OUTLOOK_CLIENT_SECRET }}
-        run: |
-          PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
-          echo "✅ Normal deployment (no migration needed)"
+          echo "✅ Deploying PR"
 
           # Set URL environment variables using PR_NUMBER
           export BASE_URL="https://${PR_NUMBER}.helpmaton.com"
@@ -512,6 +229,14 @@ jobs:
           [ -n "${CLOUDFLARE_TURNSTILE_SECRET_KEY}" ] && ENV_VARS+=(CLOUDFLARE_TURNSTILE_SECRET_KEY "${CLOUDFLARE_TURNSTILE_SECRET_KEY}")
           [ -n "${DISCORD_BOT_TOKEN}" ] && ENV_VARS+=(DISCORD_BOT_TOKEN "${DISCORD_BOT_TOKEN}")
           [ -n "${DISCORD_TRIAL_CREDIT_CHANNEL_ID}" ] && ENV_VARS+=(DISCORD_TRIAL_CREDIT_CHANNEL_ID "${DISCORD_TRIAL_CREDIT_CHANNEL_ID}")
+          [ -n "${LEMON_SQUEEZY_API_KEY}" ] && ENV_VARS+=(LEMON_SQUEEZY_API_KEY "${LEMON_SQUEEZY_API_KEY}")
+          [ -n "${LEMON_SQUEEZY_WEBHOOK_SECRET}" ] && ENV_VARS+=(LEMON_SQUEEZY_WEBHOOK_SECRET "${LEMON_SQUEEZY_WEBHOOK_SECRET}")
+          [ -n "${LEMON_SQUEEZY_STORE_ID}" ] && ENV_VARS+=(LEMON_SQUEEZY_STORE_ID "${LEMON_SQUEEZY_STORE_ID}")
+          [ -n "${LEMON_SQUEEZY_STARTER_VARIANT_ID}" ] && ENV_VARS+=(LEMON_SQUEEZY_STARTER_VARIANT_ID "${LEMON_SQUEEZY_STARTER_VARIANT_ID}")
+          [ -n "${LEMON_SQUEEZY_PRO_VARIANT_ID}" ] && ENV_VARS+=(LEMON_SQUEEZY_PRO_VARIANT_ID "${LEMON_SQUEEZY_PRO_VARIANT_ID}")
+          [ -n "${LEMON_SQUEEZY_CREDIT_VARIANT_ID}" ] && ENV_VARS+=(LEMON_SQUEEZY_CREDIT_VARIANT_ID "${LEMON_SQUEEZY_CREDIT_VARIANT_ID}")
+          [ -n "${LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL}" ] && ENV_VARS+=(LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL "${LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL}")
+          [ -n "${LEMON_SQUEEZY_CHECKOUT_CANCEL_URL}" ] && ENV_VARS+=(LEMON_SQUEEZY_CHECKOUT_CANCEL_URL "${LEMON_SQUEEZY_CHECKOUT_CANCEL_URL}")
 
           # Environment variables are now injected directly into Lambda bundles at build time
           # via esbuild's define option (see esbuild-config.cjs). This ensures each PR deployment

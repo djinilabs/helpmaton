@@ -97,6 +97,7 @@ export async function createFreeSubscription(
     sk: subscriptionSk,
     userId,
     plan: "free",
+    status: "active", // Free subscriptions are always active
     expiresAt: undefined, // Free subscriptions never expire
     createdBy: userRefStr,
   });
