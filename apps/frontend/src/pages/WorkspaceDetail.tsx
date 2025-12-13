@@ -103,16 +103,36 @@ const PERMISSION_LEVELS = {
 
 interface WorkspaceApiKeyManagerProps {
   workspaceId: string;
-  hasKey: boolean;
+  apiKeys?: {
+    google: boolean;
+    openai: boolean;
+    anthropic: boolean;
+  };
+  hasGoogleApiKey?: boolean; // For backward compatibility
 }
 
 const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
   workspaceId,
-  hasKey,
+  apiKeys,
+  hasGoogleApiKey,
 }) => {
+  const [selectedProvider, setSelectedProvider] = useState<
+    "google" | "openai" | "anthropic"
+  >("google");
   const [apiKey, setApiKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+
+  // Determine if current provider has a key
+  const hasKey = apiKeys
+    ? apiKeys[selectedProvider]
+    : selectedProvider === "google" && (hasGoogleApiKey || false);
+
+  const providerDisplayNames: Record<string, string> = {
+    google: "Google AI",
+    openai: "OpenAI",
+    anthropic: "Anthropic",
+  };
 
   const handleSave = async () => {
     if (!apiKey.trim()) {
@@ -120,7 +140,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
     }
     setIsSaving(true);
     try {
-      await setWorkspaceApiKey(workspaceId, apiKey.trim(), "google");
+      await setWorkspaceApiKey(workspaceId, apiKey.trim(), selectedProvider);
       setApiKey("");
       window.location.reload(); // Reload to update hasKey status
     } catch (error) {
@@ -137,7 +157,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
     }
     setIsClearing(true);
     try {
-      await deleteWorkspaceApiKey(workspaceId);
+      await deleteWorkspaceApiKey(workspaceId, selectedProvider);
       window.location.reload(); // Reload to update hasKey status
     } catch (error) {
       console.error("Error clearing API key:", error);
@@ -152,7 +172,9 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
       <div className="border border-primary-200 rounded-xl p-5 bg-primary-50/50">
         <p className="text-sm font-semibold text-neutral-900 mb-3">Help:</p>
         <ul className="text-sm space-y-2 list-disc list-inside text-neutral-700">
-          <li>We only use Google AI provider</li>
+          <li>
+            Select the LLM provider for which you want to configure an API key
+          </li>
           <li>
             By default, if you add no key, we will use workspace credits (if
             any)
@@ -170,28 +192,52 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
             API Key is Configured
           </p>
           <p className="text-xs mt-1.5 text-accent-700">
-            A Google AI API key is currently set for this workspace. Requests
-            will use your key and workspace credits will not be deducted.
+            A {providerDisplayNames[selectedProvider]} API key is currently set
+            for this workspace. Requests will use your key and workspace credits
+            will not be deducted.
           </p>
         </div>
       )}
 
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-neutral-700">
-          Google AI API Key
-        </label>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder={
-            hasKey
-              ? "Enter new key to replace existing"
-              : "Enter your Google AI API key"
-          }
-          className="w-full border border-neutral-300 rounded-xl p-3 font-mono text-sm bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          disabled={isSaving || isClearing}
-        />
+        <div>
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
+            LLM Provider
+          </label>
+          <select
+            value={selectedProvider}
+            onChange={(e) => {
+              setSelectedProvider(
+                e.target.value as "google" | "openai" | "anthropic"
+              );
+              setApiKey("");
+            }}
+            className="w-full border border-neutral-300 rounded-xl p-3 text-sm bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isSaving || isClearing}
+          >
+            <option value="google">Google AI</option>
+            {/* OpenAI and Anthropic options are available but not yet fully supported in the UI */}
+            {/* <option value="openai">OpenAI</option> */}
+            {/* <option value="anthropic">Anthropic</option> */}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
+            {providerDisplayNames[selectedProvider]} API Key
+          </label>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder={
+              hasKey
+                ? "Enter new key to replace existing"
+                : `Enter your ${providerDisplayNames[selectedProvider]} API key`
+            }
+            className="w-full border border-neutral-300 rounded-xl p-3 font-mono text-sm bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isSaving || isClearing}
+          />
+        </div>
         <div className="flex gap-3">
           <button
             onClick={handleSave}
@@ -613,7 +659,8 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               <LazyAccordionContent isExpanded={expandedSection === "api-key"}>
                 <WorkspaceApiKeyManager
                   workspaceId={id!}
-                  hasKey={workspace.hasGoogleApiKey || false}
+                  apiKeys={workspace.apiKeys}
+                  hasGoogleApiKey={workspace.hasGoogleApiKey}
                 />
               </LazyAccordionContent>
             </AccordionSection>

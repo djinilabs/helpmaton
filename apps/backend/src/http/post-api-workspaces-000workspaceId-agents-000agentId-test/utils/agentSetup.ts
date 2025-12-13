@@ -124,8 +124,9 @@ export async function setupAgentAndTools(
 ): Promise<AgentSetup> {
   const { agent } = await validateWorkspaceAndAgent(workspaceId, agentId);
 
-  // Fetch workspace API key if it exists
-  const workspaceApiKey = await getWorkspaceApiKey(workspaceId);
+  // Fetch workspace API key if it exists (only for Google provider since createAgentModel only supports Google)
+  const agentProvider = "google"; // createAgentModel only supports Google
+  const workspaceApiKey = await getWorkspaceApiKey(workspaceId, agentProvider);
   const usesByok = workspaceApiKey !== null;
 
   // Use agent's modelName if set, otherwise use default

@@ -82,14 +82,44 @@ export const registerGetWorkspaceById = (app: express.Application) => {
           userRef
         );
 
-        // Check if workspace has API key
+        // Check API key status for all providers
         const workspaceId = workspace.pk.replace("workspaces/", "");
-        const workspaceKeyPk = `workspace-api-keys/${workspaceId}`;
-        const workspaceKeySk = "key";
-        const workspaceKey = await db["workspace-api-key"].get(
-          workspaceKeyPk,
-          workspaceKeySk
-        );
+        const sk = "key";
+
+        // Query all API keys for this workspace using GSI
+        const result = await db["workspace-api-key"].query({
+          IndexName: "byWorkspaceId",
+          KeyConditionExpression: "workspaceId = :workspaceId",
+          ExpressionAttributeValues: {
+            ":workspaceId": workspaceId,
+          },
+        });
+
+        // Extract providers from the keys
+        const providersWithKeys = new Set<string>();
+        for (const item of result.items || []) {
+          if (item.provider) {
+            providersWithKeys.add(item.provider);
+          }
+        }
+
+        // Also check for old format key (Google only) for backward compatibility
+        const oldPk = `workspace-api-keys/${workspaceId}`;
+        try {
+          const oldKey = await db["workspace-api-key"].get(oldPk, sk);
+          if (oldKey) {
+            providersWithKeys.add("google");
+          }
+        } catch {
+          // Old key doesn't exist
+        }
+
+        // Build API keys object
+        const apiKeys: Record<string, boolean> = {
+          google: providersWithKeys.has("google"),
+          openai: providersWithKeys.has("openai"),
+          anthropic: providersWithKeys.has("anthropic"),
+        };
 
         res.json({
           id: workspaceId,
@@ -99,7 +129,8 @@ export const registerGetWorkspaceById = (app: express.Application) => {
           creditBalance: workspace.creditBalance ?? 0,
           currency: workspace.currency ?? "usd",
           spendingLimits: workspace.spendingLimits ?? [],
-          hasGoogleApiKey: !!workspaceKey,
+          hasGoogleApiKey: apiKeys.google, // Keep for backward compatibility
+          apiKeys, // New field with all providers
           createdAt: workspace.createdAt,
         });
       } catch (error) {

@@ -1,11 +1,11 @@
-import { badRequest, unauthorized } from "@hapi/boom";
 import express from "express";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// eslint-disable-next-line import/order
 import {
+  createMockDatabase,
   createMockRequest,
   createMockResponse,
-  createMockDatabase,
 } from "../../../utils/__tests__/test-helpers";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
@@ -20,9 +20,43 @@ vi.mock("../../../../tables", () => ({
   database: mockDatabase,
 }));
 
+// Mock middleware to pass through
+vi.mock("../middleware", () => ({
+  requireAuth: (
+    _req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction
+  ) => {
+    next();
+  },
+  requirePermission:
+    () =>
+    (
+      _req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction
+    ) => {
+      next();
+    },
+  handleError: (error: unknown, next: express.NextFunction) => {
+    next(error);
+  },
+}));
+
+// Import the actual route handler after mocks are set up
+import { registerPutWorkspaceApiKey } from "../put-workspace-api-key";
+
+import { createTestAppWithHandlerCapture } from "./route-test-helpers";
+
 describe("PUT /api/workspaces/:workspaceId/api-key", () => {
+  let testApp: ReturnType<typeof createTestAppWithHandlerCapture>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    testApp = createTestAppWithHandlerCapture();
+
+    // Register the actual route handler
+    registerPutWorkspaceApiKey(testApp.app);
   });
 
   async function callRouteHandler(
@@ -30,77 +64,17 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     res: Partial<express.Response>,
     next: express.NextFunction
   ) {
-    // Extract the handler logic directly
-    const handler = async (
-      req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => {
-      try {
-        const db = await mockDatabase();
-        const workspaceResource = (req as { workspaceResource?: string })
-          .workspaceResource;
-        if (!workspaceResource) {
-          throw badRequest("Workspace resource not found");
-        }
-        const workspaceId = req.params.workspaceId;
-        const { key, provider } = req.body;
+    // Get the actual route handler that was registered
+    const routeHandler = testApp.putHandler(
+      "/api/workspaces/:workspaceId/api-key"
+    );
+    if (!routeHandler) {
+      throw new Error(
+        "Route handler not found - route may not be registered correctly"
+      );
+    }
 
-        if (key === undefined) {
-          throw badRequest("key is required");
-        }
-
-        const currentUserRef = (req as { userRef?: string }).userRef;
-        if (!currentUserRef) {
-          throw unauthorized();
-        }
-
-        const pk = `workspace-api-keys/${workspaceId}`;
-        const sk = "key";
-
-        if (!key || key === "") {
-          // Delete the key if it exists
-          try {
-            await db["workspace-api-key"].delete(pk, sk);
-          } catch {
-            // Key doesn't exist, that's fine
-          }
-          res.status(204).send();
-          return;
-        }
-
-        // Check if key already exists
-        const existing = await db["workspace-api-key"].get(pk, sk);
-
-        if (existing) {
-          // Update existing key
-          await db["workspace-api-key"].update({
-            pk,
-            sk,
-            key,
-            provider: provider || "google",
-            updatedBy: currentUserRef,
-            updatedAt: new Date().toISOString(),
-          });
-        } else {
-          // Create new key
-          await db["workspace-api-key"].create({
-            pk,
-            sk,
-            workspaceId,
-            key,
-            provider: provider || "google",
-            createdBy: currentUserRef,
-          });
-        }
-
-        res.status(200).json({ success: true });
-      } catch (error) {
-        next(error);
-      }
-    };
-
-    await handler(req as express.Request, res as express.Response, next);
+    await routeHandler(req as express.Request, res as express.Response, next);
   }
 
   it("should create new API key when key does not exist", async () => {
@@ -142,11 +116,11 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     await callRouteHandler(req, res, next);
 
     expect(mockApiKeyGet).toHaveBeenCalledWith(
-      `workspace-api-keys/${workspaceId}`,
+      `workspace-api-keys/${workspaceId}/${provider}`,
       "key"
     );
     expect(mockApiKeyCreate).toHaveBeenCalledWith({
-      pk: `workspace-api-keys/${workspaceId}`,
+      pk: `workspace-api-keys/${workspaceId}/${provider}`,
       sk: "key",
       workspaceId,
       key: apiKey,
@@ -168,11 +142,11 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     const provider = "openai";
 
     const existingKey = {
-      pk: `workspace-api-keys/${workspaceId}`,
+      pk: `workspace-api-keys/${workspaceId}/${provider}`,
       sk: "key",
       workspaceId,
       key: oldApiKey,
-      provider: "google",
+      provider,
       createdBy: `users/${userId}`,
       createdAt: "2024-01-01T00:00:00Z",
     };
@@ -206,11 +180,11 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     await callRouteHandler(req, res, next);
 
     expect(mockApiKeyGet).toHaveBeenCalledWith(
-      `workspace-api-keys/${workspaceId}`,
+      `workspace-api-keys/${workspaceId}/${provider}`,
       "key"
     );
     expect(mockApiKeyUpdate).toHaveBeenCalledWith({
-      pk: `workspace-api-keys/${workspaceId}`,
+      pk: `workspace-api-keys/${workspaceId}/${provider}`,
       sk: "key",
       key: newApiKey,
       provider,
@@ -221,26 +195,13 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     expect(res.json).toHaveBeenCalledWith({ success: true });
   });
 
-  it("should use default provider 'google' when provider is not provided", async () => {
+  it("should throw badRequest when provider is not provided", async () => {
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
 
     const workspaceId = "workspace-123";
     const userId = "user-456";
     const apiKey = "test-api-key-123";
-
-    const mockApiKeyGet = vi.fn().mockResolvedValue(null);
-    mockDb["workspace-api-key"].get = mockApiKeyGet;
-
-    const mockApiKeyCreate = vi.fn().mockResolvedValue({
-      pk: `workspace-api-keys/${workspaceId}`,
-      sk: "key",
-      workspaceId,
-      key: apiKey,
-      provider: "google",
-      createdBy: `users/${userId}`,
-    });
-    mockDb["workspace-api-key"].create = mockApiKeyCreate;
 
     const req = createMockRequest({
       workspaceResource: `workspaces/${workspaceId}`,
@@ -258,14 +219,16 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
 
     await callRouteHandler(req, res, next);
 
-    expect(mockApiKeyCreate).toHaveBeenCalledWith({
-      pk: `workspace-api-keys/${workspaceId}`,
-      sk: "key",
-      workspaceId,
-      key: apiKey,
-      provider: "google", // Default provider
-      createdBy: `users/${userId}`,
-    });
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        output: expect.objectContaining({
+          statusCode: 400,
+          payload: expect.objectContaining({
+            message: expect.stringContaining("provider is required"),
+          }),
+        }),
+      })
+    );
   });
 
   it("should delete API key when key is empty string", async () => {
@@ -274,6 +237,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
 
     const workspaceId = "workspace-123";
     const userId = "user-456";
+    const provider = "google";
 
     const mockApiKeyDelete = vi.fn().mockResolvedValue(undefined);
     mockDb["workspace-api-key"].delete = mockApiKeyDelete;
@@ -286,6 +250,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
       },
       body: {
         key: "", // Empty string to delete
+        provider,
       },
     });
     const res = createMockResponse();
@@ -294,7 +259,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     await callRouteHandler(req, res, next);
 
     expect(mockApiKeyDelete).toHaveBeenCalledWith(
-      `workspace-api-keys/${workspaceId}`,
+      `workspace-api-keys/${workspaceId}/${provider}`,
       "key"
     );
     expect(res.status).toHaveBeenCalledWith(204);
@@ -307,6 +272,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
 
     const workspaceId = "workspace-123";
     const userId = "user-456";
+    const provider = "google";
 
     const mockApiKeyDelete = vi.fn().mockRejectedValue(new Error("Not found"));
     mockDb["workspace-api-key"].delete = mockApiKeyDelete;
@@ -319,6 +285,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
       },
       body: {
         key: "", // Empty string to delete
+        provider,
       },
     });
     const res = createMockResponse();
@@ -328,7 +295,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
 
     // Should still return 204 even if delete fails (key doesn't exist)
     expect(mockApiKeyDelete).toHaveBeenCalledWith(
-      `workspace-api-keys/${workspaceId}`,
+      `workspace-api-keys/${workspaceId}/${provider}`,
       "key"
     );
     expect(res.status).toHaveBeenCalledWith(204);
@@ -381,6 +348,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
       },
       body: {
         key: "test-api-key",
+        provider: "google",
       },
     });
     const res = createMockResponse();
@@ -412,6 +380,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
       },
       body: {
         key: "test-api-key",
+        provider: "google",
       },
     });
     const res = createMockResponse();

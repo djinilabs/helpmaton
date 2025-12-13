@@ -5,12 +5,18 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
+import {
+  isValidProvider,
+  isNotFoundError,
+  VALID_PROVIDERS,
+} from "./workspaceApiKeyUtils";
+
 /**
  * @openapi
  * /api/workspaces/{workspaceId}/api-key:
  *   delete:
  *     summary: Delete workspace API key
- *     description: Permanently deletes the Google API key for a workspace. After deletion, Google services integration will no longer work until a new key is configured. This action cannot be undone. Requires WRITE permission or higher.
+ *     description: Permanently deletes the API key for a workspace for the specified provider. After deletion, the provider's services integration will no longer work until a new key is configured. This action cannot be undone. Requires WRITE permission or higher.
  *     tags:
  *       - Workspace Settings
  *     security:
@@ -22,6 +28,13 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *         description: Workspace ID
  *         schema:
  *           type: string
+ *       - name: provider
+ *         in: query
+ *         required: true
+ *         description: LLM provider name
+ *         schema:
+ *           type: string
+ *           enum: [google, openai, anthropic]
  *     responses:
  *       204:
  *         description: API key deleted successfully
@@ -47,11 +60,49 @@ export const registerDeleteWorkspaceApiKey = (app: express.Application) => {
           throw badRequest("Workspace resource not found");
         }
         const workspaceId = req.params.workspaceId;
+        const provider = req.query.provider as string;
 
-        const pk = `workspace-api-keys/${workspaceId}`;
+        if (!provider || typeof provider !== "string") {
+          throw badRequest("provider query parameter is required");
+        }
+
+        // Validate provider is one of the supported values
+        if (!isValidProvider(provider)) {
+          throw badRequest(
+            `provider must be one of: ${VALID_PROVIDERS.join(", ")}`
+          );
+        }
+
+        const pk = `workspace-api-keys/${workspaceId}/${provider}`;
         const sk = "key";
 
-        await db["workspace-api-key"].delete(pk, sk);
+        // Delete key in new format
+        // Only catch "not found" errors, let other errors propagate
+        try {
+          await db["workspace-api-key"].delete(pk, sk);
+        } catch (error) {
+          // Check if it's a "not found" error - if so, continue
+          // Otherwise, re-throw the error
+          if (!isNotFoundError(error)) {
+            throw error;
+          }
+          // Key doesn't exist in new format, continue to check old format
+        }
+
+        // Backward compatibility: also delete old format key for Google provider
+        if (provider === "google") {
+          const oldPk = `workspace-api-keys/${workspaceId}`;
+          try {
+            await db["workspace-api-key"].delete(oldPk, sk);
+          } catch (error) {
+            // Check if it's a "not found" error - if so, continue
+            // Otherwise, re-throw the error
+            if (!isNotFoundError(error)) {
+              throw error;
+            }
+            // Old key doesn't exist, that's fine
+          }
+        }
 
         res.status(204).send();
       } catch (error) {

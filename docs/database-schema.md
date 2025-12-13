@@ -200,23 +200,23 @@ All tables are configured with `encrypt true` in `app.arc`, meaning DynamoDB enc
 
 **Purpose**: Workspace-level API keys for BYOK (Bring Your Own Key)
 
-**Partition Key**: `pk` (String) - `workspace-api-keys/{workspaceId}`
+**Partition Key**: `pk` (String) - `workspace-api-keys/{workspaceId}/{provider}`
 **Sort Key**: `sk` (String) - fixed value "key"
 
 **Fields**:
 
 - `workspaceId` (String): Workspace ID for GSI queries
 - `key` (String): The actual API key value (encrypted at rest)
-- `provider` (Enum: "google", default: "google"): Provider name
+- `provider` (Enum: "google" | "openai" | "anthropic", default: "google"): LLM provider name
 
 **Global Secondary Indexes**:
 
-- **byWorkspaceId** (`workspaceId`, `pk`): Find workspace API key
+- **byWorkspaceId** (`workspaceId`, `pk`): Find all API keys for a workspace
 
 **Access Patterns**:
 
-- Get workspace API key: Get with `pk = workspace-api-keys/{workspaceId}`, `sk = key`
-- Query by workspace: Query GSI with `workspaceId = {id}`
+- Get workspace API key for a provider: Get with `pk = workspace-api-keys/{workspaceId}/{provider}`, `sk = key`
+- Query all keys by workspace: Query GSI with `workspaceId = {id}` to get all provider keys for a workspace
 
 ### 8. `workspace-document`
 

@@ -5,12 +5,14 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
+import { isValidProvider, VALID_PROVIDERS } from "./workspaceApiKeyUtils";
+
 /**
  * @openapi
  * /api/workspaces/{workspaceId}/api-key:
  *   get:
  *     summary: Get workspace API key status
- *     description: Returns whether the workspace has a Google API key configured. This is a boolean status check - the actual key value is never returned for security reasons. Requires READ permission or higher.
+ *     description: Returns whether the workspace has an API key configured for the specified provider. This is a boolean status check - the actual key value is never returned for security reasons. Requires READ permission or higher.
  *     tags:
  *       - Workspace Settings
  *     security:
@@ -22,6 +24,13 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *         description: Workspace ID
  *         schema:
  *           type: string
+ *       - name: provider
+ *         in: query
+ *         required: true
+ *         description: LLM provider name
+ *         schema:
+ *           type: string
+ *           enum: [google, openai, anthropic]
  *     responses:
  *       200:
  *         description: API key status
@@ -32,7 +41,7 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *               properties:
  *                 hasKey:
  *                   type: boolean
- *                   description: Whether workspace has a Google API key configured
+ *                   description: Whether workspace has an API key configured for the specified provider
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       401:
@@ -55,11 +64,38 @@ export const registerGetWorkspaceApiKey = (app: express.Application) => {
           throw badRequest("Workspace resource not found");
         }
         const workspaceId = req.params.workspaceId;
+        const provider = req.query.provider as string;
 
-        const pk = `workspace-api-keys/${workspaceId}`;
+        if (!provider || typeof provider !== "string") {
+          throw badRequest("provider query parameter is required");
+        }
+
+        // Validate provider is one of the supported values
+        if (!isValidProvider(provider)) {
+          throw badRequest(
+            `provider must be one of: ${VALID_PROVIDERS.join(", ")}`
+          );
+        }
+
+        const pk = `workspace-api-keys/${workspaceId}/${provider}`;
         const sk = "key";
 
-        const workspaceKey = await db["workspace-api-key"].get(pk, sk);
+        let workspaceKey;
+        try {
+          workspaceKey = await db["workspace-api-key"].get(pk, sk);
+        } catch {
+          // Key doesn't exist in new format
+        }
+
+        // Backward compatibility: check old format for Google provider only
+        if (!workspaceKey && provider === "google") {
+          const oldPk = `workspace-api-keys/${workspaceId}`;
+          try {
+            workspaceKey = await db["workspace-api-key"].get(oldPk, sk);
+          } catch {
+            // Old key doesn't exist either
+          }
+        }
 
         res.json({ hasKey: !!workspaceKey });
       } catch (error) {

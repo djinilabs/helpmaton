@@ -1,11 +1,11 @@
-import { badRequest } from "@hapi/boom";
 import express from "express";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// eslint-disable-next-line import/order
 import {
+  createMockDatabase,
   createMockRequest,
   createMockResponse,
-  createMockDatabase,
 } from "../../../utils/__tests__/test-helpers";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
@@ -20,9 +20,43 @@ vi.mock("../../../../tables", () => ({
   database: mockDatabase,
 }));
 
+// Mock middleware to pass through
+vi.mock("../middleware", () => ({
+  requireAuth: (
+    _req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction
+  ) => {
+    next();
+  },
+  requirePermission:
+    () =>
+    (
+      _req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction
+    ) => {
+      next();
+    },
+  handleError: (error: unknown, next: express.NextFunction) => {
+    next(error);
+  },
+}));
+
+// Import the actual route handler after mocks are set up
+import { registerDeleteWorkspaceApiKey } from "../delete-workspace-api-key";
+
+import { createTestAppWithHandlerCapture } from "./route-test-helpers";
+
 describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
+  let testApp: ReturnType<typeof createTestAppWithHandlerCapture>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    testApp = createTestAppWithHandlerCapture();
+
+    // Register the actual route handler
+    registerDeleteWorkspaceApiKey(testApp.app);
   });
 
   async function callRouteHandler(
@@ -30,33 +64,17 @@ describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
     res: Partial<express.Response>,
     next: express.NextFunction
   ) {
-    // Extract the handler logic directly
-    const handler = async (
-      req: express.Request,
-      res: express.Response,
-      next: express.NextFunction
-    ) => {
-      try {
-        const db = await mockDatabase();
-        const workspaceResource = (req as { workspaceResource?: string })
-          .workspaceResource;
-        if (!workspaceResource) {
-          throw badRequest("Workspace resource not found");
-        }
-        const workspaceId = req.params.workspaceId;
+    // Get the actual route handler that was registered
+    const routeHandler = testApp.deleteHandler(
+      "/api/workspaces/:workspaceId/api-key"
+    );
+    if (!routeHandler) {
+      throw new Error(
+        "Route handler not found - route may not be registered correctly"
+      );
+    }
 
-        const pk = `workspace-api-keys/${workspaceId}`;
-        const sk = "key";
-
-        await db["workspace-api-key"].delete(pk, sk);
-
-        res.status(204).send();
-      } catch (error) {
-        next(error);
-      }
-    };
-
-    await handler(req as express.Request, res as express.Response, next);
+    await routeHandler(req as express.Request, res as express.Response, next);
   }
 
   it("should delete API key successfully", async () => {
@@ -64,6 +82,7 @@ describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
     mockDatabase.mockResolvedValue(mockDb);
 
     const workspaceId = "workspace-123";
+    const provider = "google";
 
     const mockApiKeyDelete = vi.fn().mockResolvedValue(undefined);
     mockDb["workspace-api-key"].delete = mockApiKeyDelete;
@@ -73,6 +92,9 @@ describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
       params: {
         workspaceId,
       },
+      query: {
+        provider,
+      },
     });
     const res = createMockResponse();
     const next = vi.fn();
@@ -80,7 +102,7 @@ describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
     await callRouteHandler(req, res, next);
 
     expect(mockApiKeyDelete).toHaveBeenCalledWith(
-      `workspace-api-keys/${workspaceId}`,
+      `workspace-api-keys/${workspaceId}/${provider}`,
       "key"
     );
     expect(res.status).toHaveBeenCalledWith(204);
@@ -96,6 +118,9 @@ describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
       workspaceResource: undefined,
       params: {
         workspaceId: "workspace-123",
+      },
+      query: {
+        provider: "google",
       },
     });
     const res = createMockResponse();
@@ -121,6 +146,7 @@ describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
     mockDatabase.mockResolvedValue(mockDb);
 
     const workspaceId = "workspace-123";
+    const provider = "google";
     const error = new Error("Database error");
 
     const mockApiKeyDelete = vi.fn().mockRejectedValue(error);
@@ -131,6 +157,9 @@ describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
       params: {
         workspaceId,
       },
+      query: {
+        provider,
+      },
     });
     const res = createMockResponse();
     const next = vi.fn();
@@ -138,7 +167,7 @@ describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
     await callRouteHandler(req, res, next);
 
     expect(mockApiKeyDelete).toHaveBeenCalledWith(
-      `workspace-api-keys/${workspaceId}`,
+      `workspace-api-keys/${workspaceId}/${provider}`,
       "key"
     );
     expect(next).toHaveBeenCalledWith(error);
