@@ -107,6 +107,7 @@ interface StreamRequestContext {
   subscriptionId: string | undefined;
   db: Awaited<ReturnType<typeof database>>;
   uiMessage: UIMessage;
+  allMessages: UIMessage[];
   modelMessages: ModelMessage[];
   agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"];
   model: Awaited<ReturnType<typeof setupAgentAndTools>>["model"];
@@ -304,6 +305,7 @@ function extractRequestBody(event: LambdaUrlEvent): string {
  */
 function convertRequestBodyToMessages(bodyText: string): {
   uiMessage: UIMessage;
+  allMessages: UIMessage[];
   modelMessages: ModelMessage[];
   conversationId?: string;
 } {
@@ -402,17 +404,18 @@ function convertRequestBodyToMessages(bodyText: string): {
       throw error;
     }
 
-    return { uiMessage, modelMessages, conversationId };
+    return { uiMessage, allMessages: messages, modelMessages, conversationId };
   }
 
   // Fallback to plain text handling
   const uiMessage = convertTextToUIMessage(bodyText);
+  const allMessages = [uiMessage];
   // For plain text, use our local converter since it's in our UIMessage format
   const modelMessages: ModelMessage[] = convertUIMessagesToModelMessages([
     uiMessage,
   ]);
 
-  return { uiMessage, modelMessages, conversationId };
+  return { uiMessage, allMessages, modelMessages, conversationId };
 }
 
 /**
@@ -738,7 +741,7 @@ async function logConversationAsync(
   db: Awaited<ReturnType<typeof database>>,
   workspaceId: string,
   agentId: string,
-  uiMessage: UIMessage,
+  allMessages: UIMessage[],
   fullStreamedText: string,
   tokenUsage: ReturnType<typeof extractTokenUsage>,
   usesByok: boolean,
@@ -750,10 +753,10 @@ async function logConversationAsync(
   }
 
   try {
-    // Only create assistant message if we have text content
-    const validMessages: UIMessage[] = [uiMessage];
+    // Start with all messages from the request, preserving original order
+    const validMessages: UIMessage[] = [...allMessages];
 
-    // Add assistant's response if we extracted any text
+    // Add assistant's response at the end if we extracted any text
     if (
       fullStreamedText &&
       typeof fullStreamedText === "string" &&
@@ -927,7 +930,7 @@ async function buildRequestContext(
     throw new Error("Request body is required");
   }
 
-  const { uiMessage, modelMessages, conversationId } =
+  const { uiMessage, allMessages, modelMessages, conversationId } =
     convertRequestBodyToMessages(bodyText);
 
   // Derive the model name from the agent's modelName if set, otherwise use default
@@ -993,6 +996,7 @@ async function buildRequestContext(
     subscriptionId,
     db,
     uiMessage,
+    allMessages,
     modelMessages,
     agent,
     model,
@@ -1262,7 +1266,7 @@ const internalHandler = async (
       context.db,
       context.workspaceId,
       context.agentId,
-      context.uiMessage,
+      context.allMessages,
       fullStreamedText,
       tokenUsage,
       context.usesByok,
