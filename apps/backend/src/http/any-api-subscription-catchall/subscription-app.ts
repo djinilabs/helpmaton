@@ -1129,18 +1129,8 @@ export const createApp: () => express.Application = () => {
         throw badRequest("Subscription is not associated with Lemon Squeezy");
       }
 
-      // Get customer portal URL from Lemon Squeezy subscription attributes
-      // The subscription object includes urls.customer_portal which is the correct URL
-      const lemonSqueezySub = await getLemonSqueezySubscription(
-        subscription.lemonSqueezySubscriptionId
-      );
-      const portalUrl = lemonSqueezySub.attributes.urls.customer_portal;
-
-      if (!portalUrl) {
-        throw badRequest(
-          "Customer portal URL not available from Lemon Squeezy"
-        );
-      }
+      // Use the Lemon Squeezy orders page as the portal URL
+      const portalUrl = "https://app.lemonsqueezy.com/my-orders";
 
       res.json({
         portalUrl,

@@ -158,6 +158,7 @@ interface CheckoutData {
     receipt_button_text?: string;
     receipt_link_url?: string;
     receipt_thank_you_note?: string;
+    enabled_variants?: number[];
   };
   checkoutOptions?: {
     embed?: boolean;
@@ -374,7 +375,16 @@ export async function createCheckout(
   const attributes: Record<string, unknown> = {};
 
   if (data.customPrice !== undefined) {
-    attributes.custom_price = data.customPrice;
+    // Ensure custom_price is an integer (Lemon Squeezy requires positive integer in cents)
+    const customPrice = Math.round(data.customPrice);
+    if (customPrice <= 0) {
+      throw new Error("custom_price must be a positive integer");
+    }
+    attributes.custom_price = customPrice;
+    console.log("[createCheckout] Setting custom_price:", {
+      original: data.customPrice,
+      rounded: customPrice,
+    });
   }
   if (data.productOptions) {
     attributes.product_options = data.productOptions;
@@ -445,13 +455,21 @@ export async function createCheckout(
     variantId: data.variantId,
     hasCustomPrice: data.customPrice !== undefined,
     customPrice: data.customPrice,
+    customPriceInAttributes: attributes.custom_price,
     testMode,
+    requestBodyAttributes: JSON.stringify(attributes),
   });
 
   try {
     const response = await apiRequest<CheckoutResponse>("/checkouts", {
       method: "POST",
       body: JSON.stringify(requestBody),
+    });
+
+    console.log("[createCheckout] Checkout created successfully:", {
+      checkoutId: response.data.id,
+      url: response.data.attributes.url,
+      customPriceInResponse: response.data.attributes.custom_price,
     });
 
     return { url: response.data.attributes.url };

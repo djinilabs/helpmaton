@@ -65,10 +65,25 @@ export function registerPostWorkspaceCreditsPurchase(
 
       // Create checkout with custom price
       // We use the credit variant ID and override the price with custom_price
+      // custom_price must be a positive integer in cents
+      const customPriceInCents = Math.round(amount * 100);
+
+      console.log(
+        "[POST /api/workspaces/:workspaceId/credits/purchase] Creating checkout:",
+        {
+          workspaceId,
+          amount,
+          currency: workspace.currency,
+          customPriceInCents,
+          variantId: creditVariantId,
+          storeId,
+        }
+      );
+
       const checkout = await createCheckout({
         storeId,
         variantId: creditVariantId,
-        customPrice: amount * 100, // Convert to cents
+        customPrice: customPriceInCents, // Convert to cents (must be integer)
         checkoutData: {
           custom: {
             workspaceId,
@@ -76,7 +91,8 @@ export function registerPostWorkspaceCreditsPurchase(
         },
         productOptions: {
           name: "Workspace Credits",
-          description: `Add ${amount} EUR in credits to your workspace`,
+          description: `Add ${amount} ${workspace.currency.toUpperCase()} in credits to your workspace`,
+          enabled_variants: [parseInt(creditVariantId, 10)], // Only show this variant to ensure custom_price is used
         },
         checkoutOptions: {
           embed: false,
@@ -84,10 +100,17 @@ export function registerPostWorkspaceCreditsPurchase(
         },
       });
 
+      console.log(
+        "[POST /api/workspaces/:workspaceId/credits/purchase] Checkout created:",
+        {
+          checkoutId: checkout.url,
+          customPriceInCents,
+        }
+      );
+
       res.json({
         checkoutUrl: checkout.url,
       });
     })
   );
 }
-
