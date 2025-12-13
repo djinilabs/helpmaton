@@ -12,7 +12,6 @@ import { database } from "../../tables";
 import {
   createCheckout,
   cancelSubscription as cancelLemonSqueezySubscription,
-  getCustomerPortalUrl,
   getSubscription as getLemonSqueezySubscription,
   listSubscriptionsByCustomer,
   updateSubscriptionVariant,
@@ -1094,14 +1093,22 @@ export const createApp: () => express.Application = () => {
 
       const subscription = await getUserSubscription(currentUserId);
 
-      if (!subscription.lemonSqueezyCustomerId) {
+      if (!subscription.lemonSqueezySubscriptionId) {
         throw badRequest("Subscription is not associated with Lemon Squeezy");
       }
 
-      // Get customer portal URL
-      const portalUrl = await getCustomerPortalUrl(
-        subscription.lemonSqueezyCustomerId
+      // Get customer portal URL from Lemon Squeezy subscription attributes
+      // The subscription object includes urls.customer_portal which is the correct URL
+      const lemonSqueezySub = await getLemonSqueezySubscription(
+        subscription.lemonSqueezySubscriptionId
       );
+      const portalUrl = lemonSqueezySub.attributes.urls.customer_portal;
+
+      if (!portalUrl) {
+        throw badRequest(
+          "Customer portal URL not available from Lemon Squeezy"
+        );
+      }
 
       res.json({
         portalUrl,

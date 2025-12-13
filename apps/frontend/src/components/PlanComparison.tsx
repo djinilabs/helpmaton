@@ -6,14 +6,20 @@ interface PlanComparisonProps {
   currentPlan: "free" | "starter" | "pro";
   onUpgrade?: (plan: "starter" | "pro") => void;
   onDowngrade?: (plan: "free" | "starter" | "pro") => void;
+  isLoading?: boolean;
 }
 
 export const PlanComparison: FC<PlanComparisonProps> = ({
   currentPlan,
   onUpgrade,
   onDowngrade,
+  isLoading = false,
 }) => {
   const checkoutMutation = useSubscriptionCheckout();
+  // If onUpgrade/onDowngrade are provided, use the external loading state
+  // Otherwise, use the internal checkoutMutation loading state
+  const isUpgradeLoading = onUpgrade ? isLoading : checkoutMutation.isPending;
+  const isDowngradeLoading = onDowngrade ? isLoading : false;
 
   const handleUpgrade = (plan: "starter" | "pro") => {
     if (onUpgrade) {
@@ -55,6 +61,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
           (starterLimits?.maxDocumentSizeBytes || 0) / (1024 * 1024)
         } MB storage`,
         `${starterLimits?.maxDailyRequests || 0} requests/day`,
+        `${starterLimits?.maxUsers || 1} team member`,
       ],
     },
     {
@@ -69,6 +76,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
         `${proLimits?.maxAgents || 50} agents`,
         `${(proLimits?.maxDocumentSizeBytes || 0) / (1024 * 1024)} MB storage`,
         `${proLimits?.maxDailyRequests || 0} requests/day`,
+        `${proLimits?.maxUsers || 5} team members`,
         "Unlimited managers",
       ],
     },
@@ -137,19 +145,20 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
             {canUpgrade && (
               <button
                 onClick={() => handleUpgrade(plan.plan)}
-                disabled={checkoutMutation.isPending}
+                disabled={isUpgradeLoading}
                 className="w-full bg-gradient-primary text-white font-semibold py-3 px-6 rounded-xl hover:shadow-colored transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {checkoutMutation.isPending ? "Loading..." : "Upgrade"}
+                {isUpgradeLoading ? "Loading..." : "Upgrade"}
               </button>
             )}
 
             {canDowngrade && onDowngrade && (
               <button
                 onClick={() => onDowngrade(plan.plan)}
-                className="w-full border border-neutral-300 text-neutral-700 font-semibold py-3 px-6 rounded-xl hover:bg-neutral-50 transition-all duration-200"
+                disabled={isDowngradeLoading}
+                className="w-full border border-neutral-300 text-neutral-700 font-semibold py-3 px-6 rounded-xl hover:bg-neutral-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Downgrade
+                {isDowngradeLoading ? "Loading..." : "Downgrade"}
               </button>
             )}
 
@@ -175,6 +184,7 @@ function getPlanLimits(plan: "free" | "starter" | "pro") {
       maxDocumentSizeBytes: number;
       maxAgents: number;
       maxDailyRequests: number;
+      maxUsers: number;
     }
   > = {
     free: {
@@ -183,6 +193,7 @@ function getPlanLimits(plan: "free" | "starter" | "pro") {
       maxDocumentSizeBytes: 1024 * 1024,
       maxAgents: 1,
       maxDailyRequests: 50,
+      maxUsers: 1,
     },
     starter: {
       maxWorkspaces: 1,
@@ -190,6 +201,7 @@ function getPlanLimits(plan: "free" | "starter" | "pro") {
       maxDocumentSizeBytes: 10 * 1024 * 1024,
       maxAgents: 5,
       maxDailyRequests: 2500,
+      maxUsers: 1,
     },
     pro: {
       maxWorkspaces: 5,
@@ -197,10 +209,8 @@ function getPlanLimits(plan: "free" | "starter" | "pro") {
       maxDocumentSizeBytes: 100 * 1024 * 1024,
       maxAgents: 50,
       maxDailyRequests: 25000,
+      maxUsers: 5,
     },
   };
   return limits[plan];
 }
-
-
-

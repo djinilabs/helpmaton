@@ -448,6 +448,11 @@ const SubscriptionManagement: FC = () => {
           </h2>
           <PlanComparison
             currentPlan={subscription.plan}
+            isLoading={
+              checkoutMutation.isPending ||
+              changePlanMutation.isPending ||
+              cancelMutation.isPending
+            }
             onUpgrade={(plan) => {
               // If user has an active Lemon Squeezy subscription (not free plan), change plan instead of creating checkout
               // Free plans should always go through checkout to create a new subscription
@@ -477,7 +482,7 @@ const SubscriptionManagement: FC = () => {
                 // Downgrading to a different paid plan (e.g., pro to starter)
                 if (
                   window.confirm(
-                    `Are you sure you want to downgrade to ${targetPlan}? The change will take effect on your next billing cycle.`
+                    `Are you sure you want to downgrade to ${targetPlan}?`
                   )
                 ) {
                   changePlanMutation.mutate(targetPlan);
