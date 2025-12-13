@@ -5,6 +5,8 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
+import { VALID_PROVIDERS } from "./workspaceApiKeyUtils";
+
 /**
  * @openapi
  * /api/workspaces/{workspaceId}/api-keys:
@@ -95,8 +97,7 @@ export const registerGetWorkspaceApiKeys = (app: express.Application) => {
         }
 
         // Return status for all supported providers
-        const supportedProviders = ["google", "openai", "anthropic"];
-        const keys = supportedProviders.map((provider) => ({
+        const keys = VALID_PROVIDERS.map((provider) => ({
           provider,
           hasKey: providersWithKeys.has(provider),
         }));

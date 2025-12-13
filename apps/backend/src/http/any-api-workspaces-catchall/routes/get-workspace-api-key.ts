@@ -5,6 +5,8 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
+import { isValidProvider, VALID_PROVIDERS } from "./workspaceApiKeyUtils";
+
 /**
  * @openapi
  * /api/workspaces/{workspaceId}/api-key:
@@ -69,10 +71,9 @@ export const registerGetWorkspaceApiKey = (app: express.Application) => {
         }
 
         // Validate provider is one of the supported values
-        const validProviders = ["google", "openai", "anthropic"];
-        if (!validProviders.includes(provider)) {
+        if (!isValidProvider(provider)) {
           throw badRequest(
-            `provider must be one of: ${validProviders.join(", ")}`
+            `provider must be one of: ${VALID_PROVIDERS.join(", ")}`
           );
         }
 

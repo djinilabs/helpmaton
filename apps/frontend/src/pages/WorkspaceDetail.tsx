@@ -206,11 +206,12 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
           </label>
           <select
             value={selectedProvider}
-            onChange={(e) =>
+            onChange={(e) => {
               setSelectedProvider(
                 e.target.value as "google" | "openai" | "anthropic"
-              )
-            }
+              );
+              setApiKey("");
+            }}
             className="w-full border border-neutral-300 rounded-xl p-3 text-sm bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={isSaving || isClearing}
           >

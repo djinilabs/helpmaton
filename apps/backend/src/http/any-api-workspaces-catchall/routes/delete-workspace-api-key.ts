@@ -5,6 +5,12 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
+import {
+  isValidProvider,
+  isNotFoundError,
+  VALID_PROVIDERS,
+} from "./workspaceApiKeyUtils";
+
 /**
  * @openapi
  * /api/workspaces/{workspaceId}/api-key:
@@ -61,10 +67,9 @@ export const registerDeleteWorkspaceApiKey = (app: express.Application) => {
         }
 
         // Validate provider is one of the supported values
-        const validProviders = ["google", "openai", "anthropic"];
-        if (!validProviders.includes(provider)) {
+        if (!isValidProvider(provider)) {
           throw badRequest(
-            `provider must be one of: ${validProviders.join(", ")}`
+            `provider must be one of: ${VALID_PROVIDERS.join(", ")}`
           );
         }
 
@@ -78,13 +83,7 @@ export const registerDeleteWorkspaceApiKey = (app: express.Application) => {
         } catch (error) {
           // Check if it's a "not found" error - if so, continue
           // Otherwise, re-throw the error
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          if (
-            !errorMessage.includes("not found") &&
-            !errorMessage.includes("Not found") &&
-            !errorMessage.includes("does not exist")
-          ) {
+          if (!isNotFoundError(error)) {
             throw error;
           }
           // Key doesn't exist in new format, continue to check old format
@@ -98,13 +97,7 @@ export const registerDeleteWorkspaceApiKey = (app: express.Application) => {
           } catch (error) {
             // Check if it's a "not found" error - if so, continue
             // Otherwise, re-throw the error
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
-            if (
-              !errorMessage.includes("not found") &&
-              !errorMessage.includes("Not found") &&
-              !errorMessage.includes("does not exist")
-            ) {
+            if (!isNotFoundError(error)) {
               throw error;
             }
             // Old key doesn't exist, that's fine
