@@ -62,7 +62,7 @@ describe("tableApi", () => {
       const result = await table.atomicUpdate(
         "workspaces/workspace-123",
         "workspace",
-        async (_current) => {
+        async () => {
           return {
             pk: "workspaces/workspace-123",
             name: "Updated Workspace",
@@ -102,7 +102,7 @@ describe("tableApi", () => {
         table.atomicUpdate(
           "workspaces/workspace-123",
           "workspace",
-          async (current) => ({
+          async () => ({
             pk: "workspaces/workspace-123",
             name: "Updated Workspace",
           }),
@@ -134,7 +134,7 @@ describe("tableApi", () => {
       const result = await table.atomicUpdate(
         "workspaces/workspace-123",
         "workspace",
-        async (_current) => ({
+        async () => ({
           pk: "workspaces/workspace-123",
           name: "Updated Workspace",
         }),
@@ -159,7 +159,7 @@ describe("tableApi", () => {
       mockLowLevelTable.get.mockResolvedValue(existingItem);
       mockLowLevelClient.PutItem.mockResolvedValue({});
 
-      const updater = vi.fn(async (_current) => {
+      const updater = vi.fn(async () => {
         return {
           pk: "workspaces/workspace-123",
           creditBalance: 90.0,
@@ -200,7 +200,7 @@ describe("tableApi", () => {
       await table.atomicUpdate(
         "workspaces/workspace-123",
         "workspace",
-        async (current) => ({
+        async () => ({
           pk: "workspaces/workspace-123",
           name: "Updated",
         })
@@ -232,7 +232,7 @@ describe("tableApi", () => {
       const result = await table.atomicUpdate(
         "workspaces/workspace-123",
         "workspace",
-        async (current) => ({
+        async () => ({
           pk: "workspaces/workspace-123",
           name: "Updated",
         })
@@ -291,7 +291,7 @@ describe("tableApi", () => {
         table.atomicUpdate(
           "workspaces/workspace-123",
           "workspace",
-          async (_current) => ({
+          async () => ({
             pk: "workspaces/workspace-123",
             name: "Updated",
           }),
