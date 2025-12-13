@@ -458,6 +458,7 @@ export async function createCheckout(
     customPriceInAttributes: attributes.custom_price,
     testMode,
     requestBodyAttributes: JSON.stringify(attributes),
+    fullRequestBody: JSON.stringify(requestBody, null, 2),
   });
 
   try {
@@ -470,7 +471,26 @@ export async function createCheckout(
       checkoutId: response.data.id,
       url: response.data.attributes.url,
       customPriceInResponse: response.data.attributes.custom_price,
+      variantIdInResponse: response.data.attributes.variant_id,
+      fullResponseAttributes: JSON.stringify(response.data.attributes, null, 2),
     });
+
+    // Verify custom_price was set correctly
+    if (data.customPrice !== undefined) {
+      const expectedPrice = Math.round(data.customPrice);
+      const actualPrice = response.data.attributes.custom_price;
+      if (actualPrice !== expectedPrice) {
+        console.error(
+          `[createCheckout] WARNING: custom_price mismatch! Expected ${expectedPrice}, got ${actualPrice}`
+        );
+      } else {
+        console.log(
+          `[createCheckout] ✓ custom_price verified: ${actualPrice} cents (${(
+            actualPrice / 100
+          ).toFixed(2)} in currency units)`
+        );
+      }
+    }
 
     return { url: response.data.attributes.url };
   } catch (error) {
