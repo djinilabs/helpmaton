@@ -8,7 +8,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
-import { createCheckout } from "../../../utils/lemonSqueezy";
+import { createCheckout, getVariant } from "../../../utils/lemonSqueezy";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 export function registerPostWorkspaceCreditsPurchase(
@@ -57,6 +57,30 @@ export function registerPostWorkspaceCreditsPurchase(
         throw new Error("LEMON_SQUEEZY_CREDIT_VARIANT_ID is not configured");
       }
 
+      // Check variant configuration
+      // For PWYW variants, custom_price sets the price that will be charged,
+      // but the UI may still show an input field that needs to be filled
+      try {
+        const variant = await getVariant(creditVariantId);
+        console.log(
+          `[POST /api/workspaces/:workspaceId/credits/purchase] Variant configuration:`,
+          {
+            variantId: creditVariantId,
+            variantName: variant.attributes.name,
+            isPWYW: variant.attributes.pay_what_you_want,
+            defaultPrice: variant.attributes.price,
+            minPrice: variant.attributes.min_price,
+            maxPrice: variant.attributes.max_price,
+          }
+        );
+      } catch (error) {
+        console.warn(
+          `[POST /api/workspaces/:workspaceId/credits/purchase] Could not fetch variant details:`,
+          error instanceof Error ? error.message : String(error)
+        );
+        // Continue anyway - variant might still work
+      }
+
       // Get store ID
       const storeId = process.env.LEMON_SQUEEZY_STORE_ID;
       if (!storeId) {
@@ -98,7 +122,7 @@ export function registerPostWorkspaceCreditsPurchase(
         },
         productOptions: {
           name: "Workspace Credits",
-          description: `Add ${amount} ${workspace.currency.toUpperCase()} in credits to your workspace`,
+          description: `Please enter ${amount} ${workspace.currency.toUpperCase()} in the amount field below. This will add ${amount} ${workspace.currency.toUpperCase()} in credits to your workspace.`,
           enabled_variants: [parseInt(creditVariantId, 10)], // Only show this variant to ensure custom_price is used
           redirect_url: redirectUrl, // Redirect back to workspace after successful purchase
         },
