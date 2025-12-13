@@ -2,6 +2,7 @@ import { ExpressAuthConfig } from "@auth/express";
 
 import { getDefined, once } from "./utils";
 import { getDynamoDBAdapter } from "./utils/authUtils";
+import { getUserSubscription, getUserByEmail } from "./utils/subscriptionUtils";
 
 // Function to check if user is allowed to sign in
 async function isUserAllowedToSignIn(email: string): Promise<boolean> {
@@ -147,6 +148,35 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
 
         // For email authentication
         if (account?.type === "email") {
+          // Ensure user has a subscription (create free subscription if needed)
+          try {
+            // Get userId - use user.id if available, otherwise look up by email
+            let userId: string | undefined = user.id;
+
+            if (!userId && user.email) {
+              const userRecord = await getUserByEmail(user.email);
+              userId = userRecord?.userId;
+            }
+
+            if (userId) {
+              // This will create a free subscription if one doesn't exist
+              await getUserSubscription(userId);
+              console.log(
+                `[signIn] Ensured subscription exists for user ${userId}`
+              );
+            } else {
+              console.warn(
+                `[signIn] Could not determine userId for user with email ${user.email}`
+              );
+            }
+          } catch (error) {
+            // Log error but don't block login
+            console.error(
+              `[signIn] Failed to ensure subscription for user ${user.email}:`,
+              error instanceof Error ? error.message : String(error)
+            );
+          }
+
           return true;
         }
 
