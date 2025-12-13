@@ -63,6 +63,13 @@ export function registerPostWorkspaceCreditsPurchase(
         throw new Error("LEMON_SQUEEZY_STORE_ID is not configured");
       }
 
+      // Get base URL for redirect after successful purchase
+      const baseUrl =
+        process.env.BASE_URL ||
+        process.env.FRONTEND_URL ||
+        "https://app.helpmaton.com";
+      const redirectUrl = `${baseUrl}/workspaces/${workspaceId}?credits_purchased=true`;
+
       // Create checkout with custom price
       // We use the credit variant ID and override the price with custom_price
       // custom_price must be a positive integer in cents
@@ -93,6 +100,7 @@ export function registerPostWorkspaceCreditsPurchase(
           name: "Workspace Credits",
           description: `Add ${amount} ${workspace.currency.toUpperCase()} in credits to your workspace`,
           enabled_variants: [parseInt(creditVariantId, 10)], // Only show this variant to ensure custom_price is used
+          redirect_url: redirectUrl, // Redirect back to workspace after successful purchase
         },
         checkoutOptions: {
           embed: false,
