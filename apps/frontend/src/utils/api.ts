@@ -11,7 +11,12 @@ export interface Workspace {
   creditBalance?: number;
   currency?: Currency;
   spendingLimits?: SpendingLimit[];
-  hasGoogleApiKey?: boolean;
+  hasGoogleApiKey?: boolean; // Keep for backward compatibility
+  apiKeys?: {
+    google: boolean;
+    openai: boolean;
+    anthropic: boolean;
+  };
   createdAt: string;
   updatedAt?: string;
 }
@@ -553,7 +558,7 @@ export async function deleteWorkspace(id: string): Promise<void> {
 export async function setWorkspaceApiKey(
   workspaceId: string,
   key: string | null,
-  provider?: string
+  provider: string
 ): Promise<void> {
   await apiFetch(`/api/workspaces/${workspaceId}/api-key`, {
     method: "PUT",
@@ -562,18 +567,36 @@ export async function setWorkspaceApiKey(
 }
 
 export async function getWorkspaceApiKeyStatus(
-  workspaceId: string
+  workspaceId: string,
+  provider: string
 ): Promise<{ hasKey: boolean }> {
-  const response = await apiFetch(`/api/workspaces/${workspaceId}/api-key`);
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/api-key?provider=${encodeURIComponent(
+      provider
+    )}`
+  );
+  return response.json();
+}
+
+export async function getWorkspaceApiKeys(
+  workspaceId: string
+): Promise<{ keys: Array<{ provider: string; hasKey: boolean }> }> {
+  const response = await apiFetch(`/api/workspaces/${workspaceId}/api-keys`);
   return response.json();
 }
 
 export async function deleteWorkspaceApiKey(
-  workspaceId: string
+  workspaceId: string,
+  provider: string
 ): Promise<void> {
-  await apiFetch(`/api/workspaces/${workspaceId}/api-key`, {
-    method: "DELETE",
-  });
+  await apiFetch(
+    `/api/workspaces/${workspaceId}/api-key?provider=${encodeURIComponent(
+      provider
+    )}`,
+    {
+      method: "DELETE",
+    }
+  );
 }
 
 export interface TrialStatus {

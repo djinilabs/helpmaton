@@ -45,11 +45,39 @@ describe("GET /api/workspaces/:workspaceId/api-key", () => {
           throw badRequest("Workspace resource not found");
         }
         const workspaceId = req.params.workspaceId;
+        const provider = req.query.provider as string;
 
-        const pk = `workspace-api-keys/${workspaceId}`;
+        if (!provider || typeof provider !== "string") {
+          throw badRequest("provider query parameter is required");
+        }
+
+        // Validate provider is one of the supported values
+        const validProviders = ["google", "openai", "anthropic"];
+        if (!validProviders.includes(provider)) {
+          throw badRequest(
+            `provider must be one of: ${validProviders.join(", ")}`
+          );
+        }
+
+        const pk = `workspace-api-keys/${workspaceId}/${provider}`;
         const sk = "key";
 
-        const workspaceKey = await db["workspace-api-key"].get(pk, sk);
+        let workspaceKey;
+        try {
+          workspaceKey = await db["workspace-api-key"].get(pk, sk);
+        } catch {
+          // Key doesn't exist in new format
+        }
+
+        // Backward compatibility: check old format for Google provider only
+        if (!workspaceKey && provider === "google") {
+          const oldPk = `workspace-api-keys/${workspaceId}`;
+          try {
+            workspaceKey = await db["workspace-api-key"].get(oldPk, sk);
+          } catch {
+            // Old key doesn't exist either
+          }
+        }
 
         res.json({ hasKey: !!workspaceKey });
       } catch (error) {
@@ -66,10 +94,12 @@ describe("GET /api/workspaces/:workspaceId/api-key", () => {
 
     const workspaceId = "workspace-123";
 
+    const provider = "google";
     const mockApiKey = {
-      pk: `workspace-api-keys/${workspaceId}`,
+      pk: `workspace-api-keys/${workspaceId}/${provider}`,
       sk: "key",
       key: "api-key-value",
+      provider,
     };
 
     const mockApiKeyGet = vi.fn().mockResolvedValue(mockApiKey);
@@ -80,6 +110,9 @@ describe("GET /api/workspaces/:workspaceId/api-key", () => {
       params: {
         workspaceId,
       },
+      query: {
+        provider,
+      },
     });
     const res = createMockResponse();
     const next = createMockNext();
@@ -87,7 +120,7 @@ describe("GET /api/workspaces/:workspaceId/api-key", () => {
     await callRouteHandler(req, res, next);
 
     expect(mockApiKeyGet).toHaveBeenCalledWith(
-      `workspace-api-keys/${workspaceId}`,
+      `workspace-api-keys/${workspaceId}/${provider}`,
       "key"
     );
     expect(res.json).toHaveBeenCalledWith({
@@ -100,14 +133,18 @@ describe("GET /api/workspaces/:workspaceId/api-key", () => {
     mockDatabase.mockResolvedValue(mockDb);
 
     const workspaceId = "workspace-123";
+    const provider = "google";
 
-    const mockApiKeyGet = vi.fn().mockResolvedValue(null);
+    const mockApiKeyGet = vi.fn().mockRejectedValue(new Error("Not found"));
     mockDb["workspace-api-key"].get = mockApiKeyGet;
 
     const req = createMockRequest({
       workspaceResource: "workspaces/workspace-123",
       params: {
         workspaceId,
+      },
+      query: {
+        provider,
       },
     });
     const res = createMockResponse();
@@ -116,7 +153,7 @@ describe("GET /api/workspaces/:workspaceId/api-key", () => {
     await callRouteHandler(req, res, next);
 
     expect(mockApiKeyGet).toHaveBeenCalledWith(
-      `workspace-api-keys/${workspaceId}`,
+      `workspace-api-keys/${workspaceId}/${provider}`,
       "key"
     );
     expect(res.json).toHaveBeenCalledWith({
@@ -132,6 +169,9 @@ describe("GET /api/workspaces/:workspaceId/api-key", () => {
       workspaceResource: undefined,
       params: {
         workspaceId: "workspace-123",
+      },
+      query: {
+        provider: "google",
       },
     });
     const res = createMockResponse();

@@ -31,6 +31,7 @@ import { registerGetTrialStatus } from "./routes/get-trial-status";
 import { registerGetWorkspaceAgent } from "./routes/get-workspace-agent";
 import { registerGetWorkspaceAgents } from "./routes/get-workspace-agents";
 import { registerGetWorkspaceApiKey } from "./routes/get-workspace-api-key";
+import { registerGetWorkspaceApiKeys } from "./routes/get-workspace-api-keys";
 import { registerGetWorkspaceById } from "./routes/get-workspace-by-id";
 import { registerGetWorkspaceChannel } from "./routes/get-workspace-channel";
 import { registerGetWorkspaceChannels } from "./routes/get-workspace-channels";
@@ -123,6 +124,7 @@ export const createApp: () => express.Application = () => {
   registerDeleteAgentKey(app);
   registerPutWorkspaceApiKey(app);
   registerGetWorkspaceApiKey(app);
+  registerGetWorkspaceApiKeys(app);
   registerDeleteWorkspaceApiKey(app);
   registerGetAgentConversations(app);
   registerGetAgentConversation(app);

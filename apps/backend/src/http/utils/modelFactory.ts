@@ -95,7 +95,7 @@ export async function createModel(
   let apiKey: string;
   let usesByok = false;
   if (workspaceId) {
-    const workspaceKey = await getWorkspaceApiKey(workspaceId);
+    const workspaceKey = await getWorkspaceApiKey(workspaceId, provider);
     usesByok = workspaceKey !== null;
     apiKey = workspaceKey || getSystemApiKey(provider);
   } else {

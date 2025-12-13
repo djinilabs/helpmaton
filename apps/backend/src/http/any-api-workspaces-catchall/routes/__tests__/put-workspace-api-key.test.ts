@@ -50,27 +50,88 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
           throw badRequest("key is required");
         }
 
+        if (!provider || typeof provider !== "string") {
+          throw badRequest("provider is required");
+        }
+
+        // Validate provider is one of the supported values
+        const validProviders = ["google", "openai", "anthropic"];
+        if (!validProviders.includes(provider)) {
+          throw badRequest(
+            `provider must be one of: ${validProviders.join(", ")}`
+          );
+        }
+
         const currentUserRef = (req as { userRef?: string }).userRef;
         if (!currentUserRef) {
           throw unauthorized();
         }
 
-        const pk = `workspace-api-keys/${workspaceId}`;
+        const pk = `workspace-api-keys/${workspaceId}/${provider}`;
         const sk = "key";
 
         if (!key || key === "") {
-          // Delete the key if it exists
+          // Delete the key if it exists (new format)
           try {
             await db["workspace-api-key"].delete(pk, sk);
           } catch {
             // Key doesn't exist, that's fine
           }
+
+          // Also try to delete old format key for backward compatibility (Google only)
+          if (provider === "google") {
+            const oldPk = `workspace-api-keys/${workspaceId}`;
+            try {
+              await db["workspace-api-key"].delete(oldPk, sk);
+            } catch {
+              // Old key doesn't exist, that's fine
+            }
+          }
+
           res.status(204).send();
           return;
         }
 
-        // Check if key already exists
-        const existing = await db["workspace-api-key"].get(pk, sk);
+        // Check if key already exists in new format
+        let existing;
+        try {
+          existing = await db["workspace-api-key"].get(pk, sk);
+        } catch {
+          // Key doesn't exist in new format
+        }
+
+        // For Google provider, also check old format for backward compatibility
+        if (!existing && provider === "google") {
+          const oldPk = `workspace-api-keys/${workspaceId}`;
+          try {
+            const oldKey = await db["workspace-api-key"].get(oldPk, sk);
+            if (oldKey) {
+              // Migrate old key to new format
+              try {
+                await db["workspace-api-key"].create({
+                  pk,
+                  sk,
+                  workspaceId,
+                  key: oldKey.key,
+                  provider: "google",
+                  createdBy: oldKey.createdBy || currentUserRef,
+                  createdAt: oldKey.createdAt,
+                });
+                // Delete old key after migration
+                try {
+                  await db["workspace-api-key"].delete(oldPk, sk);
+                } catch {
+                  // Ignore deletion errors
+                }
+                existing = await db["workspace-api-key"].get(pk, sk);
+              } catch {
+                // Migration failed, continue with update
+              }
+            }
+          } catch {
+            // Old key doesn't exist
+          }
+        }
 
         if (existing) {
           // Update existing key
@@ -78,7 +139,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
             pk,
             sk,
             key,
-            provider: provider || "google",
+            provider,
             updatedBy: currentUserRef,
             updatedAt: new Date().toISOString(),
           });
@@ -89,7 +150,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
             sk,
             workspaceId,
             key,
-            provider: provider || "google",
+            provider,
             createdBy: currentUserRef,
           });
         }
@@ -142,11 +203,11 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     await callRouteHandler(req, res, next);
 
     expect(mockApiKeyGet).toHaveBeenCalledWith(
-      `workspace-api-keys/${workspaceId}`,
+      `workspace-api-keys/${workspaceId}/${provider}`,
       "key"
     );
     expect(mockApiKeyCreate).toHaveBeenCalledWith({
-      pk: `workspace-api-keys/${workspaceId}`,
+      pk: `workspace-api-keys/${workspaceId}/${provider}`,
       sk: "key",
       workspaceId,
       key: apiKey,
@@ -168,11 +229,11 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     const provider = "openai";
 
     const existingKey = {
-      pk: `workspace-api-keys/${workspaceId}`,
+      pk: `workspace-api-keys/${workspaceId}/${provider}`,
       sk: "key",
       workspaceId,
       key: oldApiKey,
-      provider: "google",
+      provider,
       createdBy: `users/${userId}`,
       createdAt: "2024-01-01T00:00:00Z",
     };
@@ -206,11 +267,11 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     await callRouteHandler(req, res, next);
 
     expect(mockApiKeyGet).toHaveBeenCalledWith(
-      `workspace-api-keys/${workspaceId}`,
+      `workspace-api-keys/${workspaceId}/${provider}`,
       "key"
     );
     expect(mockApiKeyUpdate).toHaveBeenCalledWith({
-      pk: `workspace-api-keys/${workspaceId}`,
+      pk: `workspace-api-keys/${workspaceId}/${provider}`,
       sk: "key",
       key: newApiKey,
       provider,
@@ -221,26 +282,13 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     expect(res.json).toHaveBeenCalledWith({ success: true });
   });
 
-  it("should use default provider 'google' when provider is not provided", async () => {
+  it("should throw badRequest when provider is not provided", async () => {
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
 
     const workspaceId = "workspace-123";
     const userId = "user-456";
     const apiKey = "test-api-key-123";
-
-    const mockApiKeyGet = vi.fn().mockResolvedValue(null);
-    mockDb["workspace-api-key"].get = mockApiKeyGet;
-
-    const mockApiKeyCreate = vi.fn().mockResolvedValue({
-      pk: `workspace-api-keys/${workspaceId}`,
-      sk: "key",
-      workspaceId,
-      key: apiKey,
-      provider: "google",
-      createdBy: `users/${userId}`,
-    });
-    mockDb["workspace-api-key"].create = mockApiKeyCreate;
 
     const req = createMockRequest({
       workspaceResource: `workspaces/${workspaceId}`,
@@ -258,14 +306,16 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
 
     await callRouteHandler(req, res, next);
 
-    expect(mockApiKeyCreate).toHaveBeenCalledWith({
-      pk: `workspace-api-keys/${workspaceId}`,
-      sk: "key",
-      workspaceId,
-      key: apiKey,
-      provider: "google", // Default provider
-      createdBy: `users/${userId}`,
-    });
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        output: expect.objectContaining({
+          statusCode: 400,
+          payload: expect.objectContaining({
+            message: expect.stringContaining("provider is required"),
+          }),
+        }),
+      })
+    );
   });
 
   it("should delete API key when key is empty string", async () => {
@@ -274,6 +324,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
 
     const workspaceId = "workspace-123";
     const userId = "user-456";
+    const provider = "google";
 
     const mockApiKeyDelete = vi.fn().mockResolvedValue(undefined);
     mockDb["workspace-api-key"].delete = mockApiKeyDelete;
@@ -286,6 +337,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
       },
       body: {
         key: "", // Empty string to delete
+        provider,
       },
     });
     const res = createMockResponse();
@@ -294,7 +346,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     await callRouteHandler(req, res, next);
 
     expect(mockApiKeyDelete).toHaveBeenCalledWith(
-      `workspace-api-keys/${workspaceId}`,
+      `workspace-api-keys/${workspaceId}/${provider}`,
       "key"
     );
     expect(res.status).toHaveBeenCalledWith(204);
@@ -307,6 +359,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
 
     const workspaceId = "workspace-123";
     const userId = "user-456";
+    const provider = "google";
 
     const mockApiKeyDelete = vi.fn().mockRejectedValue(new Error("Not found"));
     mockDb["workspace-api-key"].delete = mockApiKeyDelete;
@@ -319,6 +372,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
       },
       body: {
         key: "", // Empty string to delete
+        provider,
       },
     });
     const res = createMockResponse();
@@ -328,7 +382,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
 
     // Should still return 204 even if delete fails (key doesn't exist)
     expect(mockApiKeyDelete).toHaveBeenCalledWith(
-      `workspace-api-keys/${workspaceId}`,
+      `workspace-api-keys/${workspaceId}/${provider}`,
       "key"
     );
     expect(res.status).toHaveBeenCalledWith(204);
@@ -381,6 +435,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
       },
       body: {
         key: "test-api-key",
+        provider: "google",
       },
     });
     const res = createMockResponse();
@@ -412,6 +467,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
       },
       body: {
         key: "test-api-key",
+        provider: "google",
       },
     });
     const res = createMockResponse();

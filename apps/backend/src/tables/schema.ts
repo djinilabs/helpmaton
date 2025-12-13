@@ -147,11 +147,11 @@ export const tableSchemas = {
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),
   "workspace-api-key": TableBaseSchema.extend({
-    pk: z.string(), // workspace-api-key ID (e.g., "workspace-api-keys/{workspaceId}")
+    pk: z.string(), // workspace-api-key ID (e.g., "workspace-api-keys/{workspaceId}/{provider}")
     sk: z.string(), // sort key (fixed value "key")
     workspaceId: z.string(), // workspace ID for GSI queries
     key: z.string(), // the actual API key value
-    provider: z.enum(["google"]).default("google"), // provider name (only "google" supported)
+    provider: z.enum(["google", "openai", "anthropic"]).default("google"), // provider name
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),
