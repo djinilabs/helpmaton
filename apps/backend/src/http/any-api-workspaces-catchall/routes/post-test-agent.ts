@@ -473,83 +473,33 @@ export const registerPostTestAgent = (app: express.Application) => {
 
       const body = new TextDecoder().decode(combined);
 
-      // // Convert UI message stream format to data stream format expected by useChat
-      // // toUIMessageStreamResponse() returns SSE format with UI message chunks
-      // // useChat expects data stream format: 0:${JSON.stringify(text)}\n or 1:${JSON.stringify(toolCall)}\n
-      // const lines = body.split("\n");
-      // const dataStreamLines: string[] = [];
-
-      // for (let line of lines) {
-      //   line = line.trim();
-      //   // Skip empty lines (SSE event separators)
-      //   if (line === "" || line === "data: [DONE]") {
-      //     continue;
-      //   }
-
-      //   // Strip "data: " prefix if present (SSE format)
-      //   const jsonStr = line.startsWith("data: ")
-      //     ? line.substring(6) // Remove "data: " prefix (6 characters)
-      //     : line;
-
-      //   try {
-      //     // Parse the UI message chunk
-      //     const chunk = JSON.parse(jsonStr);
-
-      //     // Convert UI message chunk to data stream format
-      //     if (chunk.type === "text-delta" || chunk.type === "text") {
-      //       // Text chunk: format as 0:${JSON.stringify(text)}\n
-      //       const text = chunk.textDelta || chunk.text || "";
-      //       if (text) {
-      //         dataStreamLines.push(`0:${JSON.stringify(text)}\n`);
-      //       }
-      //     } else if (chunk.type === "tool-call") {
-      //       // Tool call chunk: format as 1:${JSON.stringify({type: "tool-call", ...})}\n
-      //       // Only send client-side tool calls to the client
-      //       const toolName = chunk.toolName || "";
-      //       if (clientToolNames.has(toolName)) {
-      //         const toolCall = {
-      //           type: "tool-call",
-      //           toolCallId: chunk.toolCallId || "",
-      //           toolName: toolName,
-      //           args: chunk.args || chunk.input || {},
-      //         };
-      //         dataStreamLines.push(`1:${JSON.stringify(toolCall)}\n`);
-      //       }
-      //       // Server-side tool calls are handled automatically by AI SDK, skip them
-      //     } else if (chunk.type === "tool-result") {
-      //       // Tool results are handled server-side, skip them
-      //       continue;
-      //     } else if (chunk.type === "data" && chunk.data) {
-      //       // Data chunks might contain tool calls
-      //       if (chunk.data.type === "tool-call") {
-      //         const toolName = chunk.data.toolName || "";
-      //         if (clientToolNames.has(toolName)) {
-      //           const toolCall = {
-      //             type: "tool-call",
-      //             toolCallId: chunk.data.toolCallId || "",
-      //             toolName: toolName,
-      //             args: chunk.data.args || chunk.data.input || {},
-      //           };
-      //           dataStreamLines.push(`1:${JSON.stringify(toolCall)}\n`);
-      //         }
-      //       }
-      //     }
-      //   } catch (parseError) {
-      //     // If it's not valid JSON, skip it
-      //     console.warn("[Agent Test Handler] Failed to parse chunk:", {
-      //       line,
-      //       error:
-      //         parseError instanceof Error
-      //           ? parseError.message
-      //           : String(parseError),
-      //     });
-      //   }
-      // }
-
-      // body = dataStreamLines.join("");
-
       // Extract token usage from streamText result (after stream is consumed)
       const tokenUsage = extractTokenUsage(result);
+
+      // Extract assistant's response from the SSE stream
+      // The stream is in SSE format: "data: {json}\n\n"
+      let assistantText = "";
+      const lines = body.split("\n");
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith("data: ")) {
+          try {
+            const jsonStr = trimmedLine.substring(6); // Remove "data: " prefix
+            if (jsonStr === "[DONE]") {
+              continue;
+            }
+            const chunk = JSON.parse(jsonStr);
+            // Accumulate text from text-delta or text chunks
+            if (chunk.type === "text-delta" && chunk.textDelta) {
+              assistantText += chunk.textDelta;
+            } else if (chunk.type === "text" && chunk.text) {
+              assistantText += chunk.text;
+            }
+          } catch {
+            // Not JSON or parsing failed, skip
+          }
+        }
+      }
 
       // Adjust credit reservation based on actual cost
       // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
@@ -640,7 +590,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         }
       }
 
-      // Get valid messages for logging
+      // Get valid messages for logging - include both input messages and assistant response
       const validMessages: UIMessage[] = messages.filter(
         (msg): msg is UIMessage =>
           msg != null &&
@@ -653,6 +603,14 @@ export const registerPostTestAgent = (app: express.Application) => {
             msg.role === "tool") &&
           "content" in msg
       );
+
+      // Add assistant's response if we extracted any text
+      if (assistantText.trim().length > 0) {
+        validMessages.push({
+          role: "assistant",
+          content: assistantText,
+        });
+      }
 
       // Log conversation (non-blocking)
       try {

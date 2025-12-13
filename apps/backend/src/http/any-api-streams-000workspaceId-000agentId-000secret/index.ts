@@ -568,6 +568,9 @@ async function streamAIResponse(
             if (line.startsWith("data: ")) {
               try {
                 const jsonStr = line.substring(6); // Remove "data: " prefix
+                if (jsonStr === "[DONE]") {
+                  continue;
+                }
                 const parsed = JSON.parse(jsonStr);
                 if (parsed.type === "text-delta" && parsed.textDelta) {
                   onTextChunk(parsed.textDelta);
@@ -583,8 +586,29 @@ async function streamAIResponse(
       }
     }
 
-    // Write any remaining buffered text (should be minimal)
+    // Process any remaining buffered text before closing
     if (textBuffer) {
+      // Try to extract any remaining text from the buffer
+      const lines = textBuffer.split("\n");
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            const jsonStr = line.substring(6);
+            if (jsonStr === "[DONE]") {
+              continue;
+            }
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.type === "text-delta" && parsed.textDelta) {
+              onTextChunk(parsed.textDelta);
+            } else if (parsed.type === "text" && parsed.text) {
+              onTextChunk(parsed.text);
+            }
+          } catch {
+            // Not JSON or parsing failed, skip text extraction
+          }
+        }
+      }
+      // Write any remaining buffered text to stream
       const remainingBytes = new TextEncoder().encode(textBuffer);
       await writeChunkToStream(responseStream, remainingBytes);
     }
@@ -726,13 +750,24 @@ async function logConversationAsync(
   }
 
   try {
-    const assistantMessage: UIMessage = {
-      role: "assistant",
-      content: fullStreamedText,
-    };
+    // Only create assistant message if we have text content
+    const validMessages: UIMessage[] = [uiMessage];
 
-    // Get valid messages for logging (same format as test endpoint)
-    const validMessages: UIMessage[] = [uiMessage, assistantMessage].filter(
+    // Add assistant's response if we extracted any text
+    if (
+      fullStreamedText &&
+      typeof fullStreamedText === "string" &&
+      fullStreamedText.trim().length > 0
+    ) {
+      const assistantMessage: UIMessage = {
+        role: "assistant",
+        content: fullStreamedText,
+      };
+      validMessages.push(assistantMessage);
+    }
+
+    // Filter to ensure all messages are valid
+    const filteredMessages = validMessages.filter(
       (msg): msg is UIMessage =>
         msg != null &&
         typeof msg === "object" &&
@@ -742,7 +777,8 @@ async function logConversationAsync(
           msg.role === "assistant" ||
           msg.role === "system" ||
           msg.role === "tool") &&
-        "content" in msg
+        "content" in msg &&
+        (typeof msg.content === "string" || Array.isArray(msg.content))
     );
 
     // Run this asynchronously without blocking
@@ -757,7 +793,7 @@ async function logConversationAsync(
         workspaceId,
         agentId,
         conversationId,
-        validMessages,
+        filteredMessages,
         tokenUsage,
         finalModelName,
         "google",
@@ -778,7 +814,7 @@ async function logConversationAsync(
         workspaceId,
         agentId,
         conversationType: "stream", // Use 'stream' type for streaming endpoint
-        messages: validMessages,
+        messages: filteredMessages,
         tokenUsage,
         modelName: finalModelName,
         provider: "google",
