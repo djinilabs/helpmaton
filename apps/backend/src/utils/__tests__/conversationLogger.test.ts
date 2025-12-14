@@ -1087,5 +1087,100 @@ describe("conversationLogger", () => {
       expect(result.tokenUsage?.reasoningTokens).toBe(74); // 10 + 64
       expect(result.tokenUsage?.totalTokens).toBe(299); // 150 + 75 + 74
     });
+
+    it("should preserve reasoningTokens when aggregating from single message with reasoningTokens", async () => {
+      // This test simulates the user's scenario where only the last message has tokenUsage with reasoningTokens
+      const existingConversation: AgentConversationRecord = {
+        pk: "conversations/workspace-123/agent-456/conversation-789",
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        conversationId: "conversation-789",
+        conversationType: "stream",
+        messages: [
+          {
+            role: "user",
+            content: "First message",
+          },
+          {
+            role: "assistant",
+            content: "First response",
+            // Note: no tokenUsage - this simulates a message created before tokenUsage was tracked
+          },
+        ] as unknown[],
+        tokenUsage: {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+        },
+        modelName: "gemini-2.5-flash",
+        provider: "google",
+        startedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Full history from request - first assistant message doesn't have tokenUsage
+      const fullHistoryMessages = [
+        {
+          role: "user" as const,
+          content: "First message",
+        },
+        {
+          role: "assistant" as const,
+          content: "First response",
+          // No tokenUsage - matches the existing message
+        },
+        {
+          role: "user" as const,
+          content: "Second message",
+        },
+        {
+          role: "assistant" as const,
+          content: "Second response",
+          // This message has tokenUsage with reasoningTokens (simulating the user's scenario)
+          tokenUsage: {
+            promptTokens: 92,
+            completionTokens: 52,
+            totalTokens: 185,
+            reasoningTokens: 41, // 185 = 92 + 52 + 41
+          },
+        },
+      ];
+
+      const additionalTokenUsage: TokenUsage = {
+        promptTokens: 92,
+        completionTokens: 52,
+        totalTokens: 185,
+        reasoningTokens: 41,
+      };
+
+      mockAtomicUpdate.mockImplementation(async (pk, sk, updater) => {
+        const result = await updater(existingConversation);
+        return {
+          ...existingConversation,
+          ...result,
+        };
+      });
+
+      await updateConversation(
+        mockDb,
+        "workspace-123",
+        "agent-456",
+        "conversation-789",
+        fullHistoryMessages,
+        additionalTokenUsage
+      );
+
+      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
+      const result = await updaterCall(existingConversation);
+
+      // Conversation-level token usage should include reasoningTokens
+      expect(result.tokenUsage?.promptTokens).toBe(92);
+      expect(result.tokenUsage?.completionTokens).toBe(52);
+      expect(result.tokenUsage?.reasoningTokens).toBe(41); // This should be preserved!
+      expect(result.tokenUsage?.totalTokens).toBe(185); // 92 + 52 + 41
+    });
   });
 });

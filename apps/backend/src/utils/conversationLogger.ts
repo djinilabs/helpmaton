@@ -450,15 +450,32 @@ export async function updateConversation(
               : messageTokenUsages;
 
           // Aggregate all message-level tokenUsage values
+          // This will correctly preserve reasoningTokens from all messages
           aggregatedTokenUsage = aggregateTokenUsage(...allTokenUsages);
         } else if (additionalTokenUsage) {
-          // No message-level tokenUsage found, but we have additionalTokenUsage
-          // Fall back to conversation-level aggregation
+          // No message-level tokenUsage found in newMessages, but we have additionalTokenUsage
+          // Also check existing messages for tokenUsage that might not have been preserved
+          const existingMessageTokenUsages = existingMessages
+            .filter(
+              (msg): msg is UIMessage =>
+                msg &&
+                typeof msg === "object" &&
+                "role" in msg &&
+                msg.role === "assistant" &&
+                "tokenUsage" in msg &&
+                !!msg.tokenUsage
+            )
+            .map((msg) => (msg as { tokenUsage: TokenUsage }).tokenUsage);
+
           const existingTokenUsage = existing.tokenUsage as
             | TokenUsage
             | undefined;
+
+          // Aggregate: existing conversation-level + existing message-level + new tokenUsage
+          // This ensures we capture all tokenUsage including reasoningTokens
           aggregatedTokenUsage = aggregateTokenUsage(
             existingTokenUsage,
+            ...existingMessageTokenUsages,
             additionalTokenUsage
           );
         } else {
