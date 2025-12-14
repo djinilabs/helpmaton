@@ -1,0 +1,334 @@
+name: Deploy Prod
+
+on:
+  workflow_run:
+    workflows: ["E2E Tests"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      skip_e2e:
+        description: "Skip E2E check (for emergency deployments)"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success') }}
+    runs-on: ubuntu-latest
+    # Security: Explicit permissions - only what's needed
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
+
+    steps:
+      - name: Check if E2E Tests was for a PR
+        id: check-pr
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Handle workflow_dispatch trigger (no workflow_run in context)
+            if (context.eventName === 'workflow_dispatch') {
+              console.log('Workflow triggered via workflow_dispatch - not a PR');
+              core.setOutput('is_pr', 'false');
+              return;
+            }
+
+            const workflowRun = context.payload.workflow_run;
+            if (!workflowRun) {
+              console.log('No workflow_run in context - not a PR');
+              core.setOutput('is_pr', 'false');
+              return;
+            }
+
+            const hasPullRequests = workflowRun.pull_requests && workflowRun.pull_requests.length > 0;
+            const event = workflowRun.event;
+            const headBranch = workflowRun.head_branch || '';
+
+            console.log(`E2E Tests workflow event: ${event}`);
+            console.log(`E2E Tests workflow head_branch: ${headBranch}`);
+            console.log(`Has pull requests: ${hasPullRequests}`);
+            console.log(`Pull requests: ${JSON.stringify(workflowRun.pull_requests || [])}`);
+
+            // Determine if this was a PR test:
+            // 1. If event is 'pull_request', it was triggered by a PR
+            // 2. If it has pull_requests associated, it's a PR test
+            // 3. If head_branch is not 'main', it's likely a PR branch (though workflow_run always runs on main)
+            // Only deploy if: event is 'push' AND head_branch is 'main' AND no pull_requests
+            const isPRTest = event === 'pull_request' || 
+                            hasPullRequests || 
+                            (headBranch !== 'main' && headBranch !== '');
+
+            if (isPRTest) {
+              console.log('❌ E2E Tests was for a PR, skipping production deploy');
+              core.setOutput('is_pr', 'true');
+            } else {
+              console.log('✅ E2E Tests was for main branch, proceeding with production deploy');
+              core.setOutput('is_pr', 'false');
+            }
+
+      - name: Configure AWS credentials
+        if: steps.check-pr.outputs.is_pr != 'true'
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+
+      - uses: actions/checkout@v4
+        if: steps.check-pr.outputs.is_pr != 'true'
+        with:
+          # For push/workflow_dispatch events, use the current commit SHA
+          # For workflow_run events (triggered by E2E Tests), use the commit that was tested
+          ref: ${{ github.event_name == 'push' && github.sha || (github.event_name == 'workflow_dispatch' && github.sha) || github.event.workflow_run.head_sha }}
+
+      - name: Verify commit SHA
+        if: steps.check-pr.outputs.is_pr != 'true'
+        run: |
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          echo "Deploying commit: ${CURRENT_COMMIT}"
+
+          if [ "${{ github.event_name }}" == "push" ]; then
+            EXPECTED_COMMIT="${{ github.sha }}"
+            echo "Expected commit (from push): ${EXPECTED_COMMIT}"
+            if [ "${CURRENT_COMMIT}" != "${EXPECTED_COMMIT}" ]; then
+              echo "❌ Error: Commit mismatch detected - aborting deployment"
+              echo "Current: ${CURRENT_COMMIT}"
+              echo "Expected: ${EXPECTED_COMMIT}"
+              exit 1
+            fi
+            echo "✅ Commit verified - deploying commit ${CURRENT_COMMIT} from push"
+          elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            EXPECTED_COMMIT="${{ github.sha }}"
+            echo "Expected commit (from workflow_dispatch): ${EXPECTED_COMMIT}"
+            if [ "${CURRENT_COMMIT}" != "${EXPECTED_COMMIT}" ]; then
+              echo "❌ Error: Commit mismatch detected - aborting deployment"
+              echo "Current: ${CURRENT_COMMIT}"
+              echo "Expected: ${EXPECTED_COMMIT}"
+              exit 1
+            fi
+            echo "✅ Commit verified - deploying commit ${CURRENT_COMMIT} from workflow_dispatch"
+          else
+            # workflow_run event - verify we're deploying the same commit that was tested
+            TESTED_COMMIT="${{ github.event.workflow_run.head_sha }}"
+            echo "Tested commit (from E2E Tests workflow_run): ${TESTED_COMMIT}"
+            if [ "${CURRENT_COMMIT}" != "${TESTED_COMMIT}" ]; then
+              echo "❌ Error: Commit mismatch detected - aborting deployment"
+              echo "Current: ${CURRENT_COMMIT}"
+              echo "Expected (tested): ${TESTED_COMMIT}"
+              exit 1
+            fi
+            echo "✅ Commit verified - deploying tested commit ${CURRENT_COMMIT}"
+          fi
+
+      - name: Enable pnpm corepack
+        if: steps.check-pr.outputs.is_pr != 'true'
+        run: corepack enable
+
+      - name: Setup pnpm
+        if: steps.check-pr.outputs.is_pr != 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.24.0
+
+      - name: Get pnpm store directory
+        if: steps.check-pr.outputs.is_pr != 'true'
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        if: steps.check-pr.outputs.is_pr != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Use Node.js
+        if: steps.check-pr.outputs.is_pr != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.check-pr.outputs.is_pr != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy to production
+        if: steps.check-pr.outputs.is_pr != 'true'
+        env:
+          NODE_ENV: "production"
+          VITE_ENV: "production"
+          NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
+          MAILGUN_DOMAIN: "helpmaton.com"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          HELPMATON_CUSTOM_DOMAIN: "app.helpmaton.com"
+          AWS_CERTIFICATE_ARN: ${{ secrets.AWS_CERTIFICATE_ARN }}
+          AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
+          AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
+          HELPMATON_S3_BUCKET: ${{ secrets.HELPMATON_S3_BUCKET }}
+          HELPMATON_S3_ENDPOINT: ${{ secrets.HELPMATON_S3_ENDPOINT }}
+          HELPMATON_S3_ACCESS_KEY_ID: ${{ secrets.HELPMATON_S3_ACCESS_KEY_ID }}
+          HELPMATON_S3_SECRET_ACCESS_KEY: ${{ secrets.HELPMATON_S3_SECRET_ACCESS_KEY }}
+          HELPMATON_S3_REGION: ${{ secrets.HELPMATON_S3_REGION }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
+          CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
+          CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
+          DISCORD_TRIAL_CREDIT_CHANNEL_ID: ${{ secrets.DISCORD_TRIAL_CREDIT_CHANNEL_ID }}
+          ENABLE_CREDIT_VALIDATION: "true"
+          ENABLE_CREDIT_DEDUCTION: "true"
+          ENABLE_SPENDING_LIMIT_CHECKS: "true"
+          DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
+          DISCORD_CS_USERS: ${{ secrets.DISCORD_CS_USERS }}
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
+          OUTLOOK_CLIENT_SECRET: ${{ secrets.OUTLOOK_CLIENT_SECRET }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
+          LEMON_SQUEEZY_API_KEY: ${{ secrets.LEMON_SQUEEZY_API_KEY }}
+          LEMON_SQUEEZY_WEBHOOK_SECRET: ${{ secrets.LEMON_SQUEEZY_WEBHOOK_SECRET }}
+          LEMON_SQUEEZY_STORE_ID: ${{ secrets.LEMON_SQUEEZY_STORE_ID }}
+          LEMON_SQUEEZY_STARTER_VARIANT_ID: ${{ secrets.LEMON_SQUEEZY_STARTER_VARIANT_ID }}
+          LEMON_SQUEEZY_PRO_VARIANT_ID: ${{ secrets.LEMON_SQUEEZY_PRO_VARIANT_ID }}
+          LEMON_SQUEEZY_CREDIT_VARIANT_ID: ${{ secrets.LEMON_SQUEEZY_CREDIT_VARIANT_ID }}
+          LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL: ${{ secrets.LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL }}
+          LEMON_SQUEEZY_CHECKOUT_CANCEL_URL: ${{ secrets.LEMON_SQUEEZY_CHECKOUT_CANCEL_URL }}
+          BASE_URL: "https://app.helpmaton.com"
+          OAUTH_REDIRECT_BASE_URL: ${{ secrets.OAUTH_REDIRECT_BASE_URL }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+        run: |
+          echo "✅ Deploying to production"
+
+          # Set URL environment variables for production
+          export BASE_URL="https://app.helpmaton.com"
+          export HELPMATON_CUSTOM_DOMAIN="app.helpmaton.com"
+          export OAUTH_REDIRECT_BASE_URL="${OAUTH_REDIRECT_BASE_URL:-${BASE_URL}}"
+          export FRONTEND_URL="${FRONTEND_URL:-${BASE_URL}}"
+
+          echo "✅ BASE_URL: ${BASE_URL}"
+          echo "✅ HELPMATON_CUSTOM_DOMAIN: ${HELPMATON_CUSTOM_DOMAIN}"
+          echo "✅ OAUTH_REDIRECT_BASE_URL: ${OAUTH_REDIRECT_BASE_URL}"
+          echo "✅ FRONTEND_URL: ${FRONTEND_URL}"
+
+          cd apps/backend
+          export PATH=../../node_modules/.bin:$PATH
+          export AWS_CERTIFICATE_ARN="${AWS_CERTIFICATE_ARN}"
+          export AWS_CLOUDFRONT_CERTIFICATE_ARN="${AWS_CLOUDFRONT_CERTIFICATE_ARN}"
+
+          # Build array of environment variables to set in batch
+          ENV_VARS=(
+            AUTH_SECRET "${AUTH_SECRET}"
+            MAILGUN_KEY "${MAILGUN_KEY}"
+            BASE_URL "${BASE_URL}"
+            GEMINI_API_KEY "${GEMINI_API_KEY}"
+            HELPMATON_CUSTOM_DOMAIN "${HELPMATON_CUSTOM_DOMAIN}"
+            AWS_CERTIFICATE_ARN "${AWS_CERTIFICATE_ARN}"
+            AWS_ZONE_ID "${AWS_ZONE_ID}"
+            ENABLE_CREDIT_VALIDATION "${ENABLE_CREDIT_VALIDATION}"
+            ENABLE_CREDIT_DEDUCTION "${ENABLE_CREDIT_DEDUCTION}"
+            ENABLE_SPENDING_LIMIT_CHECKS "${ENABLE_SPENDING_LIMIT_CHECKS}"
+          )
+
+          # Add conditional variables if they're set
+          [ -n "${MAILGUN_DOMAIN}" ] && ENV_VARS+=(MAILGUN_DOMAIN "${MAILGUN_DOMAIN}")
+          [ -n "${HELPMATON_S3_BUCKET}" ] && ENV_VARS+=(HELPMATON_S3_BUCKET "${HELPMATON_S3_BUCKET}")
+          [ -n "${HELPMATON_S3_ACCESS_KEY_ID}" ] && ENV_VARS+=(HELPMATON_S3_ACCESS_KEY_ID "${HELPMATON_S3_ACCESS_KEY_ID}")
+          [ -n "${HELPMATON_S3_SECRET_ACCESS_KEY}" ] && ENV_VARS+=(HELPMATON_S3_SECRET_ACCESS_KEY "${HELPMATON_S3_SECRET_ACCESS_KEY}")
+          [ -n "${HELPMATON_S3_REGION}" ] && ENV_VARS+=(HELPMATON_S3_REGION "${HELPMATON_S3_REGION}")
+          [ -n "${HELPMATON_S3_ENDPOINT}" ] && ENV_VARS+=(HELPMATON_S3_ENDPOINT "${HELPMATON_S3_ENDPOINT}")
+          [ -n "${SENTRY_DSN}" ] && ENV_VARS+=(SENTRY_DSN "${SENTRY_DSN}")
+          [ -n "${DISCORD_PUBLIC_KEY}" ] && ENV_VARS+=(DISCORD_PUBLIC_KEY "${DISCORD_PUBLIC_KEY}")
+          [ -n "${DISCORD_CS_USERS}" ] && ENV_VARS+=(DISCORD_CS_USERS "${DISCORD_CS_USERS}")
+          [ -n "${GMAIL_CLIENT_ID}" ] && ENV_VARS+=(GMAIL_CLIENT_ID "${GMAIL_CLIENT_ID}")
+          [ -n "${GMAIL_CLIENT_SECRET}" ] && ENV_VARS+=(GMAIL_CLIENT_SECRET "${GMAIL_CLIENT_SECRET}")
+          [ -n "${OUTLOOK_CLIENT_ID}" ] && ENV_VARS+=(OUTLOOK_CLIENT_ID "${OUTLOOK_CLIENT_ID}")
+          [ -n "${OUTLOOK_CLIENT_SECRET}" ] && ENV_VARS+=(OUTLOOK_CLIENT_SECRET "${OUTLOOK_CLIENT_SECRET}")
+          [ -n "${CLOUDFLARE_TURNSTILE_SECRET_KEY}" ] && ENV_VARS+=(CLOUDFLARE_TURNSTILE_SECRET_KEY "${CLOUDFLARE_TURNSTILE_SECRET_KEY}")
+          [ -n "${DISCORD_BOT_TOKEN}" ] && ENV_VARS+=(DISCORD_BOT_TOKEN "${DISCORD_BOT_TOKEN}")
+          [ -n "${DISCORD_TRIAL_CREDIT_CHANNEL_ID}" ] && ENV_VARS+=(DISCORD_TRIAL_CREDIT_CHANNEL_ID "${DISCORD_TRIAL_CREDIT_CHANNEL_ID}")
+          [ -n "${LEMON_SQUEEZY_API_KEY}" ] && ENV_VARS+=(LEMON_SQUEEZY_API_KEY "${LEMON_SQUEEZY_API_KEY}")
+          [ -n "${LEMON_SQUEEZY_WEBHOOK_SECRET}" ] && ENV_VARS+=(LEMON_SQUEEZY_WEBHOOK_SECRET "${LEMON_SQUEEZY_WEBHOOK_SECRET}")
+          [ -n "${LEMON_SQUEEZY_STORE_ID}" ] && ENV_VARS+=(LEMON_SQUEEZY_STORE_ID "${LEMON_SQUEEZY_STORE_ID}")
+          [ -n "${LEMON_SQUEEZY_STARTER_VARIANT_ID}" ] && ENV_VARS+=(LEMON_SQUEEZY_STARTER_VARIANT_ID "${LEMON_SQUEEZY_STARTER_VARIANT_ID}")
+          [ -n "${LEMON_SQUEEZY_PRO_VARIANT_ID}" ] && ENV_VARS+=(LEMON_SQUEEZY_PRO_VARIANT_ID "${LEMON_SQUEEZY_PRO_VARIANT_ID}")
+          [ -n "${LEMON_SQUEEZY_CREDIT_VARIANT_ID}" ] && ENV_VARS+=(LEMON_SQUEEZY_CREDIT_VARIANT_ID "${LEMON_SQUEEZY_CREDIT_VARIANT_ID}")
+          [ -n "${LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL}" ] && ENV_VARS+=(LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL "${LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL}")
+          [ -n "${LEMON_SQUEEZY_CHECKOUT_CANCEL_URL}" ] && ENV_VARS+=(LEMON_SQUEEZY_CHECKOUT_CANCEL_URL "${LEMON_SQUEEZY_CHECKOUT_CANCEL_URL}")
+
+          # Handle variables with fallback values
+          if [ -n "${OAUTH_REDIRECT_BASE_URL}" ]; then
+            ENV_VARS+=(OAUTH_REDIRECT_BASE_URL "${OAUTH_REDIRECT_BASE_URL}")
+          else
+            ENV_VARS+=(OAUTH_REDIRECT_BASE_URL "${BASE_URL}")
+          fi
+
+          if [ -n "${FRONTEND_URL}" ]; then
+            ENV_VARS+=(FRONTEND_URL "${FRONTEND_URL}")
+          else
+            ENV_VARS+=(FRONTEND_URL "${BASE_URL}")
+          fi
+
+          # Environment variables are now injected directly into Lambda bundles at build time
+          # via esbuild's define option (see esbuild-config.cjs). This ensures each deployment
+          # has isolated environment variables without relying on SSM Parameter Store.
+          # All environment variables set in the 'env:' section above will be automatically
+          # injected during the build process.
+          echo "📝 Environment variables will be injected into Lambda bundles at build time..."
+
+          cd ../..
+          # Verify PostHog environment variables are set (for debugging)
+          if [ -z "${VITE_POSTHOG_API_KEY}" ]; then
+            echo "⚠️  Warning: VITE_POSTHOG_API_KEY is not set. PostHog will not be initialized."
+          else
+            echo "✅ VITE_POSTHOG_API_KEY is set (length: ${#VITE_POSTHOG_API_KEY})"
+          fi
+          if [ -z "${VITE_POSTHOG_API_HOST}" ]; then
+            echo "ℹ️  VITE_POSTHOG_API_HOST not set, will use default: https://us.i.posthog.com"
+          else
+            echo "✅ VITE_POSTHOG_API_HOST is set: ${VITE_POSTHOG_API_HOST}"
+          fi
+          # Verify Cloudflare Turnstile environment variable is set
+          if [ -z "${CLOUDFLARE_TURNSTILE_SITE_KEY}" ]; then
+            echo "⚠️  Warning: CLOUDFLARE_TURNSTILE_SITE_KEY is not set. CAPTCHA will not work."
+          else
+            echo "✅ CLOUDFLARE_TURNSTILE_SITE_KEY is set (length: ${#CLOUDFLARE_TURNSTILE_SITE_KEY})"
+          fi
+          pnpm build
+          cd apps/backend
+          pnpm arc deploy --production --no-hydrate --verbose
+
+      - name: Trigger API Gateway deployment
+        if: steps.check-pr.outputs.is_pr != 'true'
+        run: |
+          echo "🚀 Triggering API Gateway deployment to make changes live..."
+          bash scripts/deploy-api-gateway.sh HelpmatonProduction
+
+      - name: Register Discord commands
+        if: steps.check-pr.outputs.is_pr != 'true'
+        env:
+          DISCORD_APPLICATION_ID: ${{ secrets.DISCORD_APPLICATION_ID }}
+          DISCORD_CS_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
+        run: |
+          if [ -n "${DISCORD_APPLICATION_ID}" ] && [ -n "${DISCORD_CS_BOT_TOKEN}" ]; then
+            pnpm discord:register-commands
+          else
+            echo "⚠️  Discord credentials not set, skipping command registration"
+          fi

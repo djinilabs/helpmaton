@@ -1,0 +1,541 @@
+import { z } from "zod";
+
+const TableBaseSchema = z.object({
+  pk: z.string(),
+  sk: z.string().optional(),
+  version: z.number(),
+  createdAt: z.string().datetime(),
+  createdBy: z.string().optional(),
+  updatedAt: z.string().datetime().optional(),
+  updatedBy: z.string().optional(),
+  noMainVersion: z.boolean().optional(),
+  userVersion: z.string().optional(),
+  userVersions: z
+    .record(
+      z.string(),
+      z.object({
+        deleted: z.boolean().optional(),
+        createdAt: z.string().datetime().optional(),
+        createdBy: z.string().optional(),
+        updatedAt: z.string().datetime().optional(),
+        updatedBy: z.string().optional(),
+        newProps: z.record(z.string(), z.unknown()).optional(),
+      })
+    )
+    .optional(),
+});
+
+export const tableSchemas = {
+  "next-auth": TableBaseSchema.extend({
+    pk: z.string(),
+    sk: z.string(),
+    email: z.string().email().optional(),
+    name: z.string().optional(),
+    emailVerified: z.string().datetime().optional(),
+    image: z.string().optional(),
+    id: z.string().optional(),
+    type: z.string().optional(), // "USER" for user records, undefined for account records
+    gsi1pk: z.string().optional(), // GSI1 partition key for email lookups
+    gsi1sk: z.string().optional(), // GSI1 sort key for email lookups
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+    expires: z.number().optional(),
+    identifier: z.string().optional(),
+    token: z.string().optional(),
+  }),
+  "webhook-logs": TableBaseSchema.extend({
+    pk: z.string(), // unique request ID
+    sk: z.string().optional(), // optional sort key
+    userId: z.string(),
+    key: z.string(),
+    body: z.string(), // raw webhook body text
+    expires: z.number(), // TTL timestamp
+  }),
+  workspace: TableBaseSchema.extend({
+    pk: z.string(), // workspace ID (e.g., "workspaces/{workspaceId}")
+    sk: z.string().optional(), // optional sort key
+    name: z.string(),
+    description: z.string().optional(),
+    subscriptionId: z.string().optional(), // subscription ID this workspace belongs to
+    currency: z.enum(["usd", "eur", "gbp"]).default("usd"),
+    creditBalance: z.number().default(0),
+    spendingLimits: z
+      .array(
+        z.object({
+          timeFrame: z.enum(["daily", "weekly", "monthly"]),
+          amount: z.number(),
+        })
+      )
+      .optional(),
+    // Trial credit fields (internal only - not exposed to users)
+    trialCreditRequested: z.boolean().optional(),
+    trialCreditRequestedAt: z.string().datetime().optional(),
+    trialCreditApproved: z.boolean().optional(),
+    trialCreditApprovedAt: z.string().datetime().optional(),
+    trialCreditAmount: z.number().optional(),
+    // Lemon Squeezy integration fields
+    lemonSqueezyOrderId: z.string().optional(), // Lemon Squeezy order ID for credit purchases
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  permission: TableBaseSchema.extend({
+    pk: z.string(), // resource reference (e.g., "workspaces/{workspaceId}")
+    sk: z.string(), // user reference (e.g., "users/{userId}")
+    resourceType: z.string(), // "workspaces"
+    parentPk: z.string().optional(), // optional parent resource
+    type: z.number().int().min(1), // permission level (1=READ, 2=WRITE, 3=OWNER)
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  agent: TableBaseSchema.extend({
+    pk: z.string(), // agent ID (e.g., "agents/{workspaceId}/{agentId}")
+    sk: z.string().optional(), // optional sort key
+    workspaceId: z.string(), // workspace ID for GSI queries
+    name: z.string(),
+    systemPrompt: z.string(),
+    notificationChannelId: z.string().optional(), // reference to output_channel
+    delegatableAgentIds: z.array(z.string()).optional(), // list of agent IDs this agent can delegate to
+    enabledMcpServerIds: z.array(z.string()).optional(), // list of MCP server IDs enabled for this agent
+    spendingLimits: z
+      .array(
+        z.object({
+          timeFrame: z.enum(["daily", "weekly", "monthly"]),
+          amount: z.number(),
+        })
+      )
+      .optional(),
+    temperature: z.number().min(0).max(2).optional(), // model temperature (0-2, controls randomness)
+    topP: z.number().min(0).max(1).optional(), // top-p / nucleus sampling (0-1)
+    topK: z.number().int().positive().optional(), // top-k sampling (positive integer)
+    maxOutputTokens: z.number().int().positive().optional(), // max output tokens (positive integer)
+    stopSequences: z.array(z.string()).optional(), // stop sequences (array of strings)
+    maxToolRoundtrips: z.number().int().positive().optional(), // max tool roundtrips (positive integer, default 5)
+    provider: z.enum(["google", "openai", "anthropic"]).default("google"), // provider name (only "google" supported)
+    modelName: z.string().optional(), // model name (e.g., "gemini-2.5-flash")
+    clientTools: z
+      .array(
+        z.object({
+          name: z.string(), // Tool name and function name (must be valid JavaScript identifier)
+          description: z.string(), // Tool description for AI
+          parameters: z.record(z.string(), z.unknown()), // JSON Schema for parameters (compatible with AI SDK)
+        })
+      )
+      .optional(), // User-defined client-side tools
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  output_channel: TableBaseSchema.extend({
+    pk: z.string(), // output_channel ID (e.g., "output-channels/{workspaceId}/{channelId}")
+    sk: z.string().optional(), // optional sort key
+    workspaceId: z.string(), // workspace ID for GSI queries
+    channelId: z.string(), // unique identifier for the channel
+    type: z.string(), // discriminator: "discord", future: "slack", "email", etc.
+    name: z.string(), // user-friendly name for the channel
+    config: z.record(z.string(), z.unknown()), // type-specific configuration, encrypted
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "agent-key": TableBaseSchema.extend({
+    pk: z.string(), // agent-key ID (e.g., "agent-keys/{workspaceId}/{agentId}/{keyId}")
+    sk: z.string(), // sort key (e.g., "key")
+    workspaceId: z.string(), // workspace ID
+    agentId: z.string(), // agent ID for GSI queries
+    key: z.string(), // the actual key value
+    name: z.string().optional(), // optional key name/description
+    provider: z.enum(["google"]).default("google"), // provider name (only "google" supported)
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "workspace-api-key": TableBaseSchema.extend({
+    pk: z.string(), // workspace-api-key ID (e.g., "workspace-api-keys/{workspaceId}/{provider}")
+    sk: z.string(), // sort key (fixed value "key")
+    workspaceId: z.string(), // workspace ID for GSI queries
+    key: z.string(), // the actual API key value
+    provider: z.enum(["google", "openai", "anthropic"]).default("google"), // provider name
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "workspace-document": TableBaseSchema.extend({
+    pk: z.string(), // workspace-document ID (e.g., "workspace-documents/{workspaceId}/{documentId}")
+    sk: z.string().optional(), // optional sort key
+    workspaceId: z.string(), // workspace ID for GSI queries
+    name: z.string(), // user-friendly display name (editable)
+    filename: z.string(), // actual filename in S3 (may have conflict suffix)
+    folderPath: z.string(), // folder path (e.g., "folder1/subfolder" or "" for root)
+    s3Key: z.string(), // S3 key for the document
+    contentType: z.string(), // MIME type (e.g., "text/markdown", "text/plain")
+    size: z.number(), // file size in bytes
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "agent-conversations": TableBaseSchema.extend({
+    pk: z.string(), // conversation ID (e.g., "conversations/{workspaceId}/{agentId}/{conversationId}")
+    sk: z.string().optional(), // optional sort key
+    workspaceId: z.string(), // workspace ID
+    agentId: z.string(), // agent ID for GSI queries
+    conversationId: z.string(), // unique conversation ID (UUID)
+    conversationType: z.enum(["test", "webhook", "stream"]), // type of conversation
+    messages: z.array(z.unknown()), // array of all messages in the conversation
+    toolCalls: z.array(z.unknown()).optional(), // array of all tool calls made during the conversation
+    toolResults: z.array(z.unknown()).optional(), // array of all tool results from the conversation
+    tokenUsage: z
+      .object({
+        promptTokens: z.number(),
+        completionTokens: z.number(),
+        totalTokens: z.number(),
+      })
+      .optional(), // aggregated token usage across all API calls
+    modelName: z.string().optional(), // name of the AI model used (e.g., "gemini-2.5-flash-preview-05-20")
+    provider: z.string().optional(), // AI provider name (e.g., "google")
+    usesByok: z.boolean().optional(), // whether this conversation used BYOK (Bring Your Own Key)
+    costUsd: z.number().optional(), // cost in USD calculated at conversation time
+    costEur: z.number().optional(), // cost in EUR calculated at conversation time
+    costGbp: z.number().optional(), // cost in GBP calculated at conversation time
+    startedAt: z.string().datetime(), // when conversation started
+    lastMessageAt: z.string().datetime(), // when last message was added
+    expires: z.number(), // TTL timestamp
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "credit-reservations": TableBaseSchema.extend({
+    pk: z.string(), // reservation ID (e.g., "credit-reservations/{reservationId}")
+    workspaceId: z.string(), // workspace ID
+    reservedAmount: z.number(), // amount reserved (estimated cost)
+    estimatedCost: z.number(), // estimated cost at reservation time
+    currency: z.enum(["usd", "eur", "gbp"]), // workspace currency
+    expires: z.number(), // TTL timestamp (15 minutes from creation)
+    expiresHour: z.number(), // Hour bucket for GSI (expires truncated to hour)
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "token-usage-aggregates": TableBaseSchema.extend({
+    pk: z.string(), // aggregate ID (e.g., "aggregates/{workspaceId}/{date}" or "aggregates/{userId}/{date}" or "aggregates/{agentId}/{date}")
+    sk: z.string().optional(), // optional sort key
+    date: z.string(), // date in YYYY-MM-DD format
+    aggregateType: z.enum(["workspace", "agent", "user"]), // type of aggregation
+    workspaceId: z.string().optional(), // workspace ID (required for workspace/agent aggregates)
+    agentId: z.string().optional(), // agent ID (required for agent aggregates)
+    userId: z.string().optional(), // user ID (required for user aggregates)
+    modelName: z.string(), // model name
+    provider: z.string(), // provider name (e.g., "google")
+    usesByok: z.boolean().optional(), // whether this aggregate includes BYOK usage
+    inputTokens: z.number(), // total input tokens for this aggregate
+    outputTokens: z.number(), // total output tokens for this aggregate
+    totalTokens: z.number(), // total tokens
+    costUsd: z.number(), // total cost in USD
+    costEur: z.number(), // total cost in EUR
+    costGbp: z.number(), // total cost in GBP
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "email-connection": TableBaseSchema.extend({
+    pk: z.string(), // email-connection ID (e.g., "email-connections/{workspaceId}")
+    sk: z.string().optional(), // optional sort key (fixed value "connection")
+    workspaceId: z.string(), // workspace ID for GSI queries
+    type: z.enum(["gmail", "outlook", "smtp"]), // provider type
+    name: z.string(), // user-friendly name for the connection
+    config: z.record(z.string(), z.unknown()), // type-specific configuration, encrypted
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "mcp-server": TableBaseSchema.extend({
+    pk: z.string(), // mcp-server ID (e.g., "mcp-servers/{workspaceId}/{serverId}")
+    sk: z.string().optional(), // optional sort key (fixed value "server")
+    workspaceId: z.string(), // workspace ID for GSI queries
+    name: z.string(), // user-friendly name for the server
+    url: z.string().url(), // MCP server URL
+    authType: z.enum(["none", "header", "basic"]), // authentication type
+    config: z.record(z.string(), z.unknown()), // authentication configuration, encrypted
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "trial-credit-requests": TableBaseSchema.extend({
+    pk: z.string(), // trial-credit-requests ID (e.g., "trial-credit-requests/{workspaceId}")
+    sk: z.string().optional(), // optional sort key (fixed value "request")
+    workspaceId: z.string(), // workspace ID
+    userId: z.string(), // user ID who requested
+    userEmail: z.string().email(), // user email
+    currency: z.enum(["usd", "eur", "gbp"]), // workspace currency
+    requestedAt: z.string().datetime(), // when request was made
+    status: z.enum(["pending", "approved", "rejected"]).default("pending"),
+    approvedAt: z.string().datetime().optional(), // when approved
+    approvedBy: z.string().optional(), // Discord user ID or admin identifier
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  subscription: TableBaseSchema.extend({
+    pk: z.string(), // subscription ID (e.g., "subscriptions/{subscriptionId}")
+    sk: z.string().optional(), // optional sort key (fixed value "subscription")
+    userId: z.string(), // user ID who owns the subscription (for GSI queries)
+    plan: z.enum(["free", "starter", "pro"]),
+    expiresAt: z.string().datetime().optional(), // expiration date (deprecated - free plans no longer expire)
+    apiKeyId: z.string().optional(), // API Gateway API key ID for throttling
+    lastLimitEmailSentAt: z.string().datetime().optional(), // last time limit email was sent
+    // Lemon Squeezy integration fields
+    lemonSqueezySubscriptionId: z.string().optional(), // Lemon Squeezy subscription ID
+    lemonSqueezyCustomerId: z.string().optional(), // Lemon Squeezy customer ID
+    lemonSqueezyOrderId: z.string().optional(), // Lemon Squeezy order ID (for one-time purchases)
+    lemonSqueezyVariantId: z.string().optional(), // Lemon Squeezy variant ID (plan variant)
+    status: z
+      .enum([
+        "active",
+        "past_due",
+        "unpaid",
+        "cancelled",
+        "expired",
+        "on_trial",
+      ])
+      .default("active"), // Subscription status from Lemon Squeezy
+    renewsAt: z.string().datetime().optional(), // Next renewal date (ISO datetime)
+    endsAt: z.string().datetime().optional(), // Subscription end date if cancelled (ISO datetime)
+    trialEndsAt: z.string().datetime().optional(), // Trial end date (ISO datetime)
+    gracePeriodEndsAt: z.string().datetime().optional(), // Grace period end date for failed payments (7 days from past_due)
+    lastSyncedAt: z.string().datetime().optional(), // Last time subscription was synced from Lemon Squeezy
+    lastPaymentEmailSentAt: z.string().datetime().optional(), // Last time payment issue email was sent
+    lemonSqueezySyncKey: z.string().optional(), // GSI partition key for querying all Lemon Squeezy subscriptions (set to "ACTIVE" when subscription has Lemon Squeezy ID)
+    // Note: Using a single partition key value ("ACTIVE") could create a hot partition if there are many subscriptions.
+    // For high-scale scenarios, consider sharding (e.g., "ACTIVE#YYYY-MM" for monthly sharding) to distribute load.
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "llm-request-buckets": TableBaseSchema.extend({
+    pk: z.string(), // bucket ID (e.g., "llm-request-buckets/{subscriptionId}/{hourTimestamp}")
+    subscriptionId: z.string(), // subscription ID for GSI queries
+    hourTimestamp: z.string().datetime(), // ISO timestamp truncated to hour (YYYY-MM-DDTHH:00:00.000Z)
+    count: z.number().default(0), // request count for this hour
+    expires: z.number(), // TTL timestamp (25 hours from bucket hour)
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "workspace-invite": TableBaseSchema.extend({
+    pk: z.string(), // workspace-invite ID (e.g., "workspace-invites/{workspaceId}/{inviteId}")
+    sk: z.string(), // sort key (fixed value "invite")
+    workspaceId: z.string(), // workspace ID
+    email: z.string().email(), // invited user email (normalized to lowercase)
+    token: z.string(), // unique, cryptographically secure token
+    permissionLevel: z.number().int().min(1).max(3), // permission level (1=READ, 2=WRITE, 3=OWNER)
+    invitedBy: z.string(), // userRef of inviter
+    expiresAt: z.string().datetime(), // expiration date (ISO datetime)
+    acceptedAt: z.string().datetime().optional(), // when invite was accepted
+    acceptedBy: z.string().optional(), // userRef of user who accepted
+    expires: z.number(), // TTL timestamp for DynamoDB
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "agent-stream-servers": TableBaseSchema.extend({
+    pk: z.string(), // stream-server ID (e.g., "stream-servers/{workspaceId}/{agentId}")
+    sk: z.string(), // sort key (fixed value "config")
+    workspaceId: z.string(), // workspace ID
+    agentId: z.string(), // agent ID
+    secret: z.string(), // secret used in path parameter (stored as plain text; encrypted at rest by DynamoDB table-level encryption)
+    allowedOrigins: z.array(z.string()), // array of allowed origins or ["*"] for wildcard
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "user-api-key": TableBaseSchema.extend({
+    pk: z.string(), // composite partition key for user's API keys (e.g., "user-api-keys/{userId}")
+    sk: z.string(), // sort key (keyId UUID)
+    userId: z.string(), // user ID extracted from pk for reference
+    keyHash: z.string(), // scrypt hash of the full key (base64 encoded)
+    keySalt: z.string(), // salt used for hashing (base64 encoded)
+    keyLookupHash: z.string(), // SHA256 hash of the plain key for GSI lookup (hex encoded)
+    keyPrefix: z.string(), // first 12 characters for display (e.g., "hmat_abc...")
+    name: z.string().optional(), // optional user-provided name/label
+    lastUsedAt: z.string().datetime().optional(), // timestamp for tracking usage
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+  "user-refresh-token": TableBaseSchema.extend({
+    pk: z.string(), // composite partition key for user's refresh tokens (e.g., "user-refresh-tokens/{userId}")
+    sk: z.string(), // sort key (tokenId UUID)
+    userId: z.string(), // user ID extracted from pk for reference
+    tokenHash: z.string(), // scrypt hash of the refresh token (base64 encoded)
+    tokenSalt: z.string(), // salt used for hashing (base64 encoded)
+    tokenLookupHash: z.string(), // SHA256 hash of the plain token for GSI lookup (hex encoded)
+    expiresAt: z.string().datetime(), // expiration timestamp
+    lastUsedAt: z.string().datetime().optional(), // timestamp for tracking usage
+    revokedAt: z.string().datetime().optional(), // revocation timestamp (if revoked)
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
+} as const;
+
+export type TableBaseSchemaType = z.infer<typeof TableBaseSchema>;
+export type TableSchemas = typeof tableSchemas;
+export type TableName =
+  | "next-auth"
+  | "webhook-logs"
+  | "workspace"
+  | "permission"
+  | "agent"
+  | "agent-key"
+  | "workspace-api-key"
+  | "workspace-document"
+  | "output_channel"
+  | "agent-conversations"
+  | "credit-reservations"
+  | "token-usage-aggregates"
+  | "email-connection"
+  | "mcp-server"
+  | "trial-credit-requests"
+  | "subscription"
+  | "llm-request-buckets"
+  | "workspace-invite"
+  | "agent-stream-servers"
+  | "user-api-key"
+  | "user-refresh-token";
+
+export type WebhookLogRecord = z.infer<(typeof tableSchemas)["webhook-logs"]>;
+export type WorkspaceRecord = z.infer<typeof tableSchemas.workspace>;
+export type PermissionRecord = z.infer<typeof tableSchemas.permission>;
+export type AgentRecord = z.infer<typeof tableSchemas.agent>;
+export type AgentKeyRecord = z.infer<(typeof tableSchemas)["agent-key"]>;
+export type WorkspaceApiKeyRecord = z.infer<
+  (typeof tableSchemas)["workspace-api-key"]
+>;
+export type WorkspaceDocumentRecord = z.infer<
+  (typeof tableSchemas)["workspace-document"]
+>;
+export type OutputChannelRecord = z.infer<
+  (typeof tableSchemas)["output_channel"]
+>;
+export type AgentConversationRecord = z.infer<
+  (typeof tableSchemas)["agent-conversations"]
+>;
+export type CreditReservationRecord = z.infer<
+  (typeof tableSchemas)["credit-reservations"]
+>;
+export type TokenUsageAggregateRecord = z.infer<
+  (typeof tableSchemas)["token-usage-aggregates"]
+>;
+export type EmailConnectionRecord = z.infer<
+  (typeof tableSchemas)["email-connection"]
+>;
+export type McpServerRecord = z.infer<(typeof tableSchemas)["mcp-server"]>;
+export type TrialCreditRequestRecord = z.infer<
+  (typeof tableSchemas)["trial-credit-requests"]
+>;
+export type SubscriptionRecord = z.infer<(typeof tableSchemas)["subscription"]>;
+export type LLMRequestBucketRecord = z.infer<
+  (typeof tableSchemas)["llm-request-buckets"]
+>;
+export type WorkspaceInviteRecord = z.infer<
+  (typeof tableSchemas)["workspace-invite"]
+>;
+export type AgentStreamServerRecord = z.infer<
+  (typeof tableSchemas)["agent-stream-servers"]
+>;
+export type UserApiKeyRecord = z.infer<(typeof tableSchemas)["user-api-key"]>;
+export type UserRefreshTokenRecord = z.infer<
+  (typeof tableSchemas)["user-refresh-token"]
+>;
+
+export const PERMISSION_LEVELS = {
+  READ: 1,
+  WRITE: 2,
+  OWNER: 3,
+} as const;
+
+export type Query = {
+  IndexName?: string;
+  KeyConditionExpression?: string;
+  FilterExpression?: string;
+  ExpressionAttributeValues?: Record<string, unknown>;
+  ExpressionAttributeNames?: Record<string, string>;
+  ScanIndexForward?: boolean;
+};
+
+export type QueryResponse<TTableRecord extends TableBaseSchemaType> = {
+  items: TTableRecord[];
+  areAnyUnpublished: boolean;
+};
+
+export type TableAPI<
+  TTableName extends TableName,
+  TTableRecord extends z.infer<TableSchemas[TTableName]> = z.infer<
+    TableSchemas[TTableName]
+  >
+> = {
+  delete: (
+    key: string,
+    sk?: string,
+    version?: string | null
+  ) => Promise<TTableRecord>;
+  deleteIfExists: (
+    key: string,
+    sk?: string,
+    version?: string | null
+  ) => Promise<TTableRecord | undefined>;
+  deleteAll: (key: string, version?: string | null) => Promise<void>;
+  get: (
+    pk: string,
+    sk?: string,
+    version?: string | null
+  ) => Promise<TTableRecord | undefined>;
+  batchGet: (
+    keys: string[],
+    version?: string | null
+  ) => Promise<TTableRecord[]>;
+  update: (
+    item: Partial<TTableRecord>,
+    version?: string | null
+  ) => Promise<TTableRecord>;
+  upsert: (
+    item: Omit<TTableRecord, "version">,
+    version?: string | null
+  ) => Promise<TTableRecord>;
+  create: (
+    item: Omit<TTableRecord, "version" | "createdAt">,
+    version?: string | null
+  ) => Promise<TTableRecord>;
+  query: (
+    query: Query,
+    version?: string | null
+  ) => Promise<QueryResponse<TTableRecord>>;
+  queryAsync: (
+    query: Query,
+    version?: string | null
+  ) => AsyncGenerator<TTableRecord, void, unknown>;
+  merge: (
+    pk: string,
+    sk: string,
+    version: string | null
+  ) => Promise<TTableRecord>;
+  revert: (
+    pk: string,
+    sk: string | undefined,
+    version: string
+  ) => Promise<TTableRecord>;
+  atomicUpdate: (
+    pk: string,
+    sk: string | undefined,
+    updater: (
+      current: TTableRecord | undefined
+    ) => Promise<Partial<TTableRecord> & { pk: string }>,
+    options?: { maxRetries?: number }
+  ) => Promise<TTableRecord>;
+};
+
+export type DatabaseSchema = {
+  "next-auth": TableAPI<"next-auth">;
+  "webhook-logs": TableAPI<"webhook-logs">;
+  workspace: TableAPI<"workspace">;
+  permission: TableAPI<"permission">;
+  agent: TableAPI<"agent">;
+  "agent-key": TableAPI<"agent-key">;
+  "workspace-api-key": TableAPI<"workspace-api-key">;
+  "workspace-document": TableAPI<"workspace-document">;
+  output_channel: TableAPI<"output_channel">;
+  "agent-conversations": TableAPI<"agent-conversations">;
+  "credit-reservations": TableAPI<"credit-reservations">;
+  "token-usage-aggregates": TableAPI<"token-usage-aggregates">;
+  "email-connection": TableAPI<"email-connection">;
+  "mcp-server": TableAPI<"mcp-server">;
+  "trial-credit-requests": TableAPI<"trial-credit-requests">;
+  subscription: TableAPI<"subscription">;
+  "llm-request-buckets": TableAPI<"llm-request-buckets">;
+  "workspace-invite": TableAPI<"workspace-invite">;
+  "agent-stream-servers": TableAPI<"agent-stream-servers">;
+  "user-api-key": TableAPI<"user-api-key">;
+  "user-refresh-token": TableAPI<"user-refresh-token">;
+};

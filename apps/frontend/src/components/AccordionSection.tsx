@@ -1,0 +1,207 @@
+import { useEffect, useRef, useState } from "react";
+import type { FC, ReactNode } from "react";
+
+import { LazyAccordionContent } from "./LazyAccordionContent";
+
+interface AccordionSectionProps {
+  id: string;
+  title: string;
+  isExpanded: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}
+
+export const AccordionSection: FC<AccordionSectionProps> = ({
+  id,
+  title,
+  isExpanded,
+  onToggle,
+  children,
+}) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const innerContentRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLButtonElement>(null);
+  const previousExpandedRef = useRef<boolean>(false);
+  const referencePointRef = useRef<{
+    scrollY: number;
+    elementTop: number;
+  } | null>(null);
+  const [maxHeight, setMaxHeight] = useState<number>(0);
+
+  // Measure content height when expanded or when content changes
+  // Use ResizeObserver to handle dynamic content and ensure accurate measurements
+  // Only measure when expanded since children are conditionally rendered
+  useEffect(() => {
+    if (!isExpanded || !innerContentRef.current) {
+      return;
+    }
+
+    const measureHeight = () => {
+      if (innerContentRef.current) {
+        // Measure the inner content div which is only rendered when expanded
+        const height = innerContentRef.current.offsetHeight;
+        if (height > 0) {
+          setMaxHeight(height);
+        }
+      }
+    };
+
+    // Initial measurement
+    // Use requestAnimationFrame to ensure DOM is fully rendered after children mount
+    const rafId = requestAnimationFrame(() => {
+      measureHeight();
+    });
+
+    // Use ResizeObserver to watch for content size changes
+    const resizeObserver = new ResizeObserver(() => {
+      measureHeight();
+    });
+
+    resizeObserver.observe(innerContentRef.current);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      resizeObserver.disconnect();
+    };
+  }, [isExpanded, children]);
+
+  // Maintain scroll position during transition, then scroll to header after animation
+  useEffect(() => {
+    const wasExpanded = previousExpandedRef.current;
+    previousExpandedRef.current = isExpanded;
+
+    // Only handle scroll position changes when state actually changes
+    if (wasExpanded === isExpanded) {
+      return;
+    }
+
+    // Only handle scroll behavior when expanding (not collapsing)
+    if (!isExpanded) {
+      return;
+    }
+
+    // Store reference point before any DOM changes
+    // Use the header as a reference point to maintain relative position during transition
+    if (headerRef.current) {
+      const rect = headerRef.current.getBoundingClientRect();
+      referencePointRef.current = {
+        scrollY: window.scrollY,
+        elementTop: rect.top + window.scrollY,
+      };
+    }
+
+    // During the transition, maintain scroll position to prevent jumps
+    // Use requestAnimationFrame to adjust scroll during the animation
+    let animationFrameId: number | undefined;
+    const startTime = Date.now();
+    const transitionDuration = 300; // Match CSS transition duration
+
+    const maintainScrollDuringTransition = () => {
+      if (headerRef.current && referencePointRef.current) {
+        const rect = headerRef.current.getBoundingClientRect();
+        const newElementTop = rect.top + window.scrollY;
+        const elementMovement =
+          newElementTop - referencePointRef.current.elementTop;
+
+        // Adjust scroll position to maintain the reference point's position relative to viewport
+        // This prevents jumps during the transition
+        if (elementMovement !== 0) {
+          const newScrollY =
+            referencePointRef.current.scrollY + elementMovement;
+          window.scrollTo({
+            top: newScrollY,
+            behavior: "auto",
+          });
+        }
+
+        const elapsed = Date.now() - startTime;
+        if (elapsed < transitionDuration) {
+          animationFrameId = requestAnimationFrame(
+            maintainScrollDuringTransition
+          );
+        }
+      }
+    };
+
+    // Start maintaining scroll position during transition
+    animationFrameId = requestAnimationFrame(maintainScrollDuringTransition);
+
+    // After CSS transition completes, scroll the header to the top of the viewport
+    const transitionTimeout = setTimeout(() => {
+      if (headerRef.current) {
+        // Use requestAnimationFrame to ensure DOM is fully settled after transition
+        requestAnimationFrame(() => {
+          if (headerRef.current) {
+            // Calculate exact scroll position to place header at top of viewport
+            const rect = headerRef.current.getBoundingClientRect();
+            const scrollTop =
+              window.scrollY || document.documentElement.scrollTop;
+            // Add a small offset to account for any rounding or browser behavior
+            const targetScroll = scrollTop + rect.top - 1;
+
+            // Scroll to position header at the top (with small offset to prevent overscroll)
+            window.scrollTo({
+              top: Math.max(0, targetScroll), // Ensure we don't scroll to negative position
+              behavior: "smooth",
+            });
+          }
+        });
+      }
+      referencePointRef.current = null;
+    }, transitionDuration);
+
+    return () => {
+      if (animationFrameId !== undefined) {
+        cancelAnimationFrame(animationFrameId);
+      }
+      clearTimeout(transitionTimeout);
+    };
+  }, [isExpanded]);
+
+  return (
+    <div className="border border-neutral-200 rounded-2xl mb-4 bg-white shadow-medium">
+      <button
+        ref={headerRef}
+        onClick={onToggle}
+        className="w-full text-left p-6 lg:p-8 bg-white hover:bg-neutral-50 transition-all duration-200 rounded-2xl"
+        aria-expanded={isExpanded}
+        aria-controls={`accordion-content-${id}`}
+        aria-label={`${isExpanded ? "Collapse" : "Expand"} section ${title}`}
+      >
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-neutral-900 tracking-tight">
+            {title}
+          </h2>
+          <span className="text-2xl font-bold text-neutral-600">
+            {isExpanded ? "−" : "+"}
+          </span>
+        </div>
+      </button>
+      <div
+        id={`accordion-content-${id}`}
+        ref={contentRef}
+        className="overflow-hidden transition-all duration-300 ease-in-out"
+        style={{
+          // If expanded but height not measured yet, use a large value temporarily
+          // The ResizeObserver will update it with the actual height
+          maxHeight: isExpanded
+            ? maxHeight > 0
+              ? `${maxHeight}px`
+              : "9999px"
+            : "0px",
+          opacity: isExpanded ? 1 : 0,
+        }}
+        aria-hidden={!isExpanded}
+      >
+        <div
+          ref={innerContentRef}
+          className="p-6 lg:p-8 border-t border-neutral-200"
+        >
+          <LazyAccordionContent isExpanded={isExpanded}>
+            {children}
+          </LazyAccordionContent>
+        </div>
+      </div>
+    </div>
+  );
+};

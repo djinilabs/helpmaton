@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-neutral-50 text-neutral-900 font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+  
+  * {
+    @apply transition-colors duration-200;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+    letter-spacing: -0.02em;
+  }
+
+  h1 {
+    @apply text-5xl lg:text-6xl font-black tracking-tight;
+    letter-spacing: -0.03em;
+  }
+
+  h2 {
+    @apply text-4xl font-bold tracking-tight;
+    letter-spacing: -0.02em;
+  }
+
+  h3 {
+    @apply text-3xl font-bold tracking-tight;
+    letter-spacing: -0.02em;
+  }
+
+  h4 {
+    @apply text-2xl font-bold;
+  }
+}
+
+@layer components {
+  /* Button Variants */
+  .btn-primary {
+    @apply bg-gradient-primary px-6 py-3.5 text-white font-bold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none transition-all duration-200 transform hover:scale-[1.03] active:scale-[0.97];
+  }
+  
+  .btn-primary-lg {
+    @apply bg-gradient-primary px-8 py-4 text-white font-bold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none transition-all duration-200 transform hover:scale-[1.03] active:scale-[0.97];
+  }
+  
+  .btn-secondary {
+    @apply border-2 border-neutral-300 bg-white px-5 py-3 text-neutral-900 font-bold rounded-xl hover:bg-neutral-100 hover:border-neutral-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98];
+  }
+  
+  .btn-secondary-lg {
+    @apply border-2 border-neutral-300 bg-white px-7 py-3.5 text-neutral-900 font-bold rounded-xl hover:bg-neutral-100 hover:border-neutral-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98];
+  }
+  
+  .btn-danger {
+    @apply bg-error-600 px-6 py-3.5 text-white font-bold rounded-xl hover:bg-error-700 hover:shadow-error disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.03] active:scale-[0.97];
+  }
+  
+  /* Card Variants */
+  .card {
+    @apply bg-white rounded-2xl shadow-large border-2 border-neutral-300;
+  }
+  
+  .card-secondary {
+    @apply bg-white rounded-xl shadow-medium border-2 border-neutral-300;
+  }
+  
+  .card-hover {
+    @apply card hover:shadow-bold hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98];
+  }
+  
+  /* Form Input */
+  .input {
+    @apply w-full border-2 border-neutral-300 rounded-xl bg-white px-5 py-3.5 text-neutral-900 font-medium placeholder:text-neutral-500 placeholder:font-normal focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200;
+  }
+  
+  .input-sm {
+    @apply w-full border-2 border-neutral-300 rounded-lg bg-white px-4 py-2.5 text-sm text-neutral-900 font-medium placeholder:text-neutral-500 placeholder:font-normal focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200;
+  }
+}
+
+@keyframes manga-shine {
+  0% {
+    transform: translate(-120%) translateY(-120%) rotate(45deg);
+  }
+  15% {
+    transform: translate(120%) translateY(120%) rotate(45deg);
+  }
+  100% {
+    transform: translate(120%) translateY(120%) rotate(45deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .manga-shine-overlay {
+    animation: manga-shine 10s ease 0s infinite normal none running;
+  }
+}

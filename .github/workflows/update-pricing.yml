@@ -1,0 +1,46 @@
+name: Update Pricing
+
+on:
+  schedule:
+    # Run daily at midnight UTC
+    - cron: "0 0 * * *"
+  workflow_dispatch: # Allow manual triggering
+
+permissions:
+  contents: write # Required to push commits
+
+jobs:
+  update-pricing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Use PAT to allow commits to trigger other workflows
+          # GITHUB_TOKEN commits don't trigger workflows (security feature)
+          token: ${{ secrets.WORKFLOW_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.24.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Configure git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update pricing
+        run: pnpm update-pricing
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.WORKFLOW_TOKEN || secrets.GITHUB_TOKEN }}

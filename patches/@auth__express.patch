@@ -1,0 +1,15 @@
+diff --git a/index.js b/index.js
+index 32a1ba97fe569bccce9e8b1c2052293fee3f715e..f9f762ff8514c08ce975fa2a9fdb3acc96d61746 100644
+--- a/index.js
++++ b/index.js
+@@ -164,7 +164,9 @@ export async function getSession(req, config) {
+     const url = createActionURL("session", req.protocol, 
+     // @ts-expect-error
+     new Headers(req.headers), process.env, config);
+-    const response = await Auth(new Request(url, { headers: { cookie: req.headers.cookie ?? "" } }), config);
++    const headers = new Headers(req.headers);
++    const newRequest = new Request(url, { headers: { cookie: headers.get("cookie") ?? "" } });
++    const response = await Auth(newRequest, config);
+     const { status = 200 } = response;
+     const data = await response.json();
+     if (!data || !Object.keys(data).length)

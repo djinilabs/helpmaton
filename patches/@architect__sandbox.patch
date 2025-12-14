@@ -1,0 +1,13 @@
+diff --git a/src/tables/index.js b/src/tables/index.js
+index 13d839450a3c9b183e98dcba12b4c634a0fc4430..871e6f4dab48d9cde8e993de296f99b4fb99757b 100644
+--- a/src/tables/index.js
++++ b/src/tables/index.js
+@@ -26,7 +26,7 @@ function start (params, callback) {
+     function (callback) {
+       if (!hasExternalDb) {
+         // Node.js 17+ changed DNS lookup behavior for host binding; prefer host to be undefined unless manually specified
+-        dynamo = dynalite({ createTableMs: 0 }).listen(ports.tables, host, callback)
++        dynamo = dynalite({ createTableMs: 0, path: process.env.ARC_DB_PATH }).listen(ports.tables, host, callback)
+       }
+       else callback()
+     },

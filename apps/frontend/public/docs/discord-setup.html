@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discord Bot Setup Guide - Helpmaton</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.6;
+      color: #333;
+      background: #fff;
+    }
+    h1 {
+      border-bottom: 3px solid #000;
+      padding-bottom: 0.5rem;
+    }
+    h2 {
+      margin-top: 2rem;
+      border-bottom: 2px solid #000;
+      padding-bottom: 0.3rem;
+    }
+    h3 {
+      margin-top: 1.5rem;
+    }
+    code {
+      background: #f4f4f4;
+      padding: 0.2em 0.4em;
+      border-radius: 3px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+    pre {
+      background: #f4f4f4;
+      padding: 1rem;
+      border-radius: 5px;
+      overflow-x: auto;
+      border: 1px solid #ddd;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+    }
+    ul, ol {
+      padding-left: 2rem;
+    }
+    li {
+      margin: 0.5rem 0;
+    }
+    strong {
+      font-weight: bold;
+    }
+    a {
+      color: #0066cc;
+      text-decoration: underline;
+    }
+    a:hover {
+      color: #004499;
+    }
+  </style>
+</head>
+<body>
+  <h1>Discord Bot Setup Guide</h1>
+
+  <p>This guide explains how to set up a Discord bot for sending notifications from your LLM agents.</p>
+
+  <h2>Overview</h2>
+
+  <p>To enable Discord notifications, you need to:</p>
+  <ol>
+    <li>Create a Discord application and bot</li>
+    <li>Get the bot token</li>
+    <li>Invite the bot to your Discord server</li>
+    <li>Find the Discord channel ID</li>
+    <li>Configure the channel in your workspace</li>
+  </ol>
+
+  <h2>Step 1: Create a Discord Application</h2>
+
+  <ol>
+    <li>Go to the <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer">Discord Developer Portal</a></li>
+    <li>Click <strong>"New Application"</strong></li>
+    <li>Give your application a name (e.g., "Helpmaton Notifications")</li>
+    <li>Click <strong>"Create"</strong></li>
+  </ol>
+
+  <h2>Step 2: Create a Bot</h2>
+
+  <ol>
+    <li>In your application, go to the <strong>"Bot"</strong> section in the left sidebar</li>
+    <li>Click <strong>"Add Bot"</strong> and confirm</li>
+    <li>Under <strong>"Token"</strong>, click <strong>"Reset Token"</strong> or <strong>"Copy"</strong> to get your bot token
+      <ul>
+        <li><strong>Important</strong>: Save this token securely. You'll need it when configuring the channel in Helpmaton.</li>
+        <li>The token will look like: <code>MTIzNDU2Nzg5MDEyMzQ1Njc4OTA.Xxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></li>
+      </ul>
+    </li>
+  </ol>
+
+  <h2>Step 3: Configure Bot Permissions</h2>
+
+  <ol>
+    <li>Still in the <strong>"Bot"</strong> section, scroll down to <strong>"Privileged Gateway Intents"</strong>
+      <ul>
+        <li>For basic message sending, you typically don't need any privileged intents</li>
+      </ul>
+    </li>
+  </ol>
+
+  <h2>Step 4: Invite Bot to Your Server</h2>
+
+  <ol>
+    <li>Go to the <strong>"OAuth2"</strong> section in the left sidebar (under "Settings")</li>
+    <li>Click on <strong>"URL Generator"</strong> (or find it in the OAuth2 section)</li>
+    <li>Under <strong>"Scopes"</strong>, select:
+      <ul>
+        <li><code>bot</code></li>
+      </ul>
+    </li>
+    <li>Under <strong>"Bot Permissions"</strong>, select:
+      <ul>
+        <li><code>Send Messages</code></li>
+        <li><code>View Channels</code> (required to see channels)</li>
+      </ul>
+    </li>
+    <li>Copy the generated URL at the bottom of the page</li>
+    <li>Open the generated URL in your browser</li>
+    <li>Select the Discord server where you want to add the bot</li>
+    <li>Click <strong>"Authorize"</strong></li>
+    <li>Complete any CAPTCHA if prompted</li>
+  </ol>
+
+  <p><strong>Alternative method (if URL Generator is not available):</strong></p>
+  <ul>
+    <li>You can manually construct the invite URL using this format:
+      <pre><code>https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=2048&scope=bot</code></pre>
+      Replace <code>YOUR_CLIENT_ID</code> with your Application ID (found in the "General Information" section). The <code>permissions=2048</code> grants "Send Messages" permission.
+    </li>
+  </ul>
+
+  <h2>Step 5: Find the Discord Channel ID</h2>
+
+  <p>You need the ID of the Discord channel where notifications should be sent.</p>
+
+  <h3>Method 1: Using Discord Developer Mode</h3>
+
+  <ol>
+    <li>Open Discord and go to <strong>User Settings</strong> (gear icon)</li>
+    <li>Go to <strong>Advanced</strong> → Enable <strong>Developer Mode</strong></li>
+    <li>Right-click on the channel where you want notifications</li>
+    <li>Click <strong>"Copy ID"</strong></li>
+    <li>The channel ID is a long number (e.g., <code>123456789012345678</code>)</li>
+  </ol>
+
+  <h3>Method 2: Using Discord Web/Desktop</h3>
+
+  <ol>
+    <li>Make sure Developer Mode is enabled (see Method 1)</li>
+    <li>Right-click the channel in the channel list</li>
+    <li>Select <strong>"Copy ID"</strong></li>
+  </ol>
+
+  <h2>Step 6: Configure Channel in Helpmaton</h2>
+
+  <ol>
+    <li>Go to your workspace in Helpmaton</li>
+    <li>Navigate to the <strong>Channels</strong> section</li>
+    <li>Click <strong>"Add Channel"</strong> or <strong>"Create Channel"</strong></li>
+    <li>Fill in the form:
+      <ul>
+        <li><strong>Type</strong>: Select "Discord"</li>
+        <li><strong>Name</strong>: Give it a descriptive name (e.g., "Production Alerts")</li>
+        <li><strong>Discord Channel ID</strong>: Paste the channel ID from Step 5</li>
+        <li><strong>Bot Token</strong>: Paste the bot token from Step 2</li>
+      </ul>
+    </li>
+    <li>Click <strong>"Create"</strong></li>
+  </ol>
+
+  <h2>Step 7: Configure Agent to Use Channel</h2>
+
+  <ol>
+    <li>Go to your agent configuration</li>
+    <li>In the <strong>Notification Channel</strong> dropdown, select the channel you just created</li>
+    <li>Save the agent</li>
+  </ol>
+
+  <h2>Testing</h2>
+
+  <p>Once configured, your agent will have access to the <code>send_notification</code> tool. When the agent calls this tool, messages will be sent to the configured Discord channel from your bot.</p>
+
+  <h2>Troubleshooting</h2>
+
+  <h3>Bot Token Invalid</h3>
+
+  <ul>
+    <li>Make sure you copied the full token (it's very long)</li>
+    <li>Check that you haven't accidentally added extra spaces</li>
+    <li>If the token was exposed, reset it in the Discord Developer Portal</li>
+  </ul>
+
+  <h3>Bot Can't Send Messages</h3>
+
+  <ul>
+    <li>Verify the bot has the "Send Messages" permission in the channel</li>
+    <li>Check that the bot is actually in the server</li>
+    <li>Ensure the channel ID is correct</li>
+  </ul>
+
+  <h3>Channel Not Found</h3>
+
+  <ul>
+    <li>Double-check the channel ID (it should be a long number)</li>
+    <li>Make sure Developer Mode is enabled when copying the ID</li>
+    <li>Verify the bot has access to the channel</li>
+  </ul>
+
+  <h3>Bot Not Showing in Server</h3>
+
+  <ul>
+    <li>Re-invite the bot using the OAuth2 URL</li>
+    <li>Check that you authorized the bot for the correct server</li>
+    <li>Verify the bot appears in your server's member list</li>
+  </ul>
+
+  <h2>Security Best Practices</h2>
+
+  <ol>
+    <li><strong>Never share your bot token</strong> - Treat it like a password</li>
+    <li><strong>Use separate bots for different environments</strong> - Don't reuse the same bot token across workspaces</li>
+    <li><strong>Rotate tokens regularly</strong> - If a token is compromised, reset it immediately</li>
+    <li><strong>Limit bot permissions</strong> - Only grant the minimum permissions needed (Send Messages, View Channels)</li>
+    <li><strong>Monitor bot activity</strong> - Check your Discord server logs if notifications stop working</li>
+  </ol>
+
+  <h2>Additional Resources</h2>
+
+  <ul>
+    <li><a href="https://discord.com/developers/docs/intro" target="_blank" rel="noopener noreferrer">Discord Developer Documentation</a></li>
+    <li><a href="https://discord.com/developers/docs/topics/permissions" target="_blank" rel="noopener noreferrer">Discord Bot Permissions</a></li>
+    <li><a href="https://discord.com/developers/docs/reference" target="_blank" rel="noopener noreferrer">Discord API Documentation</a></li>
+  </ul>
+</body>
+</html>
+

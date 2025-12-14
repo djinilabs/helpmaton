@@ -1,0 +1,106 @@
+name: Undeploy PR
+
+on:
+  pull_request:
+    types: [closed]
+    # Security: Don't run if workflow files are modified
+    paths-ignore:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+
+jobs:
+  undeploy:
+    runs-on: ubuntu-latest
+    # Only run if the PR was merged or closed (not just synchronized)
+    if: github.event.pull_request.merged == true || github.event.pull_request.state == 'closed'
+    # Security: Explicit permissions - only what's needed
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+
+      - name: Check if CloudFormation stack exists
+        id: check-stack
+        run: |
+          STACK_NAME="HelpmatonStagingPR${{ github.event.pull_request.number }}"
+          if aws cloudformation describe-stacks --stack-name "$STACK_NAME" --region eu-west-2 >/dev/null 2>&1; then
+            echo "stack_exists=true" >> $GITHUB_OUTPUT
+            echo "Stack $STACK_NAME exists, will proceed with deletion"
+          else
+            echo "stack_exists=false" >> $GITHUB_OUTPUT
+            echo "Stack $STACK_NAME does not exist, nothing to delete"
+          fi
+
+      - name: Find and delete S3 bucket contents
+        if: steps.check-stack.outputs.stack_exists == 'true'
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          BUCKET_PREFIX="helpmatonstagingpr${PR_NUMBER}-staticbucket-"
+
+          echo "Looking for S3 buckets with prefix: $BUCKET_PREFIX"
+
+          # List buckets with the specific prefix
+          BUCKETS=$(aws s3api list-buckets --query "Buckets[?starts_with(Name, '$BUCKET_PREFIX')].Name" --output text)
+
+          if [ -n "$BUCKETS" ]; then
+            echo "Found S3 buckets: $BUCKETS"
+            
+            for BUCKET in ${BUCKETS}; do
+              [ -z "$BUCKET" ] && continue
+              echo "Deleting contents of bucket: $BUCKET"
+              
+              # Check if bucket has objects
+              OBJECT_COUNT=$(aws s3 ls s3://$BUCKET --recursive --summarize 2>/dev/null | grep "Total Objects:" | awk '{print $3}' || echo "0")
+              
+              if [ -n "$OBJECT_COUNT" ] && [ "$OBJECT_COUNT" -gt 0 ]; then
+                echo "Bucket $BUCKET contains $OBJECT_COUNT objects. Deleting all objects..."
+                
+                # Delete all objects in the bucket
+                aws s3 rm s3://$BUCKET --recursive
+                
+                echo "Successfully deleted all objects from bucket $BUCKET"
+              else
+                echo "Bucket $BUCKET is empty or has no objects"
+              fi
+            done
+          else
+            echo "No S3 buckets found with prefix: $BUCKET_PREFIX"
+          fi
+
+      - name: Delete CloudFormation stack
+        if: steps.check-stack.outputs.stack_exists == 'true'
+        run: |
+          STACK_NAME="HelpmatonStagingPR${{ github.event.pull_request.number }}"
+          echo "Deleting CloudFormation stack: $STACK_NAME"
+
+          # Delete the stack
+          aws cloudformation delete-stack \
+            --stack-name "$STACK_NAME" \
+            --region eu-west-2
+
+          echo "Stack deletion initiated for $STACK_NAME"
+
+          # Wait for stack deletion to complete
+          echo "Waiting for stack deletion to complete..."
+          aws cloudformation wait stack-delete-complete \
+            --stack-name "$STACK_NAME" \
+            --region eu-west-2
+
+          echo "Stack $STACK_NAME has been successfully deleted"
+
+      - name: Cleanup completed
+        if: steps.check-stack.outputs.stack_exists == 'false'
+        run: |
+          echo "No CloudFormation stack found for PR #${{ github.event.pull_request.number }}"
+          echo "Cleanup completed successfully"
