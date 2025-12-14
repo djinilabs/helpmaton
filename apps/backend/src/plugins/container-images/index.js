@@ -25,8 +25,13 @@ function routeToFunctionId(route) {
     return null;
   }
 
-  const method = parts[0].toUpperCase(); // "ANY", "GET", "POST", etc.
-  const path = parts.slice(1).join(" "); // "/api/streams/:workspaceId/:agentId/:secret"
+  const method = parts[0]?.toUpperCase(); // "ANY", "GET", "POST", etc.
+  const routePath = parts.slice(1).join(" "); // "/api/streams/:workspaceId/:agentId/:secret"
+
+  // Validate method and path are present
+  if (!method || !routePath) {
+    return null;
+  }
 
   // Convert method: "ANY" -> "Any", "GET" -> "Get", etc.
   const methodPrefix =
@@ -34,7 +39,7 @@ function routeToFunctionId(route) {
 
   // Convert path to function ID pattern
   // Remove leading slash and split by '/'
-  const pathSegments = path.replace(/^\//, "").split("/").filter(Boolean);
+  const pathSegments = routePath.replace(/^\//, "").split("/").filter(Boolean);
 
   // Convert each segment
   const convertedSegments = pathSegments.map((segment) => {
@@ -80,9 +85,27 @@ function parseContainerImagesPragma(arc) {
       if (Array.isArray(item) && item.length >= 3) {
         // Join method and path: ["any", "/api/streams/...", "image-name"] -> "any /api/streams/..."
         const method = item[0];
-        const path = item[1];
+        const routePath = item[1];
         const imageName = item[2];
-        const route = `${method} ${path}`.trim();
+        
+        // Validate all required fields are present and are strings
+        if (!method || !routePath || !imageName) {
+          console.warn(
+            `[container-images] Skipping invalid pragma item: missing method, path, or imageName`,
+            item
+          );
+          continue;
+        }
+        
+        if (typeof method !== "string" || typeof routePath !== "string" || typeof imageName !== "string") {
+          console.warn(
+            `[container-images] Skipping invalid pragma item: method, path, or imageName must be strings`,
+            item
+          );
+          continue;
+        }
+        
+        const route = `${method} ${routePath}`.trim();
         
         if (route && imageName) {
           const functionId = routeToFunctionId(route);
@@ -95,9 +118,9 @@ function parseContainerImagesPragma(arc) {
         const parts = item.trim().split(/\s+/);
         if (parts.length >= 3) {
           const method = parts[0];
-          const path = parts.slice(1, -1).join(" "); // Everything except first and last
+          const routePath = parts.slice(1, -1).join(" "); // Everything except first and last
           const imageName = parts[parts.length - 1];
-          const route = `${method} ${path}`.trim();
+          const route = `${method} ${routePath}`.trim();
           
           if (route && imageName) {
             const functionId = routeToFunctionId(route);
@@ -212,7 +235,11 @@ function convertToContainerImage(functionResource, imageUri, functionId) {
     return;
   }
 
-  const properties = functionResource.Properties || {};
+  // Ensure Properties exists
+  if (!functionResource.Properties) {
+    functionResource.Properties = {};
+  }
+  const properties = functionResource.Properties;
 
   // Set PackageType to Image
   properties.PackageType = "Image";
