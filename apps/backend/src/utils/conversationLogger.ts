@@ -175,24 +175,20 @@ export function mergeMessages(
   newMessages: UIMessage[],
   tokenUsage?: TokenUsage
 ): UIMessage[] {
+  console.log("mergeMessages", { existingMessages, newMessages, tokenUsage });
   const merged = [...existingMessages];
 
   for (const newMsg of newMessages) {
     // Check if message already exists
     if (!messageExists(newMsg, merged)) {
-      // Message doesn't exist, append it
-      if (newMsg.role === "assistant" && tokenUsage) {
-        // Add tokenUsage to new assistant messages
-        merged.push({
-          ...newMsg,
-          tokenUsage,
-        });
-      } else {
-        // Append message as-is
-        merged.push(newMsg);
-      }
+      // Append message as-is
+      merged.push(newMsg);
     }
-    // If message already exists, leave it be (do nothing)
+  }
+
+  const lastMessage = merged[merged.length - 1];
+  if (!lastMessage.tokenUsage && tokenUsage) {
+    lastMessage.tokenUsage = tokenUsage;
   }
 
   return merged;
