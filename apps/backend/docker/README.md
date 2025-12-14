@@ -91,7 +91,7 @@ The full ECR URI format is: `{account-id}.dkr.ecr.{region}.amazonaws.com/{reposi
 
 - Docker must be installed
 - AWS credentials must be configured for ECR access
-- The `dist/` directory must exist (built via `pnpm build` or `arc package`)
+- The `dist/` directory must exist (built via `pnpm build:backend`)
 
 ## Notes
 

@@ -422,8 +422,7 @@ export LAMBDA_IMAGES_ECR_REPOSITORY=helpmaton-lambda-images
 export LAMBDA_IMAGE_TAG=latest
 
 # Build backend first
-cd apps/backend
-pnpm exec arc package --quiet
+pnpm build:backend
 
 # Build and push images
 cd ../..
@@ -434,7 +433,7 @@ bash scripts/build-and-push-lambda-images.sh
 
 - Docker must be installed
 - AWS credentials must be configured for ECR access
-- The `dist/` directory must exist (built via `pnpm build` or `arc package`)
+- The `dist/` directory must exist (built via `pnpm build:backend`)
 
 ### Notes
 

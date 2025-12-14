@@ -46,7 +46,8 @@
     "verify-aggregates": "cd apps/backend && pnpm exec tsx ../../scripts/verify-aggregates.ts",
     "add-credits": "cd apps/backend && pnpm exec tsx ../../scripts/add-credits.ts",
     "discord:register-commands": "pnpm exec tsx scripts/register-discord-commands.ts",
-    "generate:openapi": "pnpm exec tsx scripts/generate-openapi.ts"
+    "generate:openapi": "pnpm exec tsx scripts/generate-openapi.ts",
+    "build:backend": "pnpm exec tsx scripts/build-backend.ts"
   },
   "packageManager": "pnpm@10.24.0",
   "pnpm": {
@@ -71,6 +72,7 @@
     "chokidar": "^4.0.3",
     "dotenv": "^17.2.1",
     "dynamodb-admin": "^5.1.3",
+    "esbuild": "^0.25.12",
     "eslint": "^9.39.1",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react": "^7.37.5",

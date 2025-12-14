@@ -168,9 +168,7 @@ jobs:
       - name: Build backend (for Docker images)
         if: steps.check-pr.outputs.is_pr != 'true'
         run: |
-          cd apps/backend
-          export PATH=../../node_modules/.bin:./node_modules/.bin:$PATH
-          pnpm exec arc package --quiet
+          pnpm build:backend
 
       - name: Build and push Lambda container images
         if: steps.check-pr.outputs.is_pr != 'true'

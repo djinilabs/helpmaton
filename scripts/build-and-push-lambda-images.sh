@@ -125,7 +125,7 @@ print_success "Found ${#IMAGE_NAMES[@]} unique image(s) to build: ${IMAGE_NAMES[
 
 # Check if dist directory exists (required for building)
 if [ ! -d "apps/backend/dist" ]; then
-    print_error "dist directory not found. Please run 'pnpm build' or 'arc package' first."
+    print_error "dist directory not found. Please run 'pnpm build:backend' first."
     exit 1
 fi
 
