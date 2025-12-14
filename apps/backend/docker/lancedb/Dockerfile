@@ -32,6 +32,7 @@ WORKDIR /tmp/workspace
 COPY pnpm-workspace.yaml ./
 COPY pnpm-lock.yaml ./
 COPY package.json ./
+COPY patches/ ./patches/
 COPY apps/backend/package.json ./apps/backend/
 
 # Install production dependencies for backend workspace with shamefully-hoist
