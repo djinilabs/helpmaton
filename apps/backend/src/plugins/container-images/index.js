@@ -199,9 +199,15 @@ function ensureEcrRepository(resources, repositoryName) {
  * @param {string} functionId - Lambda function logical ID
  */
 function convertToContainerImage(functionResource, imageUri, functionId) {
-  if (!functionResource || functionResource.Type !== "AWS::Lambda::Function") {
+  // Architect uses AWS::Serverless::Function (SAM) which gets transformed to AWS::Lambda::Function
+  // We need to handle both types
+  const isLambdaFunction = 
+    functionResource?.Type === "AWS::Lambda::Function" ||
+    functionResource?.Type === "AWS::Serverless::Function";
+  
+  if (!functionResource || !isLambdaFunction) {
     console.warn(
-      `[container-images] Resource ${functionId} is not a Lambda function, skipping`
+      `[container-images] Resource ${functionId} is not a Lambda function (Type: ${functionResource?.Type}), skipping`
     );
     return;
   }
@@ -212,9 +218,20 @@ function convertToContainerImage(functionResource, imageUri, functionId) {
   properties.PackageType = "Image";
 
   // Set ImageUri
-  properties.Code = {
-    ImageUri: imageUri,
-  };
+  // For AWS::Serverless::Function (SAM), we use ImageUri directly in Properties
+  // For AWS::Lambda::Function, we use Code with ImageUri
+  if (functionResource.Type === "AWS::Serverless::Function") {
+    // SAM functions use ImageUri directly in Properties for container images
+    properties.ImageUri = imageUri;
+    // Remove CodeUri (used for ZIP packages)
+    delete properties.CodeUri;
+    delete properties.Code;
+  } else {
+    // Standard Lambda functions use Code with ImageUri
+    properties.Code = {
+      ImageUri: imageUri,
+    };
+  }
 
   // Remove Runtime (not used for container images)
   // Note: We keep it as null or remove it, but AWS requires it to be omitted
@@ -284,7 +301,10 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
       console.warn(
         `[container-images] Lambda function ${functionId} not found in CloudFormation resources. Available function IDs:`,
         Object.keys(resources)
-          .filter((id) => resources[id]?.Type === "AWS::Lambda::Function")
+          .filter((id) => {
+            const type = resources[id]?.Type;
+            return type === "AWS::Lambda::Function" || type === "AWS::Serverless::Function";
+          })
           .slice(0, 10)
       );
       continue;
