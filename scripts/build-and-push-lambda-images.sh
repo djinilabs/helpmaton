@@ -150,8 +150,9 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
         exit 1
     fi
     
-    # Build context is the backend directory
-    BUILD_CONTEXT="apps/backend"
+    # Build context is the monorepo root to access pnpm-lock.yaml and workspace config
+    # The Dockerfile will copy files from apps/backend/ as needed
+    BUILD_CONTEXT="."
     
     # Build Docker image
     print_status "Building Docker image: ${IMAGE_NAME}..."

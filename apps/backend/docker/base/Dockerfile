@@ -2,7 +2,9 @@
 # Uses AWS Lambda base image for Node.js 20.x
 FROM public.ecr.aws/lambda/nodejs:20
 
-# Set working directory
+# LAMBDA_TASK_ROOT is pre-defined by the AWS Lambda base image (defaults to /var/task)
+# It points to the directory where the Lambda runtime expects function code
+# Set working directory to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}
 
 # Copy built Lambda code from dist directory

@@ -25,7 +25,14 @@ The `lancedb` image (`lancedb/Dockerfile`) extends the base image and includes s
 
 Unlike the base image, this image installs npm dependencies (via `pnpm install`) to compile native modules like LanceDB. The build tools are used during the `pnpm install` step to compile platform-specific native binaries.
 
-**Important:** For LanceDB to be available in the image, it must be listed in `package.json` dependencies (e.g., `@lancedb/lancedb`). The Dockerfile installs all production dependencies from `package.json`, so any packages you need must be declared there.
+**Monorepo Handling:** The Dockerfile handles the pnpm monorepo structure by:
+
+1. Using the monorepo root as the build context (to access `pnpm-lock.yaml` and workspace config)
+2. Setting up a temporary workspace structure with root and backend workspace files
+3. Installing dependencies with `--filter backend --shamefully-hoist` to create a flat `node_modules` structure (no symlinks, suitable for Lambda)
+4. Copying the flat `node_modules` to the Lambda task root
+
+**Important:** For LanceDB to be available in the image, it must be listed in `apps/backend/package.json` dependencies (e.g., `@lancedb/lancedb`). The Dockerfile installs all production dependencies from the backend workspace's `package.json`.
 
 Use this image when your Lambda function needs to use LanceDB for vector database operations. The image includes all necessary build tools and installs dependencies to ensure LanceDB's native modules are properly compiled for the Lambda runtime environment.
 

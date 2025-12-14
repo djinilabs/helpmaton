@@ -3,7 +3,9 @@
 # required for LanceDB native module compilation
 FROM public.ecr.aws/lambda/nodejs:20
 
-# Set working directory
+# LAMBDA_TASK_ROOT is pre-defined by the AWS Lambda base image (defaults to /var/task)
+# It points to the directory where the Lambda runtime expects function code
+# Set working directory to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}
 
 # Install system dependencies required for LanceDB
@@ -23,24 +25,33 @@ RUN yum update -y && \
 # Install pnpm globally (project uses pnpm for dependency management)
 RUN npm install -g pnpm
 
-# Copy package files for dependency installation
-# Note: In a monorepo, pnpm-lock.yaml may be at the root, not in apps/backend
-# The wildcard makes it optional - if missing, pnpm will generate a new lock file
+# Set up workspace structure for pnpm to resolve dependencies correctly
+# Build context is the monorepo root, so we can access root files
+WORKDIR /tmp/workspace
+COPY pnpm-workspace.yaml ./
+COPY pnpm-lock.yaml ./
 COPY package.json ./
-COPY pnpm-lock.yaml* ./
+COPY apps/backend/package.json ./apps/backend/
 
-# Install production dependencies
+# Install production dependencies for backend workspace with shamefully-hoist
+# This creates a flat node_modules structure (no symlinks) suitable for Lambda
 # This step compiles native modules (like LanceDB) using the build tools above
-# Use --no-frozen-lockfile if lock file is not available (monorepo scenario)
-RUN if [ -f pnpm-lock.yaml ]; then \
-    pnpm install --prod --frozen-lockfile; \
-    else \
-    pnpm install --prod; \
-    fi
+RUN pnpm install --prod --frozen-lockfile --filter backend --shamefully-hoist
+
+# Copy the flat node_modules to Lambda task root
+# With --shamefully-hoist, node_modules is at the workspace root
+RUN cp -r node_modules ${LAMBDA_TASK_ROOT}/ && \
+    cp apps/backend/package.json ${LAMBDA_TASK_ROOT}/
+
+# Clean up temporary workspace
+RUN rm -rf /tmp/workspace
+
+# Set working directory to Lambda task root
+WORKDIR ${LAMBDA_TASK_ROOT}
 
 # Copy built Lambda code from dist directory
 # The dist directory contains the compiled TypeScript code
-COPY dist/ ${LAMBDA_TASK_ROOT}/
+COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 
 # Lambda handler is set via CMD or can be overridden per function
 # Default handler assumes index.handler
