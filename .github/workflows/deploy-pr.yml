@@ -142,7 +142,7 @@ jobs:
         run: |
           cd apps/backend
           export PATH=../../node_modules/.bin:./node_modules/.bin:$PATH
-          pnpm exec arc build
+          pnpm exec arc package --quiet
 
       - name: Build and push Lambda container images
         env:
