@@ -257,6 +257,8 @@ export async function startConversation(
         const existingMessages = (current.messages || []) as UIMessage[];
         const allMessages = [...existingMessages, ...data.messages];
 
+        console.log("allMessages", allMessages);
+
         // Extract all tool calls and results from merged messages
         const mergedToolCalls = extractToolCalls(allMessages);
         const mergedToolResults = extractToolResults(allMessages);
