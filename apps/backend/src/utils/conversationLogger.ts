@@ -410,11 +410,78 @@ export async function updateConversation(
       const toolResults = extractToolResults(allMessages);
 
       // Aggregate token usage
-      const existingTokenUsage = existing.tokenUsage as TokenUsage | undefined;
-      const aggregatedTokenUsage = aggregateTokenUsage(
-        existingTokenUsage,
-        additionalTokenUsage
-      );
+      // For full history replacement, try to recalculate from all message-level tokenUsage values
+      // to ensure accuracy (in case individual messages have tokenUsage preserved)
+      // If message-level tokenUsage is not available, fall back to conversation-level aggregation
+      let aggregatedTokenUsage: TokenUsage;
+      if (isFullHistoryReplacement) {
+        // Extract tokenUsage from all assistant messages in the merged messages
+        const messageTokenUsages = allMessages
+          .filter(
+            (msg) =>
+              msg.role === "assistant" &&
+              typeof msg === "object" &&
+              msg !== null &&
+              "tokenUsage" in msg &&
+              msg.tokenUsage
+          )
+          .map((msg) => (msg as { tokenUsage: TokenUsage }).tokenUsage);
+
+        // Check if the last assistant message already has tokenUsage
+        // (if it does, we don't need to add additionalTokenUsage to avoid double-counting)
+        const lastAssistantMessage = allMessages
+          .slice()
+          .reverse()
+          .find((msg) => msg.role === "assistant");
+        const lastMessageHasTokenUsage =
+          lastAssistantMessage &&
+          typeof lastAssistantMessage === "object" &&
+          lastAssistantMessage !== null &&
+          "tokenUsage" in lastAssistantMessage &&
+          lastAssistantMessage.tokenUsage;
+
+        // If we have message-level tokenUsage values, use those
+        // Only include additionalTokenUsage if the last message doesn't already have tokenUsage
+        if (messageTokenUsages.length > 0) {
+          // Include additionalTokenUsage only if the last assistant message doesn't have it
+          const allTokenUsages =
+            additionalTokenUsage && !lastMessageHasTokenUsage
+              ? [...messageTokenUsages, additionalTokenUsage]
+              : messageTokenUsages;
+
+          // Aggregate all message-level tokenUsage values
+          aggregatedTokenUsage = aggregateTokenUsage(...allTokenUsages);
+        } else if (additionalTokenUsage) {
+          // No message-level tokenUsage found, but we have additionalTokenUsage
+          // Fall back to conversation-level aggregation
+          const existingTokenUsage = existing.tokenUsage as
+            | TokenUsage
+            | undefined;
+          aggregatedTokenUsage = aggregateTokenUsage(
+            existingTokenUsage,
+            additionalTokenUsage
+          );
+        } else {
+          // No tokenUsage at all, use existing conversation-level tokenUsage
+          const existingTokenUsage = existing.tokenUsage as
+            | TokenUsage
+            | undefined;
+          aggregatedTokenUsage = existingTokenUsage || {
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: 0,
+          };
+        }
+      } else {
+        // For incremental updates, use existing conversation-level tokenUsage + new tokenUsage
+        const existingTokenUsage = existing.tokenUsage as
+          | TokenUsage
+          | undefined;
+        aggregatedTokenUsage = aggregateTokenUsage(
+          existingTokenUsage,
+          additionalTokenUsage
+        );
+      }
 
       // Recalculate costs with aggregated token usage
       // Use existing values if available, otherwise fall back to function parameters
