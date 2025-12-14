@@ -141,7 +141,8 @@ jobs:
       - name: Build backend (for Docker images)
         run: |
           cd apps/backend
-          pnpm arc build
+          export PATH=../../node_modules/.bin:./node_modules/.bin:$PATH
+          pnpm exec arc build
 
       - name: Build and push Lambda container images
         env:
