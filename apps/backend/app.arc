@@ -266,8 +266,7 @@ any /api/streams/:workspaceId/:agentId/:secret
 @container-images
 # Format: method route image-name
 # Example: any /api/streams/:workspaceId/:agentId/:secret my-custom-image
-# Uncomment and configure as needed:
-# any /api/streams/:workspaceId/:agentId/:secret base
+any /api/streams/:workspaceId/:agentId/:secret lancedb
 
 @plugins
 architect/plugin-typescript
