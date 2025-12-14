@@ -389,18 +389,111 @@ export async function updateConversation(
             newMsg.role === "assistant" &&
             existingMsg.role === "assistant" &&
             JSON.stringify(newMsg.content) ===
-              JSON.stringify(existingMsg.content) &&
-            "tokenUsage" in existingMsg &&
-            existingMsg.tokenUsage
+              JSON.stringify(existingMsg.content)
           ) {
             // Preserve existing tokenUsage if new message doesn't have it
-            return {
-              ...newMsg,
-              tokenUsage: newMsg.tokenUsage || existingMsg.tokenUsage,
-            };
+            const existingTokenUsage =
+              "tokenUsage" in existingMsg && existingMsg.tokenUsage
+                ? (existingMsg.tokenUsage as TokenUsage)
+                : undefined;
+
+            // Use new message's tokenUsage if available, otherwise use existing
+            if (newMsg.tokenUsage || existingTokenUsage) {
+              return {
+                ...newMsg,
+                tokenUsage: newMsg.tokenUsage || existingTokenUsage,
+              };
+            }
           }
           return newMsg;
         });
+
+        // After preserving tokenUsage, try to recover tokenUsage for assistant messages
+        // that still don't have it by inferring from conversation-level tokenUsage
+        // This handles cases where messages were created without tokenUsage
+        const assistantMessagesWithoutTokenUsage = allMessages
+          .map((msg, idx) => ({ msg, idx }))
+          .filter(
+            ({ msg }) =>
+              msg.role === "assistant" &&
+              typeof msg === "object" &&
+              msg !== null &&
+              (!("tokenUsage" in msg) || !msg.tokenUsage)
+          );
+        const assistantMessagesWithTokenUsage = allMessages.filter(
+          (msg) =>
+            msg.role === "assistant" &&
+            typeof msg === "object" &&
+            msg !== null &&
+            "tokenUsage" in msg &&
+            msg.tokenUsage
+        );
+
+        // Try to recover tokenUsage for assistant messages that don't have it
+        // by inferring from conversation-level tokenUsage when we have exactly
+        // one message without tokenUsage and one with tokenUsage
+        if (
+          assistantMessagesWithoutTokenUsage.length === 1 &&
+          assistantMessagesWithTokenUsage.length === 1 &&
+          existing.tokenUsage
+        ) {
+          const existingTokenUsage = existing.tokenUsage as TokenUsage;
+          const knownTokenUsage = assistantMessagesWithTokenUsage[0] as {
+            tokenUsage: TokenUsage;
+          };
+          const knownUsage = knownTokenUsage.tokenUsage;
+
+          // Calculate inferred tokenUsage: existing total - known tokenUsage
+          // This works when existing conversation-level tokenUsage represents
+          // the sum of all messages, and we're subtracting the known message's tokenUsage
+          const inferredTokenUsage: TokenUsage = {
+            promptTokens:
+              existingTokenUsage.promptTokens - knownUsage.promptTokens,
+            completionTokens:
+              existingTokenUsage.completionTokens - knownUsage.completionTokens,
+            totalTokens:
+              existingTokenUsage.totalTokens - knownUsage.totalTokens,
+          };
+
+          // Only use inferred tokenUsage if values are non-negative and reasonable
+          // (i.e., the existing tokenUsage is greater than the known tokenUsage,
+          // which suggests it represents the sum of multiple messages)
+          if (
+            inferredTokenUsage.promptTokens >= 0 &&
+            inferredTokenUsage.completionTokens >= 0 &&
+            inferredTokenUsage.totalTokens >= 0 &&
+            (inferredTokenUsage.promptTokens > 0 ||
+              inferredTokenUsage.completionTokens > 0 ||
+              inferredTokenUsage.totalTokens > 0)
+          ) {
+            // Add reasoningTokens if both have them
+            if (
+              existingTokenUsage.reasoningTokens &&
+              knownUsage.reasoningTokens
+            ) {
+              inferredTokenUsage.reasoningTokens =
+                existingTokenUsage.reasoningTokens - knownUsage.reasoningTokens;
+            } else if (existingTokenUsage.reasoningTokens) {
+              // If only existing has reasoningTokens, assign all to the inferred message
+              inferredTokenUsage.reasoningTokens =
+                existingTokenUsage.reasoningTokens;
+            }
+
+            // Update the message without tokenUsage
+            const { idx } = assistantMessagesWithoutTokenUsage[0];
+            const currentMsg = allMessages[idx];
+            if (
+              currentMsg &&
+              typeof currentMsg === "object" &&
+              currentMsg.role === "assistant"
+            ) {
+              allMessages[idx] = {
+                ...currentMsg,
+                tokenUsage: inferredTokenUsage,
+              } as UIMessage;
+            }
+          }
+        }
       } else {
         // Incremental update: just append new messages
         allMessages = [...existingMessages, ...newMessages];
