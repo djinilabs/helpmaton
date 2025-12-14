@@ -314,8 +314,12 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
     outputs.LambdaImagesRepositoryUri = {
       Description: "ECR repository URI for Lambda container images",
       Value: {
-        "Fn::Sub": "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RepositoryName}",
-        RepositoryName: repositoryName,
+        "Fn::Sub": [
+          "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RepositoryName}",
+          {
+            RepositoryName: repositoryName,
+          },
+        ],
       },
       Export: {
         Name: {
