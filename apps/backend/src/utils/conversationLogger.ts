@@ -467,25 +467,58 @@ export async function updateConversation(
             }
 
             if (matchingExistingMsg) {
-              // Found a matching existing message
-              // Preserve existing tokenUsage if new message doesn't have it
+              // Found a matching existing message - this is an existing message, not a new one
+              // ALWAYS preserve existing tokenUsage for messages that already existed
+              // Never overwrite existing tokenUsage with undefined or new values
               const existingTokenUsage =
                 "tokenUsage" in matchingExistingMsg &&
                 matchingExistingMsg.tokenUsage
                   ? (matchingExistingMsg.tokenUsage as TokenUsage)
                   : undefined;
 
-              // Prefer new message's tokenUsage if available (it's more recent),
-              // otherwise use existing tokenUsage
-              if (newMsg.tokenUsage || existingTokenUsage) {
+              // Always preserve existing tokenUsage if it exists
+              // Only use new tokenUsage if existing message doesn't have any
+              // (this handles edge cases where existing message was created without tokenUsage)
+              if (existingTokenUsage) {
                 return {
                   ...newMsg,
-                  tokenUsage: newMsg.tokenUsage || existingTokenUsage,
+                  tokenUsage: existingTokenUsage,
+                };
+              } else if (newMsg.tokenUsage) {
+                // Existing message has no tokenUsage, but new message does - use it
+                return {
+                  ...newMsg,
+                  tokenUsage: newMsg.tokenUsage,
                 };
               }
             }
           }
           return newMsg;
+        });
+
+        // Defensive fallback: If matching failed for any reason, try to preserve tokenUsage
+        // from existing messages by position (for full history replacement, positions should align)
+        allMessages = allMessages.map((msg, index) => {
+          if (
+            msg.role === "assistant" &&
+            (!("tokenUsage" in msg) || !msg.tokenUsage) &&
+            index < existingMessages.length
+          ) {
+            const existingMsgAtPosition = existingMessages[index];
+            if (
+              existingMsgAtPosition &&
+              existingMsgAtPosition.role === "assistant" &&
+              "tokenUsage" in existingMsgAtPosition &&
+              existingMsgAtPosition.tokenUsage
+            ) {
+              // Preserve tokenUsage from existing message at this position
+              return {
+                ...msg,
+                tokenUsage: existingMsgAtPosition.tokenUsage as TokenUsage,
+              };
+            }
+          }
+          return msg;
         });
 
         // After preserving tokenUsage, try to recover tokenUsage for assistant messages
@@ -575,8 +608,53 @@ export async function updateConversation(
           }
         }
       } else {
-        // Incremental update: just append new messages
-        allMessages = [...existingMessages, ...newMessages];
+        // Incremental update: append new messages to existing ones
+        // But still try to preserve tokenUsage from existing messages if any new messages
+        // match existing ones by content (this handles cases where full history detection failed)
+        const existingAssistantMessagesByContent = new Map<string, UIMessage>();
+        for (const existingMsg of existingMessages) {
+          if (existingMsg.role === "assistant") {
+            const normalizedContent = normalizeMessageContent(
+              existingMsg.content
+            );
+            if (!existingAssistantMessagesByContent.has(normalizedContent)) {
+              existingAssistantMessagesByContent.set(
+                normalizedContent,
+                existingMsg
+              );
+            }
+          }
+        }
+
+        // Append new messages, preserving tokenUsage from existing messages if they match
+        const preservedNewMessages = newMessages.map((newMsg) => {
+          if (newMsg.role === "assistant") {
+            const normalizedContent = normalizeMessageContent(newMsg.content);
+            const matchingExistingMsg =
+              existingAssistantMessagesByContent.get(normalizedContent);
+
+            if (matchingExistingMsg) {
+              // Found a matching existing message - preserve its tokenUsage
+              const existingTokenUsage =
+                "tokenUsage" in matchingExistingMsg &&
+                matchingExistingMsg.tokenUsage
+                  ? (matchingExistingMsg.tokenUsage as TokenUsage)
+                  : undefined;
+
+              if (existingTokenUsage) {
+                // Preserve existing tokenUsage
+                return {
+                  ...newMsg,
+                  tokenUsage: existingTokenUsage,
+                };
+              }
+            }
+          }
+          // No match or not an assistant message - use new message as-is
+          return newMsg;
+        });
+
+        allMessages = [...existingMessages, ...preservedNewMessages];
       }
 
       // Extract all tool calls and results from merged messages
