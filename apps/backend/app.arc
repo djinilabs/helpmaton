@@ -263,6 +263,12 @@ pro
 @lambda-urls
 any /api/streams/:workspaceId/:agentId/:secret
 
+@container-images
+# Format: method route image-name
+# Example: any /api/streams/:workspaceId/:agentId/:secret my-custom-image
+# Uncomment and configure as needed:
+# any /api/streams/:workspaceId/:agentId/:secret base
+
 @plugins
 architect/plugin-typescript
 s3
@@ -270,6 +276,7 @@ http-to-rest
 api-throttling
 custom-domain
 lambda-urls
+container-images
 
 @aws
 runtime typescript

@@ -361,9 +361,93 @@ pnpm arc deploy --production --no-hydrate --verbose
 4. **Monitor deployments**: Review deployment logs for any suspicious activity
 5. **Enable MFA**: Require multi-factor authentication for AWS accounts
 
+## Containerized Lambda Functions
+
+Helpmaton supports containerized Lambda functions using Docker images. This allows you to use custom base images with system libraries or native dependencies.
+
+### Configuration
+
+Containerized Lambda functions are configured in `app.arc` using the `@container-images` pragma:
+
+```
+@container-images
+method route image-name
+any /api/streams/:workspaceId/:agentId/:secret my-custom-image
+```
+
+Format: `{method} {route} {image-name}`
+
+### Docker Images
+
+Docker images are stored in `apps/backend/docker/`:
+
+- `base/Dockerfile` - Base image with Node.js 20.x
+- `{image-name}/Dockerfile` - Custom images extending base or using different base images
+
+### Building Images
+
+Images are automatically built and pushed to ECR during deployment. The build script:
+
+1. Parses `@container-images` pragma from `app.arc`
+2. Builds Docker images for each specified image name
+3. Pushes images to ECR repository: `helpmaton-lambda-images`
+4. Tags images with commit SHA and `latest`
+
+### ECR Repository
+
+The ECR repository is automatically created by the container-images plugin if it doesn't exist. The repository:
+
+- Name: `helpmaton-lambda-images`
+- Region: `eu-west-2`
+- Image scanning: Enabled on push
+- Lifecycle policy: Keeps last 10 images per tag
+
+### Image URI Format
+
+Images are tagged with the format: `{image-name}:{tag}` where:
+
+- `image-name` is specified in the `@container-images` pragma
+- `tag` is the commit SHA (for reproducibility) or `latest`
+
+Full ECR URI: `{account-id}.dkr.ecr.{region}.amazonaws.com/{repository-name}:{image-name}-{tag}`
+
+### Manual Build
+
+To build images manually:
+
+```bash
+# Set environment variables
+export AWS_REGION=eu-west-2
+export LAMBDA_IMAGES_ECR_REPOSITORY=helpmaton-lambda-images
+export LAMBDA_IMAGE_TAG=latest
+
+# Build backend first
+cd apps/backend
+pnpm arc build
+
+# Build and push images
+cd ../..
+bash scripts/build-and-push-lambda-images.sh
+```
+
+### Requirements
+
+- Docker must be installed
+- AWS credentials must be configured for ECR access
+- The `dist/` directory must exist (built via `pnpm build` or `arc build`)
+
+### Notes
+
+- Functions not in `@container-images` continue using ZIP deployment
+- Images should be kept small to reduce cold start times
+- Use multi-stage builds if you need to compile dependencies
+- The base image already includes Node.js 20.x and Lambda runtime interface client
+
 ## Additional Resources
 
 - [Architect Framework Documentation](https://arc.codes/)
 - [AWS Certificate Manager](https://aws.amazon.com/certificate-manager/)
 - [Route53 Documentation](https://docs.aws.amazon.com/route53/)
 - [GitHub Actions Secrets](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
+- [AWS Lambda Container Images](https://docs.aws.amazon.com/lambda/latest/dg/images-create.html)
+- [Amazon ECR Documentation](https://docs.aws.amazon.com/ecr/)

@@ -165,6 +165,21 @@ jobs:
         if: steps.check-pr.outputs.is_pr != 'true'
         run: pnpm install --frozen-lockfile
 
+      - name: Build backend (for Docker images)
+        if: steps.check-pr.outputs.is_pr != 'true'
+        run: |
+          cd apps/backend
+          pnpm arc build
+
+      - name: Build and push Lambda container images
+        if: steps.check-pr.outputs.is_pr != 'true'
+        env:
+          AWS_REGION: eu-west-2
+          LAMBDA_IMAGES_ECR_REPOSITORY: helpmaton-lambda-images
+          LAMBDA_IMAGE_TAG: ${{ github.sha }}
+        run: |
+          bash scripts/build-and-push-lambda-images.sh
+
       - name: Deploy to production
         if: steps.check-pr.outputs.is_pr != 'true'
         env:
@@ -313,6 +328,7 @@ jobs:
           fi
           pnpm build
           cd apps/backend
+          export LAMBDA_IMAGE_TAG="${{ github.sha }}"
           pnpm arc deploy --production --no-hydrate --verbose
 
       - name: Trigger API Gateway deployment
