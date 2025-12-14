@@ -13,14 +13,15 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 # - make: Build tool for compiling native dependencies
 # - gcc-c++: C++ compiler for native module compilation
 # - git: May be needed for some npm packages
-RUN yum update -y && \
-    yum install -y \
+# Note: AWS Lambda base images use dnf (not yum) on Amazon Linux 2023
+RUN dnf update -y && \
+    dnf install -y \
     python3 \
     make \
     gcc-c++ \
     git && \
-    yum clean all && \
-    rm -rf /var/cache/yum
+    dnf clean all && \
+    rm -rf /var/cache/dnf
 
 # Install pnpm globally (project uses pnpm for dependency management)
 RUN npm install -g pnpm
