@@ -356,8 +356,30 @@ export async function updateConversation(
       }
 
       // Merge messages
+      // Check if newMessages already contains the existing messages (full history replacement)
+      // vs. just new messages to append (incremental update)
       const existingMessages = (existing.messages || []) as UIMessage[];
-      const allMessages = [...existingMessages, ...newMessages];
+
+      // If newMessages starts with the same messages as existing, it's likely a full history replacement
+      // This happens when the request body contains the full conversation history (e.g., streaming endpoint)
+      const isFullHistoryReplacement =
+        existingMessages.length > 0 &&
+        newMessages.length >= existingMessages.length &&
+        existingMessages.every((existingMsg, index) => {
+          const newMsg = newMessages[index];
+          if (!newMsg || !existingMsg) return false;
+          return (
+            existingMsg.role === newMsg.role &&
+            JSON.stringify(existingMsg.content) ===
+              JSON.stringify(newMsg.content)
+          );
+        });
+
+      // If it's a full history replacement, use newMessages directly
+      // Otherwise, merge existing with new (incremental update)
+      const allMessages = isFullHistoryReplacement
+        ? newMessages
+        : [...existingMessages, ...newMessages];
 
       // Extract all tool calls and results from merged messages
       const toolCalls = extractToolCalls(allMessages);
