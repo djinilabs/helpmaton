@@ -741,6 +741,7 @@ export interface Conversation {
     promptTokens: number;
     completionTokens: number;
     totalTokens: number;
+    reasoningTokens?: number;
   } | null;
   modelName: string | null;
   provider: string | null;

@@ -34,7 +34,14 @@ export const ConversationList: FC<ConversationListProps> = ({
 
   const formatTokenUsage = (tokenUsage: Conversation["tokenUsage"]): string => {
     if (!tokenUsage) return "N/A";
-    return `${tokenUsage.totalTokens.toLocaleString()} (${tokenUsage.promptTokens.toLocaleString()}+${tokenUsage.completionTokens.toLocaleString()})`;
+    const parts = [
+      tokenUsage.promptTokens.toLocaleString(),
+      tokenUsage.completionTokens.toLocaleString(),
+    ];
+    if (tokenUsage.reasoningTokens && tokenUsage.reasoningTokens > 0) {
+      parts.push(tokenUsage.reasoningTokens.toLocaleString());
+    }
+    return `${tokenUsage.totalTokens.toLocaleString()} (${parts.join("+")})`;
   };
 
   if (isLoading && !data) {

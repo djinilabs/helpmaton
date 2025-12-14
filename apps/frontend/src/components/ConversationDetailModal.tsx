@@ -147,6 +147,14 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                   {conversationDetail.tokenUsage.promptTokens.toLocaleString()}{" "}
                   | Completion:{" "}
                   {conversationDetail.tokenUsage.completionTokens.toLocaleString()}
+                  {conversationDetail.tokenUsage.reasoningTokens &&
+                    conversationDetail.tokenUsage.reasoningTokens > 0 && (
+                      <>
+                        {" "}
+                        | Reasoning:{" "}
+                        {conversationDetail.tokenUsage.reasoningTokens.toLocaleString()}
+                      </>
+                    )}
                 </div>
               </div>
             )}
