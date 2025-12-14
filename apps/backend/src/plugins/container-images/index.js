@@ -273,8 +273,8 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
   // Get AWS region
   const region = process.env.AWS_REGION || "eu-west-2";
 
-  // Ensure ECR repository exists
-  const repositoryId = ensureEcrRepository(resources, repositoryName);
+  // Note: ECR repository is created by build-and-push-lambda-images.sh script
+  // We don't create it in CloudFormation to avoid conflicts
 
   // Process each function that needs container images
   for (const [functionId, imageName] of imageMap.entries()) {
@@ -295,18 +295,6 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
 
     // Convert function to use container image
     convertToContainerImage(functionResource, imageUri, functionId);
-
-    // Add dependency on ECR repository
-    if (!functionResource.DependsOn) {
-      functionResource.DependsOn = [];
-    }
-    if (Array.isArray(functionResource.DependsOn)) {
-      if (!functionResource.DependsOn.includes(repositoryId)) {
-        functionResource.DependsOn.push(repositoryId);
-      }
-    } else {
-      functionResource.DependsOn = [functionResource.DependsOn, repositoryId];
-    }
   }
 
   // Add ECR repository URI to outputs for reference
