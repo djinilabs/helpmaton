@@ -96,17 +96,19 @@ export function aggregateTokenUsage(
 ): TokenUsage {
   let promptTokens = 0;
   let completionTokens = 0;
-  let totalTokens = 0;
   let reasoningTokens = 0;
 
   for (const usage of usages) {
     if (usage) {
       promptTokens += usage.promptTokens || 0;
       completionTokens += usage.completionTokens || 0;
-      totalTokens += usage.totalTokens || 0;
       reasoningTokens += usage.reasoningTokens || 0;
     }
   }
+
+  // Recalculate totalTokens to ensure it's always the sum of components
+  // This ensures consistency: totalTokens = promptTokens + completionTokens + reasoningTokens
+  const totalTokens = promptTokens + completionTokens + (reasoningTokens || 0);
 
   return {
     promptTokens,
@@ -153,7 +155,6 @@ export async function extractTokenUsage(
   // - inputTokens/outputTokens (some provider adapters use these)
   const promptTokens = usage.promptTokens ?? usage.inputTokens ?? 0;
   const completionTokens = usage.completionTokens ?? usage.outputTokens ?? 0;
-  const totalTokens = usage.totalTokens ?? 0;
 
   // Extract reasoning tokens if present (Google AI SDK may provide this)
   // Reasoning tokens can be in various formats:
@@ -162,6 +163,17 @@ export async function extractTokenUsage(
   // - nested in usage object
   const reasoningTokens =
     usage.reasoningTokens ?? usage.reasoning ?? result.reasoningTokens ?? 0;
+
+  // Recalculate totalTokens to ensure it's always promptTokens + completionTokens + reasoningTokens
+  // This ensures consistency: totalTokens should always equal the sum of its components
+  // However, if we have API's totalTokens but missing breakdown, use API's value
+  const calculatedTotal =
+    promptTokens + completionTokens + (reasoningTokens || 0);
+  const apiTotalTokens = usage.totalTokens ?? 0;
+
+  // Use calculated total if we have component values, otherwise fall back to API's totalTokens
+  // This handles edge cases where API only provides totalTokens without breakdown
+  const totalTokens = calculatedTotal > 0 ? calculatedTotal : apiTotalTokens;
 
   const tokenUsage: TokenUsage = {
     promptTokens,

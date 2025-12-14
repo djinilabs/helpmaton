@@ -62,10 +62,12 @@ describe("conversationLogger", () => {
 
       const usage = await extractTokenUsage(result);
 
+      // totalTokens should be recalculated as promptTokens + completionTokens + reasoningTokens
+      // 1000 + 500 + 200 = 1700, but API says 1500, so we use calculated (1700)
       expect(usage).toEqual({
         promptTokens: 1000,
         completionTokens: 500,
-        totalTokens: 1500,
+        totalTokens: 1700, // Recalculated: 1000 + 500 + 200
         reasoningTokens: 200,
       });
     });
@@ -82,10 +84,12 @@ describe("conversationLogger", () => {
 
       const usage = await extractTokenUsage(result);
 
+      // totalTokens should be recalculated as promptTokens + completionTokens + reasoningTokens
+      // 1000 + 500 + 200 = 1700, but API says 1500, so we use calculated (1700)
       expect(usage).toEqual({
         promptTokens: 1000,
         completionTokens: 500,
-        totalTokens: 1500,
+        totalTokens: 1700, // Recalculated: 1000 + 500 + 200
         reasoningTokens: 200,
       });
     });
@@ -174,10 +178,11 @@ describe("conversationLogger", () => {
 
       const aggregated = aggregateTokenUsage(usage1, usage2);
 
+      // totalTokens should be the sum of components: 3000 + 1500 = 4500
       expect(aggregated).toEqual({
         promptTokens: 3000,
         completionTokens: 1500,
-        totalTokens: 4500,
+        totalTokens: 4500, // promptTokens + completionTokens (no reasoning tokens)
       });
     });
 
@@ -198,10 +203,11 @@ describe("conversationLogger", () => {
 
       const aggregated = aggregateTokenUsage(usage1, usage2);
 
+      // totalTokens should be the sum of all components: 3000 + 1500 + 500 = 5000
       expect(aggregated).toEqual({
         promptTokens: 3000,
         completionTokens: 1500,
-        totalTokens: 4500,
+        totalTokens: 5000, // promptTokens + completionTokens + reasoningTokens
         reasoningTokens: 500,
       });
     });
