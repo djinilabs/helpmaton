@@ -324,12 +324,13 @@ function convertRequestBodyToMessages(bodyText: string): {
       parsed.messages.length > 0
     ) {
       // Validate that it looks like UIMessage array
+      // Messages can be in ai-sdk format (with 'parts') or our format (with 'content')
       const firstMessage = parsed.messages[0];
       if (
         typeof firstMessage === "object" &&
         firstMessage !== null &&
         "role" in firstMessage &&
-        "content" in firstMessage
+        ("content" in firstMessage || "parts" in firstMessage)
       ) {
         messages = parsed.messages as UIMessage[];
         // Extract conversationId if present
@@ -343,12 +344,13 @@ function convertRequestBodyToMessages(bodyText: string): {
     } else if (Array.isArray(parsed) && parsed.length > 0) {
       // Check if it's an array of messages (from useChat)
       // Validate that it looks like UIMessage array
+      // Messages can be in ai-sdk format (with 'parts') or our format (with 'content')
       const firstMessage = parsed[0];
       if (
         typeof firstMessage === "object" &&
         firstMessage !== null &&
         "role" in firstMessage &&
-        "content" in firstMessage
+        ("content" in firstMessage || "parts" in firstMessage)
       ) {
         messages = parsed as UIMessage[];
       }
@@ -405,7 +407,58 @@ function convertRequestBodyToMessages(bodyText: string): {
       throw error;
     }
 
-    return { uiMessage, allMessages: messages, modelMessages, conversationId };
+    // Convert ai-sdk format messages (with 'parts') to our format (with 'content') for logging
+    // This ensures allMessages are in a consistent format for storage
+    const convertedMessages: UIMessage[] = messages.map((msg) => {
+      // If message has 'parts' but no 'content', convert it
+      if (
+        msg &&
+        typeof msg === "object" &&
+        "parts" in msg &&
+        !("content" in msg)
+      ) {
+        const msgObj = msg as {
+          parts?: unknown[];
+          role: string;
+          [key: string]: unknown;
+        };
+        const parts = msgObj.parts;
+        if (Array.isArray(parts) && parts.length > 0) {
+          // Extract text from parts
+          const textParts = parts
+            .filter(
+              (part) =>
+                part &&
+                typeof part === "object" &&
+                "type" in part &&
+                part.type === "text" &&
+                "text" in part
+            )
+            .map((part) => (part as { text: string }).text)
+            .join("");
+          // Create new message with content, preserving role and other properties
+          const converted: UIMessage = {
+            role: msgObj.role,
+            content: textParts || "",
+          } as UIMessage;
+          return converted;
+        }
+        // If parts array is empty or doesn't have text, create empty content
+        const converted: UIMessage = {
+          role: msgObj.role,
+          content: "",
+        } as UIMessage;
+        return converted;
+      }
+      return msg as UIMessage;
+    });
+
+    return {
+      uiMessage,
+      allMessages: convertedMessages,
+      modelMessages,
+      conversationId,
+    };
   }
 
   // Fallback to plain text handling
@@ -766,7 +819,6 @@ async function logConversationAsync(
       const assistantMessage: UIMessage = {
         role: "assistant",
         content: fullStreamedText,
-        ...(tokenUsage && { tokenUsage }),
       };
       validMessages.push(assistantMessage);
     }
