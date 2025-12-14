@@ -854,5 +854,3 @@ describe("aggregatePreviousDay", () => {
     expect(mockPermissionQuery).toHaveBeenCalled();
   });
 });
-
-

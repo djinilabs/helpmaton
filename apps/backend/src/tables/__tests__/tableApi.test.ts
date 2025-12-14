@@ -663,5 +663,3 @@ describe("tableApi", () => {
     });
   });
 });
-
-

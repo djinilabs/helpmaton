@@ -495,5 +495,3 @@ describe("documentSearch", () => {
     });
   });
 });
-
-

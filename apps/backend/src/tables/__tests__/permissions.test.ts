@@ -734,5 +734,3 @@ describe("permissions", () => {
     });
   });
 });
-
-

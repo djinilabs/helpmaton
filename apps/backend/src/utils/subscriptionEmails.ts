@@ -366,5 +366,3 @@ The Helpmaton Team
     html,
   });
 }
-
-

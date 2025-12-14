@@ -412,6 +412,3 @@ describe("subscriptionStatus", () => {
     });
   });
 });
-
-
-

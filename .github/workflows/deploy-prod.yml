@@ -315,6 +315,12 @@ jobs:
           cd apps/backend
           pnpm arc deploy --production --no-hydrate --verbose
 
+      - name: Trigger API Gateway deployment
+        if: steps.check-pr.outputs.is_pr != 'true'
+        run: |
+          echo "🚀 Triggering API Gateway deployment to make changes live..."
+          bash scripts/deploy-api-gateway.sh HelpmatonProduction
+
       - name: Register Discord commands
         if: steps.check-pr.outputs.is_pr != 'true'
         env:

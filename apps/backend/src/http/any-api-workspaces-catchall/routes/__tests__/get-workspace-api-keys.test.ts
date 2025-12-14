@@ -277,5 +277,3 @@ describe("GET /api/workspaces/:workspaceId/api-keys", () => {
     expect(error.message).toContain("Database connection error");
   });
 });
-
-
