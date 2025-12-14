@@ -178,3 +178,4 @@ print_status "ECR Repository: ${ECR_URI}"
 print_status "Image Tag: ${IMAGE_TAG}"
 
 
+

@@ -16,3 +16,4 @@ COPY dist/ ${LAMBDA_TASK_ROOT}/
 CMD [ "index.handler" ]
 
 
+
