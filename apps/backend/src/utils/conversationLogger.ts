@@ -375,11 +375,35 @@ export async function updateConversation(
           );
         });
 
-      // If it's a full history replacement, use newMessages directly
+      // If it's a full history replacement, preserve tokenUsage from existing assistant messages
       // Otherwise, merge existing with new (incremental update)
-      const allMessages = isFullHistoryReplacement
-        ? newMessages
-        : [...existingMessages, ...newMessages];
+      let allMessages: UIMessage[];
+      if (isFullHistoryReplacement) {
+        // Preserve tokenUsage from existing assistant messages when content matches
+        allMessages = newMessages.map((newMsg, index) => {
+          const existingMsg = existingMessages[index];
+          // If this is an assistant message and it matches the existing one, preserve tokenUsage
+          if (
+            existingMsg &&
+            newMsg.role === "assistant" &&
+            existingMsg.role === "assistant" &&
+            JSON.stringify(newMsg.content) ===
+              JSON.stringify(existingMsg.content) &&
+            "tokenUsage" in existingMsg &&
+            existingMsg.tokenUsage
+          ) {
+            // Preserve existing tokenUsage if new message doesn't have it
+            return {
+              ...newMsg,
+              tokenUsage: newMsg.tokenUsage || existingMsg.tokenUsage,
+            };
+          }
+          return newMsg;
+        });
+      } else {
+        // Incremental update: just append new messages
+        allMessages = [...existingMessages, ...newMessages];
+      }
 
       // Extract all tool calls and results from merged messages
       const toolCalls = extractToolCalls(allMessages);
