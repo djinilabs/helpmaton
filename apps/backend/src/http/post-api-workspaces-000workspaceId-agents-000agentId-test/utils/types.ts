@@ -1,3 +1,5 @@
+import type { UIMessage as AiSdkUIMessage } from "ai";
+
 import type { TokenUsage } from "../../../utils/conversationLogger";
 
 /**
@@ -20,25 +22,26 @@ export type ToolResultContent = {
   result: unknown;
 };
 
+/**
+ * Extended UIMessage type based on ai-sdk UIMessage
+ * Supports both ai-sdk format (with 'parts') and our format (with 'content')
+ * Adds optional tokenUsage to all message types
+ * Also supports 'tool' role which is not in ai-sdk UIMessage
+ */
 export type UIMessage =
-  | {
-      role: "user";
-      content: string | Array<{ type: "text"; text: string }>;
-    }
-  | {
-      role: "assistant";
-      content:
+  | (Omit<AiSdkUIMessage, "id" | "parts"> & {
+      // Support both ai-sdk format (parts) and our format (content)
+      parts?: AiSdkUIMessage["parts"];
+      content?:
         | string
         | Array<TextContent | ToolCallContent | ToolResultContent>;
       tokenUsage?: TokenUsage; // Token usage for this specific LLM interaction
-    }
-  | {
-      role: "system";
-      content: string;
-    }
+    })
   | {
       role: "tool";
       content: string | Array<ToolResultContent>;
+      parts?: AiSdkUIMessage["parts"];
+      tokenUsage?: TokenUsage;
     };
 
 export interface RequestParams {

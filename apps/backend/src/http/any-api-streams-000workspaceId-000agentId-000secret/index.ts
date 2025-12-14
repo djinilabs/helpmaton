@@ -35,8 +35,7 @@ import {
 import { database } from "../../tables";
 import {
   extractTokenUsage,
-  startConversation,
-  updateConversation,
+  createOrUpdateConversation,
   type TokenUsage,
 } from "../../utils/conversationLogger";
 import {
@@ -931,53 +930,31 @@ async function logConversationAsync(
     );
 
     // Run this asynchronously without blocking
-    if (
+    await createOrUpdateConversation(
+      db,
+      workspaceId,
+      agentId,
       conversationId &&
-      typeof conversationId === "string" &&
-      conversationId.trim().length > 0
-    ) {
-      // Update existing conversation
-      await updateConversation(
-        db,
+        typeof conversationId === "string" &&
+        conversationId.trim().length > 0
+        ? conversationId
+        : undefined,
+      filteredMessages,
+      tokenUsage,
+      "stream",
+      finalModelName,
+      "google",
+      usesByok
+    ).catch((error) => {
+      // Log error but don't fail the request
+      console.error("[Stream Handler] Error logging conversation:", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
         workspaceId,
         agentId,
-        conversationId,
-        filteredMessages,
-        tokenUsage,
-        finalModelName,
-        "google",
-        usesByok
-      ).catch((error) => {
-        // Log error but don't fail the request
-        console.error("[Stream Handler] Error logging conversation:", {
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-          workspaceId,
-          agentId,
-          conversationId,
-        });
+        conversationId: conversationId || "new",
       });
-    } else {
-      // Start new conversation
-      await startConversation(db, {
-        workspaceId,
-        agentId,
-        conversationType: "stream", // Use 'stream' type for streaming endpoint
-        messages: filteredMessages,
-        tokenUsage,
-        modelName: finalModelName,
-        provider: "google",
-        usesByok,
-      }).catch((error) => {
-        // Log error but don't fail the request
-        console.error("[Stream Handler] Error logging conversation:", {
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-          workspaceId,
-          agentId,
-        });
-      });
-    }
+    });
   } catch (error) {
     // Log error but don't fail the request
     console.error("[Stream Handler] Error preparing conversation log:", {

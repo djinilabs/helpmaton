@@ -12,7 +12,7 @@ import {
 import { database } from "../../tables";
 import {
   extractTokenUsage,
-  startConversation,
+  createOrUpdateConversation,
   type TokenUsage,
 } from "../../utils/conversationLogger";
 import {
@@ -509,16 +509,18 @@ export const handler = adaptHttpHandler(
       // Each webhook call creates a new conversation
       // tokenUsage already extracted above for credit deduction
       try {
-        await startConversation(db, {
+        await createOrUpdateConversation(
+          db,
           workspaceId,
           agentId,
-          conversationType: "webhook",
-          messages: [uiMessage, assistantMessage],
+          undefined, // Always create new conversation for webhooks
+          [uiMessage, assistantMessage],
           tokenUsage,
-          modelName: MODEL_NAME,
-          provider: "google",
-          usesByok,
-        });
+          "webhook",
+          MODEL_NAME,
+          "google",
+          usesByok
+        );
       } catch (error) {
         // Log error but don't fail the request
         console.error("[Webhook Handler] Error logging conversation:", {

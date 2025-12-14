@@ -536,7 +536,10 @@ describe("conversationLogger", () => {
       expect((result.messages as unknown[])[1]).toMatchObject({
         role: "assistant",
         content: "Response message",
+        tokenUsage: additionalTokenUsage, // New assistant message gets the tokenUsage parameter
       });
+      // Token usage should be aggregated: existing conversation-level + new tokenUsage
+      // Existing: 75, New: 150, Total: 225
       expect(result.tokenUsage?.totalTokens).toBe(225); // 75 + 150
       expect(result.tokenUsage?.promptTokens).toBe(150); // 50 + 100
       expect(result.tokenUsage?.completionTokens).toBe(75); // 25 + 50
@@ -717,7 +720,10 @@ describe("conversationLogger", () => {
       const updaterCall = mockAtomicUpdate.mock.calls[0][2];
       const result = await updaterCall(existingConversation);
 
-      // Should replace, not merge - so we should have exactly 4 messages (no duplicates)
+      // Should deduplicate - existing messages are left as-is, only new ones are added
+      // Existing: 2 messages (user + assistant with tokenUsage: 75)
+      // New: 4 messages (user + assistant + user + assistant with tokenUsage: 150)
+      // First 2 messages already exist, so only last 2 are added
       expect(result.messages).toHaveLength(4);
       expect((result.messages as unknown[])[0]).toMatchObject({
         role: "user",
@@ -726,8 +732,10 @@ describe("conversationLogger", () => {
       expect((result.messages as unknown[])[3]).toMatchObject({
         role: "assistant",
         content: "Second response",
+        tokenUsage: additionalTokenUsage, // New assistant message gets the new tokenUsage
       });
-      // Token usage should be aggregated
+      // Token usage should be aggregated: existing conversation-level + new tokenUsage
+      // Existing: 75, New: 150, Total: 225
       expect(result.tokenUsage?.totalTokens).toBe(225); // 75 + 150
     });
 
@@ -1275,7 +1283,7 @@ describe("conversationLogger", () => {
       const updaterCall = mockAtomicUpdate.mock.calls[0][2];
       const result = await updaterCall(existingConversation);
 
-      // First assistant message should have recovered tokenUsage
+      // First assistant message already exists, so it's left as-is (no tokenUsage)
       const firstAssistantMsg = (result.messages as unknown[])[1] as {
         role: string;
         content: string;
@@ -1283,11 +1291,8 @@ describe("conversationLogger", () => {
       };
       expect(firstAssistantMsg.role).toBe("assistant");
       expect(firstAssistantMsg.content).toBe("Well hello there, jabroni!");
-      // TokenUsage should be inferred: existing (142, 77, 260, 41) - new (92, 52, 185, 41) = (50, 25, 75, 0)
-      expect(firstAssistantMsg.tokenUsage).toBeDefined();
-      expect(firstAssistantMsg.tokenUsage?.promptTokens).toBe(50);
-      expect(firstAssistantMsg.tokenUsage?.completionTokens).toBe(25);
-      expect(firstAssistantMsg.tokenUsage?.totalTokens).toBe(75);
+      // Existing message is left as-is, so no tokenUsage (it didn't have one originally)
+      expect(firstAssistantMsg.tokenUsage).toBeUndefined();
 
       // Second assistant message should have its tokenUsage
       const secondAssistantMsg = (result.messages as unknown[])[3] as {

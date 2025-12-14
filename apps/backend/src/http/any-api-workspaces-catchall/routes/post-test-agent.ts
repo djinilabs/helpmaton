@@ -7,8 +7,7 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import {
   extractTokenUsage,
-  startConversation,
-  updateConversation,
+  createOrUpdateConversation,
   type TokenUsage,
 } from "../../../utils/conversationLogger";
 import {
@@ -762,36 +761,22 @@ export const registerPostTestAgent = (app: express.Application) => {
       });
 
       try {
-        if (
+        await createOrUpdateConversation(
+          db,
+          workspaceId,
+          agentId,
           conversationId &&
-          typeof conversationId === "string" &&
-          conversationId.trim().length > 0
-        ) {
-          // Update existing conversation
-          await updateConversation(
-            db,
-            workspaceId,
-            agentId,
-            conversationId,
-            validMessages,
-            tokenUsage,
-            MODEL_NAME,
-            "google",
-            usesByok
-          );
-        } else {
-          // Start new conversation
-          await startConversation(db, {
-            workspaceId,
-            agentId,
-            conversationType: "test",
-            messages: validMessages,
-            tokenUsage: tokenUsage,
-            modelName: MODEL_NAME,
-            provider: "google",
-            usesByok,
-          });
-        }
+            typeof conversationId === "string" &&
+            conversationId.trim().length > 0
+            ? conversationId
+            : undefined,
+          validMessages,
+          tokenUsage,
+          "test",
+          MODEL_NAME,
+          "google",
+          usesByok
+        );
       } catch (error) {
         // Log error but don't fail the request
         console.error("[Agent Test Handler] Error logging conversation:", {

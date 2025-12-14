@@ -39,7 +39,7 @@ export function createToolResultPart(
   // - { type: 'error-json', value: JSONValue } for error JSON
   // - { type: 'content', value: Array<...> } for content arrays
   let outputValue: ToolResultPart["output"];
-  
+
   if (rawValue === null || rawValue === undefined) {
     // Use empty text output for null/undefined
     outputValue = { type: "text", value: "" };
@@ -49,7 +49,13 @@ export function createToolResultPart(
   } else if (typeof rawValue === "object") {
     // Format object as JSON output
     // Type assertion needed because JSONValue is an internal type that accepts any JSON-serializable object
-    outputValue = { type: "json", value: rawValue as unknown as Extract<ToolResultPart["output"], { type: "json" }>["value"] };
+    outputValue = {
+      type: "json",
+      value: rawValue as unknown as Extract<
+        ToolResultPart["output"],
+        { type: "json" }
+      >["value"],
+    };
   } else {
     // Convert other primitives to string and format as text output
     outputValue = { type: "text", value: String(rawValue) };
@@ -92,8 +98,19 @@ export function convertUIMessagesToModelMessages(
       } else if (Array.isArray(message.content)) {
         // Extract text from content array
         const textParts = message.content
-          .filter((part) => part.type === "text")
-          .map((part) => (typeof part === "string" ? part : part.text))
+          .filter(
+            (part): part is { type: "text"; text: string } =>
+              typeof part === "object" &&
+              part !== null &&
+              "type" in part &&
+              part.type === "text"
+          )
+          .map((part) => part.text)
+          .concat(
+            message.content.filter(
+              (part): part is string => typeof part === "string"
+            )
+          )
           .join("");
         textContent = textParts;
       }
@@ -229,8 +246,9 @@ export function convertUIMessagesToModelMessages(
               (existingMsg.content as Array<unknown>).push(...toolResults);
             } else {
               // Replace content with tool results
-              (modelMessages[existingAssistantIndex] as AssistantModelMessage).content =
-                toolResults;
+              (
+                modelMessages[existingAssistantIndex] as AssistantModelMessage
+              ).content = toolResults;
             }
           } else {
             // Create new assistant message with tool results
@@ -302,4 +320,3 @@ export function convertUIMessagesToModelMessages(
 
   return modelMessages;
 }
-
