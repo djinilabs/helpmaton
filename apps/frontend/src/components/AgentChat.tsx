@@ -43,6 +43,7 @@ export const AgentChat: FC<AgentChatProps> = ({
   }, [conversationId]);
 
   const { messages, sendMessage, status, error, addToolOutput } = useChat({
+    id: conversationId,
     transport: new DefaultChatTransport({
       api: api || `/api/workspaces/${workspaceId}/agents/${agentId}/test`,
       credentials: api ? "omit" : "include", // Lambda Function URLs don't use cookies
