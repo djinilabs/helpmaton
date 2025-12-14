@@ -1302,5 +1302,285 @@ describe("conversationLogger", () => {
       expect(secondAssistantMsg.tokenUsage).toBeDefined();
       expect(secondAssistantMsg.tokenUsage?.totalTokens).toBe(185);
     });
+
+    it("should preserve tokenUsage when new messages are added (content-based matching)", async () => {
+      // This test simulates the user's scenario where a conversation has an assistant message
+      // with tokenUsage, and when new messages are added, that tokenUsage should be preserved
+      const existingConversation: AgentConversationRecord = {
+        pk: "conversations/workspace-123/agent-456/conversation-789",
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        conversationId: "conversation-789",
+        conversationType: "stream",
+        messages: [
+          {
+            role: "user",
+            content: "hello!",
+          },
+          {
+            role: "assistant",
+            content:
+              "Well hello there, you jabroni! The Rock has arrived! What can I do for ya, muscle?",
+            tokenUsage: {
+              promptTokens: 20,
+              completionTokens: 15,
+              totalTokens: 35,
+            },
+          },
+        ] as unknown[],
+        tokenUsage: {
+          promptTokens: 20,
+          completionTokens: 15,
+          totalTokens: 35,
+        },
+        modelName: "gemini-2.5-flash",
+        provider: "google",
+        startedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Full history with new messages added - the first assistant message doesn't have tokenUsage
+      // in the request, but it should be preserved from the existing conversation
+      const fullHistoryMessages = [
+        {
+          role: "user" as const,
+          content: "hello!",
+        },
+        {
+          role: "assistant" as const,
+          content:
+            "Well hello there, you jabroni! The Rock has arrived! What can I do for ya, muscle?",
+          // Note: no tokenUsage here - it should be preserved from existing conversation
+        },
+        {
+          role: "user" as const,
+          content: "How tall are you?",
+        },
+        {
+          role: "assistant" as const,
+          content:
+            "The Rock stands at a chiseled 6 feet 5 inches of pure, electrifying, Brahma Bull power! Can you smell what The Rock is cookin'?",
+          tokenUsage: {
+            promptTokens: 80,
+            reasoningTokens: 55,
+            totalTokens: 169,
+            completionTokens: 34,
+          },
+        },
+      ];
+
+      const additionalTokenUsage: TokenUsage = {
+        promptTokens: 80,
+        reasoningTokens: 55,
+        totalTokens: 169,
+        completionTokens: 34,
+      };
+
+      mockAtomicUpdate.mockImplementation(async (pk, sk, updater) => {
+        const result = await updater(existingConversation);
+        return {
+          ...existingConversation,
+          ...result,
+        };
+      });
+
+      await updateConversation(
+        mockDb,
+        "workspace-123",
+        "agent-456",
+        "conversation-789",
+        fullHistoryMessages,
+        additionalTokenUsage
+      );
+
+      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
+      const result = await updaterCall(existingConversation);
+
+      // Should have 4 messages
+      expect(result.messages).toHaveLength(4);
+
+      // First assistant message should preserve its tokenUsage from existing
+      const firstAssistantMsg = (result.messages as unknown[])[1] as {
+        role: string;
+        content: string;
+        tokenUsage?: TokenUsage;
+      };
+      expect(firstAssistantMsg.role).toBe("assistant");
+      expect(firstAssistantMsg.content).toBe(
+        "Well hello there, you jabroni! The Rock has arrived! What can I do for ya, muscle?"
+      );
+      expect(firstAssistantMsg.tokenUsage).toBeDefined();
+      expect(firstAssistantMsg.tokenUsage?.promptTokens).toBe(20);
+      expect(firstAssistantMsg.tokenUsage?.completionTokens).toBe(15);
+      expect(firstAssistantMsg.tokenUsage?.totalTokens).toBe(35);
+
+      // Second assistant message should have tokenUsage from the new request
+      const secondAssistantMsg = (result.messages as unknown[])[3] as {
+        role: string;
+        content: string;
+        tokenUsage?: TokenUsage;
+      };
+      expect(secondAssistantMsg.role).toBe("assistant");
+      expect(secondAssistantMsg.content).toBe(
+        "The Rock stands at a chiseled 6 feet 5 inches of pure, electrifying, Brahma Bull power! Can you smell what The Rock is cookin'?"
+      );
+      expect(secondAssistantMsg.tokenUsage).toBeDefined();
+      expect(secondAssistantMsg.tokenUsage?.promptTokens).toBe(80);
+      expect(secondAssistantMsg.tokenUsage?.completionTokens).toBe(34);
+      expect(secondAssistantMsg.tokenUsage?.reasoningTokens).toBe(55);
+      expect(secondAssistantMsg.tokenUsage?.totalTokens).toBe(169);
+
+      // Conversation-level token usage should be aggregated
+      expect(result.tokenUsage?.promptTokens).toBe(100); // 20 + 80
+      expect(result.tokenUsage?.completionTokens).toBe(49); // 15 + 34
+      expect(result.tokenUsage?.reasoningTokens).toBe(55);
+      expect(result.tokenUsage?.totalTokens).toBe(204); // 35 + 169
+    });
+
+    it("should preserve tokenUsage even when message order changes slightly", async () => {
+      // Test that content-based matching works even if messages are slightly reordered
+      const existingConversation: AgentConversationRecord = {
+        pk: "conversations/workspace-123/agent-456/conversation-789",
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        conversationId: "conversation-789",
+        conversationType: "stream",
+        messages: [
+          {
+            role: "user",
+            content: "First question",
+          },
+          {
+            role: "assistant",
+            content: "First answer",
+            tokenUsage: {
+              promptTokens: 30,
+              completionTokens: 20,
+              totalTokens: 50,
+            },
+          },
+          {
+            role: "user",
+            content: "Second question",
+          },
+          {
+            role: "assistant",
+            content: "Second answer",
+            tokenUsage: {
+              promptTokens: 40,
+              completionTokens: 25,
+              totalTokens: 65,
+            },
+          },
+        ] as unknown[],
+        tokenUsage: {
+          promptTokens: 70,
+          completionTokens: 45,
+          totalTokens: 115,
+        },
+        modelName: "gemini-2.5-flash",
+        provider: "google",
+        startedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Full history where messages might have slightly different formatting but same content
+      const fullHistoryMessages = [
+        {
+          role: "user" as const,
+          content: "First question",
+        },
+        {
+          role: "assistant" as const,
+          content: "First answer", // No tokenUsage - should be preserved
+        },
+        {
+          role: "user" as const,
+          content: "Second question",
+        },
+        {
+          role: "assistant" as const,
+          content: "Second answer", // No tokenUsage - should be preserved
+        },
+        {
+          role: "user" as const,
+          content: "Third question",
+        },
+        {
+          role: "assistant" as const,
+          content: "Third answer",
+          tokenUsage: {
+            promptTokens: 50,
+            completionTokens: 30,
+            totalTokens: 80,
+          },
+        },
+      ];
+
+      const additionalTokenUsage: TokenUsage = {
+        promptTokens: 50,
+        completionTokens: 30,
+        totalTokens: 80,
+      };
+
+      mockAtomicUpdate.mockImplementation(async (pk, sk, updater) => {
+        const result = await updater(existingConversation);
+        return {
+          ...existingConversation,
+          ...result,
+        };
+      });
+
+      await updateConversation(
+        mockDb,
+        "workspace-123",
+        "agent-456",
+        "conversation-789",
+        fullHistoryMessages,
+        additionalTokenUsage
+      );
+
+      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
+      const result = await updaterCall(existingConversation);
+
+      // Should have 6 messages
+      expect(result.messages).toHaveLength(6);
+
+      // First assistant message should preserve its tokenUsage
+      const firstAssistantMsg = (result.messages as unknown[])[1] as {
+        role: string;
+        content: string;
+        tokenUsage?: TokenUsage;
+      };
+      expect(firstAssistantMsg.tokenUsage).toBeDefined();
+      expect(firstAssistantMsg.tokenUsage?.totalTokens).toBe(50);
+
+      // Second assistant message should preserve its tokenUsage
+      const secondAssistantMsg = (result.messages as unknown[])[3] as {
+        role: string;
+        content: string;
+        tokenUsage?: TokenUsage;
+      };
+      expect(secondAssistantMsg.tokenUsage).toBeDefined();
+      expect(secondAssistantMsg.tokenUsage?.totalTokens).toBe(65);
+
+      // Third assistant message should have new tokenUsage
+      const thirdAssistantMsg = (result.messages as unknown[])[5] as {
+        role: string;
+        content: string;
+        tokenUsage?: TokenUsage;
+      };
+      expect(thirdAssistantMsg.tokenUsage).toBeDefined();
+      expect(thirdAssistantMsg.tokenUsage?.totalTokens).toBe(80);
+
+      // Conversation-level token usage should be aggregated
+      expect(result.tokenUsage?.totalTokens).toBe(195); // 50 + 65 + 80
+    });
   });
 });

@@ -119,6 +119,36 @@ export function aggregateTokenUsage(
 }
 
 /**
+ * Normalize message content for comparison
+ * Converts content to a consistent string representation for reliable matching
+ */
+function normalizeMessageContent(content: UIMessage["content"]): string {
+  if (typeof content === "string") {
+    return content.trim();
+  }
+  if (Array.isArray(content)) {
+    // For array content, extract text parts and normalize
+    const textParts: string[] = [];
+    for (const part of content) {
+      if (typeof part === "string") {
+        textParts.push(part.trim());
+      } else if (
+        typeof part === "object" &&
+        part !== null &&
+        "type" in part &&
+        part.type === "text" &&
+        "text" in part &&
+        typeof part.text === "string"
+      ) {
+        textParts.push(part.text.trim());
+      }
+    }
+    return textParts.join(" ").trim();
+  }
+  return "";
+}
+
+/**
  * Extract token usage from generateText or streamText result
  * Handles Google AI SDK response format including reasoning tokens
  * For streamText, usage is a Promise that needs to be awaited
@@ -380,29 +410,51 @@ export async function updateConversation(
       // Otherwise, merge existing with new (incremental update)
       let allMessages: UIMessage[];
       if (isFullHistoryReplacement) {
-        // Preserve tokenUsage from existing assistant messages when content matches
-        allMessages = newMessages.map((newMsg, index) => {
-          const existingMsg = existingMessages[index];
-          // If this is an assistant message and it matches the existing one, preserve tokenUsage
-          if (
-            existingMsg &&
-            newMsg.role === "assistant" &&
-            existingMsg.role === "assistant" &&
-            JSON.stringify(newMsg.content) ===
-              JSON.stringify(existingMsg.content)
-          ) {
-            // Preserve existing tokenUsage if new message doesn't have it
-            const existingTokenUsage =
-              "tokenUsage" in existingMsg && existingMsg.tokenUsage
-                ? (existingMsg.tokenUsage as TokenUsage)
-                : undefined;
+        // Create a map of existing assistant messages by normalized content for content-based matching
+        // This allows us to match messages regardless of their position in the array
+        const existingAssistantMessagesByContent = new Map<string, UIMessage>();
+        for (const existingMsg of existingMessages) {
+          if (existingMsg.role === "assistant") {
+            const normalizedContent = normalizeMessageContent(
+              existingMsg.content
+            );
+            // Only store if not already in map (first occurrence wins)
+            // This handles duplicate content, preferring the first match
+            if (!existingAssistantMessagesByContent.has(normalizedContent)) {
+              existingAssistantMessagesByContent.set(
+                normalizedContent,
+                existingMsg
+              );
+            }
+          }
+        }
 
-            // Use new message's tokenUsage if available, otherwise use existing
-            if (newMsg.tokenUsage || existingTokenUsage) {
-              return {
-                ...newMsg,
-                tokenUsage: newMsg.tokenUsage || existingTokenUsage,
-              };
+        // Preserve tokenUsage from existing assistant messages when content matches
+        // Use content-based matching instead of index-based matching for robustness
+        allMessages = newMessages.map((newMsg) => {
+          // Only process assistant messages
+          if (newMsg.role === "assistant") {
+            const normalizedContent = normalizeMessageContent(newMsg.content);
+            const matchingExistingMsg =
+              existingAssistantMessagesByContent.get(normalizedContent);
+
+            if (matchingExistingMsg) {
+              // Found a matching existing message by content
+              // Preserve existing tokenUsage if new message doesn't have it
+              const existingTokenUsage =
+                "tokenUsage" in matchingExistingMsg &&
+                matchingExistingMsg.tokenUsage
+                  ? (matchingExistingMsg.tokenUsage as TokenUsage)
+                  : undefined;
+
+              // Prefer new message's tokenUsage if available (it's more recent),
+              // otherwise use existing tokenUsage
+              if (newMsg.tokenUsage || existingTokenUsage) {
+                return {
+                  ...newMsg,
+                  tokenUsage: newMsg.tokenUsage || existingTokenUsage,
+                };
+              }
             }
           }
           return newMsg;
