@@ -725,6 +725,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         validMessages.push({
           role: "assistant",
           content: assistantText,
+          ...(tokenUsage && { tokenUsage }),
         });
       }
 

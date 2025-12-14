@@ -1,3 +1,5 @@
+import type { TokenUsage } from "../../../utils/conversationLogger";
+
 /**
  * Type definitions for message conversion utilities
  */
@@ -28,6 +30,7 @@ export type UIMessage =
       content:
         | string
         | Array<TextContent | ToolCallContent | ToolResultContent>;
+      tokenUsage?: TokenUsage; // Token usage for this specific LLM interaction
     }
   | {
       role: "system";
@@ -50,4 +53,3 @@ export interface HttpResponseMetadata {
   statusMessage: string;
   headers: Record<string, string | string[]>;
 }
-

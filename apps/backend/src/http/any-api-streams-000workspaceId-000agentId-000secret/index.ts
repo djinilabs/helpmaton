@@ -766,6 +766,7 @@ async function logConversationAsync(
       const assistantMessage: UIMessage = {
         role: "assistant",
         content: fullStreamedText,
+        ...(tokenUsage && { tokenUsage }),
       };
       validMessages.push(assistantMessage);
     }
