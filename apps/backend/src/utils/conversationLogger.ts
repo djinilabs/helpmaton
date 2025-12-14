@@ -257,8 +257,6 @@ export async function startConversation(
         const existingMessages = (current.messages || []) as UIMessage[];
         const allMessages = [...existingMessages, ...data.messages];
 
-        console.log("allMessages", allMessages);
-
         // Extract all tool calls and results from merged messages
         const mergedToolCalls = extractToolCalls(allMessages);
         const mergedToolResults = extractToolResults(allMessages);
@@ -764,43 +762,29 @@ export async function updateConversation(
         aggregatedTokenUsage
       );
 
-      // Update conversation
-      // Preserve existing modelName and provider if they exist, don't overwrite
-      const updateData: {
-        pk: string;
-        messages: unknown[];
-        toolCalls?: unknown[];
-        toolResults?: unknown[];
-        tokenUsage: TokenUsage;
-        lastMessageAt: string;
-        expires: number;
-        modelName?: string;
-        provider?: string;
-        usesByok?: boolean;
-        costUsd?: number;
-        costEur?: number;
-        costGbp?: number;
-      } = {
+      // Update conversation - always return a complete record with all required fields
+      // Preserve all existing fields and only update the ones that should change
+      return {
         pk,
+        workspaceId: existing.workspaceId,
+        agentId: existing.agentId,
+        conversationId: existing.conversationId,
+        conversationType: existing.conversationType,
         messages: allMessages as unknown[],
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         toolResults: toolResults.length > 0 ? toolResults : undefined,
         tokenUsage: aggregatedTokenUsage,
-        lastMessageAt: new Date().toISOString(),
-        expires: calculateTTL(),
+        modelName: existing.modelName || modelName,
+        provider: existing.provider || provider,
+        usesByok:
+          existing.usesByok !== undefined ? existing.usesByok : usesByok,
         costUsd: costs.usd > 0 ? costs.usd : undefined,
         costEur: costs.eur > 0 ? costs.eur : undefined,
         costGbp: costs.gbp > 0 ? costs.gbp : undefined,
+        startedAt: existing.startedAt, // Preserve original conversation start time
+        lastMessageAt: new Date().toISOString(),
+        expires: calculateTTL(),
       };
-
-      // Preserve existing modelName and provider if they exist, otherwise use function parameters
-      updateData.modelName = existing.modelName || modelName;
-      updateData.provider = existing.provider || provider;
-      // Preserve usesByok if it exists, otherwise use function parameter
-      updateData.usesByok =
-        existing.usesByok !== undefined ? existing.usesByok : usesByok;
-
-      return updateData;
     }
   );
 }
