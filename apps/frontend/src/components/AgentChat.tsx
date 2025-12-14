@@ -3,7 +3,7 @@ import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FC } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -22,13 +22,32 @@ export const AgentChat: FC<AgentChatProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
 
+  // Generate conversation ID once when component mounts
+  const conversationId = useMemo(() => {
+    const id = crypto.randomUUID();
+    console.log("[AgentChat] Generated conversation ID:", id);
+    return id;
+  }, []);
+
+  // Create a custom fetch function that adds the conversation ID header
+  const fetchWithConversationId = useMemo(() => {
+    const baseFetch = typeof window !== "undefined" ? window.fetch : fetch;
+    return async (url: string | URL | Request, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+      headers.set("X-Conversation-Id", conversationId);
+      return baseFetch(url, {
+        ...init,
+        headers,
+      });
+    };
+  }, [conversationId]);
+
   const { messages, sendMessage, status, error, addToolOutput } = useChat({
     transport: new DefaultChatTransport({
       api: api || `/api/workspaces/${workspaceId}/agents/${agentId}/test`,
       credentials: api ? "omit" : "include", // Lambda Function URLs don't use cookies
-      // Explicitly use the global fetch (which includes our Authorization header override)
-      // This ensures DefaultChatTransport uses our enhanced fetch with automatic token handling
-      fetch: typeof window !== "undefined" ? window.fetch : fetch,
+      // Use custom fetch that includes the conversation ID header
+      fetch: fetchWithConversationId,
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     onToolCall: async ({ toolCall }) => {

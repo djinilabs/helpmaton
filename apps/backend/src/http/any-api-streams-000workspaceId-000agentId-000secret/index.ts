@@ -332,12 +332,14 @@ function convertRequestBodyToMessages(bodyText: string): {
         ("content" in firstMessage || "parts" in firstMessage)
       ) {
         messages = parsed.messages as UIMessage[];
-        // Extract conversationId if present
+        // Extract conversationId if present (check both 'conversationId' and 'id' fields)
         if (
           "conversationId" in parsed &&
           typeof parsed.conversationId === "string"
         ) {
           conversationId = parsed.conversationId;
+        } else if ("id" in parsed && typeof parsed.id === "string") {
+          conversationId = parsed.id;
         }
       }
     } else if (Array.isArray(parsed) && parsed.length > 0) {
@@ -1053,8 +1055,52 @@ async function buildRequestContext(
     throw new Error("Request body is required");
   }
 
-  const { uiMessage, allMessages, modelMessages, conversationId } =
-    convertRequestBodyToMessages(bodyText);
+  const {
+    uiMessage,
+    allMessages,
+    modelMessages,
+    conversationId: bodyConversationId,
+  } = convertRequestBodyToMessages(bodyText);
+
+  // Extract conversationId from multiple sources (body, query params, headers)
+  // Priority: body > query params > headers
+  let conversationId = bodyConversationId;
+  let conversationIdSource = bodyConversationId ? "body" : undefined;
+
+  // Check query parameters if not found in body
+  if (!conversationId) {
+    const httpV2Event = transformLambdaUrlToHttpV2Event(event);
+    const queryConversationId =
+      httpV2Event.queryStringParameters?.conversationId;
+    if (queryConversationId && typeof queryConversationId === "string") {
+      conversationId = queryConversationId;
+      conversationIdSource = "query";
+    }
+  }
+
+  // Check headers if still not found
+  if (!conversationId) {
+    const headerConversationId =
+      event.headers["x-conversation-id"] || event.headers["X-Conversation-Id"];
+    if (headerConversationId && typeof headerConversationId === "string") {
+      conversationId = headerConversationId;
+      conversationIdSource = "header";
+    }
+  }
+
+  console.log("[Stream Handler] Extracted conversationId:", {
+    conversationId: conversationId || "undefined",
+    source: conversationIdSource || "not found",
+    hasBodyConversationId: !!bodyConversationId,
+  });
+
+  // Throw 500 error if conversationId is not found
+  if (!conversationId) {
+    const error = new Error(
+      "conversationId is required but was not found in request body, query parameters, or headers"
+    );
+    throw boomify(error, { statusCode: 500 });
+  }
 
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
@@ -1230,6 +1276,27 @@ const internalHandler = async (
       console.log("[Stream Handler] AI stream completed");
     } catch (error) {
       // Handle errors based on when they occurred
+      // Check for 429 Too Many Requests errors (e.g., daily request limit exceeded)
+      const boomed = boomify(error as Error);
+      if (boomed.output.statusCode === 429) {
+        const errorMessage =
+          boomed.message ||
+          (error instanceof Error ? error.message : String(error));
+        const errorChunk = `data: ${JSON.stringify({
+          type: "error",
+          error: errorMessage,
+        })}\n\n`;
+        await writeChunkToStream(responseStream, errorChunk);
+        responseStream.end();
+        // Flush PostHog events before returning (critical for Lambda)
+        try {
+          await flushPostHog();
+        } catch (flushError) {
+          console.error("[PostHog] Error flushing events:", flushError);
+        }
+        return;
+      }
+
       if (error instanceof InsufficientCreditsError) {
         // Write error in SSE format
         const errorChunk = `data: ${JSON.stringify({
@@ -1422,6 +1489,28 @@ const internalHandler = async (
     );
   } catch (error) {
     const boomed = boomify(error as Error);
+
+    // Handle 429 Too Many Requests errors (e.g., daily request limit exceeded)
+    // These should be written to the stream in SSE format before any AI SDK stream starts
+    if (boomed.output.statusCode === 429) {
+      const errorMessage =
+        boomed.message ||
+        (error instanceof Error ? error.message : String(error));
+      const errorChunk = `data: ${JSON.stringify({
+        type: "error",
+        error: errorMessage,
+      })}\n\n`;
+      await writeChunkToStream(responseStream, errorChunk);
+      responseStream.end();
+      // Flush PostHog events before returning (critical for Lambda)
+      try {
+        await flushPostHog();
+      } catch (flushError) {
+        console.error("[PostHog] Error flushing events:", flushError);
+      }
+      return;
+    }
+
     // Handle errors that occur before streaming starts
     console.error("[Stream Handler] Unhandled error:", boomed);
     if (boomed.isServer) {

@@ -139,7 +139,30 @@ export const registerPostTestAgent = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.READ),
     asyncHandler(async (req, res) => {
       const { workspaceId, agentId } = req.params;
-      const { messages, conversationId } = req.body;
+      const { messages, conversationId: bodyConversationId } = req.body;
+
+      // Extract conversationId from multiple sources (body, headers)
+      // Priority: body > headers
+      let conversationId = bodyConversationId;
+
+      // Check headers if not found in body
+      if (!conversationId) {
+        const headerConversationId =
+          req.headers["x-conversation-id"] || req.headers["X-Conversation-Id"];
+        if (headerConversationId && typeof headerConversationId === "string") {
+          conversationId = headerConversationId;
+        }
+      }
+
+      console.log("[Agent Test Handler] Extracted conversationId:", {
+        conversationId: conversationId || "undefined",
+        source: bodyConversationId
+          ? "body"
+          : conversationId
+          ? "header"
+          : "not found",
+        hasBodyConversationId: !!bodyConversationId,
+      });
 
       if (!workspaceId || !agentId) {
         throw badRequest("workspaceId and agentId are required");
