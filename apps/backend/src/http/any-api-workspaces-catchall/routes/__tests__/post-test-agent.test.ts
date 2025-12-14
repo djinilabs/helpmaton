@@ -735,6 +735,628 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it("should call adjustCreditReservation with correct parameters after message generation", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-123";
+    const subscriptionId = "sub-123";
+    const messages = [{ role: "user", content: "Hello" }];
+    const reservationId = "reservation-123";
+    const tokenUsage = {
+      promptTokens: 100,
+      completionTokens: 50,
+      totalTokens: 150,
+    };
+    const MODEL_NAME = "gemini-2.0-flash-exp";
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: undefined,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: false,
+    });
+    mockConvertToModelMessages.mockReturnValue([
+      { role: "user", content: "Hello" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId,
+      reservedAmount: 10.0,
+    });
+
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockExtractTokenUsage.mockReturnValue(tokenUsage);
+    mockAdjustCreditReservation.mockResolvedValue(undefined);
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue(undefined);
+
+    const req = createMockRequest({
+      params: {
+        workspaceId,
+        agentId,
+      },
+      body: {
+        messages,
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockAdjustCreditReservation).toHaveBeenCalledWith(
+      mockDb,
+      reservationId,
+      workspaceId,
+      "google",
+      MODEL_NAME,
+      tokenUsage,
+      3,
+      false
+    );
+  });
+
+  it("should call adjustCreditReservation with custom modelName when agent has modelName", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-123";
+    const subscriptionId = "sub-123";
+    const messages = [{ role: "user", content: "Hello" }];
+    const reservationId = "reservation-123";
+    const tokenUsage = {
+      promptTokens: 100,
+      completionTokens: 50,
+      totalTokens: 150,
+    };
+    const customModelName = "gemini-1.5-pro";
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: customModelName,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: false,
+    });
+    mockConvertToModelMessages.mockReturnValue([
+      { role: "user", content: "Hello" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId,
+      reservedAmount: 10.0,
+    });
+
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockExtractTokenUsage.mockReturnValue(tokenUsage);
+    mockAdjustCreditReservation.mockResolvedValue(undefined);
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue(undefined);
+
+    const req = createMockRequest({
+      params: {
+        workspaceId,
+        agentId,
+      },
+      body: {
+        messages,
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockAdjustCreditReservation).toHaveBeenCalledWith(
+      mockDb,
+      reservationId,
+      workspaceId,
+      "google",
+      customModelName,
+      tokenUsage,
+      3,
+      false
+    );
+  });
+
+  it("should not call adjustCreditReservation when tokenUsage is undefined", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-123";
+    const subscriptionId = "sub-123";
+    const messages = [{ role: "user", content: "Hello" }];
+    const reservationId = "reservation-123";
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: undefined,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: false,
+    });
+    mockConvertToModelMessages.mockReturnValue([
+      { role: "user", content: "Hello" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId,
+      reservedAmount: 10.0,
+    });
+
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockExtractTokenUsage.mockReturnValue(undefined);
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue(undefined);
+
+    const req = createMockRequest({
+      params: {
+        workspaceId,
+        agentId,
+      },
+      body: {
+        messages,
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockAdjustCreditReservation).not.toHaveBeenCalled();
+  });
+
+  it("should not call adjustCreditReservation when tokens are zero", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-123";
+    const subscriptionId = "sub-123";
+    const messages = [{ role: "user", content: "Hello" }];
+    const reservationId = "reservation-123";
+    const tokenUsage = {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+    };
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: undefined,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: false,
+    });
+    mockConvertToModelMessages.mockReturnValue([
+      { role: "user", content: "Hello" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId,
+      reservedAmount: 10.0,
+    });
+
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockExtractTokenUsage.mockReturnValue(tokenUsage);
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue(undefined);
+
+    const req = createMockRequest({
+      params: {
+        workspaceId,
+        agentId,
+      },
+      body: {
+        messages,
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockAdjustCreditReservation).not.toHaveBeenCalled();
+  });
+
+  it("should not call adjustCreditReservation when reservationId is 'byok'", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-123";
+    const subscriptionId = "sub-123";
+    const messages = [{ role: "user", content: "Hello" }];
+    const reservationId = "byok";
+    const tokenUsage = {
+      promptTokens: 100,
+      completionTokens: 50,
+      totalTokens: 150,
+    };
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: undefined,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: true,
+    });
+    mockConvertToModelMessages.mockReturnValue([
+      { role: "user", content: "Hello" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId,
+      reservedAmount: 0,
+    });
+
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockExtractTokenUsage.mockReturnValue(tokenUsage);
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue(undefined);
+
+    const req = createMockRequest({
+      params: {
+        workspaceId,
+        agentId,
+      },
+      body: {
+        messages,
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockAdjustCreditReservation).not.toHaveBeenCalled();
+  });
+
+  it("should not call adjustCreditReservation when reservationId is undefined", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-123";
+    const subscriptionId = "sub-123";
+    const messages = [{ role: "user", content: "Hello" }];
+    const tokenUsage = {
+      promptTokens: 100,
+      completionTokens: 50,
+      totalTokens: 150,
+    };
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: undefined,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: false,
+    });
+    mockConvertToModelMessages.mockReturnValue([
+      { role: "user", content: "Hello" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue(null);
+
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockExtractTokenUsage.mockReturnValue(tokenUsage);
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue(undefined);
+
+    const req = createMockRequest({
+      params: {
+        workspaceId,
+        agentId,
+      },
+      body: {
+        messages,
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockAdjustCreditReservation).not.toHaveBeenCalled();
+  });
+
+  it("should not call adjustCreditReservation when credit deduction feature flag is disabled", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-123";
+    const subscriptionId = "sub-123";
+    const messages = [{ role: "user", content: "Hello" }];
+    const reservationId = "reservation-123";
+    const tokenUsage = {
+      promptTokens: 100,
+      completionTokens: 50,
+      totalTokens: 150,
+    };
+
+    mockIsCreditDeductionEnabled.mockReturnValue(false);
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: undefined,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: false,
+    });
+    mockConvertToModelMessages.mockReturnValue([
+      { role: "user", content: "Hello" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId,
+      reservedAmount: 10.0,
+    });
+
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockExtractTokenUsage.mockReturnValue(tokenUsage);
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue(undefined);
+
+    const req = createMockRequest({
+      params: {
+        workspaceId,
+        agentId,
+      },
+      body: {
+        messages,
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockAdjustCreditReservation).not.toHaveBeenCalled();
+  });
+
+  it("should not fail request when adjustCreditReservation throws an error", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-123";
+    const subscriptionId = "sub-123";
+    const messages = [{ role: "user", content: "Hello" }];
+    const reservationId = "reservation-123";
+    const tokenUsage = {
+      promptTokens: 100,
+      completionTokens: 50,
+      totalTokens: 150,
+    };
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: undefined,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: false,
+    });
+    mockConvertToModelMessages.mockReturnValue([
+      { role: "user", content: "Hello" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId,
+      reservedAmount: 10.0,
+    });
+
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockExtractTokenUsage.mockReturnValue(tokenUsage);
+    mockAdjustCreditReservation.mockRejectedValue(
+      new Error("Credit adjustment failed")
+    );
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue(undefined);
+
+    const req = createMockRequest({
+      params: {
+        workspaceId,
+        agentId,
+      },
+      body: {
+        messages,
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    // Request should still succeed even if credit adjustment fails
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.send).toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+    expect(mockAdjustCreditReservation).toHaveBeenCalled();
+  });
+
   it("should skip request limit check when no subscription exists", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-123";
@@ -1176,5 +1798,149 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
     // Should have messages including assistant response
     expect(conversationData.messages).toBeDefined();
     expect(Array.isArray(conversationData.messages)).toBe(true);
+  });
+
+  it("should deduct credits for each generated message in a conversation", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-123";
+    const subscriptionId = "sub-123";
+    const conversationId = "conversation-789";
+    const reservationId = "reservation-123";
+
+    // First message in conversation
+    const firstMessages = [{ role: "user" as const, content: "Hello" }];
+    const firstTokenUsage = {
+      promptTokens: 50,
+      completionTokens: 25,
+      totalTokens: 75,
+    };
+
+    // Second message in conversation (user -> assistant -> user -> assistant)
+    const secondMessages = [
+      { role: "user" as const, content: "Hello" },
+      { role: "assistant" as const, content: "Hi there!" },
+      { role: "user" as const, content: "How are you?" },
+    ];
+    const secondTokenUsage = {
+      promptTokens: 100,
+      completionTokens: 50,
+      totalTokens: 150,
+    };
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: undefined,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: false,
+    });
+    mockConvertToModelMessages.mockReturnValue([
+      { role: "user", content: "Hello" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId,
+      reservedAmount: 10.0,
+    });
+
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue(conversationId);
+    mockUpdateConversation.mockResolvedValue(undefined);
+
+    // First request - new conversation
+    mockExtractTokenUsage.mockReturnValue(firstTokenUsage);
+    mockAdjustCreditReservation.mockResolvedValue(undefined);
+
+    const req1 = createMockRequest({
+      params: {
+        workspaceId,
+        agentId,
+      },
+      body: {
+        messages: firstMessages,
+      },
+    });
+    const res1 = createMockResponse();
+    const next1 = vi.fn();
+
+    await callRouteHandler(req1, res1, next1);
+
+    // Verify first credit deduction
+    expect(mockAdjustCreditReservation).toHaveBeenCalledTimes(1);
+    expect(mockAdjustCreditReservation).toHaveBeenNthCalledWith(
+      1,
+      mockDb,
+      reservationId,
+      workspaceId,
+      "google",
+      "gemini-2.0-flash-exp",
+      firstTokenUsage,
+      3,
+      false
+    );
+
+    // Second request - continuing conversation
+    mockExtractTokenUsage.mockReturnValue(secondTokenUsage);
+    mockAdjustCreditReservation.mockClear();
+
+    const req2 = createMockRequest({
+      params: {
+        workspaceId,
+        agentId,
+      },
+      body: {
+        messages: secondMessages,
+        conversationId,
+      },
+    });
+    const res2 = createMockResponse();
+    const next2 = vi.fn();
+
+    await callRouteHandler(req2, res2, next2);
+
+    // Verify second credit deduction
+    expect(mockAdjustCreditReservation).toHaveBeenCalledTimes(1);
+    expect(mockAdjustCreditReservation).toHaveBeenNthCalledWith(
+      1,
+      mockDb,
+      reservationId,
+      workspaceId,
+      "google",
+      "gemini-2.0-flash-exp",
+      secondTokenUsage,
+      3,
+      false
+    );
+
+    // Verify updateConversation was called with aggregated token usage
+    expect(mockUpdateConversation).toHaveBeenCalled();
+    const updateCallArgs = mockUpdateConversation.mock.calls[0];
+    expect(updateCallArgs[5]).toEqual(secondTokenUsage); // additionalTokenUsage parameter (index 5: db, workspaceId, agentId, conversationId, newMessages, additionalTokenUsage)
   });
 });

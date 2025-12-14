@@ -284,6 +284,494 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
     expect(vi.mocked(generateText)).toHaveBeenCalled();
   });
 
+  it("should call adjustCreditReservation with correct parameters after successful generateText", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-456";
+    const key = "key-789";
+    const bodyText = "Hello, agent!";
+    const reservationId = "reservation-123";
+    const tokenUsage = {
+      promptTokens: 100,
+      completionTokens: 50,
+      totalTokens: 150,
+    };
+    const MODEL_NAME = "gemini-2.5-flash";
+
+    mockValidateWebhookRequest.mockReturnValue({
+      workspaceId,
+      agentId,
+      key,
+      bodyText,
+    });
+    mockValidateWebhookKey.mockResolvedValue(undefined);
+    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
+
+    const mockSubscription = {
+      pk: "subscriptions/sub-123",
+      plan: "pro" as const,
+    };
+    mockGetWorkspaceSubscription.mockResolvedValue(mockSubscription);
+    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      provider: "google" as const,
+    };
+
+    const mockModel = {};
+    const mockTools = {};
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: mockModel,
+      tools: mockTools,
+      usesByok: false,
+    });
+
+    mockConvertTextToUIMessage.mockReturnValue({
+      role: "user",
+      content: bodyText,
+    });
+
+    mockConvertUIMessagesToModelMessages.mockReturnValue([
+      {
+        role: "user",
+        content: bodyText,
+      },
+    ]);
+
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId,
+      reservedAmount: 0.001,
+    });
+
+    mockBuildGenerateTextOptions.mockReturnValue({
+      temperature: 0.7,
+      maxTokens: 2048,
+    });
+
+    const mockGenerateTextResult = {
+      text: "Hello! How can I help you?",
+      usage: {
+        promptTokens: 100,
+        completionTokens: 50,
+      },
+    };
+
+    vi.mocked(generateText).mockResolvedValue(
+      mockGenerateTextResult as unknown as Awaited<
+        ReturnType<typeof generateText>
+      >
+    );
+
+    mockExtractTokenUsage.mockReturnValue(tokenUsage);
+
+    mockIsCreditDeductionEnabled.mockReturnValue(true);
+    mockAdjustCreditReservation.mockResolvedValue(undefined);
+
+    mockStartConversation.mockResolvedValue("conversation-id-123");
+
+    mockProcessSimpleNonStreamingResponse.mockResolvedValue(
+      "Hello! How can I help you?"
+    );
+
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const baseEvent = createAPIGatewayEventV2({
+      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
+      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
+      body: bodyText,
+    });
+    const event = {
+      ...baseEvent,
+      requestContext: {
+        ...baseEvent.requestContext,
+        http: {
+          ...baseEvent.requestContext.http,
+          method: "POST",
+        },
+      },
+      pathParameters: {
+        workspaceId,
+        agentId,
+        key,
+      },
+    };
+
+    await handler(event, mockContext, mockCallback);
+
+    expect(mockAdjustCreditReservation).toHaveBeenCalledWith(
+      mockDb,
+      reservationId,
+      workspaceId,
+      "google",
+      MODEL_NAME,
+      tokenUsage,
+      3,
+      false
+    );
+  });
+
+  it("should not call adjustCreditReservation when tokenUsage is undefined", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-456";
+    const key = "key-789";
+    const bodyText = "Hello, agent!";
+
+    mockValidateWebhookRequest.mockReturnValue({
+      workspaceId,
+      agentId,
+      key,
+      bodyText,
+    });
+    mockValidateWebhookKey.mockResolvedValue(undefined);
+    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
+
+    const mockSubscription = {
+      pk: "subscriptions/sub-123",
+      plan: "pro" as const,
+    };
+    mockGetWorkspaceSubscription.mockResolvedValue(mockSubscription);
+    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      provider: "google" as const,
+    };
+
+    const mockModel = {};
+    const mockTools = {};
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: mockModel,
+      tools: mockTools,
+      usesByok: false,
+    });
+
+    mockConvertTextToUIMessage.mockReturnValue({
+      role: "user",
+      content: bodyText,
+    });
+
+    mockConvertUIMessagesToModelMessages.mockReturnValue([
+      {
+        role: "user",
+        content: bodyText,
+      },
+    ]);
+
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId: "reservation-123",
+      reservedAmount: 0.001,
+    });
+
+    mockBuildGenerateTextOptions.mockReturnValue({
+      temperature: 0.7,
+      maxTokens: 2048,
+    });
+
+    const mockGenerateTextResult = {
+      text: "Hello! How can I help you?",
+      usage: {
+        promptTokens: 10,
+        completionTokens: 5,
+      },
+    };
+
+    vi.mocked(generateText).mockResolvedValue(
+      mockGenerateTextResult as unknown as Awaited<
+        ReturnType<typeof generateText>
+      >
+    );
+
+    mockExtractTokenUsage.mockReturnValue(undefined);
+
+    mockIsCreditDeductionEnabled.mockReturnValue(true);
+
+    mockStartConversation.mockResolvedValue("conversation-id-123");
+
+    mockProcessSimpleNonStreamingResponse.mockResolvedValue(
+      "Hello! How can I help you?"
+    );
+
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const baseEvent = createAPIGatewayEventV2({
+      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
+      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
+      body: bodyText,
+    });
+    const event = {
+      ...baseEvent,
+      requestContext: {
+        ...baseEvent.requestContext,
+        http: {
+          ...baseEvent.requestContext.http,
+          method: "POST",
+        },
+      },
+      pathParameters: {
+        workspaceId,
+        agentId,
+        key,
+      },
+    };
+
+    await handler(event, mockContext, mockCallback);
+
+    expect(mockAdjustCreditReservation).not.toHaveBeenCalled();
+  });
+
+  it("should not call adjustCreditReservation when credit deduction feature flag is disabled", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-456";
+    const key = "key-789";
+    const bodyText = "Hello, agent!";
+    const tokenUsage = {
+      promptTokens: 100,
+      completionTokens: 50,
+      totalTokens: 150,
+    };
+
+    mockValidateWebhookRequest.mockReturnValue({
+      workspaceId,
+      agentId,
+      key,
+      bodyText,
+    });
+    mockValidateWebhookKey.mockResolvedValue(undefined);
+    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
+
+    const mockSubscription = {
+      pk: "subscriptions/sub-123",
+      plan: "pro" as const,
+    };
+    mockGetWorkspaceSubscription.mockResolvedValue(mockSubscription);
+    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      provider: "google" as const,
+    };
+
+    const mockModel = {};
+    const mockTools = {};
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: mockModel,
+      tools: mockTools,
+      usesByok: false,
+    });
+
+    mockConvertTextToUIMessage.mockReturnValue({
+      role: "user",
+      content: bodyText,
+    });
+
+    mockConvertUIMessagesToModelMessages.mockReturnValue([
+      {
+        role: "user",
+        content: bodyText,
+      },
+    ]);
+
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId: "reservation-123",
+      reservedAmount: 0.001,
+    });
+
+    mockBuildGenerateTextOptions.mockReturnValue({
+      temperature: 0.7,
+      maxTokens: 2048,
+    });
+
+    const mockGenerateTextResult = {
+      text: "Hello! How can I help you?",
+      usage: {
+        promptTokens: 100,
+        completionTokens: 50,
+      },
+    };
+
+    vi.mocked(generateText).mockResolvedValue(
+      mockGenerateTextResult as unknown as Awaited<
+        ReturnType<typeof generateText>
+      >
+    );
+
+    mockExtractTokenUsage.mockReturnValue(tokenUsage);
+
+    mockIsCreditDeductionEnabled.mockReturnValue(false);
+
+    mockStartConversation.mockResolvedValue("conversation-id-123");
+
+    mockProcessSimpleNonStreamingResponse.mockResolvedValue(
+      "Hello! How can I help you?"
+    );
+
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const baseEvent = createAPIGatewayEventV2({
+      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
+      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
+      body: bodyText,
+    });
+    const event = {
+      ...baseEvent,
+      requestContext: {
+        ...baseEvent.requestContext,
+        http: {
+          ...baseEvent.requestContext.http,
+          method: "POST",
+        },
+      },
+      pathParameters: {
+        workspaceId,
+        agentId,
+        key,
+      },
+    };
+
+    await handler(event, mockContext, mockCallback);
+
+    expect(mockAdjustCreditReservation).not.toHaveBeenCalled();
+  });
+
+  it("should not fail request when adjustCreditReservation throws an error", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-456";
+    const key = "key-789";
+    const bodyText = "Hello, agent!";
+    const tokenUsage = {
+      promptTokens: 100,
+      completionTokens: 50,
+      totalTokens: 150,
+    };
+
+    mockValidateWebhookRequest.mockReturnValue({
+      workspaceId,
+      agentId,
+      key,
+      bodyText,
+    });
+    mockValidateWebhookKey.mockResolvedValue(undefined);
+    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
+
+    const mockSubscription = {
+      pk: "subscriptions/sub-123",
+      plan: "pro" as const,
+    };
+    mockGetWorkspaceSubscription.mockResolvedValue(mockSubscription);
+    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      provider: "google" as const,
+    };
+
+    const mockModel = {};
+    const mockTools = {};
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: mockModel,
+      tools: mockTools,
+      usesByok: false,
+    });
+
+    mockConvertTextToUIMessage.mockReturnValue({
+      role: "user",
+      content: bodyText,
+    });
+
+    mockConvertUIMessagesToModelMessages.mockReturnValue([
+      {
+        role: "user",
+        content: bodyText,
+      },
+    ]);
+
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId: "reservation-123",
+      reservedAmount: 0.001,
+    });
+
+    mockBuildGenerateTextOptions.mockReturnValue({
+      temperature: 0.7,
+      maxTokens: 2048,
+    });
+
+    const mockGenerateTextResult = {
+      text: "Hello! How can I help you?",
+      usage: {
+        promptTokens: 100,
+        completionTokens: 50,
+      },
+    };
+
+    vi.mocked(generateText).mockResolvedValue(
+      mockGenerateTextResult as unknown as Awaited<
+        ReturnType<typeof generateText>
+      >
+    );
+
+    mockExtractTokenUsage.mockReturnValue(tokenUsage);
+
+    mockIsCreditDeductionEnabled.mockReturnValue(true);
+    mockAdjustCreditReservation.mockRejectedValue(
+      new Error("Credit adjustment failed")
+    );
+
+    mockStartConversation.mockResolvedValue("conversation-id-123");
+
+    mockProcessSimpleNonStreamingResponse.mockResolvedValue(
+      "Hello! How can I help you?"
+    );
+
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const baseEvent = createAPIGatewayEventV2({
+      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
+      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
+      body: bodyText,
+    });
+    const event = {
+      ...baseEvent,
+      requestContext: {
+        ...baseEvent.requestContext,
+        http: {
+          ...baseEvent.requestContext.http,
+          method: "POST",
+        },
+      },
+      pathParameters: {
+        workspaceId,
+        agentId,
+        key,
+      },
+    };
+
+    const result = (await handler(event, mockContext, mockCallback)) as {
+      statusCode: number;
+      headers: Record<string, string>;
+      body: string;
+    };
+
+    // Request should still succeed even if credit adjustment fails
+    expect(result.statusCode).toBe(200);
+    expect(mockAdjustCreditReservation).toHaveBeenCalled();
+  });
+
   it("should throw badRequest when validation fails", async () => {
     // Mock validateWebhookRequest to throw an error
     mockValidateWebhookRequest.mockImplementation(() => {
