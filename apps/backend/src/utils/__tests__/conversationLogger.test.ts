@@ -1582,5 +1582,144 @@ describe("conversationLogger", () => {
       // Conversation-level token usage should be aggregated
       expect(result.tokenUsage?.totalTokens).toBe(195); // 50 + 65 + 80
     });
+
+    it("should preserve tokenUsage when adding new messages to existing conversation (user scenario)", async () => {
+      // This test matches the exact user scenario:
+      // 1. Conversation starts with 2 messages (user + assistant with tokenUsage)
+      // 2. Two more messages are added (user + assistant)
+      // 3. The first assistant message should keep its tokenUsage
+      const existingConversation: AgentConversationRecord = {
+        pk: "conversations/workspace-123/agent-456/conversation-789",
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        conversationId: "conversation-789",
+        conversationType: "stream",
+        messages: [
+          {
+            role: "user",
+            content: "hello there!",
+          },
+          {
+            role: "assistant",
+            content:
+              "Well hello there, jabroni! The Rock has arrived! What can I do for you today? Lay the smack down on your questions, if ya smell what The Rock is cookin'!",
+            tokenUsage: {
+              promptTokens: 20,
+              completionTokens: 15,
+              totalTokens: 35,
+            },
+          },
+        ] as unknown[],
+        tokenUsage: {
+          promptTokens: 20,
+          completionTokens: 15,
+          totalTokens: 35,
+        },
+        modelName: "gemini-2.5-flash",
+        provider: "google",
+        startedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      // Full history with 2 new messages added - the first assistant message doesn't have tokenUsage
+      // in the request, but it should be preserved from the existing conversation
+      const fullHistoryMessages = [
+        {
+          role: "user" as const,
+          content: "hello there!",
+        },
+        {
+          role: "assistant" as const,
+          content:
+            "Well hello there, jabroni! The Rock has arrived! What can I do for you today? Lay the smack down on your questions, if ya smell what The Rock is cookin'!",
+          // Note: no tokenUsage here - it should be preserved from existing conversation
+        },
+        {
+          role: "user" as const,
+          content: "how are things?",
+        },
+        {
+          role: "assistant" as const,
+          content:
+            "Things are always electrifying, my friend! The Rock is doing great, laying the smack down on life, and bringing the most electrifying show in entertainment to the people! How about you? Are you ready for some greatness today?",
+          tokenUsage: {
+            promptTokens: 96,
+            reasoningTokens: 49,
+            totalTokens: 192,
+            completionTokens: 47,
+          },
+        },
+      ];
+
+      const additionalTokenUsage: TokenUsage = {
+        promptTokens: 96,
+        reasoningTokens: 49,
+        totalTokens: 192,
+        completionTokens: 47,
+      };
+
+      mockAtomicUpdate.mockImplementation(async (pk, sk, updater) => {
+        const result = await updater(existingConversation);
+        return {
+          ...existingConversation,
+          ...result,
+        };
+      });
+
+      await updateConversation(
+        mockDb,
+        "workspace-123",
+        "agent-456",
+        "conversation-789",
+        fullHistoryMessages,
+        additionalTokenUsage
+      );
+
+      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
+      const result = await updaterCall(existingConversation);
+
+      // Should have 4 messages
+      expect(result.messages).toHaveLength(4);
+
+      // First assistant message (index 1) should preserve its tokenUsage from existing
+      const firstAssistantMsg = (result.messages as unknown[])[1] as {
+        role: string;
+        content: string;
+        tokenUsage?: TokenUsage;
+      };
+      expect(firstAssistantMsg.role).toBe("assistant");
+      expect(firstAssistantMsg.content).toBe(
+        "Well hello there, jabroni! The Rock has arrived! What can I do for you today? Lay the smack down on your questions, if ya smell what The Rock is cookin'!"
+      );
+      expect(firstAssistantMsg.tokenUsage).toBeDefined();
+      expect(firstAssistantMsg.tokenUsage?.promptTokens).toBe(20);
+      expect(firstAssistantMsg.tokenUsage?.completionTokens).toBe(15);
+      expect(firstAssistantMsg.tokenUsage?.totalTokens).toBe(35);
+
+      // Second assistant message (index 3) should have tokenUsage from the new request
+      const secondAssistantMsg = (result.messages as unknown[])[3] as {
+        role: string;
+        content: string;
+        tokenUsage?: TokenUsage;
+      };
+      expect(secondAssistantMsg.role).toBe("assistant");
+      expect(secondAssistantMsg.content).toBe(
+        "Things are always electrifying, my friend! The Rock is doing great, laying the smack down on life, and bringing the most electrifying show in entertainment to the people! How about you? Are you ready for some greatness today?"
+      );
+      expect(secondAssistantMsg.tokenUsage).toBeDefined();
+      expect(secondAssistantMsg.tokenUsage?.promptTokens).toBe(96);
+      expect(secondAssistantMsg.tokenUsage?.completionTokens).toBe(47);
+      expect(secondAssistantMsg.tokenUsage?.reasoningTokens).toBe(49);
+      expect(secondAssistantMsg.tokenUsage?.totalTokens).toBe(192);
+
+      // Conversation-level token usage should be aggregated
+      expect(result.tokenUsage?.promptTokens).toBe(116); // 20 + 96
+      expect(result.tokenUsage?.completionTokens).toBe(62); // 15 + 47
+      expect(result.tokenUsage?.reasoningTokens).toBe(49);
+      expect(result.tokenUsage?.totalTokens).toBe(227); // 35 + 192
+    });
   });
 });

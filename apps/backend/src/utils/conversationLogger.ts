@@ -393,16 +393,21 @@ export async function updateConversation(
 
       // If newMessages starts with the same messages as existing, it's likely a full history replacement
       // This happens when the request body contains the full conversation history (e.g., streaming endpoint)
+      // Use normalized content for comparison to be consistent with our matching logic
       const isFullHistoryReplacement =
         existingMessages.length > 0 &&
         newMessages.length >= existingMessages.length &&
         existingMessages.every((existingMsg, index) => {
           const newMsg = newMessages[index];
           if (!newMsg || !existingMsg) return false;
+          // Use normalized content for comparison to match our matching logic
+          const existingNormalized = normalizeMessageContent(
+            existingMsg.content
+          );
+          const newNormalized = normalizeMessageContent(newMsg.content);
           return (
             existingMsg.role === newMsg.role &&
-            JSON.stringify(existingMsg.content) ===
-              JSON.stringify(newMsg.content)
+            existingNormalized === newNormalized
           );
         });
 
@@ -410,8 +415,9 @@ export async function updateConversation(
       // Otherwise, merge existing with new (incremental update)
       let allMessages: UIMessage[];
       if (isFullHistoryReplacement) {
-        // Create a map of existing assistant messages by normalized content for content-based matching
-        // This allows us to match messages regardless of their position in the array
+        // For full history replacement, use position-based matching first (most reliable)
+        // then fall back to content-based matching for robustness
+        // Create a map of existing assistant messages by normalized content as fallback
         const existingAssistantMessagesByContent = new Map<string, UIMessage>();
         for (const existingMsg of existingMessages) {
           if (existingMsg.role === "assistant") {
@@ -429,17 +435,39 @@ export async function updateConversation(
           }
         }
 
-        // Preserve tokenUsage from existing assistant messages when content matches
-        // Use content-based matching instead of index-based matching for robustness
-        allMessages = newMessages.map((newMsg) => {
+        // Preserve tokenUsage from existing assistant messages
+        // Try position-based matching first (since it's full history replacement, positions should align)
+        // Fall back to content-based matching if position-based fails
+        allMessages = newMessages.map((newMsg, index) => {
           // Only process assistant messages
           if (newMsg.role === "assistant") {
-            const normalizedContent = normalizeMessageContent(newMsg.content);
-            const matchingExistingMsg =
-              existingAssistantMessagesByContent.get(normalizedContent);
+            // First, try to match by position (most reliable for full history replacement)
+            const existingMsgAtPosition = existingMessages[index];
+            let matchingExistingMsg: UIMessage | undefined;
+
+            if (
+              existingMsgAtPosition &&
+              existingMsgAtPosition.role === "assistant"
+            ) {
+              // Check if content matches at this position
+              const existingNormalized = normalizeMessageContent(
+                existingMsgAtPosition.content
+              );
+              const newNormalized = normalizeMessageContent(newMsg.content);
+              if (existingNormalized === newNormalized) {
+                matchingExistingMsg = existingMsgAtPosition;
+              }
+            }
+
+            // If position-based matching failed, try content-based matching
+            if (!matchingExistingMsg) {
+              const normalizedContent = normalizeMessageContent(newMsg.content);
+              matchingExistingMsg =
+                existingAssistantMessagesByContent.get(normalizedContent);
+            }
 
             if (matchingExistingMsg) {
-              // Found a matching existing message by content
+              // Found a matching existing message
               // Preserve existing tokenUsage if new message doesn't have it
               const existingTokenUsage =
                 "tokenUsage" in matchingExistingMsg &&
