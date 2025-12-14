@@ -186,9 +186,11 @@ export function mergeMessages(
     }
   }
 
-  const lastMessage = merged[merged.length - 1];
-  if (!lastMessage.tokenUsage && tokenUsage) {
-    lastMessage.tokenUsage = tokenUsage;
+  if (merged.length > 0 && tokenUsage) {
+    const lastMessage = merged[merged.length - 1];
+    if (!lastMessage.tokenUsage) {
+      lastMessage.tokenUsage = tokenUsage;
+    }
   }
 
   return merged;
