@@ -65,6 +65,31 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
     return JSON.stringify(content, null, 2);
   };
 
+  const formatMessageTokenUsage = (tokenUsage: unknown): string | null => {
+    if (
+      typeof tokenUsage === "object" &&
+      tokenUsage !== null &&
+      "totalTokens" in tokenUsage &&
+      typeof (tokenUsage as { totalTokens: unknown }).totalTokens === "number"
+    ) {
+      const usage = tokenUsage as {
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+        reasoningTokens?: number;
+      };
+      const parts = [
+        usage.promptTokens.toLocaleString(),
+        usage.completionTokens.toLocaleString(),
+      ];
+      if (usage.reasoningTokens && usage.reasoningTokens > 0) {
+        parts.push(usage.reasoningTokens.toLocaleString());
+      }
+      return `${usage.totalTokens.toLocaleString()} (${parts.join("+")})`;
+    }
+    return null;
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white border border-neutral-200 rounded-2xl shadow-dramatic border-2 border-neutral-300 p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -197,6 +222,10 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                       ) {
                         const role = message.role as string;
                         const content = formatMessageContent(message.content);
+                        const tokenUsage =
+                          "tokenUsage" in message
+                            ? formatMessageTokenUsage(message.tokenUsage)
+                            : null;
                         return (
                           <div
                             key={index}
@@ -208,8 +237,15 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                 : "bg-neutral-50 text-neutral-900 border border-neutral-200"
                             }`}
                           >
-                            <div className="text-xs font-medium mb-2 opacity-80">
-                              {role}
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="text-xs font-medium opacity-80">
+                                {role}
+                              </div>
+                              {tokenUsage && role === "assistant" && (
+                                <div className="text-xs font-mono opacity-70 bg-neutral-100 px-2 py-1 rounded border border-neutral-200">
+                                  Tokens: {tokenUsage}
+                                </div>
+                              )}
                             </div>
                             <div className="text-sm whitespace-pre-wrap">
                               {content}

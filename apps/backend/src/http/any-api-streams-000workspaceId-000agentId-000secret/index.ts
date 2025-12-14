@@ -616,55 +616,125 @@ async function streamAIResponse(
         textBuffer += chunk;
 
         // Try to extract text deltas from complete lines for tracking
-        // Only process if we have complete lines (ending with \n)
+        // Process complete SSE events (ending with \n\n) or when we have complete lines
         if (chunk.includes("\n")) {
-          const lines = textBuffer.split("\n");
-          textBuffer = lines.pop() || ""; // Keep incomplete line
+          // Split by "data: " to handle multi-line JSON blocks (like test endpoint)
+          const dataMarker = "data: ";
+          let processedUpTo = 0;
 
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
+          while (true) {
+            const dataIndex = textBuffer.indexOf(dataMarker, processedUpTo);
+            if (dataIndex === -1) {
+              // No more data markers in this chunk, keep unprocessed text
+              break;
+            }
+
+            // Find the start of the JSON (skip "data: " and any whitespace/newlines)
+            let jsonStart = dataIndex + dataMarker.length;
+            while (
+              jsonStart < textBuffer.length &&
+              /\s/.test(textBuffer[jsonStart])
+            ) {
+              jsonStart++;
+            }
+
+            // Find the end of this data block (next "data: " or end of string)
+            const nextDataIndex = textBuffer.indexOf(dataMarker, jsonStart);
+            const blockEnd =
+              nextDataIndex === -1 ? textBuffer.length : nextDataIndex;
+
+            // Extract the JSON block
+            let jsonBlock = textBuffer.substring(jsonStart, blockEnd).trim();
+
+            // Remove trailing newlines
+            jsonBlock = jsonBlock.replace(/\n+$/, "");
+
+            if (jsonBlock && jsonBlock !== "[DONE]") {
               try {
-                const jsonStr = line.substring(6); // Remove "data: " prefix
-                if (jsonStr === "[DONE]") {
-                  continue;
-                }
-                const parsed = JSON.parse(jsonStr);
-                if (parsed.type === "text-delta" && parsed.textDelta) {
-                  onTextChunk(parsed.textDelta);
+                const parsed = JSON.parse(jsonBlock);
+                // AI SDK uses "delta" field, not "textDelta"
+                if (parsed.type === "text-delta") {
+                  if (parsed.delta) {
+                    onTextChunk(parsed.delta);
+                  } else if (parsed.textDelta) {
+                    // Fallback for older format
+                    onTextChunk(parsed.textDelta);
+                  }
                 } else if (parsed.type === "text" && parsed.text) {
                   onTextChunk(parsed.text);
                 }
+                // Mark this block as processed
+                processedUpTo = blockEnd;
               } catch {
-                // Not JSON or parsing failed, skip text extraction
+                // Not valid JSON yet, might be incomplete - don't mark as processed
+                // This will be retried when more data arrives
+                break;
               }
+            } else {
+              processedUpTo = blockEnd;
             }
           }
+
+          // Keep unprocessed text in buffer (everything after processedUpTo)
+          textBuffer = textBuffer.substring(processedUpTo);
         }
       }
     }
 
     // Process any remaining buffered text before closing
+    // Use the same multi-line JSON parsing approach as test endpoint
     if (textBuffer) {
-      // Try to extract any remaining text from the buffer
-      const lines = textBuffer.split("\n");
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
+      const dataMarker = "data: ";
+      let startIndex = 0;
+
+      while (true) {
+        const dataIndex = textBuffer.indexOf(dataMarker, startIndex);
+        if (dataIndex === -1) {
+          break;
+        }
+
+        // Find the start of the JSON (skip "data: " and any whitespace/newlines)
+        let jsonStart = dataIndex + dataMarker.length;
+        while (
+          jsonStart < textBuffer.length &&
+          /\s/.test(textBuffer[jsonStart])
+        ) {
+          jsonStart++;
+        }
+
+        // Find the end of this data block (next "data: " or end of string)
+        const nextDataIndex = textBuffer.indexOf(dataMarker, jsonStart);
+        const blockEnd =
+          nextDataIndex === -1 ? textBuffer.length : nextDataIndex;
+
+        // Extract and trim the JSON block
+        let jsonBlock = textBuffer.substring(jsonStart, blockEnd).trim();
+
+        // Remove trailing newlines
+        jsonBlock = jsonBlock.replace(/\n+$/, "");
+
+        if (jsonBlock && jsonBlock !== "[DONE]") {
           try {
-            const jsonStr = line.substring(6);
-            if (jsonStr === "[DONE]") {
-              continue;
-            }
-            const parsed = JSON.parse(jsonStr);
-            if (parsed.type === "text-delta" && parsed.textDelta) {
-              onTextChunk(parsed.textDelta);
+            const parsed = JSON.parse(jsonBlock);
+            // AI SDK uses "delta" field, not "textDelta"
+            if (parsed.type === "text-delta") {
+              if (parsed.delta) {
+                onTextChunk(parsed.delta);
+              } else if (parsed.textDelta) {
+                // Fallback for older format
+                onTextChunk(parsed.textDelta);
+              }
             } else if (parsed.type === "text" && parsed.text) {
               onTextChunk(parsed.text);
             }
           } catch {
-            // Not JSON or parsing failed, skip text extraction
+            // Not valid JSON, skip
           }
         }
+
+        startIndex = blockEnd;
       }
+
       // Write any remaining buffered text to stream
       const remainingBytes = new TextEncoder().encode(textBuffer);
       await writeChunkToStream(responseStream, remainingBytes);
@@ -810,6 +880,14 @@ async function logConversationAsync(
     // Start with all messages from the request, preserving original order
     const validMessages: UIMessage[] = [...allMessages];
 
+    console.log("[Stream Handler] Preparing to log conversation:", {
+      allMessagesCount: allMessages.length,
+      fullStreamedTextLength: fullStreamedText.length,
+      fullStreamedTextPreview: fullStreamedText.substring(0, 100),
+      hasTokenUsage: !!tokenUsage,
+      conversationId: conversationId || "new",
+    });
+
     // Add assistant's response at the end if we extracted any text
     if (
       fullStreamedText &&
@@ -819,8 +897,22 @@ async function logConversationAsync(
       const assistantMessage: UIMessage = {
         role: "assistant",
         content: fullStreamedText,
+        ...(tokenUsage && { tokenUsage }),
       };
       validMessages.push(assistantMessage);
+      console.log(
+        "[Stream Handler] Added assistant message to validMessages:",
+        {
+          contentLength: fullStreamedText.length,
+          contentPreview: fullStreamedText.substring(0, 100),
+        }
+      );
+    } else {
+      console.warn("[Stream Handler] No assistant text to add:", {
+        fullStreamedTextLength: fullStreamedText.length,
+        fullStreamedTextType: typeof fullStreamedText,
+        fullStreamedTextValue: fullStreamedText,
+      });
     }
 
     // Filter to ensure all messages are valid
@@ -1299,6 +1391,20 @@ const internalHandler = async (
     // Extract token usage from stream result
     const tokenUsage = await extractTokenUsage(streamResult);
 
+    // Fallback: if fullStreamedText is empty but result.text is available, use it
+    // This ensures we capture the assistant's response even if text extraction from SSE failed
+    if (
+      (!fullStreamedText || fullStreamedText.trim().length === 0) &&
+      streamResult.text &&
+      typeof streamResult.text === "string"
+    ) {
+      fullStreamedText = streamResult.text;
+      console.log("[Stream Handler] Using result.text as fallback:", {
+        textLength: fullStreamedText.length,
+        textPreview: fullStreamedText.substring(0, 100),
+      });
+    }
+
     // Post-processing: adjust credit reservation, track usage, log conversation
     await adjustCreditsAfterStream(
       context.db,
@@ -1315,6 +1421,16 @@ const internalHandler = async (
       context.workspaceId,
       context.agentId
     );
+
+    console.log("[Stream Handler] Logging conversation:", {
+      workspaceId: context.workspaceId,
+      agentId: context.agentId,
+      conversationId: context.conversationId || "new",
+      allMessagesCount: context.allMessages.length,
+      fullStreamedTextLength: fullStreamedText.length,
+      fullStreamedTextPreview: fullStreamedText.substring(0, 100),
+      hasTokenUsage: !!tokenUsage,
+    });
 
     await logConversationAsync(
       context.db,

@@ -502,6 +502,7 @@ export const handler = adaptHttpHandler(
         role: "assistant",
         content:
           assistantContent.length > 0 ? assistantContent : responseContent,
+        ...(tokenUsage && { tokenUsage }),
       };
 
       // Log conversation (non-blocking)

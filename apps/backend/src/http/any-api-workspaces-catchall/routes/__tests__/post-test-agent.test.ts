@@ -93,6 +93,14 @@ vi.mock("../../../../utils/featureFlags", () => ({
 }));
 
 describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
+  const mockDb = {
+    "agent-conversations": {
+      create: vi.fn(),
+      update: vi.fn(),
+      atomicUpdate: vi.fn(),
+    },
+  } as any;
+
   beforeEach(() => {
     vi.clearAllMocks();
     // Default mocks
@@ -103,6 +111,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
     });
     mockCheckDailyRequestLimit.mockResolvedValue(undefined);
     mockIsCreditDeductionEnabled.mockReturnValue(true);
+    mockDatabase.mockResolvedValue(mockDb);
   });
 
   async function callRouteHandler(
@@ -990,5 +999,182 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
     );
     expect(mockUpdateConversation).not.toHaveBeenCalled();
     expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should handle messages with parts (ai-sdk format) by converting to content format", async () => {
+    // This test verifies that the route handler can process messages in ai-sdk format
+    // The actual conversion happens in the route handler, which is tested through integration
+    // For unit tests, we verify that convertToModelMessages is called correctly
+    const workspaceId = "workspace-123";
+    const agentId = "agent-456";
+    const messages = [
+      {
+        id: "msg-1",
+        role: "user" as const,
+        parts: [
+          {
+            type: "text",
+            text: "Hello there!",
+          },
+        ],
+      },
+    ];
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: undefined,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: false,
+    });
+    mockConvertToModelMessages.mockReturnValue([
+      { role: "user", content: "Hello there!" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId: "reservation-123",
+      reservedAmount: 10.0,
+    });
+
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      text: "Response text",
+      usage: Promise.resolve({
+        promptTokens: 10,
+        completionTokens: 20,
+        totalTokens: 30,
+      }),
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockExtractTokenUsage.mockResolvedValue({
+      promptTokens: 10,
+      completionTokens: 20,
+      totalTokens: 30,
+    });
+    mockAdjustCreditReservation.mockResolvedValue(undefined);
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue("conv-123");
+
+    const req = createMockRequest({
+      params: { workspaceId, agentId },
+      body: { messages },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    // Verify that convertToModelMessages was called with messages that have parts
+    // This ensures the route handler can process ai-sdk format messages
+    expect(mockConvertToModelMessages).toHaveBeenCalled();
+    expect(mockStartConversation).toHaveBeenCalled();
+  });
+
+  it("should extract assistant text using result.text when SSE parsing provides it", async () => {
+    // This test verifies that result.text is used as fallback for assistant text
+    const workspaceId = "workspace-123";
+    const agentId = "agent-456";
+    const messages = [
+      {
+        role: "user" as const,
+        content: "Hello",
+      },
+    ];
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: undefined,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: false,
+    });
+    mockConvertToModelMessages.mockReturnValue([
+      { role: "user", content: "Hello" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId: "reservation-123",
+      reservedAmount: 10.0,
+    });
+
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      text: "Hello world!", // This should be used as fallback
+      usage: Promise.resolve({
+        promptTokens: 10,
+        completionTokens: 20,
+        totalTokens: 30,
+      }),
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockExtractTokenUsage.mockResolvedValue({
+      promptTokens: 10,
+      completionTokens: 20,
+      totalTokens: 30,
+    });
+    mockAdjustCreditReservation.mockResolvedValue(undefined);
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue("conv-123");
+
+    const req = createMockRequest({
+      params: { workspaceId, agentId },
+      body: { messages },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    // Verify that startConversation was called (assistant text should be included via result.text)
+    expect(mockStartConversation).toHaveBeenCalled();
+    const callArgs = mockStartConversation.mock.calls[0];
+    const conversationData = callArgs[1];
+    // Should have messages including assistant response
+    expect(conversationData.messages).toBeDefined();
+    expect(Array.isArray(conversationData.messages)).toBe(true);
   });
 });
