@@ -63,3 +63,4 @@ export function createTestAppWithHandlerCapture(): {
     deleteHandler: (path: string) => handlers.get(`DELETE ${path}`),
   };
 }
+

@@ -258,3 +258,9 @@ jobs:
           # Set ARC_STACK_NAME so the lambda-urls plugin can determine the DNS name at plugin time
           export ARC_STACK_NAME="HelpmatonStagingPR${PR_NUMBER}"
           pnpm arc deploy --name "PR${PR_NUMBER}" --staging --no-hydrate --verbose
+
+      - name: Trigger API Gateway deployment
+        run: |
+          PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
+          echo "🚀 Triggering API Gateway deployment to make changes live..."
+          bash scripts/deploy-api-gateway.sh "HelpmatonStagingPR${PR_NUMBER}"
