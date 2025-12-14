@@ -99,6 +99,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
       update: vi.fn(),
       atomicUpdate: vi.fn(),
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 
   beforeEach(() => {
@@ -738,7 +739,6 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
   it("should call adjustCreditReservation with correct parameters after message generation", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-123";
-    const subscriptionId = "sub-123";
     const messages = [{ role: "user", content: "Hello" }];
     const reservationId = "reservation-123";
     const tokenUsage = {
@@ -824,7 +824,6 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
   it("should call adjustCreditReservation with custom modelName when agent has modelName", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-123";
-    const subscriptionId = "sub-123";
     const messages = [{ role: "user", content: "Hello" }];
     const reservationId = "reservation-123";
     const tokenUsage = {
@@ -910,7 +909,6 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
   it("should not call adjustCreditReservation when tokenUsage is undefined", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-123";
-    const subscriptionId = "sub-123";
     const messages = [{ role: "user", content: "Hello" }];
     const reservationId = "reservation-123";
 
@@ -980,7 +978,6 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
   it("should not call adjustCreditReservation when tokens are zero", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-123";
-    const subscriptionId = "sub-123";
     const messages = [{ role: "user", content: "Hello" }];
     const reservationId = "reservation-123";
     const tokenUsage = {
@@ -1055,7 +1052,6 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
   it("should not call adjustCreditReservation when reservationId is 'byok'", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-123";
-    const subscriptionId = "sub-123";
     const messages = [{ role: "user", content: "Hello" }];
     const reservationId = "byok";
     const tokenUsage = {
@@ -1130,7 +1126,6 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
   it("should not call adjustCreditReservation when reservationId is undefined", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-123";
-    const subscriptionId = "sub-123";
     const messages = [{ role: "user", content: "Hello" }];
     const tokenUsage = {
       promptTokens: 100,
@@ -1201,7 +1196,6 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
   it("should not call adjustCreditReservation when credit deduction feature flag is disabled", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-123";
-    const subscriptionId = "sub-123";
     const messages = [{ role: "user", content: "Hello" }];
     const reservationId = "reservation-123";
     const tokenUsage = {
@@ -1278,7 +1272,6 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
   it("should not fail request when adjustCreditReservation throws an error", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-123";
-    const subscriptionId = "sub-123";
     const messages = [{ role: "user", content: "Hello" }];
     const reservationId = "reservation-123";
     const tokenUsage = {
@@ -1436,6 +1429,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
     const reservationId = "reservation-123";
     const mockDb = {};
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockDatabase.mockResolvedValue(mockDb as any);
     mockGetWorkspaceSubscription.mockResolvedValue({
       pk: "subscriptions/sub-123",
@@ -1532,6 +1526,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
     const reservationId = "reservation-123";
     const mockDb = {};
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockDatabase.mockResolvedValue(mockDb as any);
     mockGetWorkspaceSubscription.mockResolvedValue({
       pk: "subscriptions/sub-123",
@@ -1803,7 +1798,6 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
   it("should deduct credits for each generated message in a conversation", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-123";
-    const subscriptionId = "sub-123";
     const conversationId = "conversation-789";
     const reservationId = "reservation-123";
 

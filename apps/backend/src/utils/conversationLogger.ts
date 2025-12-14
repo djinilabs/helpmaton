@@ -133,6 +133,7 @@ export async function extractTokenUsage(
 
   // For streamText, usage is a Promise that needs to be awaited
   // For generateText, usage is a direct object
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let usage: any;
   if (result.usage && typeof result.usage.then === "function") {
     // usage is a Promise
