@@ -328,6 +328,7 @@ jobs:
           pnpm build
           cd apps/backend
           export LAMBDA_IMAGE_TAG="${{ github.sha }}"
+          export LAMBDA_IMAGES_ECR_REPOSITORY="helpmaton-lambda-images"
           pnpm arc deploy --production --no-hydrate --verbose
 
       - name: Trigger API Gateway deployment

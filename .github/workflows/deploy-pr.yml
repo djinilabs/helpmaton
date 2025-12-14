@@ -270,6 +270,7 @@ jobs:
           # Set ARC_STACK_NAME so the lambda-urls plugin can determine the DNS name at plugin time
           export ARC_STACK_NAME="HelpmatonStagingPR${PR_NUMBER}"
           export LAMBDA_IMAGE_TAG="${{ github.sha }}"
+          export LAMBDA_IMAGES_ECR_REPOSITORY="helpmaton-lambda-images"
           pnpm arc deploy --name "PR${PR_NUMBER}" --staging --no-hydrate --verbose
 
       - name: Trigger API Gateway deployment
