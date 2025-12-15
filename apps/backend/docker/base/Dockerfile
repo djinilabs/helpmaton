@@ -9,10 +9,15 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 
 # Copy built Lambda code from dist directory
 # The dist directory contains the compiled TypeScript code
+# Handler files are at paths like: dist/http/any-api-streams-000workspaceId-000agentId-000secret/index.js
+# After copying, they will be at: /var/task/http/any-api-streams-000workspaceId-000agentId-000secret/index.js
 COPY dist/ ${LAMBDA_TASK_ROOT}/
 
 # Lambda handler is set via CMD or can be overridden per function
-# Default handler assumes index.handler
+# Default handler assumes index.handler at /var/task/index.js
+# Note: If using container images with ImageConfig.Command, the CMD here is overridden
+# For functions using this base image directly, ensure there's an index.js at the root
+# or use ImageConfig.Command to point to the correct handler path
 CMD [ "index.handler" ]
 
 
