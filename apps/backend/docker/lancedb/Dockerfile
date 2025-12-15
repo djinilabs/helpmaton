@@ -53,12 +53,20 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 
 # Copy simple index.js entrypoint that loads handlers dynamically
 # This wrapper reads LAMBDA_HANDLER_PATH environment variable to route to the correct handler
+# Copy BEFORE dist to ensure it's not overwritten
 COPY apps/backend/docker/lancedb/index.js ${LAMBDA_TASK_ROOT}/index.js
 
 # Copy built Lambda code from dist directory
 # The dist directory contains the compiled TypeScript code
 # This is copied AFTER index.js to ensure our entrypoint isn't overwritten
 COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
+
+# Verify index.js exists and can be loaded
+RUN echo "=== Verifying index.js ===" && \
+    ls -la ${LAMBDA_TASK_ROOT}/index.js && \
+    echo "=== Testing if index.js can be loaded ===" && \
+    node -e "const idx = require('${LAMBDA_TASK_ROOT}/index.js'); if (typeof idx.handler !== 'function') { console.error('ERROR: handler is not a function'); process.exit(1); } console.log('✓ index.js loaded, handler is a function');" && \
+    echo "✓ index.js verification passed"
 
 # Lambda handler is set via CMD pointing to index.handler
 # The index.js wrapper will read LAMBDA_HANDLER_PATH to route to the actual handler
