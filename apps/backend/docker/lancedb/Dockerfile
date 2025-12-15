@@ -43,10 +43,7 @@ RUN pnpm install --prod --frozen-lockfile --filter backend --shamefully-hoist
 # Copy the flat node_modules to Lambda task root
 # With --shamefully-hoist, node_modules is at the workspace root
 RUN cp -r node_modules ${LAMBDA_TASK_ROOT}/ && \
-    cp apps/backend/package.json ${LAMBDA_TASK_ROOT}/ && \
-    # Add "type": "module" to package.json to enable ES modules
-    # Use Node.js to properly modify the JSON file
-    node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('${LAMBDA_TASK_ROOT}/package.json', 'utf8')); pkg.type = 'module'; fs.writeFileSync('${LAMBDA_TASK_ROOT}/package.json', JSON.stringify(pkg, null, 2));"
+    cp apps/backend/package.json ${LAMBDA_TASK_ROOT}/
 
 # Clean up temporary workspace
 RUN rm -rf /tmp/workspace
@@ -58,16 +55,14 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 # The dist directory contains the compiled TypeScript code
 COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 
-# Copy router entrypoint
+# Copy router entrypoint (CommonJS version for better compatibility)
 # The router reads LAMBDA_HANDLER_PATH environment variable to route to the correct handler
-# Use .js extension with "type": "module" in package.json for ES modules
-COPY apps/backend/docker/lancedb/router.js ${LAMBDA_TASK_ROOT}/router.js
+# Using .cjs extension ensures it's treated as CommonJS, then it dynamically imports ES modules
+COPY apps/backend/docker/lancedb/router.cjs ${LAMBDA_TASK_ROOT}/router.cjs
 
-# Verify router file exists and package.json has type: module
-RUN ls -la ${LAMBDA_TASK_ROOT}/router.js && \
-    cat ${LAMBDA_TASK_ROOT}/package.json | grep -q '"type"' || echo "WARNING: type field not found in package.json"
+# Verify router file exists
+RUN ls -la ${LAMBDA_TASK_ROOT}/router.cjs || (echo "ERROR: router.cjs not found" && exit 1)
 
 # Lambda handler is set via CMD
-# With "type": "module" in package.json, .js files are treated as ES modules
-# Format: filename.exportname (filename without .js extension)
+# For .cjs files, use the format: filename.exportname (without extension)
 CMD [ "router.handler" ]
