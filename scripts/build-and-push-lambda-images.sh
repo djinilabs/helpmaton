@@ -155,8 +155,12 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
     BUILD_CONTEXT="."
     
     # Build Docker image
-    print_status "Building Docker image: ${IMAGE_NAME}..."
+    # IMPORTANT: Build for arm64 architecture to match Lambda function configuration
+    # Lambda functions default to arm64 (Graviton2) for better price/performance
+    # If the image is built for amd64 but Lambda is arm64, you'll get ProcessSpawnFailed errors
+    print_status "Building Docker image: ${IMAGE_NAME} for arm64 architecture..."
     docker build \
+        --platform linux/arm64 \
         -f "${DOCKERFILE_PATH}" \
         -t "${IMAGE_NAME}:${IMAGE_TAG}" \
         -t "${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}" \

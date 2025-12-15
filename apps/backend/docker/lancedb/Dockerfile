@@ -87,6 +87,10 @@ RUN echo "=== Verifying handler file exists ===" && \
     ls -la ${LAMBDA_TASK_ROOT}/http/ | head -10 && \
     echo "✓ Handler file verification passed"
 
+# Ensure files are readable/executable for Lambda runtime user (non-root)
+# This prevents permission issues that could cause ProcessSpawnFailed errors
+RUN chmod -R 755 ${LAMBDA_TASK_ROOT}
+
 # Lambda handler is set via CMD pointing to index.handler
 # The index.js wrapper will read LAMBDA_HANDLER_PATH to route to the actual handler
 CMD [ "index.handler" ]
