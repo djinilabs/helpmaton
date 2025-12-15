@@ -45,13 +45,16 @@ async function loadHandler() {
   }
 }
 
-// Export handler - must be a function for Lambda to find it
-// The function will load the actual handler on first invocation
-module.exports.handler = async (event, context) => {
+// Export handler using both formats for maximum compatibility
+// Lambda needs to find this synchronously at module load time
+exports.handler = async (event, context) => {
   console.log('[index.js] Handler invoked');
   const actualHandler = await loadHandler();
   console.log('[index.js] Calling actual handler...');
   return actualHandler(event, context);
 };
+
+// Also export via module.exports for CommonJS compatibility
+module.exports.handler = exports.handler;
 
 console.log('[index.js] Module loaded, handler exported');
