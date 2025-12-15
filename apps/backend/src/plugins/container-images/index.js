@@ -323,6 +323,11 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
     }
   } else {
     // Standard Lambda functions use Code with ImageUri
+    // IMPORTANT: Remove any existing Code properties (S3Bucket, S3Key, ZipFile, etc.)
+    // to prevent Architect from trying to package/upload code
+    delete properties.Code;
+    
+    // Set Code with ImageUri for container images
     properties.Code = {
       ImageUri: imageUri,
     };
@@ -529,6 +534,10 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
       );
       continue;
     }
+    
+    console.log(
+      `[container-images] Found function resource ${functionId}, Type: ${functionResource.Type}, Current PackageType: ${functionResource.Properties?.PackageType || "not set"}`
+    );
 
     // Get route for this function to compute handler path
     const route = routeMap.get(functionId);
@@ -592,7 +601,7 @@ module.exports = {
     start: configureContainerImages,
     // Also run at end to ensure Handler is removed after all plugins run
     end: async ({ cloudformation }) => {
-      // Post-process to ensure Handler is completely removed for container images
+      // Post-process to ensure Handler, Runtime, and Code are correctly set for container images
       if (!cloudformation?.Resources) {
         return cloudformation;
       }
@@ -616,6 +625,40 @@ module.exports = {
             if (properties.Runtime !== undefined) {
               delete properties.Runtime;
             }
+            
+            // For AWS::Lambda::Function, ensure Code only has ImageUri (no S3 references)
+            if (resource.Type === "AWS::Lambda::Function" && properties.Code) {
+              // Check if Code has S3Bucket, S3Key, or ZipFile (should not be present for container images)
+              if (properties.Code.S3Bucket || properties.Code.S3Key || properties.Code.ZipFile) {
+                console.log(
+                  `[container-images] Removing S3/ZIP Code properties from ${resourceId} (post-processing)`
+                );
+                // Keep only ImageUri if it exists, otherwise remove Code entirely
+                if (properties.Code.ImageUri) {
+                  properties.Code = {
+                    ImageUri: properties.Code.ImageUri,
+                  };
+                } else {
+                  console.warn(
+                    `[container-images] WARNING: ${resourceId} has PackageType=Image but no ImageUri in Code!`
+                  );
+                }
+              }
+            }
+            
+            // For AWS::Serverless::Function, ensure CodeUri is empty or removed
+            if (resource.Type === "AWS::Serverless::Function") {
+              if (properties.CodeUri !== undefined && properties.CodeUri !== "") {
+                console.log(
+                  `[container-images] Setting CodeUri to empty string for ${resourceId} (post-processing)`
+                );
+                properties.CodeUri = "";
+              }
+              // Remove Code property if it exists (SAM uses ImageUri directly)
+              if (properties.Code !== undefined && !properties.ImageUri) {
+                delete properties.Code;
+              }
+            }
           }
         }
       }
@@ -633,6 +676,7 @@ module.exports.parseContainerImagesPragma = parseContainerImagesPragma;
 module.exports.getEcrImageUri = getEcrImageUri;
 module.exports.ensureEcrRepository = ensureEcrRepository;
 module.exports.convertToContainerImage = convertToContainerImage;
+
 
 
 
