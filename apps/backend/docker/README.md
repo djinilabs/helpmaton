@@ -52,7 +52,8 @@ To create a custom image, create a new directory under `docker/` with your image
 FROM public.ecr.aws/lambda/nodejs:20
 
 # Install system dependencies if needed
-RUN yum install -y some-package
+# Note: AWS Lambda base images use dnf (not yum) on Amazon Linux 2023
+RUN dnf install -y some-package
 
 # Copy built Lambda code
 COPY dist/ ${LAMBDA_TASK_ROOT}/
@@ -98,4 +99,4 @@ The full ECR URI format is: `{account-id}.dkr.ecr.{region}.amazonaws.com/{reposi
 - Images should be kept small to reduce cold start times
 - Use multi-stage builds if you need to compile dependencies
 - The base image already includes Node.js 20.x and Lambda runtime interface client
-- System libraries can be installed using `yum` (Amazon Linux 2 base)
+- System libraries can be installed using `dnf` (Amazon Linux 2023 base)

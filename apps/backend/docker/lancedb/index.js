@@ -6,6 +6,13 @@
  * IMPORTANT: Handler must be exported synchronously for Lambda to validate it at INIT time
  */
 
+// Top-level logging to verify module is loaded at INIT time
+console.log('[index.js] ===== MODULE LOADED AT INIT TIME =====');
+console.log('[index.js] LAMBDA_TASK_ROOT:', process.env.LAMBDA_TASK_ROOT);
+console.log('[index.js] Current working directory:', process.cwd());
+console.log('[index.js] __dirname equivalent check');
+console.log('[index.js] LAMBDA_HANDLER_PATH:', process.env.LAMBDA_HANDLER_PATH);
+
 // Cache the loaded handler
 let cachedHandler = null;
 
