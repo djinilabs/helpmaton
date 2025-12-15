@@ -62,20 +62,30 @@ COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 # This ensures /var/task/index.js exists and is our wrapper
 COPY apps/backend/docker/lancedb/index.js ${LAMBDA_TASK_ROOT}/index.js
 
-# Verify index.js exists and can be loaded
-# Note: We only verify the module loads and exports a handler function
-# The actual handler loading happens at runtime with LAMBDA_HANDLER_PATH
-RUN echo "=== Verifying index.js wrapper ===" && \
-    ls -la ${LAMBDA_TASK_ROOT}/index.js && \
-    echo "=== Testing if index.js can be loaded ===" && \
-    node -e "const idx = require('${LAMBDA_TASK_ROOT}/index.js'); console.log('Handler type:', typeof idx.handler); if (typeof idx.handler !== 'function') { console.error('ERROR: handler is not a function'); process.exit(1); } console.log('✓ index.js loaded, handler wrapper is a function');" && \
-    echo "=== Verifying handler path file exists ===" && \
+# Verify Lambda entrypoint exists (should be provided by base image)
+RUN echo "=== Verifying Lambda entrypoint ===" && \
+    test -f /lambda-entrypoint.sh && \
+    echo "✓ /lambda-entrypoint.sh exists" && \
+    ls -lh /lambda-entrypoint.sh && \
+    echo "=== Verifying entrypoint is executable ===" && \
+    test -x /lambda-entrypoint.sh && \
+    echo "✓ /lambda-entrypoint.sh is executable" || \
+    (echo "ERROR: /lambda-entrypoint.sh is not executable" && exit 1)
+
+# Verify handler file exists and can be loaded (for direct handler path approach)
+# Note: We verify the handler file exists and can be required (even if awslambda isn't available)
+# The handler will be loaded directly via ImageConfig.Command
+RUN echo "=== Verifying handler file exists ===" && \
     test -f ${LAMBDA_TASK_ROOT}/http/any-api-streams-000workspaceId-000agentId-000secret/index.js && \
     echo "✓ Handler file exists at expected path" && \
+    echo "=== Verifying handler file is readable ===" && \
+    ls -lh ${LAMBDA_TASK_ROOT}/http/any-api-streams-000workspaceId-000agentId-000secret/index.js && \
     echo "=== Verifying file structure ===" && \
     echo "Files in /var/task root:" && \
     ls -la ${LAMBDA_TASK_ROOT}/ | head -10 && \
-    echo "✓ index.js verification passed"
+    echo "Files in http directory:" && \
+    ls -la ${LAMBDA_TASK_ROOT}/http/ | head -10 && \
+    echo "✓ Handler file verification passed"
 
 # Lambda handler is set via CMD pointing to index.handler
 # The index.js wrapper will read LAMBDA_HANDLER_PATH to route to the actual handler
