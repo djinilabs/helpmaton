@@ -258,8 +258,8 @@ describe("container-images plugin", () => {
       expect(functionResource.Properties.Handler).toBeUndefined();
       // Phase 3: Using ImageConfig.Command to point directly to handler path
       expect(functionResource.Properties.ImageConfig.Command).toEqual(["http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"]);
-      // EntryPoint is not set explicitly - base image's default ENTRYPOINT (/lambda-entrypoint.sh) is used
-      expect(functionResource.Properties.ImageConfig.EntryPoint).toBeUndefined();
+      // EntryPoint must be set when ImageConfig is present (Lambda requires all properties to be non-empty)
+      expect(functionResource.Properties.ImageConfig.EntryPoint).toEqual(["/lambda-entrypoint.sh"]);
       expect(functionResource.Properties.ImageConfig.WorkingDirectory).toBe("/var/task");
     });
 
@@ -335,8 +335,8 @@ describe("container-images plugin", () => {
       expect(functionResource.Properties.Handler).toBeUndefined();
       // Phase 3: Using ImageConfig.Command to point directly to handler path
       expect(functionResource.Properties.ImageConfig.Command).toEqual(["http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"]);
-      // EntryPoint is not set explicitly - base image's default ENTRYPOINT (/lambda-entrypoint.sh) is used
-      expect(functionResource.Properties.ImageConfig.EntryPoint).toBeUndefined();
+      // EntryPoint must be set when ImageConfig is present (Lambda requires all properties to be non-empty)
+      expect(functionResource.Properties.ImageConfig.EntryPoint).toEqual(["/lambda-entrypoint.sh"]);
       expect(functionResource.Properties.ImageConfig.WorkingDirectory).toBe("/var/task");
     });
   });
@@ -379,8 +379,8 @@ describe("container-images plugin", () => {
       expect(functionResource.Properties.Handler).toBeUndefined();
       // Phase 3: Using ImageConfig.Command to point directly to handler path
       expect(functionResource.Properties.ImageConfig.Command).toEqual(["http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"]);
-      // EntryPoint is not set explicitly - base image's default ENTRYPOINT (/lambda-entrypoint.sh) is used
-      expect(functionResource.Properties.ImageConfig.EntryPoint).toBeUndefined();
+      // EntryPoint must be set when ImageConfig is present (Lambda requires all properties to be non-empty)
+      expect(functionResource.Properties.ImageConfig.EntryPoint).toEqual(["/lambda-entrypoint.sh"]);
       expect(functionResource.Properties.ImageConfig.WorkingDirectory).toBe("/var/task");
       expect(result.Outputs.LambdaImagesRepositoryUri).toBeDefined();
 

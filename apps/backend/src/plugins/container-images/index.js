@@ -321,14 +321,15 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
         `[container-images] Set ImageConfig.WorkingDirectory for ${functionId}: /var/task`
       );
     }
-    // EntryPoint: Don't set explicitly - let the base image's default ENTRYPOINT be used
-    // The AWS Lambda Node.js base image already sets ENTRYPOINT to /lambda-entrypoint.sh
-    // Only override if explicitly needed (currently not setting it to use base image default)
-    // If we need to override, uncomment below:
-    // if (!properties.ImageConfig.EntryPoint) {
-    //   properties.ImageConfig.EntryPoint = ["/lambda-entrypoint.sh"];
-    //   console.log(`[container-images] Set ImageConfig.EntryPoint for ${functionId}: /lambda-entrypoint.sh`);
-    // }
+    // EntryPoint must be set explicitly when ImageConfig is present
+    // AWS Lambda requires all ImageConfig properties (EntryPoint, Command, WorkingDirectory) to be non-empty
+    // The AWS Lambda Node.js base image sets ENTRYPOINT to /lambda-entrypoint.sh
+    if (!properties.ImageConfig.EntryPoint) {
+      properties.ImageConfig.EntryPoint = ["/lambda-entrypoint.sh"];
+      console.log(
+        `[container-images] Set ImageConfig.EntryPoint for ${functionId}: /lambda-entrypoint.sh`
+      );
+    }
     // Command should point directly to the handler path (bypassing wrapper)
     // Format: ["path/to/handler.handler"] where path is relative to WorkingDirectory
     // This eliminates the wrapper layer and lets Lambda load the handler directly
@@ -367,8 +368,11 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
     if (!properties.ImageConfig.WorkingDirectory) {
       properties.ImageConfig.WorkingDirectory = "/var/task";
     }
-    // EntryPoint: Don't set explicitly - let the base image's default ENTRYPOINT be used
-    // The AWS Lambda Node.js base image already sets ENTRYPOINT to /lambda-entrypoint.sh
+    // EntryPoint must be set explicitly when ImageConfig is present
+    // AWS Lambda requires all ImageConfig properties (EntryPoint, Command, WorkingDirectory) to be non-empty
+    if (!properties.ImageConfig.EntryPoint) {
+      properties.ImageConfig.EntryPoint = ["/lambda-entrypoint.sh"];
+    }
     // Command should point directly to the handler path (bypassing wrapper)
     if (handlerPath && !properties.ImageConfig.Command) {
       properties.ImageConfig.Command = [handlerPath];
