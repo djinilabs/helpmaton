@@ -28,6 +28,11 @@ export default defineConfig(({ mode }) => {
     build: {
       sourcemap: true,
       outDir: "../backend/public",
+      rollupOptions: {
+        output: {
+          experimentalMinChunkSize: 200000, // 200KB minimum chunk size
+        },
+      },
     },
     server: {
       open: true,

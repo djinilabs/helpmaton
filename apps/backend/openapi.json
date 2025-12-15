@@ -875,6 +875,48 @@
         }
       }
     },
+    "/api/user/generate-tokens": {
+      "post": {
+        "summary": "Generate access and refresh tokens",
+        "description": "Generates new access and refresh tokens for the authenticated user. Requires either a valid Bearer token or cookie-based session. This is typically called after initial login to get Bearer tokens.",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tokens generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "JWT access token (1 hour expiry)"
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "description": "Refresh token (30 days expiry, save securely)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/user/api-keys/{keyId}": {
       "delete": {
         "summary": "Delete user API key",
@@ -2014,7 +2056,7 @@
     "/api/workspaces/{workspaceId}/api-key": {
       "put": {
         "summary": "Update workspace API key",
-        "description": "Creates or updates a Google API key for a workspace. The API key is used for Google services integration. Pass an empty string to delete the key. The key value is stored securely and never returned in API responses. Requires WRITE permission or higher.",
+        "description": "Creates or updates an API key for a workspace for the specified provider. The API key is used for LLM provider integration. Pass an empty string to delete the key. The key value is stored securely and never returned in API responses. Requires WRITE permission or higher.",
         "tags": [
           "Workspace Settings"
         ],
@@ -2041,17 +2083,22 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "key"
+                  "key",
+                  "provider"
                 ],
                 "properties": {
                   "key": {
                     "type": "string",
-                    "description": "Google API key. Pass empty string to delete."
+                    "description": "API key for the specified provider. Pass empty string to delete."
                   },
                   "provider": {
                     "type": "string",
-                    "description": "Provider name",
-                    "default": "google"
+                    "enum": [
+                      "google",
+                      "openai",
+                      "anthropic"
+                    ],
+                    "description": "LLM provider name"
                   }
                 }
               }
@@ -2093,7 +2140,7 @@
       },
       "get": {
         "summary": "Get workspace API key status",
-        "description": "Returns whether the workspace has a Google API key configured. This is a boolean status check - the actual key value is never returned for security reasons. Requires READ permission or higher.",
+        "description": "Returns whether the workspace has an API key configured for the specified provider. This is a boolean status check - the actual key value is never returned for security reasons. Requires READ permission or higher.",
         "tags": [
           "Workspace Settings"
         ],
@@ -2111,6 +2158,20 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": true,
+            "description": "LLM provider name",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "google",
+                "openai",
+                "anthropic"
+              ]
+            }
           }
         ],
         "responses": {
@@ -2123,7 +2184,7 @@
                   "properties": {
                     "hasKey": {
                       "type": "boolean",
-                      "description": "Whether workspace has a Google API key configured"
+                      "description": "Whether workspace has an API key configured for the specified provider"
                     }
                   }
                 }
@@ -2146,7 +2207,7 @@
       },
       "delete": {
         "summary": "Delete workspace API key",
-        "description": "Permanently deletes the Google API key for a workspace. After deletion, Google services integration will no longer work until a new key is configured. This action cannot be undone. Requires WRITE permission or higher.",
+        "description": "Permanently deletes the API key for a workspace for the specified provider. After deletion, the provider's services integration will no longer work until a new key is configured. This action cannot be undone. Requires WRITE permission or higher.",
         "tags": [
           "Workspace Settings"
         ],
@@ -2163,6 +2224,20 @@
             "description": "Workspace ID",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": true,
+            "description": "LLM provider name",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "google",
+                "openai",
+                "anthropic"
+              ]
             }
           }
         ],
@@ -6410,6 +6485,78 @@
                         "type": "string"
                       },
                       "description": "Sorted list of unique folder paths"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/workspaces/{workspaceId}/api-keys": {
+      "get": {
+        "summary": "Get all workspace API key statuses",
+        "description": "Returns the API key status for all supported providers for a workspace. This is a boolean status check - the actual key values are never returned for security reasons. Requires READ permission or higher.",
+        "tags": [
+          "Workspace Settings"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key statuses for all providers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "keys": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "provider": {
+                            "type": "string",
+                            "enum": [
+                              "google",
+                              "openai",
+                              "anthropic"
+                            ],
+                            "description": "LLM provider name"
+                          },
+                          "hasKey": {
+                            "type": "boolean",
+                            "description": "Whether workspace has an API key configured for this provider"
+                          }
+                        }
+                      }
                     }
                   }
                 }

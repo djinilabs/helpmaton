@@ -26,8 +26,6 @@ const REFRESH_TOKEN_EXPIRY_DAYS = 30;
  *       - User
  *     security:
  *       - bearerAuth: []
- *     security:
- *       - cookieAuth: []
  *     responses:
  *       200:
  *         description: Tokens generated successfully
