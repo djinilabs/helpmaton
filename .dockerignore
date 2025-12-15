@@ -12,9 +12,9 @@ docs/
 node_modules
 **/node_modules
 
-# Build artifacts (will be copied from dist)
-dist
-**/dist
+# Build artifacts (exclude specific dist directories we don't need)
+# Note: apps/backend/dist is needed and is NOT excluded here
+apps/frontend/dist
 
 # Test files
 tests/
@@ -80,4 +80,5 @@ eslint.config.js
 tsconfig.json
 playwright.config.ts
 vitest.config.ts
+
 

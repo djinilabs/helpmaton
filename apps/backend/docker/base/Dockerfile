@@ -23,3 +23,4 @@ COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 # or use ImageConfig.Command to point to the correct handler path
 CMD [ "index.handler" ]
 
+

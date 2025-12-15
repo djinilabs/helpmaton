@@ -156,3 +156,4 @@ The Lambda function using container images is now successfully deployed and work
 - PR deployments create CloudFormation stacks for testing
 - Container images are built for `arm64` architecture (Graviton2) for better price/performance
 - Environment variables are injected at build time, not runtime, for container image functions
+

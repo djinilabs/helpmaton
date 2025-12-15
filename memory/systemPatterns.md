@@ -103,3 +103,4 @@
    - Multi-stage builds to minimize image size (builder stage for dependencies, runtime stage for final image)
    - Build tools removed from final image
    - Package manager caches cleaned after installation
+

@@ -100,3 +100,4 @@ The full ECR URI format is: `{account-id}.dkr.ecr.{region}.amazonaws.com/{reposi
 - Use multi-stage builds if you need to compile dependencies
 - The base image already includes Node.js 20.x and Lambda runtime interface client
 - System libraries can be installed using `dnf` (Amazon Linux 2023 base)
+
