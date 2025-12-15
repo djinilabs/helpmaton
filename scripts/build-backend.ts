@@ -88,8 +88,6 @@ async function buildBackend() {
           "@aws-sdk/*",
           // AWS SDK v2
           "aws-sdk",
-          // Architect
-          "@architect/*",
           // Lambda runtime
           "awslambda",
         ],
