@@ -51,11 +51,15 @@ RUN rm -rf /tmp/workspace
 # Set working directory to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}
 
+# Copy simple index.js entrypoint that loads handlers dynamically
+# This wrapper reads LAMBDA_HANDLER_PATH environment variable to route to the correct handler
+COPY apps/backend/docker/lancedb/index.js ${LAMBDA_TASK_ROOT}/index.js
+
 # Copy built Lambda code from dist directory
 # The dist directory contains the compiled TypeScript code
-# Handler is specified via ImageConfig.Command in CloudFormation (set by container-images plugin)
+# This is copied AFTER index.js to ensure our entrypoint isn't overwritten
 COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 
-# Lambda handler is set via ImageConfig.Command in CloudFormation
-# Default CMD is not used when ImageConfig.Command is set, but we provide a fallback
+# Lambda handler is set via CMD pointing to index.handler
+# The index.js wrapper will read LAMBDA_HANDLER_PATH to route to the actual handler
 CMD [ "index.handler" ]

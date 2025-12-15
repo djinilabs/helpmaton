@@ -307,16 +307,18 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
     // Remove Code property if it exists
     delete properties.Code;
     
-    // Set ImageConfig with Command to override Dockerfile CMD
-    // This allows us to point directly to the handler file
+    // Set environment variable to tell the wrapper which handler to use
+    // The wrapper at index.js reads LAMBDA_HANDLER_PATH and loads the correct handler
     if (handlerPath) {
-      // Convert handler path to CMD format: "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"
-      // -> CMD: ["http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"]
-      properties.ImageConfig = {
-        Command: [handlerPath]
-      };
+      if (!properties.Environment) {
+        properties.Environment = {};
+      }
+      if (!properties.Environment.Variables) {
+        properties.Environment.Variables = {};
+      }
+      properties.Environment.Variables.LAMBDA_HANDLER_PATH = handlerPath;
       console.log(
-        `[container-images] Set ImageConfig.Command for ${functionId}: ${handlerPath}`
+        `[container-images] Set LAMBDA_HANDLER_PATH environment variable for ${functionId}: ${handlerPath}`
       );
     }
   } else {
@@ -325,11 +327,15 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
       ImageUri: imageUri,
     };
     
-    // Set ImageConfig with Command for standard Lambda functions too
+    // Set environment variable for standard Lambda functions too
     if (handlerPath) {
-      properties.ImageConfig = {
-        Command: [handlerPath]
-      };
+      if (!properties.Environment) {
+        properties.Environment = {};
+      }
+      if (!properties.Environment.Variables) {
+        properties.Environment.Variables = {};
+      }
+      properties.Environment.Variables.LAMBDA_HANDLER_PATH = handlerPath;
     }
   }
 
@@ -345,8 +351,8 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
     delete properties.Handler;
   }
 
-  // Note: We're using ImageConfig.Command to point directly to the handler
-  // No need for LAMBDA_HANDLER_PATH environment variable anymore
+  // Note: We're using LAMBDA_HANDLER_PATH environment variable
+  // The wrapper at index.js reads this and loads the correct handler
 
   console.log(
     `[container-images] Converted Lambda function ${functionId} to use container image: ${typeof imageUri === "string" ? imageUri : "CloudFormation reference"}`
