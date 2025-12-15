@@ -81,7 +81,7 @@ async function buildBackend() {
         bundle: true,
         platform: "node",
         target: "node20",
-        format: "esm",
+        format: "cjs", // CommonJS format required for Lambda handlers
         outfile: outputPath,
         external: [
           // AWS SDK v3
@@ -128,4 +128,3 @@ buildBackend().catch((error) => {
   console.error("Fatal error:", error);
   process.exit(1);
 });
-
