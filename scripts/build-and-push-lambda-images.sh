@@ -158,23 +158,40 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
     # IMPORTANT: Build for arm64 architecture to match Lambda function configuration
     # Lambda functions default to arm64 (Graviton2) for better price/performance
     # If the image is built for amd64 but Lambda is arm64, you'll get ProcessSpawnFailed errors
+    # Use docker buildx for cross-platform builds (supports emulation on amd64 hosts)
     print_status "Building Docker image: ${IMAGE_NAME} for arm64 architecture..."
-    docker build \
-        --platform linux/arm64 \
-        -f "${DOCKERFILE_PATH}" \
-        -t "${IMAGE_NAME}:${IMAGE_TAG}" \
-        -t "${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}" \
-        -t "${ECR_URI}:${IMAGE_NAME}-latest" \
-        "${BUILD_CONTEXT}"
     
-    print_success "Built image: ${IMAGE_NAME}:${IMAGE_TAG}"
-    
-    # Push image to ECR with both tags
-    print_status "Pushing ${IMAGE_NAME} to ECR..."
-    docker push "${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}"
-    docker push "${ECR_URI}:${IMAGE_NAME}-latest"
-    
-    print_success "Pushed ${IMAGE_NAME} to ECR: ${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}"
+    # Check if buildx is available, fall back to regular docker build if not
+    if docker buildx version > /dev/null 2>&1; then
+        # Use buildx for cross-platform builds with direct push to ECR
+        # This avoids the need to load the image locally (which doesn't work for cross-platform)
+        print_status "Using docker buildx for cross-platform build..."
+        docker buildx build \
+            --platform linux/arm64 \
+            --push \
+            -f "${DOCKERFILE_PATH}" \
+            -t "${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}" \
+            -t "${ECR_URI}:${IMAGE_NAME}-latest" \
+            "${BUILD_CONTEXT}"
+        print_success "Built and pushed image: ${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}"
+    else
+        # Fallback to regular docker build (may fail on amd64 hosts building for arm64)
+        print_warning "docker buildx not available, using regular docker build"
+        docker build \
+            --platform linux/arm64 \
+            -f "${DOCKERFILE_PATH}" \
+            -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+            -t "${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}" \
+            -t "${ECR_URI}:${IMAGE_NAME}-latest" \
+            "${BUILD_CONTEXT}"
+        print_success "Built image: ${IMAGE_NAME}:${IMAGE_TAG}"
+        
+        # Push image to ECR with both tags
+        print_status "Pushing ${IMAGE_NAME} to ECR..."
+        docker push "${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}"
+        docker push "${ECR_URI}:${IMAGE_NAME}-latest"
+        print_success "Pushed ${IMAGE_NAME} to ECR: ${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}"
+    fi
 done
 
 print_success "All images built and pushed successfully!"
