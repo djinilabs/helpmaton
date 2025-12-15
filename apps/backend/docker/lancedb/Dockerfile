@@ -62,10 +62,12 @@ COPY apps/backend/docker/lancedb/index.js ${LAMBDA_TASK_ROOT}/index.js
 COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 
 # Verify index.js exists and can be loaded
+# Note: We only verify the module loads and exports a handler function
+# The actual handler loading happens at runtime with LAMBDA_HANDLER_PATH
 RUN echo "=== Verifying index.js ===" && \
     ls -la ${LAMBDA_TASK_ROOT}/index.js && \
     echo "=== Testing if index.js can be loaded ===" && \
-    node -e "const idx = require('${LAMBDA_TASK_ROOT}/index.js'); if (typeof idx.handler !== 'function') { console.error('ERROR: handler is not a function'); process.exit(1); } console.log('✓ index.js loaded, handler is a function');" && \
+    node -e "const idx = require('${LAMBDA_TASK_ROOT}/index.js'); if (typeof idx.handler !== 'function') { console.error('ERROR: handler is not a function'); process.exit(1); } console.log('✓ index.js loaded, handler wrapper is a function');" && \
     echo "✓ index.js verification passed"
 
 # Lambda handler is set via CMD pointing to index.handler
