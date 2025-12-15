@@ -315,20 +315,27 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
   // Note: We keep it as null or remove it, but AWS requires it to be omitted
   delete properties.Runtime;
 
-  // For container images, Handler property is still used to override the Dockerfile CMD
-  // If handlerPath is provided, use it; otherwise preserve what Architect set
+  // Remove Handler property - SAM doesn't allow Handler when PackageType is Image
+  // For container images, the handler is determined by the Dockerfile CMD
+  // We use a router entrypoint that routes based on the function name
+  // Explicitly delete to ensure it's not present (even if null)
+  if (properties.Handler !== undefined) {
+    delete properties.Handler;
+  }
+
+  // Set environment variable to tell the router which handler to use
   if (handlerPath) {
-    properties.Handler = handlerPath;
+    if (!properties.Environment) {
+      properties.Environment = {};
+    }
+    if (!properties.Environment.Variables) {
+      properties.Environment.Variables = {};
+    }
+    // Store the handler path in an environment variable
+    // The router entrypoint will read this and route to the correct handler
+    properties.Environment.Variables.LAMBDA_HANDLER_PATH = handlerPath;
     console.log(
-      `[container-images] Set Handler property for ${functionId}: ${handlerPath}`
-    );
-  } else if (properties.Handler) {
-    console.log(
-      `[container-images] Preserving Handler property for ${functionId}: ${properties.Handler}`
-    );
-  } else {
-    console.warn(
-      `[container-images] No Handler property found for ${functionId}, will use Dockerfile CMD (index.handler)`
+      `[container-images] Set LAMBDA_HANDLER_PATH environment variable for ${functionId}: ${handlerPath}`
     );
   }
 
@@ -568,6 +575,37 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
 module.exports = {
   deploy: {
     start: configureContainerImages,
+    // Also run at end to ensure Handler is removed after all plugins run
+    end: async ({ cloudformation }) => {
+      // Post-process to ensure Handler is completely removed for container images
+      if (!cloudformation?.Resources) {
+        return cloudformation;
+      }
+
+      const resources = cloudformation.Resources;
+      for (const [resourceId, resource] of Object.entries(resources)) {
+        if (
+          resource?.Type === "AWS::Serverless::Function" ||
+          resource?.Type === "AWS::Lambda::Function"
+        ) {
+          const properties = resource.Properties;
+          if (properties?.PackageType === "Image") {
+            // Ensure Handler is completely removed (not just null)
+            if (properties.Handler !== undefined) {
+              delete properties.Handler;
+              console.log(
+                `[container-images] Removed Handler property from ${resourceId} (post-processing)`
+              );
+            }
+            // Also ensure Runtime is removed
+            if (properties.Runtime !== undefined) {
+              delete properties.Runtime;
+            }
+          }
+        }
+      }
+      return cloudformation;
+    },
   },
   package: configureContainerImages,
 };

@@ -255,7 +255,8 @@ describe("container-images plugin", () => {
       expect(functionResource.Properties.CodeUri).toBe("");
       expect(functionResource.Properties.Code).toBeUndefined();
       expect(functionResource.Properties.Runtime).toBeUndefined();
-      expect(functionResource.Properties.Handler).toBe("http/any-api-streams-000workspaceId-000agentId-000secret/index.handler");
+      expect(functionResource.Properties.Handler).toBeUndefined();
+      expect(functionResource.Properties.Environment.Variables.LAMBDA_HANDLER_PATH).toBe("http/any-api-streams-000workspaceId-000agentId-000secret/index.handler");
     });
 
     it("should convert AWS::Lambda::Function to use container image", () => {
@@ -286,7 +287,7 @@ describe("container-images plugin", () => {
         ImageUri: imageUri,
       });
       expect(functionResource.Properties.Runtime).toBeUndefined();
-      expect(functionResource.Properties.Handler).toBe("http/any-api-streams-000workspaceId-000agentId-000secret/index.handler");
+      expect(functionResource.Properties.Handler).toBeUndefined();
     });
 
     it("should skip non-Lambda resources", () => {
@@ -327,7 +328,8 @@ describe("container-images plugin", () => {
       expect(functionResource.Properties).toBeDefined();
       expect(functionResource.Properties.PackageType).toBe("Image");
       expect(functionResource.Properties.ImageUri).toBe(imageUri);
-      expect(functionResource.Properties.Handler).toBe("http/any-api-streams-000workspaceId-000agentId-000secret/index.handler");
+      expect(functionResource.Properties.Handler).toBeUndefined();
+      expect(functionResource.Properties.Environment.Variables.LAMBDA_HANDLER_PATH).toBe("http/any-api-streams-000workspaceId-000agentId-000secret/index.handler");
     });
   });
 
@@ -366,7 +368,8 @@ describe("container-images plugin", () => {
       expect(functionResource.Properties.PackageType).toBe("Image");
       expect(functionResource.Properties.ImageUri).toBeDefined();
       expect(functionResource.Properties.ImageUri["Fn::Sub"]).toBeDefined();
-      expect(functionResource.Properties.Handler).toBe("http/any-api-streams-000workspaceId-000agentId-000secret/index.handler");
+      expect(functionResource.Properties.Handler).toBeUndefined();
+      expect(functionResource.Properties.Environment.Variables.LAMBDA_HANDLER_PATH).toBe("http/any-api-streams-000workspaceId-000agentId-000secret/index.handler");
       expect(result.Outputs.LambdaImagesRepositoryUri).toBeDefined();
 
       delete process.env.LAMBDA_IMAGES_ECR_REPOSITORY;

@@ -55,6 +55,12 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 # The dist directory contains the compiled TypeScript code
 COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 
-# Lambda handler is set via CMD or can be overridden per function
-# Default handler assumes index.handler
-CMD [ "index.handler" ]
+# Copy router entrypoint
+# The router reads LAMBDA_HANDLER_PATH environment variable to route to the correct handler
+# Rename to .mjs to ensure it's treated as an ES module
+COPY apps/backend/docker/lancedb/router.js ${LAMBDA_TASK_ROOT}/router.mjs
+
+# Lambda handler is set via CMD
+# The router.mjs entrypoint reads LAMBDA_HANDLER_PATH environment variable
+# to route to the correct handler module
+CMD [ "router.handler" ]
