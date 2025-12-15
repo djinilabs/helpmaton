@@ -45,9 +45,8 @@ RUN pnpm install --prod --frozen-lockfile --filter backend --shamefully-hoist
 RUN cp -r node_modules ${LAMBDA_TASK_ROOT}/ && \
     cp apps/backend/package.json ${LAMBDA_TASK_ROOT}/ && \
     # Add "type": "module" to package.json to enable ES modules
-    # Use jq if available, otherwise use sed to add the type field
-    (jq '. + {"type":"module"}' ${LAMBDA_TASK_ROOT}/package.json > ${LAMBDA_TASK_ROOT}/package.json.tmp && mv ${LAMBDA_TASK_ROOT}/package.json.tmp ${LAMBDA_TASK_ROOT}/package.json) || \
-    (sed -i '1s/^{/{ "type": "module",/' ${LAMBDA_TASK_ROOT}/package.json || echo '{"type":"module"}' > ${LAMBDA_TASK_ROOT}/package.json)
+    # Use Node.js to properly modify the JSON file
+    node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('${LAMBDA_TASK_ROOT}/package.json', 'utf8')); pkg.type = 'module'; fs.writeFileSync('${LAMBDA_TASK_ROOT}/package.json', JSON.stringify(pkg, null, 2));"
 
 # Clean up temporary workspace
 RUN rm -rf /tmp/workspace
@@ -64,7 +63,11 @@ COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 # Use .js extension with "type": "module" in package.json for ES modules
 COPY apps/backend/docker/lancedb/router.js ${LAMBDA_TASK_ROOT}/router.js
 
+# Verify router file exists and package.json has type: module
+RUN ls -la ${LAMBDA_TASK_ROOT}/router.js && \
+    cat ${LAMBDA_TASK_ROOT}/package.json | grep -q '"type"' || echo "WARNING: type field not found in package.json"
+
 # Lambda handler is set via CMD
 # With "type": "module" in package.json, .js files are treated as ES modules
-# Format: filename.exportname
+# Format: filename.exportname (filename without .js extension)
 CMD [ "router.handler" ]
