@@ -1458,7 +1458,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <li>
                       <strong>React apps:</strong> Use the{" "}
                       <a
-                        href="https://sdk.vercel.ai/docs/ai-sdk-ui/use-chat"
+                        href="https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-chat#usechat"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="underline hover:opacity-100"

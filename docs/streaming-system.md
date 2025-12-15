@@ -418,7 +418,7 @@ function ChatComponent({ workspaceId, agentId, secret, streamUrl }) {
 }
 ```
 
-See the [AI SDK useChat documentation](https://sdk.vercel.ai/docs/ai-sdk-ui/use-chat) for complete examples.
+See the [AI SDK useChat documentation](https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-chat#usechat) for complete examples.
 
 ### Manual Integration Example
 
@@ -670,6 +670,6 @@ Returns appropriate CORS headers.
 ## Additional Resources
 
 - **[AI SDK Documentation](https://sdk.vercel.ai/docs)**: Complete protocol specification and examples
-- **[AI SDK React Hooks](https://sdk.vercel.ai/docs/ai-sdk-ui/use-chat)**: React integration guide
+- **[AI SDK React Hooks](https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-chat#usechat)**: React integration guide
 - **[API Reference](./api-reference.md)**: Complete endpoint documentation
 - **[Agent Configuration](./agent-configuration.md)**: How to configure stream servers for agents
