@@ -100,3 +100,6 @@
 5. **Credit System**: Token-based usage tracking with reservations
 6. **Streaming Support**: Lambda URLs for long-running agent conversations
 7. **Container Images**: Custom Lambda container images for specific routes (e.g., LanceDB)
+   - Multi-stage builds to minimize image size (builder stage for dependencies, runtime stage for final image)
+   - Build tools removed from final image
+   - Package manager caches cleaned after installation

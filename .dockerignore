@@ -1,0 +1,83 @@
+# Git
+.git
+.gitignore
+.github
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Node modules (will be installed in Docker)
+node_modules
+**/node_modules
+
+# Build artifacts (will be copied from dist)
+dist
+**/dist
+
+# Test files
+tests/
+__tests__/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+test-*.js
+test-*.ts
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CI/CD
+.github/workflows
+
+# Database files (local dev)
+*.ldb
+*.log
+CURRENT
+LOCK
+LOG*
+MANIFEST-*
+
+# Reports
+playwright-report/
+test-results/
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Frontend (not needed for backend Lambda images)
+apps/frontend/
+
+# Backend source (only dist is needed)
+apps/backend/src/
+apps/backend/db/
+apps/backend/public/
+
+# Scripts (not needed in image)
+scripts/
+
+# Config files not needed
+eslint.config.js
+tsconfig.json
+playwright.config.ts
+vitest.config.ts
+
