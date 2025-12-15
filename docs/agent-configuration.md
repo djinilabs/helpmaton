@@ -47,6 +47,42 @@ You can test your agents using:
 - The test endpoint: `/api/workspaces/{workspaceId}/agents/{agentId}/test`
 - Webhook endpoints: `/api/webhook/{workspaceId}/{agentId}/{key}`
 
+## Stream Servers
+
+Stream servers enable real-time streaming responses from your agent using Lambda Function URLs. This provides lower latency and better user experience compared to non-streaming webhooks.
+
+### Configuration
+
+To configure a stream server for an agent:
+
+1. Navigate to the agent's detail page
+2. Go to the "Stream Servers" section
+3. Configure allowed CORS origins (or use `["*"]` for all origins)
+4. Save the configuration to receive a secret
+
+### Protocol
+
+Stream servers use **Server-Sent Events (SSE)** format compatible with the [AI SDK](https://sdk.vercel.ai/docs):
+
+- **Text chunks**: `data: {"type":"text-delta","textDelta":"Hello"}\n\n`
+- **Tool calls**: `data: {"type":"tool-call","toolCallId":"...","toolName":"...","args":{...}}\n\n`
+
+The stream is delivered over `text/event-stream` content type using standard SSE format.
+
+### Integration
+
+For React applications, use the `useChat` hook from `@ai-sdk/react`:
+
+```typescript
+import { useChat } from '@ai-sdk/react';
+
+const { messages, append } = useChat({
+  api: `${streamUrl}/api/streams/${workspaceId}/${agentId}/${secret}`,
+});
+```
+
+For complete protocol documentation, examples, and integration guides, see the [Streaming System documentation](./streaming-system.md).
+
 ## Best Practices
 
 1. **Clear Prompts**: Write specific, actionable system prompts
