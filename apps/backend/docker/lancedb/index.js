@@ -68,24 +68,59 @@ function loadHandler() {
 }
 
 // Export handler that loads the actual handler on first invocation
-exports.handler = async (event, context) => {
+// For RESPONSE_STREAM mode, Lambda passes (event, responseStream) instead of (event, context)
+// We need to detect this and handle it appropriately
+exports.handler = async (event, contextOrStream) => {
   console.log('[index.js] ===== HANDLER INVOKED =====');
   console.log('[index.js] Event type:', typeof event);
-  console.log('[index.js] Context function name:', context?.functionName);
+  console.log('[index.js] Second param type:', typeof contextOrStream);
+  console.log('[index.js] Second param has write method:', typeof contextOrStream?.write === 'function');
+  console.log('[index.js] Second param has functionName:', !!contextOrStream?.functionName);
   
-  try {
-    const actualHandler = loadHandler();
-    console.log('[index.js] Calling actual handler...');
-    const result = await actualHandler(event, context);
-    console.log('[index.js] Handler completed successfully');
-    return result;
-  } catch (error) {
-    console.error('[index.js] ===== HANDLER ERROR =====');
-    console.error('[index.js] Error:', error);
-    throw error;
+  // Check if this is RESPONSE_STREAM mode (responseStream has write/end methods but no functionName)
+  const isResponseStream = contextOrStream && 
+    typeof contextOrStream.write === 'function' && 
+    typeof contextOrStream.end === 'function' &&
+    !contextOrStream.functionName; // context has functionName, responseStream doesn't
+  
+  if (isResponseStream) {
+    console.log('[index.js] Detected RESPONSE_STREAM mode');
+    // For RESPONSE_STREAM mode, Lambda runtime calls the handler with (event, responseStream)
+    // The actual handler is already wrapped with awslambda.streamifyResponse in the source code
+    // We need to load it and call it directly - the streamifyResponse wrapper expects (event, responseStream)
+    try {
+      const actualHandler = loadHandler();
+      console.log('[index.js] Calling actual handler with RESPONSE_STREAM signature (event, responseStream)...');
+      // The handler exported from the module is already wrapped with streamifyResponse
+      // It expects (event, responseStream) signature
+      return await actualHandler(event, contextOrStream);
+    } catch (error) {
+      console.error('[index.js] ===== HANDLER ERROR (RESPONSE_STREAM) =====');
+      console.error('[index.js] Error name:', error.name);
+      console.error('[index.js] Error message:', error.message);
+      console.error('[index.js] Error stack:', error.stack);
+      throw error;
+    }
+  } else {
+    // Standard Lambda invocation with (event, context)
+    console.log('[index.js] Standard Lambda invocation mode');
+    try {
+      const actualHandler = loadHandler();
+      console.log('[index.js] Calling actual handler with standard signature (event, context)...');
+      const result = await actualHandler(event, contextOrStream);
+      console.log('[index.js] Handler completed successfully');
+      return result;
+    } catch (error) {
+      console.error('[index.js] ===== HANDLER ERROR =====');
+      console.error('[index.js] Error name:', error.name);
+      console.error('[index.js] Error message:', error.message);
+      console.error('[index.js] Error stack:', error.stack);
+      throw error;
+    }
   }
 };
 
 console.log('[index.js] ===== MODULE LOADED, HANDLER EXPORTED =====');
 console.log('[index.js] Handler type:', typeof exports.handler);
 console.log('[index.js] Handler is function:', typeof exports.handler === 'function');
+
