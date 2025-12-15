@@ -60,9 +60,13 @@ COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 # Using .cjs extension ensures it's treated as CommonJS, then it dynamically imports ES modules
 COPY apps/backend/docker/lancedb/router.cjs ${LAMBDA_TASK_ROOT}/router.cjs
 
-# Verify router file exists
-RUN ls -la ${LAMBDA_TASK_ROOT}/router.cjs || (echo "ERROR: router.cjs not found" && exit 1)
+# Copy simple index.js entrypoint that loads the router
+# This ensures compatibility with Lambda's handler resolution
+COPY apps/backend/docker/lancedb/index.js ${LAMBDA_TASK_ROOT}/index.js
+
+# Verify files exist
+RUN ls -la ${LAMBDA_TASK_ROOT}/router.cjs ${LAMBDA_TASK_ROOT}/index.js || (echo "ERROR: router files not found" && exit 1)
 
 # Lambda handler is set via CMD
-# For .cjs files, use the format: filename.exportname (without extension)
-CMD [ "router.handler" ]
+# Use index.handler which loads router.cjs
+CMD [ "index.handler" ]
