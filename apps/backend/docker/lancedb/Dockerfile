@@ -51,14 +51,9 @@ RUN rm -rf /tmp/workspace
 # Set working directory to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}
 
-# Copy router entrypoint FIRST (before dist to avoid conflicts)
-# The router reads LAMBDA_HANDLER_PATH environment variable to route to the correct handler
-# Using .cjs extension ensures it's treated as CommonJS, then it dynamically imports ES modules
-COPY apps/backend/docker/lancedb/router.cjs ${LAMBDA_TASK_ROOT}/router.cjs
-
-# Copy simple index.js entrypoint that loads the router
-# This ensures compatibility with Lambda's handler resolution
-# Copy BEFORE dist to ensure it's not overwritten
+# Copy index.js entrypoint FIRST (before dist to avoid conflicts)
+# The index.js reads LAMBDA_HANDLER_PATH environment variable to route to the correct handler
+# It dynamically imports ES modules from the dist directory
 COPY apps/backend/docker/lancedb/index.js ${LAMBDA_TASK_ROOT}/index.js
 
 # Copy built Lambda code from dist directory
@@ -66,9 +61,8 @@ COPY apps/backend/docker/lancedb/index.js ${LAMBDA_TASK_ROOT}/index.js
 # This is copied AFTER index.js to ensure our entrypoint isn't overwritten
 COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 
-# Verify files exist and show their locations
-RUN echo "=== Verifying router files ===" && \
-    ls -la ${LAMBDA_TASK_ROOT}/router.cjs && \
+# Verify index.js exists and has handler export
+RUN echo "=== Verifying index.js ===" && \
     ls -la ${LAMBDA_TASK_ROOT}/index.js && \
     echo "=== Checking if index.js has handler export ===" && \
     grep -q "module.exports.handler" ${LAMBDA_TASK_ROOT}/index.js && \
