@@ -51,23 +51,11 @@ RUN rm -rf /tmp/workspace
 # Set working directory to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}
 
-# Copy index.js entrypoint FIRST (before dist to avoid conflicts)
-# The index.js reads LAMBDA_HANDLER_PATH environment variable to route to the correct handler
-# It dynamically imports ES modules from the dist directory
-COPY apps/backend/docker/lancedb/index.js ${LAMBDA_TASK_ROOT}/index.js
-
 # Copy built Lambda code from dist directory
 # The dist directory contains the compiled TypeScript code
-# This is copied AFTER index.js to ensure our entrypoint isn't overwritten
+# Handler is specified via ImageConfig.Command in CloudFormation (set by container-images plugin)
 COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 
-# Verify index.js exists and can be loaded
-RUN echo "=== Verifying index.js ===" && \
-    ls -la ${LAMBDA_TASK_ROOT}/index.js && \
-    echo "=== Testing if index.js can be loaded ===" && \
-    node -e "const idx = require('${LAMBDA_TASK_ROOT}/index.js'); if (typeof idx.handler !== 'function') { console.error('ERROR: handler is not a function'); process.exit(1); } console.log('✓ index.js loaded, handler is a function');" && \
-    echo "✓ index.js verification passed"
-
-# Lambda handler is set via CMD
-# Use index.handler which loads router.cjs
+# Lambda handler is set via ImageConfig.Command in CloudFormation
+# Default CMD is not used when ImageConfig.Command is set, but we provide a fallback
 CMD [ "index.handler" ]
