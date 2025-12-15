@@ -307,6 +307,21 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
     // Remove Code property if it exists
     delete properties.Code;
     
+    // Set ImageConfig to ensure WorkingDirectory is explicitly set
+    // This ensures Lambda uses /var/task as the working directory
+    // The base image sets WORKDIR, but explicitly setting it in ImageConfig ensures it's correct
+    if (!properties.ImageConfig) {
+      properties.ImageConfig = {};
+    }
+    // WorkingDirectory should be /var/task (LAMBDA_TASK_ROOT default)
+    // This ensures Lambda looks for the handler in the correct directory
+    if (!properties.ImageConfig.WorkingDirectory) {
+      properties.ImageConfig.WorkingDirectory = "/var/task";
+      console.log(
+        `[container-images] Set ImageConfig.WorkingDirectory for ${functionId}: /var/task`
+      );
+    }
+    
     // Set environment variable to tell the wrapper which handler to use
     // The wrapper at index.js reads LAMBDA_HANDLER_PATH and loads the correct handler
     if (handlerPath) {
@@ -331,6 +346,14 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
     properties.Code = {
       ImageUri: imageUri,
     };
+    
+    // Set ImageConfig for standard Lambda functions too
+    if (!properties.ImageConfig) {
+      properties.ImageConfig = {};
+    }
+    if (!properties.ImageConfig.WorkingDirectory) {
+      properties.ImageConfig.WorkingDirectory = "/var/task";
+    }
     
     // Set environment variable for standard Lambda functions too
     if (handlerPath) {
