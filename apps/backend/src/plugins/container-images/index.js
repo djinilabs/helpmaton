@@ -146,6 +146,20 @@ function parseContainerImagesPragma(arc) {
  * @returns {string|Object} ECR image URI (string or CloudFormation reference)
  */
 function getEcrImageUri(imageName, region, accountId, repositoryName, tag = "latest") {
+  // Validate all parameters
+  if (!imageName || typeof imageName !== "string") {
+    throw new Error("imageName must be a non-empty string");
+  }
+  if (!region || typeof region !== "string") {
+    throw new Error("region must be a non-empty string");
+  }
+  if (!repositoryName || typeof repositoryName !== "string") {
+    throw new Error("repositoryName must be a non-empty string");
+  }
+  if (!tag || typeof tag !== "string") {
+    throw new Error("tag must be a non-empty string");
+  }
+
   // If accountId is provided, construct URI directly
   if (accountId) {
     return `${accountId}.dkr.ecr.${region}.amazonaws.com/${repositoryName}:${imageName}-${tag}`;
@@ -276,20 +290,33 @@ function convertToContainerImage(functionResource, imageUri, functionId) {
  * Main plugin function that converts Lambda functions to container images
  */
 async function configureContainerImages({ cloudformation, inventory, arc, stage }) {
-  const resources = cloudformation.Resources || {};
-  const outputs = cloudformation.Outputs || {};
+  try {
+    // Validate required parameters
+    if (!cloudformation) {
+      console.warn("[container-images] cloudformation parameter is missing, skipping");
+      return cloudformation || {};
+    }
 
-  // Get stage from parameter or environment variable
-  const deploymentStage = stage || process.env.ARC_ENV || process.env.ARC_STAGE || "staging";
+    const resources = cloudformation.Resources || {};
+    const outputs = cloudformation.Outputs || {};
 
-  // Parse @container-images pragma
-  // Try multiple sources for the arc data (same pattern as other plugins)
-  const arcData = arc || inventory?.arc || inventory?.app?.arc || {};
+    // Get stage from parameter or environment variable
+    const deploymentStage = stage || process.env.ARC_ENV || process.env.ARC_STAGE || "staging";
 
-  console.log("[container-images] Plugin execution started");
-  console.log("[container-images] arc parameter:", arc ? "present" : "missing");
-  console.log("[container-images] inventory?.arc:", inventory?.arc ? "present" : "missing");
-  console.log("[container-images] inventory?.app?.arc:", inventory?.app?.arc ? "present" : "missing");
+    // Parse @container-images pragma
+    // Try multiple sources for the arc data (same pattern as other plugins)
+    const arcData = arc || inventory?.arc || inventory?.app?.arc || {};
+
+    // Ensure arcData is an object
+    if (!arcData || typeof arcData !== "object") {
+      console.warn("[container-images] arcData is not a valid object, skipping");
+      return cloudformation;
+    }
+
+    console.log("[container-images] Plugin execution started");
+    console.log("[container-images] arc parameter:", arc ? "present" : "missing");
+    console.log("[container-images] inventory?.arc:", inventory?.arc ? "present" : "missing");
+    console.log("[container-images] inventory?.app?.arc:", inventory?.app?.arc ? "present" : "missing");
 
   const imageMap = parseContainerImagesPragma(arcData);
 
@@ -308,20 +335,49 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
 
   // Get ECR repository name from environment or use default
   const repositoryName =
-    process.env.LAMBDA_IMAGES_ECR_REPOSITORY || "helpmaton-lambda-images";
+    (process.env.LAMBDA_IMAGES_ECR_REPOSITORY || "helpmaton-lambda-images").trim();
+
+  // Validate repository name
+  if (!repositoryName || typeof repositoryName !== "string") {
+    console.error("[container-images] Invalid repository name:", repositoryName);
+    return cloudformation;
+  }
 
   // Get image tag from environment (commit SHA) or use "latest"
   // This should be set in the deployment workflow
-  const imageTag = process.env.LAMBDA_IMAGE_TAG || process.env.GITHUB_SHA || "latest";
+  const imageTag = (process.env.LAMBDA_IMAGE_TAG || process.env.GITHUB_SHA || "latest").trim();
+
+  // Validate image tag
+  if (!imageTag || typeof imageTag !== "string") {
+    console.error("[container-images] Invalid image tag:", imageTag);
+    return cloudformation;
+  }
 
   // Get AWS region
-  const region = process.env.AWS_REGION || "eu-west-2";
+  const region = (process.env.AWS_REGION || "eu-west-2").trim();
+
+  // Validate region
+  if (!region || typeof region !== "string") {
+    console.error("[container-images] Invalid AWS region:", region);
+    return cloudformation;
+  }
 
   // Note: ECR repository is created by build-and-push-lambda-images.sh script
   // We don't create it in CloudFormation to avoid conflicts
 
   // Process each function that needs container images
   for (const [functionId, imageName] of imageMap.entries()) {
+    // Validate functionId and imageName
+    if (!functionId || typeof functionId !== "string") {
+      console.warn("[container-images] Invalid functionId:", functionId);
+      continue;
+    }
+
+    if (!imageName || typeof imageName !== "string") {
+      console.warn("[container-images] Invalid imageName:", imageName);
+      continue;
+    }
+
     const functionResource = resources[functionId];
 
     if (!functionResource) {
@@ -338,10 +394,27 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
     }
 
     // Get ECR image URI
-    const imageUri = getEcrImageUri(imageName, region, null, repositoryName, imageTag);
+    let imageUri;
+    try {
+      imageUri = getEcrImageUri(imageName.trim(), region, null, repositoryName, imageTag);
+    } catch (error) {
+      console.error(`[container-images] Failed to generate image URI for ${functionId}:`, error);
+      continue;
+    }
+
+    // Validate imageUri
+    if (!imageUri) {
+      console.error(`[container-images] Failed to generate image URI for ${functionId}`);
+      continue;
+    }
 
     // Convert function to use container image
-    convertToContainerImage(functionResource, imageUri, functionId);
+    try {
+      convertToContainerImage(functionResource, imageUri, functionId);
+    } catch (error) {
+      console.error(`[container-images] Failed to convert function ${functionId}:`, error);
+      continue;
+    }
   }
 
   // Add ECR repository URI to outputs for reference
@@ -364,7 +437,13 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
     };
   }
 
-  return cloudformation;
+    return cloudformation;
+  } catch (error) {
+    console.error("[container-images] Error in configureContainerImages:", error);
+    console.error("[container-images] Error stack:", error.stack);
+    // Return cloudformation as-is to avoid breaking deployment
+    return cloudformation;
+  }
 }
 
 module.exports = {
