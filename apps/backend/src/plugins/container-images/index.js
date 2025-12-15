@@ -230,11 +230,12 @@ function ensureEcrRepository(resources, repositoryName) {
 }
 
 /**
- * Converts a route to handler path
+ * Converts a route to handler path for Lambda container image Command
  * Route format: "any /api/streams/:workspaceId/:agentId/:secret"
- * Handler path format: "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"
+ * Handler path format for Command: "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"
+ * Note: The Command format is filename.exportname where filename is relative to LAMBDA_TASK_ROOT
  * @param {string} route - Route definition
- * @returns {string} Handler path
+ * @returns {string} Handler path for ImageConfig.Command
  */
 function routeToHandlerPath(route) {
   const trimmed = route.trim();
@@ -258,7 +259,8 @@ function routeToHandlerPath(route) {
     .replace(/\//g, "-") // Convert / to -
     .replace(/:/g, "000"); // Convert : to 000
 
-  // Handler path: http/{method}-{processedPath}/index.handler
+  // Handler path for Command: http/{method}-{processedPath}/index.handler
+  // This points directly to the handler file in the dist directory
   return `http/${method}-${processedPath}/index.handler`;
 }
 
