@@ -67,7 +67,10 @@ COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 RUN echo "=== Verifying index.js ===" && \
     ls -la ${LAMBDA_TASK_ROOT}/index.js && \
     echo "=== Testing if index.js can be loaded ===" && \
-    node -e "const idx = require('${LAMBDA_TASK_ROOT}/index.js'); if (typeof idx.handler !== 'function') { console.error('ERROR: handler is not a function'); process.exit(1); } console.log('✓ index.js loaded, handler wrapper is a function');" && \
+    node -e "const idx = require('${LAMBDA_TASK_ROOT}/index.js'); console.log('Handler type:', typeof idx.handler); if (typeof idx.handler !== 'function') { console.error('ERROR: handler is not a function'); process.exit(1); } console.log('✓ index.js loaded, handler wrapper is a function');" && \
+    echo "=== Verifying handler path file exists ===" && \
+    test -f ${LAMBDA_TASK_ROOT}/http/any-api-streams-000workspaceId-000agentId-000secret/index.js && \
+    echo "✓ Handler file exists" && \
     echo "✓ index.js verification passed"
 
 # Lambda handler is set via CMD pointing to index.handler
