@@ -329,29 +329,26 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
         `[container-images] Set ImageConfig.EntryPoint for ${functionId}: /lambda-entrypoint.sh`
       );
     }
-    // Command should be index.handler (matches Dockerfile CMD)
-    // This tells the entrypoint which handler to invoke
-    if (!properties.ImageConfig.Command) {
+    // Command should point directly to the handler path (bypassing wrapper)
+    // Format: ["path/to/handler.handler"] where path is relative to WorkingDirectory
+    // This eliminates the wrapper layer and lets Lambda load the handler directly
+    if (handlerPath && !properties.ImageConfig.Command) {
+      // handlerPath format: "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"
+      // Command format: ["http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"]
+      properties.ImageConfig.Command = [handlerPath];
+      console.log(
+        `[container-images] Set ImageConfig.Command for ${functionId} to point directly to handler: ${handlerPath}`
+      );
+    } else if (!properties.ImageConfig.Command) {
+      // Fallback to index.handler if no handlerPath provided
       properties.ImageConfig.Command = ["index.handler"];
       console.log(
-        `[container-images] Set ImageConfig.Command for ${functionId}: index.handler`
+        `[container-images] Set ImageConfig.Command for ${functionId}: index.handler (fallback)`
       );
     }
     
-    // Set environment variable to tell the wrapper which handler to use
-    // The wrapper at index.js reads LAMBDA_HANDLER_PATH and loads the correct handler
-    if (handlerPath) {
-      if (!properties.Environment) {
-        properties.Environment = {};
-      }
-      if (!properties.Environment.Variables) {
-        properties.Environment.Variables = {};
-      }
-      properties.Environment.Variables.LAMBDA_HANDLER_PATH = handlerPath;
-      console.log(
-        `[container-images] Set LAMBDA_HANDLER_PATH environment variable for ${functionId}: ${handlerPath}`
-      );
-    }
+    // Note: We no longer need LAMBDA_HANDLER_PATH since we're pointing directly to the handler
+    // The wrapper approach failed, so we're using direct handler path instead
   } else {
     // Standard Lambda functions use Code with ImageUri
     // IMPORTANT: Remove any existing Code properties (S3Bucket, S3Key, ZipFile, etc.)
@@ -373,20 +370,14 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
     if (!properties.ImageConfig.EntryPoint) {
       properties.ImageConfig.EntryPoint = ["/lambda-entrypoint.sh"];
     }
-    if (!properties.ImageConfig.Command) {
+    // Command should point directly to the handler path (bypassing wrapper)
+    if (handlerPath && !properties.ImageConfig.Command) {
+      properties.ImageConfig.Command = [handlerPath];
+    } else if (!properties.ImageConfig.Command) {
       properties.ImageConfig.Command = ["index.handler"];
     }
     
-    // Set environment variable for standard Lambda functions too
-    if (handlerPath) {
-      if (!properties.Environment) {
-        properties.Environment = {};
-      }
-      if (!properties.Environment.Variables) {
-        properties.Environment.Variables = {};
-      }
-      properties.Environment.Variables.LAMBDA_HANDLER_PATH = handlerPath;
-    }
+    // Note: We no longer need LAMBDA_HANDLER_PATH since we're pointing directly to the handler
   }
 
   // Remove Runtime (not used for container images)
