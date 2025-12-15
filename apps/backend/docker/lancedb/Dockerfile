@@ -61,6 +61,7 @@ COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 COPY apps/backend/docker/lancedb/router.js ${LAMBDA_TASK_ROOT}/router.mjs
 
 # Lambda handler is set via CMD
+# For .mjs files, use the format: filename.exportname
 # The router.mjs entrypoint reads LAMBDA_HANDLER_PATH environment variable
 # to route to the correct handler module
 CMD [ "router.handler" ]

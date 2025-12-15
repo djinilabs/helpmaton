@@ -17,25 +17,36 @@ console.log(`[router] Function: ${functionName}, Handler path: ${handlerPath}`);
 // -> export: "handler"
 const [modulePath, exportName = 'handler'] = handlerPath.split('.');
 
-// Load handler module using dynamic import (ES modules)
-// Lambda runtime supports top-level await for ES modules
-let handlerModule;
-let handler;
+// Cache the handler module to avoid re-importing on every invocation
+let handlerModule = null;
+let cachedHandler = null;
 
-try {
-  // Import the handler module
-  handlerModule = await import(`./${modulePath}.js`);
-  handler = handlerModule[exportName] || handlerModule.default || handlerModule.handler;
-  
-  if (!handler || typeof handler !== 'function') {
-    throw new Error(`Handler export "${exportName}" not found or is not a function in ${modulePath}`);
+// Load handler module using dynamic import (ES modules)
+// We use a wrapper function that loads the handler on first invocation
+async function loadHandler() {
+  if (cachedHandler) {
+    return cachedHandler;
   }
-  
-  console.log(`[router] Successfully loaded handler from ${modulePath}.${exportName}`);
-} catch (error) {
-  console.error(`[router] Failed to load handler from ${modulePath}.${exportName}:`, error);
-  throw error;
+
+  try {
+    // Import the handler module
+    handlerModule = await import(`./${modulePath}.js`);
+    cachedHandler = handlerModule[exportName] || handlerModule.default || handlerModule.handler;
+    
+    if (!cachedHandler || typeof cachedHandler !== 'function') {
+      throw new Error(`Handler export "${exportName}" not found or is not a function in ${modulePath}`);
+    }
+    
+    console.log(`[router] Successfully loaded handler from ${modulePath}.${exportName}`);
+    return cachedHandler;
+  } catch (error) {
+    console.error(`[router] Failed to load handler from ${modulePath}.${exportName}:`, error);
+    throw error;
+  }
 }
 
-// Export the handler for Lambda to invoke (ES modules)
-export { handler };
+// Export a wrapper handler that loads and calls the actual handler
+export const handler = async (event, context) => {
+  const actualHandler = await loadHandler();
+  return actualHandler(event, context);
+};
