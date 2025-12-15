@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   routeToFunctionId,
+  routeToHandlerPath,
   parseContainerImagesPragma,
   getEcrImageUri,
   convertToContainerImage,
@@ -41,6 +42,36 @@ describe("container-images plugin", () => {
       const route = "any api/streams/:workspaceId/:agentId/:secret";
       const result = routeToFunctionId(route);
       expect(result).toBe("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda");
+    });
+  });
+
+  describe("routeToHandlerPath", () => {
+    it("should convert a route to handler path", () => {
+      const route = "any /api/streams/:workspaceId/:agentId/:secret";
+      const result = routeToHandlerPath(route);
+      expect(result).toBe("http/any-api-streams-000workspaceId-000agentId-000secret/index.handler");
+    });
+
+    it("should handle GET routes", () => {
+      const route = "get /api/usage";
+      const result = routeToHandlerPath(route);
+      expect(result).toBe("http/get-api-usage/index.handler");
+    });
+
+    it("should handle POST routes", () => {
+      const route = "post /api/webhook/:workspaceId/:agentId/:key";
+      const result = routeToHandlerPath(route);
+      expect(result).toBe("http/post-api-webhook-000workspaceId-000agentId-000key/index.handler");
+    });
+
+    it("should return null for empty route", () => {
+      expect(routeToHandlerPath("")).toBeNull();
+      expect(routeToHandlerPath("   ")).toBeNull();
+    });
+
+    it("should return null for invalid route format", () => {
+      expect(routeToHandlerPath("invalid")).toBeNull();
+      expect(routeToHandlerPath("get")).toBeNull();
     });
   });
 
@@ -215,7 +246,8 @@ describe("container-images plugin", () => {
       convertToContainerImage(
         functionResource,
         imageUri,
-        "TestFunction"
+        "TestFunction",
+        "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"
       );
 
       expect(functionResource.Properties.PackageType).toBe("Image");
@@ -223,7 +255,7 @@ describe("container-images plugin", () => {
       expect(functionResource.Properties.CodeUri).toBe("");
       expect(functionResource.Properties.Code).toBeUndefined();
       expect(functionResource.Properties.Runtime).toBeUndefined();
-      expect(functionResource.Properties.Handler).toBeUndefined();
+      expect(functionResource.Properties.Handler).toBe("http/any-api-streams-000workspaceId-000agentId-000secret/index.handler");
     });
 
     it("should convert AWS::Lambda::Function to use container image", () => {
@@ -245,7 +277,8 @@ describe("container-images plugin", () => {
       convertToContainerImage(
         functionResource,
         imageUri,
-        "TestFunction"
+        "TestFunction",
+        "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"
       );
 
       expect(functionResource.Properties.PackageType).toBe("Image");
@@ -253,7 +286,7 @@ describe("container-images plugin", () => {
         ImageUri: imageUri,
       });
       expect(functionResource.Properties.Runtime).toBeUndefined();
-      expect(functionResource.Properties.Handler).toBeUndefined();
+      expect(functionResource.Properties.Handler).toBe("http/any-api-streams-000workspaceId-000agentId-000secret/index.handler");
     });
 
     it("should skip non-Lambda resources", () => {
@@ -266,7 +299,8 @@ describe("container-images plugin", () => {
       convertToContainerImage(
         functionResource,
         "image-uri",
-        "TestBucket"
+        "TestBucket",
+        null
       );
 
       expect(consoleSpy).toHaveBeenCalled();
@@ -286,12 +320,14 @@ describe("container-images plugin", () => {
       convertToContainerImage(
         functionResource,
         imageUri,
-        "TestFunction"
+        "TestFunction",
+        "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"
       );
 
       expect(functionResource.Properties).toBeDefined();
       expect(functionResource.Properties.PackageType).toBe("Image");
       expect(functionResource.Properties.ImageUri).toBe(imageUri);
+      expect(functionResource.Properties.Handler).toBe("http/any-api-streams-000workspaceId-000agentId-000secret/index.handler");
     });
   });
 
@@ -330,6 +366,7 @@ describe("container-images plugin", () => {
       expect(functionResource.Properties.PackageType).toBe("Image");
       expect(functionResource.Properties.ImageUri).toBeDefined();
       expect(functionResource.Properties.ImageUri["Fn::Sub"]).toBeDefined();
+      expect(functionResource.Properties.Handler).toBe("http/any-api-streams-000workspaceId-000agentId-000secret/index.handler");
       expect(result.Outputs.LambdaImagesRepositoryUri).toBeDefined();
 
       delete process.env.LAMBDA_IMAGES_ECR_REPOSITORY;

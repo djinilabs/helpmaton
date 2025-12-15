@@ -230,12 +230,46 @@ function ensureEcrRepository(resources, repositoryName) {
 }
 
 /**
+ * Converts a route to handler path
+ * Route format: "any /api/streams/:workspaceId/:agentId/:secret"
+ * Handler path format: "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"
+ * @param {string} route - Route definition
+ * @returns {string} Handler path
+ */
+function routeToHandlerPath(route) {
+  const trimmed = route.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const parts = trimmed.split(/\s+/);
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const method = parts[0].toLowerCase(); // "any", "get", "post", etc.
+  const path = parts.slice(1).join(" "); // "/api/streams/:workspaceId/:agentId/:secret"
+
+  // Convert path to handler directory format
+  // Remove leading slash, convert / to - and : to 000
+  // Keep "api" in the path (don't remove it)
+  const processedPath = path
+    .replace(/^\//, "") // Remove leading slash
+    .replace(/\//g, "-") // Convert / to -
+    .replace(/:/g, "000"); // Convert : to 000
+
+  // Handler path: http/{method}-{processedPath}/index.handler
+  return `http/${method}-${processedPath}/index.handler`;
+}
+
+/**
  * Converts a Lambda function to use container images
  * @param {Object} functionResource - Lambda function CloudFormation resource
  * @param {string} imageUri - ECR image URI (string or CloudFormation reference)
  * @param {string} functionId - Lambda function logical ID
+ * @param {string} handlerPath - Handler path (e.g., "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler")
  */
-function convertToContainerImage(functionResource, imageUri, functionId) {
+function convertToContainerImage(functionResource, imageUri, functionId, handlerPath) {
   // Architect uses AWS::Serverless::Function (SAM) which gets transformed to AWS::Lambda::Function
   // We need to handle both types
   const isLambdaFunction = 
@@ -281,8 +315,22 @@ function convertToContainerImage(functionResource, imageUri, functionId) {
   // Note: We keep it as null or remove it, but AWS requires it to be omitted
   delete properties.Runtime;
 
-  // Ensure Handler is not set (container images use CMD in Dockerfile)
-  delete properties.Handler;
+  // For container images, Handler property is still used to override the Dockerfile CMD
+  // If handlerPath is provided, use it; otherwise preserve what Architect set
+  if (handlerPath) {
+    properties.Handler = handlerPath;
+    console.log(
+      `[container-images] Set Handler property for ${functionId}: ${handlerPath}`
+    );
+  } else if (properties.Handler) {
+    console.log(
+      `[container-images] Preserving Handler property for ${functionId}: ${properties.Handler}`
+    );
+  } else {
+    console.warn(
+      `[container-images] No Handler property found for ${functionId}, will use Dockerfile CMD (index.handler)`
+    );
+  }
 
   console.log(
     `[container-images] Converted Lambda function ${functionId} to use container image: ${typeof imageUri === "string" ? imageUri : "CloudFormation reference"}`
@@ -416,6 +464,23 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
   }
 
   // Process each function that needs container images
+  // We need to get the route from the arc data to compute the handler path
+  const routeMap = new Map(); // Map functionId -> route
+  if (Array.isArray(arcData["container-images"] || arcData["containerImages"])) {
+    const pragma = arcData["container-images"] || arcData["containerImages"];
+    for (const item of pragma) {
+      if (Array.isArray(item) && item.length >= 3) {
+        const method = item[0];
+        const routePath = item[1];
+        const route = `${method} ${routePath}`;
+        const funcId = routeToFunctionId(route);
+        if (funcId) {
+          routeMap.set(funcId, route);
+        }
+      }
+    }
+  }
+
   for (const [functionId, imageName] of imageMap.entries()) {
     // Validate functionId and imageName
     if (!functionId || typeof functionId !== "string") {
@@ -443,6 +508,10 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
       continue;
     }
 
+    // Get route for this function to compute handler path
+    const route = routeMap.get(functionId);
+    const handlerPath = route ? routeToHandlerPath(route) : null;
+
     // Get ECR image URI
     let imageUri;
     try {
@@ -460,7 +529,7 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
 
     // Convert function to use container image
     try {
-      convertToContainerImage(functionResource, imageUri, functionId);
+      convertToContainerImage(functionResource, imageUri, functionId, handlerPath);
     } catch (error) {
       console.error(`[container-images] Failed to convert function ${functionId}:`, error);
       continue;
@@ -506,6 +575,7 @@ module.exports = {
 // Export for testing
 module.exports.configureContainerImages = configureContainerImages;
 module.exports.routeToFunctionId = routeToFunctionId;
+module.exports.routeToHandlerPath = routeToHandlerPath;
 module.exports.parseContainerImagesPragma = parseContainerImagesPragma;
 module.exports.getEcrImageUri = getEcrImageUri;
 module.exports.ensureEcrRepository = ensureEcrRepository;
