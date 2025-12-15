@@ -626,7 +626,30 @@ module.exports = {
               delete properties.Runtime;
             }
             
-            // For AWS::Lambda::Function, ensure Code only has ImageUri (no S3 references)
+            // For AWS::Serverless::Function (SAM), ensure CodeUri is empty and Code is removed
+            if (resource.Type === "AWS::Serverless::Function") {
+              if (properties.CodeUri !== undefined && properties.CodeUri !== "") {
+                console.log(
+                  `[container-images] Setting CodeUri to empty string for ${resourceId} (post-processing)`
+                );
+                properties.CodeUri = "";
+              }
+              // Remove Code property if it exists (SAM uses ImageUri directly in Properties)
+              if (properties.Code !== undefined) {
+                console.log(
+                  `[container-images] Removing Code property from ${resourceId} (SAM uses ImageUri directly)`
+                );
+                delete properties.Code;
+              }
+              // Ensure ImageUri is set (should already be set by convertToContainerImage)
+              if (!properties.ImageUri) {
+                console.warn(
+                  `[container-images] WARNING: ${resourceId} has PackageType=Image but no ImageUri!`
+                );
+              }
+            }
+            
+            // For AWS::Lambda::Function (transformed by SAM), ensure Code only has ImageUri (no S3 references)
             if (resource.Type === "AWS::Lambda::Function" && properties.Code) {
               // Check if Code has S3Bucket, S3Key, or ZipFile (should not be present for container images)
               if (properties.Code.S3Bucket || properties.Code.S3Key || properties.Code.ZipFile) {
@@ -638,26 +661,25 @@ module.exports = {
                   properties.Code = {
                     ImageUri: properties.Code.ImageUri,
                   };
+                  console.log(
+                    `[container-images] Set Code.ImageUri for ${resourceId} (post-processing)`
+                  );
                 } else {
                   console.warn(
                     `[container-images] WARNING: ${resourceId} has PackageType=Image but no ImageUri in Code!`
                   );
                 }
-              }
-            }
-            
-            // For AWS::Serverless::Function, ensure CodeUri is empty or removed
-            if (resource.Type === "AWS::Serverless::Function") {
-              if (properties.CodeUri !== undefined && properties.CodeUri !== "") {
-                console.log(
-                  `[container-images] Setting CodeUri to empty string for ${resourceId} (post-processing)`
+              } else if (!properties.Code.ImageUri) {
+                // Code exists but has no ImageUri - this shouldn't happen for container images
+                console.warn(
+                  `[container-images] WARNING: ${resourceId} has PackageType=Image and Code property but no ImageUri!`
                 );
-                properties.CodeUri = "";
               }
-              // Remove Code property if it exists (SAM uses ImageUri directly)
-              if (properties.Code !== undefined && !properties.ImageUri) {
-                delete properties.Code;
-              }
+            } else if (resource.Type === "AWS::Lambda::Function" && !properties.Code) {
+              // Code is missing but PackageType is Image - this is a problem
+              console.warn(
+                `[container-images] WARNING: ${resourceId} has PackageType=Image but no Code property!`
+              );
             }
           }
         }
