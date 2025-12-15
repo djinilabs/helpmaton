@@ -17,7 +17,7 @@ const queryClient = new QueryClient({
         // Retry once for other errors
         return failureCount < 1;
       },
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true,
       throwOnError: true, // Required for Suspense error boundaries
     },
   },
