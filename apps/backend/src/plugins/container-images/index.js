@@ -292,7 +292,7 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
   // Set PackageType to Image
   properties.PackageType = "Image";
 
-  // Set ImageUri
+  // Set ImageUri and ImageConfig
   // For AWS::Serverless::Function (SAM), we use ImageUri directly in Properties
   // For AWS::Lambda::Function, we use Code with ImageUri
   if (functionResource.Type === "AWS::Serverless::Function") {
@@ -304,11 +304,31 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
     properties.CodeUri = "";
     // Remove Code property if it exists
     delete properties.Code;
+    
+    // Set ImageConfig with Command to override Dockerfile CMD
+    // This allows us to point directly to the handler file
+    if (handlerPath) {
+      // Convert handler path to CMD format: "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"
+      // -> CMD: ["http/any-api-streams-000workspaceId-000agentId-000secret/index.handler"]
+      properties.ImageConfig = {
+        Command: [handlerPath]
+      };
+      console.log(
+        `[container-images] Set ImageConfig.Command for ${functionId}: ${handlerPath}`
+      );
+    }
   } else {
     // Standard Lambda functions use Code with ImageUri
     properties.Code = {
       ImageUri: imageUri,
     };
+    
+    // Set ImageConfig with Command for standard Lambda functions too
+    if (handlerPath) {
+      properties.ImageConfig = {
+        Command: [handlerPath]
+      };
+    }
   }
 
   // Remove Runtime (not used for container images)
@@ -323,21 +343,8 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
     delete properties.Handler;
   }
 
-  // Set environment variable to tell the router which handler to use
-  if (handlerPath) {
-    if (!properties.Environment) {
-      properties.Environment = {};
-    }
-    if (!properties.Environment.Variables) {
-      properties.Environment.Variables = {};
-    }
-    // Store the handler path in an environment variable
-    // The router entrypoint will read this and route to the correct handler
-    properties.Environment.Variables.LAMBDA_HANDLER_PATH = handlerPath;
-    console.log(
-      `[container-images] Set LAMBDA_HANDLER_PATH environment variable for ${functionId}: ${handlerPath}`
-    );
-  }
+  // Note: We're using ImageConfig.Command to point directly to the handler
+  // No need for LAMBDA_HANDLER_PATH environment variable anymore
 
   console.log(
     `[container-images] Converted Lambda function ${functionId} to use container image: ${typeof imageUri === "string" ? imageUri : "CloudFormation reference"}`
