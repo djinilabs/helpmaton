@@ -307,9 +307,9 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
     // Remove Code property if it exists
     delete properties.Code;
     
-    // Set ImageConfig to ensure WorkingDirectory is explicitly set
-    // This ensures Lambda uses /var/task as the working directory
-    // The base image sets WORKDIR, but explicitly setting it in ImageConfig ensures it's correct
+    // Set ImageConfig to ensure WorkingDirectory and EntryPoint are explicitly set
+    // This ensures Lambda uses /var/task as the working directory and the correct entrypoint
+    // The base image sets WORKDIR and ENTRYPOINT, but explicitly setting them in ImageConfig ensures they're correct
     if (!properties.ImageConfig) {
       properties.ImageConfig = {};
     }
@@ -319,6 +319,14 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
       properties.ImageConfig.WorkingDirectory = "/var/task";
       console.log(
         `[container-images] Set ImageConfig.WorkingDirectory for ${functionId}: /var/task`
+      );
+    }
+    // EntryPoint should be /lambda-entrypoint.sh (standard for AWS Lambda Node.js base images)
+    // This explicitly sets the entrypoint to ensure Lambda can find and execute it
+    if (!properties.ImageConfig.EntryPoint) {
+      properties.ImageConfig.EntryPoint = ["/lambda-entrypoint.sh"];
+      console.log(
+        `[container-images] Set ImageConfig.EntryPoint for ${functionId}: /lambda-entrypoint.sh`
       );
     }
     
@@ -353,6 +361,9 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
     }
     if (!properties.ImageConfig.WorkingDirectory) {
       properties.ImageConfig.WorkingDirectory = "/var/task";
+    }
+    if (!properties.ImageConfig.EntryPoint) {
+      properties.ImageConfig.EntryPoint = ["/lambda-entrypoint.sh"];
     }
     
     // Set environment variable for standard Lambda functions too
