@@ -1,10 +1,10 @@
 # Streaming System
 
-This document describes the streaming response system in Helpmaton, including Server-Sent Events (SSE) format, Lambda URL endpoints, and frontend integration.
+This document describes the streaming response system in Helpmaton, including the AI SDK streaming protocol, Lambda URL endpoints, and frontend integration.
 
 ## Overview
 
-Helpmaton provides real-time streaming responses for agent interactions using Server-Sent Events (SSE). Streaming responses are delivered via Lambda Function URLs, which bypass API Gateway for lower latency and better streaming performance.
+Helpmaton provides real-time streaming responses for agent interactions using the [AI SDK streaming protocol](https://sdk.vercel.ai/docs). Streaming responses are delivered via Lambda Function URLs, which bypass API Gateway for lower latency and better streaming performance.
 
 ## Architecture
 
@@ -20,7 +20,7 @@ Streaming endpoints use AWS Lambda Function URLs instead of API Gateway:
 ### Endpoint Structure
 
 ```
-GET /api/streams/:workspaceId/:agentId/:secret
+POST /api/streams/:workspaceId/:agentId/:secret
 ```
 
 **Path Parameters**:
@@ -29,15 +29,64 @@ GET /api/streams/:workspaceId/:agentId/:secret
 - `agentId` (String): Agent ID to send message to
 - `secret` (String): Secret for authentication (configured per agent)
 
-**Query Parameters**:
+**Request Body**:
 
-- `message` (String, required): Message to send to the agent
-- `origin` (String, optional): Origin for CORS validation
+The request body should be a JSON array of messages in the AI SDK format (or plain text for simple requests):
+
+```json
+[
+  {
+    "role": "user",
+    "content": "Hello, how can you help me?"
+  }
+]
+```
+
+For conversations with tool results, include tool result messages:
+
+```json
+[
+  {
+    "role": "user",
+    "content": "Search for documents about weather"
+  },
+  {
+    "role": "assistant",
+    "content": "",
+    "toolCalls": [
+      {
+        "toolCallId": "call_123",
+        "toolName": "search_documents",
+        "args": { "query": "weather" }
+      }
+    ]
+  },
+  {
+    "role": "tool",
+    "toolCallId": "call_123",
+    "toolName": "search_documents",
+    "result": "Document content..."
+  }
+]
+```
+
+**Headers**:
+
+- `Content-Type: application/json` (required)
+- `Origin` (optional): Origin for CORS validation
 
 **Example**:
 
-```
-GET https://{lambda-url}/api/streams/ws_123/agent_456/secret_789?message=Hello
+```bash
+POST https://{lambda-url}/api/streams/ws_123/agent_456/secret_789
+Content-Type: application/json
+
+[
+  {
+    "role": "user",
+    "content": "Hello"
+  }
+]
 ```
 
 ## Getting the Streaming URL
@@ -60,18 +109,70 @@ The URL is retrieved from CloudFormation stack outputs or environment variables.
 
 ### Frontend Integration
 
+The recommended way to integrate streaming is using the AI SDK's React hooks:
+
+```typescript
+import { useChat } from '@ai-sdk/react';
+
+const { messages, append, isLoading } = useChat({
+  api: `${streamUrl}/api/streams/${workspaceId}/${agentId}/${secret}`,
+  body: {
+    // Your request body with messages
+  },
+});
+```
+
+For manual integration, you can use `fetch` with a ReadableStream:
+
 ```typescript
 // Get streaming URL
 const response = await fetch("/api/streams/url");
 const { url } = await response.json();
 
 // Construct streaming endpoint
-const streamUrl = `${url}/api/streams/${workspaceId}/${agentId}/${secret}?message=${encodeURIComponent(
-  message
-)}`;
+const streamUrl = `${url}/api/streams/${workspaceId}/${agentId}/${secret}`;
 
-// Open EventSource connection
-const eventSource = new EventSource(streamUrl);
+// Make POST request with messages
+const streamResponse = await fetch(streamUrl, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(messages),
+});
+
+// Read the stream
+const reader = streamResponse.body?.getReader();
+const decoder = new TextDecoder();
+let buffer = '';
+
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  
+  buffer += decoder.decode(value, { stream: true });
+  const lines = buffer.split('\n');
+  buffer = lines.pop() || ''; // Keep incomplete line
+  
+  for (const line of lines) {
+    if (line.startsWith('data: ')) {
+      const jsonStr = line.substring(6); // Remove "data: " prefix
+      const data = JSON.parse(jsonStr);
+      
+      if (data.type === 'text-delta') {
+        // Handle text chunk
+        handleTextChunk(data.textDelta);
+      } else if (data.type === 'tool-call') {
+        // Handle tool call
+        handleToolCall(data);
+      } else if (data.type === 'error') {
+        // Handle error
+        handleError(data);
+      } else if (data.type === 'done') {
+        // Stream complete
+        break;
+      }
+    }
+  }
+}
 ```
 
 ## Server-Sent Events (SSE) Format
@@ -82,6 +183,10 @@ const eventSource = new EventSource(streamUrl);
 Content-Type: text/event-stream; charset=utf-8
 ```
 
+### Protocol Format
+
+Helpmaton uses **Server-Sent Events (SSE)** format compatible with the [AI SDK](https://sdk.vercel.ai/docs). The stream uses standard SSE format with JSON objects containing UI message data.
+
 ### Event Format
 
 SSE events follow the standard format:
@@ -90,9 +195,9 @@ SSE events follow the standard format:
 data: {json}\n\n
 ```
 
-Each event is a JSON object serialized as a string.
+Each event is a JSON object serialized as a string, prefixed with `data: ` and terminated with `\n\n`.
 
-### Event Types
+### Message Types
 
 #### Text Delta
 
@@ -164,7 +269,7 @@ data: {"type":"error","error":"Insufficient credits","workspaceId":"ws_123","req
 
 - `type`: "error"
 - `error`: Error message
-- Additional fields depend on error type
+- Additional fields depend on error type (e.g., `workspaceId`, `required`, `available`, `currency` for credit errors)
 
 #### Done
 
@@ -177,6 +282,14 @@ data: {"type":"done"}\n\n
 **Fields**:
 
 - `type`: "done"
+
+### Protocol Summary
+
+- **Format**: Standard SSE format with `data: {json}\n\n`
+- **Content-Type**: `text/event-stream; charset=utf-8`
+- **Compatibility**: Works with AI SDK's `useChat` hook and standard SSE clients
+
+For complete protocol documentation and examples, see the [AI SDK documentation](https://sdk.vercel.ai/docs).
 
 ## Authentication
 
@@ -280,115 +393,129 @@ End stream
 
 ## Frontend Integration
 
-### EventSource API
+### Using AI SDK React Hooks (Recommended)
 
-The standard EventSource API is used for receiving SSE streams:
-
-```typescript
-const eventSource = new EventSource(streamUrl);
-
-eventSource.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-
-  switch (data.type) {
-    case "text-delta":
-      // Append text chunk
-      appendText(data.textDelta);
-      break;
-    case "tool-call":
-      // Handle tool call
-      handleToolCall(data);
-      break;
-    case "tool-result":
-      // Handle tool result
-      handleToolResult(data);
-      break;
-    case "error":
-      // Handle error
-      handleError(data);
-      break;
-    case "done":
-      // Stream complete
-      eventSource.close();
-      break;
-  }
-};
-
-eventSource.onerror = (error) => {
-  console.error("Stream error:", error);
-  eventSource.close();
-};
-```
-
-### React Hook Example
+The easiest way to integrate streaming is using the AI SDK's `useChat` hook, which automatically handles SSE parsing:
 
 ```typescript
-function useAgentStream(workspaceId: string, agentId: string, secret: string) {
-  const [message, setMessage] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+import { useChat } from '@ai-sdk/react';
 
-  const streamMessage = async (userMessage: string) => {
-    setIsStreaming(true);
-    setError(null);
-    setMessage("");
+function ChatComponent({ workspaceId, agentId, secret, streamUrl }) {
+  const { messages, append, isLoading } = useChat({
+    api: `${streamUrl}/api/streams/${workspaceId}/${agentId}/${secret}`,
+  });
 
-    try {
-      // Get streaming URL
-      const urlResponse = await fetch("/api/streams/url");
-      const { url } = await urlResponse.json();
-
-      // Construct stream URL
-      const streamUrl = `${url}/api/streams/${workspaceId}/${agentId}/${secret}?message=${encodeURIComponent(
-        userMessage
-      )}`;
-
-      // Open EventSource
-      const eventSource = new EventSource(streamUrl);
-
-      eventSource.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-
-        if (data.type === "text-delta") {
-          setMessage((prev) => prev + data.textDelta);
-        } else if (data.type === "error") {
-          setError(data.error);
-          eventSource.close();
-        } else if (data.type === "done") {
-          eventSource.close();
-          setIsStreaming(false);
-        }
-      };
-
-      eventSource.onerror = () => {
-        setError("Stream connection error");
-        eventSource.close();
-        setIsStreaming(false);
-      };
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
-      setIsStreaming(false);
-    }
-  };
-
-  return { message, isStreaming, error, streamMessage };
+  return (
+    <div>
+      {messages.map((msg) => (
+        <div key={msg.id}>{msg.content}</div>
+      ))}
+      <button onClick={() => append({ role: 'user', content: 'Hello!' })}>
+        Send
+      </button>
+    </div>
+  );
 }
 ```
 
+See the [AI SDK useChat documentation](https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-chat#usechat) for complete examples.
+
+### Manual Integration Example
+
+If you need to implement SSE parsing manually:
+
+```typescript
+async function streamAgentMessage(
+  workspaceId: string,
+  agentId: string,
+  secret: string,
+  userMessage: string
+) {
+  // Get streaming URL
+  const urlResponse = await fetch("/api/streams/url");
+  const { url } = await urlResponse.json();
+
+  // Construct stream endpoint
+  const streamUrl = `${url}/api/streams/${workspaceId}/${agentId}/${secret}`;
+
+  // Make POST request with messages
+  const response = await fetch(streamUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify([
+      { role: 'user', content: userMessage }
+    ]),
+  });
+
+  if (!response.body) {
+    throw new Error('No response body');
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || ''; // Keep incomplete line
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+
+      // Parse SSE format: data: {...}
+      if (line.startsWith('data: ')) {
+        const jsonStr = line.substring(6); // Remove "data: " prefix
+        const data = JSON.parse(jsonStr);
+        
+        if (data.type === 'text-delta') {
+          // Handle text chunk
+          handleTextChunk(data.textDelta);
+        } else if (data.type === 'text') {
+          // Handle complete text
+          handleText(data.text);
+        } else if (data.type === 'tool-call') {
+          // Handle tool call
+          handleToolCall(data);
+        } else if (data.type === 'error') {
+          // Handle error
+          console.error('Stream error:', data.error);
+        } else if (data.type === 'done') {
+          // Stream complete
+          break;
+        }
+      }
+    }
+  }
+}
+```
+
+For more examples and complete protocol details, see the [AI SDK documentation](https://sdk.vercel.ai/docs).
+
 ## Error Handling
 
-### Error Events
+### Error Messages
 
-Errors are streamed as SSE events:
+Errors are streamed as SSE events with error objects:
 
-```json
-{
-  "type": "error",
-  "error": "Error message",
-  "workspaceId": "ws_123",
-  "required": 0.01,
-  "available": 0.005,
-  "currency": "usd"
+```
+data: {"type":"error","error":"Insufficient credits","workspaceId":"ws_123","required":0.01,"available":0.005,"currency":"usd"}\n\n
+```
+
+When parsing, check the event type:
+
+```typescript
+if (line.startsWith('data: ')) {
+  const jsonStr = line.substring(6); // Remove "data: " prefix
+  const data = JSON.parse(jsonStr);
+  
+  if (data.type === 'error') {
+    // Handle error
+    console.error('Stream error:', data.error);
+  }
 }
 ```
 
@@ -402,9 +529,10 @@ Errors are streamed as SSE events:
 
 ### Error Recovery
 
-- Errors are streamed as events, not HTTP status codes
-- Clients should handle error events and close the connection
+- Errors are streamed as text messages in the AI SDK format
+- Clients should parse messages and check for error objects
 - Retry logic can be implemented by the client
+- The stream connection remains open until explicitly closed or the stream ends
 
 ## CORS Configuration
 
@@ -483,8 +611,8 @@ Returns appropriate CORS headers.
 ### Streaming Endpoint
 
 - **URL**: `/api/streams/:workspaceId/:agentId/:secret`
-- **Method**: GET
-- **Response**: Server-Sent Events (SSE)
+- **Method**: POST (request body contains messages array)
+- **Response**: Server-Sent Events (SSE) format with `text/event-stream` content type
 - **Latency**: Lower (Lambda URL)
 - **User Experience**: Real-time incremental updates
 
@@ -500,11 +628,12 @@ Returns appropriate CORS headers.
 
 ### Frontend
 
-1. **Handle All Event Types**: Implement handlers for all event types
-2. **Error Handling**: Always handle error events
-3. **Connection Management**: Close connections when done
-4. **Reconnection**: Implement reconnection logic for dropped connections
-5. **UI Updates**: Update UI incrementally as chunks arrive
+1. **Use AI SDK Hooks**: Prefer `useChat` from `@ai-sdk/react` for React applications - it handles SSE parsing automatically
+2. **Parse SSE Format**: When implementing manually, parse lines starting with `data: ` and extract JSON objects
+3. **Error Handling**: Always check for `type: "error"` in parsed event objects
+4. **Connection Management**: Close connections when done or on error
+5. **Reconnection**: Implement reconnection logic for dropped connections
+6. **UI Updates**: Update UI incrementally as text-delta events arrive
 
 ### Backend
 
@@ -525,10 +654,11 @@ Returns appropriate CORS headers.
 
 ### Streaming Issues
 
-- **Event Parsing**: Verify JSON parsing is correct
-- **Event Handling**: Check all event types are handled
-- **Connection State**: Monitor connection state
-- **Error Events**: Handle error events properly
+- **SSE Parsing**: Verify you're correctly parsing SSE format (lines starting with `data: `)
+- **Message Handling**: Check that all event types (text-delta, tool-call, error, done) are handled
+- **Connection State**: Monitor connection state and handle disconnections
+- **Error Handling**: Parse error objects from SSE events correctly
+- **AI SDK Integration**: If using AI SDK hooks, ensure the API endpoint is correctly configured
 
 ### Performance Issues
 
@@ -537,6 +667,9 @@ Returns appropriate CORS headers.
 - **Bandwidth**: Consider compression
 - **Connection Reuse**: Reuse EventSource connections
 
-## API Reference
+## Additional Resources
 
-See [API Reference](./api-reference.md) for complete endpoint documentation.
+- **[AI SDK Documentation](https://sdk.vercel.ai/docs)**: Complete protocol specification and examples
+- **[AI SDK React Hooks](https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-chat#usechat)**: React integration guide
+- **[API Reference](./api-reference.md)**: Complete endpoint documentation
+- **[Agent Configuration](./agent-configuration.md)**: How to configure stream servers for agents

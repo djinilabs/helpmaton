@@ -1418,30 +1418,47 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 )}
                 <div>
                   <p className="font-semibold mb-2">
-                    AI SDK Streaming Protocol
+                    Server-Sent Events (SSE) Format
                   </p>
                   <p className="mb-2">
-                    Streaming agents implement the{" "}
+                    Stream servers use <strong>Server-Sent Events (SSE)</strong>{" "}
+                    format compatible with the{" "}
                     <a
                       href="https://sdk.vercel.ai/docs"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="underline hover:opacity-100"
                     >
-                      AI SDK streaming protocol
+                      AI SDK
                     </a>
-                    , which uses the{" "}
-                    <code className="bg-neutral-100 px-1">
-                      0:&quot;text content&quot;\n
-                    </code>{" "}
-                    format for streaming text chunks.
+                    . Send a <strong>POST</strong> request with a JSON array of
+                    messages in the request body.
                   </p>
-                  <p className="mb-2">To build a client for this protocol:</p>
-                  <ul className="list-disc list-inside space-y-1 ml-2">
+                  <p className="mb-2">
+                    The response stream uses SSE format with JSON objects:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 ml-2 mb-2">
                     <li>
-                      For React applications, use the{" "}
+                      Text chunks:{" "}
+                      <code className="bg-neutral-100 px-1">
+                        data: {`{"type":"text-delta","textDelta":"Hello"}`}\n\n
+                      </code>
+                    </li>
+                    <li>
+                      Tool calls:{" "}
+                      <code className="bg-neutral-100 px-1">
+                        data:{" "}
+                        {`{"type":"tool-call","toolCallId":"...","toolName":"...","args":{...}}`}
+                        \n\n
+                      </code>
+                    </li>
+                  </ul>
+                  <p className="mb-2">To build a client:</p>
+                  <ul className="list-disc list-inside space-y-1 ml-2 mb-2">
+                    <li>
+                      <strong>React apps:</strong> Use the{" "}
                       <a
-                        href="https://sdk.vercel.ai/docs/ai-sdk-ui/use-chat"
+                        href="https://ai-sdk.dev/docs/reference/ai-sdk-ui/use-chat#usechat"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="underline hover:opacity-100"
@@ -1449,36 +1466,29 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         useChat hook
                       </a>{" "}
                       from{" "}
-                      <code className="bg-neutral-100 px-1">@ai-sdk/react</code>
+                      <code className="bg-neutral-100 px-1">@ai-sdk/react</code>{" "}
+                      - it handles SSE parsing automatically
                     </li>
                     <li>
-                      For other frameworks, implement the protocol directly
-                      using{" "}
-                      <a
-                        href="https://sdk.vercel.ai/docs/ai-sdk-core/stream-text"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline hover:opacity-100"
-                      >
-                        streamText
-                      </a>{" "}
-                      or parse the{" "}
-                      <code className="bg-neutral-100 px-1">0:</code> prefixed
-                      format
-                    </li>
-                    <li>
-                      See the{" "}
-                      <a
-                        href="https://sdk.vercel.ai/docs"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="underline hover:opacity-100"
-                      >
-                        AI SDK documentation
-                      </a>{" "}
-                      for complete examples and guides
+                      <strong>Other frameworks:</strong> Parse SSE format by
+                      reading lines starting with{" "}
+                      <code className="bg-neutral-100 px-1">data: </code>, then
+                      parse the JSON object
                     </li>
                   </ul>
+                  <p className="mb-0">
+                    For complete documentation, examples, and integration
+                    guides, see the{" "}
+                    <a
+                      href="https://sdk.vercel.ai/docs"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline hover:opacity-100"
+                    >
+                      AI SDK documentation
+                    </a>
+                    .
+                  </p>
                 </div>
               </div>
               {!streamServerConfig ? (
@@ -1659,10 +1669,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             </AccordionSection>
           )}
 
-          {/* Keys Management Section */}
+          {/* Webhooks Management Section */}
           <AccordionSection
             id="keys"
-            title="WEBHOOK KEYS"
+            title="WEBHOOKS"
             isExpanded={expandedSection === "keys"}
             onToggle={() => toggleSection("keys")}
           >
