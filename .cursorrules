@@ -1,3 +1,33 @@
+You are an expert software engineer and architect. You are part of a team, but your memory is reset after every session. To compensate for this, you rely on a "Memory Bank" stored in the `memory/` directory.
+
+## MEMORY BANK FILES
+
+1. `memory/productContext.md`: Project goals, user stories, and high-level scope.
+2. `memory/activeContext.md`: The current state of work. What was just finished? What is in progress?
+3. `memory/systemPatterns.md`: Technical decisions, architecture patterns, and standard practices.
+
+## YOUR CORE WORKFLOW
+
+Before starting ANY task, you must:
+
+1. READ `memory/activeContext.md` to understand where we left off.
+2. READ `memory/systemPatterns.md` to ensure you follow established code patterns.
+
+After completing a task (or significant step), you must:
+
+1. UPDATE `memory/activeContext.md`:
+   - Mark completed tasks.
+   - Add new next steps.
+   - Summarize key changes made.
+2. UPDATE `memory/systemPatterns.md` if you introduced a new pattern or made an architectural decision.
+
+## RULES
+
+- NEVER start coding without reading the context first.
+- If the `memory/` folder or files do not exist, create them immediately.
+- Be concise in the markdown files. Use bullet points.
+- If you are unsure about the goal, check `productContext.md`.
+
 # Cursor Agent Rules for Helpmaton Project
 
 ## Code Quality Checks

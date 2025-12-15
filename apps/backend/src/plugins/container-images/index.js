@@ -264,8 +264,11 @@ function convertToContainerImage(functionResource, imageUri, functionId) {
   if (functionResource.Type === "AWS::Serverless::Function") {
     // SAM functions use ImageUri directly in Properties for container images
     properties.ImageUri = imageUri;
-    // Remove CodeUri (used for ZIP packages)
-    delete properties.CodeUri;
+    // Set CodeUri to empty string to prevent Architect from trying to resolve undefined paths
+    // Architect's upload process checks CodeUri and when it's an empty string, it should skip zipping
+    // An empty string is a valid path that path.resolve can handle without errors
+    properties.CodeUri = "";
+    // Remove Code property if it exists
     delete properties.Code;
   } else {
     // Standard Lambda functions use Code with ImageUri
@@ -364,6 +367,53 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
 
   // Note: ECR repository is created by build-and-push-lambda-images.sh script
   // We don't create it in CloudFormation to avoid conflicts
+
+  // Also modify inventory to prevent Architect from trying to zip code for container image functions
+  // Architect's upload process checks inventory.lambdas for code paths
+  if (inventory && inventory.lambdas) {
+    console.log(`[container-images] Checking inventory.lambdas (${Object.keys(inventory.lambdas).length} functions)`);
+    for (const [functionId] of imageMap.entries()) {
+      // Find matching lambda in inventory
+      // Inventory keys are typically route-based (e.g., "any-api-streams-000workspaceId-000agentId-000secret")
+      // Function IDs are like "AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda"
+      // We need to match by converting function ID to route format or by checking all lambdas
+      const lambdaKeys = Object.keys(inventory.lambdas);
+      let matched = false;
+      
+      for (const lambdaKey of lambdaKeys) {
+        const lambda = inventory.lambdas[lambdaKey];
+        
+        // Check if this lambda corresponds to our function ID
+        // We can match by checking if the lambda's name or src path matches
+        // For now, try to match by checking if the key contains parts of the function ID
+        // Function ID: "AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda"
+        // Inventory key might be: "any-api-streams-000workspaceId-000agentId-000secret"
+        const functionIdLower = functionId.toLowerCase();
+        const keyLower = lambdaKey.toLowerCase();
+        
+        // Check if key contains significant parts of function ID
+        if (keyLower.includes("streams") && keyLower.includes("workspace") && 
+            keyLower.includes("agent") && keyLower.includes("secret")) {
+          // This is likely our function
+          if (lambda && lambda.src !== undefined) {
+            console.log(`[container-images] Removing src from inventory for ${lambdaKey} (matches ${functionId}) to skip code upload`);
+            delete lambda.src;
+            // Also set a flag to indicate this is a container image
+            lambda.containerImage = true;
+            matched = true;
+            break;
+          }
+        }
+      }
+      
+      if (!matched) {
+        console.log(`[container-images] Could not find matching lambda in inventory for ${functionId}`);
+        console.log(`[container-images] Available inventory keys: ${lambdaKeys.slice(0, 5).join(", ")}`);
+      }
+    }
+  } else {
+    console.log(`[container-images] No inventory.lambdas found, skipping inventory modification`);
+  }
 
   // Process each function that needs container images
   for (const [functionId, imageName] of imageMap.entries()) {

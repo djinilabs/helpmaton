@@ -220,7 +220,7 @@ describe("container-images plugin", () => {
 
       expect(functionResource.Properties.PackageType).toBe("Image");
       expect(functionResource.Properties.ImageUri).toBe(imageUri);
-      expect(functionResource.Properties.CodeUri).toBeUndefined();
+      expect(functionResource.Properties.CodeUri).toBe("");
       expect(functionResource.Properties.Code).toBeUndefined();
       expect(functionResource.Properties.Runtime).toBeUndefined();
       expect(functionResource.Properties.Handler).toBeUndefined();
