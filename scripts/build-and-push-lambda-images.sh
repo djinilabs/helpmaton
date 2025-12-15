@@ -163,11 +163,15 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
     
     # Check if buildx is available, fall back to regular docker build if not
     if docker buildx version > /dev/null 2>&1; then
-        # Use buildx for cross-platform builds with direct push to ECR
-        # This avoids the need to load the image locally (which doesn't work for cross-platform)
+        # Use buildx for cross-platform builds
+        # IMPORTANT: Disable provenance and SBOM to ensure Lambda-compatible manifest
+        # Lambda doesn't support the additional metadata that buildx adds by default
+        # --provenance=false and --sbom=false ensure the image manifest is compatible with Lambda
         print_status "Using docker buildx for cross-platform build..."
         docker buildx build \
             --platform linux/arm64 \
+            --provenance=false \
+            --sbom=false \
             --push \
             -f "${DOCKERFILE_PATH}" \
             -t "${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}" \
