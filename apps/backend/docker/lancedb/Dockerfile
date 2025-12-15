@@ -43,7 +43,11 @@ RUN pnpm install --prod --frozen-lockfile --filter backend --shamefully-hoist
 # Copy the flat node_modules to Lambda task root
 # With --shamefully-hoist, node_modules is at the workspace root
 RUN cp -r node_modules ${LAMBDA_TASK_ROOT}/ && \
-    cp apps/backend/package.json ${LAMBDA_TASK_ROOT}/
+    cp apps/backend/package.json ${LAMBDA_TASK_ROOT}/ && \
+    # Add "type": "module" to package.json to enable ES modules
+    # Use jq if available, otherwise use sed to add the type field
+    (jq '. + {"type":"module"}' ${LAMBDA_TASK_ROOT}/package.json > ${LAMBDA_TASK_ROOT}/package.json.tmp && mv ${LAMBDA_TASK_ROOT}/package.json.tmp ${LAMBDA_TASK_ROOT}/package.json) || \
+    (sed -i '1s/^{/{ "type": "module",/' ${LAMBDA_TASK_ROOT}/package.json || echo '{"type":"module"}' > ${LAMBDA_TASK_ROOT}/package.json)
 
 # Clean up temporary workspace
 RUN rm -rf /tmp/workspace
@@ -57,11 +61,10 @@ COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 
 # Copy router entrypoint
 # The router reads LAMBDA_HANDLER_PATH environment variable to route to the correct handler
-# Rename to .mjs to ensure it's treated as an ES module
-COPY apps/backend/docker/lancedb/router.js ${LAMBDA_TASK_ROOT}/router.mjs
+# Use .js extension with "type": "module" in package.json for ES modules
+COPY apps/backend/docker/lancedb/router.js ${LAMBDA_TASK_ROOT}/router.js
 
 # Lambda handler is set via CMD
-# For .mjs files, use the format: filename.exportname
-# The router.mjs entrypoint reads LAMBDA_HANDLER_PATH environment variable
-# to route to the correct handler module
+# With "type": "module" in package.json, .js files are treated as ES modules
+# Format: filename.exportname
 CMD [ "router.handler" ]
