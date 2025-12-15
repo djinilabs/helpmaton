@@ -1659,10 +1659,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             </AccordionSection>
           )}
 
-          {/* Keys Management Section */}
+          {/* Webhooks Management Section */}
           <AccordionSection
             id="keys"
-            title="WEBHOOK KEYS"
+            title="WEBHOOKS"
             isExpanded={expandedSection === "keys"}
             onToggle={() => toggleSection("keys")}
           >
