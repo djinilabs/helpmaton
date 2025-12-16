@@ -350,12 +350,14 @@ describe("spendingLimits", () => {
         mockDb,
         workspace,
         undefined,
-        5.0
+        5_000_000 // 5.0 USD in millionths
       );
 
       expect(result.passed).toBe(false);
       expect(result.failedLimits).toHaveLength(1);
       expect(result.failedLimits[0].timeFrame).toBe("daily");
+      // Verify current value is correct: 60.0 + 5.0 = 65.0 USD = 65_000_000 millionths
+      expect(result.failedLimits[0].current).toBe(65_000_000);
     });
 
     it("should check agent spending limits", async () => {
@@ -389,7 +391,12 @@ describe("spendingLimits", () => {
         outputTokens: 360,
       });
 
-      const result = await checkSpendingLimits(mockDb, workspace, agent, 5_000_000); // 5.0 USD in millionths
+      const result = await checkSpendingLimits(
+        mockDb,
+        workspace,
+        agent,
+        5_000_000
+      ); // 5.0 USD in millionths
 
       expect(result.passed).toBe(false);
       expect(result.failedLimits).toHaveLength(1);
@@ -443,7 +450,12 @@ describe("spendingLimits", () => {
           outputTokens: 360,
         });
 
-      const result = await checkSpendingLimits(mockDb, workspace, agent, 5_000_000); // 5.0 USD in millionths
+      const result = await checkSpendingLimits(
+        mockDb,
+        workspace,
+        agent,
+        5_000_000
+      ); // 5.0 USD in millionths
 
       expect(result.passed).toBe(false);
       expect(result.failedLimits).toHaveLength(1);
@@ -522,6 +534,3 @@ describe("spendingLimits", () => {
     });
   });
 });
-
-
-
