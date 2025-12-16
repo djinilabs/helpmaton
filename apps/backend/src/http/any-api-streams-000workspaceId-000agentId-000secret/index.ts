@@ -735,14 +735,32 @@ async function logConversationAsync(
 
   try {
     // Extract tool calls and tool results from streamText result
-    // streamText result has similar structure to generateText result
+    // streamText result properties are promises that need to be awaited
+    // (same as test endpoint)
+    const [toolCallsFromResultRaw, toolResultsFromResultRaw] =
+      await Promise.all([
+        Promise.resolve(streamResult?.toolCalls).then((tc) => tc || []),
+        Promise.resolve(streamResult?.toolResults).then((tr) => tr || []),
+      ]);
+
     // Ensure toolCalls and toolResults are always arrays
-    let toolCallsFromResult = Array.isArray(streamResult?.toolCalls)
-      ? streamResult.toolCalls
+    let toolCallsFromResult = Array.isArray(toolCallsFromResultRaw)
+      ? toolCallsFromResultRaw
       : [];
-    const toolResultsFromResult = Array.isArray(streamResult?.toolResults)
-      ? streamResult.toolResults
+    const toolResultsFromResult = Array.isArray(toolResultsFromResultRaw)
+      ? toolResultsFromResultRaw
       : [];
+
+    // DIAGNOSTIC: Log tool calls and results extracted from stream result
+    console.log("[Stream Handler] Tool calls extracted from stream result:", {
+      toolCallsCount: toolCallsFromResult.length,
+      toolCalls: toolCallsFromResult,
+      toolResultsCount: toolResultsFromResult.length,
+      toolResults: toolResultsFromResult,
+      streamResultKeys: streamResult ? Object.keys(streamResult) : [],
+      hasToolCalls: streamResult && "toolCalls" in streamResult,
+      hasToolResults: streamResult && "toolResults" in streamResult,
+    });
 
     // FIX: If tool calls are missing but tool results exist, reconstruct tool calls from results
     // This can happen when tools execute synchronously and the AI SDK doesn't populate toolCalls
@@ -814,6 +832,34 @@ async function logConversationAsync(
         assistantContent.length > 0 ? assistantContent : fullStreamedText,
       ...(tokenUsage && { tokenUsage }),
     };
+
+    // DIAGNOSTIC: Log assistant message structure
+    console.log("[Stream Handler] Assistant message created:", {
+      role: assistantMessage.role,
+      contentType: typeof assistantMessage.content,
+      isArray: Array.isArray(assistantMessage.content),
+      contentLength: Array.isArray(assistantMessage.content)
+        ? assistantMessage.content.length
+        : "N/A",
+      hasToolCallsInContent: Array.isArray(assistantMessage.content)
+        ? assistantMessage.content.some(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-call"
+          )
+        : false,
+      hasToolResultsInContent: Array.isArray(assistantMessage.content)
+        ? assistantMessage.content.some(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-result"
+          )
+        : false,
+    });
 
     // Combine all converted messages and assistant message for logging
     // Deduplication will happen in updateConversation (same as test endpoint)
