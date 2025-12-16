@@ -44,6 +44,13 @@ export const ConversationList: FC<ConversationListProps> = ({
     ) {
       parts.push(`R: ${tokenUsage.reasoningTokens.toLocaleString()}`);
     }
+    if (
+      "cachedPromptTokens" in tokenUsage &&
+      typeof tokenUsage.cachedPromptTokens === "number" &&
+      tokenUsage.cachedPromptTokens > 0
+    ) {
+      parts.push(`Cache: ${tokenUsage.cachedPromptTokens.toLocaleString()}`);
+    }
     return `${tokenUsage.totalTokens.toLocaleString()} (${parts.join(", ")})`;
   };
 

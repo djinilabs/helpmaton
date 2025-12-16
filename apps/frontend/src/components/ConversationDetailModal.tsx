@@ -199,6 +199,17 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                         {conversationDetail.tokenUsage.reasoningTokens.toLocaleString()}
                       </>
                     )}
+                  {conversationDetail.tokenUsage &&
+                    "cachedPromptTokens" in conversationDetail.tokenUsage &&
+                    typeof conversationDetail.tokenUsage.cachedPromptTokens ===
+                      "number" &&
+                    conversationDetail.tokenUsage.cachedPromptTokens > 0 && (
+                      <>
+                        {" "}
+                        | Cached:{" "}
+                        {conversationDetail.tokenUsage.cachedPromptTokens.toLocaleString()}
+                      </>
+                    )}
                 </div>
               </div>
             )}

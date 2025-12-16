@@ -264,9 +264,10 @@ export function aggregateTokenUsage(
     }
   }
 
-  // Calculate totalTokens as the sum of prompt, completion, and reasoning tokens
-  // This ensures reasoning tokens are always included in the total
-  const totalTokens = promptTokens + completionTokens + reasoningTokens;
+  // Calculate totalTokens as the sum of prompt (including cached), completion, and reasoning tokens
+  // This ensures reasoning tokens and cached prompt tokens are always included in the total
+  const totalTokens =
+    promptTokens + cachedPromptTokens + completionTokens + reasoningTokens;
 
   const aggregated: TokenUsage = {
     promptTokens,
@@ -386,12 +387,15 @@ export function extractTokenUsage(
     );
   }
 
-  // Calculate totalTokens as the sum of prompt, completion, and reasoning tokens
-  // This ensures reasoning tokens are always included in the total
+  // Calculate totalTokens as the sum of prompt (including cached), completion, and reasoning tokens
+  // This ensures reasoning tokens and cached prompt tokens are always included in the total
   // Use the calculated total if it's greater than the provided totalTokens
-  // (some APIs might not include reasoning tokens in their totalTokens)
+  // (some APIs might not include reasoning tokens or cached tokens in their totalTokens)
   const calculatedTotal =
-    nonCachedPromptTokens + completionTokens + reasoningTokens;
+    nonCachedPromptTokens +
+    cachedPromptTokens +
+    completionTokens +
+    reasoningTokens;
   const finalTotalTokens = Math.max(totalTokens, calculatedTotal);
 
   const tokenUsage: TokenUsage = {
