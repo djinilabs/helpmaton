@@ -483,8 +483,43 @@ export const handler = adaptHttpHandler(
       const responseContent = await processSimpleNonStreamingResponse(result);
 
       // Extract tool calls and results from generateText result
-      const toolCallsFromResult = result.toolCalls || [];
+      let toolCallsFromResult = result.toolCalls || [];
       const toolResultsFromResult = result.toolResults || [];
+
+      // FIX: If tool calls are missing but tool results exist, reconstruct tool calls from results
+      // This can happen when tools execute synchronously and the AI SDK doesn't populate toolCalls
+      if (
+        toolCallsFromResult.length === 0 &&
+        toolResultsFromResult.length > 0
+      ) {
+        console.log(
+          "[Webhook Handler] Tool calls missing but tool results exist, reconstructing tool calls from results"
+        );
+        // Reconstruct tool calls from tool results - cast to any since we're creating a compatible structure
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
+        toolCallsFromResult = toolResultsFromResult.map((toolResult: any) => ({
+          toolCallId:
+            toolResult.toolCallId ||
+            `call-${Math.random().toString(36).substring(7)}`,
+          toolName: toolResult.toolName || "unknown",
+          args: toolResult.args || toolResult.input || {},
+        })) as unknown as typeof toolCallsFromResult;
+        console.log(
+          "[Webhook Handler] Reconstructed tool calls:",
+          toolCallsFromResult
+        );
+      }
+
+      // DIAGNOSTIC: Log tool calls and results extracted from result
+      console.log("[Webhook Handler] Tool calls extracted from result:", {
+        toolCallsCount: toolCallsFromResult.length,
+        toolCalls: toolCallsFromResult,
+        toolResultsCount: toolResultsFromResult.length,
+        toolResults: toolResultsFromResult,
+        resultKeys: Object.keys(result),
+        hasToolCalls: "toolCalls" in result,
+        hasToolResults: "toolResults" in result,
+      });
 
       // Format tool calls and results as UI messages
       const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
@@ -528,17 +563,84 @@ export const handler = adaptHttpHandler(
         assistantContent.push({ type: "text", text: responseContent });
       }
 
+      // DIAGNOSTIC: Log assistantContent before creating message
+      console.log(
+        "[Webhook Handler] Assistant content before message creation:",
+        {
+          assistantContentLength: assistantContent.length,
+          assistantContent: assistantContent,
+          hasToolCalls: assistantContent.some(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-call"
+          ),
+          hasToolResults: assistantContent.some(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-result"
+          ),
+        }
+      );
+
       // Create assistant message
+      // Ensure content is always an array if we have tool calls/results, even if text is empty
       const assistantMessage: UIMessage = {
         role: "assistant",
         content:
-          assistantContent.length > 0 ? assistantContent : responseContent,
+          assistantContent.length > 0
+            ? assistantContent
+            : responseContent || "",
       };
+
+      // DIAGNOSTIC: Log final assistant message structure
+      console.log("[Webhook Handler] Final assistant message:", {
+        role: assistantMessage.role,
+        contentType: typeof assistantMessage.content,
+        isArray: Array.isArray(assistantMessage.content),
+        contentLength: Array.isArray(assistantMessage.content)
+          ? assistantMessage.content.length
+          : "N/A",
+        content: assistantMessage.content,
+        hasToolCallsInContent: Array.isArray(assistantMessage.content)
+          ? assistantMessage.content.some(
+              (item) =>
+                typeof item === "object" &&
+                item !== null &&
+                "type" in item &&
+                item.type === "tool-call"
+            )
+          : false,
+        hasToolResultsInContent: Array.isArray(assistantMessage.content)
+          ? assistantMessage.content.some(
+              (item) =>
+                typeof item === "object" &&
+                item !== null &&
+                "type" in item &&
+                item.type === "tool-result"
+            )
+          : false,
+      });
 
       // Log conversation (non-blocking)
       // Each webhook call creates a new conversation
       // tokenUsage already extracted above for credit deduction
       try {
+        // DIAGNOSTIC: Log messages being passed to startConversation
+        console.log(
+          "[Webhook Handler] Messages being passed to startConversation:",
+          {
+            messagesCount: 2,
+            messages: [uiMessage, assistantMessage],
+            assistantMessageRole: assistantMessage.role,
+            assistantMessageContentType: typeof assistantMessage.content,
+            assistantMessageIsArray: Array.isArray(assistantMessage.content),
+          }
+        );
+
         await startConversation(db, {
           workspaceId,
           agentId,

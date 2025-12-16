@@ -39,8 +39,53 @@ export function calculateTTL(): number {
  */
 export function extractToolCalls(messages: UIMessage[]): unknown[] {
   const toolCalls: unknown[] = [];
+
+  // DIAGNOSTIC: Log input messages
+  console.log("[extractToolCalls] Processing messages:", {
+    messagesCount: messages.length,
+    messages: messages.map((msg) => ({
+      role: msg.role,
+      contentType: typeof msg.content,
+      isArray: Array.isArray(msg.content),
+      contentLength: Array.isArray(msg.content) ? msg.content.length : "N/A",
+      contentPreview: Array.isArray(msg.content)
+        ? msg.content.slice(0, 3).map((item) => ({
+            type:
+              typeof item === "object" && item !== null && "type" in item
+                ? item.type
+                : "unknown",
+            keys:
+              typeof item === "object" && item !== null
+                ? Object.keys(item)
+                : [],
+          }))
+        : "not array",
+    })),
+  });
+
   for (const message of messages) {
     if (message.role === "assistant" && Array.isArray(message.content)) {
+      console.log(
+        "[extractToolCalls] Processing assistant message with array content:",
+        {
+          contentLength: message.content.length,
+          contentItems: message.content.map((item) => ({
+            type: typeof item,
+            isObject: typeof item === "object" && item !== null,
+            hasType:
+              typeof item === "object" && item !== null && "type" in item,
+            typeValue:
+              typeof item === "object" && item !== null && "type" in item
+                ? item.type
+                : undefined,
+            keys:
+              typeof item === "object" && item !== null
+                ? Object.keys(item)
+                : [],
+          })),
+        }
+      );
+
       for (const item of message.content) {
         if (
           typeof item === "object" &&
@@ -48,11 +93,25 @@ export function extractToolCalls(messages: UIMessage[]): unknown[] {
           "type" in item &&
           item.type === "tool-call"
         ) {
+          console.log("[extractToolCalls] Found tool call:", item);
           toolCalls.push(item);
         }
       }
+    } else {
+      console.log("[extractToolCalls] Skipping message:", {
+        role: message.role,
+        isAssistant: message.role === "assistant",
+        isArray: Array.isArray(message.content),
+        contentType: typeof message.content,
+      });
     }
   }
+
+  console.log("[extractToolCalls] Extracted tool calls:", {
+    count: toolCalls.length,
+    toolCalls: toolCalls,
+  });
+
   return toolCalls;
 }
 
@@ -215,6 +274,12 @@ function deduplicateMessages(
  */
 export function extractToolResults(messages: UIMessage[]): unknown[] {
   const toolResults: unknown[] = [];
+
+  // DIAGNOSTIC: Log input messages
+  console.log("[extractToolResults] Processing messages:", {
+    messagesCount: messages.length,
+  });
+
   for (const message of messages) {
     if (message.role === "assistant" && Array.isArray(message.content)) {
       for (const item of message.content) {
@@ -224,6 +289,10 @@ export function extractToolResults(messages: UIMessage[]): unknown[] {
           "type" in item &&
           item.type === "tool-result"
         ) {
+          console.log(
+            "[extractToolResults] Found tool result in assistant message:",
+            item
+          );
           toolResults.push(item);
         }
       }
@@ -235,11 +304,21 @@ export function extractToolResults(messages: UIMessage[]): unknown[] {
           "type" in item &&
           item.type === "tool-result"
         ) {
+          console.log(
+            "[extractToolResults] Found tool result in tool message:",
+            item
+          );
           toolResults.push(item);
         }
       }
     }
   }
+
+  console.log("[extractToolResults] Extracted tool results:", {
+    count: toolResults.length,
+    toolResults: toolResults,
+  });
+
   return toolResults;
 }
 

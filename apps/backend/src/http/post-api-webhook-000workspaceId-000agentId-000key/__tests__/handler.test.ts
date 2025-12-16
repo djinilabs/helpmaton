@@ -570,4 +570,228 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
     const body = JSON.parse(result.body);
     expect(body.message).toBeDefined();
   });
+
+  it("should record tool calls in conversation when tools are used", async () => {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-456";
+    const key = "key-789";
+    const bodyText = "Search for documents about testing";
+
+    mockValidateWebhookRequest.mockReturnValue({
+      workspaceId,
+      agentId,
+      key,
+      bodyText,
+    });
+    mockValidateWebhookKey.mockResolvedValue(undefined);
+    mockCheckFreePlanExpiration.mockResolvedValue(undefined);
+
+    const mockSubscription = {
+      pk: "subscriptions/sub-123",
+      plan: "pro" as const,
+    };
+    mockGetWorkspaceSubscription.mockResolvedValue(mockSubscription);
+    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      provider: "google" as const,
+    };
+
+    const mockModel = {};
+    const mockTools = {
+      searchDocuments: {
+        description: "Search documents",
+        inputSchema: {},
+      },
+    };
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: mockModel,
+      tools: mockTools,
+      usesByok: false,
+    });
+
+    mockConvertTextToUIMessage.mockReturnValue({
+      role: "user",
+      content: bodyText,
+    });
+
+    mockConvertUIMessagesToModelMessages.mockReturnValue([
+      {
+        role: "user",
+        content: bodyText,
+      },
+    ]);
+
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId: "reservation-123",
+      reservedAmount: 0.001,
+    });
+
+    mockBuildGenerateTextOptions.mockReturnValue({
+      temperature: 0.7,
+      maxTokens: 2048,
+    });
+
+    // Mock generateText result with tool calls and results
+    const mockToolCall = {
+      toolCallId: "call-123",
+      toolName: "searchDocuments",
+      args: { query: "testing" },
+    };
+
+    const mockToolResult = {
+      toolCallId: "call-123",
+      toolName: "searchDocuments",
+      result: "Found 3 documents about testing",
+    };
+
+    const mockGenerateTextResult = {
+      text: "I found some documents about testing.",
+      toolCalls: [mockToolCall],
+      toolResults: [mockToolResult],
+      usage: {
+        promptTokens: 20,
+        completionTokens: 10,
+      },
+    };
+
+    vi.mocked(generateText).mockResolvedValue(
+      mockGenerateTextResult as unknown as Awaited<
+        ReturnType<typeof generateText>
+      >
+    );
+
+    mockExtractTokenUsage.mockReturnValue({
+      promptTokens: 20,
+      completionTokens: 10,
+      totalTokens: 30,
+    });
+
+    mockIsCreditDeductionEnabled.mockReturnValue(true);
+    mockAdjustCreditReservation.mockResolvedValue(undefined);
+
+    // Mock formatToolCallMessage to return formatted tool call message
+    const formattedToolCallMessage = {
+      role: "assistant" as const,
+      content: [
+        {
+          type: "tool-call" as const,
+          toolCallId: "call-123",
+          toolName: "searchDocuments",
+          args: { query: "testing" },
+        },
+      ],
+    };
+
+    const formattedToolResultMessage = {
+      role: "assistant" as const,
+      content: [
+        {
+          type: "tool-result" as const,
+          toolCallId: "call-123",
+          toolName: "searchDocuments",
+          result: "Found 3 documents about testing",
+        },
+      ],
+    };
+
+    mockFormatToolCallMessage.mockReturnValue(formattedToolCallMessage);
+    mockFormatToolResultMessage.mockReturnValue(formattedToolResultMessage);
+
+    mockStartConversation.mockResolvedValue("conversation-id-123");
+
+    mockProcessSimpleNonStreamingResponse.mockResolvedValue(
+      "I found some documents about testing."
+    );
+
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const baseEvent = createAPIGatewayEventV2({
+      routeKey: "POST /api/webhook/workspace-123/agent-456/key-789",
+      rawPath: "/api/webhook/workspace-123/agent-456/key-789",
+      body: bodyText,
+    });
+    const event = {
+      ...baseEvent,
+      requestContext: {
+        ...baseEvent.requestContext,
+        http: {
+          ...baseEvent.requestContext.http,
+          method: "POST",
+        },
+      },
+      pathParameters: {
+        workspaceId,
+        agentId,
+        key,
+      },
+    };
+
+    const result = (await handler(event, mockContext, mockCallback)) as {
+      statusCode: number;
+      headers: Record<string, string>;
+      body: string;
+    };
+
+    expect(result.statusCode).toBe(200);
+    expect(result.body).toBe("I found some documents about testing.");
+
+    // Verify startConversation was called
+    expect(mockStartConversation).toHaveBeenCalled();
+
+    // Get the call arguments to verify tool calls are included
+    const startConversationCalls = mockStartConversation.mock.calls;
+    expect(startConversationCalls.length).toBeGreaterThan(0);
+
+    const conversationData = startConversationCalls[0][1];
+    expect(conversationData.workspaceId).toBe(workspaceId);
+    expect(conversationData.agentId).toBe(agentId);
+    expect(conversationData.conversationType).toBe("webhook");
+
+    // Verify messages include tool calls
+    const messages = conversationData.messages;
+    expect(Array.isArray(messages)).toBe(true);
+    expect(messages.length).toBe(2); // user message + assistant message
+
+    const assistantMessage = messages.find(
+      (msg: { role: string }) => msg.role === "assistant"
+    );
+    expect(assistantMessage).toBeDefined();
+    expect(Array.isArray(assistantMessage.content)).toBe(true);
+
+    const assistantContent = assistantMessage.content as Array<unknown>;
+    const toolCallsInContent = assistantContent.filter(
+      (item) =>
+        typeof item === "object" &&
+        item !== null &&
+        "type" in item &&
+        item.type === "tool-call"
+    );
+    const toolResultsInContent = assistantContent.filter(
+      (item) =>
+        typeof item === "object" &&
+        item !== null &&
+        "type" in item &&
+        item.type === "tool-result"
+    );
+
+    // Verify tool calls and results are in the assistant message content
+    expect(toolCallsInContent.length).toBe(1);
+    expect(toolResultsInContent.length).toBe(1);
+    expect(toolCallsInContent[0]).toMatchObject({
+      type: "tool-call",
+      toolCallId: "call-123",
+      toolName: "searchDocuments",
+    });
+    expect(toolResultsInContent[0]).toMatchObject({
+      type: "tool-result",
+      toolCallId: "call-123",
+      toolName: "searchDocuments",
+    });
+  });
 });
