@@ -1,6 +1,6 @@
 export interface SpendingLimit {
   timeFrame: "daily" | "weekly" | "monthly";
-  amount: number;
+  amount: number; // millionths (integer)
 }
 
 export interface Workspace {
@@ -8,7 +8,7 @@ export interface Workspace {
   name: string;
   description: string | null;
   permissionLevel: number | null;
-  creditBalance?: number;
+  creditBalance?: number; // millionths (integer)
   currency?: Currency;
   spendingLimits?: SpendingLimit[];
   hasGoogleApiKey?: boolean; // Keep for backward compatibility
@@ -604,7 +604,7 @@ export interface TrialStatus {
   daysRemaining: number;
   hasRequestedCredits: boolean;
   creditsApproved: boolean;
-  initialCreditAmount: number;
+  initialCreditAmount: number; // millionths (integer)
   currentUsage: number;
 }
 
@@ -1168,7 +1168,7 @@ export interface UsageStats {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
-  cost: number;
+  cost: number; // millionths (integer)
   byModel: Array<{
     model: string;
     inputTokens: number;
@@ -1212,7 +1212,7 @@ export interface DailyUsageData {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
-  cost: number;
+  cost: number; // millionths (integer)
 }
 
 export interface WorkspaceDailyUsageResponse {

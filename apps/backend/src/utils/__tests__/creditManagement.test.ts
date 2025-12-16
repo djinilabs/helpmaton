@@ -45,12 +45,12 @@ describe("creditManagement", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    // Setup mock workspace
+    // Setup mock workspace (creditBalance in millionths)
     mockWorkspace = {
       pk: "workspaces/test-workspace",
       sk: "workspace",
       name: "Test Workspace",
-      creditBalance: 100.0,
+      creditBalance: 100_000_000, // 100.0 USD in millionths
       currency: "usd",
       version: 1,
       createdAt: new Date().toISOString(),
@@ -83,16 +83,16 @@ describe("creditManagement", () => {
 
     mockDatabase.mockResolvedValue(mockDb);
 
-    // Setup default pricing mock
-    mockCalculateTokenCost.mockReturnValue(0.01);
+    // Setup default pricing mock (returns millionths)
+    mockCalculateTokenCost.mockReturnValue(10_000); // 0.01 USD in millionths
   });
 
   describe("reserveCredits", () => {
     it("should successfully reserve credits when balance is sufficient", async () => {
-      const estimatedCost = 10.0;
+      const estimatedCost = 10_000_000; // 10.0 USD in millionths
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 90.0, // 100 - 10
+        creditBalance: 90_000_000, // 100 - 10 in millionths
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -129,7 +129,7 @@ describe("creditManagement", () => {
     });
 
     it("should throw InsufficientCreditsError when balance is insufficient", async () => {
-      const estimatedCost = 150.0; // More than available 100.0
+      const estimatedCost = 150_000_000; // 150.0 USD in millionths (more than available 100.0)
 
       mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
         const current = { ...mockWorkspace };
@@ -150,7 +150,7 @@ describe("creditManagement", () => {
       const result = await reserveCredits(
         mockDb,
         "test-workspace",
-        10.0,
+        10_000_000, // 10.0 USD in millionths
         "usd",
         3,
         true // usesByok
@@ -173,12 +173,12 @@ describe("creditManagement", () => {
       mockGet.mockResolvedValue(undefined);
 
       await expect(
-        reserveCredits(mockDb, "test-workspace", 10.0, "usd", 3, true)
+        reserveCredits(mockDb, "test-workspace", 10_000_000, "usd", 3, true)
       ).rejects.toThrow("Workspace test-workspace not found");
     });
 
     it("should handle version conflicts - throws error after max retries", async () => {
-      const estimatedCost = 10.0;
+      const estimatedCost = 10_000_000; // 10.0 USD in millionths
 
       // Simulate version conflict that persists after retries
       mockAtomicUpdate.mockRejectedValue(
@@ -191,7 +191,7 @@ describe("creditManagement", () => {
     });
 
     it("should throw error after max retries on version conflicts", async () => {
-      const estimatedCost = 10.0;
+      const estimatedCost = 10_000_000; // 10.0 USD in millionths
 
       mockAtomicUpdate.mockRejectedValue(
         new Error("Conditional request failed")
@@ -203,10 +203,10 @@ describe("creditManagement", () => {
     });
 
     it("should handle exact balance match", async () => {
-      const estimatedCost = 100.0; // Exactly the balance
+      const estimatedCost = 100_000_000; // 100.0 USD in millionths (exactly the balance)
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 0.0,
+        creditBalance: 0,
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -219,14 +219,14 @@ describe("creditManagement", () => {
       );
 
       expect(result.reservedAmount).toBe(estimatedCost);
-      expect(result.workspace.creditBalance).toBe(0.0);
+      expect(result.workspace.creditBalance).toBe(0);
     });
 
-    it("should round balance to 6 decimal places", async () => {
-      const estimatedCost = 10.123456789;
+    it("should handle precise amounts without rounding", async () => {
+      const estimatedCost = 10_123_456; // 10.123456 USD in millionths
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 89.876543,
+        creditBalance: 89_876_544, // 100_000_000 - 10_123_456
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -237,10 +237,8 @@ describe("creditManagement", () => {
       const current = { ...mockWorkspace };
       const result = await updaterCall(current);
 
-      // Should round to 6 decimal places
-      const expectedBalance =
-        Math.round((mockWorkspace.creditBalance - estimatedCost) * 1_000_000) /
-        1_000_000;
+      // Should be exact (no rounding needed with integers)
+      const expectedBalance = mockWorkspace.creditBalance - estimatedCost;
       expect(result.creditBalance).toBe(expectedBalance);
     });
   });
@@ -254,8 +252,8 @@ describe("creditManagement", () => {
       mockReservation = {
         pk: `credit-reservations/${reservationId}`,
         workspaceId: "test-workspace",
-        reservedAmount: 10.0,
-        estimatedCost: 10.0,
+        reservedAmount: 10_000_000, // 10.0 USD in millionths
+        estimatedCost: 10_000_000, // 10.0 USD in millionths
         currency: "usd",
         expires: Math.floor(Date.now() / 1000) + 15 * 60,
         version: 1,
@@ -274,11 +272,11 @@ describe("creditManagement", () => {
         totalTokens: 150,
       };
 
-      // Actual cost will be less than reserved (10.0)
-      mockCalculateTokenCost.mockReturnValue(5.0); // Actual cost
+      // Actual cost will be less than reserved (10.0 USD = 10_000_000 millionths)
+      mockCalculateTokenCost.mockReturnValue(5_000_000); // 5.0 USD in millionths
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 95.0, // 90 + 5 (refund of difference)
+        creditBalance: 95_000_000, // 90_000_000 + 5_000_000 (refund of difference) in millionths
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -292,7 +290,7 @@ describe("creditManagement", () => {
         tokenUsage
       );
 
-      expect(result.creditBalance).toBe(95.0);
+      expect(result.creditBalance).toBe(95_000_000); // 95.0 USD in millionths
       expect(mockDelete).toHaveBeenCalledWith(
         `credit-reservations/${reservationId}`
       );
@@ -306,10 +304,10 @@ describe("creditManagement", () => {
       };
 
       // Actual cost will be more than reserved (10.0)
-      mockCalculateTokenCost.mockReturnValue(15.0); // Actual cost
+      mockCalculateTokenCost.mockReturnValue(15_000_000); // 15.0 USD in millionths (actual cost)
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 85.0, // 90 - 5 (additional deduction)
+        creditBalance: 85_000_000, // 85.0 USD in millionths (90 - 5 additional deduction)
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -323,7 +321,7 @@ describe("creditManagement", () => {
         tokenUsage
       );
 
-      expect(result.creditBalance).toBe(85.0);
+      expect(result.creditBalance).toBe(85_000_000);
     });
 
     it("should handle exact match (no adjustment needed)", async () => {
@@ -333,11 +331,11 @@ describe("creditManagement", () => {
         totalTokens: 150,
       };
 
-      // Actual cost equals reserved
-      mockCalculateTokenCost.mockReturnValue(10.0);
+      // Actual cost equals reserved (10.0 USD = 10_000_000 millionths)
+      mockCalculateTokenCost.mockReturnValue(10_000_000);
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 90.0, // No change
+        creditBalance: 90_000_000, // No change (in millionths)
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -351,7 +349,7 @@ describe("creditManagement", () => {
         tokenUsage
       );
 
-      expect(result.creditBalance).toBe(90.0);
+      expect(result.creditBalance).toBe(90_000_000);
     });
 
     it("should skip adjustment for BYOK requests", async () => {
@@ -407,7 +405,7 @@ describe("creditManagement", () => {
         totalTokens: 150,
       };
 
-      mockCalculateTokenCost.mockReturnValue(5.0);
+      mockCalculateTokenCost.mockReturnValue(5_000_000); // 5.0 USD in millionths
       mockAtomicUpdate.mockRejectedValue(new Error("Item was outdated"));
 
       await expect(
@@ -430,12 +428,12 @@ describe("creditManagement", () => {
         totalTokens: 150,
       };
 
-      mockCalculateTokenCost.mockReturnValue(5.0);
+      mockCalculateTokenCost.mockReturnValue(5_000_000); // 5.0 USD in millionths
       mockDelete.mockRejectedValue(new Error("Delete failed"));
 
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 95.0,
+        creditBalance: 95_000_000, // in millionths
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -450,7 +448,7 @@ describe("creditManagement", () => {
         tokenUsage
       );
 
-      expect(result.creditBalance).toBe(95.0);
+      expect(result.creditBalance).toBe(95_000_000);
     });
 
     it("should handle reasoning tokens in cost calculation", async () => {
@@ -461,10 +459,10 @@ describe("creditManagement", () => {
         reasoningTokens: 25,
       };
 
-      mockCalculateTokenCost.mockReturnValue(12.0);
+      mockCalculateTokenCost.mockReturnValue(12_000_000); // 12.0 USD in millionths
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 88.0,
+        creditBalance: 88_000_000, // in millionths
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -499,8 +497,8 @@ describe("creditManagement", () => {
       mockReservation = {
         pk: `credit-reservations/${reservationId}`,
         workspaceId: "test-workspace",
-        reservedAmount: 10.0,
-        estimatedCost: 10.0,
+        reservedAmount: 10_000_000, // 10.0 USD in millionths
+        estimatedCost: 10_000_000, // 10.0 USD in millionths
         currency: "usd",
         expires: Math.floor(Date.now() / 1000) + 15 * 60,
         version: 1,
@@ -515,7 +513,7 @@ describe("creditManagement", () => {
     it("should successfully refund reserved credits", async () => {
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 110.0, // 100 + 10 (refund)
+        creditBalance: 110_000_000, // 100_000_000 + 10_000_000 (refund) in millionths
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -534,9 +532,9 @@ describe("creditManagement", () => {
 
       // Verify the updater function adds the reserved amount
       const updaterCall = mockAtomicUpdate.mock.calls[0][2];
-      const current = { ...mockWorkspace, creditBalance: 90.0 };
+      const current = { ...mockWorkspace, creditBalance: 90_000_000 };
       const result = await updaterCall(current);
-      expect(result.creditBalance).toBe(100.0); // 90 + 10
+      expect(result.creditBalance).toBe(100_000_000); // 90_000_000 + 10_000_000 in millionths
     });
 
     it("should skip refund for BYOK reservations", async () => {
@@ -577,7 +575,7 @@ describe("creditManagement", () => {
     it("should handle delete failure gracefully", async () => {
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 110.0,
+        creditBalance: 110_000_000, // in millionths
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -589,19 +587,19 @@ describe("creditManagement", () => {
       expect(mockAtomicUpdate).toHaveBeenCalled();
     });
 
-    it("should round refund amount to 6 decimal places", async () => {
-      const reservationWithDecimal = {
+    it("should handle precise refund amounts without rounding", async () => {
+      const reservationWithPreciseAmount = {
         ...mockReservation,
-        reservedAmount: 10.123456789,
+        reservedAmount: 10_123_456, // 10.123456 USD in millionths
       };
 
       (
         mockDb["credit-reservations"].get as ReturnType<typeof vi.fn>
-      ).mockResolvedValue(reservationWithDecimal);
+      ).mockResolvedValue(reservationWithPreciseAmount);
 
       const updatedWorkspace = {
         ...mockWorkspace,
-        creditBalance: 110.123457, // Rounded
+        creditBalance: 110_123_456, // 100_000_000 + 10_123_456 in millionths
       };
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
@@ -609,19 +607,19 @@ describe("creditManagement", () => {
       await refundReservation(mockDb, reservationId);
 
       const updaterCall = mockAtomicUpdate.mock.calls[0][2];
-      const current = { ...mockWorkspace, creditBalance: 90.0 };
+      const current = { ...mockWorkspace, creditBalance: 90_000_000 };
       const result = await updaterCall(current);
 
-      const expectedBalance =
-        Math.round((90.0 + 10.123456789) * 1_000_000) / 1_000_000;
+      // Should be exact (no rounding needed with integers)
+      const expectedBalance = 90_000_000 + 10_123_456;
       expect(result.creditBalance).toBe(expectedBalance);
     });
   });
 
   describe("concurrent reservation scenarios", () => {
     it("should verify atomic check prevents overspending", async () => {
-      const estimatedCost = 60.0;
-      const initialBalance = 100.0;
+      const estimatedCost = 60_000_000; // 60.0 USD in millionths
+      const initialBalance = 100_000_000; // 100.0 USD in millionths
 
       // Test that the updater function correctly checks balance atomically
       // This verifies the logic that prevents race conditions
@@ -646,12 +644,12 @@ describe("creditManagement", () => {
       );
       expect(result1.reservationId).toBeDefined();
 
-      // Second reservation should fail (40 < 60)
+      // Second reservation should fail (40_000_000 < 60_000_000)
       // Update mock to reflect new balance
       mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
         const current = {
           ...mockWorkspace,
-          creditBalance: 40.0, // After first reservation
+          creditBalance: 40_000_000, // After first reservation (in millionths)
         };
         const result = await updater(current);
         return result as WorkspaceRecord;
@@ -666,8 +664,8 @@ describe("creditManagement", () => {
     });
 
     it("should handle sequential reservations correctly", async () => {
-      const estimatedCost = 30.0;
-      let currentBalance = 100.0;
+      const estimatedCost = 30_000_000; // 30.0 USD in millionths
+      let currentBalance = 100_000_000; // 100.0 USD in millionths
 
       mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
         const current = {
@@ -679,40 +677,40 @@ describe("creditManagement", () => {
         return result as WorkspaceRecord;
       });
 
-      // First reservation: 100 - 30 = 70
+      // First reservation: 100_000_000 - 30_000_000 = 70_000_000
       const result1 = await reserveCredits(
         mockDb,
         "test-workspace",
         estimatedCost,
         "usd"
       );
-      expect(result1.workspace.creditBalance).toBe(70.0);
+      expect(result1.workspace.creditBalance).toBe(70_000_000);
 
-      // Second reservation: 70 - 30 = 40
+      // Second reservation: 70_000_000 - 30_000_000 = 40_000_000
       const result2 = await reserveCredits(
         mockDb,
         "test-workspace",
         estimatedCost,
         "usd"
       );
-      expect(result2.workspace.creditBalance).toBe(40.0);
+      expect(result2.workspace.creditBalance).toBe(40_000_000);
 
-      // Third reservation: 40 - 30 = 10
+      // Third reservation: 40_000_000 - 30_000_000 = 10_000_000
       const result3 = await reserveCredits(
         mockDb,
         "test-workspace",
         estimatedCost,
         "usd"
       );
-      expect(result3.workspace.creditBalance).toBe(10.0);
+      expect(result3.workspace.creditBalance).toBe(10_000_000);
 
-      // Fourth reservation should fail: 10 < 30
+      // Fourth reservation should fail: 10_000_000 < 30_000_000
       await expect(
         reserveCredits(mockDb, "test-workspace", estimatedCost, "usd")
       ).rejects.toThrow(InsufficientCreditsError);
 
       // Verify final balance is correct
-      expect(currentBalance).toBe(10.0);
+      expect(currentBalance).toBe(10_000_000);
     });
   });
 });

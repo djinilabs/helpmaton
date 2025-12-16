@@ -68,12 +68,12 @@ describe("creditValidation", () => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    // Setup mock workspace
+    // Setup mock workspace (creditBalance in millionths)
     mockWorkspace = {
       pk: "workspaces/test-workspace",
       sk: "workspace",
       name: "Test Workspace",
-      creditBalance: 100.0,
+      creditBalance: 100_000_000, // 100.0 USD in millionths
       currency: "usd",
       version: 1,
       createdAt: new Date().toISOString(),
@@ -117,15 +117,15 @@ describe("creditValidation", () => {
     mockIsCreditValidationEnabled.mockReturnValue(true);
     mockIsSpendingLimitChecksEnabled.mockReturnValue(true);
 
-    // Default mocks
-    mockEstimateTokenCost.mockReturnValue(10.0);
+    // Default mocks (all values in millionths)
+    mockEstimateTokenCost.mockReturnValue(10_000_000); // 10.0 USD in millionths
     mockCheckSpendingLimits.mockResolvedValue({
       passed: true,
       failedLimits: [],
     });
     mockReserveCredits.mockResolvedValue({
       reservationId: "test-reservation",
-      reservedAmount: 10.0,
+      reservedAmount: 10_000_000, // 10.0 USD in millionths
       workspace: mockWorkspace,
     });
   });
@@ -340,7 +340,7 @@ describe("creditValidation", () => {
         mockDb,
         mockWorkspace,
         undefined,
-        10.0
+        10_000_000 // 10.0 USD in millionths
       );
     });
 
@@ -384,7 +384,7 @@ describe("creditValidation", () => {
         mockDb,
         mockWorkspace,
         mockAgent,
-        10.0
+        10_000_000 // 10.0 USD in millionths
       );
     });
 
@@ -404,7 +404,7 @@ describe("creditValidation", () => {
       expect(mockReserveCredits).toHaveBeenCalledWith(
         mockDb,
         "test-workspace",
-        10.0,
+        10_000_000, // 10.0 USD in millionths
         "usd",
         3,
         false

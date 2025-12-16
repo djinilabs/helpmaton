@@ -127,10 +127,8 @@ export async function reserveCredits(
           );
         }
 
-        // Round to 6 decimal places to avoid floating point precision issues
-        const newBalance =
-          Math.round((current.creditBalance - estimatedCost) * 1_000_000) /
-          1_000_000;
+        // Calculate new balance (all values in millionths, so simple subtraction)
+        const newBalance = current.creditBalance - estimatedCost;
 
         console.log("[reserveCredits] Reserving credits:", {
           workspaceId,
@@ -285,9 +283,8 @@ export async function adjustCreditReservation(
         // Adjust balance based on difference
         // If actual > reserved, deduct more (difference is positive)
         // If actual < reserved, refund difference (difference is negative, so we add it back)
-        const newBalance =
-          Math.round((current.creditBalance - difference) * 1_000_000) /
-          1_000_000;
+        // All values in millionths, so simple subtraction
+        const newBalance = current.creditBalance - difference;
 
         console.log("[adjustCreditReservation] Adjusting credits:", {
           workspaceId,
@@ -407,11 +404,8 @@ export async function refundReservation(
           throw new Error(`Workspace ${reservation.workspaceId} not found`);
         }
 
-        // Refund the reserved amount
-        const newBalance =
-          Math.round(
-            (current.creditBalance + reservation.reservedAmount) * 1_000_000
-          ) / 1_000_000;
+        // Refund the reserved amount (all values in millionths, so simple addition)
+        const newBalance = current.creditBalance + reservation.reservedAmount;
 
         console.log("[refundReservation] Refunding credits:", {
           workspaceId: reservation.workspaceId,
@@ -545,10 +539,8 @@ export async function debitCredits(
         });
 
         // Update credit balance (negative balances are allowed)
-        // Round to 6 decimal places to avoid floating point precision issues
-        const newBalance =
-          Math.round((current.creditBalance - actualCost) * 1_000_000) /
-          1_000_000;
+        // All values in millionths, so simple subtraction
+        const newBalance = current.creditBalance - actualCost;
 
         console.log("[debitCredits] Deducting credits:", {
           workspaceId,
@@ -619,10 +611,8 @@ export async function creditCredits(
         throw new Error(`Workspace ${workspaceId} not found`);
       }
 
-      // Update credit balance
-      // Round to 6 decimal places to avoid floating point precision issues
-      const newBalance =
-        Math.round((current.creditBalance + amount) * 1_000_000) / 1_000_000;
+      // Update credit balance (all values in millionths, so simple addition)
+      const newBalance = current.creditBalance + amount;
 
       console.log("[creditCredits] Adding credits:", {
         workspaceId,

@@ -94,9 +94,9 @@ describe("spendingLimits", () => {
   describe("getSpendingInWindow", () => {
     it("should return spending for workspace in USD", async () => {
       mockQueryUsageStats.mockResolvedValue({
-        costUsd: 10.5,
-        costEur: 9.5,
-        costGbp: 8.5,
+        costUsd: 10_500_000, // 10.5 USD in millionths
+        costEur: 9_500_000, // 9.5 EUR in millionths
+        costGbp: 8_500_000, // 8.5 GBP in millionths
         inputTokens: 1000,
         outputTokens: 200,
       });
@@ -110,7 +110,7 @@ describe("spendingLimits", () => {
         "usd"
       );
 
-      expect(spending).toBe(10.5);
+      expect(spending).toBe(10_500_000); // millionths
       expect(mockQueryUsageStats).toHaveBeenCalledWith(mockDb, {
         workspaceId: "workspace-123",
         agentId: undefined,
@@ -121,9 +121,9 @@ describe("spendingLimits", () => {
 
     it("should return spending for workspace in EUR", async () => {
       mockQueryUsageStats.mockResolvedValue({
-        costUsd: 10.5,
-        costEur: 9.5,
-        costGbp: 8.5,
+        costUsd: 10_500_000, // 10.5 USD in millionths
+        costEur: 9_500_000, // 9.5 EUR in millionths
+        costGbp: 8_500_000, // 8.5 GBP in millionths
         inputTokens: 1000,
         outputTokens: 200,
       });
@@ -137,14 +137,14 @@ describe("spendingLimits", () => {
         "eur"
       );
 
-      expect(spending).toBe(9.5);
+      expect(spending).toBe(9_500_000); // millionths
     });
 
     it("should return spending for workspace in GBP", async () => {
       mockQueryUsageStats.mockResolvedValue({
-        costUsd: 10.5,
-        costEur: 9.5,
-        costGbp: 8.5,
+        costUsd: 10_500_000, // 10.5 USD in millionths
+        costEur: 9_500_000, // 9.5 EUR in millionths
+        costGbp: 8_500_000, // 8.5 GBP in millionths
         inputTokens: 1000,
         outputTokens: 200,
       });
@@ -158,14 +158,14 @@ describe("spendingLimits", () => {
         "gbp"
       );
 
-      expect(spending).toBe(8.5);
+      expect(spending).toBe(8_500_000); // millionths
     });
 
     it("should return spending for specific agent", async () => {
       mockQueryUsageStats.mockResolvedValue({
-        costUsd: 5.0,
-        costEur: 4.5,
-        costGbp: 4.0,
+        costUsd: 5_000_000, // 5.0 USD in millionths
+        costEur: 4_500_000, // 4.5 EUR in millionths
+        costGbp: 4_000_000, // 4.0 GBP in millionths
         inputTokens: 500,
         outputTokens: 100,
       });
@@ -179,7 +179,7 @@ describe("spendingLimits", () => {
         "usd"
       );
 
-      expect(spending).toBe(5.0);
+      expect(spending).toBe(5_000_000); // millionths
       expect(mockQueryUsageStats).toHaveBeenCalledWith(mockDb, {
         workspaceId: undefined,
         agentId: "agent-456",
@@ -238,7 +238,7 @@ describe("spendingLimits", () => {
         mockDb,
         workspace,
         undefined,
-        10.0
+        10_000_000 // 10.0 USD in millionths
       );
 
       expect(result.passed).toBe(true);
@@ -252,15 +252,15 @@ describe("spendingLimits", () => {
         name: "Test Workspace",
         currency: "usd",
         creditBalance: 0,
-        spendingLimits: [{ timeFrame: "daily", amount: 100.0 }],
+        spendingLimits: [{ timeFrame: "daily", amount: 100_000_000 }], // 100.0 USD in millionths
         version: 1,
         createdAt: new Date().toISOString(),
       };
 
       mockQueryUsageStats.mockResolvedValue({
-        costUsd: 50.0, // Current spending
-        costEur: 45.0,
-        costGbp: 40.0,
+        costUsd: 50_000_000, // 50.0 USD in millionths (current spending)
+        costEur: 45_000_000, // 45.0 EUR in millionths
+        costGbp: 40_000_000, // 40.0 GBP in millionths
         inputTokens: 5000,
         outputTokens: 1000,
       });
@@ -269,7 +269,7 @@ describe("spendingLimits", () => {
         mockDb,
         workspace,
         undefined,
-        10.0
+        10_000_000 // 10.0 USD in millionths
       );
 
       expect(result.passed).toBe(true);
@@ -283,15 +283,15 @@ describe("spendingLimits", () => {
         name: "Test Workspace",
         currency: "usd",
         creditBalance: 0,
-        spendingLimits: [{ timeFrame: "daily", amount: 100.0 }],
+        spendingLimits: [{ timeFrame: "daily", amount: 100_000_000 }], // 100.0 USD in millionths
         version: 1,
         createdAt: new Date().toISOString(),
       };
 
       mockQueryUsageStats.mockResolvedValue({
-        costUsd: 95.0, // Current spending
-        costEur: 85.0,
-        costGbp: 75.0,
+        costUsd: 95_000_000, // 95.0 USD in millionths (current spending)
+        costEur: 85_000_000, // 85.0 EUR in millionths
+        costGbp: 75_000_000, // 75.0 GBP in millionths
         inputTokens: 9500,
         outputTokens: 1900,
       });
@@ -300,7 +300,7 @@ describe("spendingLimits", () => {
         mockDb,
         workspace,
         undefined,
-        10.0
+        10_000_000 // 10.0 USD in millionths
       );
 
       expect(result.passed).toBe(false);
@@ -308,8 +308,8 @@ describe("spendingLimits", () => {
       expect(result.failedLimits[0]).toEqual({
         scope: "workspace",
         timeFrame: "daily",
-        limit: 100.0,
-        current: 105.0, // 95.0 + 10.0
+        limit: 100_000_000, // 100.0 USD in millionths
+        current: 105_000_000, // 95.0 + 10.0 = 105.0 USD in millionths
       });
     });
 
@@ -321,8 +321,8 @@ describe("spendingLimits", () => {
         currency: "usd",
         creditBalance: 0,
         spendingLimits: [
-          { timeFrame: "daily", amount: 50.0 },
-          { timeFrame: "weekly", amount: 200.0 },
+          { timeFrame: "daily", amount: 50_000_000 }, // 50.0 USD in millionths
+          { timeFrame: "weekly", amount: 200_000_000 }, // 200.0 USD in millionths
         ],
         version: 1,
         createdAt: new Date().toISOString(),
@@ -332,16 +332,16 @@ describe("spendingLimits", () => {
       // Second call: weekly window
       mockQueryUsageStats
         .mockResolvedValueOnce({
-          costUsd: 60.0, // Exceeds daily limit
-          costEur: 54.0,
-          costGbp: 48.0,
+          costUsd: 60_000_000, // 60.0 USD in millionths (exceeds daily limit)
+          costEur: 54_000_000, // 54.0 EUR in millionths
+          costGbp: 48_000_000, // 48.0 GBP in millionths
           inputTokens: 6000,
           outputTokens: 1200,
         })
         .mockResolvedValueOnce({
-          costUsd: 150.0, // Under weekly limit
-          costEur: 135.0,
-          costGbp: 120.0,
+          costUsd: 150_000_000, // 150.0 USD in millionths (under weekly limit)
+          costEur: 135_000_000, // 135.0 EUR in millionths
+          costGbp: 120_000_000, // 120.0 GBP in millionths
           inputTokens: 15000,
           outputTokens: 3000,
         });
@@ -374,7 +374,7 @@ describe("spendingLimits", () => {
         sk: "agent",
         name: "Test Agent",
         workspaceId: "workspace-123",
-        spendingLimits: [{ timeFrame: "daily", amount: 20.0 }],
+        spendingLimits: [{ timeFrame: "daily", amount: 20_000_000 }], // 20.0 USD in millionths
         systemPrompt: "You are helpful",
         provider: "google",
         version: 1,
@@ -382,22 +382,22 @@ describe("spendingLimits", () => {
       };
 
       mockQueryUsageStats.mockResolvedValue({
-        costUsd: 18.0, // Current agent spending
-        costEur: 16.0,
-        costGbp: 14.0,
+        costUsd: 18_000_000, // 18.0 USD in millionths (current agent spending)
+        costEur: 16_000_000, // 16.0 EUR in millionths
+        costGbp: 14_000_000, // 14.0 GBP in millionths
         inputTokens: 1800,
         outputTokens: 360,
       });
 
-      const result = await checkSpendingLimits(mockDb, workspace, agent, 5.0);
+      const result = await checkSpendingLimits(mockDb, workspace, agent, 5_000_000); // 5.0 USD in millionths
 
       expect(result.passed).toBe(false);
       expect(result.failedLimits).toHaveLength(1);
       expect(result.failedLimits[0]).toEqual({
         scope: "agent",
         timeFrame: "daily",
-        limit: 20.0,
-        current: 23.0, // 18.0 + 5.0
+        limit: 20_000_000, // 20.0 USD in millionths
+        current: 23_000_000, // 18.0 + 5.0 = 23.0 USD in millionths
       });
     });
 
@@ -408,7 +408,7 @@ describe("spendingLimits", () => {
         name: "Test Workspace",
         currency: "usd",
         creditBalance: 0,
-        spendingLimits: [{ timeFrame: "daily", amount: 100.0 }],
+        spendingLimits: [{ timeFrame: "daily", amount: 100_000_000 }], // 100.0 USD in millionths
         version: 1,
         createdAt: new Date().toISOString(),
       };
@@ -418,7 +418,7 @@ describe("spendingLimits", () => {
         sk: "agent",
         name: "Test Agent",
         workspaceId: "workspace-123",
-        spendingLimits: [{ timeFrame: "daily", amount: 20.0 }],
+        spendingLimits: [{ timeFrame: "daily", amount: 20_000_000 }], // 20.0 USD in millionths
         systemPrompt: "You are helpful",
         provider: "google",
         version: 1,
@@ -429,21 +429,21 @@ describe("spendingLimits", () => {
       // Second call: agent daily
       mockQueryUsageStats
         .mockResolvedValueOnce({
-          costUsd: 50.0, // Under workspace limit
-          costEur: 45.0,
-          costGbp: 40.0,
+          costUsd: 50_000_000, // 50.0 USD in millionths (under workspace limit)
+          costEur: 45_000_000, // 45.0 EUR in millionths
+          costGbp: 40_000_000, // 40.0 GBP in millionths
           inputTokens: 5000,
           outputTokens: 1000,
         })
         .mockResolvedValueOnce({
-          costUsd: 18.0, // Would exceed agent limit with 5.0
-          costEur: 16.0,
-          costGbp: 14.0,
+          costUsd: 18_000_000, // 18.0 USD in millionths (would exceed agent limit with 5.0)
+          costEur: 16_000_000, // 16.0 EUR in millionths
+          costGbp: 14_000_000, // 14.0 GBP in millionths
           inputTokens: 1800,
           outputTokens: 360,
         });
 
-      const result = await checkSpendingLimits(mockDb, workspace, agent, 5.0);
+      const result = await checkSpendingLimits(mockDb, workspace, agent, 5_000_000); // 5.0 USD in millionths
 
       expect(result.passed).toBe(false);
       expect(result.failedLimits).toHaveLength(1);
@@ -457,7 +457,7 @@ describe("spendingLimits", () => {
         name: "Test Workspace",
         currency: "usd",
         creditBalance: 0,
-        spendingLimits: [{ timeFrame: "daily", amount: 100.0 }],
+        spendingLimits: [{ timeFrame: "daily", amount: 100_000_000 }], // 100.0 USD in millionths
         version: 1,
         createdAt: new Date().toISOString(),
       };
@@ -470,7 +470,7 @@ describe("spendingLimits", () => {
         outputTokens: 0,
       });
 
-      await checkSpendingLimits(mockDb, workspace, undefined, 10.0);
+      await checkSpendingLimits(mockDb, workspace, undefined, 10_000_000); // 10.0 USD in millionths
 
       expect(mockQueryUsageStats).toHaveBeenCalledWith(
         mockDb,
@@ -496,7 +496,7 @@ describe("spendingLimits", () => {
         sk: "agent",
         name: "Test Agent",
         workspaceId: "workspace-123",
-        spendingLimits: [{ timeFrame: "daily", amount: 20.0 }],
+        spendingLimits: [{ timeFrame: "daily", amount: 20_000_000 }], // 20.0 USD in millionths
         systemPrompt: "You are helpful",
         provider: "google",
         version: 1,
@@ -511,7 +511,7 @@ describe("spendingLimits", () => {
         outputTokens: 0,
       });
 
-      await checkSpendingLimits(mockDb, workspace, agent, 10.0);
+      await checkSpendingLimits(mockDb, workspace, agent, 10_000_000); // 10.0 USD in millionths
 
       expect(mockQueryUsageStats).toHaveBeenCalledWith(
         mockDb,
@@ -522,5 +522,6 @@ describe("spendingLimits", () => {
     });
   });
 });
+
 
 

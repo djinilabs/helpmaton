@@ -43,8 +43,8 @@ export const openApiSchemas = {
         nullable: true,
       },
       creditBalance: {
-        type: "number",
-        description: "Current credit balance",
+        type: "integer",
+        description: "Current credit balance in millionths",
       },
       currency: {
         type: "string",
@@ -289,8 +289,8 @@ export const openApiSchemas = {
     type: "object",
     properties: {
       amount: {
-        type: "number",
-        description: "Limit amount",
+        type: "integer",
+        description: "Limit amount in millionths",
       },
       currency: {
         type: "string",
@@ -346,8 +346,8 @@ export const openApiSchemas = {
             description: "Total tokens",
           },
           cost: {
-            type: "number",
-            description: "Total cost in specified currency",
+            type: "integer",
+            description: "Total cost in specified currency (millionths)",
           },
           byModel: {
             type: "array",
