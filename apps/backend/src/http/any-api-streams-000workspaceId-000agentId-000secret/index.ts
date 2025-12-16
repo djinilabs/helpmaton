@@ -711,8 +711,34 @@ async function logConversationAsync(
 
     // Extract tool calls and tool results from streamText result
     // streamText result has similar structure to generateText result
-    const toolCallsFromResult = streamResult?.toolCalls || [];
-    const toolResultsFromResult = streamResult?.toolResults || [];
+    // Ensure toolCalls and toolResults are always arrays
+    let toolCallsFromResult = Array.isArray(streamResult?.toolCalls)
+      ? streamResult.toolCalls
+      : [];
+    const toolResultsFromResult = Array.isArray(streamResult?.toolResults)
+      ? streamResult.toolResults
+      : [];
+
+    // FIX: If tool calls are missing but tool results exist, reconstruct tool calls from results
+    // This can happen when tools execute synchronously and the AI SDK doesn't populate toolCalls
+    if (toolCallsFromResult.length === 0 && toolResultsFromResult.length > 0) {
+      console.log(
+        "[Stream Handler] Tool calls missing but tool results exist, reconstructing tool calls from results"
+      );
+      // Reconstruct tool calls from tool results - cast to any since we're creating a compatible structure
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
+      toolCallsFromResult = toolResultsFromResult.map((toolResult: any) => ({
+        toolCallId:
+          toolResult.toolCallId ||
+          `call-${Math.random().toString(36).substring(7)}`,
+        toolName: toolResult.toolName || "unknown",
+        args: toolResult.args || toolResult.input || {},
+      })) as unknown as typeof toolCallsFromResult;
+      console.log(
+        "[Stream Handler] Reconstructed tool calls:",
+        toolCallsFromResult
+      );
+    }
 
     // Format tool calls and results as UI messages
     const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
