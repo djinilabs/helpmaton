@@ -39,8 +39,53 @@ export function calculateTTL(): number {
  */
 export function extractToolCalls(messages: UIMessage[]): unknown[] {
   const toolCalls: unknown[] = [];
+
+  // DIAGNOSTIC: Log input messages
+  console.log("[extractToolCalls] Processing messages:", {
+    messagesCount: messages.length,
+    messages: messages.map((msg) => ({
+      role: msg.role,
+      contentType: typeof msg.content,
+      isArray: Array.isArray(msg.content),
+      contentLength: Array.isArray(msg.content) ? msg.content.length : "N/A",
+      contentPreview: Array.isArray(msg.content)
+        ? msg.content.slice(0, 3).map((item) => ({
+            type:
+              typeof item === "object" && item !== null && "type" in item
+                ? item.type
+                : "unknown",
+            keys:
+              typeof item === "object" && item !== null
+                ? Object.keys(item)
+                : [],
+          }))
+        : "not array",
+    })),
+  });
+
   for (const message of messages) {
     if (message.role === "assistant" && Array.isArray(message.content)) {
+      console.log(
+        "[extractToolCalls] Processing assistant message with array content:",
+        {
+          contentLength: message.content.length,
+          contentItems: message.content.map((item) => ({
+            type: typeof item,
+            isObject: typeof item === "object" && item !== null,
+            hasType:
+              typeof item === "object" && item !== null && "type" in item,
+            typeValue:
+              typeof item === "object" && item !== null && "type" in item
+                ? item.type
+                : undefined,
+            keys:
+              typeof item === "object" && item !== null
+                ? Object.keys(item)
+                : [],
+          })),
+        }
+      );
+
       for (const item of message.content) {
         if (
           typeof item === "object" &&
@@ -48,11 +93,25 @@ export function extractToolCalls(messages: UIMessage[]): unknown[] {
           "type" in item &&
           item.type === "tool-call"
         ) {
+          console.log("[extractToolCalls] Found tool call:", item);
           toolCalls.push(item);
         }
       }
+    } else {
+      console.log("[extractToolCalls] Skipping message:", {
+        role: message.role,
+        isAssistant: message.role === "assistant",
+        isArray: Array.isArray(message.content),
+        contentType: typeof message.content,
+      });
     }
   }
+
+  console.log("[extractToolCalls] Extracted tool calls:", {
+    count: toolCalls.length,
+    toolCalls: toolCalls,
+  });
+
   return toolCalls;
 }
 
@@ -106,6 +165,55 @@ function normalizeContentForComparison(content: UIMessage["content"]): string {
   }
 
   return String(content);
+}
+
+/**
+ * Check if a message has empty content
+ * Returns true if content is empty array, empty string, or array with no valid items
+ */
+export function isMessageContentEmpty(message: UIMessage): boolean {
+  const content = message.content;
+
+  // Empty string or only whitespace
+  if (typeof content === "string") {
+    return content.trim().length === 0;
+  }
+
+  // Empty array
+  if (Array.isArray(content)) {
+    if (content.length === 0) {
+      return true;
+    }
+
+    // Check if all items are invalid/empty
+    let hasValidItem = false;
+    for (const item of content) {
+      if (typeof item === "string" && item.trim().length > 0) {
+        hasValidItem = true;
+        break;
+      } else if (typeof item === "object" && item !== null && "type" in item) {
+        // Valid item types: text, tool-call, tool-result
+        if (item.type === "text" && "text" in item) {
+          const textPart = item as { text?: unknown };
+          if (
+            typeof textPart.text === "string" &&
+            textPart.text.trim().length > 0
+          ) {
+            hasValidItem = true;
+            break;
+          }
+        } else if (item.type === "tool-call" || item.type === "tool-result") {
+          // Tool calls and results are always valid (non-empty)
+          hasValidItem = true;
+          break;
+        }
+      }
+    }
+    return !hasValidItem;
+  }
+
+  // Other types (shouldn't happen, but treat as non-empty to be safe)
+  return false;
 }
 
 /**
@@ -215,6 +323,12 @@ function deduplicateMessages(
  */
 export function extractToolResults(messages: UIMessage[]): unknown[] {
   const toolResults: unknown[] = [];
+
+  // DIAGNOSTIC: Log input messages
+  console.log("[extractToolResults] Processing messages:", {
+    messagesCount: messages.length,
+  });
+
   for (const message of messages) {
     if (message.role === "assistant" && Array.isArray(message.content)) {
       for (const item of message.content) {
@@ -224,6 +338,10 @@ export function extractToolResults(messages: UIMessage[]): unknown[] {
           "type" in item &&
           item.type === "tool-result"
         ) {
+          console.log(
+            "[extractToolResults] Found tool result in assistant message:",
+            item
+          );
           toolResults.push(item);
         }
       }
@@ -235,11 +353,21 @@ export function extractToolResults(messages: UIMessage[]): unknown[] {
           "type" in item &&
           item.type === "tool-result"
         ) {
+          console.log(
+            "[extractToolResults] Found tool result in tool message:",
+            item
+          );
           toolResults.push(item);
         }
       }
     }
   }
+
+  console.log("[extractToolResults] Extracted tool results:", {
+    count: toolResults.length,
+    toolResults: toolResults,
+  });
+
   return toolResults;
 }
 
@@ -441,8 +569,13 @@ export async function startConversation(
   const now = new Date().toISOString();
   const pk = `conversations/${data.workspaceId}/${data.agentId}/${conversationId}`;
 
-  const toolCalls = extractToolCalls(data.messages);
-  const toolResults = extractToolResults(data.messages);
+  // Filter out empty messages before processing
+  const filteredMessages = data.messages.filter(
+    (msg) => !isMessageContentEmpty(msg)
+  );
+
+  const toolCalls = extractToolCalls(filteredMessages);
+  const toolResults = extractToolResults(filteredMessages);
 
   // Calculate costs at conversation time
   const costs = calculateConversationCosts(
@@ -457,7 +590,7 @@ export async function startConversation(
     agentId: data.agentId,
     conversationId,
     conversationType: data.conversationType,
-    messages: data.messages as unknown[],
+    messages: filteredMessages as unknown[],
     toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     toolResults: toolResults.length > 0 ? toolResults : undefined,
     tokenUsage: data.tokenUsage,
@@ -483,7 +616,9 @@ export async function updateConversation(
   agentId: string,
   conversationId: string,
   newMessages: UIMessage[],
-  additionalTokenUsage?: TokenUsage
+  additionalTokenUsage?: TokenUsage,
+  modelName?: string,
+  provider?: string
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
@@ -496,11 +631,15 @@ export async function updateConversation(
 
       if (!existing) {
         // If conversation doesn't exist, create it
-        const toolCalls = extractToolCalls(newMessages);
-        const toolResults = extractToolResults(newMessages);
+        // Filter out empty messages before processing
+        const filteredNewMessages = newMessages.filter(
+          (msg) => !isMessageContentEmpty(msg)
+        );
+        const toolCalls = extractToolCalls(filteredNewMessages);
+        const toolResults = extractToolResults(filteredNewMessages);
         const costs = calculateConversationCosts(
-          "google", // Default provider
-          undefined, // No model name yet
+          provider || "google", // Use provided provider or default
+          modelName || undefined, // Use provided modelName or undefined
           additionalTokenUsage
         );
 
@@ -510,12 +649,12 @@ export async function updateConversation(
           agentId,
           conversationId,
           conversationType: "test" as const, // Default to test if updating non-existent conversation
-          messages: newMessages as unknown[],
+          messages: filteredNewMessages as unknown[],
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
           tokenUsage: additionalTokenUsage,
-          modelName: undefined,
-          provider: "google",
+          modelName: modelName || undefined,
+          provider: provider || "google",
           usesByok: undefined,
           costUsd: costs.usd > 0 ? costs.usd : undefined,
           startedAt: now,
@@ -526,12 +665,24 @@ export async function updateConversation(
 
       // Merge messages, deduplicating based on role and content
       // This prevents duplicate messages when the client sends the full conversation history
+      // Filter out empty messages from newMessages before deduplication
+      const filteredNewMessages = newMessages.filter(
+        (msg) => !isMessageContentEmpty(msg)
+      );
       const existingMessages = (existing.messages || []) as UIMessage[];
-      const allMessages = deduplicateMessages(existingMessages, newMessages);
+      const allMessages = deduplicateMessages(
+        existingMessages,
+        filteredNewMessages
+      );
+
+      // Filter out any empty messages that might have been in existing messages
+      const filteredAllMessages = allMessages.filter(
+        (msg) => !isMessageContentEmpty(msg)
+      );
 
       // Extract all tool calls and results from merged messages
-      const toolCalls = extractToolCalls(allMessages);
-      const toolResults = extractToolResults(allMessages);
+      const toolCalls = extractToolCalls(filteredAllMessages);
+      const toolResults = extractToolResults(filteredAllMessages);
 
       // Aggregate token usage
       const existingTokenUsage = existing.tokenUsage as TokenUsage | undefined;
@@ -541,11 +692,13 @@ export async function updateConversation(
       );
 
       // Recalculate costs with aggregated token usage
-      const provider = existing.provider || "google";
-      const modelName = existing.modelName;
+      // Use provided modelName/provider if available, otherwise preserve existing
+      const finalProvider = provider || existing.provider || "google";
+      const finalModelName =
+        modelName !== undefined ? modelName : existing.modelName;
       const costs = calculateConversationCosts(
-        provider,
-        modelName,
+        finalProvider,
+        finalModelName,
         aggregatedTokenUsage
       );
 
@@ -556,16 +709,16 @@ export async function updateConversation(
         agentId: existing.agentId,
         conversationId: existing.conversationId,
         conversationType: existing.conversationType,
-        messages: allMessages as unknown[],
+        messages: filteredAllMessages as unknown[],
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         toolResults: toolResults.length > 0 ? toolResults : undefined,
         tokenUsage: aggregatedTokenUsage,
         lastMessageAt: now,
         expires: calculateTTL(),
         costUsd: costs.usd > 0 ? costs.usd : undefined,
-        // Preserve existing fields
-        modelName: existing.modelName,
-        provider: existing.provider || "google",
+        // Use provided modelName/provider if available, otherwise preserve existing
+        modelName: finalModelName,
+        provider: finalProvider,
         usesByok: existing.usesByok,
         startedAt: existing.startedAt,
       };
