@@ -620,36 +620,24 @@ async function adjustCreditsAfterStream(
     return;
   }
 
-  try {
-    console.log("[Stream Handler] Adjusting credit reservation:", {
-      workspaceId,
-      reservationId,
-      provider: "google",
-      modelName: finalModelName,
-      tokenUsage,
-    });
-    await adjustCreditReservation(
-      db,
-      reservationId,
-      workspaceId,
-      "google", // provider
-      finalModelName,
-      tokenUsage,
-      3, // maxRetries
-      usesByok
-    );
-    console.log("[Stream Handler] Credit reservation adjusted successfully");
-  } catch (error) {
-    // Log error but don't fail the request (stream already sent)
-    console.error("[Stream Handler] Error adjusting credit reservation:", {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      workspaceId,
-      agentId,
-      reservationId,
-      tokenUsage,
-    });
-  }
+  console.log("[Stream Handler] Adjusting credit reservation:", {
+    workspaceId,
+    reservationId,
+    provider: "google",
+    modelName: finalModelName,
+    tokenUsage,
+  });
+  await adjustCreditReservation(
+    db,
+    reservationId,
+    workspaceId,
+    "google", // provider
+    finalModelName,
+    tokenUsage,
+    3, // maxRetries
+    usesByok
+  );
+  console.log("[Stream Handler] Credit reservation adjusted successfully");
 }
 
 /**
@@ -1090,6 +1078,7 @@ const internalHandler = async (
               errorTokenUsage.completionTokens > 0)
           ) {
             // We have token usage - adjust reservation
+            // Best effort cleanup - don't mask original error
             try {
               await adjustCreditReservation(
                 context.db,
@@ -1101,10 +1090,38 @@ const internalHandler = async (
                 3,
                 context.usesByok
               );
-            } catch (adjustError) {
+            } catch (cleanupError) {
+              // Log cleanup failure but don't mask original error
               console.error(
-                "[Stream Handler] Error adjusting reservation after error:",
-                adjustError
+                "[Stream Handler] Error adjusting reservation during error cleanup:",
+                {
+                  reservationId: context.reservationId,
+                  workspaceId: context.workspaceId,
+                  originalError:
+                    error instanceof Error ? error.message : String(error),
+                  cleanupError:
+                    cleanupError instanceof Error
+                      ? cleanupError.message
+                      : String(cleanupError),
+                }
+              );
+              // Report cleanup failure to Sentry but continue to re-throw original error
+              Sentry.captureException(
+                cleanupError instanceof Error
+                  ? cleanupError
+                  : new Error(String(cleanupError)),
+                {
+                  tags: {
+                    context: "error_cleanup",
+                    operation: "adjustCreditReservation",
+                  },
+                  extra: {
+                    reservationId: context.reservationId,
+                    workspaceId: context.workspaceId,
+                    originalError:
+                      error instanceof Error ? error.message : String(error),
+                  },
+                }
               );
             }
           } else {
@@ -1118,13 +1135,42 @@ const internalHandler = async (
               }
             );
             // Delete reservation without refund
+            // Best effort cleanup - don't mask original error
             try {
               const reservationPk = `credit-reservations/${context.reservationId}`;
               await context.db["credit-reservations"].delete(reservationPk);
-            } catch (deleteError) {
-              console.warn(
-                "[Stream Handler] Error deleting reservation:",
-                deleteError
+            } catch (cleanupError) {
+              // Log cleanup failure but don't mask original error
+              console.error(
+                "[Stream Handler] Error deleting reservation during error cleanup:",
+                {
+                  reservationId: context.reservationId,
+                  workspaceId: context.workspaceId,
+                  originalError:
+                    error instanceof Error ? error.message : String(error),
+                  cleanupError:
+                    cleanupError instanceof Error
+                      ? cleanupError.message
+                      : String(cleanupError),
+                }
+              );
+              // Report cleanup failure to Sentry but continue to re-throw original error
+              Sentry.captureException(
+                cleanupError instanceof Error
+                  ? cleanupError
+                  : new Error(String(cleanupError)),
+                {
+                  tags: {
+                    context: "error_cleanup",
+                    operation: "deleteReservation",
+                  },
+                  extra: {
+                    reservationId: context.reservationId,
+                    workspaceId: context.workspaceId,
+                    originalError:
+                      error instanceof Error ? error.message : String(error),
+                  },
+                }
               );
             }
           }

@@ -421,7 +421,7 @@ describe("creditManagement", () => {
       ).rejects.toThrow("Failed to adjust credit reservation after 2 retries");
     });
 
-    it("should handle delete failure gracefully", async () => {
+    it("should throw error when delete fails", async () => {
       const tokenUsage: TokenUsage = {
         promptTokens: 100,
         completionTokens: 50,
@@ -438,17 +438,17 @@ describe("creditManagement", () => {
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
 
-      // Should not throw even if delete fails
-      const result = await adjustCreditReservation(
-        mockDb,
-        reservationId,
-        "test-workspace",
-        "google",
-        "gemini-2.5-flash",
-        tokenUsage
-      );
-
-      expect(result.creditBalance).toBe(95_000_000);
+      // Should throw when delete fails - errors should propagate to Sentry
+      await expect(
+        adjustCreditReservation(
+          mockDb,
+          reservationId,
+          "test-workspace",
+          "google",
+          "gemini-2.5-flash",
+          tokenUsage
+        )
+      ).rejects.toThrow("Delete failed");
     });
 
     it("should handle reasoning tokens in cost calculation", async () => {
@@ -572,7 +572,7 @@ describe("creditManagement", () => {
       );
     });
 
-    it("should handle delete failure gracefully", async () => {
+    it("should throw error when delete fails", async () => {
       const updatedWorkspace = {
         ...mockWorkspace,
         creditBalance: 110_000_000, // in millionths
@@ -581,8 +581,10 @@ describe("creditManagement", () => {
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
       mockDelete.mockRejectedValue(new Error("Delete failed"));
 
-      // Should not throw even if delete fails
-      await refundReservation(mockDb, reservationId);
+      // Should throw when delete fails - errors should propagate to Sentry
+      await expect(refundReservation(mockDb, reservationId)).rejects.toThrow(
+        "Delete failed"
+      );
 
       expect(mockAtomicUpdate).toHaveBeenCalled();
     });

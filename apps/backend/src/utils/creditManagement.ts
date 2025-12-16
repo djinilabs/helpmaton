@@ -313,25 +313,10 @@ export async function adjustCreditReservation(
     );
 
     // Delete reservation record
-    try {
-      await db["credit-reservations"].delete(reservationPk);
-      console.log(
-        "[adjustCreditReservation] Successfully deleted reservation:",
-        { reservationId }
-      );
-    } catch (deleteError) {
-      // Log but don't fail - reservation might have expired
-      console.warn(
-        "[adjustCreditReservation] Error deleting reservation (may have expired):",
-        {
-          reservationId,
-          error:
-            deleteError instanceof Error
-              ? deleteError.message
-              : String(deleteError),
-        }
-      );
-    }
+    await db["credit-reservations"].delete(reservationPk);
+    console.log("[adjustCreditReservation] Successfully deleted reservation:", {
+      reservationId,
+    });
 
     console.log("[adjustCreditReservation] Successfully adjusted credits:", {
       workspaceId,
@@ -426,21 +411,10 @@ export async function refundReservation(
     );
 
     // Delete reservation record
-    try {
-      await db["credit-reservations"].delete(reservationPk);
-      console.log("[refundReservation] Successfully deleted reservation:", {
-        reservationId,
-      });
-    } catch (deleteError) {
-      // Log but don't fail
-      console.warn("[refundReservation] Error deleting reservation:", {
-        reservationId,
-        error:
-          deleteError instanceof Error
-            ? deleteError.message
-            : String(deleteError),
-      });
-    }
+    await db["credit-reservations"].delete(reservationPk);
+    console.log("[refundReservation] Successfully deleted reservation:", {
+      reservationId,
+    });
 
     console.log("[refundReservation] Successfully refunded credits:", {
       workspaceId: reservation.workspaceId,
