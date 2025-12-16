@@ -140,7 +140,7 @@ function getResponseHeaders(
     headers["Access-Control-Allow-Origin"] = "*";
     headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
     headers["Access-Control-Allow-Headers"] =
-      "Content-Type, Authorization, X-Requested-With, Origin, Accept";
+      "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id";
     return headers;
   }
 
@@ -157,7 +157,7 @@ function getResponseHeaders(
 
   headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
   headers["Access-Control-Allow-Headers"] =
-    "Content-Type, Authorization, X-Requested-With, Origin, Accept";
+    "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id";
 
   console.log("[Stream Handler] Response headers:", headers);
   return headers;
