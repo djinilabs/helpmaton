@@ -41,6 +41,7 @@ import {
   useAgents,
   useUpdateAgent,
 } from "../hooks/useAgents";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useMcpServers } from "../hooks/useMcpServers";
 import {
   useStreamServer,
@@ -172,6 +173,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   const systemPromptRef = useRef<HTMLDivElement>(null);
 
   const { expandedSection, toggleSection } = useAccordion("agent-detail");
+
+  useEscapeKey(isStreamTestModalOpen, () => setIsStreamTestModalOpen(false));
 
   const canEdit = !!(
     workspace.permissionLevel &&
@@ -1789,10 +1792,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             onToggle={() => toggleSection("usage")}
           >
             <LazyAccordionContent isExpanded={expandedSection === "usage"}>
-              <AgentUsageSection
-                workspaceId={workspaceId}
-                agentId={agentId}
-              />
+              <AgentUsageSection workspaceId={workspaceId} agentId={agentId} />
             </LazyAccordionContent>
           </AccordionSection>
         </SectionGroup>

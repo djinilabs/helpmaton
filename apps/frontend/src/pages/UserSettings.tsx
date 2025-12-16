@@ -3,6 +3,7 @@ import type { FC } from "react";
 import { Link } from "react-router-dom";
 
 import { LoadingScreen } from "../components/LoadingScreen";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import {
   useUserApiKeys,
   useCreateUserApiKey,
@@ -77,6 +78,13 @@ const UserSettings: FC = () => {
       minute: "2-digit",
     });
   };
+
+  useEscapeKey(showCreateModal, () => {
+    setShowCreateModal(false);
+    setNewKeyName("");
+  });
+
+  useEscapeKey(!!newlyCreatedKey, () => setNewlyCreatedKey(null));
 
   return (
     <div className="min-h-screen bg-gradient-soft p-6 lg:p-10">

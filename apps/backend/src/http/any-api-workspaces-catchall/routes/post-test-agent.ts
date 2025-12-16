@@ -7,6 +7,7 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import {
   extractTokenUsage,
+  isMessageContentEmpty,
   updateConversation,
 } from "../../../utils/conversationLogger";
 import {
@@ -758,7 +759,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         assistantMessage,
       ];
 
-      // Get valid messages for logging (filter out any invalid ones)
+      // Get valid messages for logging (filter out any invalid ones and empty messages)
       const validMessages: UIMessage[] = messagesForLogging.filter(
         (msg): msg is UIMessage =>
           msg != null &&
@@ -769,7 +770,8 @@ export const registerPostTestAgent = (app: express.Application) => {
             msg.role === "assistant" ||
             msg.role === "system" ||
             msg.role === "tool") &&
-          "content" in msg
+          "content" in msg &&
+          !isMessageContentEmpty(msg)
       );
 
       // Log conversation (non-blocking) - always update existing conversation
@@ -780,7 +782,9 @@ export const registerPostTestAgent = (app: express.Application) => {
           agentId,
           conversationId,
           validMessages,
-          tokenUsage
+          tokenUsage,
+          finalModelName,
+          "google" // provider
         );
       } catch (error) {
         // Log error but don't fail the request

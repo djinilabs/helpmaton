@@ -35,6 +35,7 @@ import {
 import { database } from "../../tables";
 import {
   extractTokenUsage,
+  isMessageContentEmpty,
   updateConversation,
 } from "../../utils/conversationLogger";
 import {
@@ -75,7 +76,7 @@ import {
   setupAgentAndTools,
 } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
-  convertAiSdkUIMessageToUIMessage,
+  convertAiSdkUIMessagesToUIMessages,
   convertTextToUIMessage,
   convertUIMessagesToModelMessages,
 } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion";
@@ -112,6 +113,7 @@ interface StreamRequestContext {
   subscriptionId: string | undefined;
   db: Awaited<ReturnType<typeof database>>;
   uiMessage: UIMessage;
+  convertedMessages: UIMessage[];
   modelMessages: ModelMessage[];
   agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"];
   model: Awaited<ReturnType<typeof setupAgentAndTools>>["model"];
@@ -139,7 +141,7 @@ function getResponseHeaders(
     headers["Access-Control-Allow-Origin"] = "*";
     headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
     headers["Access-Control-Allow-Headers"] =
-      "Content-Type, Authorization, X-Requested-With, Origin, Accept";
+      "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id";
     return headers;
   }
 
@@ -156,7 +158,7 @@ function getResponseHeaders(
 
   headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
   headers["Access-Control-Allow-Headers"] =
-    "Content-Type, Authorization, X-Requested-With, Origin, Accept";
+    "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id";
 
   console.log("[Stream Handler] Response headers:", headers);
   return headers;
@@ -308,11 +310,13 @@ function extractRequestBody(event: LambdaUrlEvent): string {
 function convertRequestBodyToMessages(bodyText: string): {
   uiMessage: UIMessage;
   modelMessages: ModelMessage[];
+  convertedMessages: UIMessage[];
 } {
   // Try to parse as JSON first (for messages with tool results)
   let messages: UIMessage[] | null = null;
   try {
     const parsed = JSON.parse(bodyText);
+
     // Check if it's an array of messages (from useChat)
     if (Array.isArray(parsed) && parsed.length > 0) {
       // Validate that it looks like UIMessage array
@@ -326,22 +330,31 @@ function convertRequestBodyToMessages(bodyText: string): {
         messages = parsed as UIMessage[];
       }
     }
+    // Check if it's an object with a 'messages' property (from useChat with full state)
+    else if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "messages" in parsed &&
+      Array.isArray(parsed.messages) &&
+      parsed.messages.length > 0
+    ) {
+      // Extract the messages array from the object
+      const messagesArray = parsed.messages;
+      const firstMessage = messagesArray[0];
+      if (
+        typeof firstMessage === "object" &&
+        firstMessage !== null &&
+        "role" in firstMessage
+      ) {
+        messages = messagesArray as UIMessage[];
+      }
+    }
   } catch {
     // Not JSON, treat as plain text
   }
 
   // If we have parsed messages, use them; otherwise treat as plain text
   if (messages && messages.length > 0) {
-    // Get the last user message for uiMessage (for logging)
-    const lastUserMessage = messages
-      .slice()
-      .reverse()
-      .find((msg) => msg.role === "user");
-    const uiMessage: UIMessage =
-      lastUserMessage ||
-      (messages[messages.length - 1] as UIMessage) ||
-      convertTextToUIMessage(bodyText);
-
     // Check if messages are in ai-sdk format (have 'parts' property)
     // Messages from useChat will have 'parts', our local format has 'content'
     const firstMsg = messages[0];
@@ -350,6 +363,23 @@ function convertRequestBodyToMessages(bodyText: string): {
       typeof firstMsg === "object" &&
       "parts" in firstMsg &&
       Array.isArray(firstMsg.parts);
+
+    // Convert all messages from AI SDK format to our format if needed
+    let convertedMessages: UIMessage[] = messages;
+    if (isAiSdkFormat) {
+      convertedMessages = convertAiSdkUIMessagesToUIMessages(messages);
+    }
+
+    // Get the last user message for uiMessage (for logging)
+    // Use converted messages to ensure proper format
+    const lastUserMessage = convertedMessages
+      .slice()
+      .reverse()
+      .find((msg) => msg.role === "user");
+    const uiMessage: UIMessage =
+      lastUserMessage ||
+      convertedMessages[convertedMessages.length - 1] ||
+      convertTextToUIMessage(bodyText);
 
     let modelMessages: ModelMessage[];
     try {
@@ -361,8 +391,8 @@ function convertRequestBodyToMessages(bodyText: string): {
         );
       } else {
         // Messages are in our local UIMessage format with 'content'
-        // Use our local converter
-        modelMessages = convertUIMessagesToModelMessages(messages);
+        // Use our local converter with converted messages
+        modelMessages = convertUIMessagesToModelMessages(convertedMessages);
       }
     } catch (error) {
       console.error("[Stream Handler] Error converting messages:", {
@@ -378,7 +408,7 @@ function convertRequestBodyToMessages(bodyText: string): {
       throw error;
     }
 
-    return { uiMessage, modelMessages };
+    return { uiMessage, modelMessages, convertedMessages };
   }
 
   // Fallback to plain text handling
@@ -388,7 +418,7 @@ function convertRequestBodyToMessages(bodyText: string): {
     uiMessage,
   ]);
 
-  return { uiMessage, modelMessages };
+  return { uiMessage, modelMessages, convertedMessages: [uiMessage] };
 }
 
 /**
@@ -691,8 +721,8 @@ async function logConversationAsync(
   workspaceId: string,
   agentId: string,
   conversationId: string,
-  uiMessage: UIMessage,
-  fullStreamedText: string,
+  convertedMessages: UIMessage[],
+  finalResponseText: string,
   tokenUsage: ReturnType<typeof extractTokenUsage>,
   usesByok: boolean,
   finalModelName: string,
@@ -704,14 +734,54 @@ async function logConversationAsync(
   }
 
   try {
-    // Convert uiMessage from ai-sdk format if needed
-    const convertedUiMessage =
-      convertAiSdkUIMessageToUIMessage(uiMessage) || uiMessage;
-
     // Extract tool calls and tool results from streamText result
-    // streamText result has similar structure to generateText result
-    const toolCallsFromResult = streamResult?.toolCalls || [];
-    const toolResultsFromResult = streamResult?.toolResults || [];
+    // streamText result properties are promises that need to be awaited
+    // (same as test endpoint)
+    const [toolCallsFromResultRaw, toolResultsFromResultRaw] =
+      await Promise.all([
+        Promise.resolve(streamResult?.toolCalls).then((tc) => tc || []),
+        Promise.resolve(streamResult?.toolResults).then((tr) => tr || []),
+      ]);
+
+    // Ensure toolCalls and toolResults are always arrays
+    let toolCallsFromResult = Array.isArray(toolCallsFromResultRaw)
+      ? toolCallsFromResultRaw
+      : [];
+    const toolResultsFromResult = Array.isArray(toolResultsFromResultRaw)
+      ? toolResultsFromResultRaw
+      : [];
+
+    // DIAGNOSTIC: Log tool calls and results extracted from stream result
+    console.log("[Stream Handler] Tool calls extracted from stream result:", {
+      toolCallsCount: toolCallsFromResult.length,
+      toolCalls: toolCallsFromResult,
+      toolResultsCount: toolResultsFromResult.length,
+      toolResults: toolResultsFromResult,
+      streamResultKeys: streamResult ? Object.keys(streamResult) : [],
+      hasToolCalls: streamResult && "toolCalls" in streamResult,
+      hasToolResults: streamResult && "toolResults" in streamResult,
+    });
+
+    // FIX: If tool calls are missing but tool results exist, reconstruct tool calls from results
+    // This can happen when tools execute synchronously and the AI SDK doesn't populate toolCalls
+    if (toolCallsFromResult.length === 0 && toolResultsFromResult.length > 0) {
+      console.log(
+        "[Stream Handler] Tool calls missing but tool results exist, reconstructing tool calls from results"
+      );
+      // Reconstruct tool calls from tool results - cast to any since we're creating a compatible structure
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
+      toolCallsFromResult = toolResultsFromResult.map((toolResult: any) => ({
+        toolCallId:
+          toolResult.toolCallId ||
+          `call-${Math.random().toString(36).substring(7)}`,
+        toolName: toolResult.toolName || "unknown",
+        args: toolResult.args || toolResult.input || {},
+      })) as unknown as typeof toolCallsFromResult;
+      console.log(
+        "[Stream Handler] Reconstructed tool calls:",
+        toolCallsFromResult
+      );
+    }
 
     // Format tool calls and results as UI messages
     const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
@@ -751,22 +821,56 @@ async function logConversationAsync(
     }
 
     // Add text response if present
-    if (fullStreamedText && fullStreamedText.trim().length > 0) {
-      assistantContent.push({ type: "text", text: fullStreamedText });
+    // finalResponseText includes the complete final response including continuation responses after tool execution
+    if (finalResponseText && finalResponseText.trim().length > 0) {
+      assistantContent.push({ type: "text", text: finalResponseText });
     }
 
-    // Create assistant message
+    // Create assistant message with token usage (same as test endpoint)
     const assistantMessage: UIMessage = {
       role: "assistant",
       content:
-        assistantContent.length > 0 ? assistantContent : fullStreamedText,
+        assistantContent.length > 0 ? assistantContent : finalResponseText,
+      ...(tokenUsage && { tokenUsage }),
     };
 
-    // Get valid messages for logging (same format as test endpoint)
-    const validMessages: UIMessage[] = [
-      convertedUiMessage,
+    // DIAGNOSTIC: Log assistant message structure
+    console.log("[Stream Handler] Assistant message created:", {
+      role: assistantMessage.role,
+      contentType: typeof assistantMessage.content,
+      isArray: Array.isArray(assistantMessage.content),
+      contentLength: Array.isArray(assistantMessage.content)
+        ? assistantMessage.content.length
+        : "N/A",
+      hasToolCallsInContent: Array.isArray(assistantMessage.content)
+        ? assistantMessage.content.some(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-call"
+          )
+        : false,
+      hasToolResultsInContent: Array.isArray(assistantMessage.content)
+        ? assistantMessage.content.some(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-result"
+          )
+        : false,
+    });
+
+    // Combine all converted messages and assistant message for logging
+    // Deduplication will happen in updateConversation (same as test endpoint)
+    const messagesForLogging: UIMessage[] = [
+      ...convertedMessages,
       assistantMessage,
-    ].filter(
+    ];
+
+    // Get valid messages for logging (filter out any invalid ones and empty messages)
+    const validMessages: UIMessage[] = messagesForLogging.filter(
       (msg): msg is UIMessage =>
         msg != null &&
         typeof msg === "object" &&
@@ -776,7 +880,8 @@ async function logConversationAsync(
           msg.role === "assistant" ||
           msg.role === "system" ||
           msg.role === "tool") &&
-        "content" in msg
+        "content" in msg &&
+        !isMessageContentEmpty(msg)
     );
 
     // Run this asynchronously without blocking - always update existing conversation
@@ -786,7 +891,9 @@ async function logConversationAsync(
       agentId,
       conversationId,
       validMessages,
-      tokenUsage
+      tokenUsage,
+      finalModelName,
+      "google" // provider
     ).catch((error) => {
       // Log error but don't fail the request
       console.error("[Stream Handler] Error logging conversation:", {
@@ -923,7 +1030,8 @@ async function buildRequestContext(
     throw new Error("Request body is required");
   }
 
-  const { uiMessage, modelMessages } = convertRequestBodyToMessages(bodyText);
+  const { uiMessage, modelMessages, convertedMessages } =
+    convertRequestBodyToMessages(bodyText);
 
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
@@ -989,6 +1097,7 @@ async function buildRequestContext(
     subscriptionId,
     db,
     uiMessage,
+    convertedMessages,
     modelMessages,
     agent,
     model,
@@ -1291,8 +1400,36 @@ const internalHandler = async (
       throw new Error("LLM call succeeded but result is undefined");
     }
 
-    // Extract token usage from stream result
-    const tokenUsage = extractTokenUsage(streamResult);
+    // Extract text, tool calls, tool results, and usage from streamText result
+    // streamText result properties are promises that need to be awaited
+    // (same as test endpoint)
+    // streamResult.text includes the complete final response including continuation responses after tool execution
+    const [responseText, usage] = await Promise.all([
+      Promise.resolve(streamResult.text).then((t) => t || ""),
+      Promise.resolve(streamResult.usage),
+    ]);
+
+    // Use responseText (complete final text) instead of fullStreamedText
+    // responseText includes continuation responses after tool execution
+    const finalResponseText = responseText || fullStreamedText;
+
+    // DIAGNOSTIC: Log text extraction
+    console.log("[Stream Handler] Extracted response text:", {
+      responseTextLength: responseText?.length || 0,
+      fullStreamedTextLength: fullStreamedText.length,
+      usingResponseText: !!responseText && responseText.length > 0,
+      responseTextPreview: responseText?.substring(0, 100),
+    });
+
+    const tokenUsage = extractTokenUsage({ ...streamResult, usage });
+
+    // DIAGNOSTIC: Log token usage extraction
+    console.log("[Stream Handler] Extracted token usage:", {
+      tokenUsage,
+      usage,
+      hasUsage: !!usage,
+      streamResultKeys: streamResult ? Object.keys(streamResult) : [],
+    });
 
     // Post-processing: adjust credit reservation, track usage, log conversation
     try {
@@ -1344,8 +1481,8 @@ const internalHandler = async (
       context.workspaceId,
       context.agentId,
       context.conversationId,
-      context.uiMessage,
-      fullStreamedText,
+      context.convertedMessages,
+      finalResponseText,
       tokenUsage,
       context.usesByok,
       context.finalModelName,
