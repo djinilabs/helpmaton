@@ -722,8 +722,7 @@ export const AgentChat: FC<AgentChatProps> = ({
           value={input}
           onChange={handleInputChange}
           placeholder="Type your message..."
-          disabled={isLoading}
-          className="flex-1 border-2 border-neutral-300 rounded-xl p-4 bg-white text-neutral-900 text-base font-medium focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+          className="flex-1 border-2 border-neutral-300 rounded-xl p-4 bg-white text-neutral-900 text-base font-medium focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-600 transition-all duration-200"
         />
         <button
           type="submit"
