@@ -2,7 +2,7 @@
 // We now use direct write() and end() on ResponseStream
 // Using AWS's native streamifyResponse for Lambda Function URLs with RESPONSE_STREAM mode
 
-import { boomify, notAcceptable, unauthorized } from "@hapi/boom";
+import { badRequest, boomify, notAcceptable, unauthorized } from "@hapi/boom";
 import type { ModelMessage } from "ai";
 import { convertToModelMessages, streamText } from "ai";
 
@@ -35,7 +35,7 @@ import {
 import { database } from "../../tables";
 import {
   extractTokenUsage,
-  startConversation,
+  updateConversation,
 } from "../../utils/conversationLogger";
 import {
   InsufficientCreditsError,
@@ -106,6 +106,7 @@ interface StreamRequestContext {
   workspaceId: string;
   agentId: string;
   secret: string;
+  conversationId: string;
   origin: string | undefined;
   allowedOrigins: string[] | null;
   subscriptionId: string | undefined;
@@ -689,6 +690,7 @@ async function logConversationAsync(
   db: Awaited<ReturnType<typeof database>>,
   workspaceId: string,
   agentId: string,
+  conversationId: string,
   uiMessage: UIMessage,
   fullStreamedText: string,
   tokenUsage: ReturnType<typeof extractTokenUsage>,
@@ -777,17 +779,15 @@ async function logConversationAsync(
         "content" in msg
     );
 
-    // Run this asynchronously without blocking
-    await startConversation(db, {
+    // Run this asynchronously without blocking - always update existing conversation
+    await updateConversation(
+      db,
       workspaceId,
       agentId,
-      conversationType: "stream", // Use 'stream' type for streaming endpoint
-      messages: validMessages,
-      tokenUsage,
-      modelName: finalModelName,
-      provider: "google",
-      usesByok,
-    }).catch((error) => {
+      conversationId,
+      validMessages,
+      tokenUsage
+    ).catch((error) => {
       // Log error but don't fail the request
       console.error("[Stream Handler] Error logging conversation:", {
         error: error instanceof Error ? error.message : String(error),
@@ -891,6 +891,13 @@ async function buildRequestContext(
 ): Promise<StreamRequestContext> {
   const { workspaceId, agentId, secret } = pathParams;
 
+  // Read and validate X-Conversation-Id header
+  const conversationId =
+    event.headers["x-conversation-id"] || event.headers["X-Conversation-Id"];
+  if (!conversationId || typeof conversationId !== "string") {
+    throw badRequest("X-Conversation-Id header is required");
+  }
+
   // Get allowed origins for CORS
   const allowedOrigins = await getAllowedOrigins(workspaceId, agentId);
   const origin = event.headers["origin"] || event.headers["Origin"];
@@ -976,6 +983,7 @@ async function buildRequestContext(
     workspaceId,
     agentId,
     secret,
+    conversationId,
     origin,
     allowedOrigins,
     subscriptionId,
@@ -1335,6 +1343,7 @@ const internalHandler = async (
       context.db,
       context.workspaceId,
       context.agentId,
+      context.conversationId,
       context.uiMessage,
       fullStreamedText,
       tokenUsage,

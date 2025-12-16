@@ -3,7 +3,7 @@ import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FC } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -14,6 +14,23 @@ interface AgentChatProps {
   api?: string; // Optional custom API endpoint URL
 }
 
+/**
+ * Generate a UUID v4 (fallback for older browsers)
+ */
+function generateUUID(): string {
+  // Use crypto.randomUUID if available (modern browsers)
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+
+  // Fallback: generate UUID v4 manually
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export const AgentChat: FC<AgentChatProps> = ({
   workspaceId,
   agentId,
@@ -22,13 +39,35 @@ export const AgentChat: FC<AgentChatProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
 
+  // Generate and memoize conversation ID for this chat instance
+  const conversationId = useMemo(() => generateUUID(), []);
+
+  // Create a custom fetch function that adds the X-Conversation-Id header
+  const fetchWithConversationId = useMemo(() => {
+    return async (
+      input: RequestInfo | URL,
+      init?: RequestInit
+    ): Promise<Response> => {
+      // Use the global fetch (which includes Authorization header)
+      const globalFetch = typeof window !== "undefined" ? window.fetch : fetch;
+
+      // Add X-Conversation-Id header to the request
+      const headers = new Headers(init?.headers);
+      headers.set("X-Conversation-Id", conversationId);
+
+      return globalFetch(input, {
+        ...init,
+        headers,
+      });
+    };
+  }, [conversationId]);
+
   const { messages, sendMessage, status, error, addToolOutput } = useChat({
     transport: new DefaultChatTransport({
       api: api || `/api/workspaces/${workspaceId}/agents/${agentId}/test`,
       credentials: api ? "omit" : "include", // Lambda Function URLs don't use cookies
-      // Explicitly use the global fetch (which includes our Authorization header override)
-      // This ensures DefaultChatTransport uses our enhanced fetch with automatic token handling
-      fetch: typeof window !== "undefined" ? window.fetch : fetch,
+      // Use custom fetch that includes X-Conversation-Id header
+      fetch: fetchWithConversationId,
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     onToolCall: async ({ toolCall }) => {
@@ -552,6 +591,58 @@ export const AgentChat: FC<AgentChatProps> = ({
                 );
               };
 
+              // Check if message has tokenUsage (can exist on any message type)
+              const tokenUsage =
+                "tokenUsage" in message &&
+                message.tokenUsage &&
+                typeof message.tokenUsage === "object" &&
+                "totalTokens" in message.tokenUsage
+                  ? (message.tokenUsage as {
+                      promptTokens?: number;
+                      completionTokens?: number;
+                      totalTokens?: number;
+                      reasoningTokens?: number;
+                      cachedPromptTokens?: number;
+                    })
+                  : null;
+
+              const formatTokenUsage = (usage: {
+                promptTokens?: number;
+                completionTokens?: number;
+                totalTokens?: number;
+                reasoningTokens?: number;
+                cachedPromptTokens?: number;
+              }): string => {
+                const parts: string[] = [];
+                if (typeof usage.promptTokens === "number") {
+                  parts.push(`P: ${usage.promptTokens.toLocaleString()}`);
+                }
+                if (typeof usage.completionTokens === "number") {
+                  parts.push(`C: ${usage.completionTokens.toLocaleString()}`);
+                }
+                if (
+                  typeof usage.reasoningTokens === "number" &&
+                  usage.reasoningTokens > 0
+                ) {
+                  parts.push(`R: ${usage.reasoningTokens.toLocaleString()}`);
+                }
+                if (
+                  typeof usage.cachedPromptTokens === "number" &&
+                  usage.cachedPromptTokens > 0
+                ) {
+                  parts.push(
+                    `Cache: ${usage.cachedPromptTokens.toLocaleString()}`
+                  );
+                }
+                const total =
+                  typeof usage.totalTokens === "number"
+                    ? usage.totalTokens.toLocaleString()
+                    : "0";
+                return parts.length > 0
+                  ? `${total} (${parts.join(", ")})`
+                  : total;
+              };
+
               return (
                 <div key={message.id} className="space-y-2">
                   {/* Render all parts in order */}
@@ -569,8 +660,15 @@ export const AgentChat: FC<AgentChatProps> = ({
                             key={`${message.id}-container-${partIndex}`}
                             className={`rounded-xl p-4 ${getRoleStyling()} max-w-[80%]`}
                           >
-                            <div className="text-xs font-medium mb-2 opacity-80">
-                              {getRoleLabel()}
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="text-xs font-medium opacity-80">
+                                {getRoleLabel()}
+                              </div>
+                              {tokenUsage && (
+                                <div className="text-xs font-mono opacity-70 bg-black bg-opacity-10 px-2 py-1 rounded">
+                                  {formatTokenUsage(tokenUsage)}
+                                </div>
+                              )}
                             </div>
                             {renderPart(part, partIndex)}
                           </div>
@@ -584,8 +682,15 @@ export const AgentChat: FC<AgentChatProps> = ({
                     <div
                       className={`rounded-xl p-5 ${getRoleStyling()} max-w-[80%]`}
                     >
-                      <div className="text-sm font-bold mb-3 opacity-90">
-                        {getRoleLabel()}
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="text-sm font-bold opacity-90">
+                          {getRoleLabel()}
+                        </div>
+                        {tokenUsage && (
+                          <div className="text-xs font-mono opacity-70 bg-black bg-opacity-10 px-2 py-1 rounded">
+                            {formatTokenUsage(tokenUsage)}
+                          </div>
+                        )}
                       </div>
                       <div className="text-base text-neutral-600 italic font-medium">
                         (Empty message)

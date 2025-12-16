@@ -28,6 +28,13 @@ export type UIMessage =
       content:
         | string
         | Array<TextContent | ToolCallContent | ToolResultContent>;
+      tokenUsage?: {
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+        reasoningTokens?: number;
+        cachedPromptTokens?: number;
+      };
     }
   | {
       role: "system";
@@ -50,4 +57,3 @@ export interface HttpResponseMetadata {
   statusMessage: string;
   headers: Record<string, string | string[]>;
 }
-

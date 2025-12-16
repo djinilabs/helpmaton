@@ -57,6 +57,160 @@ export function extractToolCalls(messages: UIMessage[]): unknown[] {
 }
 
 /**
+ * Normalize message content to extract text for comparison
+ * Handles both string and array formats, extracting text content
+ */
+function normalizeContentForComparison(content: UIMessage["content"]): string {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    // Extract all text from the array
+    const textParts: string[] = [];
+    for (const part of content) {
+      if (typeof part === "string") {
+        textParts.push(part);
+      } else if (typeof part === "object" && part !== null && "type" in part) {
+        if (part.type === "text" && "text" in part) {
+          const textPart = part as { text?: unknown };
+          if (typeof textPart.text === "string") {
+            textParts.push(textPart.text);
+          }
+        }
+        // For tool calls and results, include them in the key to distinguish messages
+        else if (part.type === "tool-call") {
+          const toolPart = part as {
+            toolName?: unknown;
+            args?: unknown;
+          };
+          textParts.push(
+            `[tool-call:${String(toolPart.toolName || "")}:${JSON.stringify(
+              toolPart.args || {}
+            )}]`
+          );
+        } else if (part.type === "tool-result") {
+          const toolPart = part as {
+            toolName?: unknown;
+            toolCallId?: unknown;
+          };
+          textParts.push(
+            `[tool-result:${String(toolPart.toolName || "")}:${String(
+              toolPart.toolCallId || ""
+            )}]`
+          );
+        }
+      }
+    }
+    return textParts.join("");
+  }
+
+  return String(content);
+}
+
+/**
+ * Generate a unique key for a message based on its role and content
+ * Used for deduplication when merging conversations
+ * Normalizes content so that string and array formats with the same text are treated as duplicates
+ */
+function getMessageKey(message: UIMessage): string {
+  const role = message.role;
+  const contentKey = normalizeContentForComparison(message.content);
+  return `${role}:${contentKey}`;
+}
+
+/**
+ * Deduplicate messages based on role and content
+ * When appending new messages, check if each is a duplicate before adding
+ */
+function deduplicateMessages(
+  existingMessages: UIMessage[],
+  newMessages: UIMessage[]
+): UIMessage[] {
+  // Start with existing messages
+  const deduplicated: UIMessage[] = [...existingMessages];
+  const seenKeys = new Set<string>();
+
+  // Track keys of existing messages
+  for (const msg of existingMessages) {
+    const key = getMessageKey(msg);
+    seenKeys.add(key);
+  }
+
+  // Append each new message, checking for duplicates first
+  for (const newMsg of newMessages) {
+    const key = getMessageKey(newMsg);
+
+    if (!seenKeys.has(key)) {
+      // Not a duplicate - add it
+      deduplicated.push(newMsg);
+      seenKeys.add(key);
+    } else {
+      // Duplicate found - check if we should update the existing one
+      const existingIndex = deduplicated.findIndex(
+        (msg) => getMessageKey(msg) === key
+      );
+
+      if (existingIndex >= 0) {
+        const existing = deduplicated[existingIndex];
+
+        // Check if either message has tokenUsage (can exist on any message type)
+        const existingHasTokenUsage =
+          "tokenUsage" in existing &&
+          existing.tokenUsage &&
+          typeof existing.tokenUsage === "object" &&
+          "totalTokens" in existing.tokenUsage &&
+          typeof (existing.tokenUsage as { totalTokens?: unknown })
+            .totalTokens === "number" &&
+          (existing.tokenUsage as { totalTokens: number }).totalTokens > 0;
+        const newHasTokenUsage =
+          "tokenUsage" in newMsg &&
+          newMsg.tokenUsage &&
+          typeof newMsg.tokenUsage === "object" &&
+          "totalTokens" in newMsg.tokenUsage &&
+          typeof (newMsg.tokenUsage as { totalTokens?: unknown })
+            .totalTokens === "number" &&
+          (newMsg.tokenUsage as { totalTokens: number }).totalTokens > 0;
+
+        // Prefer array format over string format (more structured)
+        const existingIsArray = Array.isArray(existing.content);
+        const newIsArray = Array.isArray(newMsg.content);
+
+        // Update existing message if:
+        // 1. New has tokenUsage and existing doesn't, OR
+        // 2. Both have tokenUsage but new has better format (array), OR
+        // 3. New has better format and existing has no tokenUsage
+        if (
+          (newHasTokenUsage && !existingHasTokenUsage) ||
+          (newHasTokenUsage &&
+            existingHasTokenUsage &&
+            newIsArray &&
+            !existingIsArray) ||
+          (!existingHasTokenUsage && newIsArray && !existingIsArray)
+        ) {
+          // Replace with new message (has tokenUsage or better format)
+          deduplicated[existingIndex] = newMsg;
+        } else if (
+          existingHasTokenUsage &&
+          !newHasTokenUsage &&
+          newIsArray &&
+          !existingIsArray
+        ) {
+          // Existing has tokenUsage, new doesn't, but new has better format - merge
+          deduplicated[existingIndex] = {
+            ...newMsg,
+            tokenUsage: existing.tokenUsage,
+          } as UIMessage;
+        }
+        // Otherwise keep existing (it has tokenUsage or is already in better format)
+      }
+    }
+  }
+
+  return deduplicated;
+}
+
+/**
  * Extract tool results from messages
  */
 export function extractToolResults(messages: UIMessage[]): unknown[] {
@@ -91,13 +245,13 @@ export function extractToolResults(messages: UIMessage[]): unknown[] {
 
 /**
  * Aggregate token usage from multiple usage objects
+ * Ensures reasoning tokens are included in the total
  */
 export function aggregateTokenUsage(
   ...usages: Array<TokenUsage | undefined>
 ): TokenUsage {
   let promptTokens = 0;
   let completionTokens = 0;
-  let totalTokens = 0;
   let reasoningTokens = 0;
   let cachedPromptTokens = 0;
 
@@ -105,11 +259,14 @@ export function aggregateTokenUsage(
     if (usage) {
       promptTokens += usage.promptTokens || 0;
       completionTokens += usage.completionTokens || 0;
-      totalTokens += usage.totalTokens || 0;
       reasoningTokens += usage.reasoningTokens || 0;
       cachedPromptTokens += usage.cachedPromptTokens || 0;
     }
   }
+
+  // Calculate totalTokens as the sum of prompt, completion, and reasoning tokens
+  // This ensures reasoning tokens are always included in the total
+  const totalTokens = promptTokens + completionTokens + reasoningTokens;
 
   const aggregated: TokenUsage = {
     promptTokens,
@@ -157,10 +314,7 @@ export function extractTokenUsage(
   // - inputTokens/outputTokens (some provider adapters use these)
   // - promptTokenCount/completionTokenCount (Google API format)
   const promptTokens =
-    usage.promptTokens ??
-    usage.inputTokens ??
-    usage.promptTokenCount ??
-    0;
+    usage.promptTokens ?? usage.inputTokens ?? usage.promptTokenCount ?? 0;
   const completionTokens =
     usage.completionTokens ??
     usage.outputTokens ??
@@ -185,10 +339,7 @@ export function extractTokenUsage(
   // - usage.reasoningTokens
   // - nested in usage object
   const reasoningTokens =
-    usage.reasoningTokens ??
-    usage.reasoning ??
-    result.reasoningTokens ??
-    0;
+    usage.reasoningTokens ?? usage.reasoning ?? result.reasoningTokens ?? 0;
 
   // Calculate non-cached prompt tokens
   // If we have cached tokens, the promptTokens might include them
@@ -235,10 +386,18 @@ export function extractTokenUsage(
     );
   }
 
+  // Calculate totalTokens as the sum of prompt, completion, and reasoning tokens
+  // This ensures reasoning tokens are always included in the total
+  // Use the calculated total if it's greater than the provided totalTokens
+  // (some APIs might not include reasoning tokens in their totalTokens)
+  const calculatedTotal =
+    nonCachedPromptTokens + completionTokens + reasoningTokens;
+  const finalTotalTokens = Math.max(totalTokens, calculatedTotal);
+
   const tokenUsage: TokenUsage = {
     promptTokens: nonCachedPromptTokens, // Store non-cached prompt tokens
     completionTokens,
-    totalTokens,
+    totalTokens: finalTotalTokens,
   };
 
   // Only include optional fields if they're greater than 0
@@ -312,6 +471,7 @@ export async function startConversation(
 
 /**
  * Update an existing conversation with new messages and token usage
+ * Uses atomicUpdate to ensure thread-safe updates
  */
 export async function updateConversation(
   db: DatabaseSchema,
@@ -323,80 +483,88 @@ export async function updateConversation(
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
-  // Get existing conversation
-  const existing = await db["agent-conversations"].get(pk);
-  if (!existing) {
-    // If conversation doesn't exist, create it
-    await startConversation(db, {
-      workspaceId,
-      agentId,
-      conversationType: "test", // Default to test if updating non-existent conversation
-      messages: newMessages,
-      tokenUsage: additionalTokenUsage,
-    });
-    return;
-  }
-
-  // Merge messages
-  const existingMessages = (existing.messages || []) as UIMessage[];
-  const allMessages = [...existingMessages, ...newMessages];
-
-  // Extract all tool calls and results from merged messages
-  const toolCalls = extractToolCalls(allMessages);
-  const toolResults = extractToolResults(allMessages);
-
-  // Aggregate token usage
-  const existingTokenUsage = existing.tokenUsage as TokenUsage | undefined;
-  const aggregatedTokenUsage = aggregateTokenUsage(
-    existingTokenUsage,
-    additionalTokenUsage
-  );
-
-  // Recalculate costs with aggregated token usage
-  const provider = existing.provider;
-  const modelName = existing.modelName;
-  const costs = calculateConversationCosts(
-    provider,
-    modelName,
-    aggregatedTokenUsage
-  );
-
-  // Update conversation
-  // Preserve existing modelName and provider if they exist, don't overwrite
-  const updateData: {
-    pk: string;
-    messages: unknown[];
-    toolCalls?: unknown[];
-    toolResults?: unknown[];
-    tokenUsage: TokenUsage;
-    lastMessageAt: string;
-    expires: number;
-    modelName?: string;
-    provider?: string;
-    usesByok?: boolean;
-    costUsd?: number;
-  } = {
+  // Use atomicUpdate to ensure thread-safe conversation updates
+  await db["agent-conversations"].atomicUpdate(
     pk,
-    messages: allMessages as unknown[],
-    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-    toolResults: toolResults.length > 0 ? toolResults : undefined,
-    tokenUsage: aggregatedTokenUsage,
-    lastMessageAt: new Date().toISOString(),
-    expires: calculateTTL(),
-    costUsd: costs.usd > 0 ? costs.usd : undefined,
-  };
+    undefined,
+    async (existing) => {
+      const now = new Date().toISOString();
 
-  // Preserve existing modelName and provider if they exist
-  if (existing.modelName) {
-    updateData.modelName = existing.modelName;
-  }
-  if (existing.provider) {
-    updateData.provider = existing.provider;
-  }
-  // Preserve usesByok if it exists
-  if (existing.usesByok !== undefined) {
-    updateData.usesByok = existing.usesByok;
-  }
+      if (!existing) {
+        // If conversation doesn't exist, create it
+        const toolCalls = extractToolCalls(newMessages);
+        const toolResults = extractToolResults(newMessages);
+        const costs = calculateConversationCosts(
+          "google", // Default provider
+          undefined, // No model name yet
+          additionalTokenUsage
+        );
 
-  await db["agent-conversations"].update(updateData);
+        return {
+          pk,
+          workspaceId,
+          agentId,
+          conversationId,
+          conversationType: "test" as const, // Default to test if updating non-existent conversation
+          messages: newMessages as unknown[],
+          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+          toolResults: toolResults.length > 0 ? toolResults : undefined,
+          tokenUsage: additionalTokenUsage,
+          modelName: undefined,
+          provider: "google",
+          usesByok: undefined,
+          costUsd: costs.usd > 0 ? costs.usd : undefined,
+          startedAt: now,
+          lastMessageAt: now,
+          expires: calculateTTL(),
+        };
+      }
+
+      // Merge messages, deduplicating based on role and content
+      // This prevents duplicate messages when the client sends the full conversation history
+      const existingMessages = (existing.messages || []) as UIMessage[];
+      const allMessages = deduplicateMessages(existingMessages, newMessages);
+
+      // Extract all tool calls and results from merged messages
+      const toolCalls = extractToolCalls(allMessages);
+      const toolResults = extractToolResults(allMessages);
+
+      // Aggregate token usage
+      const existingTokenUsage = existing.tokenUsage as TokenUsage | undefined;
+      const aggregatedTokenUsage = aggregateTokenUsage(
+        existingTokenUsage,
+        additionalTokenUsage
+      );
+
+      // Recalculate costs with aggregated token usage
+      const provider = existing.provider || "google";
+      const modelName = existing.modelName;
+      const costs = calculateConversationCosts(
+        provider,
+        modelName,
+        aggregatedTokenUsage
+      );
+
+      // Update conversation, preserving existing fields
+      return {
+        pk,
+        workspaceId: existing.workspaceId,
+        agentId: existing.agentId,
+        conversationId: existing.conversationId,
+        conversationType: existing.conversationType,
+        messages: allMessages as unknown[],
+        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+        toolResults: toolResults.length > 0 ? toolResults : undefined,
+        tokenUsage: aggregatedTokenUsage,
+        lastMessageAt: now,
+        expires: calculateTTL(),
+        costUsd: costs.usd > 0 ? costs.usd : undefined,
+        // Preserve existing fields
+        modelName: existing.modelName,
+        provider: existing.provider || "google",
+        usesByok: existing.usesByok,
+        startedAt: existing.startedAt,
+      };
+    }
+  );
 }
