@@ -890,7 +890,9 @@ async function logConversationAsync(
       agentId,
       conversationId,
       validMessages,
-      tokenUsage
+      tokenUsage,
+      finalModelName,
+      "google" // provider
     ).catch((error) => {
       // Log error but don't fail the request
       console.error("[Stream Handler] Error logging conversation:", {

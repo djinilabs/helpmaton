@@ -616,7 +616,9 @@ export async function updateConversation(
   agentId: string,
   conversationId: string,
   newMessages: UIMessage[],
-  additionalTokenUsage?: TokenUsage
+  additionalTokenUsage?: TokenUsage,
+  modelName?: string,
+  provider?: string
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
@@ -636,8 +638,8 @@ export async function updateConversation(
         const toolCalls = extractToolCalls(filteredNewMessages);
         const toolResults = extractToolResults(filteredNewMessages);
         const costs = calculateConversationCosts(
-          "google", // Default provider
-          undefined, // No model name yet
+          provider || "google", // Use provided provider or default
+          modelName || undefined, // Use provided modelName or undefined
           additionalTokenUsage
         );
 
@@ -651,8 +653,8 @@ export async function updateConversation(
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
           tokenUsage: additionalTokenUsage,
-          modelName: undefined,
-          provider: "google",
+          modelName: modelName || undefined,
+          provider: provider || "google",
           usesByok: undefined,
           costUsd: costs.usd > 0 ? costs.usd : undefined,
           startedAt: now,
@@ -690,11 +692,13 @@ export async function updateConversation(
       );
 
       // Recalculate costs with aggregated token usage
-      const provider = existing.provider || "google";
-      const modelName = existing.modelName;
+      // Use provided modelName/provider if available, otherwise preserve existing
+      const finalProvider = provider || existing.provider || "google";
+      const finalModelName =
+        modelName !== undefined ? modelName : existing.modelName;
       const costs = calculateConversationCosts(
-        provider,
-        modelName,
+        finalProvider,
+        finalModelName,
         aggregatedTokenUsage
       );
 
@@ -712,9 +716,9 @@ export async function updateConversation(
         lastMessageAt: now,
         expires: calculateTTL(),
         costUsd: costs.usd > 0 ? costs.usd : undefined,
-        // Preserve existing fields
-        modelName: existing.modelName,
-        provider: existing.provider || "google",
+        // Use provided modelName/provider if available, otherwise preserve existing
+        modelName: finalModelName,
+        provider: finalProvider,
         usesByok: existing.usesByok,
         startedAt: existing.startedAt,
       };

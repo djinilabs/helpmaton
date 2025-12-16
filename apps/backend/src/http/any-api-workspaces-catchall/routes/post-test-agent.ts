@@ -782,7 +782,9 @@ export const registerPostTestAgent = (app: express.Application) => {
           agentId,
           conversationId,
           validMessages,
-          tokenUsage
+          tokenUsage,
+          finalModelName,
+          "google" // provider
         );
       } catch (error) {
         // Log error but don't fail the request
