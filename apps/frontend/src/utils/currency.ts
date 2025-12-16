@@ -22,8 +22,6 @@ export function toMillionths(amount: number): number {
 
 const CURRENCY_SYMBOLS: Record<Currency, string> = {
   usd: "$",
-  eur: "€",
-  gbp: "£",
 };
 
 /**

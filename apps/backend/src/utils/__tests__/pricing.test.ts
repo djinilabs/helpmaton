@@ -13,16 +13,6 @@ const { mockPricingConfig } = vi.hoisted(() => {
                 output: 2.0,
                 cachedInput: 0.1,
               },
-              eur: {
-                input: 0.85,
-                output: 1.7,
-                cachedInput: 0.085,
-              },
-              gbp: {
-                input: 0.75,
-                output: 1.5,
-                cachedInput: 0.075,
-              },
             },
             "test-tiered-model": {
               usd: {
@@ -39,48 +29,12 @@ const { mockPricingConfig } = vi.hoisted(() => {
                   },
                 ],
               },
-              eur: {
-                tiers: [
-                  {
-                    threshold: 200000,
-                    input: 1.0625,
-                    output: 4.25,
-                  },
-                  {
-                    input: 2.125,
-                    output: 8.5,
-                  },
-                ],
-              },
-              gbp: {
-                tiers: [
-                  {
-                    threshold: 200000,
-                    input: 0.9375,
-                    output: 3.75,
-                  },
-                  {
-                    input: 1.875,
-                    output: 7.5,
-                  },
-                ],
-              },
             },
             "test-reasoning-model": {
               usd: {
                 input: 1.0,
                 output: 2.0,
                 reasoning: 3.5,
-              },
-              eur: {
-                input: 0.85,
-                output: 1.7,
-                reasoning: 2.975,
-              },
-              gbp: {
-                input: 0.75,
-                output: 1.5,
-                reasoning: 2.625,
               },
             },
             "test-tiered-reasoning-model": {
@@ -184,8 +138,7 @@ describe("pricing", () => {
         "google",
         "test-flat-model",
         1000000, // 1M input tokens
-        500000, // 0.5M output tokens
-        "usd"
+        500000 // 0.5M output tokens
       );
 
       // 1M * $1.0 + 0.5M * $2.0 = $1.0 + $1.0 = $2.0 = 2_000_000 millionths
@@ -197,31 +150,13 @@ describe("pricing", () => {
         "google",
         "test-flat-model",
         1000000,
-        500000,
-        "usd"
+        500000
       );
-      const eurCost = calculateTokenCost(
-        "google",
-        "test-flat-model",
-        1000000,
-        500000,
-        "eur"
-      );
-      const gbpCost = calculateTokenCost(
-        "google",
-        "test-flat-model",
-        1000000,
-        500000,
-        "gbp"
-      );
-
       expect(usdCost).toBe(2_000_000); // 2.0 USD in millionths
-      expect(eurCost).toBe(1_700_000); // 1.7 EUR in millionths (1M * 0.85 + 0.5M * 1.7)
-      expect(gbpCost).toBe(1_500_000); // 1.5 GBP in millionths (1M * 0.75 + 0.5M * 1.5)
     });
 
     it("should return 0 for zero tokens", () => {
-      const cost = calculateTokenCost("google", "test-flat-model", 0, 0, "usd");
+      const cost = calculateTokenCost("google", "test-flat-model", 0, 0);
       expect(cost).toBe(0);
     });
 
@@ -230,8 +165,7 @@ describe("pricing", () => {
         "google",
         "test-flat-model",
         1000, // 0.001M tokens
-        500, // 0.0005M tokens
-        "usd"
+        500 // 0.0005M tokens
       );
 
       // 0.001 * $1.0 + 0.0005 * $2.0 = $0.001 + $0.001 = $0.002 = 2_000 millionths
@@ -246,8 +180,7 @@ describe("pricing", () => {
         "google",
         "test-tiered-model",
         150000, // 150k tokens (below 200k threshold)
-        50000, // 50k tokens
-        "usd"
+        50000 // 50k tokens
       );
 
       // 150k * $1.25 + 50k * $5.0 = 0.15 * $1.25 + 0.05 * $5.0 = $0.1875 + $0.25 = $0.4375 = 437_500 millionths
@@ -260,8 +193,7 @@ describe("pricing", () => {
         "google",
         "test-tiered-model",
         250000, // 250k tokens (50k above 200k threshold)
-        100000, // 100k tokens
-        "usd"
+        100000 // 100k tokens
       );
 
       // Input: 200k * $1.25 + 50k * $2.5 = 0.2 * $1.25 + 0.05 * $2.5 = $0.25 + $0.125 = $0.375 = 375_000 millionths
@@ -276,8 +208,7 @@ describe("pricing", () => {
         "google",
         "test-tiered-model",
         200000, // Exactly at threshold
-        200000,
-        "usd"
+        200000
       );
 
       // Input: 200k * $1.25 = 0.2 * $1.25 = $0.25 = 250_000 millionths
@@ -291,8 +222,7 @@ describe("pricing", () => {
         "google",
         "test-tiered-model",
         500000, // 500k tokens (300k above threshold)
-        300000, // 300k tokens
-        "usd"
+        300000 // 300k tokens
       );
 
       // Input: 200k * $1.25 + 300k * $2.5 = 0.2 * $1.25 + 0.3 * $2.5 = $0.25 + $0.75 = $1.0 = 1_000_000 millionths
@@ -309,7 +239,6 @@ describe("pricing", () => {
         "test-reasoning-model",
         1000000, // 1M input
         500000, // 0.5M output
-        "usd",
         200000 // 0.2M reasoning
       );
 
@@ -326,7 +255,6 @@ describe("pricing", () => {
         "test-tiered-reasoning-model",
         150000, // 150k input (below threshold)
         50000, // 50k output
-        "usd",
         100000 // 100k reasoning
       );
 
@@ -343,7 +271,6 @@ describe("pricing", () => {
         "test-tiered-reasoning-model",
         250000, // 250k input (50k above threshold)
         100000, // 100k output
-        "usd",
         250000 // 250k reasoning (50k above threshold)
       );
 
@@ -360,7 +287,6 @@ describe("pricing", () => {
         "test-reasoning-model",
         1000000,
         500000,
-        "usd",
         200000
       );
 
@@ -369,7 +295,6 @@ describe("pricing", () => {
         "test-reasoning-model",
         1000000,
         500000,
-        "usd",
         0
       );
 
@@ -388,8 +313,6 @@ describe("pricing", () => {
       );
 
       expect(costs.usd).toBe(2_000_000); // 2.0 USD in millionths
-      expect(costs.eur).toBe(1_700_000); // 1.7 EUR in millionths
-      expect(costs.gbp).toBe(1_500_000); // 1.5 GBP in millionths
     });
 
     it("should calculate costs with reasoning tokens for all currencies", () => {
@@ -402,8 +325,6 @@ describe("pricing", () => {
       );
 
       expect(costs.usd).toBe(2_700_000); // 2.7 USD in millionths
-      expect(costs.eur).toBeGreaterThan(0);
-      expect(costs.gbp).toBeGreaterThan(0);
     });
   });
 
@@ -413,8 +334,7 @@ describe("pricing", () => {
         "google",
         "non-existent-model",
         1000000,
-        500000,
-        "usd"
+        500000
       );
       expect(cost).toBe(0);
     });
@@ -424,20 +344,13 @@ describe("pricing", () => {
         "openai",
         "test-flat-model",
         1000000,
-        500000,
-        "usd"
+        500000
       );
       expect(cost).toBe(0);
     });
 
     it("should handle negative token counts gracefully", () => {
-      const cost = calculateTokenCost(
-        "google",
-        "test-flat-model",
-        -1000,
-        -500,
-        "usd"
-      );
+      const cost = calculateTokenCost("google", "test-flat-model", -1000, -500);
       // Should not throw, but may return unexpected result
       expect(typeof cost).toBe("number");
     });
@@ -447,8 +360,7 @@ describe("pricing", () => {
         "google",
         "test-flat-model",
         333333, // 0.333333M tokens
-        666666, // 0.666666M tokens
-        "usd"
+        666666 // 0.666666M tokens
       );
 
       // 0.333333 * $1.0 + 0.666666 * $2.0 = $0.333333 + $1.333332 = $1.666665
@@ -466,7 +378,6 @@ describe("pricing", () => {
         "test-flat-model",
         1000000, // 1M non-cached input tokens
         500000, // 0.5M output tokens
-        "usd",
         0, // no reasoning tokens
         200000 // 0.2M cached tokens
       );
@@ -482,7 +393,6 @@ describe("pricing", () => {
         "test-reasoning-model", // This model doesn't have cachedInput in mock
         1000000, // 1M non-cached input tokens
         500000, // 0.5M output tokens
-        "usd",
         0, // no reasoning tokens
         200000 // 0.2M cached tokens (will use input pricing as fallback)
       );
@@ -497,7 +407,6 @@ describe("pricing", () => {
         "test-flat-model",
         0, // no non-cached input tokens
         0, // no output tokens
-        "usd",
         0, // no reasoning tokens
         200000 // 0.2M cached tokens
       );
@@ -506,38 +415,17 @@ describe("pricing", () => {
       expect(cost).toBe(20_000);
     });
 
-    it("should calculate cached token cost in different currencies", () => {
+    it("should calculate cached token cost", () => {
       const usdCost = calculateTokenCost(
         "google",
         "test-flat-model",
         1000000,
         500000,
-        "usd",
-        0,
-        200000
-      );
-      const eurCost = calculateTokenCost(
-        "google",
-        "test-flat-model",
-        1000000,
-        500000,
-        "eur",
-        0,
-        200000
-      );
-      const gbpCost = calculateTokenCost(
-        "google",
-        "test-flat-model",
-        1000000,
-        500000,
-        "gbp",
         0,
         200000
       );
 
       expect(usdCost).toBe(2_020_000); // 2.02 USD in millionths (1.0 + 0.02 + 1.0)
-      expect(eurCost).toBe(1_717_000); // 1.717 EUR in millionths (0.85 + 0.017 + 0.85)
-      expect(gbpCost).toBe(1_515_000); // 1.515 GBP in millionths (0.75 + 0.015 + 0.75)
     });
 
     it("should handle cached tokens with reasoning tokens", () => {
@@ -546,7 +434,6 @@ describe("pricing", () => {
         "test-reasoning-model",
         1000000, // 1M non-cached input tokens
         500000, // 0.5M output tokens
-        "usd",
         100000, // 0.1M reasoning tokens
         200000 // 0.2M cached tokens
       );
@@ -562,7 +449,6 @@ describe("pricing", () => {
         "test-flat-model",
         1000000,
         500000,
-        "usd",
         0,
         0 // no cached tokens
       );
@@ -572,8 +458,7 @@ describe("pricing", () => {
         "google",
         "test-flat-model",
         1000000,
-        500000,
-        "usd"
+        500000
       );
 
       expect(cost).toBe(costWithoutCached);

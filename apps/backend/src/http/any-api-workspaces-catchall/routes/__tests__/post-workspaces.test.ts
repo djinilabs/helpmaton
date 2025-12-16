@@ -2,9 +2,7 @@ import { badRequest, unauthorized } from "@hapi/boom";
 import express from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
- 
 import { PERMISSION_LEVELS } from "../../../../tables/schema";
-// eslint-disable-next-line import/order
 import {
   createMockRequest,
   createMockResponse,
@@ -52,8 +50,6 @@ vi.mock("crypto", () => ({
   randomUUID: mockRandomUUID,
 }));
 
-// Import the route handler after mocks are set up
-import { ALLOWED_CURRENCIES } from "../../utils";
 
 describe("POST /api/workspaces", () => {
   beforeEach(() => {
@@ -72,14 +68,13 @@ describe("POST /api/workspaces", () => {
       next: express.NextFunction
     ) => {
       try {
-        const { name, description, currency } = req.body;
+        const { name, description } = req.body;
         if (!name || typeof name !== "string") {
           throw badRequest("name is required and must be a string");
         }
 
-        // Validate currency if provided
-        const selectedCurrency =
-          currency && ALLOWED_CURRENCIES.includes(currency) ? currency : "usd";
+        // Currency is always USD
+        const selectedCurrency = "usd";
 
         const db = await mockDatabase();
         const userRef = (req as { userRef?: string }).userRef;
@@ -265,55 +260,6 @@ describe("POST /api/workspaces", () => {
     );
   });
 
-  it("should create workspace with valid currency when provided", async () => {
-    const workspaceId = "workspace-789";
-    mockRandomUUID.mockReturnValue(workspaceId);
-
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const mockSubscription = {
-      pk: "subscriptions/sub-123",
-    };
-    mockGetUserSubscription.mockResolvedValue(mockSubscription);
-    mockCheckSubscriptionLimits.mockResolvedValue(undefined);
-
-    const mockWorkspace = {
-      pk: `workspaces/${workspaceId}`,
-      sk: "workspace",
-      name: "Test Workspace",
-      description: undefined,
-      createdBy: "users/user-123",
-      subscriptionId: "sub-123",
-      currency: "eur",
-      creditBalance: 0,
-      spendingLimits: [],
-      createdAt: "2024-01-01T00:00:00Z",
-    };
-
-    const mockWorkspaceCreate = vi.fn().mockResolvedValue(mockWorkspace);
-    mockDb.workspace.create = mockWorkspaceCreate;
-
-    mockEnsureAuthorization.mockResolvedValue(undefined);
-
-    const req = createMockRequest({
-      userRef: "users/user-123",
-      body: {
-        name: "Test Workspace",
-        currency: "eur",
-      },
-    });
-    const res = createMockResponse();
-    const next = createMockNext();
-
-    await callRouteHandler(req, res, next);
-
-    expect(mockWorkspaceCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        currency: "eur",
-      })
-    );
-  });
 
   it("should default to usd when invalid currency provided", async () => {
     const workspaceId = "workspace-invalid-currency";

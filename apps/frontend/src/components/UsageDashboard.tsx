@@ -1,6 +1,5 @@
 import type { FC } from "react";
 
-import type { Currency } from "../utils/api";
 import {
   type DateRangePreset,
   getDateRangeLabel,
@@ -52,8 +51,6 @@ interface UsageDashboardProps {
     totalTokens: number;
     cost: number;
   }>;
-  currency: Currency;
-  onCurrencyChange: (currency: Currency) => void;
   title?: string;
   dateRange?: DateRange;
   dateRangePreset?: DateRangePreset;
@@ -66,8 +63,6 @@ interface UsageDashboardProps {
 export const UsageDashboard: FC<UsageDashboardProps> = ({
   stats,
   dailyData,
-  currency,
-  onCurrencyChange,
   title = "Usage Dashboard",
   dateRange,
   dateRangePreset = "last-30-days",
@@ -111,19 +106,6 @@ export const UsageDashboard: FC<UsageDashboardProps> = ({
               {isRefreshing ? "Refreshing..." : "Refresh"}
             </button>
           )}
-          {(["usd", "eur", "gbp"] as Currency[]).map((curr) => (
-            <button
-              key={curr}
-              onClick={() => onCurrencyChange(curr)}
-              className={`border rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-200 ${
-                currency === curr
-                  ? "bg-gradient-primary text-white border-primary-600 shadow-colored"
-                  : "border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50"
-              }`}
-            >
-              {curr.toUpperCase()}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -142,11 +124,10 @@ export const UsageDashboard: FC<UsageDashboardProps> = ({
       )}
 
       <div className="space-y-6">
-        <UsageStats stats={stats} currency={currency} />
+        <UsageStats stats={stats} />
         {dailyData && dailyData.length > 0 && (
           <UsageChart
             data={dailyData}
-            currency={currency}
             title="Daily Spending"
           />
         )}

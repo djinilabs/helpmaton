@@ -91,7 +91,6 @@ import {
   useDeleteWorkspace,
 } from "../hooks/useWorkspaces";
 import { useWorkspaceUserLimit } from "../hooks/useWorkspaceUserLimit";
-import type { Currency } from "../utils/api";
 import { setWorkspaceApiKey, deleteWorkspaceApiKey } from "../utils/api";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
 
@@ -283,7 +282,6 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
   const [description, setDescription] = useState(workspace.description || "");
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentFolder, setCurrentFolder] = useState<string>("");
-  const [currency, setCurrency] = useState<Currency>("usd");
   const [isTrialCreditModalOpen, setIsTrialCreditModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
@@ -461,8 +459,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               Trial Credits
             </h3>
             <p className="text-base text-neutral-600 mb-6 leading-relaxed">
-              Your workspace balance is 0. Request trial credits (2{" "}
-              {currency.toUpperCase()}) to test the application.
+              Your workspace balance is 0. Request trial credits (2 USD) to test the application.
             </p>
             <button
               onClick={() => setIsTrialCreditModalOpen(true)}
@@ -477,7 +474,6 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
         {trialStatus?.creditsApproved && (
           <TrialUsageBar
             workspaceId={id!}
-            currency={workspace.currency || "usd"}
             onUpgradeClick={() => setIsUpgradeModalOpen(true)}
           />
         )}
@@ -598,21 +594,19 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               <CreditBalance
                 workspaceId={id!}
                 balance={workspace.creditBalance ?? 0}
-                currency={workspace.currency || "usd"}
                 canEdit={!!canEdit}
               />
               {canEdit && (
                 <div className="mt-6">
                   <CreditPurchase
                     workspaceId={id!}
-                    currency={workspace.currency || "usd"}
                   />
                 </div>
               )}
             </LazyAccordionContent>
           </AccordionSection>
 
-          {canEdit && workspace.currency && (
+          {canEdit && (
             <AccordionSection
               id="spending-limits"
               title="Spending Limits"
@@ -625,7 +619,6 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                 <SpendingLimitsManager
                   workspaceId={id!}
                   spendingLimits={workspace.spendingLimits}
-                  currency={workspace.currency}
                   canEdit={!!canEdit}
                 />
               </LazyAccordionContent>
@@ -641,8 +634,6 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             <LazyAccordionContent isExpanded={expandedSection === "usage"}>
               <WorkspaceUsageSection
                 workspaceId={id!}
-                currency={currency}
-                onCurrencyChange={setCurrency}
               />
             </LazyAccordionContent>
           </AccordionSection>
@@ -786,14 +777,10 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
 interface WorkspaceUsageSectionProps {
   workspaceId: string;
-  currency: Currency;
-  onCurrencyChange: (currency: Currency) => void;
 }
 
 const WorkspaceUsageSection: FC<WorkspaceUsageSectionProps> = ({
   workspaceId,
-  currency,
-  onCurrencyChange,
 }) => {
   const [dateRangePreset, setDateRangePreset] =
     useState<DateRangePreset>("last-30-days");
@@ -806,7 +793,6 @@ const WorkspaceUsageSection: FC<WorkspaceUsageSectionProps> = ({
     refetch: refetchUsage,
     isRefetching: isRefetchingUsage,
   } = useWorkspaceUsage(workspaceId, {
-    currency,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
   });
@@ -817,7 +803,6 @@ const WorkspaceUsageSection: FC<WorkspaceUsageSectionProps> = ({
     refetch: refetchDaily,
     isRefetching: isRefetchingDaily,
   } = useWorkspaceDailyUsage(workspaceId, {
-    currency,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
   });
@@ -863,8 +848,6 @@ const WorkspaceUsageSection: FC<WorkspaceUsageSectionProps> = ({
     <UsageDashboard
       stats={usageData.stats}
       dailyData={dailyData?.daily}
-      currency={currency}
-      onCurrencyChange={onCurrencyChange}
       title="Workspace Usage"
       dateRange={dateRange}
       dateRangePreset={dateRangePreset}

@@ -153,8 +153,7 @@ export const registerPostTrialCreditRequest = (app: express.Application) => {
       // Send Discord notification
       await sendTrialCreditRequestNotification(
         workspaceId,
-        userEmail,
-        workspace.currency || "usd"
+        userEmail
       );
 
       res.status(201).json({

@@ -80,7 +80,7 @@ For simple Lambda handlers (non-Express), add annotations above the handler func
  *         in: query
  *         schema:
  *           type: string
- *           enum: [usd, eur, gbp]
+ *           enum: [usd]
  *     responses:
  *       200:
  *         description: Usage statistics
@@ -140,7 +140,7 @@ parameters:
     description: Currency for cost calculations
     schema:
       type: string
-      enum: [usd, eur, gbp]
+      enum: [usd]
       default: usd
 ```
 

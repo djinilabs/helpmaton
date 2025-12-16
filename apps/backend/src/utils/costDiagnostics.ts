@@ -1,6 +1,6 @@
 import type { TokenUsage } from "./conversationLogger";
 import { fromMillionths } from "./creditConversions";
-import { calculateTokenCost, getModelPricing, type Currency } from "./pricing";
+import { calculateTokenCost, getModelPricing } from "./pricing";
 
 /**
  * Detailed cost breakdown for a single token usage
@@ -8,7 +8,6 @@ import { calculateTokenCost, getModelPricing, type Currency } from "./pricing";
 export interface CostBreakdown {
   provider: string;
   modelName: string;
-  currency: Currency;
   tokenUsage: TokenUsage;
   costs: {
     inputCost: number;
@@ -32,8 +31,7 @@ export interface CostBreakdown {
 export function generateCostBreakdown(
   provider: string,
   modelName: string,
-  tokenUsage: TokenUsage,
-  currency: Currency = "usd"
+  tokenUsage: TokenUsage
 ): CostBreakdown | null {
   const pricing = getModelPricing(provider, modelName);
   if (!pricing) {
@@ -43,10 +41,10 @@ export function generateCostBreakdown(
     return null;
   }
 
-  const currencyPricing = pricing[currency];
+  const currencyPricing = pricing.usd;
   if (!currencyPricing) {
     console.warn(
-      `[generateCostBreakdown] No pricing found for currency: ${currency}`
+      `[generateCostBreakdown] No USD pricing found`
     );
     return null;
   }
@@ -62,7 +60,6 @@ export function generateCostBreakdown(
     modelName,
     promptTokens,
     completionTokens,
-    currency,
     reasoningTokens,
     cachedPromptTokens
   );
@@ -74,7 +71,6 @@ export function generateCostBreakdown(
   return {
     provider,
     modelName,
-    currency,
     tokenUsage,
     costs: {
       inputCost: 0, // Will be calculated from logs or we need to expose internal functions
@@ -101,8 +97,7 @@ export function compareCosts(
   expectedCost: number,
   tokenUsage: TokenUsage,
   provider: string,
-  modelName: string,
-  currency: Currency = "usd"
+  modelName: string
 ): {
   match: boolean;
   difference: number;
@@ -119,14 +114,12 @@ export function compareCosts(
   const breakdown = generateCostBreakdown(
     provider,
     modelName,
-    tokenUsage,
-    currency
+    tokenUsage
   );
 
   console.log("[compareCosts] Cost comparison:", {
     provider,
     modelName,
-    currency,
     calculatedCost,
     expectedCost,
     difference,
@@ -276,14 +269,12 @@ export function generateCostReport(
   provider: string,
   modelName: string,
   tokenUsage: TokenUsage,
-  currency: Currency = "usd",
   expectedCost?: number
 ): string {
   const breakdown = generateCostBreakdown(
     provider,
     modelName,
-    tokenUsage,
-    currency
+    tokenUsage
   );
 
   if (!breakdown) {
@@ -293,7 +284,7 @@ export function generateCostReport(
   const lines: string[] = [];
   lines.push("=".repeat(60));
   lines.push(
-    `Cost Report: ${provider}/${modelName} (${currency.toUpperCase()})`
+    `Cost Report: ${provider}/${modelName} (USD)`
   );
   lines.push("=".repeat(60));
   lines.push("");

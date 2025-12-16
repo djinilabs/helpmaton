@@ -11,7 +11,6 @@ import {
   getUserSubscription,
 } from "../../../utils/subscriptionUtils";
 import { handleError, requireAuth } from "../middleware";
-import { ALLOWED_CURRENCIES } from "../utils";
 
 /**
  * @openapi
@@ -46,14 +45,10 @@ import { ALLOWED_CURRENCIES } from "../utils";
 export const registerPostWorkspaces = (app: express.Application) => {
   app.post("/api/workspaces", requireAuth, async (req, res, next) => {
     try {
-      const { name, description, currency } = req.body;
+      const { name, description } = req.body;
       if (!name || typeof name !== "string") {
         throw badRequest("name is required and must be a string");
       }
-
-      // Validate currency if provided
-      const selectedCurrency =
-        currency && ALLOWED_CURRENCIES.includes(currency) ? currency : "usd";
 
       const db = await database();
       const userRef = req.userRef;
@@ -81,7 +76,7 @@ export const registerPostWorkspaces = (app: express.Application) => {
         description: description || undefined,
         createdBy: userRef,
         subscriptionId,
-        currency: selectedCurrency,
+        currency: "usd",
         creditBalance: 0, // Default credit balance
       });
 

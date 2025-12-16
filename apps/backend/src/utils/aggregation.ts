@@ -6,15 +6,13 @@ import type {
 
 import type { TokenUsage } from "./conversationLogger";
 
-export type Currency = "usd" | "eur" | "gbp";
+export type Currency = "usd";
 
 export interface ByokStats {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
   costUsd: number;
-  costEur: number;
-  costGbp: number;
 }
 
 export interface UsageStats {
@@ -22,8 +20,6 @@ export interface UsageStats {
   outputTokens: number;
   totalTokens: number;
   costUsd: number;
-  costEur: number;
-  costGbp: number;
   byModel: Record<string, ByokStats>;
   byProvider: Record<string, ByokStats>;
   byByok: {
@@ -82,8 +78,6 @@ export function aggregateConversations(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
-    costEur: 0,
-    costGbp: 0,
     byModel: {},
     byProvider: {},
     byByok: {
@@ -92,16 +86,12 @@ export function aggregateConversations(
         outputTokens: 0,
         totalTokens: 0,
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
       },
       platform: {
         inputTokens: 0,
         outputTokens: 0,
         totalTokens: 0,
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
       },
     },
   };
@@ -180,16 +170,12 @@ export function aggregateConversations(
     }
 
     const costUsd = conv.costUsd || 0;
-    const costEur = conv.costEur || 0;
-    const costGbp = conv.costGbp || 0;
 
     // Aggregate totals
     stats.inputTokens += inputTokens;
     stats.outputTokens += outputTokens;
     stats.totalTokens += totalTokens;
     stats.costUsd += costUsd;
-    stats.costEur += costEur;
-    stats.costGbp += costGbp;
 
     // Aggregate by model
     const modelName = conv.modelName || "unknown";
@@ -199,16 +185,12 @@ export function aggregateConversations(
         outputTokens: 0,
         totalTokens: 0,
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
       };
     }
     stats.byModel[modelName].inputTokens += inputTokens;
     stats.byModel[modelName].outputTokens += outputTokens;
     stats.byModel[modelName].totalTokens += totalTokens;
     stats.byModel[modelName].costUsd += costUsd;
-    stats.byModel[modelName].costEur += costEur;
-    stats.byModel[modelName].costGbp += costGbp;
 
     // Aggregate by provider
     const provider = conv.provider || "unknown";
@@ -218,16 +200,12 @@ export function aggregateConversations(
         outputTokens: 0,
         totalTokens: 0,
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
       };
     }
     stats.byProvider[provider].inputTokens += inputTokens;
     stats.byProvider[provider].outputTokens += outputTokens;
     stats.byProvider[provider].totalTokens += totalTokens;
     stats.byProvider[provider].costUsd += costUsd;
-    stats.byProvider[provider].costEur += costEur;
-    stats.byProvider[provider].costGbp += costGbp;
 
     // Aggregate by BYOK
     const isByok = conv.usesByok === true;
@@ -236,8 +214,6 @@ export function aggregateConversations(
     stats.byByok[byokKey].outputTokens += outputTokens;
     stats.byByok[byokKey].totalTokens += totalTokens;
     stats.byByok[byokKey].costUsd += costUsd;
-    stats.byByok[byokKey].costEur += costEur;
-    stats.byByok[byokKey].costGbp += costGbp;
   }
 
   return stats;
@@ -254,8 +230,6 @@ export function aggregateAggregates(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
-    costEur: 0,
-    costGbp: 0,
     byModel: {},
     byProvider: {},
     byByok: {
@@ -264,16 +238,12 @@ export function aggregateAggregates(
         outputTokens: 0,
         totalTokens: 0,
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
       },
       platform: {
         inputTokens: 0,
         outputTokens: 0,
         totalTokens: 0,
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
       },
     },
   };
@@ -284,8 +254,6 @@ export function aggregateAggregates(
     stats.outputTokens += agg.outputTokens;
     stats.totalTokens += agg.totalTokens;
     stats.costUsd += agg.costUsd;
-    stats.costEur += agg.costEur;
-    stats.costGbp += agg.costGbp;
 
     // Aggregate by model
     const modelName = agg.modelName;
@@ -295,16 +263,12 @@ export function aggregateAggregates(
         outputTokens: 0,
         totalTokens: 0,
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
       };
     }
     stats.byModel[modelName].inputTokens += agg.inputTokens;
     stats.byModel[modelName].outputTokens += agg.outputTokens;
     stats.byModel[modelName].totalTokens += agg.totalTokens;
     stats.byModel[modelName].costUsd += agg.costUsd;
-    stats.byModel[modelName].costEur += agg.costEur;
-    stats.byModel[modelName].costGbp += agg.costGbp;
 
     // Aggregate by provider
     const provider = agg.provider;
@@ -314,16 +278,12 @@ export function aggregateAggregates(
         outputTokens: 0,
         totalTokens: 0,
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
       };
     }
     stats.byProvider[provider].inputTokens += agg.inputTokens;
     stats.byProvider[provider].outputTokens += agg.outputTokens;
     stats.byProvider[provider].totalTokens += agg.totalTokens;
     stats.byProvider[provider].costUsd += agg.costUsd;
-    stats.byProvider[provider].costEur += agg.costEur;
-    stats.byProvider[provider].costGbp += agg.costGbp;
 
     // Aggregate by BYOK
     const isByok = agg.usesByok === true;
@@ -332,8 +292,6 @@ export function aggregateAggregates(
     stats.byByok[byokKey].outputTokens += agg.outputTokens;
     stats.byByok[byokKey].totalTokens += agg.totalTokens;
     stats.byByok[byokKey].costUsd += agg.costUsd;
-    stats.byByok[byokKey].costEur += agg.costEur;
-    stats.byByok[byokKey].costGbp += agg.costGbp;
   }
 
   return stats;
@@ -348,8 +306,6 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
-    costEur: 0,
-    costGbp: 0,
     byModel: {},
     byProvider: {},
     byByok: {
@@ -358,16 +314,12 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
         outputTokens: 0,
         totalTokens: 0,
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
       },
       platform: {
         inputTokens: 0,
         outputTokens: 0,
         totalTokens: 0,
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
       },
     },
   };
@@ -377,8 +329,6 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
     merged.outputTokens += stats.outputTokens;
     merged.totalTokens += stats.totalTokens;
     merged.costUsd += stats.costUsd;
-    merged.costEur += stats.costEur;
-    merged.costGbp += stats.costGbp;
 
     // Merge byModel
     for (const [model, modelStats] of Object.entries(stats.byModel)) {
@@ -388,16 +338,12 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
           outputTokens: 0,
           totalTokens: 0,
           costUsd: 0,
-          costEur: 0,
-          costGbp: 0,
         };
       }
       merged.byModel[model].inputTokens += modelStats.inputTokens;
       merged.byModel[model].outputTokens += modelStats.outputTokens;
       merged.byModel[model].totalTokens += modelStats.totalTokens;
       merged.byModel[model].costUsd += modelStats.costUsd;
-      merged.byModel[model].costEur += modelStats.costEur;
-      merged.byModel[model].costGbp += modelStats.costGbp;
     }
 
     // Merge byProvider
@@ -408,16 +354,12 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
           outputTokens: 0,
           totalTokens: 0,
           costUsd: 0,
-          costEur: 0,
-          costGbp: 0,
         };
       }
       merged.byProvider[provider].inputTokens += providerStats.inputTokens;
       merged.byProvider[provider].outputTokens += providerStats.outputTokens;
       merged.byProvider[provider].totalTokens += providerStats.totalTokens;
       merged.byProvider[provider].costUsd += providerStats.costUsd;
-      merged.byProvider[provider].costEur += providerStats.costEur;
-      merged.byProvider[provider].costGbp += providerStats.costGbp;
     }
 
     // Merge byByok
@@ -425,15 +367,11 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
     merged.byByok.byok.outputTokens += stats.byByok.byok.outputTokens;
     merged.byByok.byok.totalTokens += stats.byByok.byok.totalTokens;
     merged.byByok.byok.costUsd += stats.byByok.byok.costUsd;
-    merged.byByok.byok.costEur += stats.byByok.byok.costEur;
-    merged.byByok.byok.costGbp += stats.byByok.byok.costGbp;
 
     merged.byByok.platform.inputTokens += stats.byByok.platform.inputTokens;
     merged.byByok.platform.outputTokens += stats.byByok.platform.outputTokens;
     merged.byByok.platform.totalTokens += stats.byByok.platform.totalTokens;
     merged.byByok.platform.costUsd += stats.byByok.platform.costUsd;
-    merged.byByok.platform.costEur += stats.byByok.platform.costEur;
-    merged.byByok.platform.costGbp += stats.byByok.platform.costGbp;
   }
 
   return merged;

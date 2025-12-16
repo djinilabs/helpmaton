@@ -3,8 +3,6 @@ import { calculateTokenCosts } from "./pricing";
 
 export interface TokenCosts {
   usd: number;
-  eur: number;
-  gbp: number;
 }
 
 /**
@@ -23,7 +21,7 @@ export function calculateConversationCosts(
 
   if (!modelName || !tokenUsage) {
     console.log("[calculateConversationCosts] Missing modelName or tokenUsage, returning 0");
-    return { usd: 0, eur: 0, gbp: 0 };
+    return { usd: 0 };
   }
 
   // Default to "google" if provider is not specified

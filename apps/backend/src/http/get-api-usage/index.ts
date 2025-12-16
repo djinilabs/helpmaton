@@ -8,7 +8,6 @@ import { database } from "../../tables";
 import {
   queryUsageStats,
   mergeUsageStats,
-  type Currency,
 } from "../../utils/aggregation";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
@@ -94,20 +93,6 @@ export const handler = adaptHttpHandler(
         });
 
         // Parse query parameters
-        const allowedCurrencies: Currency[] = ["usd", "eur", "gbp"];
-        const currencyParam =
-          event.queryStringParameters?.currency?.toLowerCase();
-        const currency: Currency = allowedCurrencies.includes(
-          currencyParam as Currency
-        )
-          ? (currencyParam as Currency)
-          : currencyParam === undefined
-          ? "usd"
-          : (() => {
-              throw badRequest(
-                "Invalid currency. Allowed values are: usd, eur, gbp."
-              );
-            })();
         const startDateStr = event.queryStringParameters?.startDate;
         const endDateStr = event.queryStringParameters?.endDate;
 
@@ -123,7 +108,6 @@ export const handler = adaptHttpHandler(
         }
 
         console.log("[GET /api/usage] Query parameters:", {
-          currency,
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
         });
@@ -147,8 +131,6 @@ export const handler = adaptHttpHandler(
             outputTokens: s.outputTokens,
             totalTokens: s.totalTokens,
             costUsd: s.costUsd,
-            costEur: s.costEur,
-            costGbp: s.costGbp,
             modelCount: Object.keys(s.byModel).length,
             providerCount: Object.keys(s.byProvider).length,
           })),
@@ -162,19 +144,12 @@ export const handler = adaptHttpHandler(
           outputTokens: mergedStats.outputTokens,
           totalTokens: mergedStats.totalTokens,
           costUsd: mergedStats.costUsd,
-          costEur: mergedStats.costEur,
-          costGbp: mergedStats.costGbp,
           byModel: Object.keys(mergedStats.byModel),
           byProvider: Object.keys(mergedStats.byProvider),
         });
 
-        // Select cost based on currency
-        const cost =
-          currency === "usd"
-            ? mergedStats.costUsd
-            : currency === "eur"
-            ? mergedStats.costEur
-            : mergedStats.costGbp;
+        // Always use USD
+        const cost = mergedStats.costUsd;
 
         return {
           statusCode: 200,
@@ -183,7 +158,7 @@ export const handler = adaptHttpHandler(
           },
           body: JSON.stringify({
             userId,
-            currency,
+            currency: "usd",
             startDate: startDate.toISOString().split("T")[0],
             endDate: endDate.toISOString().split("T")[0],
             workspaceCount: workspaceIds.length,
@@ -198,12 +173,7 @@ export const handler = adaptHttpHandler(
                   inputTokens: modelStats.inputTokens,
                   outputTokens: modelStats.outputTokens,
                   totalTokens: modelStats.totalTokens,
-                  cost:
-                    currency === "usd"
-                      ? modelStats.costUsd
-                      : currency === "eur"
-                      ? modelStats.costEur
-                      : modelStats.costGbp,
+                  cost: modelStats.costUsd,
                 })
               ),
               byProvider: Object.entries(mergedStats.byProvider).map(
@@ -212,12 +182,7 @@ export const handler = adaptHttpHandler(
                   inputTokens: providerStats.inputTokens,
                   outputTokens: providerStats.outputTokens,
                   totalTokens: providerStats.totalTokens,
-                  cost:
-                    currency === "usd"
-                      ? providerStats.costUsd
-                      : currency === "eur"
-                      ? providerStats.costEur
-                      : providerStats.costGbp,
+                  cost: providerStats.costUsd,
                 })
               ),
               byByok: {
@@ -225,23 +190,13 @@ export const handler = adaptHttpHandler(
                   inputTokens: mergedStats.byByok.byok.inputTokens,
                   outputTokens: mergedStats.byByok.byok.outputTokens,
                   totalTokens: mergedStats.byByok.byok.totalTokens,
-                  cost:
-                    currency === "usd"
-                      ? mergedStats.byByok.byok.costUsd
-                      : currency === "eur"
-                      ? mergedStats.byByok.byok.costEur
-                      : mergedStats.byByok.byok.costGbp,
+                  cost: mergedStats.byByok.byok.costUsd,
                 },
                 platform: {
                   inputTokens: mergedStats.byByok.platform.inputTokens,
                   outputTokens: mergedStats.byByok.platform.outputTokens,
                   totalTokens: mergedStats.byByok.platform.totalTokens,
-                  cost:
-                    currency === "usd"
-                      ? mergedStats.byByok.platform.costUsd
-                      : currency === "eur"
-                      ? mergedStats.byByok.platform.costEur
-                      : mergedStats.byByok.platform.costGbp,
+                  cost: mergedStats.byByok.platform.costUsd,
                 },
               },
             },

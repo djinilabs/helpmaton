@@ -5,7 +5,6 @@ import type { DatabaseSchema, WorkspaceRecord } from "../tables/schema";
 import type { TokenUsage } from "./conversationLogger";
 import { CreditDeductionError, InsufficientCreditsError } from "./creditErrors";
 import { calculateTokenCost } from "./pricing";
-import type { Currency } from "./pricing";
 
 /**
  * Calculate TTL timestamp (15 minutes from now in seconds)
@@ -25,21 +24,19 @@ function calculateExpiresHourBucket(expires: number): number {
 }
 
 /**
- * Calculate actual cost from token usage in workspace currency
+ * Calculate actual cost from token usage in USD
  * Includes reasoning tokens and cached tokens if present
  */
 function calculateActualCost(
   provider: string,
   modelName: string,
-  tokenUsage: TokenUsage,
-  currency: Currency
+  tokenUsage: TokenUsage
 ): number {
   const cost = calculateTokenCost(
     provider,
     modelName,
     tokenUsage.promptTokens || 0,
     tokenUsage.completionTokens || 0,
-    currency,
     tokenUsage.reasoningTokens || 0,
     tokenUsage.cachedPromptTokens || 0
   );
@@ -47,7 +44,6 @@ function calculateActualCost(
   console.log("[calculateActualCost] Cost calculation:", {
     provider,
     modelName,
-    currency,
     promptTokens: tokenUsage.promptTokens || 0,
     cachedPromptTokens: tokenUsage.cachedPromptTokens || 0,
     completionTokens: tokenUsage.completionTokens || 0,
@@ -71,7 +67,6 @@ export interface CreditReservation {
  * @param db - Database instance
  * @param workspaceId - Workspace ID
  * @param estimatedCost - Estimated cost for the LLM call
- * @param currency - Workspace currency
  * @param maxRetries - Maximum number of retries (default: 3)
  * @param usesByok - Whether request was made with user key (BYOK)
  * @returns Reservation info with reservationId, reservedAmount, and updated workspace
@@ -81,7 +76,6 @@ export async function reserveCredits(
   db: DatabaseSchema,
   workspaceId: string,
   estimatedCost: number,
-  currency: Currency,
   maxRetries: number = 3,
   usesByok?: boolean
 ): Promise<CreditReservation> {
@@ -123,7 +117,7 @@ export async function reserveCredits(
             workspaceId,
             estimatedCost,
             current.creditBalance,
-            current.currency
+            "usd"
           );
         }
 
@@ -135,7 +129,6 @@ export async function reserveCredits(
           estimatedCost,
           oldBalance: current.creditBalance,
           newBalance,
-          currency: current.currency,
         });
 
         return {
@@ -158,7 +151,7 @@ export async function reserveCredits(
       workspaceId,
       reservedAmount: estimatedCost,
       estimatedCost,
-      currency,
+      currency: updated.currency,
       expires,
       expiresHour, // For GSI querying
     });
@@ -260,12 +253,11 @@ export async function adjustCreditReservation(
 
   const workspacePk = `workspaces/${workspaceId}`;
 
-  // Calculate actual cost
+  // Calculate actual cost (always in USD)
   const actualCost = calculateActualCost(
     provider,
     modelName,
-    tokenUsage,
-    reservation.currency
+    tokenUsage
   );
 
   // Calculate difference
@@ -491,12 +483,11 @@ export async function debitCredits(
           throw new Error(`Workspace ${workspaceId} not found`);
         }
 
-        // Calculate actual cost from token usage in workspace currency
+        // Calculate actual cost from token usage (always in USD)
         const actualCost = calculateActualCost(
           provider,
           modelName,
-          tokenUsage,
-          current.currency
+          tokenUsage
         );
 
         console.log("[debitCredits] Cost calculation:", {

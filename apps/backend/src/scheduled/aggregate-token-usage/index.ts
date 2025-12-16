@@ -146,8 +146,6 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
       outputTokens: number;
       totalTokens: number;
       costUsd: number;
-      costEur: number;
-      costGbp: number;
     }
   >();
 
@@ -183,8 +181,6 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
         outputTokens: 0,
         totalTokens: 0,
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
       });
     }
 
@@ -193,8 +189,6 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
     agg.outputTokens += tokenUsage.completionTokens || 0;
     agg.totalTokens += tokenUsage.totalTokens || 0;
     agg.costUsd += conv.costUsd || 0;
-    agg.costEur += conv.costEur || 0;
-    agg.costGbp += conv.costGbp || 0;
   }
 
   // Create aggregate records
@@ -220,8 +214,6 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
         outputTokens: aggData.outputTokens,
         totalTokens: aggData.totalTokens,
         costUsd: aggData.costUsd,
-        costEur: aggData.costEur,
-        costGbp: aggData.costGbp,
         createdAt: new Date().toISOString(),
       };
 

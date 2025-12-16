@@ -1,11 +1,10 @@
 import type { FC } from "react";
 
-import type { UsageStats as UsageStatsType, Currency } from "../utils/api";
+import type { UsageStats as UsageStatsType } from "../utils/api";
 import { formatCurrency } from "../utils/currency";
 
 interface UsageStatsProps {
   stats: UsageStatsType;
-  currency: Currency;
   title?: string;
 }
 
@@ -15,9 +14,9 @@ const formatNumber = (value: number): string => {
 
 export const UsageStats: FC<UsageStatsProps> = ({
   stats,
-  currency,
   title = "Usage Statistics",
 }) => {
+  const currency = "usd";
   return (
     <div className="bg-white rounded-2xl shadow-medium p-8 border border-neutral-200">
       <h3 className="text-2xl font-bold text-neutral-900 mb-4 tracking-tight">{title}</h3>

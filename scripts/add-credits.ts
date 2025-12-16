@@ -66,14 +66,14 @@ Examples:
       process.exit(1);
     }
 
-    console.log(`📊 Current balance: ${workspace.creditBalance.toFixed(2)} ${workspace.currency.toUpperCase()}`);
-    console.log(`   Currency: ${workspace.currency.toUpperCase()}\n`);
+    console.log(`📊 Current balance: ${(workspace.creditBalance / 1_000_000).toFixed(2)} USD`);
+    console.log(`   Currency: USD\n`);
 
     // Add credits
     const updated = await creditCredits(db, workspaceId, amount);
 
-    console.log(`✅ Successfully added ${amount.toFixed(2)} ${updated.currency.toUpperCase()} credits`);
-    console.log(`📊 New balance: ${updated.creditBalance.toFixed(2)} ${updated.currency.toUpperCase()}\n`);
+    console.log(`✅ Successfully added ${amount.toFixed(2)} USD credits`);
+    console.log(`📊 New balance: ${(updated.creditBalance / 1_000_000).toFixed(2)} USD\n`);
   } catch (error) {
     console.error("❌ Error adding credits:", error instanceof Error ? error.message : String(error));
     if (error instanceof Error && error.stack) {

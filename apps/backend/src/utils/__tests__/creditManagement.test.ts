@@ -100,8 +100,7 @@ describe("creditManagement", () => {
       const result = await reserveCredits(
         mockDb,
         "test-workspace",
-        estimatedCost,
-        "usd"
+        estimatedCost
       );
 
       expect(result).toMatchObject({
@@ -138,11 +137,11 @@ describe("creditManagement", () => {
       });
 
       await expect(
-        reserveCredits(mockDb, "test-workspace", estimatedCost, "usd")
+        reserveCredits(mockDb, "test-workspace", estimatedCost)
       ).rejects.toThrow(InsufficientCreditsError);
 
       await expect(
-        reserveCredits(mockDb, "test-workspace", estimatedCost, "usd")
+        reserveCredits(mockDb, "test-workspace", estimatedCost)
       ).rejects.toThrow("Insufficient credits");
     });
 
@@ -151,7 +150,6 @@ describe("creditManagement", () => {
         mockDb,
         "test-workspace",
         10_000_000, // 10.0 USD in millionths
-        "usd",
         3,
         true // usesByok
       );
@@ -173,7 +171,7 @@ describe("creditManagement", () => {
       mockGet.mockResolvedValue(undefined);
 
       await expect(
-        reserveCredits(mockDb, "test-workspace", 10_000_000, "usd", 3, true)
+        reserveCredits(mockDb, "test-workspace", 10_000_000, 3, true)
       ).rejects.toThrow("Workspace test-workspace not found");
     });
 
@@ -186,7 +184,7 @@ describe("creditManagement", () => {
       );
 
       await expect(
-        reserveCredits(mockDb, "test-workspace", estimatedCost, "usd", 2)
+        reserveCredits(mockDb, "test-workspace", estimatedCost, 2)
       ).rejects.toThrow("Failed to reserve credits after 2 retries");
     });
 
@@ -198,7 +196,7 @@ describe("creditManagement", () => {
       );
 
       await expect(
-        reserveCredits(mockDb, "test-workspace", estimatedCost, "usd", 2)
+        reserveCredits(mockDb, "test-workspace", estimatedCost, 2)
       ).rejects.toThrow("Failed to reserve credits after 2 retries");
     });
 
@@ -214,8 +212,7 @@ describe("creditManagement", () => {
       const result = await reserveCredits(
         mockDb,
         "test-workspace",
-        estimatedCost,
-        "usd"
+        estimatedCost
       );
 
       expect(result.reservedAmount).toBe(estimatedCost);
@@ -231,7 +228,7 @@ describe("creditManagement", () => {
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
 
-      await reserveCredits(mockDb, "test-workspace", estimatedCost, "usd");
+      await reserveCredits(mockDb, "test-workspace", estimatedCost);
 
       const updaterCall = mockAtomicUpdate.mock.calls[0][2];
       const current = { ...mockWorkspace };
@@ -481,7 +478,6 @@ describe("creditManagement", () => {
         "gemini-2.5-flash",
         100,
         50,
-        "usd",
         25,
         0 // cachedPromptTokens
       );
@@ -642,7 +638,6 @@ describe("creditManagement", () => {
         mockDb,
         "test-workspace",
         estimatedCost,
-        "usd"
       );
       expect(result1.reservationId).toBeDefined();
 
@@ -658,7 +653,7 @@ describe("creditManagement", () => {
       });
 
       await expect(
-        reserveCredits(mockDb, "test-workspace", estimatedCost, "usd")
+        reserveCredits(mockDb, "test-workspace", estimatedCost)
       ).rejects.toThrow(InsufficientCreditsError);
 
       // This demonstrates that the atomic check in the updater function
@@ -684,7 +679,6 @@ describe("creditManagement", () => {
         mockDb,
         "test-workspace",
         estimatedCost,
-        "usd"
       );
       expect(result1.workspace.creditBalance).toBe(70_000_000);
 
@@ -693,7 +687,6 @@ describe("creditManagement", () => {
         mockDb,
         "test-workspace",
         estimatedCost,
-        "usd"
       );
       expect(result2.workspace.creditBalance).toBe(40_000_000);
 
@@ -702,13 +695,12 @@ describe("creditManagement", () => {
         mockDb,
         "test-workspace",
         estimatedCost,
-        "usd"
       );
       expect(result3.workspace.creditBalance).toBe(10_000_000);
 
       // Fourth reservation should fail: 10_000_000 < 30_000_000
       await expect(
-        reserveCredits(mockDb, "test-workspace", estimatedCost, "usd")
+        reserveCredits(mockDb, "test-workspace", estimatedCost)
       ).rejects.toThrow(InsufficientCreditsError);
 
       // Verify final balance is correct

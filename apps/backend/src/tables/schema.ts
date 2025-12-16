@@ -57,7 +57,7 @@ export const tableSchemas = {
     name: z.string(),
     description: z.string().optional(),
     subscriptionId: z.string().optional(), // subscription ID this workspace belongs to
-    currency: z.enum(["usd", "eur", "gbp"]).default("usd"),
+    currency: z.enum(["usd"]).default("usd"),
     creditBalance: z.number().int().default(0), // millionths
     spendingLimits: z
       .array(
@@ -191,8 +191,6 @@ export const tableSchemas = {
     provider: z.string().optional(), // AI provider name (e.g., "google")
     usesByok: z.boolean().optional(), // whether this conversation used BYOK (Bring Your Own Key)
     costUsd: z.number().int().optional(), // cost in USD in millionths
-    costEur: z.number().int().optional(), // cost in EUR in millionths
-    costGbp: z.number().int().optional(), // cost in GBP in millionths
     startedAt: z.string().datetime(), // when conversation started
     lastMessageAt: z.string().datetime(), // when last message was added
     expires: z.number(), // TTL timestamp
@@ -204,7 +202,7 @@ export const tableSchemas = {
     workspaceId: z.string(), // workspace ID
     reservedAmount: z.number().int(), // amount reserved (estimated cost) in millionths
     estimatedCost: z.number().int(), // estimated cost at reservation time in millionths
-    currency: z.enum(["usd", "eur", "gbp"]), // workspace currency
+    currency: z.enum(["usd"]), // workspace currency
     expires: z.number(), // TTL timestamp (15 minutes from creation)
     expiresHour: z.number(), // Hour bucket for GSI (expires truncated to hour)
     version: z.number().default(1),
@@ -225,8 +223,6 @@ export const tableSchemas = {
     outputTokens: z.number(), // total output tokens for this aggregate
     totalTokens: z.number(), // total tokens
     costUsd: z.number().int(), // total cost in USD in millionths
-    costEur: z.number().int(), // total cost in EUR in millionths
-    costGbp: z.number().int(), // total cost in GBP in millionths
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),
@@ -257,7 +253,7 @@ export const tableSchemas = {
     workspaceId: z.string(), // workspace ID
     userId: z.string(), // user ID who requested
     userEmail: z.string().email(), // user email
-    currency: z.enum(["usd", "eur", "gbp"]), // workspace currency
+    currency: z.enum(["usd"]), // workspace currency
     requestedAt: z.string().datetime(), // when request was made
     status: z.enum(["pending", "approved", "rejected"]).default("pending"),
     approvedAt: z.string().datetime().optional(), // when approved

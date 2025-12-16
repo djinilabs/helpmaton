@@ -1,19 +1,18 @@
 import type { FC } from "react";
 
-import type { DailyUsageData, Currency } from "../utils/api";
+import type { DailyUsageData } from "../utils/api";
 import { formatCurrency } from "../utils/currency";
 
 interface UsageChartProps {
   data: DailyUsageData[];
-  currency: Currency;
   title?: string;
 }
 
 export const UsageChart: FC<UsageChartProps> = ({
   data,
-  currency,
   title = "Daily Usage",
 }) => {
+  const currency = "usd";
   if (data.length === 0) {
     return (
       <div className="border border-neutral-200 rounded-xl p-6 bg-white shadow-soft">

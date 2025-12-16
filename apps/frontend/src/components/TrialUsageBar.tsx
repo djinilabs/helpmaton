@@ -2,20 +2,18 @@ import { useEffect, useRef } from "react";
 import type { FC } from "react";
 
 import { useTrialStatus } from "../hooks/useTrialCredits";
-import type { Currency } from "../utils/api";
 import { formatCurrency } from "../utils/currency";
 
 interface TrialUsageBarProps {
   workspaceId: string;
-  currency: Currency;
   onUpgradeClick: () => void;
 }
 
 export const TrialUsageBar: FC<TrialUsageBarProps> = ({
   workspaceId,
-  currency,
   onUpgradeClick,
 }) => {
+  const currency = "usd";
   const { data: trialStatus, isLoading } = useTrialStatus(workspaceId);
   const hasShownUpgradeModal = useRef(false);
 

@@ -25,10 +25,6 @@ vi.mock("../../../../utils/aggregation", () => ({
   queryUsageStats: mockQueryUsageStats,
 }));
 
-// Mock ALLOWED_CURRENCIES
-vi.mock("../utils", () => ({
-  ALLOWED_CURRENCIES: ["usd", "eur", "gbp"],
-}));
 
 describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
   beforeEach(() => {
@@ -44,20 +40,8 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
       const db = await mockDatabase();
       const workspaceId = req.params.workspaceId;
 
-      // Parse query parameters
-      const currencyParam = req.query.currency as string | undefined;
-      const ALLOWED_CURRENCIES = ["usd", "eur", "gbp"];
-      const currency: "usd" | "eur" | "gbp" = currencyParam
-        ? ALLOWED_CURRENCIES.includes(currencyParam as "usd" | "eur" | "gbp")
-          ? (currencyParam as "usd" | "eur" | "gbp")
-          : (() => {
-              throw badRequest(
-                `Invalid currency. Allowed values: ${ALLOWED_CURRENCIES.join(
-                  ", "
-                )}`
-              );
-            })()
-        : "usd";
+      // Parse query parameters (currency always USD)
+      const currency = "usd";
       const startDateStr = req.query.startDate as string;
       const endDateStr = req.query.endDate as string;
 
@@ -91,12 +75,7 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
           endDate: dayEnd,
         });
 
-        const cost =
-          currency === "usd"
-            ? stats.costUsd
-            : currency === "eur"
-            ? stats.costEur
-            : stats.costGbp;
+        const cost = stats.costUsd;
 
         dailyStats.push({
           date: dateStr,
@@ -136,8 +115,6 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
         outputTokens: 50,
         totalTokens: 150,
         costUsd: 0.001,
-        costEur: 0.0009,
-        costGbp: 0.0008,
         byModel: {},
         byProvider: {},
         byByok: {
@@ -146,16 +123,12 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
             outputTokens: 0,
             totalTokens: 0,
             costUsd: 0,
-            costEur: 0,
-            costGbp: 0,
           },
           platform: {
             inputTokens: 100,
             outputTokens: 50,
             totalTokens: 150,
             costUsd: 0.001,
-            costEur: 0.0009,
-            costGbp: 0.0008,
           },
         },
       })
@@ -164,8 +137,6 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
         outputTokens: 100,
         totalTokens: 300,
         costUsd: 0.002,
-        costEur: 0.0018,
-        costGbp: 0.0016,
         byModel: {},
         byProvider: {},
         byByok: {
@@ -174,16 +145,12 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
             outputTokens: 0,
             totalTokens: 0,
             costUsd: 0,
-            costEur: 0,
-            costGbp: 0,
           },
           platform: {
             inputTokens: 200,
             outputTokens: 100,
             totalTokens: 300,
             costUsd: 0.002,
-            costEur: 0.0018,
-            costGbp: 0.0016,
           },
         },
       })
@@ -192,8 +159,6 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
         outputTokens: 75,
         totalTokens: 225,
         costUsd: 0.0015,
-        costEur: 0.00135,
-        costGbp: 0.0012,
         byModel: {},
         byProvider: {},
         byByok: {
@@ -202,16 +167,12 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
             outputTokens: 0,
             totalTokens: 0,
             costUsd: 0,
-            costEur: 0,
-            costGbp: 0,
           },
           platform: {
             inputTokens: 150,
             outputTokens: 75,
             totalTokens: 225,
             costUsd: 0.0015,
-            costEur: 0.00135,
-            costGbp: 0.0012,
           },
         },
       })
@@ -220,8 +181,6 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
         outputTokens: 150,
         totalTokens: 450,
         costUsd: 0.003,
-        costEur: 0.0027,
-        costGbp: 0.0024,
         byModel: {},
         byProvider: {},
         byByok: {
@@ -230,16 +189,12 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
             outputTokens: 0,
             totalTokens: 0,
             costUsd: 0,
-            costEur: 0,
-            costGbp: 0,
           },
           platform: {
             inputTokens: 300,
             outputTokens: 150,
             totalTokens: 450,
             costUsd: 0.003,
-            costEur: 0.0027,
-            costGbp: 0.0024,
           },
         },
       })
@@ -248,8 +203,6 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
         outputTokens: 125,
         totalTokens: 375,
         costUsd: 0.0025,
-        costEur: 0.00225,
-        costGbp: 0.002,
         byModel: {},
         byProvider: {},
         byByok: {
@@ -258,16 +211,12 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
             outputTokens: 0,
             totalTokens: 0,
             costUsd: 0,
-            costEur: 0,
-            costGbp: 0,
           },
           platform: {
             inputTokens: 250,
             outputTokens: 125,
             totalTokens: 375,
             costUsd: 0.0025,
-            costEur: 0.00225,
-            costGbp: 0.002,
           },
         },
       });
@@ -332,142 +281,6 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
     });
   });
 
-  it("should return workspace daily usage stats with EUR currency", async () => {
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const workspaceId = "workspace-123";
-    const startDate = new Date("2024-01-01");
-    const endDate = new Date("2024-01-01");
-
-    mockQueryUsageStats.mockResolvedValueOnce({
-      inputTokens: 100,
-      outputTokens: 50,
-      totalTokens: 150,
-      costUsd: 0.001,
-      costEur: 0.0009,
-      costGbp: 0.0008,
-      byModel: {},
-      byProvider: {},
-      byByok: {
-        byok: {
-          inputTokens: 0,
-          outputTokens: 0,
-          totalTokens: 0,
-          costUsd: 0,
-          costEur: 0,
-          costGbp: 0,
-        },
-        platform: {
-          inputTokens: 100,
-          outputTokens: 50,
-          totalTokens: 150,
-          costUsd: 0.001,
-          costEur: 0.0009,
-          costGbp: 0.0008,
-        },
-      },
-    });
-
-    const req = createMockRequest({
-      params: {
-        workspaceId,
-      },
-      query: {
-        currency: "eur",
-        startDate: startDate.toISOString().split("T")[0],
-        endDate: endDate.toISOString().split("T")[0],
-      },
-    });
-    const res = createMockResponse();
-
-    await callRouteHandler(req, res);
-
-    expect(res.json).toHaveBeenCalledWith({
-      workspaceId,
-      currency: "eur",
-      startDate: startDate.toISOString().split("T")[0],
-      endDate: endDate.toISOString().split("T")[0],
-      daily: [
-        {
-          date: "2024-01-01",
-          inputTokens: 100,
-          outputTokens: 50,
-          totalTokens: 150,
-          cost: 0.0009,
-        },
-      ],
-    });
-  });
-
-  it("should return workspace daily usage stats with GBP currency", async () => {
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const workspaceId = "workspace-123";
-    const startDate = new Date("2024-01-01");
-    const endDate = new Date("2024-01-01");
-
-    mockQueryUsageStats.mockResolvedValueOnce({
-      inputTokens: 100,
-      outputTokens: 50,
-      totalTokens: 150,
-      costUsd: 0.001,
-      costEur: 0.0009,
-      costGbp: 0.0008,
-      byModel: {},
-      byProvider: {},
-      byByok: {
-        byok: {
-          inputTokens: 0,
-          outputTokens: 0,
-          totalTokens: 0,
-          costUsd: 0,
-          costEur: 0,
-          costGbp: 0,
-        },
-        platform: {
-          inputTokens: 100,
-          outputTokens: 50,
-          totalTokens: 150,
-          costUsd: 0.001,
-          costEur: 0.0009,
-          costGbp: 0.0008,
-        },
-      },
-    });
-
-    const req = createMockRequest({
-      params: {
-        workspaceId,
-      },
-      query: {
-        currency: "gbp",
-        startDate: startDate.toISOString().split("T")[0],
-        endDate: endDate.toISOString().split("T")[0],
-      },
-    });
-    const res = createMockResponse();
-
-    await callRouteHandler(req, res);
-
-    expect(res.json).toHaveBeenCalledWith({
-      workspaceId,
-      currency: "gbp",
-      startDate: startDate.toISOString().split("T")[0],
-      endDate: endDate.toISOString().split("T")[0],
-      daily: [
-        {
-          date: "2024-01-01",
-          inputTokens: 100,
-          outputTokens: 50,
-          totalTokens: 150,
-          cost: 0.0008,
-        },
-      ],
-    });
-  });
-
   it("should use default date range (last 30 days) when dates are not provided", async () => {
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
@@ -480,8 +293,6 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
       outputTokens: 50,
       totalTokens: 150,
       costUsd: 0.001,
-      costEur: 0.0009,
-      costGbp: 0.0008,
       byModel: {},
       byProvider: {},
       byByok: {
@@ -490,16 +301,12 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
           outputTokens: 0,
           totalTokens: 0,
           costUsd: 0,
-          costEur: 0,
-          costGbp: 0,
         },
         platform: {
           inputTokens: 100,
           outputTokens: 50,
           totalTokens: 150,
           costUsd: 0.001,
-          costEur: 0.0009,
-          costGbp: 0.0008,
         },
       },
     });
@@ -531,35 +338,6 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
     expect(lastCallArgs.endDate).toBeInstanceOf(Date);
   });
 
-  it("should throw badRequest when currency is invalid", async () => {
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const workspaceId = "workspace-123";
-
-    const req = createMockRequest({
-      params: {
-        workspaceId,
-      },
-      query: {
-        currency: "invalid",
-      },
-    });
-    const res = createMockResponse();
-
-    await expect(callRouteHandler(req, res)).rejects.toThrow(
-      expect.objectContaining({
-        output: expect.objectContaining({
-          statusCode: 400,
-          payload: expect.objectContaining({
-            message: expect.stringContaining(
-              "Invalid currency. Allowed values: usd, eur, gbp"
-            ),
-          }),
-        }),
-      })
-    );
-  });
 
   it("should throw badRequest when startDate format is invalid", async () => {
     const mockDb = createMockDatabase();
@@ -636,8 +414,6 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
       outputTokens: 50,
       totalTokens: 150,
       costUsd: 0.001,
-      costEur: 0.0009,
-      costGbp: 0.0008,
       byModel: {},
       byProvider: {},
       byByok: {
@@ -646,16 +422,12 @@ describe("GET /api/workspaces/:workspaceId/usage/daily", () => {
           outputTokens: 0,
           totalTokens: 0,
           costUsd: 0,
-          costEur: 0,
-          costGbp: 0,
         },
         platform: {
           inputTokens: 100,
           outputTokens: 50,
           totalTokens: 150,
           costUsd: 0.001,
-          costEur: 0.0009,
-          costGbp: 0.0008,
         },
       },
     });

@@ -95,8 +95,6 @@ describe("spendingLimits", () => {
     it("should return spending for workspace in USD", async () => {
       mockQueryUsageStats.mockResolvedValue({
         costUsd: 10_500_000, // 10.5 USD in millionths
-        costEur: 9_500_000, // 9.5 EUR in millionths
-        costGbp: 8_500_000, // 8.5 GBP in millionths
         inputTokens: 1000,
         outputTokens: 200,
       });
@@ -106,8 +104,7 @@ describe("spendingLimits", () => {
         mockDb,
         "workspace-123",
         undefined,
-        startDate,
-        "usd"
+        startDate
       );
 
       expect(spending).toBe(10_500_000); // millionths
@@ -119,53 +116,10 @@ describe("spendingLimits", () => {
       });
     });
 
-    it("should return spending for workspace in EUR", async () => {
-      mockQueryUsageStats.mockResolvedValue({
-        costUsd: 10_500_000, // 10.5 USD in millionths
-        costEur: 9_500_000, // 9.5 EUR in millionths
-        costGbp: 8_500_000, // 8.5 GBP in millionths
-        inputTokens: 1000,
-        outputTokens: 200,
-      });
-
-      const startDate = new Date("2024-01-01T00:00:00Z");
-      const spending = await getSpendingInWindow(
-        mockDb,
-        "workspace-123",
-        undefined,
-        startDate,
-        "eur"
-      );
-
-      expect(spending).toBe(9_500_000); // millionths
-    });
-
-    it("should return spending for workspace in GBP", async () => {
-      mockQueryUsageStats.mockResolvedValue({
-        costUsd: 10_500_000, // 10.5 USD in millionths
-        costEur: 9_500_000, // 9.5 EUR in millionths
-        costGbp: 8_500_000, // 8.5 GBP in millionths
-        inputTokens: 1000,
-        outputTokens: 200,
-      });
-
-      const startDate = new Date("2024-01-01T00:00:00Z");
-      const spending = await getSpendingInWindow(
-        mockDb,
-        "workspace-123",
-        undefined,
-        startDate,
-        "gbp"
-      );
-
-      expect(spending).toBe(8_500_000); // millionths
-    });
 
     it("should return spending for specific agent", async () => {
       mockQueryUsageStats.mockResolvedValue({
         costUsd: 5_000_000, // 5.0 USD in millionths
-        costEur: 4_500_000, // 4.5 EUR in millionths
-        costGbp: 4_000_000, // 4.0 GBP in millionths
         inputTokens: 500,
         outputTokens: 100,
       });
@@ -176,7 +130,6 @@ describe("spendingLimits", () => {
         "workspace-123",
         "agent-456",
         startDate,
-        "usd"
       );
 
       expect(spending).toBe(5_000_000); // millionths
@@ -194,8 +147,6 @@ describe("spendingLimits", () => {
 
       mockQueryUsageStats.mockResolvedValue({
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
         inputTokens: 0,
         outputTokens: 0,
       });
@@ -206,7 +157,6 @@ describe("spendingLimits", () => {
         "workspace-123",
         undefined,
         startDate,
-        "usd"
       );
 
       const callArgs = mockQueryUsageStats.mock.calls[0][1];
@@ -228,8 +178,6 @@ describe("spendingLimits", () => {
 
       mockQueryUsageStats.mockResolvedValue({
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
         inputTokens: 0,
         outputTokens: 0,
       });
@@ -259,8 +207,6 @@ describe("spendingLimits", () => {
 
       mockQueryUsageStats.mockResolvedValue({
         costUsd: 50_000_000, // 50.0 USD in millionths (current spending)
-        costEur: 45_000_000, // 45.0 EUR in millionths
-        costGbp: 40_000_000, // 40.0 GBP in millionths
         inputTokens: 5000,
         outputTokens: 1000,
       });
@@ -290,8 +236,6 @@ describe("spendingLimits", () => {
 
       mockQueryUsageStats.mockResolvedValue({
         costUsd: 95_000_000, // 95.0 USD in millionths (current spending)
-        costEur: 85_000_000, // 85.0 EUR in millionths
-        costGbp: 75_000_000, // 75.0 GBP in millionths
         inputTokens: 9500,
         outputTokens: 1900,
       });
@@ -333,15 +277,11 @@ describe("spendingLimits", () => {
       mockQueryUsageStats
         .mockResolvedValueOnce({
           costUsd: 60_000_000, // 60.0 USD in millionths (exceeds daily limit)
-          costEur: 54_000_000, // 54.0 EUR in millionths
-          costGbp: 48_000_000, // 48.0 GBP in millionths
           inputTokens: 6000,
           outputTokens: 1200,
         })
         .mockResolvedValueOnce({
           costUsd: 150_000_000, // 150.0 USD in millionths (under weekly limit)
-          costEur: 135_000_000, // 135.0 EUR in millionths
-          costGbp: 120_000_000, // 120.0 GBP in millionths
           inputTokens: 15000,
           outputTokens: 3000,
         });
@@ -385,8 +325,6 @@ describe("spendingLimits", () => {
 
       mockQueryUsageStats.mockResolvedValue({
         costUsd: 18_000_000, // 18.0 USD in millionths (current agent spending)
-        costEur: 16_000_000, // 16.0 EUR in millionths
-        costGbp: 14_000_000, // 14.0 GBP in millionths
         inputTokens: 1800,
         outputTokens: 360,
       });
@@ -437,15 +375,11 @@ describe("spendingLimits", () => {
       mockQueryUsageStats
         .mockResolvedValueOnce({
           costUsd: 50_000_000, // 50.0 USD in millionths (under workspace limit)
-          costEur: 45_000_000, // 45.0 EUR in millionths
-          costGbp: 40_000_000, // 40.0 GBP in millionths
           inputTokens: 5000,
           outputTokens: 1000,
         })
         .mockResolvedValueOnce({
           costUsd: 18_000_000, // 18.0 USD in millionths (would exceed agent limit with 5.0)
-          costEur: 16_000_000, // 16.0 EUR in millionths
-          costGbp: 14_000_000, // 14.0 GBP in millionths
           inputTokens: 1800,
           outputTokens: 360,
         });
@@ -476,8 +410,6 @@ describe("spendingLimits", () => {
 
       mockQueryUsageStats.mockResolvedValue({
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
         inputTokens: 0,
         outputTokens: 0,
       });
@@ -517,8 +449,6 @@ describe("spendingLimits", () => {
 
       mockQueryUsageStats.mockResolvedValue({
         costUsd: 0,
-        costEur: 0,
-        costGbp: 0,
         inputTokens: 0,
         outputTokens: 0,
       });

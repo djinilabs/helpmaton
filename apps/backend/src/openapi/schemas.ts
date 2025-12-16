@@ -48,7 +48,7 @@ export const openApiSchemas = {
       },
       currency: {
         type: "string",
-        enum: ["usd", "eur", "gbp"],
+        enum: ["usd"],
         description: "Currency code",
       },
       spendingLimits: {
@@ -98,7 +98,7 @@ export const openApiSchemas = {
       },
       currency: {
         type: "string",
-        enum: ["usd", "eur", "gbp"],
+        enum: ["usd"],
         description: "Currency code",
         default: "usd",
       },
@@ -294,7 +294,7 @@ export const openApiSchemas = {
       },
       currency: {
         type: "string",
-        enum: ["usd", "eur", "gbp"],
+        enum: ["usd"],
         description: "Currency code",
       },
       period: {
@@ -313,7 +313,7 @@ export const openApiSchemas = {
       },
       currency: {
         type: "string",
-        enum: ["usd", "eur", "gbp"],
+        enum: ["usd"],
         description: "Currency code",
       },
       startDate: {

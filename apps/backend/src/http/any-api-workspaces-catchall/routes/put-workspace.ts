@@ -4,14 +4,13 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { handleError, requireAuth, requirePermission } from "../middleware";
-import { ALLOWED_CURRENCIES } from "../utils";
 
 /**
  * @openapi
  * /api/workspaces/{workspaceId}:
  *   put:
  *     summary: Update workspace
- *     description: Updates workspace name, description, and currency. Currency can only be changed when the credit balance is 0. Requires WRITE permission or higher. Trial-related fields cannot be modified through this endpoint.
+ *     description: Updates workspace name and description. Requires WRITE permission or higher. Trial-related fields cannot be modified through this endpoint.
  *     tags:
  *       - Workspaces
  *     security:
@@ -79,36 +78,6 @@ export const registerPutWorkspace = (app: express.Application) => {
           throw resourceGone("Workspace not found");
         }
 
-        const { currency } = req.body;
-
-        // Validate currency if provided
-        if (currency !== undefined && !ALLOWED_CURRENCIES.includes(currency)) {
-          throw badRequest("currency must be one of: usd, eur, gbp");
-        }
-
-        // Prevent currency change if balance is not 0
-        if (
-          currency !== undefined &&
-          currency !== workspace.currency &&
-          workspace.creditBalance !== 0
-        ) {
-          throw badRequest(
-            "Cannot change currency when workspace balance is not 0. Please use all credits or contact support."
-          );
-        }
-
-        // Determine the currency to use - prioritize the one from request body if valid
-        const currencyToUse: "usd" | "eur" | "gbp" =
-          currency !== undefined && ALLOWED_CURRENCIES.includes(currency)
-            ? (currency as "usd" | "eur" | "gbp")
-            : (workspace.currency as "usd" | "eur" | "gbp") || "usd";
-
-        console.log("[PUT /api/workspaces/:workspaceId] Currency update:", {
-          workspaceId: workspaceResource,
-          currencyFromBody: currency,
-          currentWorkspaceCurrency: workspace.currency,
-          currencyToUse,
-        });
 
         // Protect trial-related fields - remove them from request body if present
         // These fields are intentionally excluded to prevent modification
@@ -131,7 +100,7 @@ export const registerPutWorkspace = (app: express.Application) => {
           name: name !== undefined ? name : workspace.name,
           description:
             description !== undefined ? description : workspace.description,
-          currency: currencyToUse, // Always explicitly set currency
+          currency: "usd" as const, // Always use USD
           updatedBy: req.userRef || "",
           updatedAt: new Date().toISOString(),
         };
@@ -144,22 +113,15 @@ export const registerPutWorkspace = (app: express.Application) => {
         const updated = await db.workspace.update(updatePayload);
 
         console.log(
-          "[PUT /api/workspaces/:workspaceId] Updated workspace currency:",
-          updated.currency
+          "[PUT /api/workspaces/:workspaceId] Updated workspace"
         );
-
-        // Use the updated currency directly - should match currencyToUse
-        const finalCurrency = (updated.currency || currencyToUse) as
-          | "usd"
-          | "eur"
-          | "gbp";
 
         res.json({
           id: updated.pk.replace("workspaces/", ""),
           name: updated.name,
           description: updated.description,
           creditBalance: updated.creditBalance ?? 0,
-          currency: finalCurrency,
+          currency: "usd",
           spendingLimits: updated.spendingLimits ?? [],
           createdAt: updated.createdAt,
           updatedAt: updated.updatedAt,

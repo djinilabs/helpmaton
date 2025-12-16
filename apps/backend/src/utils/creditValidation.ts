@@ -110,14 +110,13 @@ export async function validateCreditsAndLimits(
     }
   }
 
-  // Estimate cost using token estimation
+  // Estimate cost using token estimation (always in USD)
   const estimatedCost = estimateTokenCost(
     provider,
     modelName,
     messages,
     systemPrompt,
-    toolDefinitions,
-    workspace.currency
+    toolDefinitions
   );
 
   // Check credit balance (only if validation is enabled)
@@ -127,7 +126,7 @@ export async function validateCreditsAndLimits(
         workspaceId,
         estimatedCost,
         workspace.creditBalance,
-        workspace.currency
+        "usd"
       );
     }
   }
@@ -225,14 +224,13 @@ export async function validateCreditsAndLimitsAndReserve(
     }
   }
 
-  // Estimate cost using token estimation
+  // Estimate cost using token estimation (always in USD)
   const estimatedCost = estimateTokenCost(
     provider,
     modelName,
     messages,
     systemPrompt,
-    toolDefinitions,
-    workspace.currency
+    toolDefinitions
   );
 
   // Check all spending limits (only if checks are enabled)
@@ -255,7 +253,6 @@ export async function validateCreditsAndLimitsAndReserve(
       db,
       workspaceId,
       estimatedCost,
-      workspace.currency,
       3, // maxRetries
       usesByok
     );

@@ -51,7 +51,7 @@ import {
 import { useStreamUrl } from "../hooks/useStreamUrl";
 import { useAgentUsage, useAgentDailyUsage } from "../hooks/useUsage";
 import { useWorkspace } from "../hooks/useWorkspaces";
-import type { ClientTool, Conversation, Currency } from "../utils/api";
+import type { ClientTool, Conversation } from "../utils/api";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
 import {
   getModelsForProvider,
@@ -167,7 +167,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   const [isStreamTestModalOpen, setIsStreamTestModalOpen] = useState(false);
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
-  const [currency, setCurrency] = useState<Currency>("usd");
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const systemPromptRef = useRef<HTMLDivElement>(null);
@@ -1776,7 +1775,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   workspaceId={workspaceId}
                   agentId={agentId}
                   spendingLimits={agent.spendingLimits}
-                  currency={workspace.currency || "usd"}
                   canEdit={!!canEdit}
                 />
               </LazyAccordionContent>
@@ -1794,8 +1792,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <AgentUsageSection
                 workspaceId={workspaceId}
                 agentId={agentId}
-                currency={currency}
-                onCurrencyChange={setCurrency}
               />
             </LazyAccordionContent>
           </AccordionSection>
@@ -2039,15 +2035,11 @@ const KeyItem: FC<KeyItemProps> = ({
 interface AgentUsageSectionProps {
   workspaceId: string;
   agentId: string;
-  currency: Currency;
-  onCurrencyChange: (currency: Currency) => void;
 }
 
 const AgentUsageSection: FC<AgentUsageSectionProps> = ({
   workspaceId,
   agentId,
-  currency,
-  onCurrencyChange,
 }) => {
   const [dateRangePreset, setDateRangePreset] =
     useState<DateRangePreset>("last-30-days");
@@ -2060,7 +2052,6 @@ const AgentUsageSection: FC<AgentUsageSectionProps> = ({
     refetch: refetchUsage,
     isRefetching: isRefetchingUsage,
   } = useAgentUsage(workspaceId, agentId, {
-    currency,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
   });
@@ -2072,7 +2063,6 @@ const AgentUsageSection: FC<AgentUsageSectionProps> = ({
     refetch: refetchDaily,
     isRefetching: isRefetchingDaily,
   } = useAgentDailyUsage(workspaceId, agentId, {
-    currency,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
   });
@@ -2118,8 +2108,6 @@ const AgentUsageSection: FC<AgentUsageSectionProps> = ({
     <UsageDashboard
       stats={usageData.stats}
       dailyData={dailyUsageData?.daily}
-      currency={currency}
-      onCurrencyChange={onCurrencyChange}
       title="AGENT USAGE"
       dateRange={dateRange}
       dateRangePreset={dateRangePreset}

@@ -1,7 +1,6 @@
 import type { DatabaseSchema, AgentRecord, WorkspaceRecord } from "../tables/schema";
 
 import { queryUsageStats } from "./aggregation";
-import type { Currency } from "./pricing";
 
 export type TimeFrame = "daily" | "weekly" | "monthly";
 
@@ -44,14 +43,13 @@ export function calculateRollingWindow(timeFrame: TimeFrame): Date {
 
 /**
  * Get spending in a rolling window for workspace or agent
- * Returns total cost in the workspace's currency
+ * Returns total cost in USD
  */
 export async function getSpendingInWindow(
   db: DatabaseSchema,
   workspaceId: string,
   agentId: string | undefined,
-  startDate: Date,
-  currency: Currency
+  startDate: Date
 ): Promise<number> {
   const endDate = new Date();
 
@@ -63,15 +61,8 @@ export async function getSpendingInWindow(
     endDate,
   });
 
-  // Return cost in the workspace's currency
-  switch (currency) {
-    case "usd":
-      return stats.costUsd;
-    case "eur":
-      return stats.costEur;
-    case "gbp":
-      return stats.costGbp;
-  }
+  // Return cost in USD
+  return stats.costUsd;
 }
 
 /**
@@ -103,8 +94,7 @@ export async function checkSpendingLimits(
         db,
         workspaceId,
         undefined,
-        startDate,
-        workspace.currency
+        startDate
       );
 
       // Check if adding estimated cost would exceed limit
@@ -136,8 +126,7 @@ export async function checkSpendingLimits(
           db,
           workspaceId,
           agentId,
-          startDate,
-          workspace.currency
+          startDate
         );
 
         // Check if adding estimated cost would exceed limit

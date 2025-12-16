@@ -362,8 +362,7 @@ describe("creditValidation", () => {
         "gemini-2.5-flash",
         messages,
         "System prompt",
-        [{ name: "tool1" }],
-        "usd"
+        [{ name: "tool1" }]
       );
     });
 
@@ -405,7 +404,6 @@ describe("creditValidation", () => {
         mockDb,
         "test-workspace",
         10_000_000, // 10.0 USD in millionths
-        "usd",
         3,
         false
       );

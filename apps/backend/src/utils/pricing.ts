@@ -1,6 +1,6 @@
 import pricingConfigData from "../config/pricing.json";
 
-export type Currency = "usd" | "eur" | "gbp";
+export type Currency = "usd";
 
 /**
  * Pricing tier for token thresholds
@@ -29,14 +29,12 @@ export interface CurrencyPricing {
 }
 
 /**
- * Pricing for a model in multiple currencies.
+ * Pricing for a model in USD.
  * All prices are per 1 million tokens.
  * Supports both flat pricing (backward compatible) and tiered pricing.
  */
 export interface ModelPricing {
   usd: CurrencyPricing;
-  eur: CurrencyPricing;
-  gbp: CurrencyPricing;
 }
 
 export interface ProviderPricing {
@@ -357,7 +355,6 @@ export function calculateTokenCost(
   modelName: string,
   inputTokens: number,
   outputTokens: number,
-  currency: Currency = "usd",
   reasoningTokens: number = 0,
   cachedPromptTokens: number = 0
 ): number {
@@ -368,7 +365,6 @@ export function calculateTokenCost(
     outputTokens,
     reasoningTokens,
     cachedPromptTokens,
-    currency,
   });
 
   const pricing = getModelPricing(provider, modelName);
@@ -390,10 +386,10 @@ export function calculateTokenCost(
     return 0;
   }
 
-  const currencyPricing = pricing[currency];
+  const currencyPricing = pricing.usd;
   if (!currencyPricing) {
     console.warn(
-      `[calculateTokenCost] No pricing found for currency: ${currency} in provider: ${provider}, model: ${modelName}`
+      `[calculateTokenCost] No USD pricing found for provider: ${provider}, model: ${modelName}`
     );
     return 0;
   }
@@ -416,7 +412,6 @@ export function calculateTokenCost(
   console.log("[calculateTokenCost] Calculated:", {
     provider,
     modelName,
-    currency,
     inputTokens,
     cachedPromptTokens,
     outputTokens,
@@ -439,8 +434,9 @@ export function calculateTokenCost(
 }
 
 /**
- * Calculate costs for all currencies
+ * Calculate costs for USD
  * Supports reasoning tokens and cached tokens
+ * @deprecated Use calculateTokenCost directly instead
  */
 export function calculateTokenCosts(
   provider: string,
@@ -451,8 +447,6 @@ export function calculateTokenCosts(
   cachedPromptTokens: number = 0
 ): {
   usd: number;
-  eur: number;
-  gbp: number;
 } {
   return {
     usd: calculateTokenCost(
@@ -460,25 +454,6 @@ export function calculateTokenCosts(
       modelName,
       inputTokens,
       outputTokens,
-      "usd",
-      reasoningTokens,
-      cachedPromptTokens
-    ),
-    eur: calculateTokenCost(
-      provider,
-      modelName,
-      inputTokens,
-      outputTokens,
-      "eur",
-      reasoningTokens,
-      cachedPromptTokens
-    ),
-    gbp: calculateTokenCost(
-      provider,
-      modelName,
-      inputTokens,
-      outputTokens,
-      "gbp",
       reasoningTokens,
       cachedPromptTokens
     ),

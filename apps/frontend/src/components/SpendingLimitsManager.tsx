@@ -10,14 +10,13 @@ import {
   useRemoveAgentSpendingLimit,
 } from "../hooks/useSpendingLimits";
 import { useUpdateWorkspace } from "../hooks/useWorkspaces";
-import type { SpendingLimit, Currency } from "../utils/api";
+import type { SpendingLimit } from "../utils/api";
 import { formatCurrency, fromMillionths, toMillionths } from "../utils/currency";
 
 interface SpendingLimitsManagerProps {
   workspaceId: string;
   agentId?: string;
   spendingLimits?: SpendingLimit[];
-  currency: Currency;
   canEdit: boolean;
 }
 
@@ -30,17 +29,11 @@ const TIME_FRAMES: Array<{
   { value: "monthly", label: "MONTHLY" },
 ];
 
-const CURRENCIES: Array<{ value: Currency; label: string }> = [
-  { value: "usd", label: "USD ($)" },
-  { value: "eur", label: "EUR (€)" },
-  { value: "gbp", label: "GBP (£)" },
-];
 
 export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
   workspaceId,
   agentId,
   spendingLimits = [],
-  currency = "usd",
   canEdit,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
@@ -48,8 +41,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
   const [newLimit, setNewLimit] = useState<{
     timeFrame: "daily" | "weekly" | "monthly" | "";
     amount: string;
-    currency: Currency;
-  }>({ timeFrame: "", amount: "", currency });
+  }>({ timeFrame: "", amount: "" });
   const [editAmount, setEditAmount] = useState<string>("");
   const updateWorkspace = useUpdateWorkspace(workspaceId);
 
@@ -76,9 +68,9 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
     (tf) => !existingTimeFrames.includes(tf.value)
   );
 
-  // Handler to open the add form with current currency
+  // Handler to open the add form
   const handleStartAdding = () => {
-    setNewLimit({ timeFrame: "", amount: "", currency });
+    setNewLimit({ timeFrame: "", amount: "" });
     setIsAdding(true);
   };
 
@@ -88,19 +80,12 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
     if (isNaN(amount) || amount <= 0) return;
 
     try {
-      // If currency changed and this is a workspace (not agent), update workspace currency first
-      if (!agentId && newLimit.currency !== currency) {
-        await updateWorkspace.mutateAsync({
-          currency: newLimit.currency,
-        });
-      }
-
       // Convert from currency units to millionths for API
       await addLimit.mutateAsync({
         timeFrame: newLimit.timeFrame as "daily" | "weekly" | "monthly",
         amount: toMillionths(amount),
       });
-      setNewLimit({ timeFrame: "", amount: "", currency });
+      setNewLimit({ timeFrame: "", amount: "" });
       setIsAdding(false);
     } catch {
       // Error handled by toast
@@ -218,32 +203,9 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                 ))}
               </select>
             </div>
-            {!agentId && (
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2">
-                  Currency
-                </label>
-                <select
-                  value={newLimit.currency}
-                  onChange={(e) =>
-                    setNewLimit({
-                      ...newLimit,
-                      currency: e.target.value as Currency,
-                    })
-                  }
-                  className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-colors"
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-2">
-                Amount ({newLimit.currency.toUpperCase()})
+                Amount (USD)
               </label>
               <input
                 type="number"
@@ -276,7 +238,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
               <button
                 onClick={() => {
                   setIsAdding(false);
-                  setNewLimit({ timeFrame: "", amount: "", currency });
+                  setNewLimit({ timeFrame: "", amount: "" });
                 }}
                 disabled={addLimit.isPending || updateWorkspace.isPending}
                 className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -340,7 +302,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                         ?.label || limit.timeFrame.toUpperCase()}
                     </div>
                     <div className="text-lg mt-1 text-neutral-700">
-                      {formatCurrency(limit.amount, currency, 2)}
+                      {formatCurrency(limit.amount, "usd", 2)}
                     </div>
                   </div>
                   {canEdit && (
