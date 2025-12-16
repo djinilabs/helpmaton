@@ -10,7 +10,7 @@
           },
           "eur": {
             "input": 0.064,
-            "output": 0.256
+            "output": 0.255
           },
           "gbp": {
             "input": 0.056,
@@ -24,7 +24,7 @@
           },
           "eur": {
             "input": 0.064,
-            "output": 0.256
+            "output": 0.255
           },
           "gbp": {
             "input": 0.056,
@@ -38,7 +38,7 @@
           },
           "eur": {
             "input": 0.064,
-            "output": 0.256
+            "output": 0.255
           },
           "gbp": {
             "input": 0.056,
@@ -52,7 +52,7 @@
           },
           "eur": {
             "input": 0.064,
-            "output": 0.256
+            "output": 0.255
           },
           "gbp": {
             "input": 0.056,
@@ -66,7 +66,7 @@
           },
           "eur": {
             "input": 0.064,
-            "output": 0.256
+            "output": 0.255
           },
           "gbp": {
             "input": 0.056,
@@ -91,12 +91,12 @@
             "tiers": [
               {
                 "threshold": 200000,
-                "input": 1.066,
-                "output": 8.524
+                "input": 1.064,
+                "output": 8.508
               },
               {
-                "input": 2.131,
-                "output": 12.787
+                "input": 2.127,
+                "output": 12.763
               }
             ]
           },
@@ -105,11 +105,11 @@
               {
                 "threshold": 200000,
                 "input": 0.934,
-                "output": 7.473
+                "output": 7.47
               },
               {
-                "input": 1.868,
-                "output": 11.21
+                "input": 1.867,
+                "output": 11.204
               }
             ]
           }
@@ -117,5 +117,5 @@
       }
     }
   },
-  "lastUpdated": "2025-12-13T00:14:20.842Z"
+  "lastUpdated": "2025-12-16T00:15:07.254Z"
 }
