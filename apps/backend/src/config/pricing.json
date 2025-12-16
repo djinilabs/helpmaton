@@ -1,76 +1,91 @@
 {
-  "_comment": "Pricing configuration for AI models. All prices are per 1 million tokens. The normalizeModelName function in pricing.ts handles mapping preview/variant model names to their base models, so duplicate entries for preview versions are not necessary. Supports both flat pricing (backward compatible) and tiered pricing (for models with different rates based on token count thresholds). Flat pricing uses 'input' and 'output' fields. Tiered pricing uses 'tiers' array with threshold-based rates. Reasoning tokens can be specified with 'reasoning' field (flat) or 'reasoning' in tiers.",
+  "_comment": "Pricing configuration for AI models. All prices are per 1 million tokens. The normalizeModelName function in pricing.ts handles mapping preview/variant model names to their base models, so duplicate entries for preview versions are not necessary. Supports both flat pricing (backward compatible) and tiered pricing (for models with different rates based on token count thresholds). Flat pricing uses 'input' and 'output' fields. Tiered pricing uses 'tiers' array with threshold-based rates. Reasoning tokens can be specified with 'reasoning' field (flat) or 'reasoning' in tiers. Cached input tokens can be specified with 'cachedInput' field (flat) or 'cachedInput' in tiers, typically ~10% of input token rate.",
   "providers": {
     "google": {
       "models": {
         "gemini-2.5-flash": {
           "usd": {
             "input": 0.075,
-            "output": 0.3
+            "output": 0.3,
+            "cachedInput": 0.0075
           },
           "eur": {
             "input": 0.064,
-            "output": 0.255
+            "output": 0.255,
+            "cachedInput": 0.006
           },
           "gbp": {
             "input": 0.056,
-            "output": 0.224
+            "output": 0.224,
+            "cachedInput": 0.006
           }
         },
         "gemini-2.0-flash-exp": {
           "usd": {
             "input": 0.075,
-            "output": 0.3
+            "output": 0.3,
+            "cachedInput": 0.0075
           },
           "eur": {
             "input": 0.064,
-            "output": 0.255
+            "output": 0.255,
+            "cachedInput": 0.006
           },
           "gbp": {
             "input": 0.056,
-            "output": 0.224
+            "output": 0.224,
+            "cachedInput": 0.006
           }
         },
         "gemini-2.5-flash-lite": {
           "usd": {
             "input": 0.075,
-            "output": 0.3
+            "output": 0.3,
+            "cachedInput": 0.0075
           },
           "eur": {
             "input": 0.064,
-            "output": 0.255
+            "output": 0.255,
+            "cachedInput": 0.006
           },
           "gbp": {
             "input": 0.056,
-            "output": 0.224
+            "output": 0.224,
+            "cachedInput": 0.006
           }
         },
         "gemini-2.5-flash-preview-09-2025": {
           "usd": {
             "input": 0.075,
-            "output": 0.3
+            "output": 0.3,
+            "cachedInput": 0.0075
           },
           "eur": {
             "input": 0.064,
-            "output": 0.255
+            "output": 0.255,
+            "cachedInput": 0.006
           },
           "gbp": {
             "input": 0.056,
-            "output": 0.224
+            "output": 0.224,
+            "cachedInput": 0.006
           }
         },
         "gemini-2.5-flash-lite-preview-09-2025": {
           "usd": {
             "input": 0.075,
-            "output": 0.3
+            "output": 0.3,
+            "cachedInput": 0.0075
           },
           "eur": {
             "input": 0.064,
-            "output": 0.255
+            "output": 0.255,
+            "cachedInput": 0.006
           },
           "gbp": {
             "input": 0.056,
-            "output": 0.224
+            "output": 0.224,
+            "cachedInput": 0.006
           }
         },
         "gemini-2.5-pro": {
@@ -79,11 +94,13 @@
               {
                 "threshold": 200000,
                 "input": 1.25,
-                "output": 10
+                "output": 10,
+                "cachedInput": 0.125
               },
               {
                 "input": 2.5,
-                "output": 15
+                "output": 15,
+                "cachedInput": 0.25
               }
             ]
           },
@@ -92,11 +109,13 @@
               {
                 "threshold": 200000,
                 "input": 1.064,
-                "output": 8.508
+                "output": 8.508,
+                "cachedInput": 0.106
               },
               {
                 "input": 2.127,
-                "output": 12.763
+                "output": 12.763,
+                "cachedInput": 0.213
               }
             ]
           },
@@ -105,11 +124,13 @@
               {
                 "threshold": 200000,
                 "input": 0.934,
-                "output": 7.47
+                "output": 7.47,
+                "cachedInput": 0.093
               },
               {
                 "input": 1.867,
-                "output": 11.204
+                "output": 11.204,
+                "cachedInput": 0.187
               }
             ]
           }
@@ -117,5 +138,5 @@
       }
     }
   },
-  "lastUpdated": "2025-12-16T00:15:07.254Z"
+  "lastUpdated": "2025-12-16T08:52:33.602Z"
 }
