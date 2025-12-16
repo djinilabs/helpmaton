@@ -11,6 +11,7 @@ export interface PricingTier {
   input: number; // Price per 1M input tokens
   output: number; // Price per 1M output tokens
   reasoning?: number; // Price per 1M reasoning tokens (optional)
+  cachedInput?: number; // Price per 1M cached input tokens (optional, typically ~10% of input)
 }
 
 /**
@@ -22,6 +23,7 @@ export interface CurrencyPricing {
   input?: number;
   output?: number;
   reasoning?: number;
+  cachedInput?: number; // Price per 1M cached input tokens (optional, typically ~10% of input)
   // Tiered pricing (new)
   tiers?: PricingTier[];
 }
@@ -116,13 +118,13 @@ export function getModelPricing(
  * Tiers define pricing for different token count ranges
  * @param tokens - Number of tokens
  * @param tiers - Pricing tiers with thresholds
- * @param priceField - Field to use for pricing ('input' or 'output')
+ * @param priceField - Field to use for pricing ('input', 'output', 'reasoning', or 'cachedInput')
  * @returns Total cost for the tokens
  */
 function calculateTieredCost(
   tokens: number,
   tiers: PricingTier[],
-  priceField: "input" | "output" | "reasoning" = "input"
+  priceField: "input" | "output" | "reasoning" | "cachedInput" = "input"
 ): number {
   if (tiers.length === 0 || tokens === 0) {
     return 0;
@@ -152,6 +154,8 @@ function calculateTieredCost(
     const price =
       priceField === "input"
         ? tier.input
+        : priceField === "cachedInput"
+        ? tier.cachedInput ?? tier.input
         : priceField === "reasoning"
         ? tier.reasoning ?? tier.output
         : tier.output;
@@ -194,6 +198,8 @@ function calculateTieredCost(
       const price =
         priceField === "input"
           ? defaultTier.input
+          : priceField === "cachedInput"
+          ? defaultTier.cachedInput ?? defaultTier.input
           : priceField === "reasoning"
           ? defaultTier.reasoning ?? defaultTier.output
           : defaultTier.output;
@@ -248,6 +254,45 @@ function calculateOutputCost(
 }
 
 /**
+ * Calculate cost for cached input tokens using pricing structure
+ * Cached tokens are typically charged at ~10% of regular input token rate
+ */
+function calculateCachedInputCost(
+  cachedTokens: number,
+  currencyPricing: CurrencyPricing
+): number {
+  if (cachedTokens === 0) {
+    return 0;
+  }
+
+  // Check if tiered pricing is used
+  if (currencyPricing.tiers && currencyPricing.tiers.length > 0) {
+    // Check if any tier has cached input pricing
+    const hasCachedInputPricing = currencyPricing.tiers.some(
+      (tier) => tier.cachedInput !== undefined
+    );
+
+    if (hasCachedInputPricing) {
+      return calculateTieredCost(
+        cachedTokens,
+        currencyPricing.tiers,
+        "cachedInput"
+      );
+    }
+    // If no cached input pricing in tiers, fall through to use input pricing
+  }
+
+  // Use flat pricing (backward compatible)
+  if (currencyPricing.cachedInput !== undefined) {
+    return (cachedTokens / 1_000_000) * currencyPricing.cachedInput;
+  }
+
+  // If no cached input pricing is specified, treat cached tokens as regular input tokens
+  // This is a fallback - ideally cached pricing should be configured
+  return calculateInputCost(cachedTokens, currencyPricing);
+}
+
+/**
  * Calculate cost for reasoning tokens using pricing structure
  */
 function calculateReasoningCost(
@@ -286,7 +331,7 @@ function calculateReasoningCost(
 
 /**
  * Calculate cost for token usage in a specific currency
- * Supports both flat and tiered pricing, and reasoning tokens
+ * Supports both flat and tiered pricing, reasoning tokens, and cached tokens
  */
 export function calculateTokenCost(
   provider: string,
@@ -294,7 +339,8 @@ export function calculateTokenCost(
   inputTokens: number,
   outputTokens: number,
   currency: Currency = "usd",
-  reasoningTokens: number = 0
+  reasoningTokens: number = 0,
+  cachedPromptTokens: number = 0
 ): number {
   console.log("[calculateTokenCost] Input:", {
     provider,
@@ -302,6 +348,7 @@ export function calculateTokenCost(
     inputTokens,
     outputTokens,
     reasoningTokens,
+    cachedPromptTokens,
     currency,
   });
 
@@ -334,6 +381,10 @@ export function calculateTokenCost(
 
   // Calculate costs for each token type
   const inputCost = calculateInputCost(inputTokens, currencyPricing);
+  const cachedInputCost = calculateCachedInputCost(
+    cachedPromptTokens,
+    currencyPricing
+  );
   const outputCost = calculateOutputCost(outputTokens, currencyPricing);
   const reasoningCost = calculateReasoningCost(
     reasoningTokens,
@@ -342,20 +393,30 @@ export function calculateTokenCost(
 
   // Round to 6 decimal places to avoid floating point precision issues
   const totalCost =
-    Math.round((inputCost + outputCost + reasoningCost) * 1_000_000) /
-    1_000_000;
+    Math.round(
+      (inputCost + cachedInputCost + outputCost + reasoningCost) * 1_000_000
+    ) / 1_000_000;
 
   console.log("[calculateTokenCost] Calculated:", {
     provider,
     modelName,
     currency,
     inputTokens,
+    cachedPromptTokens,
     outputTokens,
     reasoningTokens,
     inputCost,
+    cachedInputCost,
     outputCost,
     reasoningCost,
     totalCost,
+    breakdown: {
+      inputCost,
+      cachedInputCost,
+      outputCost,
+      reasoningCost,
+      totalCost,
+    },
   });
 
   return totalCost;
@@ -363,14 +424,15 @@ export function calculateTokenCost(
 
 /**
  * Calculate costs for all currencies
- * Supports reasoning tokens
+ * Supports reasoning tokens and cached tokens
  */
 export function calculateTokenCosts(
   provider: string,
   modelName: string,
   inputTokens: number,
   outputTokens: number,
-  reasoningTokens: number = 0
+  reasoningTokens: number = 0,
+  cachedPromptTokens: number = 0
 ): {
   usd: number;
   eur: number;
@@ -383,7 +445,8 @@ export function calculateTokenCosts(
       inputTokens,
       outputTokens,
       "usd",
-      reasoningTokens
+      reasoningTokens,
+      cachedPromptTokens
     ),
     eur: calculateTokenCost(
       provider,
@@ -391,7 +454,8 @@ export function calculateTokenCosts(
       inputTokens,
       outputTokens,
       "eur",
-      reasoningTokens
+      reasoningTokens,
+      cachedPromptTokens
     ),
     gbp: calculateTokenCost(
       provider,
@@ -399,7 +463,8 @@ export function calculateTokenCosts(
       inputTokens,
       outputTokens,
       "gbp",
-      reasoningTokens
+      reasoningTokens,
+      cachedPromptTokens
     ),
   };
 }

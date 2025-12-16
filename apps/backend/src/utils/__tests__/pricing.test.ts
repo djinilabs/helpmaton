@@ -11,14 +11,17 @@ const { mockPricingConfig } = vi.hoisted(() => {
               usd: {
                 input: 1.0,
                 output: 2.0,
+                cachedInput: 0.1,
               },
               eur: {
                 input: 0.85,
                 output: 1.7,
+                cachedInput: 0.085,
               },
               gbp: {
                 input: 0.75,
                 output: 1.5,
+                cachedInput: 0.075,
               },
             },
             "test-tiered-model": {
@@ -458,6 +461,128 @@ describe("pricing", () => {
         ? costString.split(".")[1].length
         : 0;
       expect(decimalPlaces).toBeLessThanOrEqual(6);
+    });
+  });
+
+  describe("calculateTokenCost - cached tokens", () => {
+    it("should calculate cost with cached tokens using cached pricing", () => {
+      const cost = calculateTokenCost(
+        "google",
+        "test-flat-model",
+        1000000, // 1M non-cached input tokens
+        500000, // 0.5M output tokens
+        "usd",
+        0, // no reasoning tokens
+        200000 // 0.2M cached tokens
+      );
+
+      // 1M * $1.0 (input) + 0.2M * $0.1 (cached) + 0.5M * $2.0 (output) = $1.0 + $0.02 + $1.0 = $2.02
+      expect(cost).toBe(2.02);
+    });
+
+    it("should handle cached tokens without cached pricing (fallback to input)", () => {
+      // Use a model without cached pricing - should fall back to input pricing
+      const cost = calculateTokenCost(
+        "google",
+        "test-reasoning-model", // This model doesn't have cachedInput in mock
+        1000000, // 1M non-cached input tokens
+        500000, // 0.5M output tokens
+        "usd",
+        0, // no reasoning tokens
+        200000 // 0.2M cached tokens (will use input pricing as fallback)
+      );
+
+      // 1M * $1.0 (input) + 0.2M * $1.0 (cached, fallback to input) + 0.5M * $2.0 (output) = $1.0 + $0.2 + $1.0 = $2.2
+      expect(cost).toBe(2.2);
+    });
+
+    it("should return 0 cost when only cached tokens are present", () => {
+      const cost = calculateTokenCost(
+        "google",
+        "test-flat-model",
+        0, // no non-cached input tokens
+        0, // no output tokens
+        "usd",
+        0, // no reasoning tokens
+        200000 // 0.2M cached tokens
+      );
+
+      // 0.2M * $0.1 (cached) = $0.02
+      expect(cost).toBe(0.02);
+    });
+
+    it("should calculate cached token cost in different currencies", () => {
+      const usdCost = calculateTokenCost(
+        "google",
+        "test-flat-model",
+        1000000,
+        500000,
+        "usd",
+        0,
+        200000
+      );
+      const eurCost = calculateTokenCost(
+        "google",
+        "test-flat-model",
+        1000000,
+        500000,
+        "eur",
+        0,
+        200000
+      );
+      const gbpCost = calculateTokenCost(
+        "google",
+        "test-flat-model",
+        1000000,
+        500000,
+        "gbp",
+        0,
+        200000
+      );
+
+      expect(usdCost).toBe(2.02); // 1.0 + 0.02 + 1.0
+      expect(eurCost).toBe(1.717); // 0.85 + 0.017 + 0.85
+      expect(gbpCost).toBe(1.515); // 0.75 + 0.015 + 0.75
+    });
+
+    it("should handle cached tokens with reasoning tokens", () => {
+      const cost = calculateTokenCost(
+        "google",
+        "test-reasoning-model",
+        1000000, // 1M non-cached input tokens
+        500000, // 0.5M output tokens
+        "usd",
+        100000, // 0.1M reasoning tokens
+        200000 // 0.2M cached tokens
+      );
+
+      // 1M * $1.0 (input) + 0.2M * $1.0 (cached, fallback) + 0.5M * $2.0 (output) + 0.1M * $3.5 (reasoning)
+      // = $1.0 + $0.2 + $1.0 + $0.35 = $2.55
+      expect(cost).toBe(2.55);
+    });
+
+    it("should handle zero cached tokens", () => {
+      const cost = calculateTokenCost(
+        "google",
+        "test-flat-model",
+        1000000,
+        500000,
+        "usd",
+        0,
+        0 // no cached tokens
+      );
+
+      // Should be same as without cached tokens parameter
+      const costWithoutCached = calculateTokenCost(
+        "google",
+        "test-flat-model",
+        1000000,
+        500000,
+        "usd"
+      );
+
+      expect(cost).toBe(costWithoutCached);
+      expect(cost).toBe(2.0);
     });
   });
 });

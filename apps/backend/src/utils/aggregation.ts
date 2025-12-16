@@ -142,12 +142,28 @@ export function aggregateConversations(
     const usageObj = tokenUsage as unknown as Record<string, unknown>;
     const inputTokens =
       typeof usageObj.promptTokens === "number" ? usageObj.promptTokens : 0;
+    const cachedPromptTokens =
+      typeof usageObj.cachedPromptTokens === "number"
+        ? usageObj.cachedPromptTokens
+        : 0;
     const outputTokens =
       typeof usageObj.completionTokens === "number"
         ? usageObj.completionTokens
         : 0;
     const totalTokens =
       typeof usageObj.totalTokens === "number" ? usageObj.totalTokens : 0;
+
+    // Log cached tokens if present for diagnostics
+    if (cachedPromptTokens > 0) {
+      console.log(
+        "[aggregateConversations] Found cached prompt tokens in conversation:",
+        {
+          conversationId: conv.conversationId,
+          cachedPromptTokens,
+          promptTokens: inputTokens,
+        }
+      );
+    }
 
     // If we have totalTokens but not the breakdown, log a warning
     if (totalTokens > 0 && inputTokens === 0 && outputTokens === 0) {

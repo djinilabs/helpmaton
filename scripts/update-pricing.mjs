@@ -184,11 +184,15 @@ function convertPricingToOtherCurrencies(usdPricing, exchangeRates) {
     const usdInput = usdPricing.input ?? 0;
     const usdOutput = usdPricing.output ?? 0;
     const usdReasoning = usdPricing.reasoning;
+    const usdCachedInput = usdPricing.cachedInput;
 
     const eurInput = roundPrice(usdInput / eurToUsdRate);
     const eurOutput = roundPrice(usdOutput / eurToUsdRate);
     const eurReasoning = usdReasoning !== undefined
       ? roundPrice(usdReasoning / eurToUsdRate)
+      : undefined;
+    const eurCachedInput = usdCachedInput !== undefined
+      ? roundPrice(usdCachedInput / eurToUsdRate)
       : undefined;
 
     const gbpInput = roundPrice((usdInput / eurToUsdRate) * eurToGbpRate);
@@ -196,17 +200,22 @@ function convertPricingToOtherCurrencies(usdPricing, exchangeRates) {
     const gbpReasoning = usdReasoning !== undefined
       ? roundPrice((usdReasoning / eurToUsdRate) * eurToGbpRate)
       : undefined;
+    const gbpCachedInput = usdCachedInput !== undefined
+      ? roundPrice((usdCachedInput / eurToUsdRate) * eurToGbpRate)
+      : undefined;
 
     return {
       eur: {
         input: eurInput,
         output: eurOutput,
         ...(eurReasoning !== undefined && { reasoning: eurReasoning }),
+        ...(eurCachedInput !== undefined && { cachedInput: eurCachedInput }),
       },
       gbp: {
         input: gbpInput,
         output: gbpOutput,
         ...(gbpReasoning !== undefined && { reasoning: gbpReasoning }),
+        ...(gbpCachedInput !== undefined && { cachedInput: gbpCachedInput }),
       },
     };
   }
@@ -220,6 +229,9 @@ function convertPricingToOtherCurrencies(usdPricing, exchangeRates) {
       ...(tier.reasoning !== undefined && {
         reasoning: roundPrice(tier.reasoning / eurToUsdRate),
       }),
+      ...(tier.cachedInput !== undefined && {
+        cachedInput: roundPrice(tier.cachedInput / eurToUsdRate),
+      }),
     }));
 
     const gbpTiers = usdPricing.tiers.map((tier) => ({
@@ -228,6 +240,9 @@ function convertPricingToOtherCurrencies(usdPricing, exchangeRates) {
       output: roundPrice((tier.output / eurToUsdRate) * eurToGbpRate),
       ...(tier.reasoning !== undefined && {
         reasoning: roundPrice((tier.reasoning / eurToUsdRate) * eurToGbpRate),
+      }),
+      ...(tier.cachedInput !== undefined && {
+        cachedInput: roundPrice((tier.cachedInput / eurToUsdRate) * eurToGbpRate),
       }),
     }));
 
@@ -376,31 +391,40 @@ async function getGoogleModels() {
  * Format supports both flat pricing (backward compatible) and tiered pricing
  * Pricing verified against: https://ai.google.dev/pricing
  * 
+ * Cached token pricing: Google charges ~10% of input token rate for cached tokens.
+ * This is automatically calculated from input pricing if not explicitly specified.
+ * 
  * To add tiered pricing, use the 'tiers' array format:
  * {
  *   tiers: [
- *     { threshold: 200000, input: 1.25, output: 5.0 },
- *     { input: 2.5, output: 10.0 } // No threshold = above previous threshold
+ *     { threshold: 200000, input: 1.25, output: 5.0, cachedInput: 0.125 },
+ *     { input: 2.5, output: 10.0, cachedInput: 0.25 } // No threshold = above previous threshold
  *   ]
  * }
  * 
  * To add reasoning token pricing, include 'reasoning' field:
- * - In flat pricing: { input: 1.0, output: 2.0, reasoning: 3.5 }
- * - In tiered pricing: { threshold: 200000, input: 1.25, output: 5.0, reasoning: 10.0 }
+ * - In flat pricing: { input: 1.0, output: 2.0, reasoning: 3.5, cachedInput: 0.1 }
+ * - In tiered pricing: { threshold: 200000, input: 1.25, output: 5.0, reasoning: 10.0, cachedInput: 0.125 }
+ * 
+ * Note: Google's API doesn't expose pricing information, so cached token pricing
+ * is calculated as 10% of input token pricing based on Google's documentation.
  */
 const knownPricing = {
   "gemini-2.5-flash": {
     // Flat pricing
     input: 0.075,
     output: 0.3,
+    cachedInput: 0.0075, // ~10% of input (0.075 * 0.1)
   },
   "gemini-2.0-flash-exp": {
     input: 0.075,
     output: 0.3,
+    cachedInput: 0.0075, // ~10% of input
   },
   "gemini-1.5-flash": {
     input: 0.075,
     output: 0.3,
+    cachedInput: 0.0075, // ~10% of input
   },
   "gemini-1.5-pro": {
     // Tiered pricing: different rates for tokens below/above 200k threshold
@@ -409,11 +433,13 @@ const knownPricing = {
         threshold: 200000,
         input: 1.25,
         output: 5.0,
+        cachedInput: 0.125, // ~10% of input (1.25 * 0.1)
       },
       {
         // No threshold means "above 200k tokens"
         input: 2.50,
         output: 10.0,
+        cachedInput: 0.25, // ~10% of input (2.50 * 0.1)
       },
     ],
   },
@@ -424,19 +450,62 @@ const knownPricing = {
         threshold: 200000,
         input: 1.25,
         output: 10.0,
+        cachedInput: 0.125, // ~10% of input (1.25 * 0.1)
       },
       {
         // No threshold means "above 200k tokens"
         input: 2.50,
         output: 15.0,
+        cachedInput: 0.25, // ~10% of input (2.50 * 0.1)
       },
     ],
   },
 };
 
 /**
+ * Calculate cached input pricing from input pricing
+ * Cached tokens are typically charged at ~10% of input token rate
+ * @param {number} inputPrice - Input token price per 1M tokens
+ * @returns {number} Cached input token price per 1M tokens
+ */
+function calculateCachedInputPrice(inputPrice) {
+  return roundPrice(inputPrice * 0.1);
+}
+
+/**
+ * Ensure cached input pricing is present in pricing structure
+ * If missing, calculate it as 10% of input pricing
+ * @param {Object} pricing - Pricing structure (flat or tiered)
+ * @returns {Object} Pricing structure with cachedInput added if missing
+ */
+function ensureCachedInputPricing(pricing) {
+  // Handle flat pricing
+  if (pricing.input !== undefined) {
+    if (pricing.cachedInput === undefined) {
+      pricing.cachedInput = calculateCachedInputPrice(pricing.input);
+      console.log(`[Update Pricing] Calculated cachedInput pricing: ${pricing.cachedInput} (10% of input ${pricing.input})`);
+    }
+    return pricing;
+  }
+
+  // Handle tiered pricing
+  if (pricing.tiers && Array.isArray(pricing.tiers)) {
+    for (const tier of pricing.tiers) {
+      if (tier.input !== undefined && tier.cachedInput === undefined) {
+        tier.cachedInput = calculateCachedInputPrice(tier.input);
+        console.log(`[Update Pricing] Calculated cachedInput pricing for tier: ${tier.cachedInput} (10% of input ${tier.input})`);
+      }
+    }
+    return pricing;
+  }
+
+  return pricing;
+}
+
+/**
  * Get pricing for Google models
  * Note: Google API doesn't provide pricing via API, so we use known pricing structure.
+ * Cached token pricing is automatically calculated as 10% of input pricing if not specified.
  * 
  * Returns pricing in the new format supporting both flat and tiered pricing
  */
@@ -451,18 +520,27 @@ function getGooglePricingForModels(models) {
       continue;
     }
     
+    let modelPricing = null;
+    
     // Try exact match first
     if (knownPricing[modelId]) {
-      pricing[modelId] = knownPricing[modelId];
-      continue;
-    }
-    
-    // Try partial matches for variants (more specific matching)
-    for (const [knownModel, price] of Object.entries(knownPricing)) {
-      if (modelId === knownModel || modelId.startsWith(knownModel + "-")) {
-        pricing[modelId] = price;
-        break;
+      modelPricing = knownPricing[modelId];
+    } else {
+      // Try partial matches for variants (more specific matching)
+      for (const [knownModel, price] of Object.entries(knownPricing)) {
+        if (modelId === knownModel || modelId.startsWith(knownModel + "-")) {
+          modelPricing = price;
+          break;
+        }
       }
+    }
+
+    if (modelPricing) {
+      // Deep copy to avoid mutating the original
+      const pricingCopy = JSON.parse(JSON.stringify(modelPricing));
+      // Ensure cached input pricing is present
+      ensureCachedInputPricing(pricingCopy);
+      pricing[modelId] = pricingCopy;
     }
   }
 

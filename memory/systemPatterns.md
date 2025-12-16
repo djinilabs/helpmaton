@@ -100,3 +100,4 @@
 5. **Credit System**: Token-based usage tracking with reservations
 6. **Streaming Support**: Lambda URLs for long-running agent conversations
 7. **Container Images**: Custom Lambda container images for specific routes (e.g., LanceDB)
+

@@ -34,14 +34,17 @@ export function calculateConversationCosts(
     modelName,
     tokenUsage.promptTokens || 0,
     tokenUsage.completionTokens || 0,
-    tokenUsage.reasoningTokens || 0
+    tokenUsage.reasoningTokens || 0,
+    tokenUsage.cachedPromptTokens || 0
   );
 
   console.log("[calculateConversationCosts] Calculated costs:", {
     provider: effectiveProvider,
     modelName,
     inputTokens: tokenUsage.promptTokens || 0,
+    cachedPromptTokens: tokenUsage.cachedPromptTokens || 0,
     outputTokens: tokenUsage.completionTokens || 0,
+    reasoningTokens: tokenUsage.reasoningTokens || 0,
     costs,
   });
 

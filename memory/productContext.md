@@ -36,3 +36,4 @@ Helpmaton is a workspace-based AI agent management platform (SaaS) that enables 
 - API throttling based on subscription plans
 - Streaming support (SSE, Lambda URLs)
 - Integrations: Discord, Email OAuth, MCP servers
+

@@ -183,6 +183,8 @@ export const tableSchemas = {
         promptTokens: z.number(),
         completionTokens: z.number(),
         totalTokens: z.number(),
+        reasoningTokens: z.number().optional(), // Reasoning tokens (if model supports reasoning)
+        cachedPromptTokens: z.number().optional(), // Cached prompt tokens (if prompt caching is used)
       })
       .optional(), // aggregated token usage across all API calls
     modelName: z.string().optional(), // name of the AI model used (e.g., "gemini-2.5-flash-preview-05-20")

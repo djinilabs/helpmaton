@@ -26,7 +26,7 @@ function calculateExpiresHourBucket(expires: number): number {
 
 /**
  * Calculate actual cost from token usage in workspace currency
- * Includes reasoning tokens if present
+ * Includes reasoning tokens and cached tokens if present
  */
 function calculateActualCost(
   provider: string,
@@ -34,14 +34,28 @@ function calculateActualCost(
   tokenUsage: TokenUsage,
   currency: Currency
 ): number {
-  return calculateTokenCost(
+  const cost = calculateTokenCost(
     provider,
     modelName,
     tokenUsage.promptTokens || 0,
     tokenUsage.completionTokens || 0,
     currency,
-    tokenUsage.reasoningTokens || 0
+    tokenUsage.reasoningTokens || 0,
+    tokenUsage.cachedPromptTokens || 0
   );
+
+  console.log("[calculateActualCost] Cost calculation:", {
+    provider,
+    modelName,
+    currency,
+    promptTokens: tokenUsage.promptTokens || 0,
+    cachedPromptTokens: tokenUsage.cachedPromptTokens || 0,
+    completionTokens: tokenUsage.completionTokens || 0,
+    reasoningTokens: tokenUsage.reasoningTokens || 0,
+    cost,
+  });
+
+  return cost;
 }
 
 export interface CreditReservation {
@@ -284,6 +298,12 @@ export async function adjustCreditReservation(
           oldBalance: current.creditBalance,
           newBalance,
           currency: current.currency,
+          tokenUsage: {
+            promptTokens: tokenUsage.promptTokens || 0,
+            cachedPromptTokens: tokenUsage.cachedPromptTokens || 0,
+            completionTokens: tokenUsage.completionTokens || 0,
+            reasoningTokens: tokenUsage.reasoningTokens || 0,
+          },
         });
 
         return {
@@ -515,9 +535,10 @@ export async function debitCredits(
           workspaceId,
           provider,
           modelName,
-          promptTokens: tokenUsage.promptTokens,
-          completionTokens: tokenUsage.completionTokens,
-          reasoningTokens: tokenUsage.reasoningTokens,
+          promptTokens: tokenUsage.promptTokens || 0,
+          cachedPromptTokens: tokenUsage.cachedPromptTokens || 0,
+          completionTokens: tokenUsage.completionTokens || 0,
+          reasoningTokens: tokenUsage.reasoningTokens || 0,
           currency: current.currency,
           actualCost,
           oldBalance: current.creditBalance,

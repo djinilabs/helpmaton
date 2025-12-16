@@ -484,7 +484,8 @@ describe("creditManagement", () => {
         100,
         50,
         "usd",
-        25
+        25,
+        0 // cachedPromptTokens
       );
     });
   });

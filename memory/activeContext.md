@@ -72,3 +72,4 @@
 - Uses AWS serverless architecture (Lambda, API Gateway, DynamoDB)
 - Monorepo structure with backend and frontend apps
 - PR deployments create CloudFormation stacks for testing
+
