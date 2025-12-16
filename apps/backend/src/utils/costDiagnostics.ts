@@ -1,4 +1,5 @@
 import type { TokenUsage } from "./conversationLogger";
+import { fromMillionths } from "./creditConversions";
 import { calculateTokenCost, getModelPricing, type Currency } from "./pricing";
 
 /**
@@ -108,10 +109,12 @@ export function compareCosts(
   percentageDifference: number;
   breakdown: CostBreakdown | null;
 } {
+  // Both calculatedCost and expectedCost are in millionths
   const difference = calculatedCost - expectedCost;
   const percentageDifference =
     expectedCost > 0 ? (difference / expectedCost) * 100 : 0;
-  const match = Math.abs(difference) < 0.0001; // Allow for floating point precision
+  // Allow for small difference in millionths (equivalent to 0.0001 currency units)
+  const match = Math.abs(difference) < 100; // 100 millionths = 0.0001 currency units
 
   const breakdown = generateCostBreakdown(
     provider,
@@ -185,7 +188,10 @@ export function validateTokenUsageExtraction(
   }
 
   // Check for required fields
-  if (tokenUsage.promptTokens === undefined || tokenUsage.promptTokens === null) {
+  if (
+    tokenUsage.promptTokens === undefined ||
+    tokenUsage.promptTokens === null
+  ) {
     missingFields.push("promptTokens");
   }
   if (
@@ -194,10 +200,7 @@ export function validateTokenUsageExtraction(
   ) {
     missingFields.push("completionTokens");
   }
-  if (
-    tokenUsage.totalTokens === undefined ||
-    tokenUsage.totalTokens === null
-  ) {
+  if (tokenUsage.totalTokens === undefined || tokenUsage.totalTokens === null) {
     missingFields.push("totalTokens");
   }
 
@@ -289,37 +292,77 @@ export function generateCostReport(
 
   const lines: string[] = [];
   lines.push("=".repeat(60));
-  lines.push(`Cost Report: ${provider}/${modelName} (${currency.toUpperCase()})`);
+  lines.push(
+    `Cost Report: ${provider}/${modelName} (${currency.toUpperCase()})`
+  );
   lines.push("=".repeat(60));
   lines.push("");
   lines.push("Token Counts:");
-  lines.push(`  Prompt Tokens:        ${breakdown.tokenCounts.promptTokens.toLocaleString()}`);
-  lines.push(`  Cached Prompt Tokens: ${breakdown.tokenCounts.cachedPromptTokens.toLocaleString()}`);
-  lines.push(`  Completion Tokens:    ${breakdown.tokenCounts.completionTokens.toLocaleString()}`);
-  lines.push(`  Reasoning Tokens:     ${breakdown.tokenCounts.reasoningTokens.toLocaleString()}`);
-  lines.push(`  Total Tokens:         ${breakdown.tokenCounts.totalTokens.toLocaleString()}`);
+  lines.push(
+    `  Prompt Tokens:        ${breakdown.tokenCounts.promptTokens.toLocaleString()}`
+  );
+  lines.push(
+    `  Cached Prompt Tokens: ${breakdown.tokenCounts.cachedPromptTokens.toLocaleString()}`
+  );
+  lines.push(
+    `  Completion Tokens:    ${breakdown.tokenCounts.completionTokens.toLocaleString()}`
+  );
+  lines.push(
+    `  Reasoning Tokens:     ${breakdown.tokenCounts.reasoningTokens.toLocaleString()}`
+  );
+  lines.push(
+    `  Total Tokens:         ${breakdown.tokenCounts.totalTokens.toLocaleString()}`
+  );
   lines.push("");
   lines.push("Cost Breakdown:");
-  lines.push(`  Input Cost:           $${breakdown.costs.inputCost.toFixed(6)}`);
-  lines.push(`  Cached Input Cost:    $${breakdown.costs.cachedInputCost.toFixed(6)}`);
-  lines.push(`  Output Cost:          $${breakdown.costs.outputCost.toFixed(6)}`);
-  lines.push(`  Reasoning Cost:       $${breakdown.costs.reasoningCost.toFixed(6)}`);
-  lines.push(`  Total Cost:           $${breakdown.costs.totalCost.toFixed(6)}`);
-  
+  // Convert from millionths to currency units for display
+  lines.push(
+    `  Input Cost:           $${fromMillionths(
+      breakdown.costs.inputCost
+    ).toFixed(6)}`
+  );
+  lines.push(
+    `  Cached Input Cost:    $${fromMillionths(
+      breakdown.costs.cachedInputCost
+    ).toFixed(6)}`
+  );
+  lines.push(
+    `  Output Cost:          $${fromMillionths(
+      breakdown.costs.outputCost
+    ).toFixed(6)}`
+  );
+  lines.push(
+    `  Reasoning Cost:       $${fromMillionths(
+      breakdown.costs.reasoningCost
+    ).toFixed(6)}`
+  );
+  lines.push(
+    `  Total Cost:           $${fromMillionths(
+      breakdown.costs.totalCost
+    ).toFixed(6)}`
+  );
+
   if (expectedCost !== undefined) {
     lines.push("");
     lines.push("Cost Comparison:");
-    lines.push(`  Calculated Cost:     $${breakdown.costs.totalCost.toFixed(6)}`);
-    lines.push(`  Expected Cost:       $${expectedCost.toFixed(6)}`);
-    const difference = breakdown.costs.totalCost - expectedCost;
-    const percentageDifference = expectedCost > 0 ? (difference / expectedCost) * 100 : 0;
-    lines.push(`  Difference:          $${difference.toFixed(6)} (${percentageDifference.toFixed(2)}%)`);
+    // Both values are in millionths, convert to currency units for display
+    const calculatedCostDisplay = fromMillionths(breakdown.costs.totalCost);
+    const expectedCostDisplay = fromMillionths(expectedCost);
+    const differenceDisplay = calculatedCostDisplay - expectedCostDisplay;
+    const percentageDifference =
+      expectedCostDisplay > 0
+        ? (differenceDisplay / expectedCostDisplay) * 100
+        : 0;
+    lines.push(`  Calculated Cost:     $${calculatedCostDisplay.toFixed(6)}`);
+    lines.push(`  Expected Cost:       $${expectedCostDisplay.toFixed(6)}`);
+    lines.push(
+      `  Difference:          $${differenceDisplay.toFixed(
+        6
+      )} (${percentageDifference.toFixed(2)}%)`
+    );
   }
-  
+
   lines.push("=".repeat(60));
 
   return lines.join("\n");
 }
-
-
-
