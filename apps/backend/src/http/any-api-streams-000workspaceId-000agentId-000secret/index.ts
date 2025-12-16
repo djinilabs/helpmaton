@@ -77,6 +77,7 @@ import {
 } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
   convertAiSdkUIMessageToUIMessage,
+  convertAiSdkUIMessagesToUIMessages,
   convertTextToUIMessage,
   convertUIMessagesToModelMessages,
 } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion";
@@ -314,6 +315,7 @@ function convertRequestBodyToMessages(bodyText: string): {
   let messages: UIMessage[] | null = null;
   try {
     const parsed = JSON.parse(bodyText);
+
     // Check if it's an array of messages (from useChat)
     if (Array.isArray(parsed) && parsed.length > 0) {
       // Validate that it looks like UIMessage array
@@ -327,22 +329,31 @@ function convertRequestBodyToMessages(bodyText: string): {
         messages = parsed as UIMessage[];
       }
     }
+    // Check if it's an object with a 'messages' property (from useChat with full state)
+    else if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "messages" in parsed &&
+      Array.isArray(parsed.messages) &&
+      parsed.messages.length > 0
+    ) {
+      // Extract the messages array from the object
+      const messagesArray = parsed.messages;
+      const firstMessage = messagesArray[0];
+      if (
+        typeof firstMessage === "object" &&
+        firstMessage !== null &&
+        "role" in firstMessage
+      ) {
+        messages = messagesArray as UIMessage[];
+      }
+    }
   } catch {
     // Not JSON, treat as plain text
   }
 
   // If we have parsed messages, use them; otherwise treat as plain text
   if (messages && messages.length > 0) {
-    // Get the last user message for uiMessage (for logging)
-    const lastUserMessage = messages
-      .slice()
-      .reverse()
-      .find((msg) => msg.role === "user");
-    const uiMessage: UIMessage =
-      lastUserMessage ||
-      (messages[messages.length - 1] as UIMessage) ||
-      convertTextToUIMessage(bodyText);
-
     // Check if messages are in ai-sdk format (have 'parts' property)
     // Messages from useChat will have 'parts', our local format has 'content'
     const firstMsg = messages[0];
@@ -351,6 +362,23 @@ function convertRequestBodyToMessages(bodyText: string): {
       typeof firstMsg === "object" &&
       "parts" in firstMsg &&
       Array.isArray(firstMsg.parts);
+
+    // Convert all messages from AI SDK format to our format if needed
+    let convertedMessages: UIMessage[] = messages;
+    if (isAiSdkFormat) {
+      convertedMessages = convertAiSdkUIMessagesToUIMessages(messages);
+    }
+
+    // Get the last user message for uiMessage (for logging)
+    // Use converted messages to ensure proper format
+    const lastUserMessage = convertedMessages
+      .slice()
+      .reverse()
+      .find((msg) => msg.role === "user");
+    const uiMessage: UIMessage =
+      lastUserMessage ||
+      convertedMessages[convertedMessages.length - 1] ||
+      convertTextToUIMessage(bodyText);
 
     let modelMessages: ModelMessage[];
     try {
@@ -362,8 +390,8 @@ function convertRequestBodyToMessages(bodyText: string): {
         );
       } else {
         // Messages are in our local UIMessage format with 'content'
-        // Use our local converter
-        modelMessages = convertUIMessagesToModelMessages(messages);
+        // Use our local converter with converted messages
+        modelMessages = convertUIMessagesToModelMessages(convertedMessages);
       }
     } catch (error) {
       console.error("[Stream Handler] Error converting messages:", {
