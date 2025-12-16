@@ -1,18 +1,15 @@
 import { getDefined } from "../utils";
 
-import type { Currency } from "./aggregation";
 import { sendDiscordMessage } from "./discord";
 
 /**
  * Send a Discord notification for a trial credit request
  * @param workspaceId - Workspace ID
  * @param userEmail - User email address
- * @param currency - Workspace currency
  */
 export async function sendTrialCreditRequestNotification(
   workspaceId: string,
-  userEmail: string,
-  currency: Currency
+  userEmail: string
 ): Promise<void> {
   const botToken = getDefined(
     process.env.DISCORD_BOT_TOKEN,
@@ -24,15 +21,14 @@ export async function sendTrialCreditRequestNotification(
     "DISCORD_TRIAL_CREDIT_CHANNEL_ID is required"
   );
 
-  const creditAmount = 2; // Fixed amount: 2 EUR/USD/GBP
-  const currencyUpper = currency.toUpperCase();
+  const creditAmount = 2; // Fixed amount: 2 USD
 
   const message = `🔔 **Trial Credit Request**
 
 **User Email:** ${userEmail}
 **Workspace ID:** \`${workspaceId}\`
-**Currency:** ${currencyUpper}
-**Requested Amount:** ${creditAmount} ${currencyUpper}
+**Currency:** USD
+**Requested Amount:** ${creditAmount} USD
 
 Please review and approve using the Discord \`/credit\` command:
 \`/credit workspace_id:${workspaceId} amount:${creditAmount}\`

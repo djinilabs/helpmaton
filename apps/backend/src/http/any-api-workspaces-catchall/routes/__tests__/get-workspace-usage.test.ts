@@ -25,10 +25,6 @@ vi.mock("../../../../utils/aggregation", () => ({
   queryUsageStats: mockQueryUsageStats,
 }));
 
-// Mock ALLOWED_CURRENCIES
-vi.mock("../utils", () => ({
-  ALLOWED_CURRENCIES: ["usd", "eur", "gbp"],
-}));
 
 describe("GET /api/workspaces/:workspaceId/usage", () => {
   beforeEach(() => {
@@ -44,20 +40,8 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
       const db = await mockDatabase();
       const workspaceId = req.params.workspaceId;
 
-      // Parse query parameters
-      const currencyParam = req.query.currency as string | undefined;
-      const ALLOWED_CURRENCIES = ["usd", "eur", "gbp"];
-      const currency: "usd" | "eur" | "gbp" = currencyParam
-        ? ALLOWED_CURRENCIES.includes(currencyParam as "usd" | "eur" | "gbp")
-          ? (currencyParam as "usd" | "eur" | "gbp")
-          : (() => {
-              throw badRequest(
-                `Invalid currency. Allowed values: ${ALLOWED_CURRENCIES.join(
-                  ", "
-                )}`
-              );
-            })()
-        : "usd";
+      // Parse query parameters (currency always USD)
+      const currency = "usd";
       const startDateStr = req.query.startDate as string;
       const endDateStr = req.query.endDate as string;
 
@@ -78,13 +62,8 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
         endDate,
       });
 
-      // Select cost based on currency
-      const cost =
-        currency === "usd"
-          ? stats.costUsd
-          : currency === "eur"
-          ? stats.costEur
-          : stats.costGbp;
+      // Cost always in USD
+      const cost = stats.costUsd;
 
       res.json({
         workspaceId,
@@ -96,76 +75,50 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
           outputTokens: stats.outputTokens,
           totalTokens: stats.totalTokens,
           cost,
-          byModel: (
-            Object.entries(stats.byModel) as [
-              string,
-              {
+          byModel: Object.entries(stats.byModel).map(([model, modelStats]) => {
+            const stats = modelStats as {
+              inputTokens: number;
+              outputTokens: number;
+              totalTokens: number;
+              costUsd: number;
+            };
+            return {
+              model,
+              inputTokens: stats.inputTokens,
+              outputTokens: stats.outputTokens,
+              totalTokens: stats.totalTokens,
+              cost: stats.costUsd,
+            };
+          }),
+          byProvider: Object.entries(stats.byProvider).map(
+            ([provider, providerStats]) => {
+              const stats = providerStats as {
                 inputTokens: number;
                 outputTokens: number;
                 totalTokens: number;
                 costUsd: number;
-                costEur: number;
-                costGbp: number;
-              }
-            ][]
-          ).map(([model, modelStats]) => ({
-            model,
-            inputTokens: modelStats.inputTokens,
-            outputTokens: modelStats.outputTokens,
-            totalTokens: modelStats.totalTokens,
-            cost:
-              currency === "usd"
-                ? modelStats.costUsd
-                : currency === "eur"
-                ? modelStats.costEur
-                : modelStats.costGbp,
-          })),
-          byProvider: (
-            Object.entries(stats.byProvider) as [
-              string,
-              {
-                inputTokens: number;
-                outputTokens: number;
-                totalTokens: number;
-                costUsd: number;
-                costEur: number;
-                costGbp: number;
-              }
-            ][]
-          ).map(([provider, providerStats]) => ({
-            provider,
-            inputTokens: providerStats.inputTokens,
-            outputTokens: providerStats.outputTokens,
-            totalTokens: providerStats.totalTokens,
-            cost:
-              currency === "usd"
-                ? providerStats.costUsd
-                : currency === "eur"
-                ? providerStats.costEur
-                : providerStats.costGbp,
-          })),
+              };
+              return {
+                provider,
+                inputTokens: stats.inputTokens,
+                outputTokens: stats.outputTokens,
+                totalTokens: stats.totalTokens,
+                cost: stats.costUsd,
+              };
+            }
+          ),
           byByok: {
             byok: {
               inputTokens: stats.byByok.byok.inputTokens,
               outputTokens: stats.byByok.byok.outputTokens,
               totalTokens: stats.byByok.byok.totalTokens,
-              cost:
-                currency === "usd"
-                  ? stats.byByok.byok.costUsd
-                  : currency === "eur"
-                  ? stats.byByok.byok.costEur
-                  : stats.byByok.byok.costGbp,
+              cost: stats.byByok.byok.costUsd,
             },
             platform: {
               inputTokens: stats.byByok.platform.inputTokens,
               outputTokens: stats.byByok.platform.outputTokens,
               totalTokens: stats.byByok.platform.totalTokens,
-              cost:
-                currency === "usd"
-                  ? stats.byByok.platform.costUsd
-                  : currency === "eur"
-                  ? stats.byByok.platform.costEur
-                  : stats.byByok.platform.costGbp,
+              cost: stats.byByok.platform.costUsd,
             },
           },
         },
@@ -188,24 +141,18 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
       outputTokens: 500,
       totalTokens: 1500,
       costUsd: 0.05,
-      costEur: 0.045,
-      costGbp: 0.04,
       byModel: {
         "gpt-4": {
           inputTokens: 600,
           outputTokens: 300,
           totalTokens: 900,
           costUsd: 0.03,
-          costEur: 0.027,
-          costGbp: 0.024,
         },
         "gpt-3.5-turbo": {
           inputTokens: 400,
           outputTokens: 200,
           totalTokens: 600,
           costUsd: 0.02,
-          costEur: 0.018,
-          costGbp: 0.016,
         },
       },
       byProvider: {
@@ -214,8 +161,6 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
           outputTokens: 500,
           totalTokens: 1500,
           costUsd: 0.05,
-          costEur: 0.045,
-          costGbp: 0.04,
         },
       },
       byByok: {
@@ -224,16 +169,12 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
           outputTokens: 250,
           totalTokens: 750,
           costUsd: 0.025,
-          costEur: 0.0225,
-          costGbp: 0.02,
         },
         platform: {
           inputTokens: 500,
           outputTokens: 250,
           totalTokens: 750,
           costUsd: 0.025,
-          costEur: 0.0225,
-          costGbp: 0.02,
         },
       },
     };
@@ -315,7 +256,7 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
     });
   });
 
-  it("should return usage stats with EUR currency", async () => {
+  it("should always return usage stats in USD", async () => {
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
 
@@ -326,8 +267,6 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
       outputTokens: 500,
       totalTokens: 1500,
       costUsd: 0.05,
-      costEur: 0.045,
-      costGbp: 0.04,
       byModel: {},
       byProvider: {},
       byByok: {
@@ -336,16 +275,12 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
           outputTokens: 250,
           totalTokens: 750,
           costUsd: 0.025,
-          costEur: 0.0225,
-          costGbp: 0.02,
         },
         platform: {
           inputTokens: 500,
           outputTokens: 250,
           totalTokens: 750,
           costUsd: 0.025,
-          costEur: 0.0225,
-          costGbp: 0.02,
         },
       },
     };
@@ -357,7 +292,7 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
         workspaceId,
       },
       query: {
-        currency: "eur",
+        currency: "usd",
         startDate: "2024-01-01",
         endDate: "2024-01-31",
       },
@@ -368,106 +303,14 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
 
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        currency: "eur",
+        currency: "usd",
         stats: expect.objectContaining({
-          cost: 0.045, // EUR
+          cost: 0.05, // USD
         }),
       })
     );
   });
 
-  it("should return usage stats with GBP currency", async () => {
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const workspaceId = "workspace-123";
-
-    const mockStats = {
-      inputTokens: 1000,
-      outputTokens: 500,
-      totalTokens: 1500,
-      costUsd: 0.05,
-      costEur: 0.045,
-      costGbp: 0.04,
-      byModel: {},
-      byProvider: {},
-      byByok: {
-        byok: {
-          inputTokens: 500,
-          outputTokens: 250,
-          totalTokens: 750,
-          costUsd: 0.025,
-          costEur: 0.0225,
-          costGbp: 0.02,
-        },
-        platform: {
-          inputTokens: 500,
-          outputTokens: 250,
-          totalTokens: 750,
-          costUsd: 0.025,
-          costEur: 0.0225,
-          costGbp: 0.02,
-        },
-      },
-    };
-
-    mockQueryUsageStats.mockResolvedValue(mockStats);
-
-    const req = createMockRequest({
-      params: {
-        workspaceId,
-      },
-      query: {
-        currency: "gbp",
-        startDate: "2024-01-01",
-        endDate: "2024-01-31",
-      },
-    });
-    const res = createMockResponse();
-
-    await callRouteHandler(req, res);
-
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        currency: "gbp",
-        stats: expect.objectContaining({
-          cost: 0.04, // GBP
-        }),
-      })
-    );
-  });
-
-  it("should throw badRequest when currency is invalid", async () => {
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
-
-    const workspaceId = "workspace-123";
-
-    const req = createMockRequest({
-      params: {
-        workspaceId,
-      },
-      query: {
-        currency: "invalid",
-      },
-    });
-    const res = createMockResponse();
-
-    try {
-      await callRouteHandler(req, res);
-    } catch (error) {
-      expect(error).toBeInstanceOf(Error);
-      expect(
-        (error as { output?: { statusCode: number } }).output?.statusCode
-      ).toBe(400);
-      expect(
-        (error as { output?: { payload: { message: string } } }).output?.payload
-          .message
-      ).toContain("Invalid currency");
-    }
-
-    expect(mockQueryUsageStats).not.toHaveBeenCalled();
-  });
 
   it("should throw badRequest when startDate is invalid", async () => {
     const mockDb = createMockDatabase();
@@ -548,8 +391,6 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
       outputTokens: 250,
       totalTokens: 750,
       costUsd: 0.025,
-      costEur: 0.0225,
-      costGbp: 0.02,
       byModel: {},
       byProvider: {},
       byByok: {
@@ -558,16 +399,12 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
           outputTokens: 125,
           totalTokens: 375,
           costUsd: 0.0125,
-          costEur: 0.01125,
-          costGbp: 0.01,
         },
         platform: {
           inputTokens: 250,
           outputTokens: 125,
           totalTokens: 375,
           costUsd: 0.0125,
-          costEur: 0.01125,
-          costGbp: 0.01,
         },
       },
     };
@@ -612,8 +449,6 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
       outputTokens: 500,
       totalTokens: 1500,
       costUsd: 0.05,
-      costEur: 0.045,
-      costGbp: 0.04,
       byModel: {},
       byProvider: {},
       byByok: {
@@ -622,16 +457,12 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
           outputTokens: 250,
           totalTokens: 750,
           costUsd: 0.025,
-          costEur: 0.0225,
-          costGbp: 0.02,
         },
         platform: {
           inputTokens: 500,
           outputTokens: 250,
           totalTokens: 750,
           costUsd: 0.025,
-          costEur: 0.0225,
-          costGbp: 0.02,
         },
       },
     };

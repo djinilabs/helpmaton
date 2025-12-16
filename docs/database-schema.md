@@ -90,7 +90,7 @@ All tables are configured with `encrypt true` in `app.arc`, meaning DynamoDB enc
 - `name` (String): Workspace name
 - `description` (String, optional): Workspace description
 - `subscriptionId` (String, optional): Subscription ID this workspace belongs to
-- `currency` (Enum: "usd" | "eur" | "gbp", default: "usd"): Workspace currency
+- `currency` (Enum: "usd", default: "usd"): Workspace currency (always USD)
 - `creditBalance` (Number, default: 0): Current credit balance
 - `spendingLimits` (Array, optional): Workspace-level spending limits
   - `timeFrame`: "daily" | "weekly" | "monthly"
@@ -293,8 +293,6 @@ All tables are configured with `encrypt true` in `app.arc`, meaning DynamoDB enc
 - `provider` (String, optional): AI provider name
 - `usesByok` (Boolean, optional): Whether conversation used BYOK
 - `costUsd` (Number, optional): Cost in USD
-- `costEur` (Number, optional): Cost in EUR
-- `costGbp` (Number, optional): Cost in GBP
 - `startedAt` (String, ISO datetime): When conversation started
 - `lastMessageAt` (String, ISO datetime): When last message was added
 - `expires` (Number): TTL timestamp
@@ -322,7 +320,7 @@ All tables are configured with `encrypt true` in `app.arc`, meaning DynamoDB enc
 - `workspaceId` (String): Workspace ID
 - `reservedAmount` (Number): Amount reserved (estimated cost)
 - `estimatedCost` (Number): Estimated cost at reservation time
-- `currency` (Enum: "usd" | "eur" | "gbp"): Workspace currency
+- `currency` (Enum: "usd"): Workspace currency (always USD)
 - `expires` (Number): TTL timestamp (15 minutes from creation)
 - `expiresHour` (Number): Hour bucket for GSI (expires truncated to hour)
 
@@ -359,8 +357,6 @@ All tables are configured with `encrypt true` in `app.arc`, meaning DynamoDB enc
 - `outputTokens` (Number): Total output tokens
 - `totalTokens` (Number): Total tokens
 - `costUsd` (Number): Total cost in USD
-- `costEur` (Number): Total cost in EUR
-- `costGbp` (Number): Total cost in GBP
 
 **Global Secondary Indexes**:
 
@@ -434,7 +430,7 @@ All tables are configured with `encrypt true` in `app.arc`, meaning DynamoDB enc
 - `workspaceId` (String): Workspace ID
 - `userId` (String): User ID who requested
 - `userEmail` (String, email): User email
-- `currency` (Enum: "usd" | "eur" | "gbp"): Workspace currency
+- `currency` (Enum: "usd"): Workspace currency (always USD)
 - `requestedAt` (String, ISO datetime): When request was made
 - `status` (Enum: "pending" | "approved" | "rejected", default: "pending"): Request status
 - `approvedAt` (String, optional): When approved

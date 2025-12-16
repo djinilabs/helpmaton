@@ -3,9 +3,8 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
-import { queryUsageStats, type Currency } from "../../../utils/aggregation";
+import { queryUsageStats } from "../../../utils/aggregation";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
-import { ALLOWED_CURRENCIES } from "../utils";
 
 /**
  * @openapi
@@ -33,10 +32,10 @@ import { ALLOWED_CURRENCIES } from "../utils";
  *           type: string
  *       - name: currency
  *         in: query
- *         description: Currency for cost calculations
+ *         description: Currency for cost calculations (always USD)
  *         schema:
  *           type: string
- *           enum: [usd, eur, gbp]
+ *           enum: [usd]
  *           default: usd
  *       - name: startDate
  *         in: query
@@ -119,18 +118,6 @@ export const registerGetAgentUsageDaily = (app: express.Application) => {
       }
 
       // Parse query parameters
-      const currencyParam = req.query.currency as string | undefined;
-      const currency: Currency = currencyParam
-        ? ALLOWED_CURRENCIES.includes(currencyParam as Currency)
-          ? (currencyParam as Currency)
-          : (() => {
-              throw badRequest(
-                `Invalid currency. Allowed values: ${ALLOWED_CURRENCIES.join(
-                  ", "
-                )}`
-              );
-            })()
-        : "usd";
       const startDateStr = req.query.startDate as string;
       const endDateStr = req.query.endDate as string;
 
@@ -165,12 +152,7 @@ export const registerGetAgentUsageDaily = (app: express.Application) => {
           endDate: dayEnd,
         });
 
-        const cost =
-          currency === "usd"
-            ? stats.costUsd
-            : currency === "eur"
-            ? stats.costEur
-            : stats.costGbp;
+        const cost = stats.costUsd;
 
         dailyStats.push({
           date: dateStr,
@@ -186,7 +168,7 @@ export const registerGetAgentUsageDaily = (app: express.Application) => {
       res.json({
         workspaceId,
         agentId,
-        currency,
+        currency: "usd",
         startDate: startDate.toISOString().split("T")[0],
         endDate: endDate.toISOString().split("T")[0],
         daily: dailyStats,

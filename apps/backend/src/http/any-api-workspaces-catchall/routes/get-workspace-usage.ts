@@ -3,9 +3,8 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
-import { queryUsageStats, type Currency } from "../../../utils/aggregation";
+import { queryUsageStats } from "../../../utils/aggregation";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
-import { ALLOWED_CURRENCIES } from "../utils";
 
 /**
  * @openapi
@@ -26,10 +25,10 @@ import { ALLOWED_CURRENCIES } from "../utils";
  *           type: string
  *       - name: currency
  *         in: query
- *         description: Currency for cost calculations
+ *         description: Currency for cost calculations (always USD)
  *         schema:
  *           type: string
- *           enum: [usd, eur, gbp]
+ *           enum: [usd]
  *           default: usd
  *       - name: startDate
  *         in: query
@@ -55,7 +54,7 @@ import { ALLOWED_CURRENCIES } from "../utils";
  *                   type: string
  *                 currency:
  *                   type: string
- *                   enum: [usd, eur, gbp]
+ *                   enum: [usd]
  *                 startDate:
  *                   type: string
  *                   format: date
@@ -102,18 +101,6 @@ export const registerGetWorkspaceUsage = (app: express.Application) => {
       const workspaceId = req.params.workspaceId;
 
       // Parse query parameters
-      const currencyParam = req.query.currency as string | undefined;
-      const currency: Currency = currencyParam
-        ? ALLOWED_CURRENCIES.includes(currencyParam as Currency)
-          ? (currencyParam as Currency)
-          : (() => {
-              throw badRequest(
-                `Invalid currency. Allowed values: ${ALLOWED_CURRENCIES.join(
-                  ", "
-                )}`
-              );
-            })()
-        : "usd";
       const startDateStr = req.query.startDate as string;
       const endDateStr = req.query.endDate as string;
 
@@ -132,7 +119,6 @@ export const registerGetWorkspaceUsage = (app: express.Application) => {
         "[GET /api/workspaces/:workspaceId/usage] Query parameters:",
         {
           workspaceId,
-          currency,
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
         }
@@ -149,41 +135,26 @@ export const registerGetWorkspaceUsage = (app: express.Application) => {
         outputTokens: stats.outputTokens,
         totalTokens: stats.totalTokens,
         costUsd: stats.costUsd,
-        costEur: stats.costEur,
-        costGbp: stats.costGbp,
         byModel: Object.keys(stats.byModel),
         byProvider: Object.keys(stats.byProvider),
       });
 
-      // Select cost based on currency
-      const cost =
-        currency === "usd"
-          ? stats.costUsd
-          : currency === "eur"
-          ? stats.costEur
-          : stats.costGbp;
-
       res.json({
         workspaceId,
-        currency,
+        currency: "usd",
         startDate: startDate.toISOString().split("T")[0],
         endDate: endDate.toISOString().split("T")[0],
         stats: {
           inputTokens: stats.inputTokens,
           outputTokens: stats.outputTokens,
           totalTokens: stats.totalTokens,
-          cost,
+          cost: stats.costUsd,
           byModel: Object.entries(stats.byModel).map(([model, modelStats]) => ({
             model,
             inputTokens: modelStats.inputTokens,
             outputTokens: modelStats.outputTokens,
             totalTokens: modelStats.totalTokens,
-            cost:
-              currency === "usd"
-                ? modelStats.costUsd
-                : currency === "eur"
-                ? modelStats.costEur
-                : modelStats.costGbp,
+            cost: modelStats.costUsd,
           })),
           byProvider: Object.entries(stats.byProvider).map(
             ([provider, providerStats]) => ({
@@ -191,12 +162,7 @@ export const registerGetWorkspaceUsage = (app: express.Application) => {
               inputTokens: providerStats.inputTokens,
               outputTokens: providerStats.outputTokens,
               totalTokens: providerStats.totalTokens,
-              cost:
-                currency === "usd"
-                  ? providerStats.costUsd
-                  : currency === "eur"
-                  ? providerStats.costEur
-                  : providerStats.costGbp,
+              cost: providerStats.costUsd,
             })
           ),
           byByok: {
@@ -204,23 +170,13 @@ export const registerGetWorkspaceUsage = (app: express.Application) => {
               inputTokens: stats.byByok.byok.inputTokens,
               outputTokens: stats.byByok.byok.outputTokens,
               totalTokens: stats.byByok.byok.totalTokens,
-              cost:
-                currency === "usd"
-                  ? stats.byByok.byok.costUsd
-                  : currency === "eur"
-                  ? stats.byByok.byok.costEur
-                  : stats.byByok.byok.costGbp,
+              cost: stats.byByok.byok.costUsd,
             },
             platform: {
               inputTokens: stats.byByok.platform.inputTokens,
               outputTokens: stats.byByok.platform.outputTokens,
               totalTokens: stats.byByok.platform.totalTokens,
-              cost:
-                currency === "usd"
-                  ? stats.byByok.platform.costUsd
-                  : currency === "eur"
-                  ? stats.byByok.platform.costEur
-                  : stats.byByok.platform.costGbp,
+              cost: stats.byByok.platform.costUsd,
             },
           },
         },

@@ -1,7 +1,6 @@
 import type { ModelMessage } from "ai";
 
-import type { Currency } from "./pricing";
-import { calculateTokenCosts } from "./pricing";
+import { calculateTokenCost } from "./pricing";
 
 /**
  * Estimate input tokens from messages
@@ -78,25 +77,20 @@ export function estimateOutputTokens(inputTokens: number): number {
  * @param messages - Messages to send
  * @param systemPrompt - Optional system prompt
  * @param toolDefinitions - Optional tool definitions
- * @param currency - Currency to return cost in
- * @returns Estimated cost in the specified currency
+ * @returns Estimated cost in USD
  */
 export function estimateTokenCost(
   provider: string,
   modelName: string,
   messages: ModelMessage[],
   systemPrompt?: string,
-  toolDefinitions?: unknown[],
-  currency: Currency = "usd"
+  toolDefinitions?: unknown[]
 ): number {
   // Estimate input and output tokens
   const inputTokens = estimateInputTokens(messages, systemPrompt, toolDefinitions);
   const outputTokens = estimateOutputTokens(inputTokens);
 
-  // Calculate costs for all currencies
-  const costs = calculateTokenCosts(provider, modelName, inputTokens, outputTokens);
-
-  // Return cost in requested currency
-  return costs[currency];
+  // Calculate cost in USD
+  return calculateTokenCost(provider, modelName, inputTokens, outputTokens);
 }
 

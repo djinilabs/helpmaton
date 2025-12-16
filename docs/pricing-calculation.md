@@ -8,7 +8,7 @@ Helpmaton uses a flexible pricing system that supports:
 
 - **Flat pricing**: Single rate per token type (input/output/reasoning)
 - **Tiered pricing**: Different rates based on token count thresholds
-- **Multiple currencies**: USD, EUR, and GBP
+- **USD currency**: All pricing in USD
 - **Reasoning tokens**: Separate billing for reasoning tokens when supported by the model
 
 All prices in the configuration are specified **per 1 million tokens**.
@@ -134,17 +134,9 @@ totalCost =
 
 ## Currency Support
 
-The system supports three currencies:
+The system uses USD (United States Dollar) as the only currency.
 
-- **USD** (United States Dollar) - Base currency
-- **EUR** (Euro)
-- **GBP** (British Pound)
-
-Each model has pricing defined for all three currencies. Costs are calculated independently for each currency.
-
-### Currency Conversion
-
-Exchange rates are fetched from the European Central Bank via the Frankfurter.app API and used to convert USD prices to EUR and GBP. The conversion happens automatically when pricing is updated.
+All pricing is defined in USD and costs are calculated in USD.
 
 ## Model Name Normalization
 
@@ -306,22 +298,21 @@ Pricing is stored in `apps/backend/src/config/pricing.json` and is:
 
 - Loaded at application startup
 - Updated via the `update-pricing.mjs` script
-- Automatically converted to EUR/GBP using current exchange rates
+- All pricing is in USD
 
 The pricing update script:
 
 1. Fetches available models from Google API
 2. Matches models to known pricing
-3. Fetches current exchange rates
-4. Updates EUR/GBP pricing based on exchange rates
-5. Commits and pushes changes automatically
+3. Updates USD pricing
+4. Commits and pushes changes automatically
 
 ## Implementation Details
 
 ### Key Functions
 
-- `calculateTokenCost()`: Main function for calculating cost in a specific currency
-- `calculateTokenCosts()`: Calculates costs for all currencies (USD, EUR, GBP)
+- `calculateTokenCost()`: Main function for calculating cost in USD
+- `calculateTokenCosts()`: Calculates costs in USD (deprecated, use calculateTokenCost directly)
 - `calculateTieredCost()`: Internal function for tiered pricing calculation
 - `getModelPricing()`: Retrieves pricing configuration for a model
 - `normalizeModelName()`: Normalizes model names for pricing lookup

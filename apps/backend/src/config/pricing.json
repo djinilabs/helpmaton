@@ -8,16 +8,6 @@
             "input": 0.075,
             "output": 0.3,
             "cachedInput": 0.0075
-          },
-          "eur": {
-            "input": 0.064,
-            "output": 0.255,
-            "cachedInput": 0.006
-          },
-          "gbp": {
-            "input": 0.056,
-            "output": 0.224,
-            "cachedInput": 0.006
           }
         },
         "gemini-2.0-flash-exp": {
@@ -25,16 +15,6 @@
             "input": 0.075,
             "output": 0.3,
             "cachedInput": 0.0075
-          },
-          "eur": {
-            "input": 0.064,
-            "output": 0.255,
-            "cachedInput": 0.006
-          },
-          "gbp": {
-            "input": 0.056,
-            "output": 0.224,
-            "cachedInput": 0.006
           }
         },
         "gemini-2.5-flash-lite": {
@@ -42,16 +22,6 @@
             "input": 0.075,
             "output": 0.3,
             "cachedInput": 0.0075
-          },
-          "eur": {
-            "input": 0.064,
-            "output": 0.255,
-            "cachedInput": 0.006
-          },
-          "gbp": {
-            "input": 0.056,
-            "output": 0.224,
-            "cachedInput": 0.006
           }
         },
         "gemini-2.5-flash-preview-09-2025": {
@@ -59,16 +29,6 @@
             "input": 0.075,
             "output": 0.3,
             "cachedInput": 0.0075
-          },
-          "eur": {
-            "input": 0.064,
-            "output": 0.255,
-            "cachedInput": 0.006
-          },
-          "gbp": {
-            "input": 0.056,
-            "output": 0.224,
-            "cachedInput": 0.006
           }
         },
         "gemini-2.5-flash-lite-preview-09-2025": {
@@ -76,16 +36,6 @@
             "input": 0.075,
             "output": 0.3,
             "cachedInput": 0.0075
-          },
-          "eur": {
-            "input": 0.064,
-            "output": 0.255,
-            "cachedInput": 0.006
-          },
-          "gbp": {
-            "input": 0.056,
-            "output": 0.224,
-            "cachedInput": 0.006
           }
         },
         "gemini-2.5-pro": {
@@ -101,36 +51,6 @@
                 "input": 2.5,
                 "output": 15,
                 "cachedInput": 0.25
-              }
-            ]
-          },
-          "eur": {
-            "tiers": [
-              {
-                "threshold": 200000,
-                "input": 1.064,
-                "output": 8.508,
-                "cachedInput": 0.106
-              },
-              {
-                "input": 2.127,
-                "output": 12.763,
-                "cachedInput": 0.213
-              }
-            ]
-          },
-          "gbp": {
-            "tiers": [
-              {
-                "threshold": 200000,
-                "input": 0.934,
-                "output": 7.47,
-                "cachedInput": 0.093
-              },
-              {
-                "input": 1.867,
-                "output": 11.204,
-                "cachedInput": 0.187
               }
             ]
           }

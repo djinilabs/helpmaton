@@ -1,6 +1,7 @@
 import { APIGatewayProxyResult } from "aws-lambda";
 
 import { database } from "../../../tables/index";
+import { fromMillionths, toMillionths } from "../../../utils/creditConversions";
 import { creditCredits } from "../../../utils/creditManagement";
 
 import { discordResponse } from "./discordResponse";
@@ -26,14 +27,16 @@ interface DiscordInteraction {
  * Manually debit credits from a workspace
  * Similar to creditCredits but subtracts instead of adds
  * Uses optimistic locking with retry logic for concurrent updates
+ * @param workspaceId - Workspace ID
+ * @param amount - Amount in millionths (integer)
  */
 async function debitCreditsManual(
   workspaceId: string,
-  amount: number
+  amount: number // millionths
 ): Promise<{
   workspaceId: string;
-  oldBalance: number;
-  newBalance: number;
+  oldBalance: number; // millionths
+  newBalance: number; // millionths
   currency: string;
 }> {
   const db = await database();
@@ -50,16 +53,15 @@ async function debitCreditsManual(
         throw new Error(`Workspace ${workspaceId} not found`);
       }
 
-      // Round to 6 decimal places to avoid floating point precision issues
-      const newBalance =
-        Math.round((workspace.creditBalance - amount) * 1_000_000) / 1_000_000;
+      // Calculate new balance (all values in millionths, so simple subtraction)
+      const newBalance = workspace.creditBalance - amount;
 
       // Warn if debit would result in negative balance
       if (newBalance < 0) {
         console.warn(
           `[debitCreditsManual] Negative balance detected for workspace ${workspaceId}: ` +
-            `Attempted to debit ${amount} from balance ${workspace.creditBalance}. ` +
-            `Resulting balance: ${newBalance}`
+            `Attempted to debit ${amount} millionths from balance ${workspace.creditBalance} millionths. ` +
+            `Resulting balance: ${newBalance} millionths`
         );
       }
 
@@ -208,30 +210,38 @@ async function handleCreditCommand(
         approvedBy: "discord-admin", // Could be enhanced to get actual Discord user ID
       });
 
-      // Update workspace to mark credits as approved and store the amount
+      // Update workspace to mark credits as approved and store the amount (in millionths)
       await db.workspace.update({
         pk: workspacePk,
         sk: "workspace",
         trialCreditApproved: true,
         trialCreditApprovedAt: new Date().toISOString(),
-        trialCreditAmount: amount,
+        trialCreditAmount: toMillionths(amount),
       });
     }
 
-    // Add credits
-    const updated = await creditCredits(db, workspaceId, amount);
+    // Convert amount from currency units to millionths
+    const amountInMillionths = toMillionths(amount);
+    
+    // Add credits (amount is in millionths)
+    const updated = await creditCredits(db, workspaceId, amountInMillionths);
 
     const trialInfo = trialRequestId
       ? `\n🎁 Trial credit request approved and linked.`
       : "";
 
+    // Convert millionths back to currency units for display
+    const amountDisplay = fromMillionths(amountInMillionths);
+    const balanceDisplay = fromMillionths(updated.creditBalance);
+    const oldBalanceDisplay = fromMillionths(workspace.creditBalance);
+
     return discordResponse(
-      `✅ Successfully credited **${amount.toFixed(
+      `✅ Successfully credited **${amountDisplay.toFixed(
         6
       )} ${updated.currency.toUpperCase()}** to workspace \`${workspaceId}\`\n` +
-        `📊 Balance: **${updated.creditBalance.toFixed(
+        `📊 Balance: **${balanceDisplay.toFixed(
           6
-        )} ${updated.currency.toUpperCase()}** (was ${workspace.creditBalance.toFixed(
+        )} ${updated.currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(
           6
         )})${trialInfo}`
     );
@@ -272,15 +282,24 @@ async function handleDebitCommand(
   }
 
   try {
-    const result = await debitCreditsManual(workspaceId, amount);
+    // Convert amount from currency units to millionths
+    const amountInMillionths = toMillionths(amount);
+    
+    // Debit credits (amount is in millionths)
+    const result = await debitCreditsManual(workspaceId, amountInMillionths);
+
+    // Convert millionths back to currency units for display
+    const amountDisplay = fromMillionths(amountInMillionths);
+    const newBalanceDisplay = fromMillionths(result.newBalance);
+    const oldBalanceDisplay = fromMillionths(result.oldBalance);
 
     return discordResponse(
-      `✅ Successfully debited **${amount.toFixed(
+      `✅ Successfully debited **${amountDisplay.toFixed(
         6
       )} ${result.currency.toUpperCase()}** from workspace \`${workspaceId}\`\n` +
-        `📊 Balance: **${result.newBalance.toFixed(
+        `📊 Balance: **${newBalanceDisplay.toFixed(
           6
-        )} ${result.currency.toUpperCase()}** (was ${result.oldBalance.toFixed(
+        )} ${result.currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(
           6
         )})`
     );

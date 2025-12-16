@@ -302,8 +302,6 @@ export async function startConversation(
     provider: data.provider,
     usesByok: data.usesByok,
     costUsd: costs.usd > 0 ? costs.usd : undefined,
-    costEur: costs.eur > 0 ? costs.eur : undefined,
-    costGbp: costs.gbp > 0 ? costs.gbp : undefined,
     startedAt: now,
     lastMessageAt: now,
     expires: calculateTTL(),
@@ -377,8 +375,6 @@ export async function updateConversation(
     provider?: string;
     usesByok?: boolean;
     costUsd?: number;
-    costEur?: number;
-    costGbp?: number;
   } = {
     pk,
     messages: allMessages as unknown[],
@@ -388,8 +384,6 @@ export async function updateConversation(
     lastMessageAt: new Date().toISOString(),
     expires: calculateTTL(),
     costUsd: costs.usd > 0 ? costs.usd : undefined,
-    costEur: costs.eur > 0 ? costs.eur : undefined,
-    costGbp: costs.gbp > 0 ? costs.gbp : undefined,
   };
 
   // Preserve existing modelName and provider if they exist

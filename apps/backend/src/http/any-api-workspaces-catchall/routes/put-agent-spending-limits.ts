@@ -94,9 +94,9 @@ export const registerPutAgentSpendingLimits = (app: express.Application) => {
     async (req, res, next) => {
       try {
         const { amount } = req.body;
-        if (typeof amount !== "number" || amount < 0) {
+        if (typeof amount !== "number" || amount < 0 || !Number.isInteger(amount)) {
           throw badRequest(
-            "amount is required and must be a non-negative number"
+            "amount is required and must be a non-negative integer (millionths)"
           );
         }
 

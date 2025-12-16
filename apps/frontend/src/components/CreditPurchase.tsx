@@ -6,20 +6,13 @@ import { useCreditPurchase } from "../hooks/useSubscription";
 interface CreditPurchaseProps {
   workspaceId?: string;
   workspaces?: Array<{ id: string; name: string }>;
-  currency?: "usd" | "eur" | "gbp";
 }
-
-const CURRENCY_SYMBOLS: Record<"usd" | "eur" | "gbp", string> = {
-  usd: "$",
-  eur: "€",
-  gbp: "£",
-};
 
 export const CreditPurchase: FC<CreditPurchaseProps> = ({
   workspaceId,
   workspaces,
-  currency = "eur",
 }) => {
+  const currency = "usd";
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(
     workspaceId || ""
   );
@@ -107,7 +100,7 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
           </label>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600 font-medium">
-              {CURRENCY_SYMBOLS[currency]}
+              $
             </span>
             <input
               id="amount"
@@ -148,5 +141,7 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
     </div>
   );
 };
+
+
 
 
