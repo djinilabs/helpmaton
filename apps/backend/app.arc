@@ -249,6 +249,12 @@ aggregate-token-usage rate(1 day)
 cleanup-expired-reservations rate(10 minutes)
 sync-lemonsqueezy-subscriptions rate(1 hour)
 
+@queues
+agent-temporal-grain-queue
+  fifo true
+  visibilityTimeout 60
+  messageRetentionPeriod 1209600
+
 @api-throttling
 free
   rateLimit 100
