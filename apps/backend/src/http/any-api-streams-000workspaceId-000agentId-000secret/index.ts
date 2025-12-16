@@ -76,7 +76,6 @@ import {
   setupAgentAndTools,
 } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
-  convertAiSdkUIMessageToUIMessage,
   convertAiSdkUIMessagesToUIMessages,
   convertTextToUIMessage,
   convertUIMessagesToModelMessages,
@@ -114,6 +113,7 @@ interface StreamRequestContext {
   subscriptionId: string | undefined;
   db: Awaited<ReturnType<typeof database>>;
   uiMessage: UIMessage;
+  convertedMessages: UIMessage[];
   modelMessages: ModelMessage[];
   agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"];
   model: Awaited<ReturnType<typeof setupAgentAndTools>>["model"];
@@ -310,6 +310,7 @@ function extractRequestBody(event: LambdaUrlEvent): string {
 function convertRequestBodyToMessages(bodyText: string): {
   uiMessage: UIMessage;
   modelMessages: ModelMessage[];
+  convertedMessages: UIMessage[];
 } {
   // Try to parse as JSON first (for messages with tool results)
   let messages: UIMessage[] | null = null;
@@ -407,7 +408,7 @@ function convertRequestBodyToMessages(bodyText: string): {
       throw error;
     }
 
-    return { uiMessage, modelMessages };
+    return { uiMessage, modelMessages, convertedMessages };
   }
 
   // Fallback to plain text handling
@@ -417,7 +418,7 @@ function convertRequestBodyToMessages(bodyText: string): {
     uiMessage,
   ]);
 
-  return { uiMessage, modelMessages };
+  return { uiMessage, modelMessages, convertedMessages: [uiMessage] };
 }
 
 /**
@@ -720,7 +721,7 @@ async function logConversationAsync(
   workspaceId: string,
   agentId: string,
   conversationId: string,
-  uiMessage: UIMessage,
+  convertedMessages: UIMessage[],
   fullStreamedText: string,
   tokenUsage: ReturnType<typeof extractTokenUsage>,
   usesByok: boolean,
@@ -733,10 +734,6 @@ async function logConversationAsync(
   }
 
   try {
-    // Convert uiMessage from ai-sdk format if needed
-    const convertedUiMessage =
-      convertAiSdkUIMessageToUIMessage(uiMessage) || uiMessage;
-
     // Extract tool calls and tool results from streamText result
     // streamText result has similar structure to generateText result
     // Ensure toolCalls and toolResults are always arrays
@@ -810,18 +807,23 @@ async function logConversationAsync(
       assistantContent.push({ type: "text", text: fullStreamedText });
     }
 
-    // Create assistant message
+    // Create assistant message with token usage (same as test endpoint)
     const assistantMessage: UIMessage = {
       role: "assistant",
       content:
         assistantContent.length > 0 ? assistantContent : fullStreamedText,
+      ...(tokenUsage && { tokenUsage }),
     };
 
-    // Get valid messages for logging (same format as test endpoint)
-    const validMessages: UIMessage[] = [
-      convertedUiMessage,
+    // Combine all converted messages and assistant message for logging
+    // Deduplication will happen in updateConversation (same as test endpoint)
+    const messagesForLogging: UIMessage[] = [
+      ...convertedMessages,
       assistantMessage,
-    ].filter(
+    ];
+
+    // Get valid messages for logging (filter out any invalid ones and empty messages)
+    const validMessages: UIMessage[] = messagesForLogging.filter(
       (msg): msg is UIMessage =>
         msg != null &&
         typeof msg === "object" &&
@@ -979,7 +981,8 @@ async function buildRequestContext(
     throw new Error("Request body is required");
   }
 
-  const { uiMessage, modelMessages } = convertRequestBodyToMessages(bodyText);
+  const { uiMessage, modelMessages, convertedMessages } =
+    convertRequestBodyToMessages(bodyText);
 
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
@@ -1045,6 +1048,7 @@ async function buildRequestContext(
     subscriptionId,
     db,
     uiMessage,
+    convertedMessages,
     modelMessages,
     agent,
     model,
@@ -1400,7 +1404,7 @@ const internalHandler = async (
       context.workspaceId,
       context.agentId,
       context.conversationId,
-      context.uiMessage,
+      context.convertedMessages,
       fullStreamedText,
       tokenUsage,
       context.usesByok,
