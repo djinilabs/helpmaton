@@ -75,9 +75,14 @@ import {
   setupAgentAndTools,
 } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
+  convertAiSdkUIMessageToUIMessage,
   convertTextToUIMessage,
   convertUIMessagesToModelMessages,
 } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion";
+import {
+  formatToolCallMessage,
+  formatToolResultMessage,
+} from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/toolFormatting";
 import type { UIMessage } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 
 import { getDefined } from "@/utils";
@@ -676,20 +681,78 @@ async function logConversationAsync(
   fullStreamedText: string,
   tokenUsage: ReturnType<typeof extractTokenUsage>,
   usesByok: boolean,
-  finalModelName: string
+  finalModelName: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- streamText result type is complex
+  streamResult: any
 ): Promise<void> {
   if (!tokenUsage) {
     return Promise.resolve();
   }
 
   try {
+    // Convert uiMessage from ai-sdk format if needed
+    const convertedUiMessage =
+      convertAiSdkUIMessageToUIMessage(uiMessage) || uiMessage;
+
+    // Extract tool calls and tool results from streamText result
+    // streamText result has similar structure to generateText result
+    const toolCallsFromResult = streamResult?.toolCalls || [];
+    const toolResultsFromResult = streamResult?.toolResults || [];
+
+    // Format tool calls and results as UI messages
+    const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
+    const toolResultMessages = toolResultsFromResult.map(
+      formatToolResultMessage
+    );
+
+    // Build assistant response message with tool calls, results, and text
+    const assistantContent: Array<
+      | { type: "text"; text: string }
+      | {
+          type: "tool-call";
+          toolCallId: string;
+          toolName: string;
+          args: unknown;
+        }
+      | {
+          type: "tool-result";
+          toolCallId: string;
+          toolName: string;
+          result: unknown;
+        }
+    > = [];
+
+    // Add tool calls
+    for (const toolCallMsg of toolCallMessages) {
+      if (Array.isArray(toolCallMsg.content)) {
+        assistantContent.push(...toolCallMsg.content);
+      }
+    }
+
+    // Add tool results
+    for (const toolResultMsg of toolResultMessages) {
+      if (Array.isArray(toolResultMsg.content)) {
+        assistantContent.push(...toolResultMsg.content);
+      }
+    }
+
+    // Add text response if present
+    if (fullStreamedText && fullStreamedText.trim().length > 0) {
+      assistantContent.push({ type: "text", text: fullStreamedText });
+    }
+
+    // Create assistant message
     const assistantMessage: UIMessage = {
       role: "assistant",
-      content: fullStreamedText,
+      content:
+        assistantContent.length > 0 ? assistantContent : fullStreamedText,
     };
 
     // Get valid messages for logging (same format as test endpoint)
-    const validMessages: UIMessage[] = [uiMessage, assistantMessage].filter(
+    const validMessages: UIMessage[] = [
+      convertedUiMessage,
+      assistantMessage,
+    ].filter(
       (msg): msg is UIMessage =>
         msg != null &&
         typeof msg === "object" &&
@@ -1214,7 +1277,8 @@ const internalHandler = async (
       fullStreamedText,
       tokenUsage,
       context.usesByok,
-      context.finalModelName
+      context.finalModelName,
+      streamResult
     );
   } catch (error) {
     const boomed = boomify(error as Error);
