@@ -65,6 +65,47 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
     return JSON.stringify(content, null, 2);
   };
 
+  const formatTokenUsage = (tokenUsage: unknown): string | null => {
+    if (
+      !tokenUsage ||
+      typeof tokenUsage !== "object" ||
+      !("totalTokens" in tokenUsage)
+    ) {
+      return null;
+    }
+    const usage = tokenUsage as {
+      promptTokens?: number;
+      completionTokens?: number;
+      totalTokens?: number;
+      reasoningTokens?: number;
+      cachedPromptTokens?: number;
+    };
+    if (typeof usage.totalTokens !== "number") {
+      return null;
+    }
+    const parts: string[] = [];
+    if (typeof usage.promptTokens === "number") {
+      parts.push(`Prompt: ${usage.promptTokens.toLocaleString()}`);
+    }
+    if (typeof usage.completionTokens === "number") {
+      parts.push(`Completion: ${usage.completionTokens.toLocaleString()}`);
+    }
+    if (
+      typeof usage.reasoningTokens === "number" &&
+      usage.reasoningTokens > 0
+    ) {
+      parts.push(`Reasoning: ${usage.reasoningTokens.toLocaleString()}`);
+    }
+    if (
+      typeof usage.cachedPromptTokens === "number" &&
+      usage.cachedPromptTokens > 0
+    ) {
+      parts.push(`Cached: ${usage.cachedPromptTokens.toLocaleString()}`);
+    }
+    const total = usage.totalTokens.toLocaleString();
+    return parts.length > 0 ? `${total} (${parts.join(", ")})` : total;
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white border border-neutral-200 rounded-2xl shadow-dramatic border-2 border-neutral-300 p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -147,6 +188,28 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                   {conversationDetail.tokenUsage.promptTokens.toLocaleString()}{" "}
                   | Completion:{" "}
                   {conversationDetail.tokenUsage.completionTokens.toLocaleString()}
+                  {conversationDetail.tokenUsage &&
+                    "reasoningTokens" in conversationDetail.tokenUsage &&
+                    typeof conversationDetail.tokenUsage.reasoningTokens ===
+                      "number" &&
+                    conversationDetail.tokenUsage.reasoningTokens > 0 && (
+                      <>
+                        {" "}
+                        | Reasoning:{" "}
+                        {conversationDetail.tokenUsage.reasoningTokens.toLocaleString()}
+                      </>
+                    )}
+                  {conversationDetail.tokenUsage &&
+                    "cachedPromptTokens" in conversationDetail.tokenUsage &&
+                    typeof conversationDetail.tokenUsage.cachedPromptTokens ===
+                      "number" &&
+                    conversationDetail.tokenUsage.cachedPromptTokens > 0 && (
+                      <>
+                        {" "}
+                        | Cached:{" "}
+                        {conversationDetail.tokenUsage.cachedPromptTokens.toLocaleString()}
+                      </>
+                    )}
                 </div>
               </div>
             )}
@@ -189,6 +252,10 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                       ) {
                         const role = message.role as string;
                         const content = formatMessageContent(message.content);
+                        const tokenUsage =
+                          "tokenUsage" in message
+                            ? formatTokenUsage(message.tokenUsage)
+                            : null;
                         return (
                           <div
                             key={index}
@@ -200,8 +267,15 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                 : "bg-neutral-50 text-neutral-900 border border-neutral-200"
                             }`}
                           >
-                            <div className="text-xs font-medium mb-2 opacity-80">
-                              {role}
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="text-xs font-medium opacity-80">
+                                {role}
+                              </div>
+                              {tokenUsage && (
+                                <div className="text-xs font-mono opacity-70 bg-black bg-opacity-10 px-2 py-1 rounded">
+                                  {tokenUsage}
+                                </div>
+                              )}
                             </div>
                             <div className="text-sm whitespace-pre-wrap">
                               {content}

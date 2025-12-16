@@ -90,6 +90,25 @@ The Lambda function using container images is now successfully deployed and work
 - `apps/backend/docker/lancedb/Dockerfile` - Implemented multi-stage build
 - **Subscription and Credit Purchase Fixes** (Latest)
 - **Credit System Migration to Integer Millionths** (Latest)
+- **Token Usage Tracking and Display Improvements** (Latest)
+
+  - Fixed token usage extraction to ensure reasoning tokens and cached prompt tokens are included in total token counts
+  - Updated `extractTokenUsage()` to calculate `totalTokens` as `nonCachedPromptTokens + cachedPromptTokens + completionTokens + reasoningTokens`, ensuring all token types are included
+  - Updated `aggregateTokenUsage()` to calculate `totalTokens` as `promptTokens + cachedPromptTokens + completionTokens + reasoningTokens` when aggregating multiple usage objects
+  - Enhanced message deduplication logic to intelligently merge messages based on tokenUsage presence and content format (array vs string)
+  - Added `normalizeContentForComparison()` function to handle content format differences (string vs array) when deduplicating messages
+  - Implemented `X-Conversation-Id` header requirement for all interactive endpoints (test and streaming)
+  - Refactored conversation updates to use `atomicUpdate()` for thread-safe updates with optimistic locking
+  - Moved conversation ID generation to client-side (`AgentChat` component) using memoized UUID, removed session storage dependency
+  - Updated frontend UI to display token usage breakdown including reasoning tokens and cached prompt tokens:
+    - `ConversationList`: Shows `Total (P: X, C: Y, R: Z, Cache: W)` format
+    - `ConversationDetailModal`: Shows full breakdown in metadata and individual message badges
+    - `AgentChat`: Shows token usage badges for each message with breakdown
+  - Updated all unit tests to reflect new token calculation logic (reasoning and cached tokens included in totals)
+  - Token usage can now exist on any message type, not just assistant messages
+  - All changes verified with type checking, linting, and comprehensive test coverage
+
+- **Credit System Migration to Integer Millionths**
 
   - Migrated entire credit system from floating-point numbers to integer millionths representation to eliminate precision loss
   - Created `creditConversions.ts` utility with `toMillionths()` and `fromMillionths()` functions for conversions

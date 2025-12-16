@@ -30,6 +30,7 @@ import {
   checkDailyRequestLimit,
   incrementRequestBucket,
 } from "../../utils/requestTracking";
+import { Sentry, ensureError } from "../../utils/sentry";
 import {
   checkFreePlanExpiration,
   getWorkspaceSubscription,
@@ -259,6 +260,19 @@ export const handler = adaptHttpHandler(
                 tokenUsage,
               }
             );
+            // Report to Sentry
+            Sentry.captureException(ensureError(error), {
+              tags: {
+                endpoint: "webhook",
+                operation: "credit_adjustment",
+              },
+              extra: {
+                workspaceId,
+                agentId,
+                reservationId,
+                tokenUsage,
+              },
+            });
           }
         } else {
           if (!isCreditDeductionEnabled()) {
@@ -445,6 +459,18 @@ export const handler = adaptHttpHandler(
               subscriptionId,
             }
           );
+          // Report to Sentry
+          Sentry.captureException(ensureError(error), {
+            tags: {
+              endpoint: "webhook",
+              operation: "request_tracking",
+            },
+            extra: {
+              workspaceId,
+              agentId,
+              subscriptionId,
+            },
+          });
         }
       } else {
         console.warn(
@@ -528,6 +554,17 @@ export const handler = adaptHttpHandler(
         console.error("[Webhook Handler] Error logging conversation:", {
           error: error instanceof Error ? error.message : String(error),
           stack: error instanceof Error ? error.stack : undefined,
+        });
+        // Report to Sentry
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            endpoint: "webhook",
+            operation: "conversation_logging",
+          },
+          extra: {
+            workspaceId,
+            agentId,
+          },
         });
       }
 

@@ -34,7 +34,24 @@ export const ConversationList: FC<ConversationListProps> = ({
 
   const formatTokenUsage = (tokenUsage: Conversation["tokenUsage"]): string => {
     if (!tokenUsage) return "N/A";
-    return `${tokenUsage.totalTokens.toLocaleString()} (${tokenUsage.promptTokens.toLocaleString()}+${tokenUsage.completionTokens.toLocaleString()})`;
+    const parts: string[] = [];
+    parts.push(`P: ${tokenUsage.promptTokens.toLocaleString()}`);
+    parts.push(`C: ${tokenUsage.completionTokens.toLocaleString()}`);
+    if (
+      "reasoningTokens" in tokenUsage &&
+      typeof tokenUsage.reasoningTokens === "number" &&
+      tokenUsage.reasoningTokens > 0
+    ) {
+      parts.push(`R: ${tokenUsage.reasoningTokens.toLocaleString()}`);
+    }
+    if (
+      "cachedPromptTokens" in tokenUsage &&
+      typeof tokenUsage.cachedPromptTokens === "number" &&
+      tokenUsage.cachedPromptTokens > 0
+    ) {
+      parts.push(`Cache: ${tokenUsage.cachedPromptTokens.toLocaleString()}`);
+    }
+    return `${tokenUsage.totalTokens.toLocaleString()} (${parts.join(", ")})`;
   };
 
   if (isLoading && !data) {

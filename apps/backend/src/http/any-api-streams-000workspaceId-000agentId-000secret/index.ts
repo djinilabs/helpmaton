@@ -2,7 +2,7 @@
 // We now use direct write() and end() on ResponseStream
 // Using AWS's native streamifyResponse for Lambda Function URLs with RESPONSE_STREAM mode
 
-import { boomify, notAcceptable, unauthorized } from "@hapi/boom";
+import { badRequest, boomify, notAcceptable, unauthorized } from "@hapi/boom";
 import type { ModelMessage } from "ai";
 import { convertToModelMessages, streamText } from "ai";
 
@@ -35,7 +35,7 @@ import {
 import { database } from "../../tables";
 import {
   extractTokenUsage,
-  startConversation,
+  updateConversation,
 } from "../../utils/conversationLogger";
 import {
   InsufficientCreditsError,
@@ -106,6 +106,7 @@ interface StreamRequestContext {
   workspaceId: string;
   agentId: string;
   secret: string;
+  conversationId: string;
   origin: string | undefined;
   allowedOrigins: string[] | null;
   subscriptionId: string | undefined;
@@ -667,6 +668,18 @@ async function trackRequestUsage(
       agentId,
       subscriptionId,
     });
+    // Report to Sentry
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        endpoint: "stream",
+        operation: "request_tracking",
+      },
+      extra: {
+        workspaceId,
+        agentId,
+        subscriptionId,
+      },
+    });
   }
 }
 
@@ -677,6 +690,7 @@ async function logConversationAsync(
   db: Awaited<ReturnType<typeof database>>,
   workspaceId: string,
   agentId: string,
+  conversationId: string,
   uiMessage: UIMessage,
   fullStreamedText: string,
   tokenUsage: ReturnType<typeof extractTokenUsage>,
@@ -765,23 +779,32 @@ async function logConversationAsync(
         "content" in msg
     );
 
-    // Run this asynchronously without blocking
-    await startConversation(db, {
+    // Run this asynchronously without blocking - always update existing conversation
+    await updateConversation(
+      db,
       workspaceId,
       agentId,
-      conversationType: "stream", // Use 'stream' type for streaming endpoint
-      messages: validMessages,
-      tokenUsage,
-      modelName: finalModelName,
-      provider: "google",
-      usesByok,
-    }).catch((error) => {
+      conversationId,
+      validMessages,
+      tokenUsage
+    ).catch((error) => {
       // Log error but don't fail the request
       console.error("[Stream Handler] Error logging conversation:", {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
         workspaceId,
         agentId,
+      });
+      // Report to Sentry
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          endpoint: "stream",
+          operation: "conversation_logging",
+        },
+        extra: {
+          workspaceId,
+          agentId,
+        },
       });
     });
   } catch (error) {
@@ -791,6 +814,17 @@ async function logConversationAsync(
       stack: error instanceof Error ? error.stack : undefined,
       workspaceId,
       agentId,
+    });
+    // Report to Sentry
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        endpoint: "stream",
+        operation: "conversation_logging",
+      },
+      extra: {
+        workspaceId,
+        agentId,
+      },
     });
   }
 }
@@ -856,6 +890,13 @@ async function buildRequestContext(
   pathParams: PathParameters
 ): Promise<StreamRequestContext> {
   const { workspaceId, agentId, secret } = pathParams;
+
+  // Read and validate X-Conversation-Id header
+  const conversationId =
+    event.headers["x-conversation-id"] || event.headers["X-Conversation-Id"];
+  if (!conversationId || typeof conversationId !== "string") {
+    throw badRequest("X-Conversation-Id header is required");
+  }
 
   // Get allowed origins for CORS
   const allowedOrigins = await getAllowedOrigins(workspaceId, agentId);
@@ -942,6 +983,7 @@ async function buildRequestContext(
     workspaceId,
     agentId,
     secret,
+    conversationId,
     origin,
     allowedOrigins,
     subscriptionId,
@@ -1253,15 +1295,43 @@ const internalHandler = async (
     const tokenUsage = extractTokenUsage(streamResult);
 
     // Post-processing: adjust credit reservation, track usage, log conversation
-    await adjustCreditsAfterStream(
-      context.db,
-      context.workspaceId,
-      context.agentId,
-      context.reservationId,
-      context.finalModelName,
-      tokenUsage,
-      context.usesByok
-    );
+    try {
+      await adjustCreditsAfterStream(
+        context.db,
+        context.workspaceId,
+        context.agentId,
+        context.reservationId,
+        context.finalModelName,
+        tokenUsage,
+        context.usesByok
+      );
+    } catch (error) {
+      // Log error but don't fail the request
+      console.error(
+        "[Stream Handler] Error adjusting credit reservation after stream:",
+        {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          workspaceId: context.workspaceId,
+          agentId: context.agentId,
+          reservationId: context.reservationId,
+          tokenUsage,
+        }
+      );
+      // Report to Sentry
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          endpoint: "stream",
+          operation: "credit_adjustment",
+        },
+        extra: {
+          workspaceId: context.workspaceId,
+          agentId: context.agentId,
+          reservationId: context.reservationId,
+          tokenUsage,
+        },
+      });
+    }
 
     await trackRequestUsage(
       context.subscriptionId,
@@ -1273,6 +1343,7 @@ const internalHandler = async (
       context.db,
       context.workspaceId,
       context.agentId,
+      context.conversationId,
       context.uiMessage,
       fullStreamedText,
       tokenUsage,

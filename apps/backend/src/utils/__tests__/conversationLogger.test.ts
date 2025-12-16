@@ -56,10 +56,11 @@ describe("conversationLogger", () => {
 
       const usage = extractTokenUsage(result);
 
+      // totalTokens should be max(1500, 1000 + 500 + 200) = 1700
       expect(usage).toEqual({
         promptTokens: 1000,
         completionTokens: 500,
-        totalTokens: 1500,
+        totalTokens: 1700, // Includes reasoning tokens
         reasoningTokens: 200,
       });
     });
@@ -76,10 +77,11 @@ describe("conversationLogger", () => {
 
       const usage = extractTokenUsage(result);
 
+      // totalTokens should be max(1500, 1000 + 500 + 200) = 1700
       expect(usage).toEqual({
         promptTokens: 1000,
         completionTokens: 500,
-        totalTokens: 1500,
+        totalTokens: 1700, // Includes reasoning tokens
         reasoningTokens: 200,
       });
     });
@@ -121,10 +123,11 @@ describe("conversationLogger", () => {
 
       const usage = extractTokenUsage(result);
 
+      // totalTokens should include cached tokens: 800 + 200 + 500 = 1500
       expect(usage).toEqual({
         promptTokens: 800, // 1000 - 200 cached
         completionTokens: 500,
-        totalTokens: 1500,
+        totalTokens: 1500, // 800 + 200 + 500 (includes cached)
         cachedPromptTokens: 200,
       });
     });
@@ -153,8 +156,12 @@ describe("conversationLogger", () => {
 
       expect(usage1?.cachedPromptTokens).toBe(200);
       expect(usage1?.promptTokens).toBe(800); // 1000 - 200
+      // totalTokens should include cached: 800 + 200 + 500 = 1500
+      expect(usage1?.totalTokens).toBe(1500);
       expect(usage2?.cachedPromptTokens).toBe(200);
       expect(usage2?.promptTokens).toBe(800); // 1000 - 200
+      // totalTokens should include cached: 800 + 200 + 500 = 1500
+      expect(usage2?.totalTokens).toBe(1500);
     });
 
     it("should not include cachedPromptTokens when zero or missing", () => {
@@ -195,10 +202,12 @@ describe("conversationLogger", () => {
 
       const usage = extractTokenUsage(result);
 
+      // totalTokens should include cached and reasoning tokens: 800 + 200 + 500 + 100 = 1600
+      // But API says 1500, so we use max(1500, 1600) = 1600
       expect(usage).toEqual({
         promptTokens: 800, // 1000 - 200 cached
         completionTokens: 500,
-        totalTokens: 1500,
+        totalTokens: 1600, // 800 + 200 + 500 + 100 (includes cached and reasoning)
         cachedPromptTokens: 200,
         reasoningTokens: 100,
       });
@@ -244,6 +253,8 @@ describe("conversationLogger", () => {
 
       const aggregated = aggregateTokenUsage(usage1, usage2);
 
+      // totalTokens is calculated as promptTokens + completionTokens + reasoningTokens
+      // = 3000 + 1500 + 0 = 4500
       expect(aggregated).toEqual({
         promptTokens: 3000,
         completionTokens: 1500,
@@ -268,10 +279,12 @@ describe("conversationLogger", () => {
 
       const aggregated = aggregateTokenUsage(usage1, usage2);
 
+      // totalTokens is calculated as promptTokens + completionTokens + reasoningTokens
+      // = 3000 + 1500 + 500 = 5000 (not 4500 from summing individual totalTokens)
       expect(aggregated).toEqual({
         promptTokens: 3000,
         completionTokens: 1500,
-        totalTokens: 4500,
+        totalTokens: 5000, // 3000 + 1500 + 500 (includes reasoning tokens)
         reasoningTokens: 500,
       });
     });
@@ -375,10 +388,12 @@ describe("conversationLogger", () => {
 
       const aggregated = aggregateTokenUsage(usage1, usage2);
 
+      // totalTokens is calculated as promptTokens + cachedPromptTokens + completionTokens + reasoningTokens
+      // = 3000 + 500 + 1500 + 0 = 5000 (includes cached tokens)
       expect(aggregated).toEqual({
         promptTokens: 3000,
         completionTokens: 1500,
-        totalTokens: 4500,
+        totalTokens: 5000, // 3000 + 500 + 1500 (includes cached tokens)
         cachedPromptTokens: 500,
       });
     });
@@ -440,14 +455,15 @@ describe("conversationLogger", () => {
 
       const aggregated = aggregateTokenUsage(usage1, usage2);
 
+      // totalTokens is calculated as promptTokens + cachedPromptTokens + completionTokens + reasoningTokens
+      // = 3000 + 500 + 1500 + 300 = 5300 (includes cached and reasoning tokens)
       expect(aggregated).toEqual({
         promptTokens: 3000,
         completionTokens: 1500,
-        totalTokens: 4500,
+        totalTokens: 5300, // 3000 + 500 + 1500 + 300 (includes cached and reasoning tokens)
         cachedPromptTokens: 500,
         reasoningTokens: 300,
       });
     });
   });
 });
-

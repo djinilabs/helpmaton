@@ -7,7 +7,7 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import {
   extractTokenUsage,
-  startConversation,
+  updateConversation,
 } from "../../../utils/conversationLogger";
 import {
   InsufficientCreditsError,
@@ -23,6 +23,7 @@ import {
   checkDailyRequestLimit,
   incrementRequestBucket,
 } from "../../../utils/requestTracking";
+import { Sentry, ensureError } from "../../../utils/sentry";
 import {
   checkFreePlanExpiration,
   getWorkspaceSubscription,
@@ -152,6 +153,13 @@ export const registerPostTestAgent = (app: express.Application) => {
 
       if (!Array.isArray(messages) || messages.length === 0) {
         throw badRequest("messages array is required");
+      }
+
+      // Read and validate X-Conversation-Id header
+      const conversationId =
+        req.headers["x-conversation-id"] || req.headers["X-Conversation-Id"];
+      if (!conversationId || typeof conversationId !== "string") {
+        throw badRequest("X-Conversation-Id header is required");
       }
 
       // Check if free plan has expired (block agent execution if expired)
@@ -441,6 +449,18 @@ export const registerPostTestAgent = (app: express.Application) => {
               subscriptionId,
             }
           );
+          // Report to Sentry
+          Sentry.captureException(ensureError(error), {
+            tags: {
+              endpoint: "test",
+              operation: "request_tracking",
+            },
+            extra: {
+              workspaceId,
+              agentId,
+              subscriptionId,
+            },
+          });
         }
       } else {
         console.warn(
@@ -557,17 +577,25 @@ export const registerPostTestAgent = (app: express.Application) => {
 
       // body = dataStreamLines.join("");
 
-      // Extract token usage from streamText result (after stream is consumed)
-      const tokenUsage = extractTokenUsage(result);
-
-      // Extract text, tool calls, and tool results from streamText result
+      // Extract text, tool calls, tool results, and usage from streamText result
       // streamText result properties are promises that need to be awaited
-      const [responseText, toolCallsFromResult, toolResultsFromResult] =
+      const [responseText, toolCallsFromResult, toolResultsFromResult, usage] =
         await Promise.all([
           Promise.resolve(result.text).then((t) => t || ""),
           Promise.resolve(result.toolCalls).then((tc) => tc || []),
           Promise.resolve(result.toolResults).then((tr) => tr || []),
+          Promise.resolve(result.usage),
         ]);
+
+      // Extract token usage from streamText result (after stream is consumed and usage is awaited)
+      const tokenUsage = extractTokenUsage({ ...result, usage });
+
+      // Log token usage for debugging
+      console.log("[Agent Test Handler] Extracted token usage:", {
+        tokenUsage,
+        usage,
+        hasUsage: !!usage,
+      });
 
       // Adjust credit reservation based on actual cost
       // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
@@ -612,6 +640,19 @@ export const registerPostTestAgent = (app: express.Application) => {
               tokenUsage,
             }
           );
+          // Report to Sentry
+          Sentry.captureException(ensureError(error), {
+            tags: {
+              endpoint: "test",
+              operation: "credit_adjustment",
+            },
+            extra: {
+              workspaceId,
+              agentId,
+              reservationId,
+              tokenUsage,
+            },
+          });
         }
       } else {
         if (!isCreditDeductionEnabled()) {
@@ -703,13 +744,15 @@ export const registerPostTestAgent = (app: express.Application) => {
         assistantContent.push({ type: "text", text: responseText });
       }
 
-      // Create assistant message
+      // Create assistant message with token usage
       const assistantMessage: UIMessage = {
         role: "assistant",
         content: assistantContent.length > 0 ? assistantContent : responseText,
+        ...(tokenUsage && { tokenUsage }),
       };
 
       // Combine user messages and assistant message for logging
+      // Deduplication will happen in updateConversation
       const messagesForLogging: UIMessage[] = [
         ...convertedMessages,
         assistantMessage,
@@ -729,18 +772,16 @@ export const registerPostTestAgent = (app: express.Application) => {
           "content" in msg
       );
 
-      // Log conversation (non-blocking)
+      // Log conversation (non-blocking) - always update existing conversation
       try {
-        await startConversation(db, {
+        await updateConversation(
+          db,
           workspaceId,
           agentId,
-          conversationType: "test",
-          messages: validMessages,
-          tokenUsage: tokenUsage,
-          modelName: finalModelName,
-          provider: "google",
-          usesByok,
-        });
+          conversationId,
+          validMessages,
+          tokenUsage
+        );
       } catch (error) {
         // Log error but don't fail the request
         console.error("[Agent Test Handler] Error logging conversation:", {
@@ -748,6 +789,17 @@ export const registerPostTestAgent = (app: express.Application) => {
           stack: error instanceof Error ? error.stack : undefined,
           workspaceId,
           agentId,
+        });
+        // Report to Sentry
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            endpoint: "test",
+            operation: "conversation_logging",
+          },
+          extra: {
+            workspaceId,
+            agentId,
+          },
         });
       }
 
