@@ -109,10 +109,16 @@ vi.mock("ai", async () => {
   };
 });
 
-vi.mock("../../../utils/conversationLogger", () => ({
-  extractTokenUsage: mockExtractTokenUsage,
-  startConversation: mockStartConversation,
-}));
+vi.mock("../../../utils/conversationLogger", async () => {
+  const actual = await vi.importActual<
+    typeof import("../../../utils/conversationLogger")
+  >("../../../utils/conversationLogger");
+  return {
+    ...actual,
+    extractTokenUsage: mockExtractTokenUsage,
+    startConversation: mockStartConversation,
+  };
+});
 
 vi.mock("../../../utils/creditManagement", () => ({
   adjustCreditReservation: mockAdjustCreditReservation,
