@@ -722,7 +722,7 @@ async function logConversationAsync(
   agentId: string,
   conversationId: string,
   convertedMessages: UIMessage[],
-  fullStreamedText: string,
+  finalResponseText: string,
   tokenUsage: ReturnType<typeof extractTokenUsage>,
   usesByok: boolean,
   finalModelName: string,
@@ -821,15 +821,16 @@ async function logConversationAsync(
     }
 
     // Add text response if present
-    if (fullStreamedText && fullStreamedText.trim().length > 0) {
-      assistantContent.push({ type: "text", text: fullStreamedText });
+    // finalResponseText includes the complete final response including continuation responses after tool execution
+    if (finalResponseText && finalResponseText.trim().length > 0) {
+      assistantContent.push({ type: "text", text: finalResponseText });
     }
 
     // Create assistant message with token usage (same as test endpoint)
     const assistantMessage: UIMessage = {
       role: "assistant",
       content:
-        assistantContent.length > 0 ? assistantContent : fullStreamedText,
+        assistantContent.length > 0 ? assistantContent : finalResponseText,
       ...(tokenUsage && { tokenUsage }),
     };
 
@@ -1399,10 +1400,27 @@ const internalHandler = async (
       throw new Error("LLM call succeeded but result is undefined");
     }
 
-    // Extract token usage from stream result
-    // streamText result.usage is a promise that needs to be awaited
+    // Extract text, tool calls, tool results, and usage from streamText result
+    // streamText result properties are promises that need to be awaited
     // (same as test endpoint)
-    const usage = await Promise.resolve(streamResult.usage);
+    // streamResult.text includes the complete final response including continuation responses after tool execution
+    const [responseText, usage] = await Promise.all([
+      Promise.resolve(streamResult.text).then((t) => t || ""),
+      Promise.resolve(streamResult.usage),
+    ]);
+
+    // Use responseText (complete final text) instead of fullStreamedText
+    // responseText includes continuation responses after tool execution
+    const finalResponseText = responseText || fullStreamedText;
+
+    // DIAGNOSTIC: Log text extraction
+    console.log("[Stream Handler] Extracted response text:", {
+      responseTextLength: responseText?.length || 0,
+      fullStreamedTextLength: fullStreamedText.length,
+      usingResponseText: !!responseText && responseText.length > 0,
+      responseTextPreview: responseText?.substring(0, 100),
+    });
+
     const tokenUsage = extractTokenUsage({ ...streamResult, usage });
 
     // DIAGNOSTIC: Log token usage extraction
@@ -1464,7 +1482,7 @@ const internalHandler = async (
       context.agentId,
       context.conversationId,
       context.convertedMessages,
-      fullStreamedText,
+      finalResponseText,
       tokenUsage,
       context.usesByok,
       context.finalModelName,
