@@ -9,6 +9,7 @@ import {
   incrementRequestBucket,
 } from "../../../utils/requestTracking";
 import { getWorkspaceSubscription } from "../../../utils/subscriptionUtils";
+import { extractUserId } from "../../utils/session";
 import { createModel } from "../../utils/modelFactory";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
@@ -244,13 +245,17 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
           );
         }
 
+        // Extract userId for PostHog tracking
+        const userId = extractUserId(req);
+
         // Create model for prompt generation (using Google provider with default model)
         // PostHog tracking is automatically handled by createModel via withTracing
         const model = await createModel(
           "google",
           undefined, // Use default model
           workspaceId,
-          "http://localhost:3000/api/prompt-generation"
+          "http://localhost:3000/api/prompt-generation",
+          userId
         );
 
         // Generate the prompt

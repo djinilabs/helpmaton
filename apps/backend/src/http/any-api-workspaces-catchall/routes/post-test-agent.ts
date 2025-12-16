@@ -33,6 +33,7 @@ import {
 } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import type { UIMessage } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 import { MODEL_NAME, buildGenerateTextOptions } from "../../utils/agentUtils";
+import { extractUserId } from "../../utils/session";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -169,6 +170,9 @@ export const registerPostTestAgent = (app: express.Application) => {
         );
       }
 
+      // Extract userId for PostHog tracking
+      const userId = extractUserId(req);
+
       // Setup agent, model, and tools
       const { agent, model, tools, usesByok } = await setupAgentAndTools(
         workspaceId,
@@ -177,6 +181,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         {
           callDepth: 0,
           maxDelegationDepth: 3,
+          userId,
         }
       );
 

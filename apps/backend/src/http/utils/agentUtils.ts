@@ -111,7 +111,8 @@ export function createAgentModel(
   modelName?: string,
   workspaceId?: string,
   agentId?: string,
-  usesByok?: boolean
+  usesByok?: boolean,
+  userId?: string
 ) {
   const keyToUse =
     apiKey ||
@@ -131,13 +132,23 @@ export function createAgentModel(
   // Wrap with PostHog tracking if available
   const phClient = getPostHogClient();
   if (phClient) {
+    // Prefix distinct ID to distinguish between user, workspace, and system
+    let distinctId: string;
+    if (userId) {
+      distinctId = `user/${userId}`;
+    } else if (workspaceId) {
+      distinctId = `workspace/${workspaceId}`;
+    } else {
+      distinctId = "system";
+    }
     return withTracing(model, phClient, {
-      posthogDistinctId: workspaceId || "system",
+      posthogDistinctId: distinctId,
       posthogProperties: {
         provider: "google",
         modelName: finalModelName,
         workspaceId: workspaceId || undefined,
         agentId: agentId || undefined,
+        userId: userId || undefined,
         referer,
         usesByok: usesByok || false,
       },
