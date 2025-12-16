@@ -23,6 +23,7 @@ import {
   checkDailyRequestLimit,
   incrementRequestBucket,
 } from "../../../utils/requestTracking";
+import { Sentry, ensureError } from "../../../utils/sentry";
 import {
   checkFreePlanExpiration,
   getWorkspaceSubscription,
@@ -441,6 +442,18 @@ export const registerPostTestAgent = (app: express.Application) => {
               subscriptionId,
             }
           );
+          // Report to Sentry
+          Sentry.captureException(ensureError(error), {
+            tags: {
+              endpoint: "test",
+              operation: "request_tracking",
+            },
+            extra: {
+              workspaceId,
+              agentId,
+              subscriptionId,
+            },
+          });
         }
       } else {
         console.warn(
@@ -612,6 +625,19 @@ export const registerPostTestAgent = (app: express.Application) => {
               tokenUsage,
             }
           );
+          // Report to Sentry
+          Sentry.captureException(ensureError(error), {
+            tags: {
+              endpoint: "test",
+              operation: "credit_adjustment",
+            },
+            extra: {
+              workspaceId,
+              agentId,
+              reservationId,
+              tokenUsage,
+            },
+          });
         }
       } else {
         if (!isCreditDeductionEnabled()) {
@@ -748,6 +774,17 @@ export const registerPostTestAgent = (app: express.Application) => {
           stack: error instanceof Error ? error.stack : undefined,
           workspaceId,
           agentId,
+        });
+        // Report to Sentry
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            endpoint: "test",
+            operation: "conversation_logging",
+          },
+          extra: {
+            workspaceId,
+            agentId,
+          },
         });
       }
 

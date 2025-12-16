@@ -667,6 +667,18 @@ async function trackRequestUsage(
       agentId,
       subscriptionId,
     });
+    // Report to Sentry
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        endpoint: "stream",
+        operation: "request_tracking",
+      },
+      extra: {
+        workspaceId,
+        agentId,
+        subscriptionId,
+      },
+    });
   }
 }
 
@@ -783,6 +795,17 @@ async function logConversationAsync(
         workspaceId,
         agentId,
       });
+      // Report to Sentry
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          endpoint: "stream",
+          operation: "conversation_logging",
+        },
+        extra: {
+          workspaceId,
+          agentId,
+        },
+      });
     });
   } catch (error) {
     // Log error but don't fail the request
@@ -791,6 +814,17 @@ async function logConversationAsync(
       stack: error instanceof Error ? error.stack : undefined,
       workspaceId,
       agentId,
+    });
+    // Report to Sentry
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        endpoint: "stream",
+        operation: "conversation_logging",
+      },
+      extra: {
+        workspaceId,
+        agentId,
+      },
     });
   }
 }
@@ -1253,15 +1287,43 @@ const internalHandler = async (
     const tokenUsage = extractTokenUsage(streamResult);
 
     // Post-processing: adjust credit reservation, track usage, log conversation
-    await adjustCreditsAfterStream(
-      context.db,
-      context.workspaceId,
-      context.agentId,
-      context.reservationId,
-      context.finalModelName,
-      tokenUsage,
-      context.usesByok
-    );
+    try {
+      await adjustCreditsAfterStream(
+        context.db,
+        context.workspaceId,
+        context.agentId,
+        context.reservationId,
+        context.finalModelName,
+        tokenUsage,
+        context.usesByok
+      );
+    } catch (error) {
+      // Log error but don't fail the request
+      console.error(
+        "[Stream Handler] Error adjusting credit reservation after stream:",
+        {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          workspaceId: context.workspaceId,
+          agentId: context.agentId,
+          reservationId: context.reservationId,
+          tokenUsage,
+        }
+      );
+      // Report to Sentry
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          endpoint: "stream",
+          operation: "credit_adjustment",
+        },
+        extra: {
+          workspaceId: context.workspaceId,
+          agentId: context.agentId,
+          reservationId: context.reservationId,
+          tokenUsage,
+        },
+      });
+    }
 
     await trackRequestUsage(
       context.subscriptionId,
