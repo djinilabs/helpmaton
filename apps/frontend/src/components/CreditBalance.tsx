@@ -3,32 +3,20 @@ import type { FC } from "react";
 
 import { useUpdateWorkspace } from "../hooks/useWorkspaces";
 import type { Currency } from "../utils/api";
+import { formatCurrency } from "../utils/currency";
 
 interface CreditBalanceProps {
   workspaceId: string;
-  balance: number;
+  balance: number; // in millionths
   currency: Currency;
   canEdit: boolean;
 }
-
-const CURRENCY_SYMBOLS: Record<Currency, string> = {
-  usd: "$",
-  eur: "€",
-  gbp: "£",
-};
 
 const CURRENCIES: Array<{ value: Currency; label: string }> = [
   { value: "usd", label: "USD ($)" },
   { value: "eur", label: "EUR (€)" },
   { value: "gbp", label: "GBP (£)" },
 ];
-
-const formatCurrency = (amount: number, currency: Currency): string => {
-  const symbol = CURRENCY_SYMBOLS[currency];
-  // Show more precision for credit balances (4 decimal places)
-  // This helps see small deductions that might round to 0.00 with 2 decimals
-  return `${symbol}${amount.toFixed(4)}`;
-};
 
 export const CreditBalance: FC<CreditBalanceProps> = ({
   workspaceId,
@@ -46,10 +34,12 @@ export const CreditBalance: FC<CreditBalanceProps> = ({
   }, [currency]);
 
   // Ensure balance is a number and check if currency change should be disabled
+  // Balance is in millionths, convert to currency units for display
   const numericBalance = Number(balance) || 0;
   const isCurrencyChangeDisabled = numericBalance !== 0;
 
-  const formattedBalance = formatCurrency(numericBalance, currency);
+  // Format balance for display (convert from millionths to currency units)
+  const formattedBalance = formatCurrency(numericBalance, currency, 4);
   const currencyUpper = currency.toUpperCase();
 
   const handleCurrencyChange = async () => {

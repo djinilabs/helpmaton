@@ -11,6 +11,7 @@ import {
 } from "../hooks/useSpendingLimits";
 import { useUpdateWorkspace } from "../hooks/useWorkspaces";
 import type { SpendingLimit, Currency } from "../utils/api";
+import { formatCurrency, fromMillionths, toMillionths } from "../utils/currency";
 
 interface SpendingLimitsManagerProps {
   workspaceId: string;
@@ -29,22 +30,11 @@ const TIME_FRAMES: Array<{
   { value: "monthly", label: "MONTHLY" },
 ];
 
-const CURRENCY_SYMBOLS: Record<Currency, string> = {
-  usd: "$",
-  eur: "€",
-  gbp: "£",
-};
-
 const CURRENCIES: Array<{ value: Currency; label: string }> = [
   { value: "usd", label: "USD ($)" },
   { value: "eur", label: "EUR (€)" },
   { value: "gbp", label: "GBP (£)" },
 ];
-
-const formatCurrency = (amount: number, currency: Currency): string => {
-  const symbol = CURRENCY_SYMBOLS[currency];
-  return `${symbol}${amount.toFixed(2)}`;
-};
 
 export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
   workspaceId,
@@ -105,9 +95,10 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
         });
       }
 
+      // Convert from currency units to millionths for API
       await addLimit.mutateAsync({
         timeFrame: newLimit.timeFrame as "daily" | "weekly" | "monthly",
-        amount,
+        amount: toMillionths(amount),
       });
       setNewLimit({ timeFrame: "", amount: "", currency });
       setIsAdding(false);
@@ -121,7 +112,8 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
     if (isNaN(amount) || amount <= 0) return;
 
     try {
-      await updateLimit.mutateAsync({ timeFrame, amount });
+      // Convert from currency units to millionths for API
+      await updateLimit.mutateAsync({ timeFrame, amount: toMillionths(amount) });
       setEditingLimit(null);
       setEditAmount("");
     } catch {
@@ -147,7 +139,8 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
 
   const startEdit = (limit: SpendingLimit) => {
     setEditingLimit(limit.timeFrame);
-    setEditAmount(limit.amount.toString());
+    // Convert from millionths to currency units for editing
+    setEditAmount(fromMillionths(limit.amount).toString());
   };
 
   const cancelEdit = () => {
@@ -347,7 +340,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                         ?.label || limit.timeFrame.toUpperCase()}
                     </div>
                     <div className="text-lg mt-1 text-neutral-700">
-                      {formatCurrency(limit.amount, currency)}
+                      {formatCurrency(limit.amount, currency, 2)}
                     </div>
                   </div>
                   {canEdit && (

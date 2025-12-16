@@ -3,18 +3,13 @@ import type { FC } from "react";
 
 import { useTrialStatus } from "../hooks/useTrialCredits";
 import type { Currency } from "../utils/api";
+import { formatCurrency } from "../utils/currency";
 
 interface TrialUsageBarProps {
   workspaceId: string;
   currency: Currency;
   onUpgradeClick: () => void;
 }
-
-const CURRENCY_SYMBOLS: Record<Currency, string> = {
-  usd: "$",
-  eur: "€",
-  gbp: "£",
-};
 
 export const TrialUsageBar: FC<TrialUsageBarProps> = ({
   workspaceId,
@@ -42,8 +37,6 @@ export const TrialUsageBar: FC<TrialUsageBarProps> = ({
   }
 
   const usage = Math.min(100, Math.max(0, trialStatus.currentUsage));
-  const symbol = CURRENCY_SYMBOLS[currency];
-  const currencyUpper = currency.toUpperCase();
 
   return (
     <div className="border border-neutral-200 rounded-lg p-6 mb-8 bg-white shadow-soft">
@@ -51,8 +44,7 @@ export const TrialUsageBar: FC<TrialUsageBarProps> = ({
         Trial Credit Usage
       </h3>
       <p className="text-sm text-neutral-600 mb-4">
-        You have been granted {symbol}
-        {trialStatus.initialCreditAmount.toFixed(2)} {currencyUpper} in trial
+        You have been granted {formatCurrency(trialStatus.initialCreditAmount, currency, 2)} in trial
         credits.
       </p>
       <div className="mb-2">

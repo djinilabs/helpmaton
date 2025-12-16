@@ -1,21 +1,13 @@
 import type { FC } from "react";
 
 import type { UsageStats as UsageStatsType, Currency } from "../utils/api";
+import { formatCurrency } from "../utils/currency";
 
 interface UsageStatsProps {
   stats: UsageStatsType;
   currency: Currency;
   title?: string;
 }
-
-const formatCurrency = (value: number, currency: Currency): string => {
-  const symbols: Record<Currency, string> = {
-    usd: "$",
-    eur: "€",
-    gbp: "£",
-  };
-  return `${symbols[currency]}${value.toFixed(4)}`;
-};
 
 const formatNumber = (value: number): string => {
   return new Intl.NumberFormat("en-US").format(value);
@@ -48,7 +40,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
         </div>
         <div className="border border-primary-300 rounded-xl p-5 bg-gradient-primary/10">
           <div className="text-sm font-semibold text-primary-700 mb-2">Total Cost</div>
-          <div className="text-3xl font-bold text-primary-900">{formatCurrency(stats.cost, currency)}</div>
+          <div className="text-3xl font-bold text-primary-900">{formatCurrency(stats.cost, currency, 4)}</div>
         </div>
       </div>
 
@@ -56,7 +48,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
         <div className="mb-8">
           <h4 className="text-xl font-bold text-neutral-900 mb-4">By Model</h4>
           <div className="space-y-3">
-            {stats.byModel.map((model) => (
+            {stats.byModel.map((model: { model: string; totalTokens: number; cost: number }) => (
               <div
                 key={model.model}
                 className="border border-neutral-200 rounded-xl p-4 bg-white hover:border-primary-300 transition-colors duration-200"
@@ -68,7 +60,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
                       {formatNumber(model.totalTokens)} tokens
                     </div>
                     <div className="font-bold text-neutral-900">
-                      {formatCurrency(model.cost, currency)}
+                      {formatCurrency(model.cost, currency, 4)}
                     </div>
                   </div>
                 </div>
@@ -82,7 +74,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
         <div className="mb-8">
           <h4 className="text-xl font-bold text-neutral-900 mb-4">By Provider</h4>
           <div className="space-y-3">
-            {stats.byProvider.map((provider) => (
+            {stats.byProvider.map((provider: { provider: string; totalTokens: number; cost: number }) => (
               <div
                 key={provider.provider}
                 className="border border-neutral-200 rounded-xl p-4 bg-white hover:border-primary-300 transition-colors duration-200"
@@ -94,7 +86,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
                       {formatNumber(provider.totalTokens)} tokens
                     </div>
                     <div className="font-bold text-neutral-900">
-                      {formatCurrency(provider.cost, currency)}
+                      {formatCurrency(provider.cost, currency, 4)}
                     </div>
                   </div>
                 </div>
@@ -110,7 +102,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
           <div className="border border-neutral-200 rounded-xl p-5 bg-white">
             <div className="text-sm font-semibold text-neutral-600 mb-2">BYOK</div>
             <div className="text-2xl font-bold text-neutral-900">
-              {formatCurrency(stats.byByok.byok.cost, currency)}
+              {formatCurrency(stats.byByok.byok.cost, currency, 4)}
             </div>
             <div className="text-xs text-neutral-600 mt-1">
               {formatNumber(stats.byByok.byok.totalTokens)} tokens
@@ -119,7 +111,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
           <div className="border border-primary-300 rounded-xl p-5 bg-gradient-primary/10">
             <div className="text-sm font-semibold text-primary-700 mb-2">Platform</div>
             <div className="text-2xl font-bold text-primary-900">
-              {formatCurrency(stats.byByok.platform.cost, currency)}
+              {formatCurrency(stats.byByok.platform.cost, currency, 4)}
             </div>
             <div className="text-xs text-primary-700 mt-1">
               {formatNumber(stats.byByok.platform.totalTokens)} tokens
