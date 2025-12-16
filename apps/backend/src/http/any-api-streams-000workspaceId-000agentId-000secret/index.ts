@@ -1398,7 +1398,18 @@ const internalHandler = async (
     }
 
     // Extract token usage from stream result
-    const tokenUsage = extractTokenUsage(streamResult);
+    // streamText result.usage is a promise that needs to be awaited
+    // (same as test endpoint)
+    const usage = await Promise.resolve(streamResult.usage);
+    const tokenUsage = extractTokenUsage({ ...streamResult, usage });
+
+    // DIAGNOSTIC: Log token usage extraction
+    console.log("[Stream Handler] Extracted token usage:", {
+      tokenUsage,
+      usage,
+      hasUsage: !!usage,
+      streamResultKeys: streamResult ? Object.keys(streamResult) : [],
+    });
 
     // Post-processing: adjust credit reservation, track usage, log conversation
     try {
