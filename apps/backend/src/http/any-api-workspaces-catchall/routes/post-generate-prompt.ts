@@ -9,8 +9,8 @@ import {
   incrementRequestBucket,
 } from "../../../utils/requestTracking";
 import { getWorkspaceSubscription } from "../../../utils/subscriptionUtils";
-import { extractUserId } from "../../utils/session";
 import { createModel } from "../../utils/modelFactory";
+import { extractUserId } from "../../utils/session";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 const PROMPT_GENERATOR_SYSTEM_PROMPT = `You are an expert at writing effective system prompts for AI agents. Your task is to generate clear, actionable system prompts based on user-provided goals and available tools.
