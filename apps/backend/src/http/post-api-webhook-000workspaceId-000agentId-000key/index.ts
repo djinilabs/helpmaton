@@ -12,6 +12,7 @@ import {
 import { database } from "../../tables";
 import {
   extractTokenUsage,
+  isMessageContentEmpty,
   startConversation,
 } from "../../utils/conversationLogger";
 import {
@@ -629,28 +630,40 @@ export const handler = adaptHttpHandler(
       // Each webhook call creates a new conversation
       // tokenUsage already extracted above for credit deduction
       try {
-        // DIAGNOSTIC: Log messages being passed to startConversation
-        console.log(
-          "[Webhook Handler] Messages being passed to startConversation:",
-          {
-            messagesCount: 2,
-            messages: [uiMessage, assistantMessage],
-            assistantMessageRole: assistantMessage.role,
-            assistantMessageContentType: typeof assistantMessage.content,
-            assistantMessageIsArray: Array.isArray(assistantMessage.content),
-          }
+        // Filter out empty messages before logging
+        const messagesToLog = [uiMessage, assistantMessage].filter(
+          (msg) => !isMessageContentEmpty(msg)
         );
 
-        await startConversation(db, {
-          workspaceId,
-          agentId,
-          conversationType: "webhook",
-          messages: [uiMessage, assistantMessage],
-          tokenUsage,
-          modelName: finalModelName,
-          provider: "google",
-          usesByok,
-        });
+        // Only log if we have at least one non-empty message
+        if (messagesToLog.length > 0) {
+          // DIAGNOSTIC: Log messages being passed to startConversation
+          console.log(
+            "[Webhook Handler] Messages being passed to startConversation:",
+            {
+              messagesCount: messagesToLog.length,
+              messages: messagesToLog,
+              assistantMessageRole: assistantMessage.role,
+              assistantMessageContentType: typeof assistantMessage.content,
+              assistantMessageIsArray: Array.isArray(assistantMessage.content),
+            }
+          );
+
+          await startConversation(db, {
+            workspaceId,
+            agentId,
+            conversationType: "webhook",
+            messages: messagesToLog,
+            tokenUsage,
+            modelName: finalModelName,
+            provider: "google",
+            usesByok,
+          });
+        } else {
+          console.log(
+            "[Webhook Handler] Skipping conversation logging - all messages are empty"
+          );
+        }
       } catch (error) {
         // Log error but don't fail the request
         console.error("[Webhook Handler] Error logging conversation:", {

@@ -35,6 +35,7 @@ import {
 import { database } from "../../tables";
 import {
   extractTokenUsage,
+  isMessageContentEmpty,
   updateConversation,
 } from "../../utils/conversationLogger";
 import {
@@ -776,7 +777,8 @@ async function logConversationAsync(
           msg.role === "assistant" ||
           msg.role === "system" ||
           msg.role === "tool") &&
-        "content" in msg
+        "content" in msg &&
+        !isMessageContentEmpty(msg)
     );
 
     // Run this asynchronously without blocking - always update existing conversation

@@ -168,6 +168,55 @@ function normalizeContentForComparison(content: UIMessage["content"]): string {
 }
 
 /**
+ * Check if a message has empty content
+ * Returns true if content is empty array, empty string, or array with no valid items
+ */
+export function isMessageContentEmpty(message: UIMessage): boolean {
+  const content = message.content;
+
+  // Empty string or only whitespace
+  if (typeof content === "string") {
+    return content.trim().length === 0;
+  }
+
+  // Empty array
+  if (Array.isArray(content)) {
+    if (content.length === 0) {
+      return true;
+    }
+
+    // Check if all items are invalid/empty
+    let hasValidItem = false;
+    for (const item of content) {
+      if (typeof item === "string" && item.trim().length > 0) {
+        hasValidItem = true;
+        break;
+      } else if (typeof item === "object" && item !== null && "type" in item) {
+        // Valid item types: text, tool-call, tool-result
+        if (item.type === "text" && "text" in item) {
+          const textPart = item as { text?: unknown };
+          if (
+            typeof textPart.text === "string" &&
+            textPart.text.trim().length > 0
+          ) {
+            hasValidItem = true;
+            break;
+          }
+        } else if (item.type === "tool-call" || item.type === "tool-result") {
+          // Tool calls and results are always valid (non-empty)
+          hasValidItem = true;
+          break;
+        }
+      }
+    }
+    return !hasValidItem;
+  }
+
+  // Other types (shouldn't happen, but treat as non-empty to be safe)
+  return false;
+}
+
+/**
  * Generate a unique key for a message based on its role and content
  * Used for deduplication when merging conversations
  * Normalizes content so that string and array formats with the same text are treated as duplicates
@@ -520,8 +569,13 @@ export async function startConversation(
   const now = new Date().toISOString();
   const pk = `conversations/${data.workspaceId}/${data.agentId}/${conversationId}`;
 
-  const toolCalls = extractToolCalls(data.messages);
-  const toolResults = extractToolResults(data.messages);
+  // Filter out empty messages before processing
+  const filteredMessages = data.messages.filter(
+    (msg) => !isMessageContentEmpty(msg)
+  );
+
+  const toolCalls = extractToolCalls(filteredMessages);
+  const toolResults = extractToolResults(filteredMessages);
 
   // Calculate costs at conversation time
   const costs = calculateConversationCosts(
@@ -536,7 +590,7 @@ export async function startConversation(
     agentId: data.agentId,
     conversationId,
     conversationType: data.conversationType,
-    messages: data.messages as unknown[],
+    messages: filteredMessages as unknown[],
     toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     toolResults: toolResults.length > 0 ? toolResults : undefined,
     tokenUsage: data.tokenUsage,
@@ -575,8 +629,12 @@ export async function updateConversation(
 
       if (!existing) {
         // If conversation doesn't exist, create it
-        const toolCalls = extractToolCalls(newMessages);
-        const toolResults = extractToolResults(newMessages);
+        // Filter out empty messages before processing
+        const filteredNewMessages = newMessages.filter(
+          (msg) => !isMessageContentEmpty(msg)
+        );
+        const toolCalls = extractToolCalls(filteredNewMessages);
+        const toolResults = extractToolResults(filteredNewMessages);
         const costs = calculateConversationCosts(
           "google", // Default provider
           undefined, // No model name yet
@@ -589,7 +647,7 @@ export async function updateConversation(
           agentId,
           conversationId,
           conversationType: "test" as const, // Default to test if updating non-existent conversation
-          messages: newMessages as unknown[],
+          messages: filteredNewMessages as unknown[],
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
           tokenUsage: additionalTokenUsage,
@@ -605,12 +663,24 @@ export async function updateConversation(
 
       // Merge messages, deduplicating based on role and content
       // This prevents duplicate messages when the client sends the full conversation history
+      // Filter out empty messages from newMessages before deduplication
+      const filteredNewMessages = newMessages.filter(
+        (msg) => !isMessageContentEmpty(msg)
+      );
       const existingMessages = (existing.messages || []) as UIMessage[];
-      const allMessages = deduplicateMessages(existingMessages, newMessages);
+      const allMessages = deduplicateMessages(
+        existingMessages,
+        filteredNewMessages
+      );
+
+      // Filter out any empty messages that might have been in existing messages
+      const filteredAllMessages = allMessages.filter(
+        (msg) => !isMessageContentEmpty(msg)
+      );
 
       // Extract all tool calls and results from merged messages
-      const toolCalls = extractToolCalls(allMessages);
-      const toolResults = extractToolResults(allMessages);
+      const toolCalls = extractToolCalls(filteredAllMessages);
+      const toolResults = extractToolResults(filteredAllMessages);
 
       // Aggregate token usage
       const existingTokenUsage = existing.tokenUsage as TokenUsage | undefined;
@@ -635,7 +705,7 @@ export async function updateConversation(
         agentId: existing.agentId,
         conversationId: existing.conversationId,
         conversationType: existing.conversationType,
-        messages: allMessages as unknown[],
+        messages: filteredAllMessages as unknown[],
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         toolResults: toolResults.length > 0 ? toolResults : undefined,
         tokenUsage: aggregatedTokenUsage,
