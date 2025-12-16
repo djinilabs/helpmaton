@@ -41,11 +41,3 @@ describe("Credit Purchase Logic", () => {
     expect(convertToCents(100)).toBe(10000);
   });
 });
-
-
-
-
-
-
-
-

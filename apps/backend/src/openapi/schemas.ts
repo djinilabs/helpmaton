@@ -43,12 +43,12 @@ export const openApiSchemas = {
         nullable: true,
       },
       creditBalance: {
-        type: "number",
-        description: "Current credit balance",
+        type: "integer",
+        description: "Current credit balance in millionths",
       },
       currency: {
         type: "string",
-        enum: ["usd", "eur", "gbp"],
+        enum: ["usd"],
         description: "Currency code",
       },
       spendingLimits: {
@@ -98,7 +98,7 @@ export const openApiSchemas = {
       },
       currency: {
         type: "string",
-        enum: ["usd", "eur", "gbp"],
+        enum: ["usd"],
         description: "Currency code",
         default: "usd",
       },
@@ -289,12 +289,12 @@ export const openApiSchemas = {
     type: "object",
     properties: {
       amount: {
-        type: "number",
-        description: "Limit amount",
+        type: "integer",
+        description: "Limit amount in millionths",
       },
       currency: {
         type: "string",
-        enum: ["usd", "eur", "gbp"],
+        enum: ["usd"],
         description: "Currency code",
       },
       period: {
@@ -313,7 +313,7 @@ export const openApiSchemas = {
       },
       currency: {
         type: "string",
-        enum: ["usd", "eur", "gbp"],
+        enum: ["usd"],
         description: "Currency code",
       },
       startDate: {
@@ -346,8 +346,8 @@ export const openApiSchemas = {
             description: "Total tokens",
           },
           cost: {
-            type: "number",
-            description: "Total cost in specified currency",
+            type: "integer",
+            description: "Total cost in specified currency (millionths)",
           },
           byModel: {
             type: "array",

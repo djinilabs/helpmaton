@@ -132,6 +132,10 @@ export const handler = adaptHttpHandler(
         uiMessage,
       ]);
 
+      // Derive the model name from the agent's modelName if set, otherwise use default
+      const finalModelName =
+        typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
+
       // Validate credits, spending limits, and reserve credits before LLM call
       // TEMPORARY: This check can be disabled via ENABLE_CREDIT_VALIDATION and ENABLE_SPENDING_LIMIT_CHECKS env vars
       const db = await database();
@@ -156,7 +160,7 @@ export const handler = adaptHttpHandler(
           workspaceId,
           agentId,
           "google", // provider
-          MODEL_NAME,
+          finalModelName,
           modelMessages,
           agent.systemPrompt,
           toolDefinitions,
@@ -179,7 +183,7 @@ export const handler = adaptHttpHandler(
           {
             workspaceId,
             agentId,
-            model: MODEL_NAME,
+            model: finalModelName,
             systemPromptLength: agent.systemPrompt.length,
             messagesCount: modelMessages.length,
             toolsCount: tools ? Object.keys(tools).length : 0,
@@ -226,7 +230,7 @@ export const handler = adaptHttpHandler(
               workspaceId,
               reservationId,
               provider: "google",
-              modelName: MODEL_NAME,
+              modelName: finalModelName,
               tokenUsage,
             });
             await adjustCreditReservation(
@@ -234,7 +238,7 @@ export const handler = adaptHttpHandler(
               reservationId,
               workspaceId,
               "google", // provider
-              MODEL_NAME,
+              finalModelName,
               tokenUsage,
               3, // maxRetries
               usesByok
@@ -373,7 +377,7 @@ export const handler = adaptHttpHandler(
                   reservationId,
                   workspaceId,
                   "google",
-                  MODEL_NAME,
+                  finalModelName,
                   errorTokenUsage,
                   3,
                   usesByok
@@ -515,7 +519,7 @@ export const handler = adaptHttpHandler(
           conversationType: "webhook",
           messages: [uiMessage, assistantMessage],
           tokenUsage,
-          modelName: MODEL_NAME,
+          modelName: finalModelName,
           provider: "google",
           usesByok,
         });

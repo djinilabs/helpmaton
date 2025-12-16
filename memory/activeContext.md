@@ -89,6 +89,25 @@ The Lambda function using container images is now successfully deployed and work
 - `apps/backend/docker/base/Dockerfile` - Updated paths for monorepo build context
 - `apps/backend/docker/lancedb/Dockerfile` - Implemented multi-stage build
 - **Subscription and Credit Purchase Fixes** (Latest)
+- **Credit System Migration to Integer Millionths** (Latest)
+
+  - Migrated entire credit system from floating-point numbers to integer millionths representation to eliminate precision loss
+  - Created `creditConversions.ts` utility with `toMillionths()` and `fromMillionths()` functions for conversions
+  - Updated all pricing calculations to use `Math.ceil()` instead of `Math.round()` to always round up (never down)
+  - Updated database schemas to enforce integer storage for all credit/cost fields (creditBalance, spendingLimits.amount, costUsd/Eur/Gbp, etc.)
+  - Updated all API endpoints to expect and return values in millionths (integer format)
+  - Updated frontend components to convert from millionths to currency units for display:
+    - `CreditBalance`, `SpendingLimitsManager`, `UsageStats`, `UsageChart`, `TrialUsageBar`
+    - Created `currency.ts` utility with `formatCurrency()`, `fromMillionths()`, and `toMillionths()` functions
+  - Updated all test files to use millionths instead of decimal values
+  - Fixed `costDiagnostics.ts` to properly convert millionths to currency units in `generateCostReport()` display
+  - Fixed `compareCosts()` threshold to use 100 millionths (equivalent to 0.0001 currency units) instead of 0.0001
+  - Updated Lemon Squeezy webhook handlers to convert cents to millionths (cents \* 10_000)
+  - Updated Discord command handlers to convert between currency units and millionths
+  - Updated error messages to display currency units while storing/returning millionths in API responses
+  - All changes verified with type checking, linting, and comprehensive test coverage
+
+- **Subscription and Credit Purchase Fixes**
 
   - Fixed Lemon Squeezy portal URL to always redirect to `https://app.lemonsqueezy.com/my-orders` instead of using dynamic customer portal URLs
   - Fixed issue where free plans incorrectly showed as "cancelled" with renewal dates - added cleanup logic to remove Lemon Squeezy-related fields (status, renewsAt, endsAt) from free plans
@@ -156,4 +175,3 @@ The Lambda function using container images is now successfully deployed and work
 - PR deployments create CloudFormation stacks for testing
 - Container images are built for `arm64` architecture (Graviton2) for better price/performance
 - Environment variables are injected at build time, not runtime, for container image functions
-

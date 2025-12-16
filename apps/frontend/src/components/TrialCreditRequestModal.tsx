@@ -125,7 +125,7 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
         </h2>
         <p className="text-sm text-neutral-600 mb-4">
           You are within your 7-day trial period. Request trial credits (2
-          EUR/USD/GBP) to test the application.
+          USD) to test the application.
         </p>
         {daysRemaining > 0 && (
           <p className="text-sm font-medium text-neutral-900 mb-4">

@@ -21,6 +21,227 @@ export function convertTextToUIMessage(text: string): UIMessage {
 }
 
 /**
+ * Converts ai-sdk UIMessage format (with 'parts' property) to our UIMessage format (with 'content' property)
+ * Messages from useChat are in ai-sdk format with 'parts' array instead of 'content'
+ */
+export function convertAiSdkUIMessageToUIMessage(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ai-sdk UIMessage type is complex
+  message: any
+): UIMessage | null {
+  if (!message || typeof message !== "object" || !("role" in message)) {
+    return null;
+  }
+
+  const role = message.role;
+
+  // Handle user messages
+  if (role === "user") {
+    // Check if it's ai-sdk format (has 'parts')
+    if ("parts" in message && Array.isArray(message.parts)) {
+      // Extract text from parts array
+      const textParts: string[] = [];
+      for (const part of message.parts) {
+        if (typeof part === "string") {
+          textParts.push(part);
+        } else if (
+          part &&
+          typeof part === "object" &&
+          "type" in part &&
+          part.type === "text" &&
+          "text" in part &&
+          typeof part.text === "string"
+        ) {
+          textParts.push(part.text);
+        }
+      }
+      return {
+        role: "user",
+        content: textParts.join(""),
+      };
+    }
+    // Already in our format (has 'content')
+    if ("content" in message) {
+      return message as UIMessage;
+    }
+    return null;
+  }
+
+  // Handle system messages
+  if (role === "system") {
+    if ("parts" in message && Array.isArray(message.parts)) {
+      // Extract text from parts
+      const textParts: string[] = [];
+      for (const part of message.parts) {
+        if (typeof part === "string") {
+          textParts.push(part);
+        } else if (
+          part &&
+          typeof part === "object" &&
+          "type" in part &&
+          part.type === "text" &&
+          "text" in part &&
+          typeof part.text === "string"
+        ) {
+          textParts.push(part.text);
+        }
+      }
+      return {
+        role: "system",
+        content: textParts.join(""),
+      };
+    }
+    if ("content" in message && typeof message.content === "string") {
+      return message as UIMessage;
+    }
+    return null;
+  }
+
+  // Handle assistant messages
+  if (role === "assistant") {
+    if ("parts" in message && Array.isArray(message.parts)) {
+      // Convert parts array to content array
+      const content: Array<
+        | { type: "text"; text: string }
+        | {
+            type: "tool-call";
+            toolCallId: string;
+            toolName: string;
+            args: unknown;
+          }
+        | {
+            type: "tool-result";
+            toolCallId: string;
+            toolName: string;
+            result: unknown;
+          }
+      > = [];
+
+      for (const part of message.parts) {
+        if (typeof part === "string") {
+          content.push({ type: "text", text: part });
+        } else if (part && typeof part === "object" && "type" in part) {
+          if (part.type === "text" && "text" in part) {
+            content.push({ type: "text", text: part.text });
+          } else if (
+            part.type === "tool-call" &&
+            "toolCallId" in part &&
+            "toolName" in part
+          ) {
+            content.push({
+              type: "tool-call",
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              args:
+                "args" in part ? part.args : "input" in part ? part.input : {},
+            });
+          } else if (
+            part.type === "tool-result" &&
+            "toolCallId" in part &&
+            "toolName" in part
+          ) {
+            content.push({
+              type: "tool-result",
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              result:
+                "result" in part
+                  ? part.result
+                  : "output" in part
+                  ? part.output
+                  : null,
+            });
+          }
+        }
+      }
+
+      // If only one text part, simplify to string
+      if (content.length === 1 && content[0].type === "text") {
+        return {
+          role: "assistant",
+          content: content[0].text,
+        };
+      }
+
+      return {
+        role: "assistant",
+        content,
+      };
+    }
+    // Already in our format
+    if ("content" in message) {
+      return message as UIMessage;
+    }
+    return null;
+  }
+
+  // Handle tool messages
+  if (role === "tool") {
+    if ("parts" in message && Array.isArray(message.parts)) {
+      // Convert tool message parts to content array
+      const content: Array<{
+        type: "tool-result";
+        toolCallId: string;
+        toolName: string;
+        result: unknown;
+      }> = [];
+
+      for (const part of message.parts) {
+        if (
+          part &&
+          typeof part === "object" &&
+          "type" in part &&
+          part.type === "tool-result" &&
+          "toolCallId" in part &&
+          "toolName" in part
+        ) {
+          content.push({
+            type: "tool-result",
+            toolCallId: part.toolCallId,
+            toolName: part.toolName,
+            result:
+              "result" in part
+                ? part.result
+                : "output" in part
+                ? part.output
+                : null,
+          });
+        }
+      }
+
+      return {
+        role: "tool",
+        content,
+      };
+    }
+    // Already in our format
+    if ("content" in message) {
+      return message as UIMessage;
+    }
+    return null;
+  }
+
+  return null;
+}
+
+/**
+ * Converts an array of ai-sdk UIMessages to our UIMessage format
+ * Filters out any null/invalid messages
+ */
+export function convertAiSdkUIMessagesToUIMessages(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ai-sdk UIMessage type is complex
+  messages: any[]
+): UIMessage[] {
+  const converted: UIMessage[] = [];
+  for (const message of messages) {
+    const convertedMsg = convertAiSdkUIMessageToUIMessage(message);
+    if (convertedMsg) {
+      converted.push(convertedMsg);
+    }
+  }
+  return converted;
+}
+
+/**
  * Creates a ToolResultPart from UI message data
  * Handles conversion of result/output fields and ensures proper typing
  * Formats output as LanguageModelV2ToolResultOutput discriminated union:
@@ -39,7 +260,7 @@ export function createToolResultPart(
   // - { type: 'error-json', value: JSONValue } for error JSON
   // - { type: 'content', value: Array<...> } for content arrays
   let outputValue: ToolResultPart["output"];
-  
+
   if (rawValue === null || rawValue === undefined) {
     // Use empty text output for null/undefined
     outputValue = { type: "text", value: "" };
@@ -49,7 +270,13 @@ export function createToolResultPart(
   } else if (typeof rawValue === "object") {
     // Format object as JSON output
     // Type assertion needed because JSONValue is an internal type that accepts any JSON-serializable object
-    outputValue = { type: "json", value: rawValue as unknown as Extract<ToolResultPart["output"], { type: "json" }>["value"] };
+    outputValue = {
+      type: "json",
+      value: rawValue as unknown as Extract<
+        ToolResultPart["output"],
+        { type: "json" }
+      >["value"],
+    };
   } else {
     // Convert other primitives to string and format as text output
     outputValue = { type: "text", value: String(rawValue) };
@@ -229,8 +456,9 @@ export function convertUIMessagesToModelMessages(
               (existingMsg.content as Array<unknown>).push(...toolResults);
             } else {
               // Replace content with tool results
-              (modelMessages[existingAssistantIndex] as AssistantModelMessage).content =
-                toolResults;
+              (
+                modelMessages[existingAssistantIndex] as AssistantModelMessage
+              ).content = toolResults;
             }
           } else {
             // Create new assistant message with tool results
@@ -302,4 +530,3 @@ export function convertUIMessagesToModelMessages(
 
   return modelMessages;
 }
-

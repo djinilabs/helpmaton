@@ -186,10 +186,3 @@ export const handler = handlingScheduledErrors(
     await syncAllSubscriptions();
   }
 );
-
-
-
-
-
-
-

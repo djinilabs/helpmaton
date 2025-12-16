@@ -71,6 +71,7 @@ export function getDefaultModel(provider: Provider): string {
  * @param modelName - The model name (optional, defaults to provider's default)
  * @param workspaceId - Workspace ID to check for workspace API key
  * @param referer - Referer header for Google API
+ * @param userId - User ID for PostHog tracking (optional)
  * @returns Model instance
  */
 export async function createModel(
@@ -78,7 +79,8 @@ export async function createModel(
   modelName: string | undefined,
   workspaceId?: string,
   referer: string = process.env.DEFAULT_REFERER ||
-    "http://localhost:3000/api/webhook"
+    "http://localhost:3000/api/webhook",
+  userId?: string
 ) {
   const finalModelName = modelName || getDefaultModel(provider);
 
@@ -116,12 +118,22 @@ export async function createModel(
       // Wrap with PostHog tracking if available
       const phClient = getPostHogClient();
       if (phClient) {
+        // Prefix distinct ID to distinguish between user, workspace, and system
+        let distinctId: string;
+        if (userId) {
+          distinctId = `user/${userId}`;
+        } else if (workspaceId) {
+          distinctId = `workspace/${workspaceId}`;
+        } else {
+          distinctId = "system";
+        }
         return withTracing(model, phClient, {
-          posthogDistinctId: workspaceId || "system",
+          posthogDistinctId: distinctId,
           posthogProperties: {
             provider: "google",
             modelName: finalModelName,
             workspaceId: workspaceId || undefined,
+            userId: userId || undefined,
             referer,
             usesByok,
           },

@@ -85,83 +85,6 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/**
- * Fetch exchange rates from European Central Bank via Frankfurter.app API
- * @param {number} maxRetries - Maximum number of retry attempts (default: 3)
- * @returns {Promise<{usd: number, gbp: number}>} Exchange rates relative to EUR
- * @throws {Error} If exchange rates cannot be fetched after retries
- */
-async function fetchExchangeRates(maxRetries = 3) {
-  const apiUrl = "https://api.frankfurter.app/latest?from=EUR";
-  let lastError;
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`[Update Pricing] Fetching exchange rates (attempt ${attempt + 1}/${maxRetries + 1})...`);
-
-      const response = await fetch(apiUrl, {
-        method: "GET",
-        headers: {
-          "Accept": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Exchange rate API returned status ${response.status}: ${response.statusText}`
-        );
-      }
-
-      const data = await response.json();
-
-      // Validate response structure
-      if (!data.rates || typeof data.rates !== "object") {
-        throw new Error("Invalid exchange rate API response: missing or invalid rates");
-      }
-
-      // Extract USD and GBP rates
-      const usdRate = data.rates.USD;
-      const gbpRate = data.rates.GBP;
-
-      if (typeof usdRate !== "number" || typeof gbpRate !== "number") {
-        throw new Error(
-          `Invalid exchange rates: USD=${usdRate}, GBP=${gbpRate}`
-        );
-      }
-
-      if (usdRate <= 0 || gbpRate <= 0) {
-        throw new Error(
-          `Invalid exchange rates: rates must be positive (USD=${usdRate}, GBP=${gbpRate})`
-        );
-      }
-
-      console.log("[Update Pricing] Exchange rates fetched successfully:", {
-        usd: usdRate,
-        gbp: gbpRate,
-        date: data.date,
-      });
-
-      return { usd: usdRate, gbp: gbpRate };
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      if (attempt < maxRetries) {
-        // Exponential backoff: 1s, 2s, 4s
-        const backoffMs = 1000 * Math.pow(2, attempt);
-        console.warn(
-          `[Update Pricing] Failed to fetch exchange rates, retrying in ${backoffMs}ms:`,
-          lastError.message
-        );
-        await sleep(backoffMs);
-      }
-    }
-  }
-
-  // If we get here, all retries failed
-  throw new Error(
-    `Failed to fetch exchange rates after ${maxRetries + 1} attempts: ${lastError?.message || "Unknown error"}`
-  );
-}
 
 /**
  * Round to 3 decimal places (matching pricing.json precision)
@@ -170,129 +93,6 @@ function roundPrice(price) {
   return Math.round(price * 1000) / 1000;
 }
 
-/**
- * Convert pricing structure (flat or tiered) to EUR/GBP using exchange rates
- * @param {Object} usdPricing - USD pricing structure (flat or tiered)
- * @param {{usd: number, gbp: number}} exchangeRates - Exchange rates relative to EUR
- * @returns {Object} Pricing structure with EUR and GBP converted
- */
-function convertPricingToOtherCurrencies(usdPricing, exchangeRates) {
-  const { usd: eurToUsdRate, gbp: eurToGbpRate } = exchangeRates;
-
-  // Handle flat pricing (backward compatible)
-  if (usdPricing.input !== undefined || usdPricing.output !== undefined) {
-    const usdInput = usdPricing.input ?? 0;
-    const usdOutput = usdPricing.output ?? 0;
-    const usdReasoning = usdPricing.reasoning;
-
-    const eurInput = roundPrice(usdInput / eurToUsdRate);
-    const eurOutput = roundPrice(usdOutput / eurToUsdRate);
-    const eurReasoning = usdReasoning !== undefined
-      ? roundPrice(usdReasoning / eurToUsdRate)
-      : undefined;
-
-    const gbpInput = roundPrice((usdInput / eurToUsdRate) * eurToGbpRate);
-    const gbpOutput = roundPrice((usdOutput / eurToUsdRate) * eurToGbpRate);
-    const gbpReasoning = usdReasoning !== undefined
-      ? roundPrice((usdReasoning / eurToUsdRate) * eurToGbpRate)
-      : undefined;
-
-    return {
-      eur: {
-        input: eurInput,
-        output: eurOutput,
-        ...(eurReasoning !== undefined && { reasoning: eurReasoning }),
-      },
-      gbp: {
-        input: gbpInput,
-        output: gbpOutput,
-        ...(gbpReasoning !== undefined && { reasoning: gbpReasoning }),
-      },
-    };
-  }
-
-  // Handle tiered pricing
-  if (usdPricing.tiers && Array.isArray(usdPricing.tiers)) {
-    const eurTiers = usdPricing.tiers.map((tier) => ({
-      threshold: tier.threshold,
-      input: roundPrice(tier.input / eurToUsdRate),
-      output: roundPrice(tier.output / eurToUsdRate),
-      ...(tier.reasoning !== undefined && {
-        reasoning: roundPrice(tier.reasoning / eurToUsdRate),
-      }),
-    }));
-
-    const gbpTiers = usdPricing.tiers.map((tier) => ({
-      threshold: tier.threshold,
-      input: roundPrice((tier.input / eurToUsdRate) * eurToGbpRate),
-      output: roundPrice((tier.output / eurToUsdRate) * eurToGbpRate),
-      ...(tier.reasoning !== undefined && {
-        reasoning: roundPrice((tier.reasoning / eurToUsdRate) * eurToGbpRate),
-      }),
-    }));
-
-    return {
-      eur: { tiers: eurTiers },
-      gbp: { tiers: gbpTiers },
-    };
-  }
-
-  // Unknown structure
-  return {
-    eur: {},
-    gbp: {},
-  };
-}
-
-/**
- * Update pricing with exchange rates, keeping USD prices unchanged
- * Supports both flat and tiered pricing structures
- * @param {Object} currentPricing - Current pricing configuration
- * @param {{usd: number, gbp: number}} exchangeRates - Exchange rates relative to EUR
- * @returns {Object} Updated pricing configuration
- */
-function updatePricingWithExchangeRates(currentPricing, exchangeRates) {
-  // Create a deep copy to avoid mutating the original
-  const updatedPricing = JSON.parse(JSON.stringify(currentPricing));
-
-  // Iterate through all providers and models
-  for (const providerName in updatedPricing.providers) {
-    const provider = updatedPricing.providers[providerName];
-    if (!provider.models) continue;
-
-    for (const modelName in provider.models) {
-      // Skip excluded models
-      if (isExcludedModel(modelName)) {
-        console.log(`[Update Pricing] Skipping excluded model ${providerName}/${modelName} in exchange rate update`);
-        continue;
-      }
-      
-      const model = provider.models[modelName];
-      if (!model.usd) {
-        console.warn(
-          `[Update Pricing] Model ${providerName}/${modelName} missing USD pricing, skipping`
-        );
-        continue;
-      }
-
-      // Convert USD pricing to EUR and GBP
-      const converted = convertPricingToOtherCurrencies(model.usd, exchangeRates);
-      model.eur = converted.eur;
-      model.gbp = converted.gbp;
-
-      console.log(`[Update Pricing] Updated ${providerName}/${modelName}:`, {
-        usd: model.usd,
-        eur: model.eur,
-        gbp: model.gbp,
-      });
-    }
-  }
-
-  // Update timestamp
-  updatedPricing.lastUpdated = new Date().toISOString();
-
-  return updatedPricing;
-}
 
 /**
  * Get Google models list from API
@@ -376,31 +176,40 @@ async function getGoogleModels() {
  * Format supports both flat pricing (backward compatible) and tiered pricing
  * Pricing verified against: https://ai.google.dev/pricing
  * 
+ * Cached token pricing: Google charges ~10% of input token rate for cached tokens.
+ * This is automatically calculated from input pricing if not explicitly specified.
+ * 
  * To add tiered pricing, use the 'tiers' array format:
  * {
  *   tiers: [
- *     { threshold: 200000, input: 1.25, output: 5.0 },
- *     { input: 2.5, output: 10.0 } // No threshold = above previous threshold
+ *     { threshold: 200000, input: 1.25, output: 5.0, cachedInput: 0.125 },
+ *     { input: 2.5, output: 10.0, cachedInput: 0.25 } // No threshold = above previous threshold
  *   ]
  * }
  * 
  * To add reasoning token pricing, include 'reasoning' field:
- * - In flat pricing: { input: 1.0, output: 2.0, reasoning: 3.5 }
- * - In tiered pricing: { threshold: 200000, input: 1.25, output: 5.0, reasoning: 10.0 }
+ * - In flat pricing: { input: 1.0, output: 2.0, reasoning: 3.5, cachedInput: 0.1 }
+ * - In tiered pricing: { threshold: 200000, input: 1.25, output: 5.0, reasoning: 10.0, cachedInput: 0.125 }
+ * 
+ * Note: Google's API doesn't expose pricing information, so cached token pricing
+ * is calculated as 10% of input token pricing based on Google's documentation.
  */
 const knownPricing = {
   "gemini-2.5-flash": {
     // Flat pricing
     input: 0.075,
     output: 0.3,
+    cachedInput: 0.0075, // ~10% of input (0.075 * 0.1)
   },
   "gemini-2.0-flash-exp": {
     input: 0.075,
     output: 0.3,
+    cachedInput: 0.0075, // ~10% of input
   },
   "gemini-1.5-flash": {
     input: 0.075,
     output: 0.3,
+    cachedInput: 0.0075, // ~10% of input
   },
   "gemini-1.5-pro": {
     // Tiered pricing: different rates for tokens below/above 200k threshold
@@ -409,11 +218,13 @@ const knownPricing = {
         threshold: 200000,
         input: 1.25,
         output: 5.0,
+        cachedInput: 0.125, // ~10% of input (1.25 * 0.1)
       },
       {
         // No threshold means "above 200k tokens"
         input: 2.50,
         output: 10.0,
+        cachedInput: 0.25, // ~10% of input (2.50 * 0.1)
       },
     ],
   },
@@ -424,19 +235,62 @@ const knownPricing = {
         threshold: 200000,
         input: 1.25,
         output: 10.0,
+        cachedInput: 0.125, // ~10% of input (1.25 * 0.1)
       },
       {
         // No threshold means "above 200k tokens"
         input: 2.50,
         output: 15.0,
+        cachedInput: 0.25, // ~10% of input (2.50 * 0.1)
       },
     ],
   },
 };
 
 /**
+ * Calculate cached input pricing from input pricing
+ * Cached tokens are typically charged at ~10% of input token rate
+ * @param {number} inputPrice - Input token price per 1M tokens
+ * @returns {number} Cached input token price per 1M tokens
+ */
+function calculateCachedInputPrice(inputPrice) {
+  return roundPrice(inputPrice * 0.1);
+}
+
+/**
+ * Ensure cached input pricing is present in pricing structure
+ * If missing, calculate it as 10% of input pricing
+ * @param {Object} pricing - Pricing structure (flat or tiered)
+ * @returns {Object} Pricing structure with cachedInput added if missing
+ */
+function ensureCachedInputPricing(pricing) {
+  // Handle flat pricing
+  if (pricing.input !== undefined) {
+    if (pricing.cachedInput === undefined) {
+      pricing.cachedInput = calculateCachedInputPrice(pricing.input);
+      console.log(`[Update Pricing] Calculated cachedInput pricing: ${pricing.cachedInput} (10% of input ${pricing.input})`);
+    }
+    return pricing;
+  }
+
+  // Handle tiered pricing
+  if (pricing.tiers && Array.isArray(pricing.tiers)) {
+    for (const tier of pricing.tiers) {
+      if (tier.input !== undefined && tier.cachedInput === undefined) {
+        tier.cachedInput = calculateCachedInputPrice(tier.input);
+        console.log(`[Update Pricing] Calculated cachedInput pricing for tier: ${tier.cachedInput} (10% of input ${tier.input})`);
+      }
+    }
+    return pricing;
+  }
+
+  return pricing;
+}
+
+/**
  * Get pricing for Google models
  * Note: Google API doesn't provide pricing via API, so we use known pricing structure.
+ * Cached token pricing is automatically calculated as 10% of input pricing if not specified.
  * 
  * Returns pricing in the new format supporting both flat and tiered pricing
  */
@@ -451,18 +305,27 @@ function getGooglePricingForModels(models) {
       continue;
     }
     
+    let modelPricing = null;
+    
     // Try exact match first
     if (knownPricing[modelId]) {
-      pricing[modelId] = knownPricing[modelId];
-      continue;
-    }
-    
-    // Try partial matches for variants (more specific matching)
-    for (const [knownModel, price] of Object.entries(knownPricing)) {
-      if (modelId === knownModel || modelId.startsWith(knownModel + "-")) {
-        pricing[modelId] = price;
-        break;
+      modelPricing = knownPricing[modelId];
+    } else {
+      // Try partial matches for variants (more specific matching)
+      for (const [knownModel, price] of Object.entries(knownPricing)) {
+        if (modelId === knownModel || modelId.startsWith(knownModel + "-")) {
+          modelPricing = price;
+          break;
+        }
       }
+    }
+
+    if (modelPricing) {
+      // Deep copy to avoid mutating the original
+      const pricingCopy = JSON.parse(JSON.stringify(modelPricing));
+      // Ensure cached input pricing is present
+      ensureCachedInputPricing(pricingCopy);
+      pricing[modelId] = pricingCopy;
     }
   }
 
@@ -563,15 +426,13 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
       };
 
       if (updatedPricing.providers.google.models[modelName]) {
-        // Update existing model pricing (USD only, EUR/GBP will be updated by exchange rate function)
+        // Update existing model pricing (USD only)
         updatedPricing.providers.google.models[modelName].usd = validPricing;
         console.log(`[Update Pricing] Updated Google model ${modelName} pricing`);
       } else {
-        // Add new model with USD pricing, EUR/GBP to be filled in by exchange rate update
+        // Add new model with USD pricing only
         updatedPricing.providers.google.models[modelName] = {
           usd: validPricing,
-          eur: {},
-          gbp: {},
         };
         console.log(`[Update Pricing] Added new Google model ${modelName} with pricing`);
       }
@@ -621,15 +482,15 @@ function removeExcludedModels(pricing) {
 }
 
 /**
- * Update pricing configuration with current exchange rates
- * Keeps USD prices unchanged and updates EUR/GBP prices based on ECB exchange rates
+ * Update pricing configuration with USD prices only
+ * No exchange rate conversion - only USD pricing is maintained
  */
-async function updatePricingWithExchangeRatesWrapper() {
-  console.log("[Update Pricing] Fetching exchange rates and updating pricing...");
+async function updatePricingWrapper() {
+  console.log("[Update Pricing] Updating USD pricing...");
 
   // Load current pricing
   const pricingPath = join(__dirname, "../apps/backend/src/config/pricing.json");
-  let currentPricing = JSON.parse(readFileSync(pricingPath, "utf-8"));
+  const currentPricing = JSON.parse(readFileSync(pricingPath, "utf-8"));
 
   // Fetch pricing from Google (throws if fails)
   const googlePricing = await fetchGooglePricing();
@@ -640,17 +501,9 @@ async function updatePricingWithExchangeRatesWrapper() {
 
   // Merge fetched pricing into current pricing (only updates USD prices)
   const pricingWithFetched = mergePricingIntoConfig(currentPricing, fetchedPricing);
-  // Use merged pricing for exchange rate conversion
-  currentPricing = pricingWithFetched;
-
-  // Fetch exchange rates (will throw if it fails - per user requirement to fail and exit)
-  const exchangeRates = await fetchExchangeRates();
-
-  // Update pricing with new exchange rates
-  const updatedPricing = updatePricingWithExchangeRates(currentPricing, exchangeRates);
 
   // Remove any excluded models that exist in the pricing configuration
-  const finalPricing = removeExcludedModels(updatedPricing);
+  const finalPricing = removeExcludedModels(pricingWithFetched);
 
   return finalPricing;
 }
@@ -821,8 +674,8 @@ async function updatePricingConfig() {
       console.log("[Update Pricing] Excluded models detected in current pricing, will be removed.");
     }
 
-    // Fetch exchange rates and update pricing
-    const newPricing = await updatePricingWithExchangeRatesWrapper();
+    // Update pricing (USD only)
+    const newPricing = await updatePricingWrapper();
 
     // Log model counts for debugging
     const oldModelCount = Object.keys(currentPricing.providers?.google?.models || {}).length;

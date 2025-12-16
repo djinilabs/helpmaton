@@ -756,8 +756,9 @@ async function handleOrderCreated(
     });
   }
 
-  // Extract credit amount from order total (in cents, convert to currency units)
-  const creditAmount = attributes.total / 100; // Lemon Squeezy stores amounts in cents
+  // Extract credit amount from order total (in cents, convert to millionths)
+  // Lemon Squeezy stores amounts in cents, so: cents * 10_000 = millionths
+  const creditAmount = attributes.total * 10_000;
 
   // Add credits to workspace using atomic update
   await db.workspace.atomicUpdate(
@@ -877,16 +878,17 @@ async function handleOrderRefunded(
     });
   }
 
-  // Get the order total (in cents, convert to currency units)
+  // Get the order total (in cents, convert to millionths)
+  // Lemon Squeezy stores amounts in cents, so: cents * 10_000 = millionths
   let creditAmount: number | undefined;
   if (orderData.attributes?.total) {
-    creditAmount = (orderData.attributes.total as number) / 100;
+    creditAmount = (orderData.attributes.total as number) * 10_000;
   } else {
     // Fallback: fetch order from Lemon Squeezy
     try {
       const order = await getLemonSqueezyOrder(orderData.id);
       creditAmount = order?.attributes?.total
-        ? order.attributes.total / 100
+        ? order.attributes.total * 10_000
         : undefined;
     } catch (err) {
       console.error(

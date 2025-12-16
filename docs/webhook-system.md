@@ -130,9 +130,7 @@ Standard HTTP headers are accepted:
     "totalTokens": 200
   },
   "cost": {
-    "usd": 0.0001,
-    "eur": 0.00009,
-    "gbp": 0.00008
+    "usd": 0.0001
   }
 }
 ```
@@ -147,7 +145,7 @@ Standard HTTP headers are accepted:
   - `promptTokens`: Input tokens
   - `completionTokens`: Output tokens
   - `totalTokens`: Total tokens
-- `cost` (Object): Cost in USD, EUR, and GBP
+- `cost` (Object): Cost in USD
 
 ### Tool Calls
 
@@ -346,7 +344,7 @@ Webhook requests create conversation records in the `agent-conversations` table:
 - `toolCalls`: Array of tool calls
 - `toolResults`: Array of tool results
 - `tokenUsage`: Aggregated token usage
-- `cost`: Cost in USD, EUR, GBP
+- `cost`: Cost in USD
 
 Conversations expire after a TTL period (automatic cleanup).
 

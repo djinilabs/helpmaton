@@ -111,8 +111,6 @@ describe("aggregateTokenUsageForDate", () => {
       provider: "google",
       usesByok: false,
       costUsd: 0.001,
-      costEur: 0.0009,
-      costGbp: 0.0008,
       startedAt: new Date("2025-12-13T12:00:00Z").toISOString(),
       lastMessageAt: new Date("2025-12-13T12:00:00Z").toISOString(),
       expires: Math.floor(Date.now() / 1000) + 86400,
@@ -312,8 +310,6 @@ describe("aggregateTokenUsageForDate", () => {
       provider: "google",
       usesByok: false,
       costUsd: 0.001,
-      costEur: 0.0009,
-      costGbp: 0.0008,
       startedAt: new Date("2025-12-13T12:00:00Z").toISOString(),
       lastMessageAt: new Date("2025-12-13T12:00:00Z").toISOString(),
       expires: Math.floor(Date.now() / 1000) + 86400,
@@ -332,8 +328,6 @@ describe("aggregateTokenUsageForDate", () => {
     expect(upsertCall.outputTokens).toBe(50);
     expect(upsertCall.totalTokens).toBe(150);
     expect(upsertCall.costUsd).toBe(0.001);
-    expect(upsertCall.costEur).toBe(0.0009);
-    expect(upsertCall.costGbp).toBe(0.0008);
   });
 
   it("should create aggregate records with correct structure", async () => {
@@ -854,9 +848,3 @@ describe("aggregatePreviousDay", () => {
     expect(mockPermissionQuery).toHaveBeenCalled();
   });
 });
-
-
-
-
-
-

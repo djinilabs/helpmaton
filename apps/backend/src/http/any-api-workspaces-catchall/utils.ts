@@ -1,6 +1,6 @@
 import type { Currency } from "../../utils/aggregation";
 
-export const ALLOWED_CURRENCIES: Currency[] = ["usd", "eur", "gbp"];
+export const ALLOWED_CURRENCIES: Currency[] = ["usd"];
 
 /**
  * Calculate document metrics (count and total size) from files and text documents

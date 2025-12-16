@@ -1,27 +1,18 @@
 import type { FC } from "react";
 
-import type { DailyUsageData, Currency } from "../utils/api";
+import type { DailyUsageData } from "../utils/api";
+import { formatCurrency } from "../utils/currency";
 
 interface UsageChartProps {
   data: DailyUsageData[];
-  currency: Currency;
   title?: string;
 }
 
-const formatCurrency = (value: number, currency: Currency): string => {
-  const symbols: Record<Currency, string> = {
-    usd: "$",
-    eur: "€",
-    gbp: "£",
-  };
-  return `${symbols[currency]}${value.toFixed(2)}`;
-};
-
 export const UsageChart: FC<UsageChartProps> = ({
   data,
-  currency,
   title = "Daily Usage",
 }) => {
+  const currency = "usd";
   if (data.length === 0) {
     return (
       <div className="border border-neutral-200 rounded-xl p-6 bg-white shadow-soft">
@@ -31,7 +22,7 @@ export const UsageChart: FC<UsageChartProps> = ({
     );
   }
 
-  const maxCost = Math.max(...data.map((d) => d.cost), 0);
+  const maxCost = Math.max(...data.map((d: DailyUsageData) => d.cost), 0);
   const chartHeight = 200;
   const barWidth = Math.max(20, (100 / data.length) * 0.8);
 
@@ -64,7 +55,7 @@ export const UsageChart: FC<UsageChartProps> = ({
           ))}
 
           {/* Bars */}
-          {data.map((day, index) => {
+          {data.map((day: DailyUsageData, index: number) => {
             const barHeight =
               maxCost > 0 ? (day.cost / maxCost) * chartHeight : 0;
             const x =
@@ -103,7 +94,7 @@ export const UsageChart: FC<UsageChartProps> = ({
                     className="text-xs font-medium"
                     fill="#374151"
                   >
-                    {formatCurrency(day.cost, currency)}
+                    {formatCurrency(day.cost, currency, 2)}
                   </text>
                 )}
               </g>
@@ -119,7 +110,7 @@ export const UsageChart: FC<UsageChartProps> = ({
               className="text-xs font-bold"
               fill="#000"
             >
-              {formatCurrency(maxCost * ratio, currency)}
+              {formatCurrency(maxCost * ratio, currency, 2)}
             </text>
           ))}
         </svg>

@@ -1,23 +1,28 @@
 import { boomify } from "@hapi/boom";
 
+import { fromMillionths } from "./creditConversions";
+
 /**
  * Error thrown when credit balance is insufficient for a transaction
+ * All amounts are stored in millionths (integers)
  */
 export class InsufficientCreditsError extends Error {
   public readonly statusCode = 402;
   public readonly workspaceId: string;
-  public readonly required: number;
-  public readonly available: number;
+  public readonly required: number; // millionths
+  public readonly available: number; // millionths
   public readonly currency: string;
 
   constructor(
     workspaceId: string,
-    required: number,
-    available: number,
+    required: number, // millionths
+    available: number, // millionths
     currency: string
   ) {
+    const requiredDisplay = fromMillionths(required);
+    const availableDisplay = fromMillionths(available);
     super(
-      `Insufficient credits: required ${required} ${currency.toUpperCase()}, available ${available} ${currency.toUpperCase()}`
+      `Insufficient credits: required ${requiredDisplay} ${currency.toUpperCase()}, available ${availableDisplay} ${currency.toUpperCase()}`
     );
     this.name = "InsufficientCreditsError";
     this.workspaceId = workspaceId;
@@ -39,8 +44,8 @@ export class InsufficientCreditsError extends Error {
       body: JSON.stringify({
         error: this.message,
         workspaceId: this.workspaceId,
-        required: this.required,
-        available: this.available,
+        required: this.required, // Return millionths in API response
+        available: this.available, // Return millionths in API response
         currency: this.currency,
       }),
     };
@@ -49,27 +54,28 @@ export class InsufficientCreditsError extends Error {
 
 /**
  * Error thrown when a spending limit is exceeded
+ * All amounts are stored in millionths (integers)
  */
 export class SpendingLimitExceededError extends Error {
   public readonly statusCode = 402;
   public readonly failedLimits: Array<{
     scope: "workspace" | "agent";
     timeFrame: string;
-    limit: number;
-    current: number;
+    limit: number; // millionths
+    current: number; // millionths
   }>;
 
   constructor(
     failedLimits: Array<{
       scope: "workspace" | "agent";
       timeFrame: string;
-      limit: number;
-      current: number;
+      limit: number; // millionths
+      current: number; // millionths
     }>
   ) {
     const limitMessages = failedLimits.map(
       (limit) =>
-        `${limit.scope} ${limit.timeFrame} limit: ${limit.current}/${limit.limit}`
+        `${limit.scope} ${limit.timeFrame} limit: ${fromMillionths(limit.current)}/${fromMillionths(limit.limit)}`
     );
     super(`Spending limits exceeded: ${limitMessages.join(", ")}`);
     this.name = "SpendingLimitExceededError";
@@ -88,7 +94,7 @@ export class SpendingLimitExceededError extends Error {
       },
       body: JSON.stringify({
         error: this.message,
-        failedLimits: this.failedLimits,
+        failedLimits: this.failedLimits, // Return millionths in API response
       }),
     };
   }

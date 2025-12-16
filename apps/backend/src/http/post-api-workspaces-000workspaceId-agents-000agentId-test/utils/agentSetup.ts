@@ -27,6 +27,7 @@ export interface AgentSetupOptions {
   searchDocumentsOptions?: Parameters<typeof createSearchDocumentsTool>[1];
   callDepth?: number;
   maxDelegationDepth?: number;
+  userId?: string;
 }
 
 /**
@@ -139,7 +140,8 @@ export async function setupAgentAndTools(
     modelName,
     workspaceId,
     agentId,
-    usesByok
+    usesByok,
+    options?.userId
   );
 
   const searchDocumentsTool = createSearchDocumentsTool(workspaceId, {

@@ -1,3 +1,4 @@
+import { useSession } from "next-auth/react";
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
@@ -9,6 +10,25 @@ import { posthog } from "../utils/posthog";
  */
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const { data: session, status } = useSession();
+
+  // Identify user when authenticated
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.id) {
+      // Check if PostHog is initialized and loaded
+      if (posthog && typeof posthog.identify === "function") {
+        // Prefix user ID to distinguish from workspace/system IDs
+        posthog.identify(`user/${session.user.id}`, {
+          email: session.user.email || undefined,
+        });
+      }
+    } else if (status === "unauthenticated") {
+      // Reset user association on logout
+      if (posthog && typeof posthog.reset === "function") {
+        posthog.reset();
+      }
+    }
+  }, [status, session]);
 
   // Track page views on route changes
   // PostHog's built-in capture_pageview only tracks initial page load,

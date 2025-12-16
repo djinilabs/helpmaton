@@ -286,9 +286,3 @@ describe("trialPeriod", () => {
     });
   });
 });
-
-
-
-
-
-

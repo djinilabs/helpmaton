@@ -394,9 +394,3 @@ describe("cleanupExpiredReservations", () => {
     expect(mockRefundReservation).toHaveBeenCalledWith(mockDb, "reservation-2");
   });
 });
-
-
-
-
-
-

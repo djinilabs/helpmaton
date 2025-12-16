@@ -186,3 +186,22 @@ export const requireSessionFromRequest = async (req: Request) => {
 export const userRef = (userId: string): string => {
   return `users/${userId}`;
 };
+
+/**
+ * Extract user ID from request object
+ * Supports both Express Request with userRef/session and plain objects
+ * @param req - Request object with userRef or session
+ * @returns User ID or undefined if not available
+ */
+export function extractUserId(req: {
+  userRef?: string;
+  session?: { user?: { id?: string } };
+}): string | undefined {
+  if (req.userRef) {
+    return req.userRef.replace("users/", "");
+  }
+  if (req.session?.user?.id) {
+    return req.session.user.id;
+  }
+  return undefined;
+}

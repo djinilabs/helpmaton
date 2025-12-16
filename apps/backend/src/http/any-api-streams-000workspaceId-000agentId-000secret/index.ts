@@ -75,9 +75,14 @@ import {
   setupAgentAndTools,
 } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
+  convertAiSdkUIMessageToUIMessage,
   convertTextToUIMessage,
   convertUIMessagesToModelMessages,
 } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion";
+import {
+  formatToolCallMessage,
+  formatToolResultMessage,
+} from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/toolFormatting";
 import type { UIMessage } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 
 import { getDefined } from "@/utils";
@@ -620,36 +625,24 @@ async function adjustCreditsAfterStream(
     return;
   }
 
-  try {
-    console.log("[Stream Handler] Adjusting credit reservation:", {
-      workspaceId,
-      reservationId,
-      provider: "google",
-      modelName: finalModelName,
-      tokenUsage,
-    });
-    await adjustCreditReservation(
-      db,
-      reservationId,
-      workspaceId,
-      "google", // provider
-      finalModelName,
-      tokenUsage,
-      3, // maxRetries
-      usesByok
-    );
-    console.log("[Stream Handler] Credit reservation adjusted successfully");
-  } catch (error) {
-    // Log error but don't fail the request (stream already sent)
-    console.error("[Stream Handler] Error adjusting credit reservation:", {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      workspaceId,
-      agentId,
-      reservationId,
-      tokenUsage,
-    });
-  }
+  console.log("[Stream Handler] Adjusting credit reservation:", {
+    workspaceId,
+    reservationId,
+    provider: "google",
+    modelName: finalModelName,
+    tokenUsage,
+  });
+  await adjustCreditReservation(
+    db,
+    reservationId,
+    workspaceId,
+    "google", // provider
+    finalModelName,
+    tokenUsage,
+    3, // maxRetries
+    usesByok
+  );
+  console.log("[Stream Handler] Credit reservation adjusted successfully");
 }
 
 /**
@@ -688,20 +681,78 @@ async function logConversationAsync(
   fullStreamedText: string,
   tokenUsage: ReturnType<typeof extractTokenUsage>,
   usesByok: boolean,
-  finalModelName: string
+  finalModelName: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- streamText result type is complex
+  streamResult: any
 ): Promise<void> {
   if (!tokenUsage) {
     return Promise.resolve();
   }
 
   try {
+    // Convert uiMessage from ai-sdk format if needed
+    const convertedUiMessage =
+      convertAiSdkUIMessageToUIMessage(uiMessage) || uiMessage;
+
+    // Extract tool calls and tool results from streamText result
+    // streamText result has similar structure to generateText result
+    const toolCallsFromResult = streamResult?.toolCalls || [];
+    const toolResultsFromResult = streamResult?.toolResults || [];
+
+    // Format tool calls and results as UI messages
+    const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
+    const toolResultMessages = toolResultsFromResult.map(
+      formatToolResultMessage
+    );
+
+    // Build assistant response message with tool calls, results, and text
+    const assistantContent: Array<
+      | { type: "text"; text: string }
+      | {
+          type: "tool-call";
+          toolCallId: string;
+          toolName: string;
+          args: unknown;
+        }
+      | {
+          type: "tool-result";
+          toolCallId: string;
+          toolName: string;
+          result: unknown;
+        }
+    > = [];
+
+    // Add tool calls
+    for (const toolCallMsg of toolCallMessages) {
+      if (Array.isArray(toolCallMsg.content)) {
+        assistantContent.push(...toolCallMsg.content);
+      }
+    }
+
+    // Add tool results
+    for (const toolResultMsg of toolResultMessages) {
+      if (Array.isArray(toolResultMsg.content)) {
+        assistantContent.push(...toolResultMsg.content);
+      }
+    }
+
+    // Add text response if present
+    if (fullStreamedText && fullStreamedText.trim().length > 0) {
+      assistantContent.push({ type: "text", text: fullStreamedText });
+    }
+
+    // Create assistant message
     const assistantMessage: UIMessage = {
       role: "assistant",
-      content: fullStreamedText,
+      content:
+        assistantContent.length > 0 ? assistantContent : fullStreamedText,
     };
 
     // Get valid messages for logging (same format as test endpoint)
-    const validMessages: UIMessage[] = [uiMessage, assistantMessage].filter(
+    const validMessages: UIMessage[] = [
+      convertedUiMessage,
+      assistantMessage,
+    ].filter(
       (msg): msg is UIMessage =>
         msg != null &&
         typeof msg === "object" &&
@@ -1090,6 +1141,7 @@ const internalHandler = async (
               errorTokenUsage.completionTokens > 0)
           ) {
             // We have token usage - adjust reservation
+            // Best effort cleanup - don't mask original error
             try {
               await adjustCreditReservation(
                 context.db,
@@ -1101,10 +1153,38 @@ const internalHandler = async (
                 3,
                 context.usesByok
               );
-            } catch (adjustError) {
+            } catch (cleanupError) {
+              // Log cleanup failure but don't mask original error
               console.error(
-                "[Stream Handler] Error adjusting reservation after error:",
-                adjustError
+                "[Stream Handler] Error adjusting reservation during error cleanup:",
+                {
+                  reservationId: context.reservationId,
+                  workspaceId: context.workspaceId,
+                  originalError:
+                    error instanceof Error ? error.message : String(error),
+                  cleanupError:
+                    cleanupError instanceof Error
+                      ? cleanupError.message
+                      : String(cleanupError),
+                }
+              );
+              // Report cleanup failure to Sentry but continue to re-throw original error
+              Sentry.captureException(
+                cleanupError instanceof Error
+                  ? cleanupError
+                  : new Error(String(cleanupError)),
+                {
+                  tags: {
+                    context: "error_cleanup",
+                    operation: "adjustCreditReservation",
+                  },
+                  extra: {
+                    reservationId: context.reservationId,
+                    workspaceId: context.workspaceId,
+                    originalError:
+                      error instanceof Error ? error.message : String(error),
+                  },
+                }
               );
             }
           } else {
@@ -1118,13 +1198,42 @@ const internalHandler = async (
               }
             );
             // Delete reservation without refund
+            // Best effort cleanup - don't mask original error
             try {
               const reservationPk = `credit-reservations/${context.reservationId}`;
               await context.db["credit-reservations"].delete(reservationPk);
-            } catch (deleteError) {
-              console.warn(
-                "[Stream Handler] Error deleting reservation:",
-                deleteError
+            } catch (cleanupError) {
+              // Log cleanup failure but don't mask original error
+              console.error(
+                "[Stream Handler] Error deleting reservation during error cleanup:",
+                {
+                  reservationId: context.reservationId,
+                  workspaceId: context.workspaceId,
+                  originalError:
+                    error instanceof Error ? error.message : String(error),
+                  cleanupError:
+                    cleanupError instanceof Error
+                      ? cleanupError.message
+                      : String(cleanupError),
+                }
+              );
+              // Report cleanup failure to Sentry but continue to re-throw original error
+              Sentry.captureException(
+                cleanupError instanceof Error
+                  ? cleanupError
+                  : new Error(String(cleanupError)),
+                {
+                  tags: {
+                    context: "error_cleanup",
+                    operation: "deleteReservation",
+                  },
+                  extra: {
+                    reservationId: context.reservationId,
+                    workspaceId: context.workspaceId,
+                    originalError:
+                      error instanceof Error ? error.message : String(error),
+                  },
+                }
               );
             }
           }
@@ -1168,7 +1277,8 @@ const internalHandler = async (
       fullStreamedText,
       tokenUsage,
       context.usesByok,
-      context.finalModelName
+      context.finalModelName,
+      streamResult
     );
   } catch (error) {
     const boomed = boomify(error as Error);

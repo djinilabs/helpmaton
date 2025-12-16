@@ -79,9 +79,9 @@ export const registerPostWorkspaceSpendingLimits = (
             "timeFrame is required and must be 'daily', 'weekly', or 'monthly'"
           );
         }
-        if (typeof amount !== "number" || amount < 0) {
+        if (typeof amount !== "number" || amount < 0 || !Number.isInteger(amount)) {
           throw badRequest(
-            "amount is required and must be a non-negative number"
+            "amount is required and must be a non-negative integer (millionths)"
           );
         }
 

@@ -31,8 +31,14 @@ import {
   logToolDefinitions,
   setupAgentAndTools,
 } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
+import { convertAiSdkUIMessagesToUIMessages } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion";
+import {
+  formatToolCallMessage,
+  formatToolResultMessage,
+} from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/toolFormatting";
 import type { UIMessage } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 import { MODEL_NAME, buildGenerateTextOptions } from "../../utils/agentUtils";
+import { extractUserId } from "../../utils/session";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -169,6 +175,9 @@ export const registerPostTestAgent = (app: express.Application) => {
         );
       }
 
+      // Extract userId for PostHog tracking
+      const userId = extractUserId(req);
+
       // Setup agent, model, and tools
       const { agent, model, tools, usesByok } = await setupAgentAndTools(
         workspaceId,
@@ -177,6 +186,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         {
           callDepth: 0,
           maxDelegationDepth: 3,
+          userId,
         }
       );
 
@@ -550,6 +560,15 @@ export const registerPostTestAgent = (app: express.Application) => {
       // Extract token usage from streamText result (after stream is consumed)
       const tokenUsage = extractTokenUsage(result);
 
+      // Extract text, tool calls, and tool results from streamText result
+      // streamText result properties are promises that need to be awaited
+      const [responseText, toolCallsFromResult, toolResultsFromResult] =
+        await Promise.all([
+          Promise.resolve(result.text).then((t) => t || ""),
+          Promise.resolve(result.toolCalls).then((tc) => tc || []),
+          Promise.resolve(result.toolResults).then((tr) => tr || []),
+        ]);
+
       // Adjust credit reservation based on actual cost
       // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
       if (
@@ -639,8 +658,65 @@ export const registerPostTestAgent = (app: express.Application) => {
         }
       }
 
-      // Get valid messages for logging
-      const validMessages: UIMessage[] = messages.filter(
+      // Convert messages from ai-sdk format (with 'parts') to our format (with 'content')
+      const convertedMessages = convertAiSdkUIMessagesToUIMessages(messages);
+
+      // Format tool calls and results as UI messages
+      const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
+      const toolResultMessages = toolResultsFromResult.map(
+        formatToolResultMessage
+      );
+
+      // Build assistant response message with tool calls, results, and text
+      const assistantContent: Array<
+        | { type: "text"; text: string }
+        | {
+            type: "tool-call";
+            toolCallId: string;
+            toolName: string;
+            args: unknown;
+          }
+        | {
+            type: "tool-result";
+            toolCallId: string;
+            toolName: string;
+            result: unknown;
+          }
+      > = [];
+
+      // Add tool calls
+      for (const toolCallMsg of toolCallMessages) {
+        if (Array.isArray(toolCallMsg.content)) {
+          assistantContent.push(...toolCallMsg.content);
+        }
+      }
+
+      // Add tool results
+      for (const toolResultMsg of toolResultMessages) {
+        if (Array.isArray(toolResultMsg.content)) {
+          assistantContent.push(...toolResultMsg.content);
+        }
+      }
+
+      // Add text response if present
+      if (responseText && responseText.trim().length > 0) {
+        assistantContent.push({ type: "text", text: responseText });
+      }
+
+      // Create assistant message
+      const assistantMessage: UIMessage = {
+        role: "assistant",
+        content: assistantContent.length > 0 ? assistantContent : responseText,
+      };
+
+      // Combine user messages and assistant message for logging
+      const messagesForLogging: UIMessage[] = [
+        ...convertedMessages,
+        assistantMessage,
+      ];
+
+      // Get valid messages for logging (filter out any invalid ones)
+      const validMessages: UIMessage[] = messagesForLogging.filter(
         (msg): msg is UIMessage =>
           msg != null &&
           typeof msg === "object" &&
@@ -661,7 +737,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           conversationType: "test",
           messages: validMessages,
           tokenUsage: tokenUsage,
-          modelName: MODEL_NAME,
+          modelName: finalModelName,
           provider: "google",
           usesByok,
         });

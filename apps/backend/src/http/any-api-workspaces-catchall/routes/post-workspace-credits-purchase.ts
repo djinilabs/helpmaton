@@ -27,9 +27,9 @@ export function registerPostWorkspaceCreditsPurchase(
         throw badRequest("Amount must be a positive number");
       }
 
-      // Minimum amount validation (1 EUR)
+      // Minimum amount validation (1 USD)
       if (amount < 1) {
-        throw badRequest("Minimum purchase amount is 1 EUR");
+        throw badRequest("Minimum purchase amount is 1 USD");
       }
 
       // Validate amount has at most 2 decimal places
@@ -41,7 +41,6 @@ export function registerPostWorkspaceCreditsPurchase(
       // Workspace access is already checked by requirePermission middleware
       const workspacePk = `workspaces/${workspaceId}`;
 
-      // Get workspace to check currency
       const db = await database();
       const workspace = await db.workspace.get(workspacePk, "workspace");
       if (!workspace) {
@@ -104,7 +103,6 @@ export function registerPostWorkspaceCreditsPurchase(
         {
           workspaceId,
           amount,
-          currency: workspace.currency,
           customPriceInCents,
           variantId: creditVariantId,
           storeId,
@@ -122,7 +120,7 @@ export function registerPostWorkspaceCreditsPurchase(
         },
         productOptions: {
           name: "Workspace Credits",
-          description: `Please enter ${amount} ${workspace.currency.toUpperCase()} in the amount field below. This will add ${amount} ${workspace.currency.toUpperCase()} in credits to your workspace.`,
+          description: `Please enter ${amount} USD in the amount field below. This will add ${amount} USD in credits to your workspace.`,
           enabled_variants: [parseInt(creditVariantId, 10)], // Only show this variant to ensure custom_price is used
           redirect_url: redirectUrl, // Redirect back to workspace after successful purchase
         },
@@ -146,9 +144,3 @@ export function registerPostWorkspaceCreditsPurchase(
     })
   );
 }
-
-
-
-
-
-

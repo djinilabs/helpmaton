@@ -11,7 +11,7 @@ Helpmaton uses a credit-based billing system where workspaces have credit balanc
 ### Credit Balance
 
 - Each workspace has a `creditBalance` field stored in the `workspace` table
-- Credits are denominated in the workspace's currency (USD, EUR, or GBP)
+- Credits are denominated in USD
 - Credits can be added via trial credit requests or future payment methods
 - Credits are deducted atomically to prevent race conditions
 
@@ -244,7 +244,7 @@ const aggregates = await queryAggregates(
 
 // Sum costs
 const currentSpending = aggregates.reduce(
-  (sum, agg) => sum + agg.costUsd, // or costEur, costGbp
+  (sum, agg) => sum + agg.costUsd,
   0
 );
 ```
@@ -315,22 +315,11 @@ if (usesByok) {
 
 ## Currency Support
 
-Credits are stored in one of three currencies:
-
-- **USD** (United States Dollar) - Default
-- **EUR** (Euro)
-- **GBP** (British Pound)
-
-### Currency Selection
-
-- Workspace currency is set when workspace is created
-- Can be changed (future feature)
-- All costs are calculated in workspace currency
-- Pricing is converted from USD using exchange rates
+Credits are stored in USD (United States Dollar).
 
 ### Cost Calculation
 
-Token costs are calculated in the workspace currency:
+Token costs are calculated in USD:
 
 ```typescript
 const cost = calculateTokenCost(
@@ -338,12 +327,11 @@ const cost = calculateTokenCost(
   modelName,
   inputTokens,
   outputTokens,
-  currency, // "usd" | "eur" | "gbp"
   reasoningTokens
 );
 ```
 
-Pricing is stored in `apps/backend/src/config/pricing.json` with rates for all three currencies.
+Pricing is stored in `apps/backend/src/config/pricing.json` with USD rates only.
 
 ## Error Handling
 
@@ -357,7 +345,7 @@ Thrown when credit balance is insufficient for estimated cost:
   workspaceId: string,
   required: number,
   available: number,
-  currency: "usd" | "eur" | "gbp"
+  currency: "usd"
 }
 ```
 

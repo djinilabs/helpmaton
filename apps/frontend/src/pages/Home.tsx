@@ -17,12 +17,10 @@ const UsageDashboard = lazy(() =>
 );
 import { useUserUsage } from "../hooks/useUsage";
 import { clearTokens } from "../utils/api";
-import type { Currency } from "../utils/api";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
 
 const Home: FC = () => {
   const { data: session } = useSession();
-  const [currency, setCurrency] = useState<Currency>("usd");
 
   return (
     <div className="min-h-screen bg-gradient-soft p-6 lg:p-10">
@@ -100,7 +98,7 @@ const Home: FC = () => {
           </Suspense>
         </div>
 
-        <UserUsageSection currency={currency} onCurrencyChange={setCurrency} />
+        <UserUsageSection />
 
         <div className="bg-white rounded-2xl shadow-large p-8 border-2 border-neutral-300 flex justify-end">
           <button
@@ -119,15 +117,10 @@ const Home: FC = () => {
   );
 };
 
-interface UserUsageSectionProps {
-  currency: Currency;
-  onCurrencyChange: (currency: Currency) => void;
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface UserUsageSectionProps {}
 
-const UserUsageSection: FC<UserUsageSectionProps> = ({
-  currency,
-  onCurrencyChange,
-}) => {
+const UserUsageSection: FC<UserUsageSectionProps> = () => {
   const [dateRangePreset, setDateRangePreset] =
     useState<DateRangePreset>("last-30-days");
   const dateRange = getDateRange(dateRangePreset);
@@ -139,7 +132,6 @@ const UserUsageSection: FC<UserUsageSectionProps> = ({
     refetch,
     isRefetching,
   } = useUserUsage({
-    currency,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
   });
@@ -171,8 +163,6 @@ const UserUsageSection: FC<UserUsageSectionProps> = ({
     <Suspense fallback={<LoadingScreen compact />}>
       <UsageDashboard
         stats={usageData.stats}
-        currency={currency}
-        onCurrencyChange={onCurrencyChange}
         title="YOUR USAGE"
         dateRange={dateRange}
         dateRangePreset={dateRangePreset}

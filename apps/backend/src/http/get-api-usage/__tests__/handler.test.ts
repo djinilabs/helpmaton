@@ -78,16 +78,12 @@ describe("get-api-usage handler", () => {
       outputTokens: 500,
       totalTokens: 1500,
       costUsd: 0.001,
-      costEur: 0.0009,
-      costGbp: 0.0008,
       byModel: {
         "gemini-2.5-flash": {
           inputTokens: 1000,
           outputTokens: 500,
           totalTokens: 1500,
           costUsd: 0.001,
-          costEur: 0.0009,
-          costGbp: 0.0008,
         },
       },
       byProvider: {
@@ -96,8 +92,6 @@ describe("get-api-usage handler", () => {
           outputTokens: 500,
           totalTokens: 1500,
           costUsd: 0.001,
-          costEur: 0.0009,
-          costGbp: 0.0008,
         },
       },
       byByok: {
@@ -106,16 +100,12 @@ describe("get-api-usage handler", () => {
           outputTokens: 0,
           totalTokens: 0,
           costUsd: 0,
-          costEur: 0,
-          costGbp: 0,
         },
         platform: {
           inputTokens: 1000,
           outputTokens: 500,
           totalTokens: 1500,
           costUsd: 0.001,
-          costEur: 0.0009,
-          costGbp: 0.0008,
         },
       },
     };
@@ -125,8 +115,6 @@ describe("get-api-usage handler", () => {
       outputTokens: 1000,
       totalTokens: 3000,
       costUsd: 0.002,
-      costEur: 0.0018,
-      costGbp: 0.0016,
       byModel: {},
       byProvider: {},
       byByok: {
@@ -135,8 +123,6 @@ describe("get-api-usage handler", () => {
           outputTokens: 0,
           totalTokens: 0,
           costUsd: 0,
-          costEur: 0,
-          costGbp: 0,
         },
         platform: {
           inputTokens: 2000,
@@ -154,16 +140,12 @@ describe("get-api-usage handler", () => {
       outputTokens: 1500,
       totalTokens: 4500,
       costUsd: 0.003,
-      costEur: 0.0027,
-      costGbp: 0.0024,
       byModel: {
         "gemini-2.5-flash": {
           inputTokens: 1000,
           outputTokens: 500,
           totalTokens: 1500,
           costUsd: 0.001,
-          costEur: 0.0009,
-          costGbp: 0.0008,
         },
       },
       byProvider: {
@@ -172,8 +154,6 @@ describe("get-api-usage handler", () => {
           outputTokens: 500,
           totalTokens: 1500,
           costUsd: 0.001,
-          costEur: 0.0009,
-          costGbp: 0.0008,
         },
       },
       byByok: {
@@ -182,8 +162,6 @@ describe("get-api-usage handler", () => {
           outputTokens: 0,
           totalTokens: 0,
           costUsd: 0,
-          costEur: 0,
-          costGbp: 0,
         },
         platform: {
           inputTokens: 3000,
@@ -292,7 +270,7 @@ describe("get-api-usage handler", () => {
     expect(mockRequireSession).toHaveBeenCalledWith(event);
   });
 
-  it("should handle invalid currency parameter", async () => {
+  it("should ignore currency parameter (always uses USD)", async () => {
     const mockSession = {
       user: {
         id: "user-123",
@@ -304,6 +282,29 @@ describe("get-api-usage handler", () => {
     const mockDb = createMockDatabase();
     mockDb.permission.query = vi.fn().mockResolvedValue({ items: [] });
     mockDatabase.mockResolvedValue(mockDb);
+
+    mockQueryUsageStats.mockResolvedValue({
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      costUsd: 0,
+      byModel: {},
+      byProvider: {},
+      byByok: {
+        byok: {
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+          costUsd: 0,
+        },
+        platform: {
+          inputTokens: 0,
+          outputTokens: 0,
+          totalTokens: 0,
+          costUsd: 0,
+        },
+      },
+    });
 
     const event = createAPIGatewayEventV2({
       routeKey: "GET /api/usage",
@@ -319,9 +320,10 @@ describe("get-api-usage handler", () => {
       body: string;
     };
 
-    expect(result.statusCode).toBe(400);
+    // Currency parameter is ignored, always returns USD
+    expect(result.statusCode).toBe(200);
     const body = JSON.parse(result.body || "{}");
-    expect(body.message).toContain("Invalid currency");
+    expect(body.currency).toBe("usd");
     expect(mockRequireSession).toHaveBeenCalledWith(event);
   });
 
@@ -379,8 +381,6 @@ describe("get-api-usage handler", () => {
       outputTokens: 500,
       totalTokens: 1500,
       costUsd: 0.001,
-      costEur: 0.0009,
-      costGbp: 0.0008,
       byModel: {},
       byProvider: {},
       byByok: {
@@ -389,16 +389,12 @@ describe("get-api-usage handler", () => {
           outputTokens: 0,
           totalTokens: 0,
           costUsd: 0,
-          costEur: 0,
-          costGbp: 0,
         },
         platform: {
           inputTokens: 1000,
           outputTokens: 500,
           totalTokens: 1500,
           costUsd: 0.001,
-          costEur: 0.0009,
-          costGbp: 0.0008,
         },
       },
     };
@@ -450,8 +446,6 @@ describe("get-api-usage handler", () => {
       outputTokens: 0,
       totalTokens: 0,
       costUsd: 0,
-      costEur: 0,
-      costGbp: 0,
       byModel: {},
       byProvider: {},
       byByok: {
@@ -460,16 +454,12 @@ describe("get-api-usage handler", () => {
           outputTokens: 0,
           totalTokens: 0,
           costUsd: 0,
-          costEur: 0,
-          costGbp: 0,
         },
         platform: {
           inputTokens: 0,
           outputTokens: 0,
           totalTokens: 0,
           costUsd: 0,
-          costEur: 0,
-          costGbp: 0,
         },
       },
     };

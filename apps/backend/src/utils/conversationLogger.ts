@@ -10,6 +10,7 @@ export interface TokenUsage {
   completionTokens: number;
   totalTokens: number;
   reasoningTokens?: number; // Reasoning tokens (if model supports reasoning)
+  cachedPromptTokens?: number; // Cached prompt tokens (if prompt caching is used)
 }
 
 export interface ConversationLogData {
@@ -98,6 +99,7 @@ export function aggregateTokenUsage(
   let completionTokens = 0;
   let totalTokens = 0;
   let reasoningTokens = 0;
+  let cachedPromptTokens = 0;
 
   for (const usage of usages) {
     if (usage) {
@@ -105,20 +107,30 @@ export function aggregateTokenUsage(
       completionTokens += usage.completionTokens || 0;
       totalTokens += usage.totalTokens || 0;
       reasoningTokens += usage.reasoningTokens || 0;
+      cachedPromptTokens += usage.cachedPromptTokens || 0;
     }
   }
 
-  return {
+  const aggregated: TokenUsage = {
     promptTokens,
     completionTokens,
     totalTokens,
-    reasoningTokens: reasoningTokens > 0 ? reasoningTokens : undefined,
   };
+
+  // Only include optional fields if they're greater than 0
+  if (reasoningTokens > 0) {
+    aggregated.reasoningTokens = reasoningTokens;
+  }
+  if (cachedPromptTokens > 0) {
+    aggregated.cachedPromptTokens = cachedPromptTokens;
+  }
+
+  return aggregated;
 }
 
 /**
  * Extract token usage from generateText result
- * Handles Google AI SDK response format including reasoning tokens
+ * Handles Google AI SDK response format including reasoning tokens and cached tokens
  */
 export function extractTokenUsage(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -133,12 +145,39 @@ export function extractTokenUsage(
     return undefined;
   }
 
+  // DIAGNOSTIC: Log full usage object structure for debugging
+  console.log("[extractTokenUsage] Full usage object structure:", {
+    usageKeys: Object.keys(usage),
+    usageObject: JSON.stringify(usage, null, 2),
+    resultKeys: Object.keys(result),
+  });
+
   // Handle both field name variations:
   // - promptTokens/completionTokens (standard AI SDK format)
   // - inputTokens/outputTokens (some provider adapters use these)
-  const promptTokens = usage.promptTokens ?? usage.inputTokens ?? 0;
-  const completionTokens = usage.completionTokens ?? usage.outputTokens ?? 0;
-  const totalTokens = usage.totalTokens ?? 0;
+  // - promptTokenCount/completionTokenCount (Google API format)
+  const promptTokens =
+    usage.promptTokens ??
+    usage.inputTokens ??
+    usage.promptTokenCount ??
+    0;
+  const completionTokens =
+    usage.completionTokens ??
+    usage.outputTokens ??
+    usage.completionTokenCount ??
+    0;
+  const totalTokens = usage.totalTokens ?? usage.totalTokenCount ?? 0;
+
+  // Extract cached prompt tokens if present (Google API may provide this)
+  // Cached tokens can be in various formats:
+  // - cachedPromptTokenCount (Google API format)
+  // - cachedPromptTokens
+  // - cachedTokens
+  const cachedPromptTokens =
+    usage.cachedPromptTokenCount ??
+    usage.cachedPromptTokens ??
+    usage.cachedTokens ??
+    0;
 
   // Extract reasoning tokens if present (Google AI SDK may provide this)
   // Reasoning tokens can be in various formats:
@@ -151,16 +190,76 @@ export function extractTokenUsage(
     result.reasoningTokens ??
     0;
 
-  const tokenUsage: TokenUsage = {
+  // Calculate non-cached prompt tokens
+  // If we have cached tokens, the promptTokens might include them
+  // We need to track both separately for accurate billing
+  const nonCachedPromptTokens = Math.max(0, promptTokens - cachedPromptTokens);
+
+  // DIAGNOSTIC: Log all extracted fields
+  console.log("[extractTokenUsage] Extracted token fields:", {
     promptTokens,
+    completionTokens,
+    totalTokens,
+    cachedPromptTokens,
+    nonCachedPromptTokens,
+    reasoningTokens,
+    allUsageFields: Object.keys(usage),
+  });
+
+  // Warn if we found unexpected fields that might be relevant
+  const knownFields = [
+    "promptTokens",
+    "inputTokens",
+    "promptTokenCount",
+    "completionTokens",
+    "outputTokens",
+    "completionTokenCount",
+    "totalTokens",
+    "totalTokenCount",
+    "cachedPromptTokenCount",
+    "cachedPromptTokens",
+    "cachedTokens",
+    "reasoningTokens",
+    "reasoning",
+  ];
+  const unexpectedFields = Object.keys(usage).filter(
+    (key) => !knownFields.includes(key)
+  );
+  if (unexpectedFields.length > 0) {
+    console.warn(
+      "[extractTokenUsage] Found unexpected fields in usage object:",
+      {
+        unexpectedFields,
+        usageObject: usage,
+      }
+    );
+  }
+
+  const tokenUsage: TokenUsage = {
+    promptTokens: nonCachedPromptTokens, // Store non-cached prompt tokens
     completionTokens,
     totalTokens,
   };
 
-  // Only include reasoningTokens if it's greater than 0
+  // Only include optional fields if they're greater than 0
   if (reasoningTokens > 0) {
     tokenUsage.reasoningTokens = reasoningTokens;
   }
+  if (cachedPromptTokens > 0) {
+    tokenUsage.cachedPromptTokens = cachedPromptTokens;
+  }
+
+  // DIAGNOSTIC: Log final token usage object
+  console.log("[extractTokenUsage] Final token usage:", {
+    tokenUsage,
+    breakdown: {
+      nonCachedPromptTokens,
+      cachedPromptTokens,
+      completionTokens,
+      reasoningTokens,
+      totalTokens,
+    },
+  });
 
   return tokenUsage;
 }
@@ -203,8 +302,6 @@ export async function startConversation(
     provider: data.provider,
     usesByok: data.usesByok,
     costUsd: costs.usd > 0 ? costs.usd : undefined,
-    costEur: costs.eur > 0 ? costs.eur : undefined,
-    costGbp: costs.gbp > 0 ? costs.gbp : undefined,
     startedAt: now,
     lastMessageAt: now,
     expires: calculateTTL(),
@@ -278,8 +375,6 @@ export async function updateConversation(
     provider?: string;
     usesByok?: boolean;
     costUsd?: number;
-    costEur?: number;
-    costGbp?: number;
   } = {
     pk,
     messages: allMessages as unknown[],
@@ -289,8 +384,6 @@ export async function updateConversation(
     lastMessageAt: new Date().toISOString(),
     expires: calculateTTL(),
     costUsd: costs.usd > 0 ? costs.usd : undefined,
-    costEur: costs.eur > 0 ? costs.eur : undefined,
-    costGbp: costs.gbp > 0 ? costs.gbp : undefined,
   };
 
   // Preserve existing modelName and provider if they exist

@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useCreateWorkspace } from "../hooks/useWorkspaces";
-import type { Currency } from "../utils/api";
 
 interface CreateWorkspaceModalProps {
   isOpen: boolean;
@@ -19,12 +18,10 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
   const createWorkspace = useCreateWorkspace();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [currency, setCurrency] = useState<Currency>("usd");
 
   const handleClose = () => {
     setName("");
     setDescription("");
-    setCurrency("usd");
     onClose();
   };
 
@@ -38,7 +35,6 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
       const workspace = await createWorkspace.mutateAsync({
         name: name.trim(),
         description: description.trim() || undefined,
-        currency,
       });
       setName("");
       setDescription("");
@@ -89,25 +85,6 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
               className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
               rows={4}
             />
-          </div>
-          <div>
-            <label
-              htmlFor="currency"
-              className="block text-sm font-medium text-neutral-700 mb-2.5"
-            >
-              Currency *
-            </label>
-            <select
-              id="currency"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value as Currency)}
-              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
-              required
-            >
-              <option value="usd">USD</option>
-              <option value="eur">EUR</option>
-              <option value="gbp">GBP</option>
-            </select>
           </div>
           <div className="flex gap-3">
             <button

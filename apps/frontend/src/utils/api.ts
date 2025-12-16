@@ -1,6 +1,6 @@
 export interface SpendingLimit {
   timeFrame: "daily" | "weekly" | "monthly";
-  amount: number;
+  amount: number; // millionths (integer)
 }
 
 export interface Workspace {
@@ -8,7 +8,7 @@ export interface Workspace {
   name: string;
   description: string | null;
   permissionLevel: number | null;
-  creditBalance?: number;
+  creditBalance?: number; // millionths (integer)
   currency?: Currency;
   spendingLimits?: SpendingLimit[];
   hasGoogleApiKey?: boolean; // Keep for backward compatibility
@@ -57,13 +57,11 @@ export interface WorkspaceInviteListItem {
 export interface CreateWorkspaceInput {
   name: string;
   description?: string;
-  currency?: Currency;
 }
 
 export interface UpdateWorkspaceInput {
   name?: string;
   description?: string;
-  currency?: Currency;
   spendingLimits?: SpendingLimit[];
 }
 
@@ -604,7 +602,7 @@ export interface TrialStatus {
   daysRemaining: number;
   hasRequestedCredits: boolean;
   creditsApproved: boolean;
-  initialCreditAmount: number;
+  initialCreditAmount: number; // millionths (integer)
   currentUsage: number;
 }
 
@@ -1162,13 +1160,13 @@ export async function initiateOAuthFlow(
   return response.json();
 }
 
-export type Currency = "usd" | "eur" | "gbp";
+export type Currency = "usd";
 
 export interface UsageStats {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
-  cost: number;
+  cost: number; // millionths (integer)
   byModel: Array<{
     model: string;
     inputTokens: number;
@@ -1212,7 +1210,7 @@ export interface DailyUsageData {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
-  cost: number;
+  cost: number; // millionths (integer)
 }
 
 export interface WorkspaceDailyUsageResponse {
@@ -1251,7 +1249,6 @@ export interface UserUsageResponse {
 }
 
 export interface UsageOptions {
-  currency?: Currency;
   startDate?: string;
   endDate?: string;
 }
@@ -1261,9 +1258,6 @@ export async function getWorkspaceUsage(
   options: UsageOptions = {}
 ): Promise<WorkspaceUsageResponse> {
   const params = new URLSearchParams();
-  if (options.currency) {
-    params.append("currency", options.currency);
-  }
   if (options.startDate) {
     params.append("startDate", options.startDate);
   }
@@ -1283,9 +1277,6 @@ export async function getWorkspaceDailyUsage(
   options: UsageOptions = {}
 ): Promise<WorkspaceDailyUsageResponse> {
   const params = new URLSearchParams();
-  if (options.currency) {
-    params.append("currency", options.currency);
-  }
   if (options.startDate) {
     params.append("startDate", options.startDate);
   }
@@ -1306,9 +1297,6 @@ export async function getAgentUsage(
   options: UsageOptions = {}
 ): Promise<AgentUsageResponse> {
   const params = new URLSearchParams();
-  if (options.currency) {
-    params.append("currency", options.currency);
-  }
   if (options.startDate) {
     params.append("startDate", options.startDate);
   }
@@ -1329,9 +1317,6 @@ export async function getAgentDailyUsage(
   options: UsageOptions = {}
 ): Promise<AgentDailyUsageResponse> {
   const params = new URLSearchParams();
-  if (options.currency) {
-    params.append("currency", options.currency);
-  }
   if (options.startDate) {
     params.append("startDate", options.startDate);
   }
@@ -1362,9 +1347,6 @@ export async function getUserUsage(
   options: UsageOptions = {}
 ): Promise<UserUsageResponse> {
   const params = new URLSearchParams();
-  if (options.currency) {
-    params.append("currency", options.currency);
-  }
   if (options.startDate) {
     params.append("startDate", options.startDate);
   }

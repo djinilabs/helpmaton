@@ -2,14 +2,14 @@ import type { ModelMessage } from "ai";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock pricing module
-const { mockCalculateTokenCosts } = vi.hoisted(() => {
+const { mockCalculateTokenCost } = vi.hoisted(() => {
   return {
-    mockCalculateTokenCosts: vi.fn(),
+    mockCalculateTokenCost: vi.fn(),
   };
 });
 
 vi.mock("../pricing", () => ({
-  calculateTokenCosts: mockCalculateTokenCosts,
+  calculateTokenCost: mockCalculateTokenCost,
 }));
 
 // Import after mocks are set up
@@ -170,11 +170,7 @@ describe("tokenEstimation", () => {
 
   describe("estimateTokenCost", () => {
     beforeEach(() => {
-      mockCalculateTokenCosts.mockReturnValue({
-        usd: 0.01,
-        eur: 0.009,
-        gbp: 0.008,
-      });
+      mockCalculateTokenCost.mockReturnValue(0.01);
     });
 
     it("should estimate cost for given provider and model", () => {
@@ -184,41 +180,24 @@ describe("tokenEstimation", () => {
 
       const cost = estimateTokenCost("google", "gemini-pro", messages);
 
-      expect(mockCalculateTokenCosts).toHaveBeenCalledWith(
+      expect(mockCalculateTokenCost).toHaveBeenCalledWith(
         "google",
         "gemini-pro",
         expect.any(Number), // inputTokens
         expect.any(Number) // outputTokens
       );
-      expect(cost).toBe(0.01); // USD default
+      expect(cost).toBe(0.01);
     });
 
-    it("should return cost in specified currency", () => {
+    it("should return cost in USD", () => {
       const messages: ModelMessage[] = [
         { role: "user", content: "Test message" },
       ];
 
-      const costEur = estimateTokenCost(
-        "google",
-        "gemini-pro",
-        messages,
-        undefined,
-        undefined,
-        "eur"
-      );
-      const costGbp = estimateTokenCost(
-        "google",
-        "gemini-pro",
-        messages,
-        undefined,
-        undefined,
-        "gbp"
-      );
+      estimateTokenCost("google", "gemini-pro", messages);
 
-      expect(costEur).toBe(0.009);
-      expect(costGbp).toBe(0.008);
-      // Should have been called twice (once for EUR, once for GBP)
-      expect(mockCalculateTokenCosts).toHaveBeenCalledTimes(2);
+      // Only USD is supported now
+      expect(mockCalculateTokenCost).toHaveBeenCalledTimes(1);
     });
 
     it("should include system prompt in estimation", () => {
@@ -227,7 +206,7 @@ describe("tokenEstimation", () => {
 
       estimateTokenCost("google", "gemini-pro", messages, systemPrompt);
 
-      const callArgs = mockCalculateTokenCosts.mock.calls[0];
+      const callArgs = mockCalculateTokenCost.mock.calls[0];
       const inputTokens = callArgs[2];
       const outputTokens = callArgs[3];
 
@@ -248,7 +227,7 @@ describe("tokenEstimation", () => {
         toolDefinitions
       );
 
-      const callArgs = mockCalculateTokenCosts.mock.calls[0];
+      const callArgs = mockCalculateTokenCost.mock.calls[0];
       const inputTokens = callArgs[2];
 
       // Should have estimated tokens including tools
@@ -262,7 +241,7 @@ describe("tokenEstimation", () => {
 
       expect(cost).toBeDefined();
       // Even with no input, output tokens minimum is 100
-      expect(mockCalculateTokenCosts).toHaveBeenCalledWith(
+      expect(mockCalculateTokenCost).toHaveBeenCalledWith(
         "google",
         "gemini-pro",
         0, // inputTokens
@@ -271,9 +250,3 @@ describe("tokenEstimation", () => {
     });
   });
 });
-
-
-
-
-
-
