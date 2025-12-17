@@ -1,11 +1,18 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 
 import type { UIMessage } from "../../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 import { getWorkspaceApiKey } from "../../http/utils/agentUtils";
 import { getDefined } from "../../utils";
-import { generateEmbedding } from "../documentSearch";
+import { generateEmbedding } from "../embedding";
 import { sendWriteOperation } from "../vectordb/queueClient";
 import type { FactRecord, TemporalGrain } from "../vectordb/types";
+
+/**
+ * Generate a hash for a fact to use as cache key
+ */
+function hashFact(text: string): string {
+  return createHash("sha256").update(text).digest("hex").substring(0, 16);
+}
 
 /**
  * Extract text content from a UIMessage
@@ -150,10 +157,12 @@ export async function writeToWorkingMemory(
           `[Memory Write] Calling generateEmbedding for fact ${i + 1}...`
         );
         const startTime = Date.now();
+        // Generate cache key for this fact (workspace:agent:factHash)
+        const factCacheKey = `${workspaceId}:${agentId}:${hashFact(fact.text)}`;
         const embedding = await generateEmbedding(
           fact.text,
           apiKey,
-          undefined, // No cache key for now
+          factCacheKey, // Use cache key to avoid regenerating same embeddings
           undefined // No abort signal
         );
         const duration = Date.now() - startTime;

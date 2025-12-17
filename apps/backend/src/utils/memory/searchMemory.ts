@@ -1,6 +1,6 @@
 import { getWorkspaceApiKey } from "../../http/utils/agentUtils";
 import { getDefined } from "../../utils";
-import { generateEmbedding } from "../documentSearch";
+import { generateEmbedding } from "../embedding";
 import { query } from "../vectordb/readClient";
 import type { TemporalGrain } from "../vectordb/types";
 

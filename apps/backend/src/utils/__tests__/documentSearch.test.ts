@@ -35,10 +35,10 @@ import type { DatabaseSchema } from "../../tables/schema";
 import {
   splitDocumentIntoSnippets,
   cosineSimilarity,
-  generateEmbedding,
   searchDocuments,
   clearWorkspaceCache,
 } from "../documentSearch";
+import { generateEmbedding } from "../embedding";
 
 describe("documentSearch", () => {
   let mockDb: DatabaseSchema;
@@ -495,4 +495,3 @@ describe("documentSearch", () => {
     });
   });
 });
-

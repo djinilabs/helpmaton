@@ -33,7 +33,7 @@ vi.mock("../../../http/utils/agentUtils", () => ({
   getWorkspaceApiKey: mockGetWorkspaceApiKey,
 }));
 
-vi.mock("../../documentSearch", () => ({
+vi.mock("../../embedding", () => ({
   generateEmbedding: mockGenerateEmbedding,
 }));
 

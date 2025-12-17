@@ -5,7 +5,7 @@ import type { ScheduledEvent } from "aws-lambda";
 import { getWorkspaceApiKey } from "../../http/utils/agentUtils";
 import { database } from "../../tables";
 import { getDefined } from "../../utils";
-import { generateEmbedding } from "../../utils/documentSearch";
+import { generateEmbedding } from "../../utils/embedding";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
 import { summarizeWithLLM } from "../../utils/memory/summarizeMemory";
 import { formatTimeForGrain } from "../../utils/memory/timeFormats";
@@ -166,4 +166,3 @@ export const handler = handlingScheduledErrors(
     console.log("[Daily Memory Summarization] Completed daily summarization");
   }
 );
-
