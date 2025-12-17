@@ -134,15 +134,20 @@ export async function writeToWorkingMemory(
     for (const fact of facts) {
       // Generate cache key for this fact (workspace:agent:factHash)
       const factCacheKey = `${workspaceId}:${agentId}:${hashFact(fact.text)}`;
+      const metadata = {
+        conversationId,
+        workspaceId,
+        agentId,
+      };
+      console.log(
+        `[Memory Write] Creating raw fact with metadata:`,
+        JSON.stringify(metadata, null, 2)
+      );
       rawFacts.push({
         id: randomUUID(),
         content: fact.text,
         timestamp: fact.timestamp,
-        metadata: {
-          conversationId,
-          workspaceId,
-          agentId,
-        },
+        metadata,
         cacheKey: factCacheKey,
       });
     }

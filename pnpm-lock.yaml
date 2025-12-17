@@ -25,6 +25,9 @@ importers:
       '@architect/asap':
         specifier: ^7.0.10
         version: 7.0.10
+      '@posthog/ai':
+        specifier: ^7.2.1
+        version: 7.2.1(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(posthog-node@5.17.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(ws@8.18.3)
     devDependencies:
       '@eslint/js':
         specifier: ^9.39.1
@@ -146,9 +149,6 @@ importers:
       '@lancedb/lancedb':
         specifier: ^0.18.2
         version: 0.18.2(apache-arrow@18.1.0)
-      '@posthog/ai':
-        specifier: ^7.2.1
-        version: 7.2.1(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(posthog-node@5.17.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(ws@8.18.3)
       '@sentry/node':
         specifier: ^8.0.0
         version: 8.55.0

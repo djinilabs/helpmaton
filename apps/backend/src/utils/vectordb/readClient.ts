@@ -68,6 +68,45 @@ async function getDatabaseConnection(
 }
 
 /**
+ * Convert LanceDB metadata (which may be an Apache Arrow Struct) to a plain object
+ * Handles both plain objects and Arrow Struct types
+ * Uses JSON serialization/deserialization to convert Arrow Structs properly
+ */
+function convertMetadataToPlainObject(
+  metadata: unknown
+): Record<string, unknown> {
+  if (!metadata) {
+    return {};
+  }
+
+  // If it's already a plain object with values, return it
+  if (typeof metadata === "object" && !Array.isArray(metadata)) {
+    // Try JSON serialization/deserialization to convert Arrow Structs
+    // This works because JSON.stringify/parse will convert Arrow Structs to plain objects
+    try {
+      const jsonString = JSON.stringify(metadata);
+      const parsed = JSON.parse(jsonString) as Record<string, unknown>;
+
+      // Filter out null values that might be from unset struct fields
+      // But keep them if they're explicitly set (we can't distinguish, so keep all)
+      return parsed;
+    } catch {
+      // If JSON serialization fails, try direct access
+      const result: Record<string, unknown> = {};
+      const obj = metadata as Record<string, unknown>;
+      for (const key in obj) {
+        const value = obj[key];
+        // Include all values, even null (they might be valid)
+        result[key] = value;
+      }
+      return result;
+    }
+  }
+
+  return {};
+}
+
+/**
  * Apply temporal filter to query results
  */
 function applyTemporalFilter(
@@ -223,25 +262,43 @@ export async function query(
 
       if (queryResult.toArray) {
         const rows = await queryResult.toArray();
+        // Log first row's metadata for debugging
+        if (rows.length > 0) {
+          console.log(
+            `[Read Client] Sample row metadata type:`,
+            typeof rows[0].metadata,
+            Array.isArray(rows[0].metadata)
+          );
+          if (rows[0].metadata) {
+            console.log(
+              `[Read Client] Sample row metadata value:`,
+              JSON.stringify(rows[0].metadata, null, 2)
+            );
+          }
+        }
         for (const row of rows) {
+          // Convert metadata from LanceDB struct format to plain object
+          const metadata = convertMetadataToPlainObject(row.metadata);
           results.push({
             id: row.id,
             content: row.content,
             embedding: (row.vector || row.embedding || []) as number[],
             timestamp: row.timestamp,
-            metadata: row.metadata || {},
+            metadata,
             distance: row._distance,
           });
         }
       } else if (queryResult.execute) {
         const iterator = await queryResult.execute();
         for await (const row of iterator) {
+          // Convert metadata from LanceDB struct format to plain object
+          const metadata = convertMetadataToPlainObject(row.metadata);
           results.push({
             id: row.id,
             content: row.content,
             embedding: (row.vector || row.embedding || []) as number[],
             timestamp: row.timestamp,
-            metadata: row.metadata || {},
+            metadata,
             distance: row._distance,
           });
         }
@@ -261,12 +318,14 @@ export async function query(
           >
         )();
         for (const row of rows) {
+          // Convert metadata from LanceDB struct format to plain object
+          const metadata = convertMetadataToPlainObject(row.metadata);
           results.push({
             id: row.id,
             content: row.content,
             embedding: (row.vector || row.embedding || []) as number[],
             timestamp: row.timestamp,
-            metadata: row.metadata || {},
+            metadata,
             distance: row._distance,
           });
         }

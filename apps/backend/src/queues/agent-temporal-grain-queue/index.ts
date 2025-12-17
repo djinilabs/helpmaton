@@ -77,13 +77,18 @@ async function generateEmbeddingsForFacts(
         undefined // No abort signal
       );
 
-      records.push({
+      const record: FactRecord = {
         id: rawFact.id,
         content: rawFact.content,
         embedding,
         timestamp: rawFact.timestamp,
         metadata: rawFact.metadata,
-      });
+      };
+      console.log(
+        `[Write Server] Created record with metadata:`,
+        JSON.stringify(record.metadata, null, 2)
+      );
+      records.push(record);
       console.log(
         `[Write Server] Successfully generated embedding ${i + 1}/${
           rawFacts.length
@@ -174,16 +179,40 @@ async function executeInsert(
     } catch {
       // Table doesn't exist, create it
       // LanceDB will infer schema from the first batch of records
-      table = await db.createTable(
-        "vectors",
-        finalRecords.map((r) => ({
+      const initialRecords = finalRecords.map((r) => {
+        // Ensure metadata is a plain object (not null/undefined)
+        // Use JSON serialization to ensure it's a plain object (handles Arrow Structs if any)
+        let metadata: Record<string, unknown> = {};
+        if (
+          r.metadata &&
+          typeof r.metadata === "object" &&
+          !Array.isArray(r.metadata)
+        ) {
+          try {
+            // Use JSON serialization to convert any Arrow Structs to plain objects
+            const jsonString = JSON.stringify(r.metadata);
+            metadata = JSON.parse(jsonString) as Record<string, unknown>;
+          } catch {
+            // Fallback to spread if JSON fails
+            metadata = { ...r.metadata };
+          }
+        }
+        return {
           id: r.id,
           content: r.content,
           vector: r.embedding,
           timestamp: r.timestamp,
-          metadata: r.metadata || {},
-        }))
-      );
+          metadata,
+        };
+      });
+      // Log first record's metadata for debugging
+      if (initialRecords.length > 0) {
+        console.log(
+          `[Write Server] Creating table with sample record metadata:`,
+          JSON.stringify(initialRecords[0].metadata, null, 2)
+        );
+      }
+      table = await db.createTable("vectors", initialRecords);
       console.log(`[Write Server] Created new table "vectors" in ${uri}`);
       return;
     }
@@ -192,15 +221,41 @@ async function executeInsert(
     console.log(
       `[Write Server] Adding ${finalRecords.length} records to existing table for agent ${agentId}, grain ${temporalGrain}`
     );
-    await table.add(
-      finalRecords.map((r) => ({
+    const recordsToInsert = finalRecords.map((r) => {
+      // Ensure metadata is a plain object (not null/undefined)
+      // LanceDB needs a consistent structure for metadata
+      // Use JSON serialization to ensure it's a plain object (handles Arrow Structs if any)
+      let metadata: Record<string, unknown> = {};
+      if (
+        r.metadata &&
+        typeof r.metadata === "object" &&
+        !Array.isArray(r.metadata)
+      ) {
+        try {
+          // Use JSON serialization to convert any Arrow Structs to plain objects
+          const jsonString = JSON.stringify(r.metadata);
+          metadata = JSON.parse(jsonString) as Record<string, unknown>;
+        } catch {
+          // Fallback to spread if JSON fails
+          metadata = { ...r.metadata };
+        }
+      }
+      return {
         id: r.id,
         content: r.content,
         vector: r.embedding,
         timestamp: r.timestamp,
-        metadata: r.metadata || {},
-      }))
-    );
+        metadata,
+      };
+    });
+    // Log first record's metadata for debugging
+    if (recordsToInsert.length > 0) {
+      console.log(
+        `[Write Server] Sample record metadata being inserted:`,
+        JSON.stringify(recordsToInsert[0].metadata, null, 2)
+      );
+    }
+    await table.add(recordsToInsert);
 
     console.log(
       `[Write Server] Successfully inserted ${finalRecords.length} records into database for agent ${agentId}, grain ${temporalGrain}`

@@ -45,6 +45,7 @@
     "test-aggregation": "cd apps/backend && pnpm exec tsx ../../scripts/test-aggregation.ts",
     "verify-aggregates": "cd apps/backend && pnpm exec tsx ../../scripts/verify-aggregates.ts",
     "add-credits": "cd apps/backend && pnpm exec tsx ../../scripts/add-credits.ts",
+    "run-all-memory-summaries": "cd apps/backend && ARC_ENV=testing pnpm exec tsx ../../scripts/run-all-memory-summaries.mjs",
     "discord:register-commands": "pnpm exec tsx scripts/register-discord-commands.ts",
     "generate:openapi": "pnpm exec tsx scripts/generate-openapi.ts",
     "build:backend": "pnpm exec tsx scripts/build-backend.ts"
@@ -89,6 +90,7 @@
     "typescript-eslint": "^8.46.3"
   },
   "dependencies": {
-    "@architect/asap": "^7.0.10"
+    "@architect/asap": "^7.0.10",
+    "@posthog/ai": "^7.2.1"
   }
 }
