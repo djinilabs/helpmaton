@@ -42,7 +42,7 @@ async function getDatabaseConnection(
             storageOptions: {
               endpoint,
               allowHttp: "true", // Required for local HTTP endpoints
-              awsVirtualHostedStyleRequest: "false", // Force path-style addressing
+              s3ForcePathStyle: "true", // Force path-style addressing: http://endpoint/bucket/path
               awsAccessKeyId: "S3RVER",
               awsSecretAccessKey: "S3RVER",
               region: "eu-west-2",

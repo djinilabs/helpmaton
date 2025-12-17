@@ -8,6 +8,7 @@ The stratified agent memory system has been fully implemented and tested. Agents
 
 **Recent Fixes (Latest)**:
 
+- **Fixed S3 path-style addressing for LanceDB** - Changed `awsVirtualHostedStyleRequest: "false"` to `s3ForcePathStyle: "true"` in both queue processor and read client to properly construct S3 URLs for local development (s3rver) and prevent malformed HTTP requests
 - Fixed metadata storage/retrieval in LanceDB - metadata fields (conversationId, workspaceId, agentId) are now properly stored and retrieved using JSON serialization to handle Apache Arrow Structs
 - Created dev script (`scripts/run-all-memory-summaries.mjs`) to run all memory summarizations for all agents in local development
 - Moved `@posthog/ai` dependency from `apps/backend/package.json` to root `package.json` to fix module resolution issues
@@ -142,8 +143,8 @@ The stratified agent memory system has been fully implemented and tested. Agents
 
 **Files Modified (Latest)**:
 
-- `apps/backend/src/queues/agent-temporal-grain-queue/index.ts` - Added JSON serialization for metadata storage
-- `apps/backend/src/utils/vectordb/readClient.ts` - Added `convertMetadataToPlainObject()` helper function
+- `apps/backend/src/queues/agent-temporal-grain-queue/index.ts` - Fixed S3 path-style addressing by changing `awsVirtualHostedStyleRequest: "false"` to `s3ForcePathStyle: "true"`; Added JSON serialization for metadata storage
+- `apps/backend/src/utils/vectordb/readClient.ts` - Fixed S3 path-style addressing by changing `awsVirtualHostedStyleRequest: "false"` to `s3ForcePathStyle: "true"`; Added `convertMetadataToPlainObject()` helper function
 - `apps/backend/src/http/utils/modelFactory.ts` - Lazy import of `withTracing` from `@posthog/ai`
 - `apps/backend/src/http/utils/agentUtils.ts` - Lazy import of `withTracing`, made `createAgentModel()` async
 - `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup.ts` - Updated to await `createAgentModel()`
