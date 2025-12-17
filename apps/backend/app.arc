@@ -280,6 +280,7 @@ any /api/streams/:workspaceId/:agentId/:secret
 # Example: any /api/streams/:workspaceId/:agentId/:secret my-custom-image
 any /api/streams/:workspaceId/:agentId/:secret lancedb
 post /api/webhook/:workspaceId/:agentId/:key lancedb
+any /api/workspaces lancedb
 any /api/workspaces/* lancedb
 any /api/streams/:workspaceId/:agentId/:secret lancedb
 
