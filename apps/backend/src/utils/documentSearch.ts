@@ -287,6 +287,16 @@ export async function generateEmbedding(
     }
 
     try {
+      if (attempt > 0) {
+        console.log(
+          `[generateEmbedding] Retry attempt ${attempt}/${BACKOFF_MAX_RETRIES}`
+        );
+      }
+      console.log(
+        `[generateEmbedding] Making API request to Gemini (attempt ${
+          attempt + 1
+        })...`
+      );
       // Note: The @ai-sdk/google package may not have direct embedding support
       // We'll need to use the REST API directly
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${EMBEDDING_MODEL}:embedContent?key=${apiKey}`;
@@ -312,100 +322,138 @@ export async function generateEmbedding(
       headers["Referer"] = referer;
       headers["referer"] = referer; // lowercase version
 
-      // Create AbortController for this fetch request
+      // Create AbortController for this fetch request with timeout
       const fetchController = new AbortController();
+      const FETCH_TIMEOUT_MS = 30000; // 30 seconds timeout
+      const timeoutId = setTimeout(() => {
+        console.error(
+          `[generateEmbedding] Fetch timeout after ${FETCH_TIMEOUT_MS}ms`
+        );
+        fetchController.abort();
+      }, FETCH_TIMEOUT_MS);
+
       if (signal) {
         // If parent signal is aborted, abort fetch immediately
         if (signal.aborted) {
+          clearTimeout(timeoutId);
           throw new Error("Operation aborted");
         }
         // Listen to parent signal and abort fetch if parent is aborted
         signal.addEventListener("abort", () => {
+          clearTimeout(timeoutId);
           fetchController.abort();
         });
       }
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: headers,
-        referrer: referer, // Also set as fetch option
-        body: JSON.stringify(requestBody),
-        signal: fetchController.signal,
-      });
+      const fetchStartTime = Date.now();
+      console.log(
+        `[generateEmbedding] Starting fetch request to ${url.substring(
+          0,
+          80
+        )}... (timeout: ${FETCH_TIMEOUT_MS}ms)`
+      );
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: headers,
+          referrer: referer, // Also set as fetch option
+          body: JSON.stringify(requestBody),
+          signal: fetchController.signal,
+        });
+        clearTimeout(timeoutId);
+        const fetchDuration = Date.now() - fetchStartTime;
+        console.log(
+          `[generateEmbedding] Fetch completed in ${fetchDuration}ms, status: ${response.status}`
+        );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[generateEmbedding] API error response: ${errorText}`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[generateEmbedding] API error response: ${errorText}`);
 
-        // Check if it's a referrer restriction error (don't retry this)
-        if (
-          (response.status === 403 && errorText.includes("referer")) ||
-          errorText.includes("referrer")
-        ) {
-          const errorMsg = `API key referrer restriction error. For server-side API calls, the GEMINI_API_KEY should be configured WITHOUT HTTP referrer restrictions in Google Cloud Console. Instead, use IP address restrictions or no application restrictions. Current error: ${errorText}`;
-          console.error(`[generateEmbedding] ${errorMsg}`);
-          throw new Error(errorMsg);
-        }
-
-        // Check if it's a throttling error and we have retries left
-        if (
-          isThrottlingError(response.status, errorText) &&
-          attempt < BACKOFF_MAX_RETRIES
-        ) {
-          // Calculate delay with exponential backoff and jitter
-          const baseDelay = Math.min(
-            BACKOFF_INITIAL_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, attempt),
-            BACKOFF_MAX_DELAY_MS
-          );
-          // Add jitter: random value between 0 and 20% of base delay
-          const jitter = Math.random() * baseDelay * 0.2;
-          const delay = baseDelay + jitter;
-
-          // Wait with abort signal support
-          try {
-            await sleep(delay, signal);
-          } catch (sleepError) {
-            // If sleep was aborted, throw abort error
-            if (
-              sleepError instanceof Error &&
-              sleepError.message === "Operation aborted"
-            ) {
-              throw sleepError;
-            }
-            throw sleepError;
+          // Check if it's a referrer restriction error (don't retry this)
+          if (
+            (response.status === 403 && errorText.includes("referer")) ||
+            errorText.includes("referrer")
+          ) {
+            const errorMsg = `API key referrer restriction error. For server-side API calls, the GEMINI_API_KEY should be configured WITHOUT HTTP referrer restrictions in Google Cloud Console. Instead, use IP address restrictions or no application restrictions. Current error: ${errorText}`;
+            console.error(`[generateEmbedding] ${errorMsg}`);
+            throw new Error(errorMsg);
           }
 
-          // Continue to next retry attempt
-          lastError = new Error(
+          // Check if it's a throttling error and we have retries left
+          if (
+            isThrottlingError(response.status, errorText) &&
+            attempt < BACKOFF_MAX_RETRIES
+          ) {
+            // Calculate delay with exponential backoff and jitter
+            const baseDelay = Math.min(
+              BACKOFF_INITIAL_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, attempt),
+              BACKOFF_MAX_DELAY_MS
+            );
+            // Add jitter: random value between 0 and 20% of base delay
+            const jitter = Math.random() * baseDelay * 0.2;
+            const delay = baseDelay + jitter;
+
+            // Wait with abort signal support
+            try {
+              await sleep(delay, signal);
+            } catch (sleepError) {
+              // If sleep was aborted, throw abort error
+              if (
+                sleepError instanceof Error &&
+                sleepError.message === "Operation aborted"
+              ) {
+                throw sleepError;
+              }
+              throw sleepError;
+            }
+
+            // Continue to next retry attempt
+            lastError = new Error(
+              `Failed to generate embedding: ${response.status} ${errorText}`
+            );
+            continue;
+          }
+
+          // Not a throttling error or no retries left, throw immediately
+          throw new Error(
             `Failed to generate embedding: ${response.status} ${errorText}`
           );
-          continue;
         }
 
-        // Not a throttling error or no retries left, throw immediately
-        throw new Error(
-          `Failed to generate embedding: ${response.status} ${errorText}`
-        );
+        const data = (await response.json()) as {
+          embedding?: { values?: number[] };
+        };
+
+        if (!data.embedding?.values) {
+          console.error(
+            `[generateEmbedding] Invalid response format:`,
+            JSON.stringify(data).substring(0, 200)
+          );
+          throw new Error("Invalid embedding response format");
+        }
+
+        // Cache the embedding if cacheKey is provided
+        if (cacheKey) {
+          embeddingCache.set(cacheKey, data.embedding.values);
+        }
+
+        return data.embedding.values;
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        // Check if it's a timeout/abort error
+        if (
+          fetchError instanceof Error &&
+          (fetchError.name === "AbortError" ||
+            fetchError.message.includes("aborted") ||
+            fetchError.message.includes("timeout"))
+        ) {
+          throw new Error(
+            `Embedding generation timed out or was aborted after ${FETCH_TIMEOUT_MS}ms`
+          );
+        }
+        throw fetchError;
       }
-
-      const data = (await response.json()) as {
-        embedding?: { values?: number[] };
-      };
-
-      if (!data.embedding?.values) {
-        console.error(
-          `[generateEmbedding] Invalid response format:`,
-          JSON.stringify(data).substring(0, 200)
-        );
-        throw new Error("Invalid embedding response format");
-      }
-
-      // Cache the embedding if cacheKey is provided
-      if (cacheKey) {
-        embeddingCache.set(cacheKey, data.embedding.values);
-      }
-
-      return data.embedding.values;
     } catch (error) {
       // Check if it's an abort error
       if (error instanceof Error && error.message === "Operation aborted") {

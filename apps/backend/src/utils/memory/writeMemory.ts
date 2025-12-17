@@ -146,11 +146,21 @@ export async function writeToWorkingMemory(
         } for fact: "${fact.text.substring(0, 50)}..."`
       );
       try {
+        console.log(
+          `[Memory Write] Calling generateEmbedding for fact ${i + 1}...`
+        );
+        const startTime = Date.now();
         const embedding = await generateEmbedding(
           fact.text,
           apiKey,
           undefined, // No cache key for now
           undefined // No abort signal
+        );
+        const duration = Date.now() - startTime;
+        console.log(
+          `[Memory Write] generateEmbedding completed for fact ${
+            i + 1
+          } in ${duration}ms`
         );
 
         records.push({
