@@ -16,6 +16,9 @@ vi.mock("../paths", () => ({
 
 vi.mock("../config", () => ({
   getS3BucketName: vi.fn(() => "test-bucket"),
+  getS3ConnectionOptions: vi.fn().mockReturnValue({
+    region: "eu-west-2",
+  }),
 }));
 
 vi.mock("../../s3", () => ({
@@ -33,7 +36,9 @@ describe("agentRemoval", () => {
         DeleteObject: vi.fn().mockResolvedValue(undefined),
       };
 
-      vi.mocked(getS3Client).mockResolvedValue(mockS3Client as unknown as Awaited<ReturnType<typeof getS3Client>>);
+      vi.mocked(getS3Client).mockResolvedValue(
+        mockS3Client as unknown as Awaited<ReturnType<typeof getS3Client>>
+      );
 
       await removeAgentDatabases("agent-123");
 
@@ -46,7 +51,9 @@ describe("agentRemoval", () => {
         DeleteObject: vi.fn().mockRejectedValue(new Error("S3 error")),
       };
 
-      vi.mocked(getS3Client).mockResolvedValue(mockS3Client as unknown as Awaited<ReturnType<typeof getS3Client>>);
+      vi.mocked(getS3Client).mockResolvedValue(
+        mockS3Client as unknown as Awaited<ReturnType<typeof getS3Client>>
+      );
 
       // Should not throw, but log errors
       await expect(removeAgentDatabases("agent-123")).resolves.not.toThrow();
@@ -54,12 +61,15 @@ describe("agentRemoval", () => {
 
     it("should handle partial failures", async () => {
       const mockS3Client = {
-        DeleteObject: vi.fn()
+        DeleteObject: vi
+          .fn()
           .mockResolvedValueOnce(undefined)
           .mockRejectedValueOnce(new Error("S3 error")),
       };
 
-      vi.mocked(getS3Client).mockResolvedValue(mockS3Client as unknown as Awaited<ReturnType<typeof getS3Client>>);
+      vi.mocked(getS3Client).mockResolvedValue(
+        mockS3Client as unknown as Awaited<ReturnType<typeof getS3Client>>
+      );
 
       // Should complete even with partial failures
       await expect(removeAgentDatabases("agent-123")).resolves.not.toThrow();
@@ -70,7 +80,9 @@ describe("agentRemoval", () => {
         DeleteObject: vi.fn().mockResolvedValue(undefined),
       };
 
-      vi.mocked(getS3Client).mockResolvedValue(mockS3Client as unknown as Awaited<ReturnType<typeof getS3Client>>);
+      vi.mocked(getS3Client).mockResolvedValue(
+        mockS3Client as unknown as Awaited<ReturnType<typeof getS3Client>>
+      );
       vi.mocked(getAllAgentDatabasePaths).mockReturnValue([
         "vectordb/agent-123/daily/",
         "vectordb/agent-123/weekly/",
@@ -85,4 +97,3 @@ describe("agentRemoval", () => {
     });
   });
 });
-

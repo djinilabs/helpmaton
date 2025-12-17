@@ -12,6 +12,9 @@ import { TEMPORAL_GRAINS } from "../types";
 // Mock config
 vi.mock("../config", () => ({
   getS3BucketName: () => "test-bucket",
+  getS3ConnectionOptions: vi.fn().mockReturnValue({
+    region: "eu-west-2",
+  }),
 }));
 
 describe("paths", () => {

@@ -102,3 +102,4 @@ export function calculateRetentionCutoff(
       throw new Error(`Unknown temporal grain: ${grain}`);
   }
 }
+

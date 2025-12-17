@@ -17,6 +17,7 @@ mkdirpSync(directory);
 console.log(`s3rver storing data in ${directory}`);
 
 const bucketName = process.env.HELPMATON_S3_BUCKET || 'workspace.documents';
+const vectordbBucketName = process.env.HELPMATON_VECTORDB_S3_BUCKET_STAGING || 'vectordb.staging';
 
 const options = {
   port,
@@ -24,6 +25,10 @@ const options = {
   configureBuckets: [
     {
       name: bucketName,
+      configs: [file(join(__dirname, 'cors-config.xml'))],
+    },
+    {
+      name: vectordbBucketName,
       configs: [file(join(__dirname, 'cors-config.xml'))],
     },
   ],

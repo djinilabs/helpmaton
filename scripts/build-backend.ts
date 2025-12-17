@@ -90,6 +90,16 @@ async function buildBackend() {
           "aws-sdk",
           // Lambda runtime
           "awslambda",
+          // LanceDB native modules - resolved at runtime in Lambda container
+          "@lancedb/lancedb",
+          "@lancedb/lancedb-darwin-arm64",
+          "@lancedb/lancedb-darwin-x64",
+          "@lancedb/lancedb-linux-arm64",
+          "@lancedb/lancedb-linux-x64",
+          "@lancedb/lancedb-win32-x64",
+          "@lancedb/*",
+          // Native .node files
+          "*.node",
         ],
         ...esbuildConfig,
       });
@@ -128,4 +138,3 @@ buildBackend().catch((error) => {
   console.error("Fatal error:", error);
   process.exit(1);
 });
-

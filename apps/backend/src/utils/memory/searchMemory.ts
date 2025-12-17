@@ -38,12 +38,20 @@ export async function searchMemory(
     queryText,
   } = options;
 
+  console.log(
+    `[Memory Search] Searching memory for agent ${agentId}, grain ${grain}, minDays: ${minimumDaysAgo}, maxDays: ${maximumDaysAgo}, maxResults: ${maxResults}`
+  );
+
   // Calculate date range from days ago
   const now = new Date();
   const startDate = new Date(now);
   startDate.setDate(startDate.getDate() - maximumDaysAgo);
   const endDate = new Date(now);
   endDate.setDate(endDate.getDate() - minimumDaysAgo);
+
+  console.log(
+    `[Memory Search] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`
+  );
 
   // For working memory, we can't filter by time string, so we'll query all and filter by timestamp
   if (grain === "working") {
@@ -94,7 +102,13 @@ export async function searchMemory(
   }
 
   // Query the database
+  console.log(
+    `[Memory Search] Querying database for agent ${agentId}, grain ${grain}`
+  );
   const results = await query(agentId, grain, queryOptions);
+  console.log(
+    `[Memory Search] Found ${results.length} results for agent ${agentId}, grain ${grain}`
+  );
 
   // Format results with date prefixes
   return results.map((result) => {
@@ -154,7 +168,13 @@ async function searchWorkingMemory(
   }
 
   // Query working memory
+  console.log(
+    `[Memory Search] Querying working memory for agent ${agentId}, date range: ${startDate.toISOString()} to ${endDate.toISOString()}`
+  );
   const results = await query(agentId, "working", queryOptions);
+  console.log(
+    `[Memory Search] Found ${results.length} results in working memory for agent ${agentId}`
+  );
 
   // Format results with date prefixes
   return results.map((result) => {

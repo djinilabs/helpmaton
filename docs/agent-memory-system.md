@@ -354,3 +354,4 @@ Potential improvements:
 - [Vector Database](./vector-database.md): Details on LanceDB integration
 - [Subscription Management](./subscription-management.md): Subscription plans and features
 - [Agent Configuration](./agent-configuration.md): Agent setup and tools
+

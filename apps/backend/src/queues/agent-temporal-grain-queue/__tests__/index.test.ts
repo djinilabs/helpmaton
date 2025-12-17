@@ -21,6 +21,9 @@ vi.mock("../../../utils/vectordb/paths", () => ({
 
 vi.mock("../../../utils/vectordb/config", () => ({
   DEFAULT_S3_REGION: "eu-west-2",
+  getS3ConnectionOptions: vi.fn().mockReturnValue({
+    region: "eu-west-2",
+  }),
 }));
 
 vi.mock("../../../utils/handlingSQSErrors", () => ({

@@ -189,3 +189,4 @@ export function getDateRangeForGrain(
       throw new Error(`Unknown temporal grain: ${grain}`);
   }
 }
+

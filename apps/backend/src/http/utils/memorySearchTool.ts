@@ -94,3 +94,4 @@ export function createSearchMemoryTool(agentId: string, workspaceId: string) {
     },
   });
 }
+

@@ -605,6 +605,9 @@ export async function startConversation(
   });
 
   // Write to working memory asynchronously (don't block)
+  console.log(
+    `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${data.agentId}, ${filteredMessages.length} filtered messages`
+  );
   writeToWorkingMemory(
     data.agentId,
     data.workspaceId,
@@ -612,8 +615,14 @@ export async function startConversation(
     filteredMessages
   ).catch((error) => {
     console.error(
-      "[Conversation Logger] Failed to write to working memory:",
-      error
+      `[Conversation Logger] Failed to write to working memory for conversation ${conversationId}:`,
+      error instanceof Error
+        ? {
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+          }
+        : String(error)
     );
   });
 
@@ -739,6 +748,9 @@ export async function updateConversation(
   // Write to working memory asynchronously (don't block)
   // Write all new messages that were passed in
   if (filteredNewMessages.length > 0) {
+    console.log(
+      `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${agentId}, ${filteredNewMessages.length} filtered new messages`
+    );
     writeToWorkingMemory(
       agentId,
       workspaceId,
@@ -746,9 +758,19 @@ export async function updateConversation(
       filteredNewMessages
     ).catch((error) => {
       console.error(
-        "[Conversation Logger] Failed to write to working memory:",
-        error
+        `[Conversation Logger] Failed to write to working memory for conversation ${conversationId}:`,
+        error instanceof Error
+          ? {
+              message: error.message,
+              stack: error.stack,
+              name: error.name,
+            }
+          : String(error)
       );
     });
+  } else {
+    console.log(
+      `[Conversation Logger] Skipping writeToWorkingMemory for conversation ${conversationId} - no filtered new messages (${newMessages.length} original messages)`
+    );
   }
 }

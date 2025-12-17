@@ -142,3 +142,4 @@ export const handler = handlingScheduledErrors(
     console.log("[Yearly Memory Summarization] Completed yearly summarization");
   }
 );
+

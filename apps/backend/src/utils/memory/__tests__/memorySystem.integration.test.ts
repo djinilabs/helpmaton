@@ -48,6 +48,9 @@ vi.mock("../../vectordb/readClient", () => ({
 vi.mock("../../vectordb/config", () => ({
   getS3BucketName: () => "test-bucket",
   DEFAULT_S3_REGION: "eu-west-2",
+  getS3ConnectionOptions: vi.fn().mockReturnValue({
+    region: "eu-west-2",
+  }),
 }));
 
 vi.mock("../../../http/utils/modelFactory", () => ({

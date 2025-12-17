@@ -104,6 +104,18 @@ const config = {
   sourcemap: false,
   sourcesContent: false,
   define: defineObject,
+  external: [
+    // LanceDB native modules - resolved at runtime in Lambda container
+    '@lancedb/lancedb',
+    '@lancedb/lancedb-darwin-arm64',
+    '@lancedb/lancedb-darwin-x64',
+    '@lancedb/lancedb-linux-arm64',
+    '@lancedb/lancedb-linux-x64',
+    '@lancedb/lancedb-win32-x64',
+    '@lancedb/*',
+    // Native .node files
+    '*.node',
+  ],
 };
 
 // Export as both function and object to support different usage patterns

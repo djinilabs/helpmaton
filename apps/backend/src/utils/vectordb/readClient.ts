@@ -3,18 +3,17 @@ import { connect } from "@lancedb/lancedb";
 import {
   DEFAULT_QUERY_LIMIT,
   MAX_QUERY_LIMIT,
-  DEFAULT_S3_REGION,
+  getS3ConnectionOptions,
 } from "./config";
 import { getDatabaseUri } from "./paths";
-import type {
-  QueryOptions,
-  QueryResult,
-  TemporalGrain,
-} from "./types";
+import type { QueryOptions, QueryResult, TemporalGrain } from "./types";
 
 // Connection cache per database path
 // Export for testing purposes to allow cache clearing
-export const connectionCache = new Map<string, Promise<Awaited<ReturnType<typeof connect>>>>();
+export const connectionCache = new Map<
+  string,
+  Promise<Awaited<ReturnType<typeof connect>>>
+>();
 
 /**
  * Get or create a LanceDB connection for a specific database
@@ -31,16 +30,15 @@ async function getDatabaseConnection(
     const connectionPromise = (async () => {
       try {
         // LanceDB connection with S3 storage
-        // The connect function handles S3 URIs automatically
-        // S3 credentials are provided via environment variables
-        // LanceDB will use AWS SDK default credential chain
-        const db = await connect(uri, {
-          region: DEFAULT_S3_REGION,
-        });
+        // Get S3 connection options (handles local vs production)
+        const connectionOptions = getS3ConnectionOptions();
+        const db = await connect(uri, connectionOptions);
 
-        console.log(
-          `[Read Client] Connected to database: ${uri}`
-        );
+        console.log(`[Read Client] Connected to database: ${uri}, options:`, {
+          region: connectionOptions.region,
+          hasStorageOptions: !!connectionOptions.storageOptions,
+          hasEndpoint: !!connectionOptions.storageOptions?.endpoint,
+        });
         return db;
       } catch (error) {
         console.error(`[Read Client] Failed to connect to ${uri}:`, error);
@@ -85,7 +83,7 @@ function applyTemporalFilter(
 
 /**
  * Query the vector database
- * 
+ *
  * @param agentId - Agent ID
  * @param temporalGrain - Temporal grain (daily, weekly, monthly, quarterly, yearly)
  * @param options - Query options (vector, filter, limit, temporalFilter)
@@ -107,45 +105,61 @@ export async function query(
   const queryLimit = Math.min(Math.max(1, limit), MAX_QUERY_LIMIT);
 
   try {
+    const dbUri = getDatabaseUri(agentId, temporalGrain);
+    console.log(
+      `[Read Client] Querying database ${dbUri} for agent ${agentId}, grain ${temporalGrain}`
+    );
     const db = await getDatabaseConnection(agentId, temporalGrain);
-    
+
     // Get the table (LanceDB uses a default table name or we can specify)
     // For now, we'll use the default table name "vectors"
-    const table = await db.openTable("vectors").catch(async () => {
+    const table = await db.openTable("vectors").catch(async (error) => {
       // If table doesn't exist, return empty results
       console.warn(
-        `[Read Client] Table "vectors" not found in database ${getDatabaseUri(agentId, temporalGrain)}`
+        `[Read Client] Table "vectors" not found in database ${dbUri}:`,
+        error instanceof Error ? error.message : String(error)
       );
       return null;
     });
 
     if (!table) {
+      console.log(
+        `[Read Client] No table found, returning empty results for agent ${agentId}, grain ${temporalGrain}`
+      );
       return [];
     }
+
+    console.log(
+      `[Read Client] Table opened successfully for agent ${agentId}, grain ${temporalGrain}`
+    );
 
     // Build query
     let queryBuilder: {
       nearestTo?: (vector: number[]) => unknown;
       where?: (filter: string) => unknown;
       limit?: (limit: number) => unknown;
-      toArray?: () => Promise<Array<{
-        id: string;
-        content: string;
-        vector?: number[];
-        embedding?: number[];
-        timestamp: string;
-        metadata?: Record<string, unknown>;
-        _distance?: number;
-      }>>;
-      execute?: () => Promise<AsyncIterable<{
-        id: string;
-        content: string;
-        vector?: number[];
-        embedding?: number[];
-        timestamp: string;
-        metadata?: Record<string, unknown>;
-        _distance?: number;
-      }>>;
+      toArray?: () => Promise<
+        Array<{
+          id: string;
+          content: string;
+          vector?: number[];
+          embedding?: number[];
+          timestamp: string;
+          metadata?: Record<string, unknown>;
+          _distance?: number;
+        }>
+      >;
+      execute?: () => Promise<
+        AsyncIterable<{
+          id: string;
+          content: string;
+          vector?: number[];
+          embedding?: number[];
+          timestamp: string;
+          metadata?: Record<string, unknown>;
+          _distance?: number;
+        }>
+      >;
     } = table.query() as unknown as typeof queryBuilder;
 
     // Apply vector similarity search if provided
@@ -169,24 +183,28 @@ export async function query(
     try {
       // Try toArray() method which converts the query to an array
       const queryResult = queryBuilder as unknown as {
-        toArray?: () => Promise<Array<{
-          id: string;
-          content: string;
-          vector?: number[];
-          embedding?: number[];
-          timestamp: string;
-          metadata?: Record<string, unknown>;
-          _distance?: number;
-        }>>;
-        execute?: () => Promise<AsyncIterable<{
-          id: string;
-          content: string;
-          vector?: number[];
-          embedding?: number[];
-          timestamp: string;
-          metadata?: Record<string, unknown>;
-          _distance?: number;
-        }>>;
+        toArray?: () => Promise<
+          Array<{
+            id: string;
+            content: string;
+            vector?: number[];
+            embedding?: number[];
+            timestamp: string;
+            metadata?: Record<string, unknown>;
+            _distance?: number;
+          }>
+        >;
+        execute?: () => Promise<
+          AsyncIterable<{
+            id: string;
+            content: string;
+            vector?: number[];
+            embedding?: number[];
+            timestamp: string;
+            metadata?: Record<string, unknown>;
+            _distance?: number;
+          }>
+        >;
       };
 
       if (queryResult.toArray) {
@@ -215,15 +233,19 @@ export async function query(
         }
       } else {
         // Fallback: try calling as a function
-        const rows = await (queryBuilder as unknown as () => Promise<Array<{
-          id: string;
-          content: string;
-          vector?: number[];
-          embedding?: number[];
-          timestamp: string;
-          metadata?: Record<string, unknown>;
-          _distance?: number;
-        }>>)();
+        const rows = await (
+          queryBuilder as unknown as () => Promise<
+            Array<{
+              id: string;
+              content: string;
+              vector?: number[];
+              embedding?: number[];
+              timestamp: string;
+              metadata?: Record<string, unknown>;
+              _distance?: number;
+            }>
+          >
+        )();
         for (const row of rows) {
           results.push({
             id: row.id,
@@ -244,7 +266,7 @@ export async function query(
     const filteredResults = applyTemporalFilter(results, temporalFilter);
 
     console.log(
-      `[Read Client] Query returned ${filteredResults.length} results for agent ${agentId}, grain ${temporalGrain}`
+      `[Read Client] Query completed for agent ${agentId}, grain ${temporalGrain}: ${results.length} raw results, ${filteredResults.length} after temporal filter`
     );
 
     return filteredResults;
@@ -260,4 +282,3 @@ export async function query(
     );
   }
 }
-

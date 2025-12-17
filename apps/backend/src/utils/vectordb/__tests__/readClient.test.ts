@@ -21,6 +21,9 @@ vi.mock("../config", () => ({
   DEFAULT_QUERY_LIMIT: 100,
   MAX_QUERY_LIMIT: 1000,
   DEFAULT_S3_REGION: "eu-west-2",
+  getS3ConnectionOptions: vi.fn().mockReturnValue({
+    region: "eu-west-2",
+  }),
 }));
 
 describe("readClient", () => {

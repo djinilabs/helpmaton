@@ -2,7 +2,7 @@ import { connect } from "@lancedb/lancedb";
 import type { SQSEvent, SQSRecord } from "aws-lambda";
 
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
-import { DEFAULT_S3_REGION } from "../../utils/vectordb/config";
+import { getS3ConnectionOptions } from "../../utils/vectordb/config";
 import { getDatabaseUri } from "../../utils/vectordb/paths";
 import type {
   WriteOperationMessage,
@@ -20,12 +20,21 @@ async function executeInsert(
 ): Promise<void> {
   const uri = getDatabaseUri(agentId, temporalGrain);
   console.log(
-    `[Write Server] Executing insert for agent ${agentId}, grain ${temporalGrain}, ${records.length} records`
+    `[Write Server] Executing insert for agent ${agentId}, grain ${temporalGrain}, ${records.length} records, URI: ${uri}`
+  );
+  console.log(
+    `[Write Server] Record IDs: ${records.map((r) => r.id).join(", ")}`
   );
 
   try {
-    const db = await connect(uri, {
-      region: DEFAULT_S3_REGION,
+    // Get S3 connection options (handles local vs production)
+    const connectionOptions = getS3ConnectionOptions();
+    const db = await connect(uri, connectionOptions);
+
+    console.log(`[Write Server] Connection options:`, {
+      region: connectionOptions.region,
+      hasStorageOptions: !!connectionOptions.storageOptions,
+      hasEndpoint: !!connectionOptions.storageOptions?.endpoint,
     });
 
     // Get or create table
@@ -50,6 +59,9 @@ async function executeInsert(
     }
 
     // Insert records into existing table
+    console.log(
+      `[Write Server] Adding ${records.length} records to existing table for agent ${agentId}, grain ${temporalGrain}`
+    );
     await table.add(
       records.map((r) => ({
         id: r.id,
@@ -61,7 +73,7 @@ async function executeInsert(
     );
 
     console.log(
-      `[Write Server] Successfully inserted ${records.length} records`
+      `[Write Server] Successfully inserted ${records.length} records into database for agent ${agentId}, grain ${temporalGrain}`
     );
   } catch (error) {
     console.error(`[Write Server] Insert failed:`, error);
@@ -83,9 +95,9 @@ async function executeUpdate(
   );
 
   try {
-    const db = await connect(uri, {
-      region: DEFAULT_S3_REGION,
-    });
+    // Get S3 connection options (handles local vs production)
+    const connectionOptions = getS3ConnectionOptions();
+    const db = await connect(uri, connectionOptions);
 
     const table = await db.openTable("vectors");
 
@@ -132,9 +144,9 @@ async function executeDelete(
   );
 
   try {
-    const db = await connect(uri, {
-      region: DEFAULT_S3_REGION,
-    });
+    // Get S3 connection options (handles local vs production)
+    const connectionOptions = getS3ConnectionOptions();
+    const db = await connect(uri, connectionOptions);
 
     const table = await db.openTable("vectors");
 
@@ -155,9 +167,7 @@ async function executeDelete(
 /**
  * Process a single write operation message
  */
-async function processWriteOperation(
-  record: SQSRecord
-): Promise<void> {
+async function processWriteOperation(record: SQSRecord): Promise<void> {
   let message: WriteOperationMessage;
   try {
     message = JSON.parse(record.body) as WriteOperationMessage;
@@ -221,4 +231,3 @@ export const handler = handlingSQSErrors(
     console.log("[Write Server] Successfully processed all messages");
   }
 );
-
