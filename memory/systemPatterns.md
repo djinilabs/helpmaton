@@ -90,6 +90,7 @@
 - **Infrastructure Changes**: Only via app.arc or Architect plugins
 - **No Direct AWS Changes**: All infrastructure changes through code
 - **Environment**: Uses ARC_DB_PATH for local DynamoDB
+- **Environment Detection**: Primary check is `process.env.ARC_ENV === "testing"` for local development (Architect sandbox). For S3/AWS services, also check if credentials are available - if missing, fall back to local mocked services (s3rver). Never use `NODE_ENV` alone for environment detection. This allows tests to run without credentials while staging/production use real AWS services
 
 ## Key Architectural Decisions
 
@@ -103,5 +104,3 @@
    - Multi-stage builds to minimize image size (builder stage for dependencies, runtime stage for final image)
    - Build tools removed from final image
    - Package manager caches cleaned after installation
-
-

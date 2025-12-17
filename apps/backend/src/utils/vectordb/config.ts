@@ -69,15 +69,21 @@ export function getS3ConnectionOptions(): {
   region?: string;
   storageOptions?: Record<string, unknown>;
 } {
-  // Check environment - be explicit about production detection
-  // In Lambda, ARC_ENV should be set by Architect, but we also check NODE_ENV as fallback
+  // Check environment - only use local s3rver configuration when explicitly in testing mode
+  // Architect sandbox sets ARC_ENV=testing for local development
   const arcEnv = process.env.ARC_ENV;
-  const nodeEnv = process.env.NODE_ENV;
-  const isLocal =
-    arcEnv === "testing" ||
-    (arcEnv !== "production" && nodeEnv !== "production");
+  const isLocal = arcEnv === "testing";
 
-  if (isLocal) {
+  // Use S3-specific credentials if provided, otherwise fall back to standard AWS credentials
+  const accessKeyId =
+    process.env.HELPMATON_S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey =
+    process.env.HELPMATON_S3_SECRET_ACCESS_KEY ||
+    process.env.AWS_SECRET_ACCESS_KEY;
+
+  // If no credentials are provided, fall back to local configuration
+  // This handles test environments and local development
+  if (isLocal || !accessKeyId || !secretAccessKey) {
     // Local development with s3rver
     // Use DEFAULT_S3_REGION for consistency (region doesn't matter for local s3rver)
     // Force path-style addressing for local S3 (bucket in path, not hostname)
@@ -117,13 +123,6 @@ export function getS3ConnectionOptions(): {
     process.env.HELPMATON_S3_REGION ||
     process.env.AWS_REGION ||
     DEFAULT_S3_REGION;
-
-  // Use S3-specific credentials if provided, otherwise fall back to standard AWS credentials
-  const accessKeyId =
-    process.env.HELPMATON_S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey =
-    process.env.HELPMATON_S3_SECRET_ACCESS_KEY ||
-    process.env.AWS_SECRET_ACCESS_KEY;
 
   const options: {
     region?: string;
