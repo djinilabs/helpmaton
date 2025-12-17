@@ -2,9 +2,16 @@
 
 ## Current Status
 
-**Status**: Stratified Agent Memory System - Completed ✅
+**Status**: Stratified Agent Memory System - Completed ✅ (Recent Fixes Applied)
 
 The stratified agent memory system has been fully implemented and tested. Agents now have long-term factual memory organized into multiple temporal grains (working, daily, weekly, monthly, quarterly, yearly) with automatic summarization and retention policies.
+
+**Recent Fixes (Latest)**:
+
+- Fixed metadata storage/retrieval in LanceDB - metadata fields (conversationId, workspaceId, agentId) are now properly stored and retrieved using JSON serialization to handle Apache Arrow Structs
+- Created dev script (`scripts/run-all-memory-summaries.mjs`) to run all memory summarizations for all agents in local development
+- Moved `@posthog/ai` dependency from `apps/backend/package.json` to root `package.json` to fix module resolution issues
+- Fixed `@posthog/ai` loading errors by implementing lazy imports (dynamic imports) to avoid loading Anthropic SDK wrappers when not needed
 
 ## Recent Changes
 
@@ -105,12 +112,52 @@ The stratified agent memory system has been fully implemented and tested. Agents
 - Scheduled tasks configured in `app.arc` for automatic summarization
 - Retention cleanup runs daily to maintain storage efficiency
 
+**Recent Fixes and Improvements**:
+
+1. **Metadata Storage/Retrieval Fix** (Latest):
+
+   - Fixed issue where metadata fields (conversationId, workspaceId, agentId) were being stored as null
+   - Root cause: LanceDB stores nested objects as Apache Arrow Structs, which require special handling
+   - Solution: Implemented JSON serialization/deserialization when storing and retrieving metadata to convert Arrow Structs to plain objects
+   - Updated `apps/backend/src/queues/agent-temporal-grain-queue/index.ts` to use JSON serialization when storing metadata
+   - Updated `apps/backend/src/utils/vectordb/readClient.ts` with `convertMetadataToPlainObject()` helper function
+   - All metadata is now properly preserved through the storage/retrieval pipeline
+
+2. **Dev Script for Memory Summarization** (Latest):
+
+   - Created `scripts/run-all-memory-summaries.mjs` - JavaScript script to run all temporal grain summarizations for all agents in dev mode
+   - Script processes all workspaces and agents, running daily → weekly → monthly → quarterly → yearly summarizations in sequence
+   - Includes safety check to only run in local development mode
+   - Usage: `pnpm run-all-memory-summaries`
+   - Added to `package.json` scripts
+
+3. **Dependency Management Fixes** (Latest):
+   - Moved `@posthog/ai` from `apps/backend/package.json` to root `package.json` to fix module resolution issues
+   - Fixed `@posthog/ai` loading errors by implementing lazy imports (dynamic `await import()`) in:
+     - `apps/backend/src/http/utils/modelFactory.ts`
+     - `apps/backend/src/http/utils/agentUtils.ts`
+   - Made `createAgentModel()` async to support lazy loading
+   - Updated all callers to await `createAgentModel()`
+   - This prevents loading Anthropic SDK wrappers when they're not needed, avoiding initialization errors
+
+**Files Modified (Latest)**:
+
+- `apps/backend/src/queues/agent-temporal-grain-queue/index.ts` - Added JSON serialization for metadata storage
+- `apps/backend/src/utils/vectordb/readClient.ts` - Added `convertMetadataToPlainObject()` helper function
+- `apps/backend/src/http/utils/modelFactory.ts` - Lazy import of `withTracing` from `@posthog/ai`
+- `apps/backend/src/http/utils/agentUtils.ts` - Lazy import of `withTracing`, made `createAgentModel()` async
+- `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup.ts` - Updated to await `createAgentModel()`
+- `package.json` - Moved `@posthog/ai` to root dependencies, added `run-all-memory-summaries` script
+- `apps/backend/package.json` - Removed `@posthog/ai` dependency
+- `scripts/run-all-memory-summaries.mjs` - New dev script for running all summarizations
+
 **Next Steps for Memory System**:
 
 - Monitor summarization quality and adjust prompts if needed
 - Track storage usage and optimize if necessary
 - Consider configurable summarization prompts per agent
 - Explore cross-agent memory sharing for team workspaces
+- Test metadata retrieval with existing records (may need to recreate records with proper metadata)
 
 ### Lambda Container Image Deployment Fixes (December 2025)
 
