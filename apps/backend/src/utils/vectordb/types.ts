@@ -111,40 +111,31 @@ export const WriteOperationMessageSchema = z
       "yearly",
     ]),
     workspaceId: z.string().optional(),
-    data: z
-      .object({
-        records: z
-          .array(
-            z.object({
-              id: z.string().min(1),
-              content: z.string().min(1),
-              embedding: z.array(z.number()),
-              timestamp: z.string(),
-              metadata: z.record(z.string(), z.unknown()).optional(),
-            })
-          )
-          .optional(),
-        rawFacts: z
-          .array(
-            z.object({
-              id: z.string().min(1),
-              content: z.string().min(1),
-              timestamp: z.string(),
-              metadata: z.record(z.string(), z.unknown()).optional(),
-              cacheKey: z.string().optional(),
-            })
-          )
-          .optional(),
-        recordIds: z.array(z.string().min(1)).optional(),
-      })
-      .refine(
-        (data) => {
-          // For insert/update operations, must have either records or rawFacts
-          // For delete operations, must have recordIds
-          return true; // Base validation, specific checks done in refine below
-        },
-        { message: "Invalid data structure" }
-      ),
+    data: z.object({
+      records: z
+        .array(
+          z.object({
+            id: z.string().min(1),
+            content: z.string().min(1),
+            embedding: z.array(z.number()),
+            timestamp: z.string(),
+            metadata: z.record(z.string(), z.unknown()).optional(),
+          })
+        )
+        .optional(),
+      rawFacts: z
+        .array(
+          z.object({
+            id: z.string().min(1),
+            content: z.string().min(1),
+            timestamp: z.string(),
+            metadata: z.record(z.string(), z.unknown()).optional(),
+            cacheKey: z.string().optional(),
+          })
+        )
+        .optional(),
+      recordIds: z.array(z.string().min(1)).optional(),
+    }),
   })
   .refine(
     (message) => {
