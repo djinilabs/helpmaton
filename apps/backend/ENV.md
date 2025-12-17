@@ -70,14 +70,18 @@ This document describes the environment variables required for the helpmaton bac
 
 ### `GEMINI_API_KEY`
 
-- **Description**: Google Gemini API key for AI agent functionality
-- **Required**: Yes (for agent webhook functionality)
+- **Description**: Google Gemini API key for AI agent functionality and memory system
+- **Required**: Yes (for agent webhook functionality and memory system)
 - **Example**: `AIzaSy...`
 - **How to obtain**:
   1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
   2. Create a new API key
   3. Copy the key value
-- **Note**: This key is used to invoke Gemini models for agent responses via webhooks
+- **Note**:
+  - Used to invoke Gemini models for agent responses via webhooks
+  - Used for embedding generation (`text-embedding-004`) in the memory system
+  - Used for LLM-based summarization in the stratified memory system
+  - Workspace-specific API keys can override this system key (see [Agent Memory System documentation](../docs/agent-memory-system.md))
 
 ### `SENTRY_DSN`
 
@@ -370,6 +374,42 @@ The S3 integration is used for storing workspace documents. This integration ope
   - Falls back to `AWS_REGION` environment variable if not set
   - Defaults to `eu-west-2` if neither is set
 
+## Vector Database S3 Configuration
+
+The vector database (LanceDB) integration is used for storing agent memory data in a stratified memory system. This integration uses S3 for persistent storage of vector databases.
+
+### `HELPMATON_VECTORDB_S3_BUCKET_PRODUCTION`
+
+- **Description**: S3 bucket name for storing vector databases in production
+- **Required**: Yes (for production deployments)
+- **Example**: `vectordb.production` or `helpmaton-vectordb-prod`
+- **Note**:
+  - Used when `ARC_ENV=production` or `NODE_ENV=production`
+  - Falls back to `HELPMATON_S3_BUCKET_PRODUCTION` if not set
+  - The bucket must exist and be accessible with the provided credentials
+  - Stores LanceDB vector databases for agent memory (working, daily, weekly, monthly, quarterly, yearly grains)
+  - Path structure: `s3://bucket/vectordb/{agentId}/{grain}/{timeString}/`
+
+### `HELPMATON_VECTORDB_S3_BUCKET_STAGING`
+
+- **Description**: S3 bucket name for storing vector databases in staging/development
+- **Required**: Yes (for staging/development deployments)
+- **Example**: `vectordb.staging` or `helpmaton-vectordb-staging`
+- **Note**:
+  - Used when `ARC_ENV!=production` and `NODE_ENV!=production`
+  - Falls back to `HELPMATON_S3_BUCKET_STAGING` if not set
+  - The bucket must exist and be accessible with the provided credentials
+  - Can use the same bucket as workspace documents or a separate bucket
+  - Path structure: `s3://bucket/vectordb/{agentId}/{grain}/{timeString}/`
+
+**Important Notes**:
+
+- Vector database S3 buckets are separate from workspace document buckets
+- The same AWS credentials (`HELPMATON_S3_ACCESS_KEY_ID`, `HELPMATON_S3_SECRET_ACCESS_KEY`) are used for both
+- Vector databases are organized by agent ID, temporal grain (working, daily, weekly, etc.), and time string
+- Each agent has separate vector databases for each memory grain
+- See [Agent Memory System documentation](../docs/agent-memory-system.md) for more details
+
 ## Setting Environment Variables
 
 ### Local Development
@@ -384,6 +424,7 @@ BASE_URL=http://localhost:3333
 ARC_DB_PATH=./db
 HELPMATON_S3_BUCKET=workspace.documents
 HELPMATON_S3_ENDPOINT=http://localhost:4568
+HELPMATON_VECTORDB_S3_BUCKET_STAGING=vectordb.staging
 SENTRY_DSN=https://your-sentry-dsn
 VITE_SENTRY_DSN=https://your-sentry-dsn
 VITE_POSTHOG_API_KEY=phc_your-posthog-api-key
