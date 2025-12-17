@@ -43,6 +43,12 @@ describe("container-images plugin", () => {
       const result = routeToFunctionId(route);
       expect(result).toBe("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda");
     });
+
+    it("should handle wildcard routes (catchall)", () => {
+      const route = "any /api/workspaces/*";
+      const result = routeToFunctionId(route);
+      expect(result).toBe("AnyApiWorkspacesCatchallHTTPLambda");
+    });
   });
 
   describe("routeToHandlerPath", () => {
@@ -62,6 +68,12 @@ describe("container-images plugin", () => {
       const route = "post /api/webhook/:workspaceId/:agentId/:key";
       const result = routeToHandlerPath(route);
       expect(result).toBe("http/post-api-webhook-000workspaceId-000agentId-000key/index.handler");
+    });
+
+    it("should handle wildcard routes (catchall)", () => {
+      const route = "any /api/workspaces/*";
+      const result = routeToHandlerPath(route);
+      expect(result).toBe("http/any-api-workspaces-catchall/index.handler");
     });
 
     it("should return null for empty route", () => {
@@ -478,6 +490,54 @@ describe("container-images plugin", () => {
         "helpmaton-lambda-images"
       );
 
+      delete process.env.LAMBDA_IMAGE_TAG;
+      delete process.env.AWS_REGION;
+    });
+
+    it("should handle wildcard routes correctly", async () => {
+      const cloudformation = {
+        Resources: {
+          AnyApiWorkspacesCatchallHTTPLambda: {
+            Type: "AWS::Serverless::Function",
+            Properties: {
+              Handler: "index.handler",
+              Runtime: "nodejs20.x",
+            },
+          },
+        },
+        Outputs: {},
+      };
+
+      const arc = {
+        "container-images": [
+          ["any", "/api/workspaces/*", "lancedb"],
+        ],
+      };
+
+      process.env.LAMBDA_IMAGES_ECR_REPOSITORY = "test-repo";
+      process.env.LAMBDA_IMAGE_TAG = "test-tag";
+      process.env.AWS_REGION = "eu-west-2";
+
+      const result = await configureContainerImages({
+        cloudformation,
+        arc,
+      });
+
+      const functionResource =
+        result.Resources.AnyApiWorkspacesCatchallHTTPLambda;
+      expect(functionResource.Properties.PackageType).toBe("Image");
+      // Verify handler path correctly converts * to catchall
+      expect(functionResource.Properties.ImageConfig.Command).toEqual([
+        "http/any-api-workspaces-catchall/index.handler",
+      ]);
+      expect(functionResource.Properties.ImageConfig.EntryPoint).toEqual([
+        "/lambda-entrypoint.sh",
+      ]);
+      expect(functionResource.Properties.ImageConfig.WorkingDirectory).toBe(
+        "/var/task"
+      );
+
+      delete process.env.LAMBDA_IMAGES_ECR_REPOSITORY;
       delete process.env.LAMBDA_IMAGE_TAG;
       delete process.env.AWS_REGION;
     });

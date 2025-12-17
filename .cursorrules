@@ -56,3 +56,7 @@ After completing a task (or significant step), you must:
 ## Infrastructure as code
 
 6. Never make any changes to the AWS infrastructure directly. Instead, you can make infrastructure changes by editing app.arc, any of the Architect plugins we use or the code in the lambda functions.
+
+## Unit tests
+
+7. For every new feature or fix, create or update unit tests that test for common and edge cases. Extract important functions and create dedicated unit tests for them.

@@ -121,10 +121,26 @@ export const handlingErrors = (
 
       // Flush Sentry events before returning (critical for Lambda)
       // Always flush to ensure all errors are reported, not just server errors
-      await flushSentry();
+      // Wrap in try-catch to prevent flush errors from causing additional promise rejections
+      try {
+        await flushSentry();
+      } catch (flushError) {
+        console.error(
+          "[Sentry] Error flushing events in error handler:",
+          flushError
+        );
+      }
 
       // Flush PostHog events before returning (critical for Lambda)
-      await flushPostHog();
+      // Wrap in try-catch to prevent flush errors from causing additional promise rejections
+      try {
+        await flushPostHog();
+      } catch (flushError) {
+        console.error(
+          "[PostHog] Error flushing events in error handler:",
+          flushError
+        );
+      }
 
       return {
         statusCode,

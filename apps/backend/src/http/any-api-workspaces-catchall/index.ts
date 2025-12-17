@@ -32,18 +32,17 @@ const createHandler = async (): Promise<APIGatewayProxyHandlerV2> => {
 };
 
 export const handler = adaptHttpHandler(
-  handlingErrors(
-    async (...args: Parameters<APIGatewayProxyHandlerV2>) => {
-      try {
-        const h: APIGatewayProxyHandlerV2 = await createHandler();
-        return (await h(...args)) as APIGatewayProxyResultV2;
-      } catch (error) {
-        console.error("[workspaces] Error in handler:", error);
-        if (error instanceof Error) {
-          console.error("[workspaces] Error stack:", error.stack);
-        }
-        throw error;
+  async (...args: Parameters<APIGatewayProxyHandlerV2>) => {
+    try {
+      // createHandler() already wraps with handlingErrors, so we don't need to wrap again
+      const h: APIGatewayProxyHandlerV2 = await createHandler();
+      return (await h(...args)) as APIGatewayProxyResultV2;
+    } catch (error) {
+      console.error("[workspaces] Error in handler:", error);
+      if (error instanceof Error) {
+        console.error("[workspaces] Error stack:", error.stack);
       }
+      throw error;
     }
-  )
+  }
 );

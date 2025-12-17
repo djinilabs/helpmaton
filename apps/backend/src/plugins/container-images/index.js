@@ -256,11 +256,13 @@ function routeToHandlerPath(route) {
   const path = parts.slice(1).join(" "); // "/api/streams/:workspaceId/:agentId/:secret"
 
   // Convert path to handler directory format
-  // Remove leading slash, convert / to - and : to 000
+  // Remove leading slash, convert / to -, : to 000, and * to catchall
   // Keep "api" in the path (don't remove it)
+  // Architect uses "catchall" for wildcard routes (e.g., /api/workspaces/* -> any-api-workspaces-catchall)
   const processedPath = path
     .replace(/^\//, "") // Remove leading slash
     .replace(/\//g, "-") // Convert / to -
+    .replace(/\*/g, "catchall") // Convert * to catchall (Architect convention)
     .replace(/:/g, "000"); // Convert : to 000
 
   // Handler path for Command: http/{method}-{processedPath}/index.handler

@@ -64,10 +64,25 @@ exports.handler = async (event, contextOrStream) => {
       return await actualHandler(event, contextOrStream);
     }
   } catch (error) {
-    console.error('[index.js] ===== HANDLER ERROR =====');
-    console.error('[index.js] Error name:', error.name);
-    console.error('[index.js] Error message:', error.message);
-    console.error('[index.js] Error stack:', error.stack);
+    // Log error details safely without causing additional promise rejections
+    try {
+      console.error('[index.js] ===== HANDLER ERROR =====');
+      console.error('[index.js] Error name:', error?.name || 'Unknown');
+      console.error('[index.js] Error message:', error?.message || String(error));
+      if (error?.stack) {
+        // Truncate stack trace to prevent excessive logging
+        const stackLines = error.stack.split('\n');
+        const truncatedStack = stackLines.slice(0, 20).join('\n');
+        console.error('[index.js] Error stack (truncated):', truncatedStack);
+      }
+    } catch (logError) {
+      // If logging itself fails, just log a minimal message
+      console.error('[index.js] Failed to log error details:', logError?.message || String(logError));
+    }
+    
+    // Re-throw the original error
+    // IMPORTANT: Don't wrap or modify the error to avoid creating new promise rejections
+    // The actual handler's error handling (handlingErrors wrapper) will handle this properly
     throw error;
   }
 };
