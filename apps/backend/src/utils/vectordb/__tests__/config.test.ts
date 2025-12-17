@@ -34,25 +34,6 @@ describe("config", () => {
       expect(bucket).toBe("staging-bucket");
     });
 
-    it("should fallback to HELPMATON_S3_BUCKET_PRODUCTION in production", () => {
-      process.env.ARC_ENV = "production";
-      process.env.HELPMATON_S3_BUCKET_PRODUCTION = "fallback-prod-bucket";
-      const bucket = getS3BucketName();
-      expect(bucket).toBe("fallback-prod-bucket");
-    });
-
-    it("should fallback to HELPMATON_S3_BUCKET_STAGING in staging", () => {
-      process.env.ARC_ENV = "staging";
-      process.env.HELPMATON_S3_BUCKET_STAGING = "fallback-staging-bucket";
-      const bucket = getS3BucketName();
-      expect(bucket).toBe("fallback-staging-bucket");
-    });
-
-    it("should throw error if bucket not configured", () => {
-      process.env.ARC_ENV = "production";
-      expect(() => getS3BucketName()).toThrow("S3 bucket name not configured");
-    });
-
     it("should use NODE_ENV as fallback for production detection", () => {
       process.env.NODE_ENV = "production";
       process.env.HELPMATON_VECTORDB_S3_BUCKET_PRODUCTION = "prod-bucket";

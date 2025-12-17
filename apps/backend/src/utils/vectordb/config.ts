@@ -7,8 +7,6 @@
 // For local development (ARC_ENV=testing), always uses "vectordb.staging" to match the local S3 server (s3rver) configuration
 export function getS3BucketName(): string {
   const arcEnv = process.env.ARC_ENV;
-  const nodeEnv = process.env.NODE_ENV;
-  const isProduction = arcEnv === "production" || nodeEnv === "production";
   const isLocalTesting = arcEnv === "testing";
 
   // In local testing mode (sandbox), always use "vectordb.staging" to match s3rver plugin configuration
@@ -24,12 +22,10 @@ export function getS3BucketName(): string {
   // Production/staging environments - use environment variables
   // Bucket names come from secrets/environment variables
   // These should be set in the deployment configuration
-  const bucketName = isProduction
-    ? process.env.HELPMATON_VECTORDB_S3_BUCKET_PRODUCTION ||
-      process.env.HELPMATON_S3_BUCKET_PRODUCTION
-    : process.env.HELPMATON_VECTORDB_S3_BUCKET_STAGING ||
-      process.env.HELPMATON_S3_BUCKET_STAGING ||
-      "vectordb.staging"; // Fallback for other non-production environments
+  const bucketName =
+    process.env.HELPMATON_VECTORDB_S3_BUCKET_PRODUCTION ||
+    process.env.HELPMATON_VECTORDB_S3_BUCKET_STAGING ||
+    "vectordb.staging"; // Fallback for other non-production environments
 
   if (!bucketName) {
     throw new Error(
