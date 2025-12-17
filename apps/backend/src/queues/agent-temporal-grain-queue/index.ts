@@ -5,7 +5,6 @@ import { getWorkspaceApiKey } from "../../http/utils/agentUtils";
 import { getDefined } from "../../utils";
 import { generateEmbedding } from "../../utils/embedding";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
-import { getS3ConnectionOptions } from "../../utils/vectordb/config";
 import { getDatabaseUri } from "../../utils/vectordb/paths";
 import {
   WriteOperationMessageSchema,
@@ -14,6 +13,38 @@ import {
   type TemporalGrain,
   type RawFactData,
 } from "../../utils/vectordb/types";
+
+/**
+ * Get LanceDB connection options for S3
+ * Returns storageOptions for local dev (s3rver) or empty object for production
+ */
+function getLanceDBConnectionOptions(): {
+  storageOptions?: Record<string, string>;
+} {
+  const arcEnv = process.env.ARC_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  const isLocal =
+    arcEnv === "testing" ||
+    (arcEnv !== "production" && nodeEnv !== "production");
+
+  if (!isLocal) {
+    // Production - LanceDB will use default AWS credentials/configuration
+    return {};
+  }
+
+  // Local development with s3rver
+  const endpoint = process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
+  return {
+    storageOptions: {
+      endpoint,
+      allowHttp: "true", // Required for local HTTP endpoints
+      awsVirtualHostedStyleRequest: "false", // Force path-style addressing
+      awsAccessKeyId: "S3RVER",
+      awsSecretAccessKey: "S3RVER",
+      region: "eu-west-2",
+    },
+  };
+}
 
 /**
  * Generate embeddings for raw facts
@@ -124,15 +155,17 @@ async function executeInsert(
   );
 
   try {
-    // Get S3 connection options (handles local vs production)
-    const connectionOptions = getS3ConnectionOptions();
+    const connectionOptions = getLanceDBConnectionOptions();
+    console.log(`[Write Server] Connecting to database URI: ${uri}`);
+    if (connectionOptions.storageOptions) {
+      console.log(
+        `[Write Server] Using storageOptions for local dev:`,
+        connectionOptions.storageOptions
+      );
+    }
     const db = await connect(uri, connectionOptions);
 
-    console.log(`[Write Server] Connection options:`, {
-      region: connectionOptions.region,
-      hasStorageOptions: !!connectionOptions.storageOptions,
-      hasEndpoint: !!connectionOptions.storageOptions?.endpoint,
-    });
+    console.log(`[Write Server] Successfully connected to database: ${uri}`);
 
     // Get or create table
     let table;
@@ -192,8 +225,7 @@ async function executeUpdate(
   );
 
   try {
-    // Get S3 connection options (handles local vs production)
-    const connectionOptions = getS3ConnectionOptions();
+    const connectionOptions = getLanceDBConnectionOptions();
     const db = await connect(uri, connectionOptions);
 
     const table = await db.openTable("vectors");
@@ -241,8 +273,7 @@ async function executeDelete(
   );
 
   try {
-    // Get S3 connection options (handles local vs production)
-    const connectionOptions = getS3ConnectionOptions();
+    const connectionOptions = getLanceDBConnectionOptions();
     const db = await connect(uri, connectionOptions);
 
     const table = await db.openTable("vectors");

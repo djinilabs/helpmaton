@@ -1,10 +1,6 @@
 import { connect } from "@lancedb/lancedb";
 
-import {
-  DEFAULT_QUERY_LIMIT,
-  MAX_QUERY_LIMIT,
-  getS3ConnectionOptions,
-} from "./config";
+import { DEFAULT_QUERY_LIMIT, MAX_QUERY_LIMIT } from "./config";
 import { getDatabaseUri } from "./paths";
 import type { QueryOptions, QueryResult, TemporalGrain } from "./types";
 
@@ -29,16 +25,34 @@ async function getDatabaseConnection(
   if (!connectionCache.has(cacheKey)) {
     const connectionPromise = (async () => {
       try {
-        // LanceDB connection with S3 storage
-        // Get S3 connection options (handles local vs production)
-        const connectionOptions = getS3ConnectionOptions();
+        // Get S3 connection options for LanceDB
+        const arcEnv = process.env.ARC_ENV;
+        const nodeEnv = process.env.NODE_ENV;
+        const isLocal =
+          arcEnv === "testing" ||
+          (arcEnv !== "production" && nodeEnv !== "production");
+
+        let connectionOptions: { storageOptions?: Record<string, string> } = {};
+
+        if (isLocal) {
+          // Local development with s3rver
+          const endpoint =
+            process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
+          connectionOptions = {
+            storageOptions: {
+              endpoint,
+              allowHttp: "true", // Required for local HTTP endpoints
+              awsVirtualHostedStyleRequest: "false", // Force path-style addressing
+              awsAccessKeyId: "S3RVER",
+              awsSecretAccessKey: "S3RVER",
+              region: "eu-west-2",
+            },
+          };
+        }
+
         const db = await connect(uri, connectionOptions);
 
-        console.log(`[Read Client] Connected to database: ${uri}, options:`, {
-          region: connectionOptions.region,
-          hasStorageOptions: !!connectionOptions.storageOptions,
-          hasEndpoint: !!connectionOptions.storageOptions?.endpoint,
-        });
+        console.log(`[Read Client] Connected to database: ${uri}`);
         return db;
       } catch (error) {
         console.error(`[Read Client] Failed to connect to ${uri}:`, error);
