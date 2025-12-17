@@ -69,6 +69,7 @@ describe("paths", () => {
       const paths = getAllAgentDatabasePaths(agentId);
       expect(paths).toHaveLength(TEMPORAL_GRAINS.length);
       expect(paths).toEqual([
+        "vectordb/agent-123/working/",
         "vectordb/agent-123/daily/",
         "vectordb/agent-123/weekly/",
         "vectordb/agent-123/monthly/",
@@ -90,4 +91,3 @@ describe("paths", () => {
     });
   });
 });
-

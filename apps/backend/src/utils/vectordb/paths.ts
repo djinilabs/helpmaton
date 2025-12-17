@@ -4,6 +4,7 @@ import { TEMPORAL_GRAINS, type TemporalGrain } from "./types";
 /**
  * Get the S3 path for a vector database
  * Format: vectordb/{agentId}/{temporalGrain}/
+ * For working grain, no time component is used
  */
 export function getDatabasePath(
   agentId: string,
@@ -51,4 +52,3 @@ export function getAllAgentDatabasePaths(agentId: string): string[] {
 export function getAllAgentDatabaseUris(agentId: string): string[] {
   return TEMPORAL_GRAINS.map((grain) => getDatabaseUri(agentId, grain));
 }
-

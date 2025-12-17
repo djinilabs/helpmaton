@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import type { UIMessage } from "../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 import type { DatabaseSchema } from "../tables/schema";
 
+import { writeToWorkingMemory } from "./memory/writeMemory";
 import { calculateConversationCosts } from "./tokenAccounting";
 
 export interface TokenUsage {
@@ -603,6 +604,19 @@ export async function startConversation(
     expires: calculateTTL(),
   });
 
+  // Write to working memory asynchronously (don't block)
+  writeToWorkingMemory(
+    data.agentId,
+    data.workspaceId,
+    conversationId,
+    filteredMessages
+  ).catch((error) => {
+    console.error(
+      "[Conversation Logger] Failed to write to working memory:",
+      error
+    );
+  });
+
   return conversationId;
 }
 
@@ -622,6 +636,11 @@ export async function updateConversation(
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
+  // Filter new messages before processing
+  const filteredNewMessages = newMessages.filter(
+    (msg) => !isMessageContentEmpty(msg)
+  );
+
   // Use atomicUpdate to ensure thread-safe conversation updates
   await db["agent-conversations"].atomicUpdate(
     pk,
@@ -631,10 +650,6 @@ export async function updateConversation(
 
       if (!existing) {
         // If conversation doesn't exist, create it
-        // Filter out empty messages before processing
-        const filteredNewMessages = newMessages.filter(
-          (msg) => !isMessageContentEmpty(msg)
-        );
         const toolCalls = extractToolCalls(filteredNewMessages);
         const toolResults = extractToolResults(filteredNewMessages);
         const costs = calculateConversationCosts(
@@ -665,10 +680,6 @@ export async function updateConversation(
 
       // Merge messages, deduplicating based on role and content
       // This prevents duplicate messages when the client sends the full conversation history
-      // Filter out empty messages from newMessages before deduplication
-      const filteredNewMessages = newMessages.filter(
-        (msg) => !isMessageContentEmpty(msg)
-      );
       const existingMessages = (existing.messages || []) as UIMessage[];
       const allMessages = deduplicateMessages(
         existingMessages,
@@ -724,4 +735,20 @@ export async function updateConversation(
       };
     }
   );
+
+  // Write to working memory asynchronously (don't block)
+  // Write all new messages that were passed in
+  if (filteredNewMessages.length > 0) {
+    writeToWorkingMemory(
+      agentId,
+      workspaceId,
+      conversationId,
+      filteredNewMessages
+    ).catch((error) => {
+      console.error(
+        "[Conversation Logger] Failed to write to working memory:",
+        error
+      );
+    });
+  }
 }

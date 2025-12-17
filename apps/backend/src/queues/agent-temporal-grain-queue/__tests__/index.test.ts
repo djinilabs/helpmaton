@@ -1,7 +1,10 @@
 import type { SQSEvent, SQSRecord } from "aws-lambda";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import type { WriteOperationMessage, FactRecord } from "../../../utils/vectordb/types";
+import type {
+  WriteOperationMessage,
+  FactRecord,
+} from "../../../utils/vectordb/types";
 import { handler } from "../index";
 
 // Mock dependencies
@@ -10,8 +13,9 @@ vi.mock("@lancedb/lancedb", () => ({
 }));
 
 vi.mock("../../../utils/vectordb/paths", () => ({
-  getDatabaseUri: vi.fn((agentId: string, grain: string) =>
-    `s3://bucket/vectordb/${agentId}/${grain}/`
+  getDatabaseUri: vi.fn(
+    (agentId: string, grain: string) =>
+      `s3://bucket/vectordb/${agentId}/${grain}/`
   ),
 }));
 
@@ -129,7 +133,9 @@ describe("agent-temporal-grain-queue handler", () => {
         ];
 
         const mockCreateTable = vi.fn().mockResolvedValue(undefined);
-        const mockOpenTable = vi.fn().mockRejectedValue(new Error("Table not found"));
+        const mockOpenTable = vi
+          .fn()
+          .mockRejectedValue(new Error("Table not found"));
 
         mockConnect.mockResolvedValue({
           openTable: mockOpenTable,
@@ -246,7 +252,12 @@ describe("agent-temporal-grain-queue handler", () => {
               messageId: "msg-1",
               receiptHandle: "handle-1",
               body: "invalid json",
-              attributes: {} as any,
+              attributes: {
+                ApproximateReceiveCount: "1",
+                SentTimestamp: "1234567890",
+                SenderId: "test",
+                ApproximateFirstReceiveTimestamp: "1234567890",
+              },
               messageAttributes: {},
               md5OfBody: "test",
               eventSource: "aws:sqs",
@@ -269,7 +280,7 @@ describe("agent-temporal-grain-queue handler", () => {
 
         const event = createSQSEvent([message]);
 
-        await expect(handler(event as any)).rejects.toThrow(
+        await expect(handler(event as unknown as SQSEvent)).rejects.toThrow(
           "Insert operation requires records"
         );
       });
@@ -282,9 +293,11 @@ describe("agent-temporal-grain-queue handler", () => {
           data: {},
         };
 
-        const event = createSQSEvent([message as any]);
+        const event = createSQSEvent([
+          message as unknown as WriteOperationMessage,
+        ]);
 
-        await expect(handler(event as any)).rejects.toThrow(
+        await expect(handler(event as unknown as SQSEvent)).rejects.toThrow(
           "Unknown operation"
         );
       });
@@ -347,4 +360,3 @@ describe("agent-temporal-grain-queue handler", () => {
     });
   });
 });
-

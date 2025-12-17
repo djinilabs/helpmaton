@@ -248,6 +248,12 @@ credit-reservations
 aggregate-token-usage rate(1 day)
 cleanup-expired-reservations rate(10 minutes)
 sync-lemonsqueezy-subscriptions rate(1 hour)
+summarize-memory-daily rate(1 day)
+summarize-memory-weekly rate(7 days)
+summarize-memory-monthly rate(30 days)
+summarize-memory-quarterly rate(90 days)
+summarize-memory-yearly rate(365 days)
+cleanup-memory-retention rate(1 day)
 
 @queues
 agent-temporal-grain-queue

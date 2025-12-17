@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { query, connectionCache } from "../readClient";
-import type { QueryOptions, QueryResult } from "../types";
+import type { QueryOptions } from "../types";
 
 // Mock @lancedb/lancedb
 vi.mock("@lancedb/lancedb", () => ({
@@ -10,8 +10,9 @@ vi.mock("@lancedb/lancedb", () => ({
 
 // Mock paths
 vi.mock("../paths", () => ({
-  getDatabaseUri: vi.fn((agentId: string, grain: string) =>
-    `s3://bucket/vectordb/${agentId}/${grain}/`
+  getDatabaseUri: vi.fn(
+    (agentId: string, grain: string) =>
+      `s3://bucket/vectordb/${agentId}/${grain}/`
   ),
 }));
 
@@ -288,14 +289,19 @@ describe("readClient", () => {
       const filteredResults = await query(agentId, temporalGrain, options);
 
       expect(filteredResults).toHaveLength(2);
-      expect(filteredResults.map((r) => r.id)).toEqual(["record-1", "record-2"]);
+      expect(filteredResults.map((r) => r.id)).toEqual([
+        "record-1",
+        "record-2",
+      ]);
     });
 
     it("should handle table not found gracefully", async () => {
       const { connect } = await import("@lancedb/lancedb");
       const mockConnect = vi.mocked(connect);
 
-      const mockOpenTable = vi.fn().mockRejectedValue(new Error("Table not found"));
+      const mockOpenTable = vi
+        .fn()
+        .mockRejectedValue(new Error("Table not found"));
 
       mockConnect.mockResolvedValue({
         openTable: mockOpenTable,

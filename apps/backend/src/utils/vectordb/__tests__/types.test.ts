@@ -13,6 +13,7 @@ describe("types", () => {
   describe("TemporalGrain", () => {
     it("should include all expected grains", () => {
       expect(TEMPORAL_GRAINS).toEqual([
+        "working",
         "daily",
         "weekly",
         "monthly",
@@ -23,6 +24,7 @@ describe("types", () => {
 
     it("should have correct type for each grain", () => {
       const grains: TemporalGrain[] = [
+        "working",
         "daily",
         "weekly",
         "monthly",
@@ -125,4 +127,3 @@ describe("types", () => {
     });
   });
 });
-

@@ -1,12 +1,19 @@
 /**
  * Temporal grains for organizing vector databases
  */
-export type TemporalGrain = "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
+export type TemporalGrain =
+  | "working"
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "quarterly"
+  | "yearly";
 
 /**
  * All temporal grains in order from smallest to largest
  */
 export const TEMPORAL_GRAINS: TemporalGrain[] = [
+  "working",
   "daily",
   "weekly",
   "monthly",
@@ -72,4 +79,3 @@ export interface WriteOperationMessage {
     recordIds?: string[]; // For delete operations
   };
 }
-

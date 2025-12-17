@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'apps/frontend/dist', 'apps/backend/dist', 'scripts/**', 'test-results/**', 'playwright-report/**'] },
+  { ignores: ['**/node_modules/**', '**/dist/**', 'scripts/**', 'test-results/**', 'playwright-report/**'] },
   // Base configuration for all TypeScript files
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],

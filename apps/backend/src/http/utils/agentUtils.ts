@@ -695,10 +695,23 @@ async function callAgentInternal(
     messages: [{ role: "user", content: message }],
   });
 
+  // Extract agentId from targetAgent.pk (format: "agents/{workspaceId}/{agentId}")
+  const extractedTargetAgentId = targetAgent.pk.replace(
+    `agents/${workspaceId}/`,
+    ""
+  );
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Tools have varying types
   const tools: Record<string, any> = {
     search_documents: searchDocumentsTool,
   };
+
+  // Add memory search tool
+  const { createSearchMemoryTool } = await import("./memorySearchTool");
+  tools.search_memory = createSearchMemoryTool(
+    extractedTargetAgentId,
+    workspaceId
+  );
 
   if (targetAgent.notificationChannelId) {
     tools.send_notification = createSendNotificationTool(

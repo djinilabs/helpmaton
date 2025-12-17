@@ -13,6 +13,7 @@ import {
   type WorkspaceAndAgent,
 } from "../../utils/agentUtils";
 import { createMcpServerTools } from "../../utils/mcpUtils";
+import { createSearchMemoryTool } from "../../utils/memorySearchTool";
 
 export interface AgentSetup {
   agent: WorkspaceAndAgent["agent"];
@@ -149,8 +150,12 @@ export async function setupAgentAndTools(
     ...options?.searchDocumentsOptions,
   });
 
+  // Extract agentId from agent.pk (format: "agents/{workspaceId}/{agentId}")
+  const extractedAgentId = agent.pk.replace(`agents/${workspaceId}/`, "");
+
   const tools: AgentSetup["tools"] = {
     search_documents: searchDocumentsTool,
+    search_memory: createSearchMemoryTool(extractedAgentId, workspaceId),
   };
 
   if (agent.notificationChannelId) {
