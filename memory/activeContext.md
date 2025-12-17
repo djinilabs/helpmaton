@@ -2,11 +2,115 @@
 
 ## Current Status
 
-**Status**: Lambda Container Image Deployment - Working ✅
+**Status**: Stratified Agent Memory System - Completed ✅
 
-The Lambda function using container images is now successfully deployed and working. All configuration issues have been resolved.
+The stratified agent memory system has been fully implemented and tested. Agents now have long-term factual memory organized into multiple temporal grains (working, daily, weekly, monthly, quarterly, yearly) with automatic summarization and retention policies.
 
 ## Recent Changes
+
+### Stratified Agent Memory System Implementation (Latest)
+
+**Status**: ✅ Completed
+
+**Overview**: Implemented a comprehensive memory system that enables AI agents to remember important facts, people, and events from their conversations through progressive summarization across multiple temporal grains.
+
+**Key Features Implemented**:
+
+1. **Memory Hierarchy**:
+
+   - Working memory: Raw conversation facts stored immediately (no summarization)
+   - Daily summaries: LLM-summarized working memory from each day
+   - Weekly summaries: Consolidated daily summaries
+   - Monthly summaries: Aggregated weekly summaries
+   - Quarterly summaries: Condensed monthly summaries
+   - Yearly summaries: Synthesized quarterly summaries
+
+2. **Write Operations**:
+
+   - Automatic extraction of facts from conversations (user and assistant messages)
+   - Embedding generation using Gemini API (`text-embedding-004`)
+   - SQS FIFO queues with message groups for serialized writes per database
+   - Non-blocking writes to avoid impacting conversation performance
+
+3. **Summarization**:
+
+   - LLM-based summarization using Google Gemini API
+   - Grain-specific prompts that preserve important information (people, events, facts)
+   - Scheduled tasks for each grain (daily, weekly, monthly, quarterly, yearly)
+   - Progressive abstraction as information moves up the hierarchy
+
+4. **Retention Policies**:
+
+   - Subscription plan-based retention periods (Free, Starter, Pro)
+   - Automatic cleanup of old memories based on retention periods
+   - Different retention for each grain (e.g., Free: 48 hours working, 30 days daily; Pro: 240 hours working, 120 days daily)
+   - Daily scheduled cleanup task
+
+5. **Memory Search**:
+
+   - `search_memory` tool available to agents
+   - Search across any temporal grain
+   - Temporal filtering (minimum/maximum days ago)
+   - Semantic search with vector similarity
+   - Results prefixed with date when events occurred
+
+6. **Time Formatting**:
+   - Utilities for converting dates to grain-specific time strings
+   - Formats: `YYYY-MM-DD` (daily), `YYYY-W{week}` (weekly), `YYYY-MM` (monthly), `YYYY-Q{quarter}` (quarterly), `YYYY` (yearly)
+   - Parsing and date range calculations for each grain
+
+**Files Created**:
+
+- `apps/backend/src/utils/memory/writeMemory.ts` - Writing conversations to working memory
+- `apps/backend/src/utils/memory/searchMemory.ts` - Memory search functionality
+- `apps/backend/src/utils/memory/summarizeMemory.ts` - LLM summarization logic
+- `apps/backend/src/utils/memory/retentionPolicies.ts` - Retention policy calculations
+- `apps/backend/src/utils/memory/timeFormats.ts` - Time string formatting utilities
+- `apps/backend/src/http/utils/memorySearchTool.ts` - Agent tool for memory search
+- `apps/backend/src/scheduled/summarize-memory-daily/index.ts` - Daily summarization task
+- `apps/backend/src/scheduled/summarize-memory-weekly/index.ts` - Weekly summarization task
+- `apps/backend/src/scheduled/summarize-memory-monthly/index.ts` - Monthly summarization task
+- `apps/backend/src/scheduled/summarize-memory-quarterly/index.ts` - Quarterly summarization task
+- `apps/backend/src/scheduled/summarize-memory-yearly/index.ts` - Yearly summarization task
+- `apps/backend/src/scheduled/cleanup-memory-retention/index.ts` - Retention cleanup task
+- `apps/backend/src/utils/memory/__tests__/timeFormats.test.ts` - Time formatting tests (30 tests)
+- `apps/backend/src/utils/memory/__tests__/retentionPolicies.test.ts` - Retention policy tests (13 tests)
+- `apps/backend/src/utils/memory/__tests__/summarizeMemory.test.ts` - Summarization tests (9 tests)
+- `apps/backend/src/utils/memory/__tests__/memorySystem.integration.test.ts` - Comprehensive integration tests (3 tests, 120s timeout)
+
+**Files Modified**:
+
+- `apps/backend/src/utils/conversationLogger.ts` - Added `writeToWorkingMemory()` calls after conversation creation/updates
+- `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup.ts` - Added `search_memory` tool to agent tools
+- `apps/backend/src/http/utils/agentUtils.ts` - Added `search_memory` tool for delegated agents
+- `apps/backend/src/utils/vectordb/types.ts` - Added `"working"` to `TemporalGrain` type
+- `apps/backend/app.arc` - Added all scheduled tasks for summarization and cleanup
+- `apps/backend/src/queues/agent-temporal-grain-queue/__tests__/index.test.ts` - Fixed type errors in tests
+
+**Documentation Created**:
+
+- `docs/agent-memory-system.md` - Comprehensive documentation (357 lines) covering architecture, components, usage, and configuration
+- `apps/backend/ENV.md` - Updated with `GEMINI_API_KEY` usage for memory system and vector database S3 bucket configuration
+
+**Test Coverage**:
+
+- 52 unit tests for utility functions (timeFormats, retentionPolicies, summarizeMemory)
+- 3 comprehensive integration tests simulating full memory lifecycle with mocked LLM and vector database
+- All tests passing, typecheck and lint clean
+
+**Integration Points**:
+
+- Memory writes triggered automatically from conversation logging
+- `search_memory` tool integrated into agent toolset
+- Scheduled tasks configured in `app.arc` for automatic summarization
+- Retention cleanup runs daily to maintain storage efficiency
+
+**Next Steps for Memory System**:
+
+- Monitor summarization quality and adjust prompts if needed
+- Track storage usage and optimize if necessary
+- Consider configurable summarization prompts per agent
+- Explore cross-agent memory sharing for team workspaces
 
 ### Lambda Container Image Deployment Fixes (December 2025)
 
@@ -182,9 +286,13 @@ The Lambda function using container images is now successfully deployed and work
 
 ## Next Steps
 
-1. Monitor Lambda function performance and cold start times
-2. Measure actual image size reduction after deployment
-3. Document container image deployment process for other functions
+1. Monitor memory system performance:
+   - Track summarization quality and adjust prompts if needed
+   - Monitor storage usage and retention cleanup effectiveness
+   - Verify memory search performance and relevance
+2. Monitor Lambda function performance and cold start times
+3. Measure actual image size reduction after deployment
+4. Document container image deployment process for other functions
 
 ## Notes
 
