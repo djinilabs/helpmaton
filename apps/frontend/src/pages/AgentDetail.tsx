@@ -31,6 +31,11 @@ const UsageDashboard = lazy(() =>
     default: module.UsageDashboard,
   }))
 );
+const AgentMemoryRecords = lazy(() =>
+  import("../components/AgentMemoryRecords").then((module) => ({
+    default: module.AgentMemoryRecords,
+  }))
+);
 import { useAccordion } from "../hooks/useAccordion";
 import {
   useAgent,
@@ -995,6 +1000,18 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 agentId={agentId}
                 onConversationClick={setSelectedConversation}
               />
+            </LazyAccordionContent>
+          </AccordionSection>
+
+          {/* Memory Records Section */}
+          <AccordionSection
+            id="memory"
+            title="MEMORY RECORDS"
+            isExpanded={expandedSection === "memory"}
+            onToggle={() => toggleSection("memory")}
+          >
+            <LazyAccordionContent isExpanded={expandedSection === "memory"}>
+              <AgentMemoryRecords workspaceId={workspaceId} agentId={agentId} />
             </LazyAccordionContent>
           </AccordionSection>
         </SectionGroup>
