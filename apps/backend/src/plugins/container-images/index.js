@@ -551,6 +551,9 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
     }
   }
 
+  // Collect all missing functions to report them all at once
+  const missingFunctions = [];
+
   for (const [functionId, imageName] of imageMap.entries()) {
     // Validate functionId and imageName
     if (!functionId || typeof functionId !== "string") {
@@ -566,15 +569,7 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
     const functionResource = resources[functionId];
 
     if (!functionResource) {
-      console.warn(
-        `[container-images] Lambda function ${functionId} not found in CloudFormation resources. Available function IDs:`,
-        Object.keys(resources)
-          .filter((id) => {
-            const type = resources[id]?.Type;
-            return type === "AWS::Lambda::Function" || type === "AWS::Serverless::Function";
-          })
-          .slice(0, 10)
-      );
+      missingFunctions.push(functionId);
       continue;
     }
     
@@ -610,6 +605,20 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
     }
   }
 
+  // Throw error if any functions were not found
+  if (missingFunctions.length > 0) {
+    const availableFunctionIds = Object.keys(resources)
+      .filter((id) => {
+        const type = resources[id]?.Type;
+        return type === "AWS::Lambda::Function" || type === "AWS::Serverless::Function";
+      })
+      .sort();
+
+    const errorMessage = `[container-images] Lambda function(s) not found in CloudFormation resources: ${missingFunctions.join(", ")}. Available function IDs: [${availableFunctionIds.join(", ")}]`;
+    
+    throw new Error(errorMessage);
+  }
+
   // Add ECR repository URI to outputs for reference
   if (!outputs.LambdaImagesRepositoryUri) {
     outputs.LambdaImagesRepositoryUri = {
@@ -632,9 +641,13 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
 
     return cloudformation;
   } catch (error) {
-    console.error("[container-images] Error in configureContainerImages:", error);
+    // Re-throw configuration errors (like missing functions) - these should fail deployment
+    if (error.message && error.message.includes("[container-images]")) {
+      throw error;
+    }
+    // For unexpected errors, log and return cloudformation as-is to avoid breaking deployment
+    console.error("[container-images] Unexpected error in configureContainerImages:", error);
     console.error("[container-images] Error stack:", error.stack);
-    // Return cloudformation as-is to avoid breaking deployment
     return cloudformation;
   }
 }

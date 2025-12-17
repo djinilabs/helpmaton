@@ -405,7 +405,7 @@ describe("container-images plugin", () => {
       expect(result).toBe(cloudformation);
     });
 
-    it("should warn when function not found", async () => {
+    it("should throw error when function not found", async () => {
       const cloudformation = {
         Resources: {
           OtherFunction: {
@@ -422,22 +422,24 @@ describe("container-images plugin", () => {
         ],
       };
 
-      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
       process.env.LAMBDA_IMAGES_ECR_REPOSITORY = "test-repo";
       process.env.LAMBDA_IMAGE_TAG = "test-tag";
       process.env.AWS_REGION = "eu-west-2";
 
-      await configureContainerImages({
-        cloudformation,
-        arc,
-      });
+      // Verify error is thrown and contains expected information
+      try {
+        await configureContainerImages({
+          cloudformation,
+          arc,
+        });
+        expect.fail("Expected error to be thrown");
+      } catch (error) {
+        expect(error.message).toContain("Lambda function(s) not found in CloudFormation resources");
+        expect(error.message).toContain("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda");
+        expect(error.message).toContain("Available function IDs");
+        expect(error.message).toContain("OtherFunction");
+      }
 
-      expect(consoleSpy).toHaveBeenCalled();
-      const warnCall = consoleSpy.mock.calls[0];
-      expect(warnCall[0]).toContain("not found in CloudFormation resources");
-
-      consoleSpy.mockRestore();
       delete process.env.LAMBDA_IMAGES_ECR_REPOSITORY;
       delete process.env.LAMBDA_IMAGE_TAG;
       delete process.env.AWS_REGION;
