@@ -12,6 +12,8 @@
 // List of environment variables that should be injected into bundles
 // Only variables explicitly set in the environment will be injected
 const ENV_VARS_TO_INJECT = [
+  'ARC_ENV',
+  'NODE_ENV',
   'AUTH_SECRET',
   'MAILGUN_KEY',
   'MAILGUN_DOMAIN',

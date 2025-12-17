@@ -170,6 +170,7 @@ jobs:
         env:
           NODE_ENV: "production"
           VITE_ENV: "production"
+          ARC_ENV: "production"
           NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
           AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
