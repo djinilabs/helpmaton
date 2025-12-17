@@ -59,6 +59,14 @@ describe("config", () => {
       const bucket = getS3BucketName();
       expect(bucket).toBe("prod-bucket");
     });
+
+    it("should always use vectordb.staging in local testing mode (matches s3rver)", () => {
+      process.env.ARC_ENV = "testing";
+      // Even if environment variables are set, should use vectordb.staging
+      process.env.HELPMATON_VECTORDB_S3_BUCKET_STAGING = "custom-bucket";
+      const bucket = getS3BucketName();
+      expect(bucket).toBe("vectordb.staging");
+    });
   });
 
   describe("default constants", () => {
@@ -79,4 +87,3 @@ describe("config", () => {
     });
   });
 });
-

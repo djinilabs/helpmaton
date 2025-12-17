@@ -265,11 +265,31 @@ async function executeDelete(
  * Process a single write operation message
  */
 async function processWriteOperation(record: SQSRecord): Promise<void> {
+  const messageId = record.messageId || "unknown";
+  console.log(
+    `[Write Server] Processing message ${messageId}, body length: ${
+      record.body?.length || 0
+    }`
+  );
+
   let parsedBody: unknown;
   try {
+    if (!record.body) {
+      throw new Error("Message body is missing");
+    }
     parsedBody = JSON.parse(record.body);
   } catch (error) {
-    console.error("[Write Server] Failed to parse message body:", error);
+    console.error(
+      `[Write Server] Failed to parse message body for message ${messageId}:`,
+      error instanceof Error
+        ? {
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+          }
+        : String(error),
+      `Body: ${record.body?.substring(0, 500) || "no body"}`
+    );
     throw new Error("Invalid message format: JSON parse error");
   }
 
@@ -341,12 +361,26 @@ export const handler = handlingSQSErrors(
 
     // Process messages in sequence (FIFO queue ensures order per message group)
     for (const record of event.Records) {
+      const messageId = record.messageId || "unknown";
+      const receiptHandle = record.receiptHandle || "unknown";
       try {
         await processWriteOperation(record);
       } catch (error) {
+        // Log detailed error information
         console.error(
-          `[Write Server] Failed to process message ${record.messageId}:`,
-          error
+          `[Write Server] Failed to process message ${messageId} (receiptHandle: ${receiptHandle}):`,
+          error instanceof Error
+            ? {
+                message: error.message,
+                stack: error.stack,
+                name: error.name,
+              }
+            : String(error)
+        );
+        console.error(
+          `[Write Server] Message body preview: ${
+            record.body?.substring(0, 500) || "no body"
+          }`
         );
         // Re-throw to trigger SQS retry/dead-letter queue
         throw error;

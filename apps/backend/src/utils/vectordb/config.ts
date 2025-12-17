@@ -4,12 +4,24 @@
 
 // Get S3 bucket name from environment variables
 // Uses staging or production bucket based on environment
-// For local development, defaults to "vectordb.staging" (same bucket pattern as workspace documents)
+// For local development (ARC_ENV=testing), always uses "vectordb.staging" to match the local S3 server (s3rver) configuration
 export function getS3BucketName(): string {
   const arcEnv = process.env.ARC_ENV;
   const nodeEnv = process.env.NODE_ENV;
   const isProduction = arcEnv === "production" || nodeEnv === "production";
+  const isLocalTesting = arcEnv === "testing";
 
+  // In local testing mode (sandbox), always use "vectordb.staging" to match s3rver plugin configuration
+  // This ensures LanceDB uses the bucket that's automatically created by the local S3 server
+  if (isLocalTesting) {
+    const bucketName = "vectordb.staging";
+    console.log(
+      `[VectorDB Config] Local testing mode - using bucket: ${bucketName} (matches s3rver configuration)`
+    );
+    return bucketName;
+  }
+
+  // Production/staging environments - use environment variables
   // Bucket names come from secrets/environment variables
   // These should be set in the deployment configuration
   const bucketName = isProduction
@@ -17,7 +29,7 @@ export function getS3BucketName(): string {
       process.env.HELPMATON_S3_BUCKET_PRODUCTION
     : process.env.HELPMATON_VECTORDB_S3_BUCKET_STAGING ||
       process.env.HELPMATON_S3_BUCKET_STAGING ||
-      "vectordb.staging"; // Default for local development
+      "vectordb.staging"; // Fallback for other non-production environments
 
   if (!bucketName) {
     throw new Error(
@@ -71,20 +83,21 @@ export function getS3ConnectionOptions(): {
 
   if (isLocal) {
     // Local development with s3rver
+    // Use DEFAULT_S3_REGION for consistency (region doesn't matter for local s3rver)
     const endpoint =
       process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
 
     console.log(
-      `[VectorDB Config] Local mode - endpoint: ${endpoint}, region: us-east-1`
+      `[VectorDB Config] Local mode - endpoint: ${endpoint}, region: ${DEFAULT_S3_REGION}`
     );
 
     return {
-      region: "us-east-1",
+      region: DEFAULT_S3_REGION,
       storageOptions: {
         awsAccessKeyId: "S3RVER",
         awsSecretAccessKey: "S3RVER",
         endpoint,
-        region: "us-east-1",
+        region: DEFAULT_S3_REGION,
       },
     };
   }
