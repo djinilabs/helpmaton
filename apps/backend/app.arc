@@ -279,6 +279,9 @@ any /api/streams/:workspaceId/:agentId/:secret
 # Format: method route image-name
 # Example: any /api/streams/:workspaceId/:agentId/:secret my-custom-image
 any /api/streams/:workspaceId/:agentId/:secret lancedb
+post /api/webhook/:workspaceId/:agentId/:key lancedb
+any /api/workspaces/* lancedb
+any /api/streams/:workspaceId/:agentId/:secret lancedb
 
 @plugins
 architect/plugin-typescript
