@@ -66,8 +66,10 @@ function routeToFunctionId(route) {
 
 /**
  * Parses the @container-images pragma from the arc file
- * Format: method route image-name
- * Example: "any /api/streams/:workspaceId/:agentId/:secret my-custom-image"
+ * Format: 
+ *   HTTP: method route image-name (e.g., "any /api/streams/:workspaceId/:agentId/:secret my-custom-image")
+ *   Queue: queue queue-name image-name (e.g., "queue agent-temporal-grain-queue lancedb")
+ *   Scheduled: scheduled scheduled-name image-name (e.g., "scheduled aggregate-token-usage lancedb")
  * @param {Object} arc - Parsed arc file
  * @returns {Map<string, string>} Map of function ID to image name
  */
@@ -82,55 +84,80 @@ function parseContainerImagesPragma(arc) {
   }
 
   // Architect parses the pragma into an array of arrays:
-  // [["any", "/api/streams/:workspaceId/:agentId/:secret", "my-custom-image"]]
-  // Each inner array contains [method, path, imageName]
+  // HTTP: [["any", "/api/streams/:workspaceId/:agentId/:secret", "my-custom-image"]]
+  // Queue: [["queue", "agent-temporal-grain-queue", "lancedb"]]
+  // Scheduled: [["scheduled", "aggregate-token-usage", "lancedb"]]
   if (Array.isArray(pragma)) {
     for (const item of pragma) {
       if (Array.isArray(item) && item.length >= 3) {
-        // Join method and path: ["any", "/api/streams/...", "image-name"] -> "any /api/streams/..."
-        const method = item[0];
-        const routePath = item[1];
+        const typeOrMethod = item[0];
+        const secondPart = item[1];
         const imageName = item[2];
         
         // Validate all required fields are present and are strings
-        if (!method || !routePath || !imageName) {
+        if (!typeOrMethod || !secondPart || !imageName) {
           console.warn(
-            `[container-images] Skipping invalid pragma item: missing method, path, or imageName`,
+            `[container-images] Skipping invalid pragma item: missing type/method, name/path, or imageName`,
             item
           );
           continue;
         }
         
-        if (typeof method !== "string" || typeof routePath !== "string" || typeof imageName !== "string") {
+        if (typeof typeOrMethod !== "string" || typeof secondPart !== "string" || typeof imageName !== "string") {
           console.warn(
-            `[container-images] Skipping invalid pragma item: method, path, or imageName must be strings`,
+            `[container-images] Skipping invalid pragma item: type/method, name/path, or imageName must be strings`,
             item
           );
           continue;
         }
         
-        const route = `${method} ${routePath}`.trim();
+        const trimmedTypeOrMethod = typeOrMethod.trim().toLowerCase();
+        let functionId = null;
         
-        if (route && imageName) {
-          const functionId = routeToFunctionId(route);
-          if (functionId) {
-            imageMap.set(functionId, imageName.trim());
-          }
+        // Check if it's a queue or scheduled function
+        if (trimmedTypeOrMethod === "queue") {
+          // Queue format: ["queue", "agent-temporal-grain-queue", "lancedb"]
+          functionId = queueToFunctionId(secondPart.trim());
+        } else if (trimmedTypeOrMethod === "scheduled") {
+          // Scheduled format: ["scheduled", "aggregate-token-usage", "lancedb"]
+          functionId = scheduledToFunctionId(secondPart.trim());
+        } else {
+          // HTTP route format: ["any", "/api/streams/...", "image-name"]
+          const route = `${typeOrMethod} ${secondPart}`.trim();
+          functionId = routeToFunctionId(route);
+        }
+        
+        if (functionId) {
+          imageMap.set(functionId, imageName.trim());
         }
       } else if (typeof item === "string") {
-        // Fallback: parse string format "method route image-name"
+        // Fallback: parse string format
+        // HTTP: "method route image-name"
+        // Queue: "queue queue-name image-name"
+        // Scheduled: "scheduled scheduled-name image-name"
         const parts = item.trim().split(/\s+/);
         if (parts.length >= 3) {
-          const method = parts[0];
-          const routePath = parts.slice(1, -1).join(" "); // Everything except first and last
+          const typeOrMethod = parts[0].toLowerCase();
           const imageName = parts[parts.length - 1];
-          const route = `${method} ${routePath}`.trim();
+          let functionId = null;
           
-          if (route && imageName) {
-            const functionId = routeToFunctionId(route);
-            if (functionId) {
-              imageMap.set(functionId, imageName.trim());
-            }
+          if (typeOrMethod === "queue") {
+            // Queue: "queue agent-temporal-grain-queue lancedb"
+            const queueName = parts.slice(1, -1).join(" "); // Everything except first and last
+            functionId = queueToFunctionId(queueName.trim());
+          } else if (typeOrMethod === "scheduled") {
+            // Scheduled: "scheduled aggregate-token-usage lancedb"
+            const scheduledName = parts.slice(1, -1).join(" "); // Everything except first and last
+            functionId = scheduledToFunctionId(scheduledName.trim());
+          } else {
+            // HTTP: "any /api/streams/:workspaceId/:agentId/:secret lancedb"
+            const routePath = parts.slice(1, -1).join(" "); // Everything except first and last
+            const route = `${parts[0]} ${routePath}`.trim();
+            functionId = routeToFunctionId(route);
+          }
+          
+          if (functionId) {
+            imageMap.set(functionId, imageName.trim());
           }
         }
       }
@@ -231,6 +258,102 @@ function ensureEcrRepository(resources, repositoryName) {
   );
 
   return repositoryId;
+}
+
+/**
+ * Converts a queue name to a Lambda function logical ID
+ * @param {string} queueName - Queue name (e.g., "agent-temporal-grain-queue")
+ * @returns {string} Lambda function logical ID (e.g., "AgentTemporalGrainQueueQueueLambda")
+ */
+function queueToFunctionId(queueName) {
+  if (!queueName || typeof queueName !== "string") {
+    return null;
+  }
+
+  const trimmed = queueName.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  // Convert kebab-case to PascalCase
+  // "agent-temporal-grain-queue" -> "AgentTemporalGrainQueue"
+  const segments = trimmed.split("-");
+  const convertedSegments = segments.map((segment) => {
+    if (!segment) return "";
+    return segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase();
+  });
+
+  // Combine: converted segments + "QueueLambda"
+  return `${convertedSegments.join("")}QueueLambda`;
+}
+
+/**
+ * Converts a scheduled name to a Lambda function logical ID
+ * @param {string} scheduledName - Scheduled name (e.g., "aggregate-token-usage")
+ * @returns {string} Lambda function logical ID (e.g., "AggregateTokenUsageScheduledLambda")
+ */
+function scheduledToFunctionId(scheduledName) {
+  if (!scheduledName || typeof scheduledName !== "string") {
+    return null;
+  }
+
+  const trimmed = scheduledName.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  // Convert kebab-case to PascalCase
+  // "aggregate-token-usage" -> "AggregateTokenUsage"
+  const segments = trimmed.split("-");
+  const convertedSegments = segments.map((segment) => {
+    if (!segment) return "";
+    return segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase();
+  });
+
+  // Combine: converted segments + "ScheduledLambda"
+  return `${convertedSegments.join("")}ScheduledLambda`;
+}
+
+/**
+ * Converts a queue name to handler path for Lambda container image Command
+ * Queue name format: "agent-temporal-grain-queue"
+ * Handler path format: "queues/agent-temporal-grain-queue/index.handler"
+ * @param {string} queueName - Queue name
+ * @returns {string} Handler path for ImageConfig.Command
+ */
+function queueToHandlerPath(queueName) {
+  if (!queueName || typeof queueName !== "string") {
+    return null;
+  }
+
+  const trimmed = queueName.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  // Handler path: queues/{queue-name}/index.handler
+  return `queues/${trimmed}/index.handler`;
+}
+
+/**
+ * Converts a scheduled name to handler path for Lambda container image Command
+ * Scheduled name format: "aggregate-token-usage"
+ * Handler path format: "scheduled/aggregate-token-usage/index.handler"
+ * @param {string} scheduledName - Scheduled name
+ * @returns {string} Handler path for ImageConfig.Command
+ */
+function scheduledToHandlerPath(scheduledName) {
+  if (!scheduledName || typeof scheduledName !== "string") {
+    return null;
+  }
+
+  const trimmed = scheduledName.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  // Handler path: scheduled/{scheduled-name}/index.handler
+  return `scheduled/${trimmed}/index.handler`;
 }
 
 /**
@@ -536,18 +659,82 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
   }
 
   // Process each function that needs container images
-  // We need to get the route from the arc data to compute the handler path
-  const routeMap = new Map(); // Map functionId -> route
+  // We need to get the function metadata from the arc data to compute the handler path
+  // Map functionId -> { type: 'http'|'queue'|'scheduled', name: string }
+  const functionMetadataMap = new Map();
   if (Array.isArray(arcData["container-images"] || arcData["containerImages"])) {
     const pragma = arcData["container-images"] || arcData["containerImages"];
     for (const item of pragma) {
       if (Array.isArray(item) && item.length >= 3) {
-        const method = item[0];
-        const routePath = item[1];
-        const route = `${method} ${routePath}`;
-        const funcId = routeToFunctionId(route);
-        if (funcId) {
-          routeMap.set(funcId, route);
+        const typeOrMethod = item[0];
+        const secondPart = item[1];
+        
+        if (!typeOrMethod || !secondPart || typeof typeOrMethod !== "string" || typeof secondPart !== "string") {
+          continue;
+        }
+        
+        const trimmedTypeOrMethod = typeOrMethod.trim().toLowerCase();
+        let funcId = null;
+        let metadata = null;
+        
+        if (trimmedTypeOrMethod === "queue") {
+          // Queue function
+          const queueName = secondPart.trim();
+          funcId = queueToFunctionId(queueName);
+          if (funcId) {
+            metadata = { type: "queue", name: queueName };
+          }
+        } else if (trimmedTypeOrMethod === "scheduled") {
+          // Scheduled function
+          const scheduledName = secondPart.trim();
+          funcId = scheduledToFunctionId(scheduledName);
+          if (funcId) {
+            metadata = { type: "scheduled", name: scheduledName };
+          }
+        } else {
+          // HTTP route
+          const route = `${typeOrMethod} ${secondPart}`.trim();
+          funcId = routeToFunctionId(route);
+          if (funcId) {
+            metadata = { type: "http", name: route };
+          }
+        }
+        
+        if (funcId && metadata) {
+          functionMetadataMap.set(funcId, metadata);
+        }
+      } else if (typeof item === "string") {
+        // Fallback: parse string format
+        const parts = item.trim().split(/\s+/);
+        if (parts.length >= 3) {
+          const typeOrMethod = parts[0].toLowerCase();
+          let funcId = null;
+          let metadata = null;
+          
+          if (typeOrMethod === "queue") {
+            const queueName = parts.slice(1, -1).join(" ").trim();
+            funcId = queueToFunctionId(queueName);
+            if (funcId) {
+              metadata = { type: "queue", name: queueName };
+            }
+          } else if (typeOrMethod === "scheduled") {
+            const scheduledName = parts.slice(1, -1).join(" ").trim();
+            funcId = scheduledToFunctionId(scheduledName);
+            if (funcId) {
+              metadata = { type: "scheduled", name: scheduledName };
+            }
+          } else {
+            const routePath = parts.slice(1, -1).join(" ");
+            const route = `${parts[0]} ${routePath}`.trim();
+            funcId = routeToFunctionId(route);
+            if (funcId) {
+              metadata = { type: "http", name: route };
+            }
+          }
+          
+          if (funcId && metadata) {
+            functionMetadataMap.set(funcId, metadata);
+          }
         }
       }
     }
@@ -579,9 +766,19 @@ async function configureContainerImages({ cloudformation, inventory, arc, stage 
       `[container-images] Found function resource ${functionId}, Type: ${functionResource.Type}, Current PackageType: ${functionResource.Properties?.PackageType || "not set"}`
     );
 
-    // Get route for this function to compute handler path
-    const route = routeMap.get(functionId);
-    const handlerPath = route ? routeToHandlerPath(route) : null;
+    // Get function metadata to compute handler path
+    const metadata = functionMetadataMap.get(functionId);
+    let handlerPath = null;
+    
+    if (metadata) {
+      if (metadata.type === "queue") {
+        handlerPath = queueToHandlerPath(metadata.name);
+      } else if (metadata.type === "scheduled") {
+        handlerPath = scheduledToHandlerPath(metadata.name);
+      } else if (metadata.type === "http") {
+        handlerPath = routeToHandlerPath(metadata.name);
+      }
+    }
 
     // Get ECR image URI
     let imageUri;
@@ -752,6 +949,10 @@ module.exports = {
 module.exports.configureContainerImages = configureContainerImages;
 module.exports.routeToFunctionId = routeToFunctionId;
 module.exports.routeToHandlerPath = routeToHandlerPath;
+module.exports.queueToFunctionId = queueToFunctionId;
+module.exports.scheduledToFunctionId = scheduledToFunctionId;
+module.exports.queueToHandlerPath = queueToHandlerPath;
+module.exports.scheduledToHandlerPath = scheduledToHandlerPath;
 module.exports.parseContainerImagesPragma = parseContainerImagesPragma;
 module.exports.getEcrImageUri = getEcrImageUri;
 module.exports.ensureEcrRepository = ensureEcrRepository;

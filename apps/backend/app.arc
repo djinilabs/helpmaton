@@ -284,6 +284,15 @@ any /api/workspaces lancedb
 any /api/workspaces/* lancedb
 any /api/streams/:workspaceId/:agentId/:secret lancedb
 
+scheduled summarize-memory-daily lancedb
+scheduled summarize-memory-weekly lancedb
+scheduled summarize-memory-monthly lancedb
+scheduled summarize-memory-quarterly lancedb
+scheduled summarize-memory-yearly lancedb
+scheduled cleanup-memory-retention lancedb
+
+queue agent-temporal-grain-queue lancedb
+
 @plugins
 architect/plugin-typescript
 s3

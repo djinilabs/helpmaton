@@ -2,6 +2,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   routeToFunctionId,
   routeToHandlerPath,
+  queueToFunctionId,
+  scheduledToFunctionId,
+  queueToHandlerPath,
+  scheduledToHandlerPath,
   parseContainerImagesPragma,
   getEcrImageUri,
   convertToContainerImage,
@@ -84,6 +88,104 @@ describe("container-images plugin", () => {
     it("should return null for invalid route format", () => {
       expect(routeToHandlerPath("invalid")).toBeNull();
       expect(routeToHandlerPath("get")).toBeNull();
+    });
+  });
+
+  describe("queueToFunctionId", () => {
+    it("should convert a queue name to a function ID", () => {
+      const result = queueToFunctionId("agent-temporal-grain-queue");
+      expect(result).toBe("AgentTemporalGrainQueueQueueLambda");
+    });
+
+    it("should handle single-word queue names", () => {
+      const result = queueToFunctionId("my-queue");
+      expect(result).toBe("MyQueueQueueLambda");
+    });
+
+    it("should handle queue names with multiple segments", () => {
+      const result = queueToFunctionId("workspace-agent-queue");
+      expect(result).toBe("WorkspaceAgentQueueQueueLambda");
+    });
+
+    it("should return null for empty queue name", () => {
+      expect(queueToFunctionId("")).toBeNull();
+      expect(queueToFunctionId("   ")).toBeNull();
+    });
+
+    it("should return null for invalid input", () => {
+      expect(queueToFunctionId(null)).toBeNull();
+      expect(queueToFunctionId(undefined)).toBeNull();
+    });
+  });
+
+  describe("scheduledToFunctionId", () => {
+    it("should convert a scheduled name to a function ID", () => {
+      const result = scheduledToFunctionId("aggregate-token-usage");
+      expect(result).toBe("AggregateTokenUsageScheduledLambda");
+    });
+
+    it("should handle single-word scheduled names", () => {
+      const result = scheduledToFunctionId("daily-task");
+      expect(result).toBe("DailyTaskScheduledLambda");
+    });
+
+    it("should handle scheduled names with multiple segments", () => {
+      const result = scheduledToFunctionId("summarize-memory-daily");
+      expect(result).toBe("SummarizeMemoryDailyScheduledLambda");
+    });
+
+    it("should return null for empty scheduled name", () => {
+      expect(scheduledToFunctionId("")).toBeNull();
+      expect(scheduledToFunctionId("   ")).toBeNull();
+    });
+
+    it("should return null for invalid input", () => {
+      expect(scheduledToFunctionId(null)).toBeNull();
+      expect(scheduledToFunctionId(undefined)).toBeNull();
+    });
+  });
+
+  describe("queueToHandlerPath", () => {
+    it("should convert a queue name to handler path", () => {
+      const result = queueToHandlerPath("agent-temporal-grain-queue");
+      expect(result).toBe("queues/agent-temporal-grain-queue/index.handler");
+    });
+
+    it("should handle single-word queue names", () => {
+      const result = queueToHandlerPath("my-queue");
+      expect(result).toBe("queues/my-queue/index.handler");
+    });
+
+    it("should return null for empty queue name", () => {
+      expect(queueToHandlerPath("")).toBeNull();
+      expect(queueToHandlerPath("   ")).toBeNull();
+    });
+
+    it("should return null for invalid input", () => {
+      expect(queueToHandlerPath(null)).toBeNull();
+      expect(queueToHandlerPath(undefined)).toBeNull();
+    });
+  });
+
+  describe("scheduledToHandlerPath", () => {
+    it("should convert a scheduled name to handler path", () => {
+      const result = scheduledToHandlerPath("aggregate-token-usage");
+      expect(result).toBe("scheduled/aggregate-token-usage/index.handler");
+    });
+
+    it("should handle single-word scheduled names", () => {
+      const result = scheduledToHandlerPath("daily-task");
+      expect(result).toBe("scheduled/daily-task/index.handler");
+    });
+
+    it("should return null for empty scheduled name", () => {
+      expect(scheduledToHandlerPath("")).toBeNull();
+      expect(scheduledToHandlerPath("   ")).toBeNull();
+    });
+
+    it("should return null for invalid input", () => {
+      expect(scheduledToHandlerPath(null)).toBeNull();
+      expect(scheduledToHandlerPath(undefined)).toBeNull();
     });
   });
 
@@ -193,6 +295,78 @@ describe("container-images plugin", () => {
       expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toBe(
         "lancedb"
       );
+    });
+
+    it("should parse queue entries in array format", () => {
+      const arc = {
+        "container-images": [
+          ["queue", "agent-temporal-grain-queue", "lancedb"],
+        ],
+      };
+      const result = parseContainerImagesPragma(arc);
+      expect(result.size).toBe(1);
+      expect(result.get("AgentTemporalGrainQueueQueueLambda")).toBe("lancedb");
+    });
+
+    it("should parse scheduled entries in array format", () => {
+      const arc = {
+        "container-images": [
+          ["scheduled", "aggregate-token-usage", "lancedb"],
+        ],
+      };
+      const result = parseContainerImagesPragma(arc);
+      expect(result.size).toBe(1);
+      expect(result.get("AggregateTokenUsageScheduledLambda")).toBe("lancedb");
+    });
+
+    it("should parse queue entries in string format", () => {
+      const arc = {
+        "container-images": [
+          "queue agent-temporal-grain-queue lancedb",
+        ],
+      };
+      const result = parseContainerImagesPragma(arc);
+      expect(result.size).toBe(1);
+      expect(result.get("AgentTemporalGrainQueueQueueLambda")).toBe("lancedb");
+    });
+
+    it("should parse scheduled entries in string format", () => {
+      const arc = {
+        "container-images": [
+          "scheduled aggregate-token-usage lancedb",
+        ],
+      };
+      const result = parseContainerImagesPragma(arc);
+      expect(result.size).toBe(1);
+      expect(result.get("AggregateTokenUsageScheduledLambda")).toBe("lancedb");
+    });
+
+    it("should parse mixed HTTP, queue, and scheduled entries", () => {
+      const arc = {
+        "container-images": [
+          ["any", "/api/streams/:workspaceId/:agentId/:secret", "lancedb"],
+          ["queue", "agent-temporal-grain-queue", "lancedb"],
+          ["scheduled", "aggregate-token-usage", "lancedb"],
+        ],
+      };
+      const result = parseContainerImagesPragma(arc);
+      expect(result.size).toBe(3);
+      expect(result.get("AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda")).toBe("lancedb");
+      expect(result.get("AgentTemporalGrainQueueQueueLambda")).toBe("lancedb");
+      expect(result.get("AggregateTokenUsageScheduledLambda")).toBe("lancedb");
+    });
+
+    it("should handle case-insensitive type detection", () => {
+      const arc = {
+        "container-images": [
+          ["QUEUE", "agent-temporal-grain-queue", "lancedb"],
+          ["SCHEDULED", "aggregate-token-usage", "lancedb"],
+        ],
+      };
+      const result = parseContainerImagesPragma(arc);
+      expect(result.size).toBe(2);
+      expect(result.get("AgentTemporalGrainQueueQueueLambda")).toBe("lancedb");
+      expect(result.get("AggregateTokenUsageScheduledLambda")).toBe("lancedb");
     });
   });
 
@@ -536,6 +710,178 @@ describe("container-images plugin", () => {
       expect(functionResource.Properties.ImageConfig.WorkingDirectory).toBe(
         "/var/task"
       );
+
+      delete process.env.LAMBDA_IMAGES_ECR_REPOSITORY;
+      delete process.env.LAMBDA_IMAGE_TAG;
+      delete process.env.AWS_REGION;
+    });
+
+    it("should convert queue function to container image", async () => {
+      const cloudformation = {
+        Resources: {
+          AgentTemporalGrainQueueQueueLambda: {
+            Type: "AWS::Serverless::Function",
+            Properties: {
+              Handler: "index.handler",
+              Runtime: "nodejs20.x",
+            },
+          },
+        },
+        Outputs: {},
+      };
+
+      const arc = {
+        "container-images": [
+          ["queue", "agent-temporal-grain-queue", "lancedb"],
+        ],
+      };
+
+      process.env.LAMBDA_IMAGES_ECR_REPOSITORY = "test-repo";
+      process.env.LAMBDA_IMAGE_TAG = "test-tag";
+      process.env.AWS_REGION = "eu-west-2";
+
+      const result = await configureContainerImages({
+        cloudformation,
+        arc,
+      });
+
+      const functionResource =
+        result.Resources.AgentTemporalGrainQueueQueueLambda;
+      expect(functionResource.Properties.PackageType).toBe("Image");
+      expect(functionResource.Properties.ImageUri).toBeDefined();
+      expect(functionResource.Properties.Handler).toBeUndefined();
+      expect(functionResource.Properties.ImageConfig.Command).toEqual([
+        "queues/agent-temporal-grain-queue/index.handler",
+      ]);
+      expect(functionResource.Properties.ImageConfig.EntryPoint).toEqual([
+        "/lambda-entrypoint.sh",
+      ]);
+      expect(functionResource.Properties.ImageConfig.WorkingDirectory).toBe(
+        "/var/task"
+      );
+
+      delete process.env.LAMBDA_IMAGES_ECR_REPOSITORY;
+      delete process.env.LAMBDA_IMAGE_TAG;
+      delete process.env.AWS_REGION;
+    });
+
+    it("should convert scheduled function to container image", async () => {
+      const cloudformation = {
+        Resources: {
+          AggregateTokenUsageScheduledLambda: {
+            Type: "AWS::Serverless::Function",
+            Properties: {
+              Handler: "index.handler",
+              Runtime: "nodejs20.x",
+            },
+          },
+        },
+        Outputs: {},
+      };
+
+      const arc = {
+        "container-images": [
+          ["scheduled", "aggregate-token-usage", "lancedb"],
+        ],
+      };
+
+      process.env.LAMBDA_IMAGES_ECR_REPOSITORY = "test-repo";
+      process.env.LAMBDA_IMAGE_TAG = "test-tag";
+      process.env.AWS_REGION = "eu-west-2";
+
+      const result = await configureContainerImages({
+        cloudformation,
+        arc,
+      });
+
+      const functionResource =
+        result.Resources.AggregateTokenUsageScheduledLambda;
+      expect(functionResource.Properties.PackageType).toBe("Image");
+      expect(functionResource.Properties.ImageUri).toBeDefined();
+      expect(functionResource.Properties.Handler).toBeUndefined();
+      expect(functionResource.Properties.ImageConfig.Command).toEqual([
+        "scheduled/aggregate-token-usage/index.handler",
+      ]);
+      expect(functionResource.Properties.ImageConfig.EntryPoint).toEqual([
+        "/lambda-entrypoint.sh",
+      ]);
+      expect(functionResource.Properties.ImageConfig.WorkingDirectory).toBe(
+        "/var/task"
+      );
+
+      delete process.env.LAMBDA_IMAGES_ECR_REPOSITORY;
+      delete process.env.LAMBDA_IMAGE_TAG;
+      delete process.env.AWS_REGION;
+    });
+
+    it("should handle mixed HTTP, queue, and scheduled functions", async () => {
+      const cloudformation = {
+        Resources: {
+          AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda: {
+            Type: "AWS::Serverless::Function",
+            Properties: {
+              Handler: "index.handler",
+              Runtime: "nodejs20.x",
+            },
+          },
+          AgentTemporalGrainQueueQueueLambda: {
+            Type: "AWS::Serverless::Function",
+            Properties: {
+              Handler: "index.handler",
+              Runtime: "nodejs20.x",
+            },
+          },
+          AggregateTokenUsageScheduledLambda: {
+            Type: "AWS::Serverless::Function",
+            Properties: {
+              Handler: "index.handler",
+              Runtime: "nodejs20.x",
+            },
+          },
+        },
+        Outputs: {},
+      };
+
+      const arc = {
+        "container-images": [
+          ["any", "/api/streams/:workspaceId/:agentId/:secret", "lancedb"],
+          ["queue", "agent-temporal-grain-queue", "lancedb"],
+          ["scheduled", "aggregate-token-usage", "lancedb"],
+        ],
+      };
+
+      process.env.LAMBDA_IMAGES_ECR_REPOSITORY = "test-repo";
+      process.env.LAMBDA_IMAGE_TAG = "test-tag";
+      process.env.AWS_REGION = "eu-west-2";
+
+      const result = await configureContainerImages({
+        cloudformation,
+        arc,
+      });
+
+      // Verify HTTP function
+      const httpFunction =
+        result.Resources.AnyApiStreamsWorkspaceIdAgentIdSecretHTTPLambda;
+      expect(httpFunction.Properties.PackageType).toBe("Image");
+      expect(httpFunction.Properties.ImageConfig.Command).toEqual([
+        "http/any-api-streams-000workspaceId-000agentId-000secret/index.handler",
+      ]);
+
+      // Verify queue function
+      const queueFunction =
+        result.Resources.AgentTemporalGrainQueueQueueLambda;
+      expect(queueFunction.Properties.PackageType).toBe("Image");
+      expect(queueFunction.Properties.ImageConfig.Command).toEqual([
+        "queues/agent-temporal-grain-queue/index.handler",
+      ]);
+
+      // Verify scheduled function
+      const scheduledFunction =
+        result.Resources.AggregateTokenUsageScheduledLambda;
+      expect(scheduledFunction.Properties.PackageType).toBe("Image");
+      expect(scheduledFunction.Properties.ImageConfig.Command).toEqual([
+        "scheduled/aggregate-token-usage/index.handler",
+      ]);
 
       delete process.env.LAMBDA_IMAGES_ECR_REPOSITORY;
       delete process.env.LAMBDA_IMAGE_TAG;

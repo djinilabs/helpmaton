@@ -40,7 +40,14 @@ Use this image when your Lambda function needs to use LanceDB for vector databas
 
 ```
 @container-images
+# HTTP routes
 any /api/route/path lancedb
+
+# Queue functions
+queue agent-temporal-grain-queue lancedb
+
+# Scheduled functions
+scheduled aggregate-token-usage lancedb
 ```
 
 ### Custom Images
@@ -100,4 +107,3 @@ The full ECR URI format is: `{account-id}.dkr.ecr.{region}.amazonaws.com/{reposi
 - Use multi-stage builds if you need to compile dependencies
 - The base image already includes Node.js 20.x and Lambda runtime interface client
 - System libraries can be installed using `dnf` (Amazon Linux 2023 base)
-

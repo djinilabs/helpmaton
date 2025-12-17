@@ -371,11 +371,24 @@ Containerized Lambda functions are configured in `app.arc` using the `@container
 
 ```
 @container-images
+# HTTP routes
 method route image-name
 any /api/streams/:workspaceId/:agentId/:secret my-custom-image
+
+# Queue functions
+queue queue-name image-name
+queue agent-temporal-grain-queue lancedb
+
+# Scheduled functions
+scheduled scheduled-name image-name
+scheduled aggregate-token-usage lancedb
 ```
 
-Format: `{method} {route} {image-name}`
+Formats:
+
+- HTTP: `{method} {route} {image-name}`
+- Queue: `queue {queue-name} {image-name}`
+- Scheduled: `scheduled {scheduled-name} {image-name}`
 
 ### Docker Images
 
