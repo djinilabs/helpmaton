@@ -15,7 +15,9 @@ vi.mock("@architect/functions", () => {
 
 // Mock paths
 vi.mock("../paths", () => ({
-  getMessageGroupId: vi.fn((agentId: string, grain: string) => `${agentId}-${grain}`),
+  getMessageGroupId: vi.fn(
+    (agentId: string, grain: string) => `${agentId}-${grain}`
+  ),
 }));
 
 describe("queueClient", () => {
@@ -147,13 +149,19 @@ describe("queueClient", () => {
       };
 
       await sendWriteOperation(message);
-      const call1 = mockPublish.mock.calls[0]?.[0] as { dedupeId?: string; MessageDeduplicationId?: string };
+      const call1 = mockPublish.mock.calls[0]?.[0] as {
+        dedupeId?: string;
+        MessageDeduplicationId?: string;
+      };
 
       // Wait a bit to ensure different timestamp
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       await sendWriteOperation(message);
-      const call2 = mockPublish.mock.calls[1]?.[0] as { dedupeId?: string; MessageDeduplicationId?: string };
+      const call2 = mockPublish.mock.calls[1]?.[0] as {
+        dedupeId?: string;
+        MessageDeduplicationId?: string;
+      };
 
       // Deduplication IDs should be different due to timestamp
       const dedupeId1 = call1?.dedupeId || call1?.MessageDeduplicationId;
@@ -174,7 +182,14 @@ describe("queueClient", () => {
         agentId: "agent-123",
         temporalGrain: "daily",
         data: {
-          records: [],
+          records: [
+            {
+              id: "record-1",
+              content: "Test",
+              embedding: [0.1, 0.2],
+              timestamp: "2024-01-01T00:00:00Z",
+            },
+          ],
         },
       };
 
@@ -184,4 +199,3 @@ describe("queueClient", () => {
     });
   });
 });
-

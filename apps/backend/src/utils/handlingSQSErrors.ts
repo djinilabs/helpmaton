@@ -15,12 +15,6 @@ export const handlingSQSErrors = (
   return async (event: SQSEvent): Promise<void> => {
     try {
       await userHandler(event);
-      // Flush PostHog events before Lambda terminates (critical for Lambda)
-      try {
-        await flushPostHog();
-      } catch (flushError) {
-        console.error("[PostHog] Error flushing events:", flushError);
-      }
     } catch (error) {
       const boomed = boomify(error as Error);
 
@@ -58,15 +52,14 @@ export const handlingSQSErrors = (
         },
       });
 
-      // Flush Sentry events before Lambda terminates (critical for Lambda)
-      await flushSentry();
-
-      // Flush PostHog events before Lambda terminates (critical for Lambda)
-      await flushPostHog();
-
       // Re-throw the error so Lambda marks the invocation as failed
       throw error;
+    } finally {
+      await Promise.all([flushPostHog(), flushSentry()]).catch(
+        (flushErrors) => {
+          console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+        }
+      );
     }
   };
 };
-

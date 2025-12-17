@@ -126,12 +126,24 @@ describe("Memory System Integration", () => {
     });
 
     // Mock SQS write operation - store in memory
+    // For rawFacts, generate embeddings asynchronously (simulated)
     mockSendWriteOperation.mockImplementation(
       async (message: {
         operation: string;
         agentId: string;
         temporalGrain: TemporalGrain;
-        data: { records?: FactRecord[]; recordIds?: string[] };
+        workspaceId?: string;
+        data: {
+          records?: FactRecord[];
+          rawFacts?: Array<{
+            id: string;
+            content: string;
+            timestamp: string;
+            metadata?: Record<string, unknown>;
+            cacheKey?: string;
+          }>;
+          recordIds?: string[];
+        };
       }) => {
         sqsOperations.push({
           operation: message.operation,
@@ -141,8 +153,29 @@ describe("Memory System Integration", () => {
           recordIds: message.data.recordIds,
         });
 
-        if (message.operation === "insert" && message.data.records) {
-          for (const record of message.data.records) {
+        if (message.operation === "insert") {
+          let recordsToStore: FactRecord[] = [];
+
+          // If rawFacts are provided, generate embeddings for them
+          if (message.data.rawFacts && message.data.rawFacts.length > 0) {
+            for (const rawFact of message.data.rawFacts) {
+              // Generate embedding using the mock
+              const embedding = await mockGenerateEmbedding(rawFact.content);
+              recordsToStore.push({
+                id: rawFact.id,
+                content: rawFact.content,
+                embedding,
+                timestamp: rawFact.timestamp,
+                metadata: rawFact.metadata,
+              });
+            }
+          } else if (message.data.records) {
+            // Use pre-generated records
+            recordsToStore = message.data.records;
+          }
+
+          // Store records in memory
+          for (const record of recordsToStore) {
             const timeKey =
               message.temporalGrain === "working"
                 ? "global"

@@ -254,6 +254,7 @@ export async function generateEmbedding(
         throw fetchError;
       }
     } catch (error) {
+      console.error(`[generateEmbedding] Error generating embedding:`, error);
       // Check if it's an abort error
       if (error instanceof Error && error.message === "Operation aborted") {
         throw error;

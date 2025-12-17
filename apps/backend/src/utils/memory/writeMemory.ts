@@ -1,9 +1,6 @@
 import { createHash, randomUUID } from "crypto";
 
 import type { UIMessage } from "../../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
-import { getWorkspaceApiKey } from "../../http/utils/agentUtils";
-import { getDefined } from "../../utils";
-import { generateEmbedding } from "../embedding";
 import { sendWriteOperation } from "../vectordb/queueClient";
 import type { FactRecord, TemporalGrain } from "../vectordb/types";
 
@@ -88,7 +85,7 @@ function extractFactsFromMessages(
 
 /**
  * Write conversation messages to working memory
- * Extracts facts, generates embeddings, and queues to SQS
+ * Extracts facts and queues raw facts to SQS for async embedding generation
  */
 export async function writeToWorkingMemory(
   agentId: string,
@@ -125,112 +122,47 @@ export async function writeToWorkingMemory(
       return;
     }
 
-    // Get API key for embedding generation
-    // Try workspace API key first, fall back to system key
-    console.log(
-      `[Memory Write] Getting API key for workspace ${workspaceId}...`
-    );
-    const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "google");
-    console.log(
-      `[Memory Write] Workspace API key: ${
-        workspaceApiKey ? "found" : "not found"
-      }, using ${workspaceApiKey ? "workspace" : "system"} key`
-    );
-    const apiKey =
-      workspaceApiKey ||
-      getDefined(process.env.GEMINI_API_KEY, "GEMINI_API_KEY is not set");
-    console.log(
-      `[Memory Write] API key obtained, generating embeddings for ${facts.length} facts...`
-    );
+    // Create raw fact data (without embeddings) to queue for async processing
+    const rawFacts: Array<{
+      id: string;
+      content: string;
+      timestamp: string;
+      metadata?: Record<string, unknown>;
+      cacheKey?: string;
+    }> = [];
 
-    // Generate embeddings for each fact
-    const records: FactRecord[] = [];
-    for (let i = 0; i < facts.length; i++) {
-      const fact = facts[i];
-      console.log(
-        `[Memory Write] Generating embedding ${i + 1}/${
-          facts.length
-        } for fact: "${fact.text.substring(0, 50)}..."`
-      );
-      try {
-        console.log(
-          `[Memory Write] Calling generateEmbedding for fact ${i + 1}...`
-        );
-        const startTime = Date.now();
-        // Generate cache key for this fact (workspace:agent:factHash)
-        const factCacheKey = `${workspaceId}:${agentId}:${hashFact(fact.text)}`;
-        const embedding = await generateEmbedding(
-          fact.text,
-          apiKey,
-          factCacheKey, // Use cache key to avoid regenerating same embeddings
-          undefined // No abort signal
-        );
-        const duration = Date.now() - startTime;
-        console.log(
-          `[Memory Write] generateEmbedding completed for fact ${
-            i + 1
-          } in ${duration}ms`
-        );
-
-        records.push({
-          id: randomUUID(),
-          content: fact.text,
-          embedding,
-          timestamp: fact.timestamp,
-          metadata: {
-            conversationId,
-            workspaceId,
-            agentId,
-          },
-        });
-        console.log(
-          `[Memory Write] Successfully generated embedding ${i + 1}/${
-            facts.length
-          }`
-        );
-      } catch (error) {
-        console.error(
-          `[Memory Write] Failed to generate embedding ${i + 1}/${
-            facts.length
-          } for fact:`,
-          error instanceof Error
-            ? {
-                message: error.message,
-                stack: error.stack,
-                name: error.name,
-              }
-            : String(error)
-        );
-        // Continue with other facts even if one fails
-      }
+    for (const fact of facts) {
+      // Generate cache key for this fact (workspace:agent:factHash)
+      const factCacheKey = `${workspaceId}:${agentId}:${hashFact(fact.text)}`;
+      rawFacts.push({
+        id: randomUUID(),
+        content: fact.text,
+        timestamp: fact.timestamp,
+        metadata: {
+          conversationId,
+          workspaceId,
+          agentId,
+        },
+        cacheKey: factCacheKey,
+      });
     }
 
+    // Queue write operation to SQS with raw facts (embeddings will be generated async)
     console.log(
-      `[Memory Write] Generated ${records.length} embeddings out of ${facts.length} facts`
-    );
-
-    if (records.length === 0) {
-      console.log(
-        `[Memory Write] No records to write after embedding generation`
-      );
-      return;
-    }
-
-    // Queue write operation to SQS
-    console.log(
-      `[Memory Write] Queuing ${records.length} records to SQS for agent ${agentId}, conversation ${conversationId}`
+      `[Memory Write] Queuing ${rawFacts.length} raw facts to SQS for agent ${agentId}, conversation ${conversationId} (embeddings will be generated asynchronously)`
     );
     await sendWriteOperation({
       operation: "insert",
       agentId,
       temporalGrain: "working",
+      workspaceId, // Include workspaceId for API key lookup in queue handler
       data: {
-        records,
+        rawFacts,
       },
     });
 
     console.log(
-      `[Memory Write] Successfully queued ${records.length} records to working memory for agent ${agentId}, conversation ${conversationId}`
+      `[Memory Write] Successfully queued ${rawFacts.length} raw facts to working memory for agent ${agentId}, conversation ${conversationId}`
     );
   } catch (error) {
     // Log error but don't throw - memory writes should not block conversation logging

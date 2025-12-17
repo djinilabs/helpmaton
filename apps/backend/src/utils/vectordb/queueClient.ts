@@ -6,6 +6,7 @@ import { once } from "../../utils";
 
 import { getMessageGroupId } from "./paths";
 import type { WriteOperationMessage } from "./types";
+import { WriteOperationMessageSchema } from "./types";
 
 /**
  * Get the queue client from @architect/functions
@@ -20,9 +21,7 @@ export const getQueueClient = once(async () => {
  * Generate a deduplication ID for FIFO queue messages
  * Based on operation type, agentId, temporalGrain, and data hash
  */
-function generateDeduplicationId(
-  message: WriteOperationMessage
-): string {
+function generateDeduplicationId(message: WriteOperationMessage): string {
   const dataHash = crypto
     .createHash("sha256")
     .update(
@@ -40,10 +39,25 @@ function generateDeduplicationId(
 
 /**
  * Send a write operation message to the SQS FIFO queue
+ * Validates the message payload before sending
  */
 export async function sendWriteOperation(
   message: WriteOperationMessage
 ): Promise<void> {
+  // Validate message payload before sending
+  const validationResult = WriteOperationMessageSchema.safeParse(message);
+  if (!validationResult.success) {
+    const errors = validationResult.error.issues.map((issue) => {
+      const path = issue.path.join(".");
+      return `${path}: ${issue.message}`;
+    });
+    console.error(
+      `[Queue Client] Validation failed for message:`,
+      JSON.stringify(errors, null, 2)
+    );
+    throw new Error(`Invalid write operation message: ${errors.join(", ")}`);
+  }
+
   const queue = await getQueueClient();
   const queueName = "agent-temporal-grain-queue";
   const messageGroupId = getMessageGroupId(
@@ -55,14 +69,16 @@ export async function sendWriteOperation(
   try {
     // @architect/functions queues.publish API
     // Type assertion needed as the types may not include FIFO queue properties
-    await (queue.publish as (params: {
-      name: string;
-      payload: unknown;
-      MessageGroupId?: string;
-      MessageDeduplicationId?: string;
-      groupId?: string;
-      dedupeId?: string;
-    }) => Promise<void>)({
+    await (
+      queue.publish as (params: {
+        name: string;
+        payload: unknown;
+        MessageGroupId?: string;
+        MessageDeduplicationId?: string;
+        groupId?: string;
+        dedupeId?: string;
+      }) => Promise<void>
+    )({
       name: queueName,
       payload: message,
       // Try both naming conventions
@@ -84,4 +100,3 @@ export async function sendWriteOperation(
     );
   }
 }
-

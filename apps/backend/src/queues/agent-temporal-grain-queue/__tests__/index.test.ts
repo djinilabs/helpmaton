@@ -30,9 +30,27 @@ vi.mock("../../../utils/handlingSQSErrors", () => ({
   handlingSQSErrors: (fn: (event: SQSEvent) => Promise<void>) => fn,
 }));
 
+vi.mock("../../../http/utils/agentUtils", () => ({
+  getWorkspaceApiKey: vi.fn().mockResolvedValue(null),
+}));
+
+vi.mock("../../../utils/embedding", () => ({
+  generateEmbedding: vi.fn().mockResolvedValue([0.1, 0.2, 0.3]),
+}));
+
+vi.mock("../../../utils", () => ({
+  getDefined: vi.fn((value: string, message: string) => {
+    if (!value) throw new Error(message);
+    return value;
+  }),
+}));
+
 describe("agent-temporal-grain-queue handler", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+
+    // Set environment variable for API key
+    process.env.GEMINI_API_KEY = "test-api-key";
 
     const { connect } = await import("@lancedb/lancedb");
     const mockConnect = vi.mocked(connect);
@@ -270,10 +288,12 @@ describe("agent-temporal-grain-queue handler", () => {
           ],
         };
 
-        await expect(handler(event)).rejects.toThrow("Invalid message format");
+        await expect(handler(event)).rejects.toThrow(
+          "Invalid message format: JSON parse error"
+        );
       });
 
-      it("should throw error for missing records in insert", async () => {
+      it("should throw error for missing records or rawFacts in insert", async () => {
         const message: WriteOperationMessage = {
           operation: "insert",
           agentId: "agent-123",
@@ -284,8 +304,74 @@ describe("agent-temporal-grain-queue handler", () => {
         const event = createSQSEvent([message]);
 
         await expect(handler(event as unknown as SQSEvent)).rejects.toThrow(
-          "Insert operation requires records"
+          "Invalid write operation message"
         );
+        await expect(handler(event as unknown as SQSEvent)).rejects.toThrow(
+          "insert/update requires records or rawFacts"
+        );
+      });
+
+      it("should process insert operation with rawFacts and generate embeddings", async () => {
+        const { connect } = await import("@lancedb/lancedb");
+        const { generateEmbedding } = await import("../../../utils/embedding");
+        const mockConnect = vi.mocked(connect);
+        const mockGenerateEmbedding = vi.mocked(generateEmbedding);
+
+        const mockEmbedding = [0.5, 0.6, 0.7];
+        mockGenerateEmbedding.mockResolvedValue(mockEmbedding);
+
+        const mockAdd = vi.fn().mockResolvedValue(undefined);
+        const mockOpenTable = vi.fn().mockResolvedValue({
+          add: mockAdd,
+        });
+
+        mockConnect.mockResolvedValue({
+          openTable: mockOpenTable,
+          createTable: vi.fn(),
+        } as unknown as Awaited<ReturnType<typeof connect>>);
+
+        const message: WriteOperationMessage = {
+          operation: "insert",
+          agentId: "agent-123",
+          temporalGrain: "working",
+          workspaceId: "workspace-456",
+          data: {
+            rawFacts: [
+              {
+                id: "raw-fact-1",
+                content: "User said: Hello world",
+                timestamp: "2024-01-01T00:00:00Z",
+                metadata: { conversationId: "conv-1" },
+                cacheKey: "workspace-456:agent-123:abc123",
+              },
+            ],
+          },
+        };
+
+        const event = createSQSEvent([message]);
+
+        await handler(event);
+
+        // Verify embedding was generated
+        expect(mockGenerateEmbedding).toHaveBeenCalledWith(
+          "User said: Hello world",
+          expect.any(String), // API key
+          "workspace-456:agent-123:abc123",
+          undefined
+        );
+
+        // Verify record was inserted with generated embedding
+        expect(mockConnect).toHaveBeenCalled();
+        expect(mockOpenTable).toHaveBeenCalledWith("vectors");
+        expect(mockAdd).toHaveBeenCalledWith([
+          {
+            id: "raw-fact-1",
+            content: "User said: Hello world",
+            vector: mockEmbedding,
+            timestamp: "2024-01-01T00:00:00Z",
+            metadata: { conversationId: "conv-1" },
+          },
+        ]);
       });
 
       it("should throw error for unknown operation", async () => {
@@ -301,7 +387,10 @@ describe("agent-temporal-grain-queue handler", () => {
         ]);
 
         await expect(handler(event as unknown as SQSEvent)).rejects.toThrow(
-          "Unknown operation"
+          "Invalid write operation message"
+        );
+        await expect(handler(event as unknown as SQSEvent)).rejects.toThrow(
+          "Invalid option: expected one of"
         );
       });
     });
