@@ -16,7 +16,7 @@ import {
 
 /**
  * Get LanceDB connection options for S3
- * Returns storageOptions for local dev (s3rver) or empty object for production
+ * Returns storageOptions for local dev (s3rver) or staging/production (AWS S3 with explicit credentials)
  */
 function getLanceDBConnectionOptions(): {
   storageOptions?: Record<string, string>;
@@ -27,22 +27,63 @@ function getLanceDBConnectionOptions(): {
     arcEnv === "testing" ||
     (arcEnv !== "production" && nodeEnv !== "production");
 
-  if (!isLocal) {
-    // Production - LanceDB will use default AWS credentials/configuration
-    return {};
+  if (isLocal) {
+    // Local development with s3rver
+    const endpoint =
+      process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
+    return {
+      storageOptions: {
+        endpoint,
+        allowHttp: "true", // Required for local HTTP endpoints
+        awsVirtualHostedStyleRequest: "false", // Force path-style addressing
+        awsAccessKeyId: "S3RVER",
+        awsSecretAccessKey: "S3RVER",
+        region: "eu-west-2",
+      },
+    };
   }
 
-  // Local development with s3rver
-  const endpoint = process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
+  // Staging/Production - use explicit credentials from environment variables
+  const region =
+    process.env.HELPMATON_S3_REGION || process.env.AWS_REGION || "eu-west-2";
+
+  const accessKeyId = process.env.HELPMATON_S3_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.HELPMATON_S3_SECRET_ACCESS_KEY;
+
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error(
+      "HELPMATON_S3_ACCESS_KEY_ID and HELPMATON_S3_SECRET_ACCESS_KEY must be set in staging/production environments"
+    );
+  }
+
+  const storageOptions: Record<string, string> = {
+    awsAccessKeyId: accessKeyId,
+    awsSecretAccessKey: secretAccessKey,
+    region,
+  };
+
+  // Check for custom endpoint (for S3-compatible services)
+  const customEndpoint = process.env.HELPMATON_S3_ENDPOINT;
+  if (
+    customEndpoint &&
+    !customEndpoint.includes("localhost") &&
+    !customEndpoint.includes("127.0.0.1")
+  ) {
+    storageOptions.endpoint = customEndpoint;
+    storageOptions.allowHttp = customEndpoint.startsWith("http://")
+      ? "true"
+      : "false";
+    console.log(
+      `[Write Server] Using custom S3 endpoint: ${customEndpoint}, region: ${region}`
+    );
+  } else {
+    console.log(
+      `[Write Server] Using AWS S3 with explicit credentials, region: ${region}`
+    );
+  }
+
   return {
-    storageOptions: {
-      endpoint,
-      allowHttp: "true", // Required for local HTTP endpoints
-      awsVirtualHostedStyleRequest: "false", // Force path-style addressing
-      awsAccessKeyId: "S3RVER",
-      awsSecretAccessKey: "S3RVER",
-      region: "eu-west-2",
-    },
+    storageOptions,
   };
 }
 

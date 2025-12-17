@@ -378,6 +378,14 @@ The S3 integration is used for storing workspace documents. This integration ope
 
 The vector database (LanceDB) integration is used for storing agent memory data in a stratified memory system. This integration uses S3 for persistent storage of vector databases.
 
+**Important**: In staging and production environments, LanceDB requires the following environment variables to be set:
+
+- `HELPMATON_S3_ACCESS_KEY_ID` - AWS access key ID for S3 access
+- `HELPMATON_S3_SECRET_ACCESS_KEY` - AWS secret access key for S3 access
+- `HELPMATON_S3_REGION` - AWS region where the S3 bucket is located (defaults to `AWS_REGION` or `eu-west-2`)
+
+These credentials are used explicitly when connecting to S3 for LanceDB operations. In local development (`ARC_ENV=testing`), LanceDB uses the local s3rver with default credentials.
+
 ### `HELPMATON_VECTORDB_S3_BUCKET_PRODUCTION`
 
 - **Description**: S3 bucket name for storing vector databases in production
