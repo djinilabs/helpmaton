@@ -708,12 +708,14 @@ async function callAgentInternal(
     search_documents: searchDocumentsTool,
   };
 
-  // Add memory search tool
-  const { createSearchMemoryTool } = await import("./memorySearchTool");
-  tools.search_memory = createSearchMemoryTool(
-    extractedTargetAgentId,
-    workspaceId
-  );
+  // Add memory search tool if enabled
+  if (targetAgent.enableMemorySearch === true) {
+    const { createSearchMemoryTool } = await import("./memorySearchTool");
+    tools.search_memory = createSearchMemoryTool(
+      extractedTargetAgentId,
+      workspaceId
+    );
+  }
 
   if (targetAgent.notificationChannelId) {
     tools.send_notification = createSendNotificationTool(

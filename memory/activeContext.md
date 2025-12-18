@@ -2,7 +2,15 @@
 
 ## Current Status
 
-**Status**: LanceDB Metadata Flattening Fix - Implemented ✅
+**Status**: Message Queue Duplication Fix - Completed ✅
+
+Fixed critical issue where conversation recording was sending ALL messages to the queue every time `updateConversation()` was called, not just the new ones. This caused massive duplication in fact extraction, embedding generation, and vector database writes. Solution: Modified `updateConversation()` to identify and send only truly new messages (not present in existing conversation) to the queue.
+
+**Previous Status**: Memory Search Tool Documentation - Completed ✅
+
+Added `search_memory` tool to both the frontend UI (ToolsHelpDialog) and backend prompt generation endpoint so that users and agents are aware of this capability. The tool was already implemented and available to agents, but was not visible in the tools list or mentioned in generated prompts.
+
+**Previous Status**: LanceDB Metadata Flattening Fix - Implemented ✅
 
 Fixed issue where LanceDB search returns metadata with null values. Root cause: LanceDB doesn't handle nested metadata objects properly - data was being written but lost during storage/retrieval. Solution: Flattened metadata structure to store conversationId, workspaceId, and agentId as top-level fields instead of nested in a metadata object.
 
@@ -11,6 +19,51 @@ Fixed issue where LanceDB search returns metadata with null values. Root cause: 
 The SQS queue processing now supports partial batch failures, allowing successful messages to be deleted from the queue while failed ones are retried individually. This prevents unnecessary reprocessing of successfully processed messages and improves efficiency.
 
 **Recent Fixes (Latest)**:
+
+- **Message Queue Duplication Fix** (December 18, 2025)
+
+  - **Issue**: When recording conversations, the system was sending ALL messages to the queue every time `updateConversation()` was called, not just the new ones. In a multi-turn conversation with 5 messages where 1 new message was added, all 5 messages were being sent to the queue for fact extraction and embedding generation, causing 5x duplication.
+  - **Root Cause**: The `updateConversation()` function was calling `writeToWorkingMemory()` with `filteredNewMessages`, which was ALL the messages the client sent (full conversation history), not just the truly new messages.
+  - **Solution**:
+    - Exported `getMessageKey()` helper function for generating unique keys based on message role and content
+    - Created `findNewMessages()` helper function to identify messages not present in existing conversation
+    - Modified `updateConversation()` to track truly new messages inside the `atomicUpdate` callback
+    - Only send truly new messages to the queue, preventing duplicates
+  - **Code Changes**:
+    - `apps/backend/src/utils/conversationLogger.ts`:
+      - Exported `getMessageKey()` function (previously private)
+      - Added `findNewMessages()` function to compare existing vs incoming messages
+      - Modified `updateConversation()` to identify truly new messages and only send those to queue
+    - `apps/backend/src/utils/__tests__/conversationLogger.test.ts`:
+      - Added 3 new test suites with 8 comprehensive tests
+      - Tests for `getMessageKey()` message comparison logic
+      - Tests for `findNewMessages()` duplicate detection
+      - Tests for `updateConversation()` queue write behavior with various scenarios
+  - **Benefits**:
+    - Eliminated 5x-10x reduction in queue messages for multi-turn conversations
+    - Reduced Gemini API embedding costs (no redundant calls)
+    - Reduced LanceDB writes (no duplicate facts)
+    - Better performance in queue processing
+    - Significant cost savings across SQS, Gemini API, and storage
+  - **Verification**:
+    - All 39 tests pass (including 8 new tests)
+    - Type checking passes with no errors
+    - Linting passes with no warnings
+  - **Impact**: This fix prevents massive duplication in the memory system, significantly reducing costs and improving performance. Queue messages will now contain only truly new conversation messages, not the entire history.
+
+- **Memory Search Tool Documentation** (December 18, 2025)
+
+  - **Issue**: The `search_memory` tool was already implemented and functional but was not documented in:
+    - Frontend UI (`ToolsHelpDialog.tsx`) - users couldn't see it in the tools list
+    - Prompt generation endpoint (`post-generate-prompt.ts`) - agents weren't informed about this capability
+  - **Solution**: Added `search_memory` tool to both locations:
+    - Added complete tool definition with parameters to `ToolsHelpDialog.tsx` - shows as "Always Available" with grain, minimumDaysAgo, maximumDaysAgo, maxResults, and queryText parameters
+    - Added tool description to prompt generation endpoint - now included in AI agent system prompts
+  - **Files Modified**:
+    - `apps/frontend/src/components/ToolsHelpDialog.tsx` - Added search_memory tool definition
+    - `apps/backend/src/http/any-api-workspaces-catchall/routes/post-generate-prompt.ts` - Added search_memory to toolsInfo
+  - **Verification**: All type checking and linting passes successfully
+  - **Impact**: Users can now see the memory search capability in the tools list, and agents will be informed about this tool when their prompts are generated
 
 - **LanceDB Metadata Flattening Fix** (December 18, 2025)
 

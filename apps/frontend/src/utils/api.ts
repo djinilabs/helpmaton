@@ -78,6 +78,7 @@ export interface Agent {
   notificationChannelId?: string;
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
+  enableMemorySearch?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
   temperature?: number;
@@ -106,6 +107,7 @@ export interface UpdateAgentInput {
   notificationChannelId?: string | null;
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
+  enableMemorySearch?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
   temperature?: number | null;

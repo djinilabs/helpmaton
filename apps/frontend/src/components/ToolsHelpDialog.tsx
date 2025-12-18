@@ -29,6 +29,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
   const hasEmailConnection = !!emailConnection;
   const hasDelegation =
     agent?.delegatableAgentIds && agent.delegatableAgentIds.length > 0;
+  const hasMemorySearch = agent?.enableMemorySearch === true;
   const enabledMcpServerIds = agent?.enabledMcpServerIds || [];
   const enabledMcpServers =
     mcpServersData?.servers.filter((server) =>
@@ -55,6 +56,52 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
           type: "number",
           required: false,
           description: "Number of top results to return (default: 5).",
+        },
+      ],
+    },
+    {
+      name: "search_memory",
+      description:
+        "Search the agent's factual memory across different time periods. Returns the most recent events prefixed by the date when they happened. Use this to recall past conversations, facts, and important information.",
+      alwaysAvailable: false,
+      condition: hasMemorySearch
+        ? "Available (memory search enabled)"
+        : "Not available (memory search not enabled)",
+      parameters: [
+        {
+          name: "grain",
+          type: "string (enum)",
+          required: true,
+          description:
+            "The time grain to search: 'working' for most recent events, 'daily' for day summaries, 'weekly' for week summaries, 'monthly', 'quarterly', or 'yearly'.",
+        },
+        {
+          name: "minimumDaysAgo",
+          type: "number",
+          required: false,
+          description:
+            "Minimum number of days ago to search from (0 = today). Defaults to 0.",
+        },
+        {
+          name: "maximumDaysAgo",
+          type: "number",
+          required: false,
+          description:
+            "Maximum number of days ago to search from. Defaults to 365 (1 year).",
+        },
+        {
+          name: "maxResults",
+          type: "number",
+          required: false,
+          description:
+            "Maximum number of results to return. Defaults to 10, maximum is 100.",
+        },
+        {
+          name: "queryText",
+          type: "string",
+          required: false,
+          description:
+            "Optional text query for semantic search. If provided, will search for similar content. If not provided, returns most recent events.",
         },
       ],
     },

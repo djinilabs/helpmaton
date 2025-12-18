@@ -100,6 +100,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           spendingLimits,
           delegatableAgentIds,
           enabledMcpServerIds,
+          enableMemorySearch,
           clientTools,
           temperature,
           topP,
@@ -391,6 +392,10 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             enabledMcpServerIds !== undefined
               ? enabledMcpServerIds
               : agent.enabledMcpServerIds,
+          enableMemorySearch:
+            enableMemorySearch !== undefined
+              ? enableMemorySearch
+              : agent.enableMemorySearch,
           clientTools:
             clientTools !== undefined ? clientTools : agent.clientTools,
           spendingLimits:
@@ -450,6 +455,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           notificationChannelId: updated.notificationChannelId,
           delegatableAgentIds: updated.delegatableAgentIds ?? [],
           enabledMcpServerIds: updated.enabledMcpServerIds ?? [],
+          enableMemorySearch: updated.enableMemorySearch ?? false,
           clientTools: updated.clientTools ?? [],
           spendingLimits: updated.spendingLimits ?? [],
           temperature: updated.temperature ?? null,

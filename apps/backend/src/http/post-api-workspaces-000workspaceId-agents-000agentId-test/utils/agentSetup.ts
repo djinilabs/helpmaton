@@ -155,8 +155,12 @@ export async function setupAgentAndTools(
 
   const tools: AgentSetup["tools"] = {
     search_documents: searchDocumentsTool,
-    search_memory: createSearchMemoryTool(extractedAgentId, workspaceId),
   };
+
+  // Add memory search tool if enabled
+  if (agent.enableMemorySearch === true) {
+    tools.search_memory = createSearchMemoryTool(extractedAgentId, workspaceId);
+  }
 
   if (agent.notificationChannelId) {
     tools.send_notification = createSendNotificationTool(

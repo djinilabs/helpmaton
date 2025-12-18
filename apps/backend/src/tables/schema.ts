@@ -96,6 +96,7 @@ export const tableSchemas = {
     notificationChannelId: z.string().optional(), // reference to output_channel
     delegatableAgentIds: z.array(z.string()).optional(), // list of agent IDs this agent can delegate to
     enabledMcpServerIds: z.array(z.string()).optional(), // list of MCP server IDs enabled for this agent
+    enableMemorySearch: z.boolean().optional(), // enable memory search tool for this agent (default: false)
     spendingLimits: z
       .array(
         z.object({

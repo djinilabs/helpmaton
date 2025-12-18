@@ -110,6 +110,7 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
           notificationChannelId?: string;
           delegatableAgentIds?: string[];
           enabledMcpServerIds?: string[];
+          enableMemorySearch?: boolean;
         } | null = null;
 
         if (agentId && typeof agentId === "string") {
@@ -126,6 +127,7 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
             notificationChannelId: agentRecord.notificationChannelId,
             delegatableAgentIds: agentRecord.delegatableAgentIds,
             enabledMcpServerIds: agentRecord.enabledMcpServerIds,
+            enableMemorySearch: agentRecord.enableMemorySearch,
           };
         }
 
@@ -146,6 +148,14 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
         toolsInfo.push(
           "- **search_documents**: Always available. Search workspace documents using semantic vector search."
         );
+
+        // Memory search tool (conditional)
+        if (agent?.enableMemorySearch === true) {
+          availableTools.push("search_memory");
+          toolsInfo.push(
+            "- **search_memory**: Available. Search the agent's factual memory across different time periods to recall past conversations and information."
+          );
+        }
 
         if (agent?.notificationChannelId) {
           availableTools.push("send_notification");
