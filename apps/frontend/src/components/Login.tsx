@@ -22,6 +22,13 @@ const Login: FC = () => {
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !isSubmitting && email.trim()) {
+      e.preventDefault();
+      handleEmailSignIn(e as unknown as React.FormEvent);
+    }
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-soft p-4 relative overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(13,148,136,0.08),transparent_50%)] pointer-events-none"></div>
@@ -69,6 +76,7 @@ const Login: FC = () => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={handleKeyDown}
               className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
               placeholder="your@email.com"
             />

@@ -2,7 +2,23 @@
 
 ## Current Status
 
-**Status**: LanceDB Docker Image Optimization - Completed ✅
+**Status**: Login Form Enter Key Submission - Completed ✅
+
+Added explicit Enter key handler to the email input field on the login form to ensure form submission works when pressing Enter, in addition to clicking the submit button.
+
+**Changes**:
+
+- Added `handleKeyDown` function to detect Enter key press
+- Function checks if email is valid and not currently submitting before triggering form submission
+- Added `onKeyDown={handleKeyDown}` handler to email input element
+
+**Files Modified**:
+
+- `apps/frontend/src/components/Login.tsx` - Added Enter key handler for email input
+
+**Verification**: Type checking and linting passed successfully
+
+**Previous Status**: LanceDB Docker Image Optimization - Completed ✅
 
 Dramatically optimized the LanceDB Docker image build time and size by installing ONLY LanceDB runtime dependencies instead of all backend dependencies. Since esbuild bundles all JavaScript code into the compiled `dist/` files, the Docker image only needs the native LanceDB modules that can't be bundled.
 
