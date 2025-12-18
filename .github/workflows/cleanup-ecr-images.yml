@@ -1,0 +1,135 @@
+name: Cleanup ECR Images
+
+on:
+  # Scheduled cleanup - Daily at 2 AM UTC
+  schedule:
+    - cron: "0 2 * * *"
+
+  # Manual trigger with parameters
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run mode (true = simulate only, false = actually delete)"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      production_retention:
+        description: "Number of production images to keep"
+        required: false
+        default: "15"
+        type: string
+      min_age_hours:
+        description: "Minimum image age in hours before deletion"
+        required: false
+        default: "24"
+        type: string
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+
+      - name: Enable pnpm corepack
+        run: corepack enable
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.24.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set cleanup parameters
+        id: params
+        run: |
+          # Determine dry-run mode
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            DRY_RUN="${{ github.event.inputs.dry_run }}"
+            RETENTION="${{ github.event.inputs.production_retention }}"
+            MIN_AGE="${{ github.event.inputs.min_age_hours }}"
+          else
+            # For scheduled runs, default to dry-run for safety
+            DRY_RUN="true"
+            RETENTION="15"
+            MIN_AGE="24"
+          fi
+
+          echo "dry_run=${DRY_RUN}" >> $GITHUB_OUTPUT
+          echo "retention=${RETENTION}" >> $GITHUB_OUTPUT
+          echo "min_age=${MIN_AGE}" >> $GITHUB_OUTPUT
+
+          echo "Configuration:"
+          echo "  Dry run: ${DRY_RUN}"
+          echo "  Production retention: ${RETENTION}"
+          echo "  Min age hours: ${MIN_AGE}"
+
+      - name: Run ECR cleanup
+        env:
+          ECR_REPOSITORY_NAME: helpmaton-lambda-images
+          PRODUCTION_STACK_NAME: HelpmatonProduction
+          PR_STACK_PREFIX: HelpmatonStagingPR
+          PRODUCTION_IMAGE_RETENTION_COUNT: ${{ steps.params.outputs.retention }}
+          MIN_IMAGE_AGE_HOURS: ${{ steps.params.outputs.min_age }}
+          AWS_REGION: eu-west-2
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DRY_RUN: ${{ steps.params.outputs.dry_run }}
+        run: |
+          if [ "${{ steps.params.outputs.dry_run }}" == "false" ]; then
+            echo "⚠️  EXECUTING CLEANUP - Images will be deleted!"
+            node scripts/cleanup-ecr-images.mjs --execute
+          else
+            echo "🔍 DRY RUN MODE - No images will be deleted"
+            node scripts/cleanup-ecr-images.mjs --dry-run
+          fi
+
+      - name: Upload cleanup report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecr-cleanup-report-${{ github.run_number }}
+          path: |
+            ${{ github.workspace }}/cleanup-report-*.txt
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Comment on failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = context.issue.number;
+            if (!issue_number) {
+              console.log('No issue number found, skipping comment');
+              return;
+            }
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              body: `⚠️ ECR Image Cleanup failed in workflow run: ${context.runId}\n\nPlease check the logs: ${context.payload.workflow_run.html_url}`
+            });

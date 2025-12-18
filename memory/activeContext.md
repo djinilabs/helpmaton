@@ -68,6 +68,52 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 
 **Recent Fixes (Latest)**:
 
+- **ECR Image Cleanup Strategy Implementation** (December 18, 2025)
+
+  - **Problem**: ECR repository grows indefinitely with unused Docker images from PR deployments, increasing storage costs (~$25+/month and growing)
+  - **Solution**: Implemented automated cleanup system with multiple safety mechanisms
+  - **Components Created**:
+    - `scripts/cleanup-ecr-images.mjs` - Main cleanup script with CloudFormation/ECR integration
+    - `scripts/ecr-utils.mjs` - Utility functions for image parsing and classification
+    - `scripts/__tests__/ecr-utils.test.mjs` - Comprehensive unit tests
+    - `.github/workflows/cleanup-ecr-images.yml` - Scheduled GitHub Actions workflow
+    - `docs/ecr-image-cleanup.md` - Complete documentation with troubleshooting guide
+  - **Key Features**:
+    - Queries all CloudFormation stacks to build "protected set" of images in use
+    - Never deletes images currently deployed in any environment (production or PRs)
+    - Keeps last N production deployments (default: 15) for rollback capability
+    - Checks GitHub API for open PRs to protect active environments
+    - 24-hour minimum age requirement prevents race conditions
+    - Dry-run mode by default for safety
+    - Detailed reporting with categorization of deletion candidates
+  - **Safety Mechanisms**:
+    1. Protected image set from active CloudFormation stacks
+    2. Multi-layer validation (deployment status, age, PR status)
+    3. Dry-run mode (requires explicit --execute flag)
+    4. Time-based safety buffer (24-hour minimum age)
+  - **Automation**:
+    - Scheduled weekly execution (Sunday 2 AM UTC)
+    - Manual trigger with configurable parameters
+    - GitHub Actions workflow with artifact upload
+  - **Configuration**:
+    - Added npm scripts: `cleanup-ecr`, `cleanup-ecr:dry-run`, `cleanup-ecr:execute`
+    - Environment variables for customization
+    - Default retention: 15 production images, 24-hour minimum age
+  - **Expected Impact**:
+    - Reduce storage from ~250GB to ~25GB
+    - Cost savings: ~$22.50/month (90% reduction)
+    - Maintain clean repository with only active images
+  - **Dependencies Added**:
+    - `@aws-sdk/client-cloudformation` - Query CloudFormation stacks
+    - `@aws-sdk/client-lambda` - Get Lambda function configurations
+    - `@aws-sdk/client-ecr` - Manage ECR images
+    - `@octokit/rest` - Check GitHub PR status
+  - **Files Modified**:
+    - `package.json` - Added cleanup scripts and AWS SDK dependencies
+  - **Documentation**: Complete guide with usage, troubleshooting, and best practices
+  - **Testing**: Unit tests for all utility functions with comprehensive coverage
+  - **Verification**: Type checking and linting passed successfully
+
 - **JWT Token Expiration Extended to 24 Hours** (December 18, 2025)
 
   - **Change**: Extended JWT access token expiration from 1 hour to 24 hours
