@@ -41,6 +41,44 @@ Create and configure AI agents with custom system prompts. Define their behavior
 
 Upload markdown and text documents to build knowledge bases for your agents. Organize documents into folders and keep them updated as your information evolves.
 
+### Agent Memory System
+
+Agents remember important facts, people, and events from conversations through a stratified memory architecture. Memories are progressively summarized across temporal grains (daily, weekly, monthly, quarterly, yearly) and searchable via semantic vector search, enabling context-aware responses informed by past interactions.
+
+### Tool Integration & Extensibility
+
+Agents come with built-in tools (like memory search) and can be extended with MCP (Model Context Protocol) servers to connect to external APIs and services. Configure MCP servers with custom authentication and enable them per-agent to give your AI assistants access to databases, business logic, weather APIs, and more.
+
+### Cost Management & Billing
+
+**Credit System**: Purchase credits and pay only for what you use with transparent, usage-based billing. Credits are automatically reserved before LLM calls and adjusted after based on actual token usage, with atomic operations preventing race conditions.
+
+**Bring Your Own Key (BYOK)**: Use your own LLM API keys instead of credits. Pay providers directly while still benefiting from Helpmaton's infrastructure, analytics, and management features.
+
+**Spending Limits**: Set granular daily, monthly, or yearly spending limits at both workspace and individual agent levels to prevent runaway costs and maintain budget control.
+
+**Advanced Pricing**: Support for tiered pricing models (different rates based on token thresholds), separate reasoning token billing, and tracking of cached prompt tokens for accurate cost calculation.
+
+### Usage Analytics & Monitoring
+
+Comprehensive token usage tracking across all dimensions: prompt tokens, completion tokens, reasoning tokens, and cached tokens. View detailed usage statistics with daily and hourly aggregation, historical data with date range filtering, and per-workspace or per-agent breakdowns.
+
+### Trial & Free Access
+
+Request trial credits to test the platform risk-free. The free plan includes 1 workspace and 1 agent with 7-day access, perfect for evaluation. After the trial period, agents are blocked until you upgrade to a paid plan.
+
+### Flexible Authentication
+
+Multiple authentication methods to fit your workflow: session-based authentication for web users, JWT tokens with 24-hour expiration for API access, workspace API keys for programmatic integration, and OAuth support for email-based login.
+
+### Subscription Sharing
+
+Pro plan subscriptions support multiple managers with shared access to all workspaces. Perfect for teams that need collaborative management of AI agents and resources, with unlimited managers on Pro plans.
+
+### Memory Retention Policies
+
+Automatic memory management with subscription plan-based retention periods. Free plans retain 48 hours of working memory and 30 days of daily summaries, while Pro plans extend to 240 hours and 120 days respectively. Old memories are automatically cleaned up to optimize storage.
+
 ### Webhook API
 
 Every agent exposes a webhook endpoint that accepts HTTP requests. Send messages and receive AI-powered responses, making integration with your applications straightforward.
@@ -89,8 +127,9 @@ Complete API documentation available in OpenAPI format. Generate client librarie
 - Embed AI responses in web applications
 - Build automated workflows that leverage AI capabilities
 - Create custom interfaces for agent interactions
+- Extend agents with MCP servers for database access, external APIs, and custom business logic
 
-See the [API Reference](./docs/api-reference.md) for complete endpoint documentation.
+See the [API Reference](./docs/api-reference.md) for complete endpoint documentation and [MCP Servers](./docs/mcp-servers.md) for tool integration guide.
 
 ## Contributing
 
@@ -104,12 +143,16 @@ We welcome contributions to Helpmaton! Whether you're fixing bugs, adding featur
 
 Helpmaton is built on modern, scalable infrastructure:
 
-- **Backend**: TypeScript, Node.js, AWS Lambda, API Gateway
-- **Database**: DynamoDB for high-performance data storage
-- **Storage**: S3 for document management
+- **Backend**: TypeScript, Node.js, AWS Lambda (including custom container images), API Gateway
+- **Database**: DynamoDB for high-performance data storage with atomic operations
+- **Vector Database**: LanceDB with S3 backend for agent memory and semantic search
+- **Storage**: S3 for document management and vector database persistence
 - **Frontend**: React with TypeScript
-- **AI**: Google Gemini API integration
-- **Deployment**: Automated CI/CD with GitHub Actions
+- **AI**: Google Gemini API for embeddings and LLM capabilities
+- **Queue Processing**: SQS FIFO queues with message groups for serialized memory writes
+- **Deployment**: Automated CI/CD with GitHub Actions, multi-stage Docker builds for optimization
+- **Payments**: Lemon Squeezy integration for subscriptions and credit purchases
+- **Monitoring**: Comprehensive usage tracking and analytics with automated aggregation
 
 The platform is designed for reliability, scalability, and performance, handling everything from individual developers to enterprise teams.
 
@@ -136,6 +179,7 @@ The platform is designed for reliability, scalability, and performance, handling
 ### Core Systems
 
 - [Authentication System](./docs/authentication.md) - Session-based auth, JWT tokens, API keys, and OAuth
+- [Agent Memory System](./docs/agent-memory-system.md) - Stratified memory architecture, temporal grains, and semantic search
 - [Credit System](./docs/credit-system.md) - Credit reservation, adjustment, and spending limits
 - [Webhook System](./docs/webhook-system.md) - Webhook endpoints, authentication, and response formats
 - [Streaming System](./docs/streaming-system.md) - Server-Sent Events (SSE) and Lambda URL streaming
@@ -150,8 +194,9 @@ The platform is designed for reliability, scalability, and performance, handling
 ### Reference
 
 - [API Reference](./docs/api-reference.md) - Complete API endpoint documentation with examples
-- [Subscription Management](./docs/subscription-management.md) - Subscription plans, limits, and management
-- [Pricing Calculation](./docs/pricing-calculation.md) - How token usage costs are calculated
+- [Subscription Management](./docs/subscription-management.md) - Subscription plans, limits, manager sharing, and free trial details
+- [Pricing Calculation](./docs/pricing-calculation.md) - Token usage costs, tiered pricing, and reasoning token billing
+- [Vector Database](./docs/vector-database.md) - LanceDB architecture, temporal grains, and query patterns
 
 ### Development
 
