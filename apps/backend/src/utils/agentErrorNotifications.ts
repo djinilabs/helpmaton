@@ -309,3 +309,4 @@ export async function sendAgentErrorNotification(
     // Don't throw - email sending should not break agent requests
   }
 }
+

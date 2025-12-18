@@ -2,7 +2,35 @@
 
 ## Current Status
 
-**Status**: JWT Token Expiration Extended to 24 Hours - Completed ✅
+**Status**: LanceDB Docker Image Optimization - Completed ✅
+
+Dramatically optimized the LanceDB Docker image build time and size by installing ONLY LanceDB runtime dependencies instead of all backend dependencies. Since esbuild bundles all JavaScript code into the compiled `dist/` files, the Docker image only needs the native LanceDB modules that can't be bundled.
+
+**Changes**:
+
+- Created minimal `package.json` with only 4 packages: `@lancedb/lancedb`, `apache-arrow`, `reflect-metadata` (and platform binary)
+- Added `pnpm.supportedArchitectures` config to package.json to install only linux-arm64 platform binaries (not darwin, windows, etc.)
+- Simplified Dockerfile to single-stage build (no build tools needed - LanceDB ships pre-compiled `.node` binaries)
+- Uses pnpm for consistency with project standards
+- Removed: python3, make, gcc-c++, git, monorepo workspace files, all 40+ backend dependencies
+
+**Impact**:
+
+- Expected ~1GB+ reduction in node_modules (from 600MB+ to ~80-100MB)
+- Expected ~4-6 minutes faster builds
+- Much simpler Dockerfile (single-stage, simple pnpm install)
+
+**Files Created**:
+
+- `apps/backend/docker/lancedb/package.json` - Minimal runtime dependencies with pnpm platform configuration
+
+**Files Modified**:
+
+- `apps/backend/docker/lancedb/Dockerfile` - Complete rewrite for minimal runtime-only installation with pnpm
+
+**Verification**: Type checking and linting passed successfully
+
+**Previous Status**: JWT Token Expiration Extended to 24 Hours - Completed ✅
 
 Extended JWT access token expiration from 1 hour to 24 hours to improve user experience. This reduces the frequency of token refreshes while still maintaining reasonable security. Updated all related code and documentation to reflect the new expiration time.
 

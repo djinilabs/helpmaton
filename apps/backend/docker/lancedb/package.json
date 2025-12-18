@@ -1,0 +1,17 @@
+{
+  "name": "helpmaton-lancedb-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal runtime dependencies for LanceDB Lambda container",
+  "dependencies": {
+    "@lancedb/lancedb": "0.18.2",
+    "apache-arrow": "18.1.0",
+    "reflect-metadata": "0.2.2"
+  },
+  "pnpm": {
+    "supportedArchitectures": {
+      "os": ["linux"],
+      "cpu": ["arm64"]
+    }
+  }
+}
