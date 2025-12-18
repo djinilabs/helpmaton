@@ -116,7 +116,6 @@ describe("spendingLimits", () => {
       });
     });
 
-
     it("should return spending for specific agent", async () => {
       mockQueryUsageStats.mockResolvedValue({
         costUsd: 5_000_000, // 5.0 USD in millionths
@@ -129,7 +128,7 @@ describe("spendingLimits", () => {
         mockDb,
         "workspace-123",
         "agent-456",
-        startDate,
+        startDate
       );
 
       expect(spending).toBe(5_000_000); // millionths
@@ -152,12 +151,7 @@ describe("spendingLimits", () => {
       });
 
       const startDate = new Date("2024-01-01T00:00:00Z");
-      await getSpendingInWindow(
-        mockDb,
-        "workspace-123",
-        undefined,
-        startDate,
-      );
+      await getSpendingInWindow(mockDb, "workspace-123", undefined, startDate);
 
       const callArgs = mockQueryUsageStats.mock.calls[0][1];
       expect(callArgs.endDate.getTime()).toBe(now.getTime());

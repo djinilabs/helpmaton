@@ -19,6 +19,7 @@ import { registerDeleteWorkspaceSpendingLimits } from "./routes/delete-workspace
 import { registerGetAgentConversation } from "./routes/get-agent-conversation";
 import { registerGetAgentConversations } from "./routes/get-agent-conversations";
 import { registerGetAgentKeys } from "./routes/get-agent-keys";
+import { registerGetAgentMemory } from "./routes/get-agent-memory";
 import { registerGetAgentUsage } from "./routes/get-agent-usage";
 import { registerGetAgentUsageDaily } from "./routes/get-agent-usage-daily";
 import { registerGetEmailConnection } from "./routes/get-email-connection";
@@ -122,6 +123,7 @@ export const createApp: () => express.Application = () => {
   registerPostAgentKeys(app);
   registerGetAgentKeys(app);
   registerDeleteAgentKey(app);
+  registerGetAgentMemory(app);
   registerPutWorkspaceApiKey(app);
   registerGetWorkspaceApiKey(app);
   registerGetWorkspaceApiKeys(app);

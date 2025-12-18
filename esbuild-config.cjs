@@ -12,6 +12,8 @@
 // List of environment variables that should be injected into bundles
 // Only variables explicitly set in the environment will be injected
 const ENV_VARS_TO_INJECT = [
+  'ARC_ENV',
+  'NODE_ENV',
   'AUTH_SECRET',
   'MAILGUN_KEY',
   'MAILGUN_DOMAIN',
@@ -57,6 +59,8 @@ const ENV_VARS_TO_INJECT = [
   'LEMON_SQUEEZY_CREDIT_VARIANT_ID',
   'LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL',
   'LEMON_SQUEEZY_CHECKOUT_CANCEL_URL',
+  'HELPMATON_VECTORDB_S3_BUCKET_STAGING',
+  'HELPMATON_VECTORDB_S3_BUCKET_PRODUCTION',
 ];
 
 /**
@@ -104,6 +108,18 @@ const config = {
   sourcemap: false,
   sourcesContent: false,
   define: defineObject,
+  external: [
+    // LanceDB native modules - resolved at runtime in Lambda container
+    '@lancedb/lancedb',
+    '@lancedb/lancedb-darwin-arm64',
+    '@lancedb/lancedb-darwin-x64',
+    '@lancedb/lancedb-linux-arm64',
+    '@lancedb/lancedb-linux-x64',
+    '@lancedb/lancedb-win32-x64',
+    '@lancedb/*',
+    // Native .node files
+    '*.node',
+  ],
 };
 
 // Export as both function and object to support different usage patterns

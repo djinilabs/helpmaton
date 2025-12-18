@@ -248,6 +248,18 @@ credit-reservations
 aggregate-token-usage rate(1 day)
 cleanup-expired-reservations rate(10 minutes)
 sync-lemonsqueezy-subscriptions rate(1 hour)
+summarize-memory-daily rate(1 day)
+summarize-memory-weekly rate(7 days)
+summarize-memory-monthly rate(30 days)
+summarize-memory-quarterly rate(90 days)
+summarize-memory-yearly rate(365 days)
+cleanup-memory-retention rate(1 day)
+
+@queues
+agent-temporal-grain-queue
+  fifo true
+  visibilityTimeout 60
+  messageRetentionPeriod 1209600
 
 @api-throttling
 free
@@ -263,6 +275,24 @@ pro
 @lambda-urls
 any /api/streams/:workspaceId/:agentId/:secret
 
+@container-images
+# Format: method route image-name
+# Example: any /api/streams/:workspaceId/:agentId/:secret my-custom-image
+any /api/streams/:workspaceId/:agentId/:secret lancedb
+post /api/webhook/:workspaceId/:agentId/:key lancedb
+any /api/workspaces lancedb
+any /api/workspaces/* lancedb
+any /api/streams/:workspaceId/:agentId/:secret lancedb
+
+scheduled summarize-memory-daily lancedb
+scheduled summarize-memory-weekly lancedb
+scheduled summarize-memory-monthly lancedb
+scheduled summarize-memory-quarterly lancedb
+scheduled summarize-memory-yearly lancedb
+scheduled cleanup-memory-retention lancedb
+
+queue agent-temporal-grain-queue lancedb
+
 @plugins
 architect/plugin-typescript
 s3
@@ -270,6 +300,8 @@ http-to-rest
 api-throttling
 custom-domain
 lambda-urls
+container-images
+sqs-partial-batch-failures
 
 @aws
 runtime typescript

@@ -162,6 +162,10 @@ export const openApiSchemas = {
         },
         description: "IDs of enabled MCP servers",
       },
+      enableMemorySearch: {
+        type: "boolean",
+        description: "Enable the memory search tool for this agent",
+      },
       createdAt: {
         type: "string",
         format: "date-time",
@@ -244,6 +248,10 @@ export const openApiSchemas = {
         },
         description: "IDs of enabled MCP servers",
       },
+      enableMemorySearch: {
+        type: "boolean",
+        description: "Enable the memory search tool for this agent",
+      },
     },
   },
   UpdateAgentRequest: {
@@ -282,6 +290,10 @@ export const openApiSchemas = {
           type: "string",
         },
         description: "IDs of enabled MCP servers",
+      },
+      enableMemorySearch: {
+        type: "boolean",
+        description: "Enable the memory search tool for this agent",
       },
     },
   },

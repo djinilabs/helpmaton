@@ -1,6 +1,5 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { resourceGone } from "@hapi/boom";
-import { withTracing } from "@posthog/ai";
 import type { ModelMessage } from "ai";
 import { generateText, tool, stepCountIs } from "ai";
 import { z } from "zod";
@@ -105,7 +104,7 @@ export async function getWorkspaceApiKey(
 /**
  * Create a Google Generative AI model instance
  */
-export function createAgentModel(
+export async function createAgentModel(
   referer: string = "http://localhost:3000/api/webhook",
   apiKey?: string,
   modelName?: string,
@@ -132,6 +131,9 @@ export function createAgentModel(
   // Wrap with PostHog tracking if available
   const phClient = getPostHogClient();
   if (phClient) {
+    // Dynamically import withTracing to avoid loading Anthropic SDK wrappers
+    // when we're not using them (lazy loading)
+    const { withTracing } = await import("@posthog/ai");
     // Prefix distinct ID to distinguish between user, workspace, and system
     let distinctId: string;
     if (userId) {
@@ -681,7 +683,7 @@ async function callAgentInternal(
       : undefined;
 
   // Create model
-  const model = createAgentModel(
+  const model = await createAgentModel(
     "http://localhost:3000/api/agent-delegation",
     workspaceApiKey || undefined,
     modelName,
@@ -695,10 +697,25 @@ async function callAgentInternal(
     messages: [{ role: "user", content: message }],
   });
 
+  // Extract agentId from targetAgent.pk (format: "agents/{workspaceId}/{agentId}")
+  const extractedTargetAgentId = targetAgent.pk.replace(
+    `agents/${workspaceId}/`,
+    ""
+  );
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Tools have varying types
   const tools: Record<string, any> = {
     search_documents: searchDocumentsTool,
   };
+
+  // Add memory search tool if enabled
+  if (targetAgent.enableMemorySearch === true) {
+    const { createSearchMemoryTool } = await import("./memorySearchTool");
+    tools.search_memory = createSearchMemoryTool(
+      extractedTargetAgentId,
+      workspaceId
+    );
+  }
 
   if (targetAgent.notificationChannelId) {
     tools.send_notification = createSendNotificationTool(

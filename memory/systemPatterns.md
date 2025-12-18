@@ -76,6 +76,11 @@
 - **Testing**: Jest for unit tests, Playwright for E2E
 - **Error Handling**: Custom error utilities in `utils/handlingErrors.ts`
 - **Logging**: Structured logging with table logger
+- **SQS Queue Processing**: Use partial batch failures via `handlingSQSErrors` utility
+  - Handler returns array of failed message IDs
+  - Successful messages are deleted immediately
+  - Failed messages are retried individually
+  - Prevents reprocessing of successful messages
 
 ### Naming Conventions
 
@@ -90,6 +95,7 @@
 - **Infrastructure Changes**: Only via app.arc or Architect plugins
 - **No Direct AWS Changes**: All infrastructure changes through code
 - **Environment**: Uses ARC_DB_PATH for local DynamoDB
+- **Environment Detection**: Primary check is `process.env.ARC_ENV === "testing"` for local development (Architect sandbox). For S3/AWS services, also check if credentials are available - if missing, fall back to local mocked services (s3rver). Never use `NODE_ENV` alone for environment detection. This allows tests to run without credentials while staging/production use real AWS services
 
 ## Key Architectural Decisions
 
@@ -100,6 +106,6 @@
 5. **Credit System**: Token-based usage tracking with reservations
 6. **Streaming Support**: Lambda URLs for long-running agent conversations
 7. **Container Images**: Custom Lambda container images for specific routes (e.g., LanceDB)
-
-
-
+   - Multi-stage builds to minimize image size (builder stage for dependencies, runtime stage for final image)
+   - Build tools removed from final image
+   - Package manager caches cleaned after installation

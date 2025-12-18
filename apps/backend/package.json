@@ -19,7 +19,7 @@
     "@aws-sdk/client-lambda": "^3.945.0",
     "@aws-sdk/lib-dynamodb": "^3.716.0",
     "@hapi/boom": "^10.0.1",
-    "@posthog/ai": "^7.2.1",
+    "@lancedb/lancedb": "^0.18.2",
     "@sentry/node": "^8.0.0",
     "@vendia/serverless-express": "^4.12.6",
     "ai": "^5.0.0",

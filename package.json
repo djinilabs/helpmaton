@@ -45,8 +45,10 @@
     "test-aggregation": "cd apps/backend && pnpm exec tsx ../../scripts/test-aggregation.ts",
     "verify-aggregates": "cd apps/backend && pnpm exec tsx ../../scripts/verify-aggregates.ts",
     "add-credits": "cd apps/backend && pnpm exec tsx ../../scripts/add-credits.ts",
+    "run-all-memory-summaries": "cd apps/backend && ARC_ENV=testing pnpm exec tsx ../../scripts/run-all-memory-summaries.mjs",
     "discord:register-commands": "pnpm exec tsx scripts/register-discord-commands.ts",
-    "generate:openapi": "pnpm exec tsx scripts/generate-openapi.ts"
+    "generate:openapi": "pnpm exec tsx scripts/generate-openapi.ts",
+    "build:backend": "pnpm exec tsx scripts/build-backend.ts"
   },
   "packageManager": "pnpm@10.24.0",
   "pnpm": {
@@ -71,6 +73,7 @@
     "chokidar": "^4.0.3",
     "dotenv": "^17.2.1",
     "dynamodb-admin": "^5.1.3",
+    "esbuild": "^0.25.12",
     "eslint": "^9.39.1",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-react": "^7.37.5",
@@ -87,6 +90,7 @@
     "typescript-eslint": "^8.46.3"
   },
   "dependencies": {
-    "@architect/asap": "^7.0.10"
+    "@architect/asap": "^7.0.10",
+    "@posthog/ai": "^7.2.1"
   }
 }

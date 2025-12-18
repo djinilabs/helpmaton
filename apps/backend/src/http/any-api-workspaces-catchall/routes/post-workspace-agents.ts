@@ -190,7 +190,11 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           systemPrompt: agent.systemPrompt,
           provider: agent.provider,
           modelName: agent.modelName ?? null,
+          delegatableAgentIds: agent.delegatableAgentIds ?? [],
+          enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
+          enableMemorySearch: agent.enableMemorySearch ?? false,
           clientTools: agent.clientTools ?? [],
+          spendingLimits: agent.spendingLimits ?? [],
           createdAt: agent.createdAt,
         });
       } catch (error) {

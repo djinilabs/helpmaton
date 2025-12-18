@@ -68,6 +68,7 @@ export const registerGetWorkspaceAgents = (app: express.Application) => {
           notificationChannelId: agent.notificationChannelId,
           delegatableAgentIds: agent.delegatableAgentIds ?? [],
           enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
+          enableMemorySearch: agent.enableMemorySearch ?? false,
           clientTools: agent.clientTools ?? [],
           spendingLimits: agent.spendingLimits ?? [],
           provider: agent.provider,

@@ -31,6 +31,11 @@ const UsageDashboard = lazy(() =>
     default: module.UsageDashboard,
   }))
 );
+const AgentMemoryRecords = lazy(() =>
+  import("../components/AgentMemoryRecords").then((module) => ({
+    default: module.AgentMemoryRecords,
+  }))
+);
 import { useAccordion } from "../hooks/useAccordion";
 import {
   useAgent,
@@ -189,6 +194,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   // Use agent prop directly for enabledMcpServerIds, with local state for editing
   const [enabledMcpServerIds, setEnabledMcpServerIds] = useState<string[]>(
     () => agent?.enabledMcpServerIds || []
+  );
+
+  // Use agent prop directly for enableMemorySearch, with local state for editing
+  const [enableMemorySearch, setEnableMemorySearch] = useState<boolean>(
+    () => agent?.enableMemorySearch ?? false
   );
 
   // Use agent prop directly for clientTools, with local state for editing
@@ -354,6 +364,19 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       setEnabledMcpServerIds(currentValue);
     }
   }, [agent?.id, agent?.enabledMcpServerIds]);
+
+  // Synchronize enableMemorySearch state with agent prop using useEffect
+  const prevEnableMemorySearchRef = useRef<boolean | undefined>(
+    agent?.enableMemorySearch
+  );
+  useEffect(() => {
+    const currentValue = agent?.enableMemorySearch ?? false;
+    const prevValue = prevEnableMemorySearchRef.current ?? false;
+    if (currentValue !== prevValue) {
+      prevEnableMemorySearchRef.current = currentValue;
+      setEnableMemorySearch(currentValue);
+    }
+  }, [agent?.id, agent?.enableMemorySearch]);
 
   // Synchronize clientTools state with agent prop using useEffect
   useEffect(() => {
@@ -566,6 +589,19 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       // Sync local state with updated agent data
       prevEnabledMcpServerIdsRef.current = updated.enabledMcpServerIds;
       setEnabledMcpServerIds(updated.enabledMcpServerIds || []);
+    } catch {
+      // Error is handled by toast in the hook
+    }
+  };
+
+  const handleSaveMemorySearch = async () => {
+    try {
+      const updated = await updateAgent.mutateAsync({
+        enableMemorySearch,
+      });
+      // Sync local state with updated agent data
+      prevEnableMemorySearchRef.current = updated.enableMemorySearch;
+      setEnableMemorySearch(updated.enableMemorySearch ?? false);
     } catch {
       // Error is handled by toast in the hook
     }
@@ -997,6 +1033,18 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               />
             </LazyAccordionContent>
           </AccordionSection>
+
+          {/* Memory Records Section */}
+          <AccordionSection
+            id="memory"
+            title="MEMORY RECORDS"
+            isExpanded={expandedSection === "memory"}
+            onToggle={() => toggleSection("memory")}
+          >
+            <LazyAccordionContent isExpanded={expandedSection === "memory"}>
+              <AgentMemoryRecords workspaceId={workspaceId} agentId={agentId} />
+            </LazyAccordionContent>
+          </AccordionSection>
         </SectionGroup>
 
         <SectionGroup title="Configuration">
@@ -1351,6 +1399,65 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     servers in the workspace settings to enable them for agents.
                   </p>
                 )}
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
+          {/* Memory Search Tool Section */}
+          {canEdit && (
+            <AccordionSection
+              id="memory-search"
+              title="MEMORY SEARCH TOOL"
+              isExpanded={expandedSection === "memory-search"}
+              onToggle={() => toggleSection("memory-search")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "memory-search"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75">
+                    Enable the memory search tool to allow this agent to search
+                    its factual memory across different time periods and recall
+                    past conversations.
+                  </p>
+                  <div className="p-4 border-2 border-yellow-400 bg-yellow-50 rounded-lg">
+                    <p className="text-sm font-semibold text-yellow-900 mb-2">
+                      ⚠️ Privacy Warning
+                    </p>
+                    <p className="text-sm text-yellow-900">
+                      Activating the memory search tool may result in data
+                      leakage between users. The agent will be able to search
+                      and recall information from all conversations, which could
+                      expose sensitive information across different user
+                      sessions. Only enable this if you understand the privacy
+                      implications.
+                    </p>
+                  </div>
+                  <label className="flex items-start gap-3 p-4 border border-neutral-200 rounded-lg hover:bg-neutral-50 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={enableMemorySearch}
+                      onChange={(e) => setEnableMemorySearch(e.target.checked)}
+                      className="mt-1 border-2 border-neutral-300 rounded"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">Enable Memory Search</div>
+                      <div className="text-sm opacity-75 mt-1">
+                        Allow this agent to use the search_memory tool to recall
+                        past conversations and information
+                      </div>
+                    </div>
+                  </label>
+                  <button
+                    onClick={handleSaveMemorySearch}
+                    disabled={updateAgent.isPending}
+                    className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Memory Search Setting"}
+                  </button>
+                </div>
               </LazyAccordionContent>
             </AccordionSection>
           )}

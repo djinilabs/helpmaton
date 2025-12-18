@@ -1,8 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+import type { UIMessage } from "../../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 import {
   aggregateTokenUsage,
   extractTokenUsage,
+  getMessageKey,
+  findNewMessages,
+  updateConversation,
   type TokenUsage,
 } from "../conversationLogger";
 
@@ -464,6 +468,485 @@ describe("conversationLogger", () => {
         cachedPromptTokens: 500,
         reasoningTokens: 300,
       });
+    });
+  });
+
+  describe("getMessageKey", () => {
+    it("should generate unique keys for different messages", () => {
+      const msg1: UIMessage = {
+        role: "user",
+        content: "Hello",
+      };
+
+      const msg2: UIMessage = {
+        role: "assistant",
+        content: "Hi there",
+      };
+
+      const key1 = getMessageKey(msg1);
+      const key2 = getMessageKey(msg2);
+
+      expect(key1).not.toBe(key2);
+      expect(key1).toContain("user:");
+      expect(key2).toContain("assistant:");
+    });
+
+    it("should generate same key for messages with same role and content (string format)", () => {
+      const msg1: UIMessage = {
+        role: "user",
+        content: "Hello",
+      };
+
+      const msg2: UIMessage = {
+        role: "user",
+        content: "Hello",
+      };
+
+      const key1 = getMessageKey(msg1);
+      const key2 = getMessageKey(msg2);
+
+      expect(key1).toBe(key2);
+    });
+
+    it("should generate same key for messages with same content in different formats (string vs array)", () => {
+      const msg1: UIMessage = {
+        role: "user",
+        content: "Hello",
+      };
+
+      const msg2: UIMessage = {
+        role: "user",
+        content: [{ type: "text", text: "Hello" }],
+      };
+
+      const key1 = getMessageKey(msg1);
+      const key2 = getMessageKey(msg2);
+
+      expect(key1).toBe(key2);
+    });
+
+    it("should ignore tokenUsage when generating key", () => {
+      const msg1: UIMessage = {
+        role: "assistant",
+        content: "Hello",
+      };
+
+      const msg2: UIMessage = {
+        role: "assistant",
+        content: "Hello",
+        tokenUsage: {
+          promptTokens: 100,
+          completionTokens: 50,
+          totalTokens: 150,
+        },
+      };
+
+      const key1 = getMessageKey(msg1);
+      const key2 = getMessageKey(msg2);
+
+      expect(key1).toBe(key2);
+    });
+
+    it("should include tool calls in key for distinction", () => {
+      const msg1: UIMessage = {
+        role: "assistant",
+        content: [
+          { type: "text", text: "Let me help" },
+          {
+            type: "tool-call",
+            toolCallId: "1",
+            toolName: "search",
+            args: { query: "test" },
+          },
+        ],
+      };
+
+      const msg2: UIMessage = {
+        role: "assistant",
+        content: [
+          { type: "text", text: "Let me help" },
+          {
+            type: "tool-call",
+            toolCallId: "2",
+            toolName: "search",
+            args: { query: "different" },
+          },
+        ],
+      };
+
+      const key1 = getMessageKey(msg1);
+      const key2 = getMessageKey(msg2);
+
+      expect(key1).not.toBe(key2);
+    });
+  });
+
+  describe("findNewMessages", () => {
+    it("should return all messages when existing is empty", () => {
+      const existing: UIMessage[] = [];
+      const incoming: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+      ];
+
+      const newMessages = findNewMessages(existing, incoming);
+
+      expect(newMessages).toEqual(incoming);
+      expect(newMessages.length).toBe(2);
+    });
+
+    it("should return empty array when all incoming messages already exist", () => {
+      const existing: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+      ];
+      const incoming: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+      ];
+
+      const newMessages = findNewMessages(existing, incoming);
+
+      expect(newMessages).toEqual([]);
+      expect(newMessages.length).toBe(0);
+    });
+
+    it("should return only truly new messages", () => {
+      const existing: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+      ];
+      const incoming: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+        { role: "user", content: "How are you?" },
+      ];
+
+      const newMessages = findNewMessages(existing, incoming);
+
+      expect(newMessages.length).toBe(1);
+      expect(newMessages[0]).toEqual({ role: "user", content: "How are you?" });
+    });
+
+    it("should handle multiple new messages", () => {
+      const existing: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+      ];
+      const incoming: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+        { role: "user", content: "How are you?" },
+        { role: "assistant", content: "I'm good!" },
+        { role: "user", content: "Great!" },
+      ];
+
+      const newMessages = findNewMessages(existing, incoming);
+
+      expect(newMessages.length).toBe(3);
+      expect(newMessages).toEqual([
+        { role: "user", content: "How are you?" },
+        { role: "assistant", content: "I'm good!" },
+        { role: "user", content: "Great!" },
+      ]);
+    });
+
+    it("should ignore tokenUsage differences when comparing messages", () => {
+      const existing: UIMessage[] = [
+        {
+          role: "assistant",
+          content: "Hello",
+          tokenUsage: {
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+          },
+        },
+      ];
+      const incoming: UIMessage[] = [
+        { role: "assistant", content: "Hello" }, // Same content, no tokenUsage
+      ];
+
+      const newMessages = findNewMessages(existing, incoming);
+
+      expect(newMessages.length).toBe(0); // Should recognize as duplicate
+    });
+
+    it("should handle array content format", () => {
+      const existing: UIMessage[] = [{ role: "user", content: "Hello" }];
+      const incoming: UIMessage[] = [
+        { role: "user", content: [{ type: "text", text: "Hello" }] },
+        { role: "user", content: "New message" },
+      ];
+
+      const newMessages = findNewMessages(existing, incoming);
+
+      expect(newMessages.length).toBe(1);
+      expect(newMessages[0]).toEqual({ role: "user", content: "New message" });
+    });
+  });
+
+  describe("updateConversation - queue write behavior", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let mockDb: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let mockWriteToWorkingMemory: any;
+
+    beforeEach(async () => {
+      // Mock the database
+      mockDb = {
+        "agent-conversations": {
+          atomicUpdate: vi.fn(async (pk, sk, callback) => {
+            // Simulate conversation doesn't exist initially
+            const result = await callback(null);
+            return result;
+          }),
+        },
+      };
+
+      // Mock writeToWorkingMemory
+      const memoryWriteModule = await import("../memory/writeMemory");
+      mockWriteToWorkingMemory = vi.fn().mockResolvedValue(undefined);
+      vi.spyOn(memoryWriteModule, "writeToWorkingMemory").mockImplementation(
+        mockWriteToWorkingMemory
+      );
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("should send all messages to queue on first update (conversation doesn't exist)", async () => {
+      const messages: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+      ];
+
+      await updateConversation(
+        mockDb,
+        "workspace1",
+        "agent1",
+        "conv1",
+        messages
+      );
+
+      expect(mockWriteToWorkingMemory).toHaveBeenCalledTimes(1);
+      expect(mockWriteToWorkingMemory).toHaveBeenCalledWith(
+        "agent1",
+        "workspace1",
+        "conv1",
+        messages
+      );
+    });
+
+    it("should only send truly new messages to queue on subsequent updates", async () => {
+      // First update - conversation exists with 2 messages
+      mockDb["agent-conversations"].atomicUpdate = vi.fn(
+        async (pk, sk, callback) => {
+          const existingConversation = {
+            pk,
+            workspaceId: "workspace1",
+            agentId: "agent1",
+            conversationId: "conv1",
+            conversationType: "test" as const,
+            messages: [
+              { role: "user", content: "Hello" },
+              { role: "assistant", content: "Hi there" },
+            ],
+            startedAt: new Date().toISOString(),
+            expires: Date.now() + 1000000,
+          };
+          const result = await callback(existingConversation);
+          return result;
+        }
+      );
+
+      const messages: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+        { role: "user", content: "How are you?" },
+        { role: "assistant", content: "I'm good!" },
+      ];
+
+      await updateConversation(
+        mockDb,
+        "workspace1",
+        "agent1",
+        "conv1",
+        messages
+      );
+
+      expect(mockWriteToWorkingMemory).toHaveBeenCalledTimes(1);
+      // Should only send the 2 new messages
+      expect(mockWriteToWorkingMemory).toHaveBeenCalledWith(
+        "agent1",
+        "workspace1",
+        "conv1",
+        [
+          { role: "user", content: "How are you?" },
+          { role: "assistant", content: "I'm good!" },
+        ]
+      );
+    });
+
+    it("should not call writeToWorkingMemory when no new messages", async () => {
+      // Conversation exists with 2 messages
+      mockDb["agent-conversations"].atomicUpdate = vi.fn(
+        async (pk, sk, callback) => {
+          const existingConversation = {
+            pk,
+            workspaceId: "workspace1",
+            agentId: "agent1",
+            conversationId: "conv1",
+            conversationType: "test" as const,
+            messages: [
+              { role: "user", content: "Hello" },
+              { role: "assistant", content: "Hi there" },
+            ],
+            startedAt: new Date().toISOString(),
+            expires: Date.now() + 1000000,
+          };
+          const result = await callback(existingConversation);
+          return result;
+        }
+      );
+
+      const messages: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+      ];
+
+      await updateConversation(
+        mockDb,
+        "workspace1",
+        "agent1",
+        "conv1",
+        messages
+      );
+
+      expect(mockWriteToWorkingMemory).not.toHaveBeenCalled();
+    });
+
+    it("should send only one new message when adding one to existing conversation", async () => {
+      // Conversation exists with 4 messages
+      mockDb["agent-conversations"].atomicUpdate = vi.fn(
+        async (pk, sk, callback) => {
+          const existingConversation = {
+            pk,
+            workspaceId: "workspace1",
+            agentId: "agent1",
+            conversationId: "conv1",
+            conversationType: "test" as const,
+            messages: [
+              { role: "user", content: "Hello" },
+              { role: "assistant", content: "Hi there" },
+              { role: "user", content: "How are you?" },
+              { role: "assistant", content: "I'm good!" },
+            ],
+            startedAt: new Date().toISOString(),
+            expires: Date.now() + 1000000,
+          };
+          const result = await callback(existingConversation);
+          return result;
+        }
+      );
+
+      const messages: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "Hi there" },
+        { role: "user", content: "How are you?" },
+        { role: "assistant", content: "I'm good!" },
+        { role: "user", content: "Goodbye" },
+      ];
+
+      await updateConversation(
+        mockDb,
+        "workspace1",
+        "agent1",
+        "conv1",
+        messages
+      );
+
+      expect(mockWriteToWorkingMemory).toHaveBeenCalledTimes(1);
+      expect(mockWriteToWorkingMemory).toHaveBeenCalledWith(
+        "agent1",
+        "workspace1",
+        "conv1",
+        [{ role: "user", content: "Goodbye" }]
+      );
+    });
+
+    it("should handle messages with tokenUsage correctly (not treat as duplicate)", async () => {
+      // Conversation exists with message without tokenUsage
+      mockDb["agent-conversations"].atomicUpdate = vi.fn(
+        async (pk, sk, callback) => {
+          const existingConversation = {
+            pk,
+            workspaceId: "workspace1",
+            agentId: "agent1",
+            conversationId: "conv1",
+            conversationType: "test" as const,
+            messages: [{ role: "assistant", content: "Hello" }],
+            startedAt: new Date().toISOString(),
+            expires: Date.now() + 1000000,
+          };
+          const result = await callback(existingConversation);
+          return result;
+        }
+      );
+
+      // Same message content but with tokenUsage added
+      const messages: UIMessage[] = [
+        {
+          role: "assistant",
+          content: "Hello",
+          tokenUsage: {
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+          },
+        },
+      ];
+
+      await updateConversation(
+        mockDb,
+        "workspace1",
+        "agent1",
+        "conv1",
+        messages
+      );
+
+      // Should not send to queue because content is the same (only metadata changed)
+      expect(mockWriteToWorkingMemory).not.toHaveBeenCalled();
+    });
+
+    it("should filter out empty messages before queuing", async () => {
+      const messages: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        { role: "assistant", content: "" }, // Empty message
+        { role: "user", content: "   " }, // Whitespace only
+        { role: "assistant", content: "Hi there" },
+      ];
+
+      await updateConversation(
+        mockDb,
+        "workspace1",
+        "agent1",
+        "conv1",
+        messages
+      );
+
+      expect(mockWriteToWorkingMemory).toHaveBeenCalledTimes(1);
+      // Should only send non-empty messages
+      expect(mockWriteToWorkingMemory).toHaveBeenCalledWith(
+        "agent1",
+        "workspace1",
+        "conv1",
+        [
+          { role: "user", content: "Hello" },
+          { role: "assistant", content: "Hi there" },
+        ]
+      );
     });
   });
 });

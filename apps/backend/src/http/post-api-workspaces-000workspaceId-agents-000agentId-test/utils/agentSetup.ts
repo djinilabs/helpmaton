@@ -13,10 +13,11 @@ import {
   type WorkspaceAndAgent,
 } from "../../utils/agentUtils";
 import { createMcpServerTools } from "../../utils/mcpUtils";
+import { createSearchMemoryTool } from "../../utils/memorySearchTool";
 
 export interface AgentSetup {
   agent: WorkspaceAndAgent["agent"];
-  model: ReturnType<typeof createAgentModel>;
+  model: Awaited<ReturnType<typeof createAgentModel>>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Tools have varying types, including dynamic MCP tools
   tools: Record<string, any>;
   usesByok: boolean;
@@ -134,7 +135,7 @@ export async function setupAgentAndTools(
   const modelName =
     typeof agent.modelName === "string" ? agent.modelName : undefined;
 
-  const model = createAgentModel(
+  const model = await createAgentModel(
     options?.modelReferer || "http://localhost:3000/api/workspaces",
     workspaceApiKey || undefined,
     modelName,
@@ -149,9 +150,17 @@ export async function setupAgentAndTools(
     ...options?.searchDocumentsOptions,
   });
 
+  // Extract agentId from agent.pk (format: "agents/{workspaceId}/{agentId}")
+  const extractedAgentId = agent.pk.replace(`agents/${workspaceId}/`, "");
+
   const tools: AgentSetup["tools"] = {
     search_documents: searchDocumentsTool,
   };
+
+  // Add memory search tool if enabled
+  if (agent.enableMemorySearch === true) {
+    tools.search_memory = createSearchMemoryTool(extractedAgentId, workspaceId);
+  }
 
   if (agent.notificationChannelId) {
     tools.send_notification = createSendNotificationTool(

@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import type { UIMessage } from "../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 import type { DatabaseSchema } from "../tables/schema";
 
+import { writeToWorkingMemory } from "./memory/writeMemory";
 import { calculateConversationCosts } from "./tokenAccounting";
 
 export interface TokenUsage {
@@ -221,10 +222,36 @@ export function isMessageContentEmpty(message: UIMessage): boolean {
  * Used for deduplication when merging conversations
  * Normalizes content so that string and array formats with the same text are treated as duplicates
  */
-function getMessageKey(message: UIMessage): string {
+export function getMessageKey(message: UIMessage): string {
   const role = message.role;
   const contentKey = normalizeContentForComparison(message.content);
   return `${role}:${contentKey}`;
+}
+
+/**
+ * Find messages that are new (not present in existing messages)
+ * Compares messages based on role and content only (ignores metadata like tokenUsage)
+ */
+export function findNewMessages(
+  existingMessages: UIMessage[],
+  incomingMessages: UIMessage[]
+): UIMessage[] {
+  // Create a set of keys for existing messages for O(1) lookup
+  const existingKeys = new Set(
+    existingMessages.map((msg) => getMessageKey(msg))
+  );
+
+  // Filter incoming messages to only those not in existing
+  const newMessages = incomingMessages.filter((msg) => {
+    const key = getMessageKey(msg);
+    return !existingKeys.has(key);
+  });
+
+  console.log(
+    `[findNewMessages] Found ${newMessages.length} new messages out of ${incomingMessages.length} incoming messages (${existingMessages.length} existing messages)`
+  );
+
+  return newMessages;
 }
 
 /**
@@ -603,6 +630,31 @@ export async function startConversation(
     expires: calculateTTL(),
   });
 
+  // Write to working memory asynchronously (don't block)
+  console.log(
+    `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${data.agentId}, workspace ${data.workspaceId}, ${filteredMessages.length} filtered messages`
+  );
+  console.log(
+    `[Conversation Logger] Parameter values being passed - agentId: "${data.agentId}", workspaceId: "${data.workspaceId}", conversationId: "${conversationId}"`
+  );
+  writeToWorkingMemory(
+    data.agentId,
+    data.workspaceId,
+    conversationId,
+    filteredMessages
+  ).catch((error) => {
+    console.error(
+      `[Conversation Logger] Failed to write to working memory for conversation ${conversationId}:`,
+      error instanceof Error
+        ? {
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+          }
+        : String(error)
+    );
+  });
+
   return conversationId;
 }
 
@@ -622,6 +674,15 @@ export async function updateConversation(
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
+  // Filter new messages before processing
+  const filteredNewMessages = newMessages.filter(
+    (msg) => !isMessageContentEmpty(msg)
+  );
+
+  // Track truly new messages (not duplicates) to send to queue
+  // This will be set inside atomicUpdate callback
+  let trulyNewMessages: UIMessage[] = [];
+
   // Use atomicUpdate to ensure thread-safe conversation updates
   await db["agent-conversations"].atomicUpdate(
     pk,
@@ -631,10 +692,9 @@ export async function updateConversation(
 
       if (!existing) {
         // If conversation doesn't exist, create it
-        // Filter out empty messages before processing
-        const filteredNewMessages = newMessages.filter(
-          (msg) => !isMessageContentEmpty(msg)
-        );
+        // All filtered messages are new in this case
+        trulyNewMessages = filteredNewMessages;
+
         const toolCalls = extractToolCalls(filteredNewMessages);
         const toolResults = extractToolResults(filteredNewMessages);
         const costs = calculateConversationCosts(
@@ -663,13 +723,15 @@ export async function updateConversation(
         };
       }
 
-      // Merge messages, deduplicating based on role and content
-      // This prevents duplicate messages when the client sends the full conversation history
-      // Filter out empty messages from newMessages before deduplication
-      const filteredNewMessages = newMessages.filter(
-        (msg) => !isMessageContentEmpty(msg)
-      );
+      // Get existing messages from database
       const existingMessages = (existing.messages || []) as UIMessage[];
+
+      // Identify truly new messages (not in existing conversation)
+      // This comparison is based on role and content only (ignores metadata like tokenUsage)
+      trulyNewMessages = findNewMessages(existingMessages, filteredNewMessages);
+
+      // Merge messages for DB storage, deduplicating based on role and content
+      // This prevents duplicate messages when the client sends the full conversation history
       const allMessages = deduplicateMessages(
         existingMessages,
         filteredNewMessages
@@ -724,4 +786,37 @@ export async function updateConversation(
       };
     }
   );
+
+  // Write to working memory asynchronously (don't block)
+  // IMPORTANT: Only send truly new messages to the queue (not duplicates)
+  // This prevents duplicate fact extraction and embedding generation
+  if (trulyNewMessages.length > 0) {
+    console.log(
+      `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${agentId}, workspace ${workspaceId}, ${trulyNewMessages.length} truly new messages (out of ${filteredNewMessages.length} filtered messages)`
+    );
+    console.log(
+      `[Conversation Logger] Parameter values being passed - agentId: "${agentId}", workspaceId: "${workspaceId}", conversationId: "${conversationId}"`
+    );
+    writeToWorkingMemory(
+      agentId,
+      workspaceId,
+      conversationId,
+      trulyNewMessages
+    ).catch((error) => {
+      console.error(
+        `[Conversation Logger] Failed to write to working memory for conversation ${conversationId}:`,
+        error instanceof Error
+          ? {
+              message: error.message,
+              stack: error.stack,
+              name: error.name,
+            }
+          : String(error)
+      );
+    });
+  } else {
+    console.log(
+      `[Conversation Logger] Skipping writeToWorkingMemory for conversation ${conversationId} - no truly new messages (${filteredNewMessages.length} filtered messages were all duplicates)`
+    );
+  }
 }

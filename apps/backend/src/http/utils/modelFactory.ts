@@ -1,6 +1,5 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { badRequest } from "@hapi/boom";
-import { withTracing } from "@posthog/ai";
 
 import { getDefined } from "../../utils";
 import { getPostHogClient } from "../../utils/posthog";
@@ -118,6 +117,9 @@ export async function createModel(
       // Wrap with PostHog tracking if available
       const phClient = getPostHogClient();
       if (phClient) {
+        // Dynamically import withTracing to avoid loading Anthropic SDK wrappers
+        // when we're not using them (lazy loading)
+        const { withTracing } = await import("@posthog/ai");
         // Prefix distinct ID to distinguish between user, workspace, and system
         let distinctId: string;
         if (userId) {

@@ -78,6 +78,7 @@ export interface Agent {
   notificationChannelId?: string;
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
+  enableMemorySearch?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
   temperature?: number;
@@ -106,6 +107,7 @@ export interface UpdateAgentInput {
   notificationChannelId?: string | null;
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
+  enableMemorySearch?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
   temperature?: number | null;
@@ -1325,6 +1327,66 @@ export async function getAgentDailyUsage(
   }
   const queryString = params.toString();
   const url = `/api/workspaces/${workspaceId}/agents/${agentId}/usage/daily${
+    queryString ? `?${queryString}` : ""
+  }`;
+  const response = await apiFetch(url);
+  return response.json();
+}
+
+// Memory API
+
+export type TemporalGrain =
+  | "working"
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "quarterly"
+  | "yearly";
+
+export interface AgentMemoryOptions {
+  grain?: TemporalGrain;
+  queryText?: string;
+  minimumDaysAgo?: number;
+  maximumDaysAgo?: number;
+  maxResults?: number;
+}
+
+export interface AgentMemoryResult {
+  content: string;
+  date: string;
+  timestamp: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AgentMemoryResponse {
+  workspaceId: string;
+  agentId: string;
+  records: AgentMemoryResult[];
+}
+
+export async function getAgentMemory(
+  workspaceId: string,
+  agentId: string,
+  options: AgentMemoryOptions = {}
+): Promise<AgentMemoryResponse> {
+  const params = new URLSearchParams();
+  if (options.grain) {
+    params.append("grain", options.grain);
+  }
+  if (options.queryText && options.queryText.trim().length > 0) {
+    params.append("queryText", options.queryText.trim());
+  }
+  if (options.minimumDaysAgo !== undefined) {
+    params.append("minimumDaysAgo", options.minimumDaysAgo.toString());
+  }
+  if (options.maximumDaysAgo !== undefined) {
+    params.append("maximumDaysAgo", options.maximumDaysAgo.toString());
+  }
+  if (options.maxResults !== undefined) {
+    params.append("maxResults", options.maxResults.toString());
+  }
+  const queryString = params.toString();
+  const url = `/api/workspaces/${workspaceId}/agents/${agentId}/memory${
     queryString ? `?${queryString}` : ""
   }`;
   const response = await apiFetch(url);

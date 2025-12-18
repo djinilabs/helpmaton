@@ -37,7 +37,11 @@ function routeToFunctionId(route) {
 
   // Convert each segment
   const convertedSegments = pathSegments.map((segment) => {
-    if (segment.startsWith(":")) {
+    if (segment === "*") {
+      // Wildcard/catch-all: "*" -> "Catchall"
+      // Architect uses "Catchall" for wildcard routes in logical resource IDs
+      return "Catchall";
+    } else if (segment.startsWith(":")) {
       // Path parameter: ":workspaceId" -> "WorkspaceId" (PascalCase)
       // Architect uses PascalCase for path parameters in logical resource IDs
       const paramName = segment.substring(1);

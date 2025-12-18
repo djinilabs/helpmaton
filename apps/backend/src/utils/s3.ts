@@ -5,7 +5,7 @@ import s3Plugin from "@aws-lite/s3";
 const BUCKET_NAME = process.env.HELPMATON_S3_BUCKET || "workspace.documents";
 
 // Get S3 client configuration
-async function getS3Client() {
+export async function getS3Client() {
   // Check environment - be explicit about production detection
   // In Lambda, ARC_ENV should be set by Architect, but we also check NODE_ENV as fallback
   const arcEnv = process.env.ARC_ENV;
