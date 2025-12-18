@@ -10,6 +10,7 @@ import {
   buildGenerateTextOptions,
 } from "../../http/utils/agentUtils";
 import { database } from "../../tables";
+import { sendAgentErrorNotification } from "../../utils/agentErrorNotifications";
 import {
   extractTokenUsage,
   isMessageContentEmpty,
@@ -321,17 +322,48 @@ export const handler = adaptHttpHandler(
         }
       } catch (error) {
         // Handle errors based on when they occurred
-        if (
-          error instanceof InsufficientCreditsError ||
-          error instanceof SpendingLimitExceededError
-        ) {
-          // Error during validation/reservation - no refund needed
+        if (error instanceof InsufficientCreditsError) {
+          // Send email notification (non-blocking)
+          try {
+            await sendAgentErrorNotification(workspaceId, "credit", error);
+          } catch (emailError) {
+            console.error(
+              "[Webhook Handler] Failed to send error notification:",
+              emailError
+            );
+          }
+
+          // Return sanitized error
           return {
-            statusCode: error.statusCode,
+            statusCode: 402,
             headers: {
               "Content-Type": "text/plain; charset=utf-8",
             },
-            body: error.message,
+            body: "Request could not be completed due to service limits. Please contact your workspace administrator.",
+          };
+        }
+        if (error instanceof SpendingLimitExceededError) {
+          // Send email notification (non-blocking)
+          try {
+            await sendAgentErrorNotification(
+              workspaceId,
+              "spendingLimit",
+              error
+            );
+          } catch (emailError) {
+            console.error(
+              "[Webhook Handler] Failed to send error notification:",
+              emailError
+            );
+          }
+
+          // Return sanitized error
+          return {
+            statusCode: 402,
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8",
+            },
+            body: "Request could not be completed due to service limits. Please contact your workspace administrator.",
           };
         }
 
