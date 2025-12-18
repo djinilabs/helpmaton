@@ -45,9 +45,17 @@ export class WorkspacesPage extends BasePage {
    * Wait for workspaces page to load
    */
   async waitForWorkspacesPage(): Promise<void> {
-    await this.page.waitForSelector('h1:has-text("Workspaces")', {
-      timeout: 10000,
-    });
+    // Wait for the page to load and the main heading to appear
+    await this.page.waitForLoadState("domcontentloaded");
+    // Use a more flexible selector that works with the page structure
+    await this.page.waitForSelector("h1", { timeout: 15000 });
+    // Verify we're on the workspaces page by checking the heading text
+    const heading = await this.page.locator("h1").first().textContent();
+    if (!heading?.includes("Workspaces")) {
+      throw new Error(
+        `Expected to be on Workspaces page, but found heading: "${heading}"`
+      );
+    }
   }
 
   /**

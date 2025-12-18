@@ -14,7 +14,7 @@ const __dirname = dirname(__filename);
 export default defineConfig({
   testDir: "./tests/e2e",
   /* Run tests in files in parallel */
-  fullyParallel: true,
+  fullyParallel: false, // Set to false to allow serial tests to share context
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */

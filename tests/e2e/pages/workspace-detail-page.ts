@@ -35,15 +35,22 @@ export class WorkspaceDetailPage extends BasePage {
    * Wait for workspace detail page to load
    */
   async waitForWorkspaceDetailPage(): Promise<void> {
-    // Wait for one of the accordion sections to appear
-    await this.page.waitForSelector('[id="agents"]', { timeout: 10000 });
+    // Wait for the workspace detail page to load
+    await this.page.waitForLoadState("domcontentloaded");
+    // Wait for the heading or accordion sections to appear
+    await this.page.waitForSelector('h2:has-text("Agents")', {
+      timeout: 15000,
+    });
   }
 
   /**
    * Expand an accordion section
    */
-  async expandAccordion(sectionId: string): Promise<void> {
-    const accordion = this.page.locator(`[id="${sectionId}"]`);
+  async expandAccordion(sectionTitle: string): Promise<void> {
+    // Find the button by its heading text (more reliable than id)
+    const accordion = this.page.locator(
+      `button:has(h2:has-text("${sectionTitle}"))`
+    );
     await this.clickElement(accordion);
     // Wait a bit for animation
     await this.page.waitForTimeout(500);
@@ -61,7 +68,7 @@ export class WorkspaceDetailPage extends BasePage {
    * Expand Agents section
    */
   async expandAgentsSection(): Promise<void> {
-    await this.expandAccordion("agents");
+    await this.expandAccordion("Agents");
   }
 
   /**
@@ -102,20 +109,31 @@ export class WorkspaceDetailPage extends BasePage {
     );
     await this.clickElement(submitButton);
 
-    // Wait for modal to close and navigation to agent detail page
+    // Wait for modal to close
     await this.page.waitForSelector('h2:has-text("Create Agent")', {
       state: "detached",
       timeout: 10000,
     });
-    await this.page.waitForURL(/\/workspaces\/[^/]+\/agents\/[^/]+$/, {
+
+    // The UI doesn't navigate - it stays on workspace detail page
+    // Wait for the agent to appear in the list
+    await this.page.waitForSelector(`a:has-text("${agentData.name}")`, {
       timeout: 10000,
     });
 
-    // Extract workspace ID and agent ID from URL
-    const url = this.page.url();
-    const match = url.match(/\/workspaces\/([^/]+)\/agents\/([^/]+)$/);
+    // Extract agent ID from the link href
+    const agentLink = this.page
+      .locator(`a:has-text("${agentData.name}")`)
+      .first();
+    const href = await agentLink.getAttribute("href");
+    if (!href) {
+      throw new Error("Failed to get agent link href");
+    }
+
+    // Extract workspace ID and agent ID from href
+    const match = href.match(/\/workspaces\/([^/]+)\/agents\/([^/]+)$/);
     if (!match) {
-      throw new Error("Failed to extract workspace ID and agent ID from URL");
+      throw new Error(`Failed to extract IDs from href: ${href}`);
     }
 
     return {
@@ -129,14 +147,14 @@ export class WorkspaceDetailPage extends BasePage {
    * Expand Documents section
    */
   async expandDocumentsSection(): Promise<void> {
-    await this.expandAccordion("documents");
+    await this.expandAccordion("Documents");
   }
 
   /**
    * Expand Document Upload section
    */
   async expandDocumentUploadSection(): Promise<void> {
-    await this.expandAccordion("documents-upload");
+    await this.expandAccordion("Document Upload");
   }
 
   /**
@@ -157,7 +175,7 @@ export class WorkspaceDetailPage extends BasePage {
    * Expand Team section
    */
   async expandTeamSection(): Promise<void> {
-    await this.expandAccordion("team");
+    await this.expandAccordion("Team");
   }
 
   /**
@@ -182,7 +200,7 @@ export class WorkspaceDetailPage extends BasePage {
    * Expand Credits section
    */
   async expandCreditsSection(): Promise<void> {
-    await this.expandAccordion("credits");
+    await this.expandAccordion("Credit Balance");
   }
 
   /**

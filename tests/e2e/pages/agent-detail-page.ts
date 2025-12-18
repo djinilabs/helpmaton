@@ -23,12 +23,11 @@ export class AgentDetailPage extends BasePage {
     this.backButton = page.locator('button:has-text("Back")').first();
 
     // Chat interface locators
-    this.chatInput = page
-      .locator('textarea[placeholder*="message" i]')
-      .or(page.locator('textarea[placeholder*="Type" i]'));
-    this.chatSubmitButton = page
-      .locator('button[type="submit"]')
-      .filter({ hasText: /send/i });
+    // Note: AgentChat uses an input element, not textarea
+    this.chatInput = page.locator('input[placeholder="Type your message..."]');
+    this.chatSubmitButton = page.locator(
+      'button[type="submit"]:has-text("Send")'
+    );
   }
 
   /**
@@ -50,13 +49,15 @@ export class AgentDetailPage extends BasePage {
   /**
    * Expand an accordion section
    */
-  async expandAccordion(sectionId: string): Promise<void> {
-    const accordion = this.page.locator(`[id="${sectionId}"]`);
+  async expandAccordion(sectionTitle: string): Promise<void> {
+    // Find the button by its heading text (more reliable than id)
+    const accordion = this.page
+      .locator(`button:has-text("${sectionTitle}")`)
+      .first();
 
-    // Check if already expanded by looking for content
+    // Check if already expanded by checking aria-expanded attribute
     const isExpanded =
-      (await accordion.locator("..").locator('[class*="expanded"]').count()) >
-      0;
+      (await accordion.getAttribute("aria-expanded")) === "true";
 
     if (!isExpanded) {
       await this.clickElement(accordion);
@@ -77,7 +78,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Test Agent section
    */
   async expandTestSection(): Promise<void> {
-    await this.expandAccordion("test");
+    await this.expandAccordion("TEST AGENT");
   }
 
   /**
@@ -144,7 +145,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Conversations section
    */
   async expandConversationsSection(): Promise<void> {
-    await this.expandAccordion("conversations");
+    await this.expandAccordion("RECENT CONVERSATIONS");
   }
 
   /**
@@ -165,7 +166,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Memory section
    */
   async expandMemorySection(): Promise<void> {
-    await this.expandAccordion("memory");
+    await this.expandAccordion("MEMORY RECORDS");
   }
 
   /**
@@ -187,7 +188,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Usage section
    */
   async expandUsageSection(): Promise<void> {
-    await this.expandAccordion("usage");
+    await this.expandAccordion("AGENT USAGE");
   }
 
   /**
