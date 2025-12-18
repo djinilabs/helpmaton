@@ -56,6 +56,9 @@ function getLanceDBConnectionOptions(): {
     awsAccessKeyId: accessKeyId,
     awsSecretAccessKey: secretAccessKey,
     region,
+    // Explicitly disable session token to prevent Lambda execution role credentials from being used
+    // This ensures LanceDB uses only the static credentials provided above
+    awsSessionToken: "",
   };
 
   // Check for custom endpoint (for S3-compatible services)
