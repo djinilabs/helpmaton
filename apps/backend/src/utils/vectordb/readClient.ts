@@ -242,6 +242,11 @@ export async function query(
           vector?: number[];
           embedding?: number[];
           timestamp: string;
+          // Metadata fields are stored at top level, not nested
+          conversationId?: string;
+          workspaceId?: string;
+          agentId?: string;
+          // Legacy: some tables might still have nested metadata
           metadata?: Record<string, unknown>;
           _distance?: number;
         }>
@@ -253,6 +258,11 @@ export async function query(
           vector?: number[];
           embedding?: number[];
           timestamp: string;
+          // Metadata fields are stored at top level, not nested
+          conversationId?: string;
+          workspaceId?: string;
+          agentId?: string;
+          // Legacy: some tables might still have nested metadata
           metadata?: Record<string, unknown>;
           _distance?: number;
         }>
@@ -335,16 +345,44 @@ export async function query(
           );
           console.log(`  Content: ${row.content.substring(0, 60)}...`);
           console.log(`  Timestamp: ${row.timestamp}`);
-          console.log(`  Raw metadata type: ${typeof row.metadata}`);
+
+          // Metadata is stored as top-level fields, not nested
           console.log(
-            `  Raw metadata value:`,
-            JSON.stringify(row.metadata, null, 4)
+            `  Metadata fields from row:`,
+            JSON.stringify(
+              {
+                conversationId: (row as any).conversationId,
+                workspaceId: (row as any).workspaceId,
+                agentId: (row as any).agentId,
+              },
+              null,
+              4
+            )
           );
 
-          // Convert metadata from LanceDB struct format to plain object
-          const metadata = convertMetadataToPlainObject(row.metadata);
+          // For backward compatibility, also check for legacy nested metadata
+          if (row.metadata) {
+            console.log(`  Raw metadata type: ${typeof row.metadata}`);
+            console.log(
+              `  Raw metadata value:`,
+              JSON.stringify(row.metadata, null, 4)
+            );
+          }
+
+          // Reconstruct metadata object from top-level fields
+          // Prefer top-level fields, fallback to nested metadata for legacy tables
+          const metadata: Record<string, unknown> = {
+            conversationId:
+              (row as any).conversationId ||
+              row.metadata?.conversationId ||
+              null,
+            workspaceId:
+              (row as any).workspaceId || row.metadata?.workspaceId || null,
+            agentId: (row as any).agentId || row.metadata?.agentId || null,
+          };
+
           console.log(
-            `  Converted metadata:`,
+            `  Reconstructed metadata:`,
             JSON.stringify(metadata, null, 4)
           );
 
@@ -368,16 +406,44 @@ export async function query(
           );
           console.log(`  Content: ${row.content.substring(0, 60)}...`);
           console.log(`  Timestamp: ${row.timestamp}`);
-          console.log(`  Raw metadata type: ${typeof row.metadata}`);
+
+          // Metadata is stored as top-level fields, not nested
           console.log(
-            `  Raw metadata value:`,
-            JSON.stringify(row.metadata, null, 4)
+            `  Metadata fields from row:`,
+            JSON.stringify(
+              {
+                conversationId: (row as any).conversationId,
+                workspaceId: (row as any).workspaceId,
+                agentId: (row as any).agentId,
+              },
+              null,
+              4
+            )
           );
 
-          // Convert metadata from LanceDB struct format to plain object
-          const metadata = convertMetadataToPlainObject(row.metadata);
+          // For backward compatibility, also check for legacy nested metadata
+          if (row.metadata) {
+            console.log(`  Raw metadata type: ${typeof row.metadata}`);
+            console.log(
+              `  Raw metadata value:`,
+              JSON.stringify(row.metadata, null, 4)
+            );
+          }
+
+          // Reconstruct metadata object from top-level fields
+          // Prefer top-level fields, fallback to nested metadata for legacy tables
+          const metadata: Record<string, unknown> = {
+            conversationId:
+              (row as any).conversationId ||
+              row.metadata?.conversationId ||
+              null,
+            workspaceId:
+              (row as any).workspaceId || row.metadata?.workspaceId || null,
+            agentId: (row as any).agentId || row.metadata?.agentId || null,
+          };
+
           console.log(
-            `  Converted metadata:`,
+            `  Reconstructed metadata:`,
             JSON.stringify(metadata, null, 4)
           );
 
@@ -404,6 +470,11 @@ export async function query(
               vector?: number[];
               embedding?: number[];
               timestamp: string;
+              // Metadata fields are stored at top level
+              conversationId?: string;
+              workspaceId?: string;
+              agentId?: string;
+              // Legacy: some tables might still have nested metadata
               metadata?: Record<string, unknown>;
               _distance?: number;
             }>
@@ -423,16 +494,44 @@ export async function query(
           );
           console.log(`  Content: ${row.content.substring(0, 60)}...`);
           console.log(`  Timestamp: ${row.timestamp}`);
-          console.log(`  Raw metadata type: ${typeof row.metadata}`);
+
+          // Metadata is stored as top-level fields, not nested
           console.log(
-            `  Raw metadata value:`,
-            JSON.stringify(row.metadata, null, 4)
+            `  Metadata fields from row:`,
+            JSON.stringify(
+              {
+                conversationId: (row as any).conversationId,
+                workspaceId: (row as any).workspaceId,
+                agentId: (row as any).agentId,
+              },
+              null,
+              4
+            )
           );
 
-          // Convert metadata from LanceDB struct format to plain object
-          const metadata = convertMetadataToPlainObject(row.metadata);
+          // For backward compatibility, also check for legacy nested metadata
+          if (row.metadata) {
+            console.log(`  Raw metadata type: ${typeof row.metadata}`);
+            console.log(
+              `  Raw metadata value:`,
+              JSON.stringify(row.metadata, null, 4)
+            );
+          }
+
+          // Reconstruct metadata object from top-level fields
+          // Prefer top-level fields, fallback to nested metadata for legacy tables
+          const metadata: Record<string, unknown> = {
+            conversationId:
+              (row as any).conversationId ||
+              row.metadata?.conversationId ||
+              null,
+            workspaceId:
+              (row as any).workspaceId || row.metadata?.workspaceId || null,
+            agentId: (row as any).agentId || row.metadata?.agentId || null,
+          };
+
           console.log(
-            `  Converted metadata:`,
+            `  Reconstructed metadata:`,
             JSON.stringify(metadata, null, 4)
           );
 

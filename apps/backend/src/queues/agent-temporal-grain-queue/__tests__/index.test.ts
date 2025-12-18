@@ -135,7 +135,10 @@ describe("agent-temporal-grain-queue handler", () => {
             content: "Test content",
             vector: [0.1, 0.2, 0.3],
             timestamp: "2024-01-01T00:00:00Z",
-            metadata: {},
+            // Metadata is now stored as top-level fields
+            conversationId: "",
+            workspaceId: "",
+            agentId: "",
           },
         ]);
         expect(result).toEqual([]);
@@ -372,7 +375,10 @@ describe("agent-temporal-grain-queue handler", () => {
             content: "User said: Hello world",
             vector: mockEmbedding,
             timestamp: "2024-01-01T00:00:00Z",
-            metadata: { conversationId: "conv-1" },
+            // Metadata is now stored as top-level fields
+            conversationId: "conv-1",
+            workspaceId: "",
+            agentId: "",
           },
         ]);
         expect(result).toEqual([]);

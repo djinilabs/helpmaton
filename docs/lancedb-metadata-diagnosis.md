@@ -73,18 +73,31 @@ The `agentId`, `workspaceId`, or `conversationId` parameters passed to `writeToW
 
 - Fix the code that calls `writeToWorkingMemory()` to pass correct values
 
-### 3. **LanceDB Schema Mismatch**
+### 3. **LanceDB Schema Mismatch** (CONFIRMED ISSUE)
 
 The table was created with a schema that doesn't properly support the metadata structure.
+
+**Root Cause:**
+LanceDB is schema-less and infers the schema from the first batch of records. If the **first records** written to a table had `null` values for metadata fields, LanceDB creates a schema where those fields are nullable. Once the schema is set, it cannot be changed without recreating the table.
 
 **Verification:**
 
 - Check if the first records in the table had null metadata
-- This would have set the schema incorrectly
+- This would have set the schema to allow null values
+- Check logs for: `[Write Server] Creating table with sample record metadata`
 
 **Solution:**
 
-- Delete and recreate the vector database tables
+1. **Fix the code** (DONE):
+
+   - Updated queue processor to ensure metadata fields are always strings, never null
+   - Converts null/undefined to empty string when writing to LanceDB
+   - This ensures new tables are created with correct schema
+
+2. **Recreate existing tables**:
+   - Delete old vector databases with incorrect schema
+   - New writes will recreate tables with correct schema
+   - Use: `./scripts/recreate-lancedb-tables.sh helpmaton-production`
 
 ## Diagnostic Steps
 

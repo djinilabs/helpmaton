@@ -220,9 +220,12 @@ async function executeInsert(
       // Table doesn't exist, create it
       // LanceDB will infer schema from the first batch of records
       const initialRecords = finalRecords.map((r) => {
-        // Ensure metadata is a plain object (not null/undefined)
-        // Use JSON serialization to ensure it's a plain object (handles Arrow Structs if any)
-        let metadata: Record<string, unknown> = {};
+        // Extract metadata fields and store them at the top level
+        // LanceDB doesn't handle nested metadata objects well, so we flatten the structure
+        let conversationId = "";
+        let workspaceId = "";
+        let agentId = "";
+
         if (
           r.metadata &&
           typeof r.metadata === "object" &&
@@ -231,25 +234,44 @@ async function executeInsert(
           try {
             // Use JSON serialization to convert any Arrow Structs to plain objects
             const jsonString = JSON.stringify(r.metadata);
-            metadata = JSON.parse(jsonString) as Record<string, unknown>;
+            const parsed = JSON.parse(jsonString) as Record<string, unknown>;
+
+            // Extract metadata fields as strings
+            conversationId = String(parsed.conversationId || "");
+            workspaceId = String(parsed.workspaceId || "");
+            agentId = String(parsed.agentId || "");
           } catch {
-            // Fallback to spread if JSON fails
-            metadata = { ...r.metadata };
+            // Fallback to direct access if JSON fails
+            conversationId = String(r.metadata.conversationId || "");
+            workspaceId = String(r.metadata.workspaceId || "");
+            agentId = String(r.metadata.agentId || "");
           }
         }
+
         return {
           id: r.id,
           content: r.content,
           vector: r.embedding,
           timestamp: r.timestamp,
-          metadata,
+          // Store metadata fields at top level instead of nested
+          conversationId,
+          workspaceId,
+          agentId,
         };
       });
-      // Log first record's metadata for debugging
+      // Log first record's metadata fields for debugging
       if (initialRecords.length > 0) {
         console.log(
-          `[Write Server] Creating table with sample record metadata:`,
-          JSON.stringify(initialRecords[0].metadata, null, 2)
+          `[Write Server] Creating table with sample record metadata fields:`,
+          JSON.stringify(
+            {
+              conversationId: initialRecords[0].conversationId,
+              workspaceId: initialRecords[0].workspaceId,
+              agentId: initialRecords[0].agentId,
+            },
+            null,
+            2
+          )
         );
       }
       table = await db.createTable("vectors", initialRecords);
@@ -262,10 +284,12 @@ async function executeInsert(
       `[Write Server] Adding ${finalRecords.length} records to existing table for agent ${agentId}, grain ${temporalGrain}`
     );
     const recordsToInsert = finalRecords.map((r) => {
-      // Ensure metadata is a plain object (not null/undefined)
-      // LanceDB needs a consistent structure for metadata
-      // Use JSON serialization to ensure it's a plain object (handles Arrow Structs if any)
-      let metadata: Record<string, unknown> = {};
+      // Extract metadata fields and store them at the top level
+      // LanceDB doesn't handle nested metadata objects well, so we flatten the structure
+      let conversationId = "";
+      let workspaceId = "";
+      let agentId = "";
+
       if (
         r.metadata &&
         typeof r.metadata === "object" &&
@@ -274,25 +298,44 @@ async function executeInsert(
         try {
           // Use JSON serialization to convert any Arrow Structs to plain objects
           const jsonString = JSON.stringify(r.metadata);
-          metadata = JSON.parse(jsonString) as Record<string, unknown>;
+          const parsed = JSON.parse(jsonString) as Record<string, unknown>;
+
+          // Extract metadata fields as strings
+          conversationId = String(parsed.conversationId || "");
+          workspaceId = String(parsed.workspaceId || "");
+          agentId = String(parsed.agentId || "");
         } catch {
-          // Fallback to spread if JSON fails
-          metadata = { ...r.metadata };
+          // Fallback to direct access if JSON fails
+          conversationId = String(r.metadata.conversationId || "");
+          workspaceId = String(r.metadata.workspaceId || "");
+          agentId = String(r.metadata.agentId || "");
         }
       }
+
       return {
         id: r.id,
         content: r.content,
         vector: r.embedding,
         timestamp: r.timestamp,
-        metadata,
+        // Store metadata fields at top level instead of nested
+        conversationId,
+        workspaceId,
+        agentId,
       };
     });
-    // Log first record's metadata for debugging
+    // Log first record's metadata fields for debugging
     if (recordsToInsert.length > 0) {
       console.log(
-        `[Write Server] Sample record metadata being inserted:`,
-        JSON.stringify(recordsToInsert[0].metadata, null, 2)
+        `[Write Server] Sample record metadata fields being inserted:`,
+        JSON.stringify(
+          {
+            conversationId: recordsToInsert[0].conversationId,
+            workspaceId: recordsToInsert[0].workspaceId,
+            agentId: recordsToInsert[0].agentId,
+          },
+          null,
+          2
+        )
       );
     }
     await table.add(recordsToInsert);
@@ -334,15 +377,31 @@ async function executeUpdate(
       await table.delete(`id = '${id}'`);
     }
 
-    // Insert updated records
+    // Insert updated records with flattened metadata
     await table.add(
-      records.map((r) => ({
-        id: r.id,
-        content: r.content,
-        vector: r.embedding,
-        timestamp: r.timestamp,
-        metadata: r.metadata || {},
-      }))
+      records.map((r) => {
+        // Extract metadata fields
+        let conversationId = "";
+        let workspaceId = "";
+        let agentId = "";
+
+        if (r.metadata && typeof r.metadata === "object") {
+          conversationId = String(r.metadata.conversationId || "");
+          workspaceId = String(r.metadata.workspaceId || "");
+          agentId = String(r.metadata.agentId || "");
+        }
+
+        return {
+          id: r.id,
+          content: r.content,
+          vector: r.embedding,
+          timestamp: r.timestamp,
+          // Store metadata fields at top level instead of nested
+          conversationId,
+          workspaceId,
+          agentId,
+        };
+      })
     );
 
     console.log(
@@ -436,6 +495,29 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
 
   const message: WriteOperationMessage = validationResult.data;
   const { operation, agentId, temporalGrain, data, workspaceId } = message;
+
+  // Log the message details for debugging
+  console.log(
+    `[Write Server] Processing ${operation} operation for agent ${agentId}, grain ${temporalGrain}, workspaceId: ${workspaceId}`
+  );
+  if (data.rawFacts && data.rawFacts.length > 0) {
+    console.log(
+      `[Write Server] Message contains ${data.rawFacts.length} rawFacts`
+    );
+    console.log(
+      `[Write Server] First rawFact metadata:`,
+      JSON.stringify(data.rawFacts[0].metadata, null, 2)
+    );
+  }
+  if (data.records && data.records.length > 0) {
+    console.log(
+      `[Write Server] Message contains ${data.records.length} records`
+    );
+    console.log(
+      `[Write Server] First record metadata:`,
+      JSON.stringify(data.records[0].metadata, null, 2)
+    );
+  }
 
   switch (operation) {
     case "insert":

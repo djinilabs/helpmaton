@@ -2,9 +2,9 @@
 
 ## Current Status
 
-**Status**: LanceDB Metadata Investigation - In Progress 🔍
+**Status**: LanceDB Metadata Flattening Fix - Implemented ✅
 
-Investigating issue where LanceDB search returns metadata with null values for conversationId, workspaceId, and agentId fields. Added diagnostic logging and validation to identify root cause.
+Fixed issue where LanceDB search returns metadata with null values. Root cause: LanceDB doesn't handle nested metadata objects properly - data was being written but lost during storage/retrieval. Solution: Flattened metadata structure to store conversationId, workspaceId, and agentId as top-level fields instead of nested in a metadata object.
 
 **Previous Status**: SQS Partial Batch Failures - Completed ✅
 
@@ -12,16 +12,24 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 
 **Recent Fixes (Latest)**:
 
-- **LanceDB Metadata Null Values Investigation** (December 18, 2025)
+- **LanceDB Metadata Flattening Fix** (December 18, 2025)
 
-  - Investigating issue where LanceDB returns records with null metadata values (conversationId, workspaceId, agentId all null)
-  - Added detailed diagnostic logging to `writeMemory.ts` and `conversationLogger.ts` to track parameter values through the entire flow
-  - Added validation in `writeToWorkingMemory()` to throw early if any required parameter is null/undefined
-  - Created diagnostic script `scripts/debug-lancedb-metadata.sh` to check CloudWatch logs for write and read operations
-  - Created test script `scripts/test-lancedb-metadata.mjs` to verify metadata storage and retrieval end-to-end
-  - Created comprehensive diagnosis document `docs/lancedb-metadata-diagnosis.md` with troubleshooting steps and solutions
-  - Most likely cause: Old records written before metadata fix was implemented (need to regenerate vector databases)
-  - Alternative causes: null parameters being passed, or LanceDB schema mismatch from initial table creation
+  - **Root Cause Identified**: LanceDB doesn't properly handle nested metadata objects. When metadata was stored as `{metadata: {conversationId, workspaceId, agentId}}`, the nested fields were being lost during storage/retrieval, resulting in null values even though data was written correctly.
+  - **Solution**: Flatten the metadata structure - store `conversationId`, `workspaceId`, and `agentId` as **top-level fields** on the record instead of nested in a metadata object.
+  - **Code Fixes**:
+    - Updated `agent-temporal-grain-queue/index.ts` to store metadata fields at top level: `{id, content, vector, timestamp, conversationId, workspaceId, agentId}`
+    - Applied flattening to table creation, record insertion, and update operations
+    - Updated `readClient.ts` to read metadata fields from top level and reconstruct metadata object for backward compatibility
+    - Supports legacy tables that still have nested metadata (tries top-level first, falls back to nested)
+    - Added extensive logging to track metadata values through write and read operations
+    - Added validation in `writeToWorkingMemory()` to throw early if required parameters are null/undefined
+  - **Diagnostic Tools Created**:
+    - `scripts/debug-lancedb-metadata.sh` - Check CloudWatch logs for write and read operations
+    - `scripts/test-lancedb-metadata.mjs` - End-to-end test to verify metadata storage and retrieval
+    - `scripts/recreate-lancedb-tables.sh` - Delete and recreate vector databases with correct schema
+    - `docs/lancedb-metadata-diagnosis.md` - Comprehensive troubleshooting guide
+    - `docs/lancedb-metadata-fix-summary.md` - Complete deployment guide
+  - **Next Steps**: Deploy updated code, then recreate vector databases to apply flattened structure
 
 - **Implemented SQS Partial Batch Failures** (December 2025)
   - Updated `handlingSQSErrors` utility to return `SQSBatchResponse` with failed message IDs
