@@ -55,7 +55,7 @@ async function getUsagePlanId(
   // Check cache
   const cacheKey = getUsagePlanCacheKey(plan);
   const cachedPlanId = usagePlanIdCache[cacheKey];
-  
+
   if (cachedPlanId) {
     console.log(
       `[apiGatewayUsagePlans] Using cached usage plan ID for ${plan} (${cacheKey}): ${cachedPlanId}`
@@ -89,7 +89,7 @@ async function getUsagePlanId(
       if (matchingPlan?.id) {
         // Store in cache for future use
         usagePlanIdCache[cacheKey] = matchingPlan.id;
-        
+
         console.log(
           `[apiGatewayUsagePlans] Found usage plan ${uniquePlanName} with ID: ${matchingPlan.id} (cached for future use)`
         );
@@ -197,11 +197,44 @@ export async function associateSubscriptionWithPlan(
     // Get or create API key for subscription
     const apiKeyId = await getOrCreateApiKeyForSubscription(subscriptionId);
 
-    // Get usage plan ID (now async - may look up by stack-specific name)
+    // Get usage plan ID for the target plan
     const usagePlanId = await getUsagePlanId(plan);
 
-    // First, try to delete any existing usage plan key associations
-    // We need to check all usage plans to find existing associations
+    // STEP 1: Create new association FIRST (before deleting old ones)
+    // This ensures the key is always associated with at least one plan
+    console.log(
+      `[apiGatewayUsagePlans] Associating API key ${apiKeyId} with ${plan} plan (${usagePlanId})`
+    );
+
+    try {
+      const createKeyCommand = new CreateUsagePlanKeyCommand({
+        usagePlanId,
+        keyId: apiKeyId,
+        keyType: "API_KEY",
+      });
+      await apiGateway.send(createKeyCommand);
+
+      console.log(
+        `[apiGatewayUsagePlans] Successfully associated API key ${apiKeyId} with ${plan} plan`
+      );
+    } catch (createError: unknown) {
+      // If creation fails with ConflictException, it means the key is already
+      // associated with this plan - this is fine, we can proceed
+      if (
+        createError instanceof Error &&
+        createError.name === "ConflictException"
+      ) {
+        console.log(
+          `[apiGatewayUsagePlans] API key ${apiKeyId} already associated with ${plan} plan`
+        );
+      } else {
+        // Other errors should be thrown
+        throw createError;
+      }
+    }
+
+    // STEP 2: Remove from OLD plans (all except the target plan)
+    // At this point, the key is guaranteed to be in the new plan
     const plansToCheck: Array<"free" | "starter" | "pro"> = [
       "free",
       "starter",
@@ -209,10 +242,15 @@ export async function associateSubscriptionWithPlan(
     ];
 
     for (const checkPlan of plansToCheck) {
+      // Skip the target plan - we just associated with it
+      if (checkPlan === plan) {
+        continue;
+      }
+
       try {
         const checkPlanId = await getUsagePlanId(checkPlan);
 
-        // Try to delete the association (will fail silently if it doesn't exist)
+        // Try to delete the association from old plan
         try {
           const deleteCommand = new DeleteUsagePlanKeyCommand({
             usagePlanId: checkPlanId,
@@ -221,7 +259,7 @@ export async function associateSubscriptionWithPlan(
           await apiGateway.send(deleteCommand);
 
           console.log(
-            `[apiGatewayUsagePlans] Removed API key ${apiKeyId} from usage plan ${checkPlan}`
+            `[apiGatewayUsagePlans] Removed API key ${apiKeyId} from ${checkPlan} plan`
           );
         } catch (deleteError: unknown) {
           // Ignore errors if the association doesn't exist
@@ -244,16 +282,8 @@ export async function associateSubscriptionWithPlan(
       }
     }
 
-    // Create new association with the correct usage plan
-    const createKeyCommand = new CreateUsagePlanKeyCommand({
-      usagePlanId,
-      keyId: apiKeyId,
-      keyType: "API_KEY",
-    });
-    await apiGateway.send(createKeyCommand);
-
     console.log(
-      `[apiGatewayUsagePlans] Associated subscription ${subscriptionId} (API key ${apiKeyId}) with ${plan} plan (${usagePlanId})`
+      `[apiGatewayUsagePlans] Successfully updated subscription ${subscriptionId} (API key ${apiKeyId}) to ${plan} plan (${usagePlanId})`
     );
 
     // Return the API key ID so it can be stored in the subscription record
