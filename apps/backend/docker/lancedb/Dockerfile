@@ -2,16 +2,20 @@
 # Single-stage build - no build tools needed, LanceDB ships pre-compiled binaries!
 FROM public.ecr.aws/lambda/nodejs:20
 
+# Install pnpm globally
+RUN npm install -g pnpm
+
 # Copy minimal package.json with ONLY LanceDB dependencies
+# The pnpm config in package.json restricts installation to linux-arm64 only
 WORKDIR /tmp/build
 COPY apps/backend/docker/lancedb/package.json ./
-COPY apps/backend/docker/lancedb/.npmrc ./
 
 # Install - just downloads pre-compiled binaries, no compilation needed!
 # This installs ONLY: @lancedb/lancedb, apache-arrow, reflect-metadata
 # and @lancedb/lancedb-linux-arm64-gnu (pre-built .node binary)
-RUN npm install --omit=dev && \
-    rm -rf /root/.npm
+# pnpm config in package.json ensures only linux-arm64 platform is installed
+RUN pnpm install --prod && \
+    rm -rf /root/.pnpm-store /root/.local/share/pnpm
 
 # Move to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}

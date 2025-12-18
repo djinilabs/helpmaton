@@ -9,24 +9,24 @@ Dramatically optimized the LanceDB Docker image build time and size by installin
 **Changes**:
 
 - Created minimal `package.json` with only 4 packages: `@lancedb/lancedb`, `apache-arrow`, `reflect-metadata` (and platform binary)
-- Created `.npmrc` to install only linux-arm64 platform binaries (not darwin, windows, etc.)
+- Added `pnpm.supportedArchitectures` config to package.json to install only linux-arm64 platform binaries (not darwin, windows, etc.)
 - Simplified Dockerfile to single-stage build (no build tools needed - LanceDB ships pre-compiled `.node` binaries)
-- Removed: python3, make, gcc-c++, git, pnpm, monorepo workspace files, all 40+ backend dependencies
+- Uses pnpm for consistency with project standards
+- Removed: python3, make, gcc-c++, git, monorepo workspace files, all 40+ backend dependencies
 
 **Impact**:
 
 - Expected ~1GB+ reduction in node_modules (from 600MB+ to ~80-100MB)
 - Expected ~4-6 minutes faster builds
-- Much simpler Dockerfile (single-stage, simple npm install)
+- Much simpler Dockerfile (single-stage, simple pnpm install)
 
 **Files Created**:
 
-- `apps/backend/docker/lancedb/package.json` - Minimal runtime dependencies
-- `apps/backend/docker/lancedb/.npmrc` - Platform-specific configuration
+- `apps/backend/docker/lancedb/package.json` - Minimal runtime dependencies with pnpm platform configuration
 
 **Files Modified**:
 
-- `apps/backend/docker/lancedb/Dockerfile` - Complete rewrite for minimal runtime-only installation
+- `apps/backend/docker/lancedb/Dockerfile` - Complete rewrite for minimal runtime-only installation with pnpm
 
 **Verification**: Type checking and linting passed successfully
 
