@@ -270,6 +270,8 @@ export const tableSchemas = {
     expiresAt: z.string().datetime().optional(), // expiration date (deprecated - free plans no longer expire)
     apiKeyId: z.string().optional(), // API Gateway API key ID for throttling
     lastLimitEmailSentAt: z.string().datetime().optional(), // last time limit email was sent
+    lastCreditErrorEmailSentAt: z.string().datetime().optional(), // last time credit error email was sent
+    lastSpendingLimitErrorEmailSentAt: z.string().datetime().optional(), // last time spending limit error email was sent
     // Lemon Squeezy integration fields
     lemonSqueezySubscriptionId: z.string().optional(), // Lemon Squeezy subscription ID
     lemonSqueezyCustomerId: z.string().optional(), // Lemon Squeezy customer ID
