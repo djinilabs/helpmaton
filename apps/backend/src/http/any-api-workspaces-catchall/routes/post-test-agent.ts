@@ -5,6 +5,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { sendAgentErrorNotification } from "../../../utils/agentErrorNotifications";
 import {
   extractTokenUsage,
   isMessageContentEmpty,
@@ -305,18 +306,43 @@ export const registerPostTestAgent = (app: express.Application) => {
       } catch (error) {
         // Handle errors based on when they occurred
         if (error instanceof InsufficientCreditsError) {
-          return res.status(error.statusCode).json({
-            error: error.message,
-            workspaceId: error.workspaceId,
-            required: error.required,
-            available: error.available,
-            currency: error.currency,
+          // Send email notification (non-blocking)
+          try {
+            await sendAgentErrorNotification(workspaceId, "credit", error);
+          } catch (emailError) {
+            // Log but don't fail request
+            console.error(
+              "[Agent Test Handler] Failed to send error notification:",
+              emailError
+            );
+          }
+
+          // Return sanitized error to user
+          return res.status(402).json({
+            error:
+              "Request could not be completed due to service limits. Please contact your workspace administrator.",
           });
         }
         if (error instanceof SpendingLimitExceededError) {
-          return res.status(error.statusCode).json({
-            error: error.message,
-            failedLimits: error.failedLimits,
+          // Send email notification (non-blocking)
+          try {
+            await sendAgentErrorNotification(
+              workspaceId,
+              "spendingLimit",
+              error
+            );
+          } catch (emailError) {
+            // Log but don't fail request
+            console.error(
+              "[Agent Test Handler] Failed to send error notification:",
+              emailError
+            );
+          }
+
+          // Return sanitized error to user
+          return res.status(402).json({
+            error:
+              "Request could not be completed due to service limits. Please contact your workspace administrator.",
           });
         }
 

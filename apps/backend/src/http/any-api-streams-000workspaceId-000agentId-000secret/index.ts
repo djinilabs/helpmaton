@@ -33,6 +33,7 @@ import {
   buildGenerateTextOptions,
 } from "../../http/utils/agentUtils";
 import { database } from "../../tables";
+import { sendAgentErrorNotification } from "../../utils/agentErrorNotifications";
 import {
   extractTokenUsage,
   isMessageContentEmpty,
@@ -1208,14 +1209,25 @@ const internalHandler = async (
     } catch (error) {
       // Handle errors based on when they occurred
       if (error instanceof InsufficientCreditsError) {
-        // Write error in SSE format
+        // Send email notification (non-blocking)
+        try {
+          await sendAgentErrorNotification(
+            context.workspaceId,
+            "credit",
+            error
+          );
+        } catch (emailError) {
+          console.error(
+            "[Stream Handler] Failed to send error notification:",
+            emailError
+          );
+        }
+
+        // Write sanitized error in SSE format
         const errorChunk = `data: ${JSON.stringify({
           type: "error",
-          error: error.message,
-          workspaceId: error.workspaceId,
-          required: error.required,
-          available: error.available,
-          currency: error.currency,
+          error:
+            "Request could not be completed due to service limits. Please contact your workspace administrator.",
         })}\n\n`;
         await writeChunkToStream(responseStream, errorChunk);
         responseStream.end();
@@ -1228,11 +1240,25 @@ const internalHandler = async (
         return;
       }
       if (error instanceof SpendingLimitExceededError) {
-        // Write error in SSE format
+        // Send email notification (non-blocking)
+        try {
+          await sendAgentErrorNotification(
+            context.workspaceId,
+            "spendingLimit",
+            error
+          );
+        } catch (emailError) {
+          console.error(
+            "[Stream Handler] Failed to send error notification:",
+            emailError
+          );
+        }
+
+        // Write sanitized error in SSE format
         const errorChunk = `data: ${JSON.stringify({
           type: "error",
-          error: error.message,
-          failedLimits: error.failedLimits,
+          error:
+            "Request could not be completed due to service limits. Please contact your workspace administrator.",
         })}\n\n`;
         await writeChunkToStream(responseStream, errorChunk);
         responseStream.end();
