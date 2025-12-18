@@ -39,7 +39,7 @@ const SCRYPT_OPTIONS = {
   p: 1, // Parallelization parameter
 };
 
-const ACCESS_TOKEN_EXPIRY = 60 * 60; // 1 hour in seconds
+const ACCESS_TOKEN_EXPIRY = 24 * 60 * 60; // 24 hours in seconds
 
 /**
  * Get the JWT secret key from environment

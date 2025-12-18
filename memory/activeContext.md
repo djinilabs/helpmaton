@@ -2,7 +2,11 @@
 
 ## Current Status
 
-**Status**: Message Queue Duplication Fix - Completed ✅
+**Status**: JWT Token Expiration Extended to 24 Hours - Completed ✅
+
+Extended JWT access token expiration from 1 hour to 24 hours to improve user experience. This reduces the frequency of token refreshes while still maintaining reasonable security. Updated all related code and documentation to reflect the new expiration time.
+
+**Previous Status**: Message Queue Duplication Fix - Completed ✅
 
 Fixed critical issue where conversation recording was sending ALL messages to the queue every time `updateConversation()` was called, not just the new ones. This caused massive duplication in fact extraction, embedding generation, and vector database writes. Solution: Modified `updateConversation()` to identify and send only truly new messages (not present in existing conversation) to the queue.
 
@@ -19,6 +23,20 @@ Fixed issue where LanceDB search returns metadata with null values. Root cause: 
 The SQS queue processing now supports partial batch failures, allowing successful messages to be deleted from the queue while failed ones are retried individually. This prevents unnecessary reprocessing of successfully processed messages and improves efficiency.
 
 **Recent Fixes (Latest)**:
+
+- **JWT Token Expiration Extended to 24 Hours** (December 18, 2025)
+
+  - **Change**: Extended JWT access token expiration from 1 hour to 24 hours
+  - **Reason**: Improve user experience by reducing frequency of token refreshes while maintaining reasonable security
+  - **Files Modified**:
+    - `apps/backend/src/utils/tokenUtils.ts` - Changed `ACCESS_TOKEN_EXPIRY` from `60 * 60` (1 hour) to `24 * 60 * 60` (24 hours)
+    - `apps/backend/src/http/any-api-workspaces-catchall/middleware.ts` - Updated session expiration compatibility code for JWT tokens (2 locations)
+    - `apps/backend/src/http/any-api-user-catchall/routes/post-refresh-token.ts` - Updated API documentation comment
+    - `apps/backend/src/http/any-api-user-catchall/routes/post-generate-tokens.ts` - Updated API documentation comment
+    - `docs/authentication.md` - Updated documentation to reflect 24-hour token lifetime
+  - **Impact**: Users will need to refresh their tokens less frequently (once per 24 hours instead of once per hour)
+  - **Verification**: Type checking and linting passed successfully
+  - **Note**: OpenAPI JSON files will be regenerated automatically during next deployment
 
 - **Message Queue Duplication Fix** (December 18, 2025)
 

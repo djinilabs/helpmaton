@@ -73,7 +73,7 @@ User logs in
     │
     ▼
 Backend generates:
-  - Access token (JWT, 1 hour)
+  - Access token (JWT, 24 hours)
   - Refresh token (stored in DB, 30 days)
     │
     ▼

@@ -111,7 +111,7 @@ export const requireAuth = async (
         id: tokenPayload.userId,
         email: tokenPayload.email,
       },
-      expires: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour from now
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
     };
 
     next();
@@ -145,7 +145,7 @@ export const requireAuthOrSession = async (
             id: tokenPayload.userId,
             email: tokenPayload.email,
           },
-          expires: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour from now
+          expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
         };
 
         return next();

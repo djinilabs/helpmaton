@@ -36,7 +36,7 @@ const REFRESH_TOKEN_EXPIRY_DAYS = 30;
  *               properties:
  *                 accessToken:
  *                   type: string
- *                   description: JWT access token (1 hour expiry)
+ *                   description: JWT access token (24 hours expiry)
  *                 refreshToken:
  *                   type: string
  *                   description: Refresh token (30 days expiry, save securely)
