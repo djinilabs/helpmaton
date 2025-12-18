@@ -92,6 +92,17 @@ export async function createFreeSubscription(
     `[createFreeSubscription] Creating subscription for user ${userId}, subscriptionId: ${subscriptionId}`
   );
 
+  // Step 1: Associate subscription with usage plan in API Gateway BEFORE creating subscription
+  // This ensures the API key exists before the subscription record is created
+  console.log(
+    `[createFreeSubscription] Associating subscription ${subscriptionId} with free usage plan`
+  );
+  const apiKeyId = await associateSubscriptionWithPlan(subscriptionId, "free");
+  console.log(
+    `[createFreeSubscription] API key ${apiKeyId} created and associated with free plan`
+  );
+
+  // Step 2: Create subscription record with apiKeyId already populated
   const subscription = await db.subscription.create({
     pk: subscriptionPk,
     sk: subscriptionSk,
@@ -100,6 +111,7 @@ export async function createFreeSubscription(
     status: "active", // Free subscriptions are always active
     expiresAt: undefined, // Free subscriptions never expire
     createdBy: userRefStr,
+    apiKeyId, // Include the API key ID from step 1
   });
 
   if (!subscription) {
@@ -107,10 +119,10 @@ export async function createFreeSubscription(
   }
 
   console.log(
-    `[createFreeSubscription] Subscription created: ${subscription.pk}`
+    `[createFreeSubscription] Subscription created: ${subscription.pk} with API key ${apiKeyId}`
   );
 
-  // Grant creator OWNER permission (manager)
+  // Step 3: Grant creator OWNER permission
   // Note: We need to manually create the permission with resourceType "subscriptions"
   const { permission } = await database();
   await permission.create({
@@ -124,29 +136,6 @@ export async function createFreeSubscription(
   console.log(
     `[createFreeSubscription] Manager permission created for user ${userId}`
   );
-
-  // Associate subscription with usage plan in API Gateway and store API key ID
-  // This is done asynchronously to avoid blocking subscription creation
-  // If it fails, the subscription is still created but throttling won't work until retried
-  associateSubscriptionWithPlan(subscriptionId, "free")
-    .then(async (apiKeyId) => {
-      // Store the API key ID in the subscription record
-      const updated = await db.subscription.update({
-        ...subscription,
-        apiKeyId,
-      });
-      console.log(
-        `[createFreeSubscription] Stored API key ID ${apiKeyId} in subscription ${subscriptionId}`
-      );
-      return updated;
-    })
-    .catch((error) => {
-      console.error(
-        `[createFreeSubscription] Error associating subscription ${subscriptionId} with usage plan:`,
-        error
-      );
-      // Don't throw - subscription is created, usage plan association can be retried later
-    });
 
   return subscription;
 }
