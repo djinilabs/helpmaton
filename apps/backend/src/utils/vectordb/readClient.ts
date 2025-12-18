@@ -112,42 +112,22 @@ async function getDatabaseConnection(
 }
 
 /**
- * Convert LanceDB metadata (which may be an Apache Arrow Struct) to a plain object
- * Handles both plain objects and Arrow Struct types
- * Uses JSON serialization/deserialization to convert Arrow Structs properly
+ * LanceDB row structure with metadata fields stored at top level
+ * Supports both new flattened structure and legacy nested metadata
  */
-function convertMetadataToPlainObject(
-  metadata: unknown
-): Record<string, unknown> {
-  if (!metadata) {
-    return {};
-  }
-
-  // If it's already a plain object with values, return it
-  if (typeof metadata === "object" && !Array.isArray(metadata)) {
-    // Try JSON serialization/deserialization to convert Arrow Structs
-    // This works because JSON.stringify/parse will convert Arrow Structs to plain objects
-    try {
-      const jsonString = JSON.stringify(metadata);
-      const parsed = JSON.parse(jsonString) as Record<string, unknown>;
-
-      // Filter out null values that might be from unset struct fields
-      // But keep them if they're explicitly set (we can't distinguish, so keep all)
-      return parsed;
-    } catch {
-      // If JSON serialization fails, try direct access
-      const result: Record<string, unknown> = {};
-      const obj = metadata as Record<string, unknown>;
-      for (const key in obj) {
-        const value = obj[key];
-        // Include all values, even null (they might be valid)
-        result[key] = value;
-      }
-      return result;
-    }
-  }
-
-  return {};
+interface LanceDBRow {
+  id: string;
+  content: string;
+  vector?: number[];
+  embedding?: number[];
+  timestamp: string;
+  // Metadata fields are stored at top level (new structure)
+  conversationId?: string;
+  workspaceId?: string;
+  agentId?: string;
+  // Legacy: some tables might still have nested metadata
+  metadata?: Record<string, unknown>;
+  _distance?: number;
 }
 
 /**
@@ -235,38 +215,8 @@ export async function query(
       nearestTo?: (vector: number[]) => unknown;
       where?: (filter: string) => unknown;
       limit?: (limit: number) => unknown;
-      toArray?: () => Promise<
-        Array<{
-          id: string;
-          content: string;
-          vector?: number[];
-          embedding?: number[];
-          timestamp: string;
-          // Metadata fields are stored at top level, not nested
-          conversationId?: string;
-          workspaceId?: string;
-          agentId?: string;
-          // Legacy: some tables might still have nested metadata
-          metadata?: Record<string, unknown>;
-          _distance?: number;
-        }>
-      >;
-      execute?: () => Promise<
-        AsyncIterable<{
-          id: string;
-          content: string;
-          vector?: number[];
-          embedding?: number[];
-          timestamp: string;
-          // Metadata fields are stored at top level, not nested
-          conversationId?: string;
-          workspaceId?: string;
-          agentId?: string;
-          // Legacy: some tables might still have nested metadata
-          metadata?: Record<string, unknown>;
-          _distance?: number;
-        }>
-      >;
+      toArray?: () => Promise<Array<LanceDBRow>>;
+      execute?: () => Promise<AsyncIterable<LanceDBRow>>;
     } = table.query() as unknown as typeof queryBuilder;
 
     // Apply vector similarity search if provided
@@ -290,28 +240,8 @@ export async function query(
     try {
       // Try toArray() method which converts the query to an array
       const queryResult = queryBuilder as unknown as {
-        toArray?: () => Promise<
-          Array<{
-            id: string;
-            content: string;
-            vector?: number[];
-            embedding?: number[];
-            timestamp: string;
-            metadata?: Record<string, unknown>;
-            _distance?: number;
-          }>
-        >;
-        execute?: () => Promise<
-          AsyncIterable<{
-            id: string;
-            content: string;
-            vector?: number[];
-            embedding?: number[];
-            timestamp: string;
-            metadata?: Record<string, unknown>;
-            _distance?: number;
-          }>
-        >;
+        toArray?: () => Promise<Array<LanceDBRow>>;
+        execute?: () => Promise<AsyncIterable<LanceDBRow>>;
       };
 
       if (queryResult.toArray) {
@@ -351,9 +281,9 @@ export async function query(
             `  Metadata fields from row:`,
             JSON.stringify(
               {
-                conversationId: (row as any).conversationId,
-                workspaceId: (row as any).workspaceId,
-                agentId: (row as any).agentId,
+                conversationId: row.conversationId,
+                workspaceId: row.workspaceId,
+                agentId: row.agentId,
               },
               null,
               4
@@ -373,12 +303,9 @@ export async function query(
           // Prefer top-level fields, fallback to nested metadata for legacy tables
           const metadata: Record<string, unknown> = {
             conversationId:
-              (row as any).conversationId ||
-              row.metadata?.conversationId ||
-              null,
-            workspaceId:
-              (row as any).workspaceId || row.metadata?.workspaceId || null,
-            agentId: (row as any).agentId || row.metadata?.agentId || null,
+              row.conversationId || row.metadata?.conversationId || null,
+            workspaceId: row.workspaceId || row.metadata?.workspaceId || null,
+            agentId: row.agentId || row.metadata?.agentId || null,
           };
 
           console.log(
@@ -412,9 +339,9 @@ export async function query(
             `  Metadata fields from row:`,
             JSON.stringify(
               {
-                conversationId: (row as any).conversationId,
-                workspaceId: (row as any).workspaceId,
-                agentId: (row as any).agentId,
+                conversationId: row.conversationId,
+                workspaceId: row.workspaceId,
+                agentId: row.agentId,
               },
               null,
               4
@@ -434,12 +361,9 @@ export async function query(
           // Prefer top-level fields, fallback to nested metadata for legacy tables
           const metadata: Record<string, unknown> = {
             conversationId:
-              (row as any).conversationId ||
-              row.metadata?.conversationId ||
-              null,
-            workspaceId:
-              (row as any).workspaceId || row.metadata?.workspaceId || null,
-            agentId: (row as any).agentId || row.metadata?.agentId || null,
+              row.conversationId || row.metadata?.conversationId || null,
+            workspaceId: row.workspaceId || row.metadata?.workspaceId || null,
+            agentId: row.agentId || row.metadata?.agentId || null,
           };
 
           console.log(
@@ -463,22 +387,7 @@ export async function query(
         // Fallback: try calling as a function
         console.log(`[Read Client] Using fallback method to retrieve rows...`);
         const rows = await (
-          queryBuilder as unknown as () => Promise<
-            Array<{
-              id: string;
-              content: string;
-              vector?: number[];
-              embedding?: number[];
-              timestamp: string;
-              // Metadata fields are stored at top level
-              conversationId?: string;
-              workspaceId?: string;
-              agentId?: string;
-              // Legacy: some tables might still have nested metadata
-              metadata?: Record<string, unknown>;
-              _distance?: number;
-            }>
-          >
+          queryBuilder as unknown as () => Promise<Array<LanceDBRow>>
         )();
 
         console.log(
@@ -500,9 +409,9 @@ export async function query(
             `  Metadata fields from row:`,
             JSON.stringify(
               {
-                conversationId: (row as any).conversationId,
-                workspaceId: (row as any).workspaceId,
-                agentId: (row as any).agentId,
+                conversationId: row.conversationId,
+                workspaceId: row.workspaceId,
+                agentId: row.agentId,
               },
               null,
               4
@@ -522,12 +431,9 @@ export async function query(
           // Prefer top-level fields, fallback to nested metadata for legacy tables
           const metadata: Record<string, unknown> = {
             conversationId:
-              (row as any).conversationId ||
-              row.metadata?.conversationId ||
-              null,
-            workspaceId:
-              (row as any).workspaceId || row.metadata?.workspaceId || null,
-            agentId: (row as any).agentId || row.metadata?.agentId || null,
+              row.conversationId || row.metadata?.conversationId || null,
+            workspaceId: row.workspaceId || row.metadata?.workspaceId || null,
+            agentId: row.agentId || row.metadata?.agentId || null,
           };
 
           console.log(
