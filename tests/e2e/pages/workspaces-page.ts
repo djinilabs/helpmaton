@@ -1,0 +1,142 @@
+import { Page, Locator } from "@playwright/test";
+
+import { BasePage } from "./base-page";
+
+export class WorkspacesPage extends BasePage {
+  // Locators
+  private createWorkspaceButton: Locator;
+  private createWorkspaceModal: Locator;
+  private workspaceNameInput: Locator;
+  private workspaceDescriptionInput: Locator;
+  private createButton: Locator;
+  private cancelButton: Locator;
+
+  constructor(page: Page) {
+    super(page);
+
+    // Main page locators
+    this.createWorkspaceButton = page
+      .locator('button:has-text("Create Workspace")')
+      .first();
+
+    // Modal locators
+    this.createWorkspaceModal = page.locator(
+      'div.fixed.inset-0:has(h2:text("Create Workspace"))'
+    );
+    this.workspaceNameInput = page.locator("input#name");
+    this.workspaceDescriptionInput = page.locator("textarea#description");
+    this.createButton = page.locator(
+      'button[type="submit"]:has-text("Create")'
+    );
+    this.cancelButton = page.locator(
+      'button[type="button"]:has-text("Cancel")'
+    );
+  }
+
+  /**
+   * Navigate to workspaces page
+   */
+  async goto(): Promise<void> {
+    await this.page.goto("/workspaces");
+    await this.waitForPageLoad();
+  }
+
+  /**
+   * Wait for workspaces page to load
+   */
+  async waitForWorkspacesPage(): Promise<void> {
+    await this.page.waitForSelector('h1:has-text("Workspaces")', {
+      timeout: 10000,
+    });
+  }
+
+  /**
+   * Open the create workspace modal
+   */
+  async openCreateWorkspaceModal(): Promise<void> {
+    await this.clickElement(this.createWorkspaceButton);
+    await this.waitForElement(this.createWorkspaceModal);
+  }
+
+  /**
+   * Fill in the workspace form
+   */
+  async fillWorkspaceForm(name: string, description?: string): Promise<void> {
+    await this.fillInput(this.workspaceNameInput, name);
+    if (description) {
+      await this.fillInput(this.workspaceDescriptionInput, description);
+    }
+  }
+
+  /**
+   * Submit the create workspace form
+   */
+  async submitCreateWorkspace(): Promise<void> {
+    await this.clickElement(this.createButton);
+    // Wait for modal to close
+    await this.page.waitForSelector(
+      'div.fixed.inset-0:has(h2:text("Create Workspace"))',
+      {
+        state: "detached",
+        timeout: 10000,
+      }
+    );
+  }
+
+  /**
+   * Create a new workspace (complete flow)
+   * @returns Object with workspace id and name
+   */
+  async createWorkspace(
+    name: string,
+    description?: string
+  ): Promise<{ id: string; name: string }> {
+    await this.openCreateWorkspaceModal();
+    await this.fillWorkspaceForm(name, description);
+    await this.submitCreateWorkspace();
+
+    // Wait for navigation to workspace detail page
+    await this.page.waitForURL(/\/workspaces\/[^/]+$/, { timeout: 10000 });
+
+    // Extract workspace ID from URL
+    const url = this.page.url();
+    const match = url.match(/\/workspaces\/([^/]+)$/);
+    if (!match) {
+      throw new Error("Failed to extract workspace ID from URL");
+    }
+
+    return {
+      id: match[1],
+      name,
+    };
+  }
+
+  /**
+   * Click on a workspace card to navigate to its detail page
+   */
+  async navigateToWorkspace(workspaceName: string): Promise<void> {
+    const workspaceCard = this.page.locator(
+      `div:has(h2:text("${workspaceName}"))`
+    );
+    await this.clickElement(workspaceCard);
+    await this.page.waitForURL(/\/workspaces\/[^/]+$/, { timeout: 10000 });
+  }
+
+  /**
+   * Get list of workspace names
+   */
+  async getWorkspaceNames(): Promise<string[]> {
+    const workspaceHeadings = this.page.locator(
+      "h2.text-3xl.font-bold.text-neutral-900"
+    );
+    return await workspaceHeadings.allTextContents();
+  }
+
+  /**
+   * Verify workspace appears in the list
+   */
+  async verifyWorkspaceExists(workspaceName: string): Promise<boolean> {
+    const workspaceCard = this.page.locator(`h2:has-text("${workspaceName}")`);
+    return await this.isElementVisible(workspaceCard);
+  }
+}

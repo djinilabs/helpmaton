@@ -40,11 +40,21 @@ export const e2eConfig = {
     video: (process.env.VIDEO || "retain-on-failure") as VideoMode,
     trace: (process.env.TRACE || "on-first-retry") as TraceMode,
   },
+
+  // Billing test configuration
+  billing: {
+    testMode: process.env.E2E_BILLING_TEST_MODE === "true",
+    testCreditAmount: 10.0,
+  },
 };
 
 // Validate required environment variables
 export function validateEnvironment(): void {
-  const requiredVars = ["TESTMAIL_NAMESPACE", "TESTMAIL_API_KEY", "MAILGUN_KEY"];
+  const requiredVars = [
+    "TESTMAIL_NAMESPACE",
+    "TESTMAIL_API_KEY",
+    "MAILGUN_KEY",
+  ];
   const missingVars = requiredVars.filter((varName) => !process.env[varName]);
 
   if (missingVars.length > 0) {
@@ -58,4 +68,3 @@ export function validateEnvironment(): void {
 
 // Export individual configs for convenience
 export const { testmail, app, test, browser, recording } = e2eConfig;
-
