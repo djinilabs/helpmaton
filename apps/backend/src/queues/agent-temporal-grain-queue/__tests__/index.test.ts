@@ -27,7 +27,7 @@ vi.mock("../../../utils/vectordb/config", () => ({
 }));
 
 vi.mock("../../../utils/handlingSQSErrors", () => ({
-  handlingSQSErrors: (fn: (event: SQSEvent) => Promise<void>) => fn,
+  handlingSQSErrors: (fn: (event: SQSEvent) => Promise<string[]>) => fn,
 }));
 
 vi.mock("../../../http/utils/agentUtils", () => ({
@@ -125,7 +125,7 @@ describe("agent-temporal-grain-queue handler", () => {
 
         const event = createSQSEvent([message]);
 
-        await handler(event);
+        const result = await handler(event);
 
         expect(mockConnect).toHaveBeenCalled();
         expect(mockOpenTable).toHaveBeenCalledWith("vectors");
@@ -138,6 +138,7 @@ describe("agent-temporal-grain-queue handler", () => {
             metadata: {},
           },
         ]);
+        expect(result).toEqual([]);
       });
 
       it("should create table if it doesn't exist", async () => {
@@ -172,7 +173,7 @@ describe("agent-temporal-grain-queue handler", () => {
 
         const event = createSQSEvent([message]);
 
-        await handler(event);
+        const result = await handler(event);
 
         expect(mockCreateTable).toHaveBeenCalledWith(
           "vectors",
@@ -184,6 +185,7 @@ describe("agent-temporal-grain-queue handler", () => {
             }),
           ])
         );
+        expect(result).toEqual([]);
       });
     });
 
@@ -222,7 +224,7 @@ describe("agent-temporal-grain-queue handler", () => {
 
         const event = createSQSEvent([message]);
 
-        await handler(event);
+        const result = await handler(event);
 
         expect(mockDelete).toHaveBeenCalledWith("id = 'record-1'");
         expect(mockAdd).toHaveBeenCalledWith([
@@ -231,6 +233,7 @@ describe("agent-temporal-grain-queue handler", () => {
             content: "Updated content",
           }),
         ]);
+        expect(result).toEqual([]);
       });
     });
 
@@ -258,15 +261,16 @@ describe("agent-temporal-grain-queue handler", () => {
 
         const event = createSQSEvent([message]);
 
-        await handler(event);
+        const result = await handler(event);
 
         expect(mockDelete).toHaveBeenCalledWith("id = 'record-1'");
         expect(mockDelete).toHaveBeenCalledWith("id = 'record-2'");
+        expect(result).toEqual([]);
       });
     });
 
     describe("error handling", () => {
-      it("should throw error for invalid message format", async () => {
+      it("should return failed message ID for invalid message format", async () => {
         const event: SQSEvent = {
           Records: [
             {
@@ -288,12 +292,13 @@ describe("agent-temporal-grain-queue handler", () => {
           ],
         };
 
-        await expect(handler(event)).rejects.toThrow(
-          "Invalid message format: JSON parse error"
-        );
+        const result = await handler(event);
+
+        // Message should be marked as failed
+        expect(result).toEqual(["msg-1"]);
       });
 
-      it("should throw error for missing records or rawFacts in insert", async () => {
+      it("should return failed message ID for missing records or rawFacts in insert", async () => {
         const message: WriteOperationMessage = {
           operation: "insert",
           agentId: "agent-123",
@@ -303,12 +308,10 @@ describe("agent-temporal-grain-queue handler", () => {
 
         const event = createSQSEvent([message]);
 
-        await expect(handler(event as unknown as SQSEvent)).rejects.toThrow(
-          "Invalid write operation message"
-        );
-        await expect(handler(event as unknown as SQSEvent)).rejects.toThrow(
-          "insert/update requires records or rawFacts"
-        );
+        const result = await handler(event as unknown as SQSEvent);
+
+        // Message should be marked as failed
+        expect(result).toEqual(["msg-0"]);
       });
 
       it("should process insert operation with rawFacts and generate embeddings", async () => {
@@ -350,7 +353,7 @@ describe("agent-temporal-grain-queue handler", () => {
 
         const event = createSQSEvent([message]);
 
-        await handler(event);
+        const result = await handler(event);
 
         // Verify embedding was generated
         expect(mockGenerateEmbedding).toHaveBeenCalledWith(
@@ -372,9 +375,10 @@ describe("agent-temporal-grain-queue handler", () => {
             metadata: { conversationId: "conv-1" },
           },
         ]);
+        expect(result).toEqual([]);
       });
 
-      it("should throw error for unknown operation", async () => {
+      it("should return failed message ID for unknown operation", async () => {
         const message = {
           operation: "unknown",
           agentId: "agent-123",
@@ -386,17 +390,15 @@ describe("agent-temporal-grain-queue handler", () => {
           message as unknown as WriteOperationMessage,
         ]);
 
-        await expect(handler(event as unknown as SQSEvent)).rejects.toThrow(
-          "Invalid write operation message"
-        );
-        await expect(handler(event as unknown as SQSEvent)).rejects.toThrow(
-          "Invalid option: expected one of"
-        );
+        const result = await handler(event as unknown as SQSEvent);
+
+        // Message should be marked as failed
+        expect(result).toEqual(["msg-0"]);
       });
     });
 
     describe("batch processing", () => {
-      it("should process multiple messages", async () => {
+      it("should process multiple messages successfully", async () => {
         const { connect } = await import("@lancedb/lancedb");
         const mockConnect = vi.mocked(connect);
 
@@ -445,9 +447,149 @@ describe("agent-temporal-grain-queue handler", () => {
 
         const event = createSQSEvent(messages);
 
-        await handler(event);
+        const result = await handler(event);
 
         expect(mockAdd).toHaveBeenCalledTimes(2);
+        expect(result).toEqual([]); // No failed messages
+      });
+
+      it("should return failed message IDs for partial batch failures", async () => {
+        const { connect } = await import("@lancedb/lancedb");
+        const mockConnect = vi.mocked(connect);
+
+        // First message succeeds, second fails, third succeeds
+        let callCount = 0;
+        const mockAdd = vi.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 2) {
+            return Promise.reject(new Error("Database connection error"));
+          }
+          return Promise.resolve(undefined);
+        });
+
+        const mockOpenTable = vi.fn().mockResolvedValue({
+          add: mockAdd,
+        });
+
+        mockConnect.mockResolvedValue({
+          openTable: mockOpenTable,
+          createTable: vi.fn(),
+        } as unknown as Awaited<ReturnType<typeof connect>>);
+
+        const messages: WriteOperationMessage[] = [
+          {
+            operation: "insert",
+            agentId: "agent-123",
+            temporalGrain: "daily",
+            data: {
+              records: [
+                {
+                  id: "record-1",
+                  content: "Test 1",
+                  embedding: [0.1, 0.2],
+                  timestamp: "2024-01-01T00:00:00Z",
+                },
+              ],
+            },
+          },
+          {
+            operation: "insert",
+            agentId: "agent-456",
+            temporalGrain: "daily",
+            data: {
+              records: [
+                {
+                  id: "record-2",
+                  content: "Test 2",
+                  embedding: [0.3, 0.4],
+                  timestamp: "2024-01-02T00:00:00Z",
+                },
+              ],
+            },
+          },
+          {
+            operation: "insert",
+            agentId: "agent-789",
+            temporalGrain: "daily",
+            data: {
+              records: [
+                {
+                  id: "record-3",
+                  content: "Test 3",
+                  embedding: [0.5, 0.6],
+                  timestamp: "2024-01-03T00:00:00Z",
+                },
+              ],
+            },
+          },
+        ];
+
+        const event = createSQSEvent(messages);
+
+        const result = await handler(event);
+
+        // All three messages should be attempted
+        expect(mockAdd).toHaveBeenCalledTimes(3);
+
+        // Only the second message should be marked as failed
+        expect(result).toEqual(["msg-1"]);
+      });
+
+      it("should return all failed message IDs when all messages fail", async () => {
+        const { connect } = await import("@lancedb/lancedb");
+        const mockConnect = vi.mocked(connect);
+
+        const mockAdd = vi
+          .fn()
+          .mockRejectedValue(new Error("Database connection error"));
+
+        const mockOpenTable = vi.fn().mockResolvedValue({
+          add: mockAdd,
+        });
+
+        mockConnect.mockResolvedValue({
+          openTable: mockOpenTable,
+          createTable: vi.fn(),
+        } as unknown as Awaited<ReturnType<typeof connect>>);
+
+        const messages: WriteOperationMessage[] = [
+          {
+            operation: "insert",
+            agentId: "agent-123",
+            temporalGrain: "daily",
+            data: {
+              records: [
+                {
+                  id: "record-1",
+                  content: "Test 1",
+                  embedding: [0.1, 0.2],
+                  timestamp: "2024-01-01T00:00:00Z",
+                },
+              ],
+            },
+          },
+          {
+            operation: "insert",
+            agentId: "agent-456",
+            temporalGrain: "daily",
+            data: {
+              records: [
+                {
+                  id: "record-2",
+                  content: "Test 2",
+                  embedding: [0.3, 0.4],
+                  timestamp: "2024-01-02T00:00:00Z",
+                },
+              ],
+            },
+          },
+        ];
+
+        const event = createSQSEvent(messages);
+
+        const result = await handler(event);
+
+        expect(result).toEqual(["msg-0", "msg-1"]);
       });
     });
   });

@@ -2,12 +2,18 @@
 
 ## Current Status
 
-**Status**: Stratified Agent Memory System - Completed ✅ (Recent Fixes Applied)
+**Status**: SQS Partial Batch Failures - Completed ✅
 
-The stratified agent memory system has been fully implemented and tested. Agents now have long-term factual memory organized into multiple temporal grains (working, daily, weekly, monthly, quarterly, yearly) with automatic summarization and retention policies.
+The SQS queue processing now supports partial batch failures, allowing successful messages to be deleted from the queue while failed ones are retried individually. This prevents unnecessary reprocessing of successfully processed messages and improves efficiency.
 
 **Recent Fixes (Latest)**:
 
+- **Implemented SQS Partial Batch Failures** (December 2025)
+  - Updated `handlingSQSErrors` utility to return `SQSBatchResponse` with failed message IDs
+  - Modified queue handler to track failed messages and continue processing remaining messages
+  - Created Architect plugin (`sqs-partial-batch-failures`) to configure event source mappings with `ReportBatchItemFailures`
+  - Added comprehensive unit tests for both the utility and plugin
+  - Benefits: Prevents reprocessing of successful messages, improves queue processing efficiency, reduces duplicate work
 - **Fixed environment detection for LanceDB S3 configuration** - Changed environment detection logic to use `arcEnv === "testing" || !accessKeyId || !secretAccessKey`. This ensures staging/PR environments use AWS S3 credentials when available, but falls back to local s3rver configuration when credentials are missing (for tests and local development). Fixed in queue processor, read client, and config module.
 - **Fixed S3 path-style addressing for LanceDB** - Changed `awsVirtualHostedStyleRequest: "false"` to `s3ForcePathStyle: "true"` in both queue processor and read client to properly construct S3 URLs for local development (s3rver) and prevent malformed HTTP requests
 - Fixed metadata storage/retrieval in LanceDB - metadata fields (conversationId, workspaceId, agentId) are now properly stored and retrieved using JSON serialization to handle Apache Arrow Structs
@@ -144,7 +150,13 @@ The stratified agent memory system has been fully implemented and tested. Agents
 
 **Files Modified (Latest)**:
 
-- `apps/backend/src/queues/agent-temporal-grain-queue/index.ts` - Fixed environment detection to check credentials first, falling back to local config when missing; Fixed S3 path-style addressing by changing `awsVirtualHostedStyleRequest: "false"` to `s3ForcePathStyle: "true"`; Added JSON serialization for metadata storage
+- `apps/backend/src/utils/handlingSQSErrors.ts` - Updated to return `SQSBatchResponse` with partial batch failure support; Handler now returns array of failed message IDs; Catches unexpected errors and returns all messages as failed
+- `apps/backend/src/queues/agent-temporal-grain-queue/index.ts` - Updated handler to track failed messages and return their IDs; Continues processing remaining messages even if some fail; Fixed environment detection to check credentials first, falling back to local config when missing; Fixed S3 path-style addressing by changing `awsVirtualHostedStyleRequest: "false"` to `s3ForcePathStyle: "true"`; Added JSON serialization for metadata storage
+- `apps/backend/src/plugins/sqs-partial-batch-failures/index.js` - New Architect plugin to configure SQS event source mappings with `ReportBatchItemFailures`
+- `apps/backend/app.arc` - Added `sqs-partial-batch-failures` plugin to enable partial batch failures
+- `apps/backend/src/utils/__tests__/handlingSQSErrors.test.ts` - New test file with comprehensive tests for partial batch failure handling
+- `apps/backend/src/plugins/sqs-partial-batch-failures/__tests__/index.test.js` - New test file for the SQS plugin
+- `apps/backend/src/queues/agent-temporal-grain-queue/__tests__/index.test.ts` - Updated tests to verify handler returns failed message IDs; Added tests for partial batch failures
 - `apps/backend/src/utils/vectordb/readClient.ts` - Fixed environment detection to check credentials first, falling back to local config when missing; Fixed S3 path-style addressing by changing `awsVirtualHostedStyleRequest: "false"` to `s3ForcePathStyle: "true"`; Added `convertMetadataToPlainObject()` helper function
 - `apps/backend/src/utils/vectordb/config.ts` - Fixed environment detection in `getS3ConnectionOptions()` to check credentials first, falling back to local config when missing
 - `apps/backend/src/http/utils/modelFactory.ts` - Lazy import of `withTracing` from `@posthog/ai`
@@ -154,8 +166,10 @@ The stratified agent memory system has been fully implemented and tested. Agents
 - `apps/backend/package.json` - Removed `@posthog/ai` dependency
 - `scripts/run-all-memory-summaries.mjs` - New dev script for running all summarizations
 
-**Next Steps for Memory System**:
+**Next Steps**:
 
+- Monitor queue processing efficiency with partial batch failures in production
+- Track retry rates and dead-letter queue usage
 - Monitor summarization quality and adjust prompts if needed
 - Track storage usage and optimize if necessary
 - Consider configurable summarization prompts per agent

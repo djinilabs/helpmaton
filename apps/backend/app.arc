@@ -301,6 +301,7 @@ api-throttling
 custom-domain
 lambda-urls
 container-images
+sqs-partial-batch-failures
 
 @aws
 runtime typescript

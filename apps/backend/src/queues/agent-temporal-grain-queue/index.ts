@@ -474,13 +474,17 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
 }
 
 /**
- * Lambda handler for processing SQS messages
+ * Lambda handler for processing SQS messages with partial batch failure support
+ * Returns array of failed message IDs so successful messages can be deleted
+ * while failed ones are retried individually
  */
 export const handler = handlingSQSErrors(
-  async (event: SQSEvent): Promise<void> => {
+  async (event: SQSEvent): Promise<string[]> => {
     console.log(
       `[Write Server] Received ${event.Records.length} SQS message(s)`
     );
+
+    const failedMessageIds: string[] = [];
 
     // Process messages in sequence (FIFO queue ensures order per message group)
     for (const record of event.Records) {
@@ -488,6 +492,9 @@ export const handler = handlingSQSErrors(
       const receiptHandle = record.receiptHandle || "unknown";
       try {
         await processWriteOperation(record);
+        console.log(
+          `[Write Server] Successfully processed message ${messageId}`
+        );
       } catch (error) {
         // Log detailed error information
         console.error(
@@ -505,11 +512,17 @@ export const handler = handlingSQSErrors(
             record.body?.substring(0, 500) || "no body"
           }`
         );
-        // Re-throw to trigger SQS retry/dead-letter queue
-        throw error;
+
+        // Track failed message for retry, but continue processing other messages
+        failedMessageIds.push(messageId);
       }
     }
 
-    console.log("[Write Server] Successfully processed all messages");
+    const successCount = event.Records.length - failedMessageIds.length;
+    console.log(
+      `[Write Server] Batch processing complete: ${successCount} succeeded, ${failedMessageIds.length} failed`
+    );
+
+    return failedMessageIds;
   }
 );

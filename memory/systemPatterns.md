@@ -76,6 +76,11 @@
 - **Testing**: Jest for unit tests, Playwright for E2E
 - **Error Handling**: Custom error utilities in `utils/handlingErrors.ts`
 - **Logging**: Structured logging with table logger
+- **SQS Queue Processing**: Use partial batch failures via `handlingSQSErrors` utility
+  - Handler returns array of failed message IDs
+  - Successful messages are deleted immediately
+  - Failed messages are retried individually
+  - Prevents reprocessing of successful messages
 
 ### Naming Conventions
 

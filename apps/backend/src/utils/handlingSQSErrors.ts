@@ -1,21 +1,50 @@
 import { boomify } from "@hapi/boom";
 import * as Sentry from "@sentry/node";
-import type { SQSEvent } from "aws-lambda";
+import type { SQSBatchResponse, SQSEvent } from "aws-lambda";
 
 import { flushPostHog } from "./posthog";
 import { flushSentry, ensureError } from "./sentry";
 
 /**
- * Wrapper for SQS Lambda functions
+ * Wrapper for SQS Lambda functions with support for partial batch failures
  * Handles errors uniformly and reports server errors to Sentry
+ *
+ * When using partial batch failures:
+ * - Handler should return an array of failed message IDs
+ * - Successful messages will be deleted from the queue
+ * - Failed messages will be retried based on queue configuration
+ * - This prevents reprocessing of successfully processed messages
  */
 export const handlingSQSErrors = (
-  userHandler: (event: SQSEvent) => Promise<void>
-): ((event: SQSEvent) => Promise<void>) => {
-  return async (event: SQSEvent): Promise<void> => {
+  userHandler: (event: SQSEvent) => Promise<string[]>
+): ((event: SQSEvent) => Promise<SQSBatchResponse>) => {
+  return async (event: SQSEvent): Promise<SQSBatchResponse> => {
     try {
-      await userHandler(event);
+      const failedMessageIds = await userHandler(event);
+
+      // If there are failed messages, report them for retry
+      if (failedMessageIds.length > 0) {
+        console.warn(
+          `[SQS Handler] ${failedMessageIds.length} message(s) failed out of ${event.Records.length}:`,
+          failedMessageIds
+        );
+
+        return {
+          batchItemFailures: failedMessageIds.map((messageId) => ({
+            itemIdentifier: messageId,
+          })),
+        };
+      }
+
+      // All messages processed successfully
+      console.log(
+        `[SQS Handler] Successfully processed all ${event.Records.length} message(s)`
+      );
+      return {
+        batchItemFailures: [],
+      };
     } catch (error) {
+      // Unexpected error - treat all messages as failed
       const boomed = boomify(error as Error);
 
       // Always log the full error details
@@ -52,8 +81,12 @@ export const handlingSQSErrors = (
         },
       });
 
-      // Re-throw the error so Lambda marks the invocation as failed
-      throw error;
+      // Return all messages as failed for retry
+      return {
+        batchItemFailures: event.Records.map((record) => ({
+          itemIdentifier: record.messageId,
+        })),
+      };
     } finally {
       await Promise.all([flushPostHog(), flushSentry()]).catch(
         (flushErrors) => {
