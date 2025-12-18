@@ -2,11 +2,26 @@
 
 ## Current Status
 
-**Status**: SQS Partial Batch Failures - Completed ✅
+**Status**: LanceDB Metadata Investigation - In Progress 🔍
+
+Investigating issue where LanceDB search returns metadata with null values for conversationId, workspaceId, and agentId fields. Added diagnostic logging and validation to identify root cause.
+
+**Previous Status**: SQS Partial Batch Failures - Completed ✅
 
 The SQS queue processing now supports partial batch failures, allowing successful messages to be deleted from the queue while failed ones are retried individually. This prevents unnecessary reprocessing of successfully processed messages and improves efficiency.
 
 **Recent Fixes (Latest)**:
+
+- **LanceDB Metadata Null Values Investigation** (December 18, 2025)
+
+  - Investigating issue where LanceDB returns records with null metadata values (conversationId, workspaceId, agentId all null)
+  - Added detailed diagnostic logging to `writeMemory.ts` and `conversationLogger.ts` to track parameter values through the entire flow
+  - Added validation in `writeToWorkingMemory()` to throw early if any required parameter is null/undefined
+  - Created diagnostic script `scripts/debug-lancedb-metadata.sh` to check CloudWatch logs for write and read operations
+  - Created test script `scripts/test-lancedb-metadata.mjs` to verify metadata storage and retrieval end-to-end
+  - Created comprehensive diagnosis document `docs/lancedb-metadata-diagnosis.md` with troubleshooting steps and solutions
+  - Most likely cause: Old records written before metadata fix was implemented (need to regenerate vector databases)
+  - Alternative causes: null parameters being passed, or LanceDB schema mismatch from initial table creation
 
 - **Implemented SQS Partial Batch Failures** (December 2025)
   - Updated `handlingSQSErrors` utility to return `SQSBatchResponse` with failed message IDs

@@ -197,3 +197,4 @@ module.exports.queueNameToResourceId = queueNameToResourceId;
 module.exports.queueNameToEventSourceMappingId =
   queueNameToEventSourceMappingId;
 module.exports.parseQueuesPragma = parseQueuesPragma;
+

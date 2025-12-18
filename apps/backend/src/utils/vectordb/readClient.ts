@@ -320,9 +320,34 @@ export async function query(
             );
           }
         }
-        for (const row of rows) {
+
+        // Log all metadata from all rows for debugging
+        console.log(
+          `[Read Client] Retrieved ${rows.length} rows, logging all metadata:`
+        );
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          console.log(
+            `[Read Client] Row ${i + 1}/${rows.length} - ID: ${row.id.substring(
+              0,
+              20
+            )}...`
+          );
+          console.log(`  Content: ${row.content.substring(0, 60)}...`);
+          console.log(`  Timestamp: ${row.timestamp}`);
+          console.log(`  Raw metadata type: ${typeof row.metadata}`);
+          console.log(
+            `  Raw metadata value:`,
+            JSON.stringify(row.metadata, null, 4)
+          );
+
           // Convert metadata from LanceDB struct format to plain object
           const metadata = convertMetadataToPlainObject(row.metadata);
+          console.log(
+            `  Converted metadata:`,
+            JSON.stringify(metadata, null, 4)
+          );
+
           results.push({
             id: row.id,
             content: row.content,
@@ -334,9 +359,28 @@ export async function query(
         }
       } else if (queryResult.execute) {
         const iterator = await queryResult.execute();
+        let rowIndex = 0;
+        console.log(`[Read Client] Using execute() method to retrieve rows...`);
         for await (const row of iterator) {
+          rowIndex++;
+          console.log(
+            `[Read Client] Row ${rowIndex} - ID: ${row.id.substring(0, 20)}...`
+          );
+          console.log(`  Content: ${row.content.substring(0, 60)}...`);
+          console.log(`  Timestamp: ${row.timestamp}`);
+          console.log(`  Raw metadata type: ${typeof row.metadata}`);
+          console.log(
+            `  Raw metadata value:`,
+            JSON.stringify(row.metadata, null, 4)
+          );
+
           // Convert metadata from LanceDB struct format to plain object
           const metadata = convertMetadataToPlainObject(row.metadata);
+          console.log(
+            `  Converted metadata:`,
+            JSON.stringify(metadata, null, 4)
+          );
+
           results.push({
             id: row.id,
             content: row.content,
@@ -346,8 +390,12 @@ export async function query(
             distance: row._distance,
           });
         }
+        console.log(
+          `[Read Client] Retrieved ${rowIndex} rows total via execute()`
+        );
       } else {
         // Fallback: try calling as a function
+        console.log(`[Read Client] Using fallback method to retrieve rows...`);
         const rows = await (
           queryBuilder as unknown as () => Promise<
             Array<{
@@ -361,9 +409,33 @@ export async function query(
             }>
           >
         )();
-        for (const row of rows) {
+
+        console.log(
+          `[Read Client] Retrieved ${rows.length} rows via fallback, logging all metadata:`
+        );
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          console.log(
+            `[Read Client] Row ${i + 1}/${rows.length} - ID: ${row.id.substring(
+              0,
+              20
+            )}...`
+          );
+          console.log(`  Content: ${row.content.substring(0, 60)}...`);
+          console.log(`  Timestamp: ${row.timestamp}`);
+          console.log(`  Raw metadata type: ${typeof row.metadata}`);
+          console.log(
+            `  Raw metadata value:`,
+            JSON.stringify(row.metadata, null, 4)
+          );
+
           // Convert metadata from LanceDB struct format to plain object
           const metadata = convertMetadataToPlainObject(row.metadata);
+          console.log(
+            `  Converted metadata:`,
+            JSON.stringify(metadata, null, 4)
+          );
+
           results.push({
             id: row.id,
             content: row.content,
@@ -382,8 +454,33 @@ export async function query(
     // Apply temporal filter in memory (since LanceDB may not support date filtering directly)
     const filteredResults = applyTemporalFilter(results, temporalFilter);
 
+    // Log metadata summary
+    const metadataStats = {
+      total: results.length,
+      withConversationId: results.filter((r) => r.metadata?.conversationId)
+        .length,
+      withWorkspaceId: results.filter((r) => r.metadata?.workspaceId).length,
+      withAgentId: results.filter((r) => r.metadata?.agentId).length,
+      withAllMetadata: results.filter(
+        (r) =>
+          r.metadata?.conversationId &&
+          r.metadata?.workspaceId &&
+          r.metadata?.agentId
+      ).length,
+      withNullMetadata: results.filter(
+        (r) =>
+          !r.metadata?.conversationId ||
+          !r.metadata?.workspaceId ||
+          !r.metadata?.agentId
+      ).length,
+    };
+
     console.log(
       `[Read Client] Query completed for agent ${agentId}, grain ${temporalGrain}: ${results.length} raw results, ${filteredResults.length} after temporal filter`
+    );
+    console.log(
+      `[Read Client] Metadata summary:`,
+      JSON.stringify(metadataStats, null, 2)
     );
 
     return filteredResults;

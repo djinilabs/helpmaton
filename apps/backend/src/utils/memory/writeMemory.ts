@@ -96,6 +96,33 @@ export async function writeToWorkingMemory(
   console.log(
     `[Memory Write] Starting write to working memory for conversation ${conversationId}, agent ${agentId}, workspace ${workspaceId}, ${messages.length} messages`
   );
+  console.log(
+    `[Memory Write] Parameter values - agentId: "${agentId}" (type: ${typeof agentId}), workspaceId: "${workspaceId}" (type: ${typeof workspaceId}), conversationId: "${conversationId}" (type: ${typeof conversationId})`
+  );
+
+  // Validate parameters to catch null/undefined values early
+  if (!agentId || agentId === "null" || agentId === "undefined") {
+    console.error(
+      `[Memory Write] ERROR: agentId is invalid: "${agentId}" (type: ${typeof agentId})`
+    );
+    throw new Error(`Invalid agentId: ${agentId}`);
+  }
+  if (!workspaceId || workspaceId === "null" || workspaceId === "undefined") {
+    console.error(
+      `[Memory Write] ERROR: workspaceId is invalid: "${workspaceId}" (type: ${typeof workspaceId})`
+    );
+    throw new Error(`Invalid workspaceId: ${workspaceId}`);
+  }
+  if (
+    !conversationId ||
+    conversationId === "null" ||
+    conversationId === "undefined"
+  ) {
+    console.error(
+      `[Memory Write] ERROR: conversationId is invalid: "${conversationId}" (type: ${typeof conversationId})`
+    );
+    throw new Error(`Invalid conversationId: ${conversationId}`);
+  }
 
   try {
     // Extract facts from messages

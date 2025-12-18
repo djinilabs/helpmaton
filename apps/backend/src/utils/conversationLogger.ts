@@ -606,7 +606,10 @@ export async function startConversation(
 
   // Write to working memory asynchronously (don't block)
   console.log(
-    `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${data.agentId}, ${filteredMessages.length} filtered messages`
+    `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${data.agentId}, workspace ${data.workspaceId}, ${filteredMessages.length} filtered messages`
+  );
+  console.log(
+    `[Conversation Logger] Parameter values being passed - agentId: "${data.agentId}", workspaceId: "${data.workspaceId}", conversationId: "${conversationId}"`
   );
   writeToWorkingMemory(
     data.agentId,
@@ -749,7 +752,10 @@ export async function updateConversation(
   // Write all new messages that were passed in
   if (filteredNewMessages.length > 0) {
     console.log(
-      `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${agentId}, ${filteredNewMessages.length} filtered new messages`
+      `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${agentId}, workspace ${workspaceId}, ${filteredNewMessages.length} filtered new messages`
+    );
+    console.log(
+      `[Conversation Logger] Parameter values being passed - agentId: "${agentId}", workspaceId: "${workspaceId}", conversationId: "${conversationId}"`
     );
     writeToWorkingMemory(
       agentId,
