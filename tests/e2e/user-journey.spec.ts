@@ -2,6 +2,7 @@ import { expect } from "@playwright/test";
 
 import { testWithUserManagement } from "./fixtures/test-fixtures";
 import { AgentDetailPage } from "./pages/agent-detail-page";
+import { HomePage } from "./pages/home-page";
 import { WorkspaceDetailPage } from "./pages/workspace-detail-page";
 import { WorkspacesPage } from "./pages/workspaces-page";
 import { getEnvironmentName, shouldRunBillingTests } from "./utils/environment";
@@ -406,19 +407,75 @@ testWithUserManagement.describe.serial(
 );
 
 testWithUserManagement.describe.serial(
-  "Helpmaton User Journey - Phase 3 (Future)",
+  "Helpmaton User Journey - Phase 3",
   () => {
-    testWithUserManagement.skip(
+    const state: TestState = testState;
+
+    testWithUserManagement(
       "10. Memory system - Verify memory records",
-      async () => {
-        // TODO: Implement memory system test
+      async ({ page }) => {
+        console.log("🧠 Test 10: Memory system verification...");
+
+        if (!state.workspace || !state.agent) {
+          throw new Error(
+            "No workspace or agent found in state. Previous tests may have failed."
+          );
+        }
+
+        // Navigate to agent detail page
+        const agentDetailPage = new AgentDetailPage(page);
+        await agentDetailPage.goto(state.workspace.id, state.agent.id);
+        await agentDetailPage.waitForAgentDetailPage();
+
+        // Verify memory records section is accessible
+        console.log("📋 Verifying memory records section is accessible...");
+        const isAccessible =
+          await agentDetailPage.verifyMemoryRecordsAccessible();
+        expect(isAccessible).toBe(true);
+
+        // Get memory records count (might be 0 if no conversations have been processed)
+        const memoryCount = await agentDetailPage.getMemoryRecordsCount();
+        console.log(`📊 Memory records count: ${memoryCount}`);
+
+        // Verify the memory records UI is functional
+        // The section should be accessible even if there are no records yet
+        console.log(
+          `✅ Test 10: Memory records section is accessible (${memoryCount} records found)`
+        );
       }
     );
 
-    testWithUserManagement.skip(
+    testWithUserManagement(
       "11. Usage analytics - Check dashboard",
-      async () => {
-        // TODO: Implement usage analytics test
+      async ({ page }) => {
+        console.log("📊 Test 11: Usage analytics dashboard...");
+
+        // Navigate to home page
+        const homePage = new HomePage(page);
+        await homePage.goto();
+        await homePage.waitForHomePage();
+
+        // Verify usage dashboard is visible
+        console.log("📈 Verifying usage dashboard is visible...");
+        const isVisible = await homePage.verifyUsageDashboardVisible();
+        expect(isVisible).toBe(true);
+
+        // Get usage statistics
+        console.log("📊 Retrieving usage statistics...");
+        const stats = await homePage.getUsageStats();
+        console.log(`📊 Usage stats:`, stats);
+
+        // Verify dashboard shows usage information
+        // Even if all values are 0, the dashboard should be functional
+        expect(stats).toBeDefined();
+
+        // Verify dashboard title is present
+        const dashboardHeading = await homePage.getDashboardHeading();
+        expect(dashboardHeading).toContain("Dashboard");
+
+        console.log(
+          `✅ Test 11: Usage analytics dashboard is accessible and functional`
+        );
       }
     );
   }
