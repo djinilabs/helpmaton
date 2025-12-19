@@ -2,13 +2,14 @@ import { e2eConfig } from "../config/env";
 
 /**
  * Detects if tests are running in a PR environment
- * PR environments have unique CloudFront URLs
+ * PR environments have URLs in the form https://{number}.helpmaton.com
  */
 export function isPREnvironment(): boolean {
   const baseUrl = process.env.BASE_URL || e2eConfig.app.baseUrl;
 
-  // PR environments use CloudFront URLs or have 'pr-' prefix
-  return baseUrl.includes("pr-") || baseUrl.includes("cloudfront.net");
+  // PR environments use URLs like https://12.helpmaton.com (where 12 is the PR number)
+  const prUrlPattern = /^https:\/\/(\d+)\.helpmaton\.com$/;
+  return prUrlPattern.test(baseUrl);
 }
 
 /**
