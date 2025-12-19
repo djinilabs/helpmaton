@@ -181,6 +181,7 @@ jobs:
           LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL: ${{ secrets.LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL }}
           LEMON_SQUEEZY_CHECKOUT_CANCEL_URL: ${{ secrets.LEMON_SQUEEZY_CHECKOUT_CANCEL_URL }}
           HELPMATON_VECTORDB_S3_BUCKET_STAGING: ${{ secrets.HELPMATON_VECTORDB_S3_BUCKET_STAGING }}
+          E2E_OVERRIDE_MAX_USERS: "10"
         run: |
           PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
           # Set URL environment variables using PR_NUMBER (needed for build)
@@ -244,6 +245,7 @@ jobs:
           LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL: ${{ secrets.LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL }}
           LEMON_SQUEEZY_CHECKOUT_CANCEL_URL: ${{ secrets.LEMON_SQUEEZY_CHECKOUT_CANCEL_URL }}
           HELPMATON_VECTORDB_S3_BUCKET_STAGING: ${{ secrets.HELPMATON_VECTORDB_S3_BUCKET_STAGING }}
+          E2E_OVERRIDE_MAX_USERS: "10"
         run: |
           PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
           echo "✅ Deploying PR"
@@ -305,6 +307,7 @@ jobs:
           [ -n "${LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL}" ] && ENV_VARS+=(LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL "${LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL}")
           [ -n "${LEMON_SQUEEZY_CHECKOUT_CANCEL_URL}" ] && ENV_VARS+=(LEMON_SQUEEZY_CHECKOUT_CANCEL_URL "${LEMON_SQUEEZY_CHECKOUT_CANCEL_URL}")
           [ -n "${HELPMATON_VECTORDB_S3_BUCKET_STAGING}" ] && ENV_VARS+=(HELPMATON_VECTORDB_S3_BUCKET_STAGING "${HELPMATON_VECTORDB_S3_BUCKET_STAGING}")
+          [ -n "${E2E_OVERRIDE_MAX_USERS}" ] && ENV_VARS+=(E2E_OVERRIDE_MAX_USERS "${E2E_OVERRIDE_MAX_USERS}")
 
           # Environment variables are now injected directly into Lambda bundles at build time
           # via esbuild's define option (see esbuild-config.cjs). This ensures each PR deployment

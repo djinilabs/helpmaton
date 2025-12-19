@@ -191,6 +191,18 @@ export async function associateSubscriptionWithPlan(
   subscriptionId: string,
   plan: "free" | "starter" | "pro"
 ): Promise<string> {
+  // Skip API Gateway operations in local development/testing
+  // API Gateway doesn't exist in the Architect sandbox
+  const isLocal =
+    process.env.ARC_ENV === "testing" || process.env.NODE_ENV === "test";
+  if (isLocal) {
+    console.log(
+      `[apiGatewayUsagePlans] Skipping API Gateway usage plan association in local/test environment`
+    );
+    // Return a mock API key ID for local development
+    return `mock-api-key-${subscriptionId}`;
+  }
+
   const apiGateway = getApiGatewayClient();
 
   try {

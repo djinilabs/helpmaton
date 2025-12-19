@@ -35,8 +35,124 @@ export class LoginPage extends BasePage {
    * Navigate to login page
    */
   async goto(url: string = "/"): Promise<void> {
-    await this.page.goto(url);
-    await this.waitForPageLoad();
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Navigate to the page
+        await this.page.goto(url, { waitUntil: "domcontentloaded" });
+
+        // Wait for network to be idle (important for PR environments where assets may load slower)
+        try {
+          await this.page.waitForLoadState("networkidle", { timeout: 20000 });
+        } catch {
+          // If networkidle times out, continue anyway - page might still be usable
+        }
+
+        // Wait for the session check to complete by waiting for LoadingScreen to disappear
+        // The RequiresSession component shows LoadingScreen while status === "loading"
+        // We need to wait for it to transition to either "unauthenticated" (shows Login) or "authenticated" (redirects)
+        await this.page.waitForFunction(
+          () => {
+            // Check if we're on a different page (redirected because authenticated)
+            if (
+              window.location.pathname !== "/" &&
+              window.location.pathname !== "/api/auth/signin"
+            ) {
+              return true; // We've been redirected, which is fine
+            }
+
+            // Check if login form is visible
+            const emailInput = document.querySelector(
+              '#email, input[type="email"][name="email"]'
+            ) as HTMLInputElement | null;
+            if (emailInput && emailInput.offsetParent !== null) {
+              return true; // Login form is visible
+            }
+
+            // Check if we're still showing a loading screen
+            // Look for common loading indicators
+            const loadingIndicators = [
+              ...Array.from(document.querySelectorAll(".animate-spin")),
+              ...Array.from(
+                document.querySelectorAll('[data-testid="loading-spinner"]')
+              ),
+              ...Array.from(document.querySelectorAll(".loading")),
+              ...Array.from(document.querySelectorAll(".spinner")),
+            ];
+
+            // Check if any loading indicator is visible
+            const hasVisibleLoading = loadingIndicators.some((el) => {
+              const htmlEl = el as HTMLElement;
+              return htmlEl.offsetParent !== null;
+            });
+
+            // If we have visible loading indicators, we're still loading
+            if (hasVisibleLoading) {
+              return false;
+            }
+
+            // If we're here, loading is done but login form isn't visible
+            // This might mean we're authenticated and redirected, or there's an error
+            // Wait a bit more for potential redirect
+            return false;
+          },
+          { timeout: 30000 }
+        );
+
+        // Additional wait to ensure React has finished rendering
+        await this.page.waitForTimeout(1000);
+
+        // Check if we've been redirected (user might be authenticated)
+        const currentUrl = this.page.url();
+        if (currentUrl !== url && !currentUrl.includes("/api/auth/signin")) {
+          // We've been redirected, which means user might be authenticated
+          // Navigate back to the login page and clear auth state
+          await this.page.context().clearCookies();
+          await this.page.evaluate(() => {
+            localStorage.clear();
+            sessionStorage.clear();
+          });
+          // Try again
+          if (attempt < maxRetries) {
+            await this.page.waitForTimeout(1000);
+            continue;
+          }
+        }
+
+        // Now wait for the email input to be visible
+        await this.emailInput.waitFor({ state: "visible", timeout: 20000 });
+        // Success - login form is visible
+        return;
+      } catch (error) {
+        lastError = error as Error;
+        if (attempt < maxRetries) {
+          // Wait a bit and try navigating again
+          await this.page.waitForTimeout(2000);
+          // Clear auth state before retry
+          await this.page.context().clearCookies();
+          await this.page.evaluate(() => {
+            localStorage.clear();
+            sessionStorage.clear();
+          });
+        }
+      }
+    }
+
+    // All retries failed - provide detailed error
+    const currentUrl = this.page.url();
+    const pageTitle = await this.page.title().catch(() => "unknown");
+
+    throw new Error(
+      `Login form not found after ${maxRetries} attempts navigating to ${url}.\n` +
+        `Current URL: ${currentUrl}\n` +
+        `Page title: ${pageTitle}\n` +
+        `Last error: ${lastError?.message}\n` +
+        `Page has email input: ${await this.emailInput
+          .isVisible()
+          .catch(() => false)}`
+    );
   }
 
   /**
@@ -71,28 +187,30 @@ export class LoginPage extends BasePage {
     // NextAuth may redirect to an error page or stay on the login page
     try {
       // Wait for navigation to complete (with timeout)
-      await this.page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {
-        // Navigation might not happen, continue
-      });
-      
+      await this.page
+        .waitForLoadState("networkidle", { timeout: 10000 })
+        .catch(() => {
+          // Navigation might not happen, continue
+        });
+
       // Wait a bit for any redirects to complete
       await this.page.waitForTimeout(2000);
-      
+
       // Check if we've been redirected to an error page
       const currentUrl = this.page.url();
       if (currentUrl.includes("/api/auth/error")) {
         // Try to extract error information from the page
         const errorText = await this.page.textContent("body").catch(() => "");
         const errorParam = new URL(currentUrl).searchParams.get("error");
-        const errorMessage = errorParam 
+        const errorMessage = errorParam
           ? decodeURIComponent(errorParam)
           : errorText || "Unknown authentication error";
-        
+
         throw new Error(
           `Magic link request failed - redirected to error page: ${errorMessage}`
         );
       }
-      
+
       // If we're still on the login page, check button state
       if (currentUrl.includes("/api/auth/signin") || currentUrl.endsWith("/")) {
         // Wait for button text to NOT be "SENDING..." anymore (with a reasonable timeout)
@@ -124,7 +242,9 @@ export class LoginPage extends BasePage {
 
           // Check for success indicator (like "Check your email" message)
           const checkEmailText = this.page.locator("text=/check.*email/i");
-          const hasCheckEmail = await checkEmailText.isVisible().catch(() => false);
+          const hasCheckEmail = await checkEmailText
+            .isVisible()
+            .catch(() => false);
           if (hasCheckEmail) {
             // Success - email was sent
             return;
@@ -139,7 +259,7 @@ export class LoginPage extends BasePage {
           }
         }
       }
-      
+
       // If we're not on login or error page, assume success (might have redirected elsewhere)
       // Check for success indicator as fallback
       const checkEmailText = this.page.locator("text=/check.*email/i");
@@ -147,7 +267,7 @@ export class LoginPage extends BasePage {
       if (hasCheckEmail) {
         return;
       }
-      
+
       // If we can't determine success/failure, get button state for debugging
       let buttonState = "unknown";
       let buttonVisible = false;
@@ -161,22 +281,26 @@ export class LoginPage extends BasePage {
           buttonState = "not visible";
         }
       } catch (err) {
-        buttonState = `error: ${err instanceof Error ? err.message : String(err)}`;
+        buttonState = `error: ${
+          err instanceof Error ? err.message : String(err)
+        }`;
       }
-      
+
       const errorVisible = await this.hasErrorMessage();
-      
+
       throw new Error(
         `Magic link request may have failed. ` +
-        `Button count: ${buttonCount}, visible: ${buttonVisible}, state: ${buttonState}, ` +
-        `Error visible: ${errorVisible}, URL: ${currentUrl}`
+          `Button count: ${buttonCount}, visible: ${buttonVisible}, state: ${buttonState}, ` +
+          `Error visible: ${errorVisible}, URL: ${currentUrl}`
       );
     } catch (error) {
       // Re-throw if it's already a formatted error
       if (error instanceof Error) {
         throw error;
       }
-      throw new Error(`Unexpected error waiting for magic link request: ${error}`);
+      throw new Error(
+        `Unexpected error waiting for magic link request: ${error}`
+      );
     }
   }
 
@@ -251,7 +375,8 @@ export class LoginPage extends BasePage {
     // Wait for the page to be fully loaded
     await this.waitForPageLoad();
     // Check if we can see the login form
-    await this.emailInput.waitFor({ state: "visible", timeout: 5000 });
+    // Use longer timeout (20s) for PR environments where page load may be slower
+    await this.emailInput.waitFor({ state: "visible", timeout: 20000 });
   }
 
   /**
@@ -260,7 +385,8 @@ export class LoginPage extends BasePage {
   async verifyLoginForm(): Promise<void> {
     await this.verifyPageLoaded();
     // Verify the form elements are available
-    await this.emailInput.waitFor({ state: "visible", timeout: 5000 });
-    await this.submitButton.waitFor({ state: "visible", timeout: 5000 });
+    // Use longer timeout (20s) for PR environments where page load may be slower
+    await this.emailInput.waitFor({ state: "visible", timeout: 20000 });
+    await this.submitButton.waitFor({ state: "visible", timeout: 20000 });
   }
 }

@@ -60,7 +60,18 @@ const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
  */
 export function getPlanLimits(plan: string): PlanLimits | undefined {
   if (plan === "free" || plan === "starter" || plan === "pro") {
-    return PLAN_LIMITS[plan];
+    const limits = { ...PLAN_LIMITS[plan] };
+
+    // Override maxUsers for E2E tests if environment variable is set
+    // This allows team invitation tests to work with free/starter plans
+    if (process.env.E2E_OVERRIDE_MAX_USERS) {
+      const overrideMaxUsers = parseInt(process.env.E2E_OVERRIDE_MAX_USERS, 10);
+      if (!isNaN(overrideMaxUsers) && overrideMaxUsers > 0) {
+        limits.maxUsers = overrideMaxUsers;
+      }
+    }
+
+    return limits;
   }
   return undefined;
 }

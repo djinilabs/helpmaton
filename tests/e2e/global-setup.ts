@@ -149,6 +149,8 @@ async function globalSetup(config: FullConfig) {
       AUTH_SECRET: authSecret,
       // FRONTEND_URL is critical for auth redirects
       FRONTEND_URL: frontendUrl,
+      // E2E test overrides - allow team invitations in tests
+      E2E_OVERRIDE_MAX_USERS: process.env.E2E_OVERRIDE_MAX_USERS || "10",
     };
 
     console.log(`Starting backend with environment variables:`);
@@ -158,6 +160,9 @@ async function globalSetup(config: FullConfig) {
     console.log(`  - FRONTEND_URL: ${frontendUrl}`);
     console.log(
       `  - ARC_DB_PATH: ${backendEnv.ARC_DB_PATH} (relative to apps/backend)`
+    );
+    console.log(
+      `  - E2E_OVERRIDE_MAX_USERS: ${backendEnv.E2E_OVERRIDE_MAX_USERS} (allows team invitations in tests)`
     );
 
     // Create .env file in apps/backend directory for Architect sandbox
@@ -181,6 +186,8 @@ async function globalSetup(config: FullConfig) {
       // TESTMAIL variables (for test code that might need them)
       TESTMAIL_NAMESPACE: testmailNamespace,
       TESTMAIL_API_KEY: testmailApiKey,
+      // E2E test overrides - allow team invitations in tests
+      E2E_OVERRIDE_MAX_USERS: process.env.E2E_OVERRIDE_MAX_USERS || "10",
     };
 
     // Add optional environment variables if they're set
@@ -202,6 +209,7 @@ async function globalSetup(config: FullConfig) {
       "CLOUDFLARE_TURNSTILE_SECRET_KEY",
       "CLOUDFLARE_TURNSTILE_SITE_KEY",
       "DISABLE_TRIAL_PERIOD_CHECK",
+      // Note: E2E_OVERRIDE_MAX_USERS is handled explicitly above with a default value
     ];
 
     for (const varName of optionalVars) {

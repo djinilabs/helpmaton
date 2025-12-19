@@ -2,7 +2,11 @@ import { ExpressAuthConfig } from "@auth/express";
 
 import { getDefined, once } from "./utils";
 import { getDynamoDBAdapter } from "./utils/authUtils";
+import { Sentry, ensureError, flushSentry, initSentry } from "./utils/sentry";
 import { getUserSubscription, getUserByEmail } from "./utils/subscriptionUtils";
+
+// Initialize Sentry when this module is loaded
+initSentry();
 
 // Function to check if user is allowed to sign in
 async function isUserAllowedToSignIn(email: string): Promise<boolean> {
@@ -149,32 +153,181 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
         // For email authentication
         if (account?.type === "email") {
           // Ensure user has a subscription (create free subscription if needed)
-          try {
-            // Get userId - use user.id if available, otherwise look up by email
-            let userId: string | undefined = user.id;
+          // This is critical - every user must have a subscription for API Gateway throttling
+          let userId: string | undefined = user.id;
+          let subscriptionCreated = false;
+          const maxRetries = 3;
+          const retryDelay = 500; // 500ms
 
-            if (!userId && user.email) {
-              const userRecord = await getUserByEmail(user.email);
-              userId = userRecord?.userId;
+          // Try to get userId with retries (user.id might not be set immediately)
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            if (userId) {
+              break;
             }
 
-            if (userId) {
+            if (user.email) {
+              try {
+                const userRecord = await getUserByEmail(user.email);
+                if (userRecord?.userId) {
+                  userId = userRecord.userId;
+                  break;
+                }
+              } catch (error) {
+                console.warn(
+                  `[signIn] Attempt ${attempt}/${maxRetries}: Failed to lookup user by email:`,
+                  error instanceof Error ? error.message : String(error)
+                );
+              }
+            }
+
+            // Wait before retrying (except on last attempt)
+            if (attempt < maxRetries) {
+              await new Promise((resolve) => setTimeout(resolve, retryDelay));
+            }
+          }
+
+          // If we still don't have userId, this is a critical error
+          if (!userId) {
+            const errorContext = {
+              user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+              },
+              account: {
+                type: account?.type,
+                provider: account?.provider,
+              },
+            };
+
+            console.error(
+              `[signIn] CRITICAL: Could not determine userId for user with email ${user.email}. User may be created without subscription!`,
+              errorContext
+            );
+
+            // Report to Sentry with full context
+            Sentry.captureException(
+              new Error(
+                `Failed to determine userId during sign-in for user with email: ${user.email}`
+              ),
+              {
+                tags: {
+                  handler: "NextAuth.signIn",
+                  errorType: "userId_lookup_failed",
+                  authType: "email",
+                },
+                contexts: {
+                  user: errorContext.user,
+                  account: errorContext.account,
+                },
+                extra: errorContext,
+                level: "error",
+              }
+            );
+
+            return true;
+          }
+
+          // Create subscription with retries
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
               // This will create a free subscription if one doesn't exist
               await getUserSubscription(userId);
+              subscriptionCreated = true;
               console.log(
-                `[signIn] Ensured subscription exists for user ${userId}`
+                `[signIn] Successfully ensured subscription exists for user ${userId} (attempt ${attempt})`
               );
-            } else {
-              console.warn(
-                `[signIn] Could not determine userId for user with email ${user.email}`
-              );
+              break;
+            } catch (error) {
+              const isLastAttempt = attempt === maxRetries;
+              const errorMessage =
+                error instanceof Error ? error.message : String(error);
+
+              if (isLastAttempt) {
+                // Critical error - log prominently but don't block login
+                // Subscription will be auto-created on first API call via getUserSubscription
+                const errorDetails = {
+                  userId,
+                  email: user.email,
+                  error: errorMessage,
+                  stack: error instanceof Error ? error.stack : undefined,
+                  attempts: maxRetries,
+                };
+
+                console.error(
+                  `[signIn] CRITICAL: Failed to create subscription for user ${userId} after ${maxRetries} attempts. User may proceed without subscription initially.`,
+                  errorDetails
+                );
+
+                // Report to Sentry with full context
+                Sentry.captureException(ensureError(error), {
+                  tags: {
+                    handler: "NextAuth.signIn",
+                    errorType: "subscription_creation_failed",
+                    authType: "email",
+                    userId,
+                  },
+                  contexts: {
+                    user: {
+                      id: userId,
+                      email: user.email,
+                    },
+                    subscription: {
+                      attempts: maxRetries,
+                      retryDelay: retryDelay,
+                    },
+                  },
+                  extra: errorDetails,
+                  level: "error",
+                });
+
+                // Flush Sentry events (fire-and-forget)
+                flushSentry().catch((flushError) => {
+                  console.error("[Sentry] Error flushing events:", flushError);
+                });
+              } else {
+                console.warn(
+                  `[signIn] Attempt ${attempt}/${maxRetries}: Failed to create subscription for user ${userId}, retrying...`,
+                  errorMessage
+                );
+                // Wait before retrying
+                await new Promise((resolve) => setTimeout(resolve, retryDelay));
+              }
             }
-          } catch (error) {
-            // Log error but don't block login
-            console.error(
-              `[signIn] Failed to ensure subscription for user ${user.email}:`,
-              error instanceof Error ? error.message : String(error)
-            );
+          }
+
+          if (!subscriptionCreated) {
+            // Log as critical issue - this should be monitored
+            const errorMessage = `Subscription creation failed for user ${userId} after all retry attempts. Subscription will be auto-created on first API call, but user may experience issues until then.`;
+
+            console.error(`[signIn] CRITICAL: ${errorMessage}`);
+
+            // Report to Sentry (this is a fallback - the actual error should have been reported above)
+            Sentry.captureException(new Error(errorMessage), {
+              tags: {
+                handler: "NextAuth.signIn",
+                errorType: "subscription_creation_failed_final",
+                authType: "email",
+                userId,
+              },
+              contexts: {
+                user: {
+                  id: userId,
+                  email: user.email,
+                },
+              },
+              extra: {
+                userId,
+                email: user.email,
+                maxRetries,
+              },
+              level: "error",
+            });
+
+            // Flush Sentry events (fire-and-forget)
+            flushSentry().catch((flushError) => {
+              console.error("[Sentry] Error flushing events:", flushError);
+            });
           }
 
           return true;

@@ -55,6 +55,10 @@ export const InviteMember: FC<InviteMemberProps> = ({
     },
   });
 
+  const isEmailValid = isValidEmail(email);
+  const isSubmitDisabled = !canInvite || invite.isPending || !isEmailValid;
+  const isDisabled = !canInvite || invite.isPending;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValidEmail(email)) {
@@ -63,9 +67,6 @@ export const InviteMember: FC<InviteMemberProps> = ({
     }
     invite.mutate();
   };
-
-  const isEmailValid = isValidEmail(email);
-  const isDisabled = !canInvite || invite.isPending || !isEmailValid;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -109,7 +110,7 @@ export const InviteMember: FC<InviteMemberProps> = ({
       </div>
       <button
         type="submit"
-        disabled={isDisabled}
+        disabled={isSubmitDisabled}
         className="bg-gradient-primary px-6 py-3 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
       >
         {invite.isPending ? "Sending..." : "Send Invitation"}

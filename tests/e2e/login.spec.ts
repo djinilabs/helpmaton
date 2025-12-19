@@ -1,4 +1,5 @@
 import { testWithUserManagement, TestUser } from "./fixtures/test-fixtures";
+import { LoginPage } from "./pages/login-page";
 
 /**
  * E2E Test for Login Feature
@@ -12,7 +13,33 @@ import { testWithUserManagement, TestUser } from "./fixtures/test-fixtures";
 testWithUserManagement.describe("Login Feature", () => {
   let testUser: TestUser;
 
-  testWithUserManagement.beforeEach(async ({ userManagement }) => {
+  testWithUserManagement.beforeEach(async ({ page, userManagement }) => {
+    // Clear authentication state before each test
+    // This ensures each test starts from an unauthenticated state
+
+    // First, navigate to a page to ensure we have a page context
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    // Clear cookies, localStorage, and sessionStorage (all authentication state)
+    await page.context().clearCookies();
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+
+    // Navigate to signout endpoint to ensure we're logged out server-side
+    await page.goto("/api/auth/signout", { waitUntil: "domcontentloaded" });
+
+    // Clear storage again after signout (in case signout set any new values)
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+
+    // Use LoginPage.goto() which has robust waiting logic for PR environments
+    const loginPage = new LoginPage(page);
+    await loginPage.goto("/");
+
     // Create a fresh test user for each test
     testUser = await userManagement.createTestUser();
   });
@@ -58,4 +85,3 @@ testWithUserManagement.describe("Login Feature", () => {
     }
   );
 });
-
