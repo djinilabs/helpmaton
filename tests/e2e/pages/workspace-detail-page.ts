@@ -51,9 +51,27 @@ export class WorkspaceDetailPage extends BasePage {
     const accordion = this.page.locator(
       `button:has(h2:has-text("${sectionTitle}"))`
     );
-    await this.clickElement(accordion);
-    // Wait a bit for animation
-    await this.page.waitForTimeout(500);
+
+    // Check if already expanded
+    const isExpanded =
+      (await accordion.getAttribute("aria-expanded")) === "true";
+
+    if (!isExpanded) {
+      await this.clickElement(accordion);
+      // Wait for accordion to expand by checking aria-expanded attribute
+      await this.page.waitForFunction(
+        ({ title }) => {
+          const buttons = Array.from(document.querySelectorAll("button"));
+          const button = buttons.find((btn) => {
+            const h2 = btn.querySelector("h2");
+            return h2?.textContent?.trim() === title;
+          });
+          return button?.getAttribute("aria-expanded") === "true";
+        },
+        { title: sectionTitle },
+        { timeout: 5000 }
+      );
+    }
   }
 
   /**
@@ -90,7 +108,8 @@ export class WorkspaceDetailPage extends BasePage {
     await this.clickElement(createAgentButton);
 
     // Wait for modal to appear
-    await this.page.waitForSelector('h2:has-text("Create Agent")', {
+    const createAgentModalHeading = 'h2:has-text("Create Agent")';
+    await this.page.waitForSelector(createAgentModalHeading, {
       timeout: 10000,
     });
 
@@ -110,7 +129,7 @@ export class WorkspaceDetailPage extends BasePage {
     await this.clickElement(submitButton);
 
     // Wait for modal to close
-    await this.page.waitForSelector('h2:has-text("Create Agent")', {
+    await this.page.waitForSelector(createAgentModalHeading, {
       state: "detached",
       timeout: 10000,
     });
@@ -192,8 +211,8 @@ export class WorkspaceDetailPage extends BasePage {
     const inviteButton = this.page.locator('button:has-text("Invite")');
     await this.clickElement(inviteButton);
 
-    // Wait for success message or invitation to appear
-    await this.page.waitForTimeout(2000);
+    // Wait for the invited member (identified by email) to appear in the team list
+    await this.page.waitForSelector(`text=${email}`, { timeout: 15000 });
   }
 
   /**

@@ -61,8 +61,18 @@ export class AgentDetailPage extends BasePage {
 
     if (!isExpanded) {
       await this.clickElement(accordion);
-      // Wait for animation
-      await this.page.waitForTimeout(500);
+      // Wait for accordion to expand by checking aria-expanded attribute
+      await this.page.waitForFunction(
+        ({ title }) => {
+          const buttons = Array.from(document.querySelectorAll("button"));
+          const button = buttons.find((btn) =>
+            btn.textContent?.includes(title)
+          );
+          return button?.getAttribute("aria-expanded") === "true";
+        },
+        { title: sectionTitle },
+        { timeout: 5000 }
+      );
     }
   }
 
@@ -100,7 +110,7 @@ export class AgentDetailPage extends BasePage {
    */
   async waitForAgentResponse(timeoutMs: number = 30000): Promise<string> {
     // Wait for a response message to appear
-    // Agent responses typically appear in a specific container or with specific styling
+    // Agent responses typically appear with role="assistant" or in a specific container
     const responseLocator = this.page
       .locator('[role="assistant"]')
       .or(this.page.locator('div:has-text("assistant")'))
@@ -154,10 +164,29 @@ export class AgentDetailPage extends BasePage {
   async getConversationCount(): Promise<number> {
     await this.expandConversationsSection();
 
-    // Count conversation items
+    // Wait for loading to complete - either conversations appear or "No conversations yet" message
+    // Wait for "Loading..." text to disappear (if present)
+    const loadingLocator = this.page.locator("text=Loading...");
+    try {
+      await loadingLocator.waitFor({ state: "hidden", timeout: 15000 });
+    } catch {
+      // Loading might not be present or already gone, continue
+    }
+
+    // Wait for either conversations or the empty state message to appear
+    await this.page.waitForSelector(
+      'div.border-2.border-neutral-300.rounded-xl.p-6.bg-white.cursor-pointer, p:has-text("No conversations yet")',
+      { timeout: 15000 }
+    );
+
+    // Count conversation items by looking for the conversation card structure
+    // Conversations are rendered as divs with specific styling classes
+    // Note: The selector matches conversation cards within the conversations section
     const conversations = this.page
-      .locator("[data-conversation-id]")
-      .or(this.page.locator('div:has-text("conversation")'));
+      .locator('[id="accordion-content-conversations"]')
+      .locator(
+        "div.border-2.border-neutral-300.rounded-xl.p-6.bg-white.cursor-pointer"
+      );
 
     return await conversations.count();
   }
@@ -175,10 +204,8 @@ export class AgentDetailPage extends BasePage {
   async verifyMemoryRecordsExist(): Promise<boolean> {
     await this.expandMemorySection();
 
-    // Check for memory records
-    const memoryRecords = this.page
-      .locator("[data-memory-record]")
-      .or(this.page.locator('div:has-text("memory")'));
+    // Check for memory records using specific data attribute
+    const memoryRecords = this.page.locator("[data-memory-record]");
 
     const count = await memoryRecords.count();
     return count > 0;

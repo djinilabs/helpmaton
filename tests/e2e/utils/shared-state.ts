@@ -37,10 +37,7 @@ export const testState: TestState = {};
  * Reset test state (useful for cleanup between test runs)
  */
 export function resetTestState(): void {
-  testState.user = undefined;
-  testState.workspace = undefined;
-  testState.agent = undefined;
-  testState.documents = undefined;
-  testState.conversations = undefined;
-  testState.conversationId = undefined;
+  (Object.keys(testState) as Array<keyof TestState>).forEach((key) => {
+    testState[key] = undefined;
+  });
 }

@@ -82,13 +82,10 @@ export class WorkspacesPage extends BasePage {
   async submitCreateWorkspace(): Promise<void> {
     await this.clickElement(this.createButton);
     // Wait for modal to close
-    await this.page.waitForSelector(
-      'div.fixed.inset-0:has(h2:text("Create Workspace"))',
-      {
-        state: "detached",
-        timeout: 10000,
-      }
-    );
+    await this.createWorkspaceModal.waitFor({
+      state: "detached",
+      timeout: 10000,
+    });
   }
 
   /**

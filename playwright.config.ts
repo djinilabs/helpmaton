@@ -46,7 +46,7 @@ export default defineConfig({
   },
 
   /* Global test timeout */
-  timeout: e2eConfig.test.timeout, // 3 minutes (extended to 10 minutes for chained test suites: 600000)
+  timeout: e2eConfig.test.timeout, // 3 minutes (extended to 10 minutes (600000ms) for chained test suites)
 
   /* Configure projects for major browsers */
   /* NOTE: We only use Chromium to reduce download size and CI time.
