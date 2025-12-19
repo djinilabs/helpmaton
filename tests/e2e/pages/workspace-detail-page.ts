@@ -177,17 +177,142 @@ export class WorkspaceDetailPage extends BasePage {
   }
 
   /**
-   * Upload a document
+   * Upload a document using file input
+   * @param filePath - Path to the file to upload
+   * @param fileName - Expected name of the document after upload
    */
   async uploadDocument(filePath: string, fileName: string): Promise<void> {
     await this.expandDocumentUploadSection();
 
-    // Wait for file input
-    const fileInput = this.page.locator('input[type="file"]');
+    // Wait for the upload section to be visible
+    await this.page.waitForSelector('h2:has-text("Upload Documents")', {
+      timeout: 10000,
+      state: "visible",
+    });
+
+    // Wait for file input to be available
+    const fileInput = this.page.locator('input[type="file"][id="file-upload"]');
+    await fileInput.waitFor({ state: "attached", timeout: 10000 });
+
+    // Set the file
     await fileInput.setInputFiles(filePath);
 
+    // Wait for upload to start (check for upload progress or "Uploading..." text)
+    try {
+      await this.page.waitForSelector("text=/Uploading|uploading/i", {
+        timeout: 5000,
+      });
+    } catch {
+      // Upload might be very fast, continue anyway
+    }
+
+    // Wait for upload to complete - check for success message or document in list
+    // The success toast says "Document uploaded successfully"
+    try {
+      await this.page.waitForSelector(
+        "text=/uploaded successfully|Document uploaded/i",
+        {
+          timeout: 20000,
+        }
+      );
+    } catch {
+      // If toast doesn't appear, check if document appears in list
+    }
+
+    // Wait for the document to appear in the documents list
+    // Documents are shown in DocumentList component
+    await this.expandDocumentsSection();
+
+    // Wait for the document name to appear in the list
+    // The document name is displayed as a button in the list
+    await this.page.waitForSelector(`button:has-text("${fileName}")`, {
+      timeout: 20000,
+      state: "visible",
+    });
+  }
+
+  /**
+   * Create a text document using the text document form
+   * @param documentName - Name of the document
+   * @param content - Content of the document
+   */
+  async createTextDocument(
+    documentName: string,
+    content: string
+  ): Promise<void> {
+    await this.expandDocumentUploadSection();
+
+    // Wait for the upload section to be visible
+    await this.page.waitForSelector('h2:has-text("Upload Documents")', {
+      timeout: 10000,
+      state: "visible",
+    });
+
+    // Wait for the text document form
+    await this.page.waitForSelector('h3:has-text("Create Text Document")', {
+      timeout: 10000,
+      state: "visible",
+    });
+
+    // Fill in document name
+    const nameInput = this.page.locator(
+      'input[placeholder*="Document"], input[placeholder*="e.g., My Document"]'
+    );
+    await nameInput.waitFor({ state: "visible", timeout: 10000 });
+    await nameInput.fill(documentName);
+
+    // Fill in content
+    const contentTextarea = this.page.locator(
+      'textarea[placeholder*="Enter document content"], textarea[placeholder*="content"]'
+    );
+    await contentTextarea.waitFor({ state: "visible", timeout: 10000 });
+    await contentTextarea.fill(content);
+
+    // Click "Create Document" button
+    const createButton = this.page.locator(
+      'button:has-text("Create Document")'
+    );
+    await createButton.waitFor({ state: "visible", timeout: 5000 });
+    await this.clickElement(createButton);
+
     // Wait for upload to complete
-    await this.page.waitForSelector(`text=${fileName}`, { timeout: 15000 });
+    try {
+      await this.page.waitForSelector(
+        "text=/uploaded successfully|Document uploaded/i",
+        {
+          timeout: 20000,
+        }
+      );
+    } catch {
+      // If toast doesn't appear, continue
+    }
+
+    // Wait for the document to appear in the documents list
+    await this.expandDocumentsSection();
+
+    // Wait for the document name to appear in the list
+    await this.page.waitForSelector(`button:has-text("${documentName}")`, {
+      timeout: 20000,
+      state: "visible",
+    });
+  }
+
+  /**
+   * Get document count in the current folder
+   */
+  async getDocumentCount(): Promise<number> {
+    await this.expandDocumentsSection();
+
+    // Wait for documents section to load
+    await this.page.waitForTimeout(1000);
+
+    // Count document items in the list
+    // Documents are displayed as divs with buttons containing the document name
+    const documentItems = this.page.locator(
+      "div:has(button.text-xl.font-bold)"
+    );
+    const count = await documentItems.count();
+    return count;
   }
 
   /**

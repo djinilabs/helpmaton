@@ -126,34 +126,58 @@ testWithUserManagement.describe.serial(
       console.log(`✅ Test 3: Agent created with ID: ${agent.id}`);
     });
 
-    testWithUserManagement(
-      "4. Upload documents (placeholder)",
-      async ({ page }) => {
-        console.log("📄 Test 4: Document upload...");
+    testWithUserManagement("4. Upload documents", async ({ page }) => {
+      console.log("📄 Test 4: Document upload...");
 
-        if (!state.workspace) {
-          throw new Error(
-            "No workspace found in state. Test 2 may have failed."
-          );
-        }
-
-        // Navigate to workspace detail page
-        const workspaceDetailPage = new WorkspaceDetailPage(page);
-        await workspaceDetailPage.goto(state.workspace.id);
-
-        // Expand documents section
-        await workspaceDetailPage.expandDocumentsSection();
-
-        // TODO: Implement document upload
-        // For now, just verify the documents section is accessible
-        console.log(
-          "⚠️ Test 4: Document upload not yet implemented - section accessible"
-        );
-
-        // Mark this as a placeholder test
-        expect(true).toBe(true);
+      if (!state.workspace) {
+        throw new Error("No workspace found in state. Test 2 may have failed.");
       }
-    );
+
+      // Navigate to workspace detail page
+      const workspaceDetailPage = new WorkspaceDetailPage(page);
+      await workspaceDetailPage.goto(state.workspace.id);
+      await workspaceDetailPage.waitForWorkspaceDetailPage();
+
+      // Get initial document count
+      const initialCount = await workspaceDetailPage.getDocumentCount();
+      console.log(`📊 Initial document count: ${initialCount}`);
+
+      // Create a text document (simpler than file upload for E2E testing)
+      const documentName = `E2E Test Document ${Date.now()}`;
+      const documentContent = `# E2E Test Document
+
+This is a test document created during E2E testing.
+
+## Purpose
+This document is used to verify that document upload functionality works correctly.
+
+## Content
+The document upload feature allows users to upload markdown or text files that agents can reference during conversations.
+
+Created at: ${new Date().toISOString()}
+`;
+
+      console.log(`📝 Creating text document: ${documentName}`);
+      await workspaceDetailPage.createTextDocument(
+        documentName,
+        documentContent
+      );
+
+      // Verify document count increased
+      const finalCount = await workspaceDetailPage.getDocumentCount();
+      expect(finalCount).toBeGreaterThan(initialCount);
+      console.log(`📊 Final document count: ${finalCount}`);
+
+      // Verify document appears in the list
+      const documentButton = page.locator(`button:has-text("${documentName}")`);
+      await documentButton.waitFor({ state: "visible", timeout: 10000 });
+      const isVisible = await documentButton.isVisible();
+      expect(isVisible).toBe(true);
+
+      console.log(
+        `✅ Test 4: Document "${documentName}" uploaded and verified successfully`
+      );
+    });
 
     testWithUserManagement("5. Test agent chat", async ({ page }) => {
       console.log("💬 Test 5: Testing agent chat...");
