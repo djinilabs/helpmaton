@@ -60,3 +60,7 @@ After completing a task (or significant step), you must:
 ## Unit tests
 
 7. For every new feature or fix, create or update unit tests that test for common and edge cases. Extract important functions and create dedicated unit tests for them.
+
+## Lambda handlers and async actions
+
+8. Never ever make async calls where you don't somehow await for. Because lambda functions in production end processing abruptly as soon as the response is returned, all async actions that are pending at that time get cancaled.

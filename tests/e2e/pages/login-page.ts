@@ -35,37 +35,124 @@ export class LoginPage extends BasePage {
    * Navigate to login page
    */
   async goto(url: string = "/"): Promise<void> {
-    await this.page.goto(url, { waitUntil: "domcontentloaded" });
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-    // Wait for network to be idle (important for PR environments where assets may load slower)
-    try {
-      await this.page.waitForLoadState("networkidle", { timeout: 15000 });
-    } catch {
-      // If networkidle times out, continue anyway - page might still be usable
-    }
-
-    // Wait for the login form to appear (this ensures React has rendered)
-    // Use a longer timeout for PR environments
-    try {
-      await this.emailInput.waitFor({ state: "visible", timeout: 20000 });
-    } catch {
-      // If email input doesn't appear, the page might have redirected or be in a different state
-      // Wait a bit more and check the URL
-      await this.page.waitForTimeout(2000);
-      const currentUrl = this.page.url();
-      if (
-        !currentUrl.includes("/api/auth/signin") &&
-        !currentUrl.endsWith("/")
-      ) {
-        // Page might have redirected - try navigating again
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Navigate to the page
         await this.page.goto(url, { waitUntil: "domcontentloaded" });
-        await this.emailInput.waitFor({ state: "visible", timeout: 20000 });
-      } else {
-        throw new Error(
-          `Login form not found after navigation to ${url}. Current URL: ${currentUrl}`
+
+        // Wait for network to be idle (important for PR environments where assets may load slower)
+        try {
+          await this.page.waitForLoadState("networkidle", { timeout: 20000 });
+        } catch {
+          // If networkidle times out, continue anyway - page might still be usable
+        }
+
+        // Wait for the session check to complete by waiting for LoadingScreen to disappear
+        // The RequiresSession component shows LoadingScreen while status === "loading"
+        // We need to wait for it to transition to either "unauthenticated" (shows Login) or "authenticated" (redirects)
+        await this.page.waitForFunction(
+          () => {
+            // Check if we're on a different page (redirected because authenticated)
+            if (
+              window.location.pathname !== "/" &&
+              window.location.pathname !== "/api/auth/signin"
+            ) {
+              return true; // We've been redirected, which is fine
+            }
+
+            // Check if login form is visible
+            const emailInput = document.querySelector(
+              '#email, input[type="email"][name="email"]'
+            ) as HTMLInputElement | null;
+            if (emailInput && emailInput.offsetParent !== null) {
+              return true; // Login form is visible
+            }
+
+            // Check if we're still showing a loading screen
+            // Look for common loading indicators
+            const loadingIndicators = [
+              ...Array.from(document.querySelectorAll(".animate-spin")),
+              ...Array.from(
+                document.querySelectorAll('[data-testid="loading-spinner"]')
+              ),
+              ...Array.from(document.querySelectorAll(".loading")),
+              ...Array.from(document.querySelectorAll(".spinner")),
+            ];
+
+            // Check if any loading indicator is visible
+            const hasVisibleLoading = loadingIndicators.some((el) => {
+              const htmlEl = el as HTMLElement;
+              return htmlEl.offsetParent !== null;
+            });
+
+            // If we have visible loading indicators, we're still loading
+            if (hasVisibleLoading) {
+              return false;
+            }
+
+            // If we're here, loading is done but login form isn't visible
+            // This might mean we're authenticated and redirected, or there's an error
+            // Wait a bit more for potential redirect
+            return false;
+          },
+          { timeout: 30000 }
         );
+
+        // Additional wait to ensure React has finished rendering
+        await this.page.waitForTimeout(1000);
+
+        // Check if we've been redirected (user might be authenticated)
+        const currentUrl = this.page.url();
+        if (currentUrl !== url && !currentUrl.includes("/api/auth/signin")) {
+          // We've been redirected, which means user might be authenticated
+          // Navigate back to the login page and clear auth state
+          await this.page.context().clearCookies();
+          await this.page.evaluate(() => {
+            localStorage.clear();
+            sessionStorage.clear();
+          });
+          // Try again
+          if (attempt < maxRetries) {
+            await this.page.waitForTimeout(1000);
+            continue;
+          }
+        }
+
+        // Now wait for the email input to be visible
+        await this.emailInput.waitFor({ state: "visible", timeout: 20000 });
+        // Success - login form is visible
+        return;
+      } catch (error) {
+        lastError = error as Error;
+        if (attempt < maxRetries) {
+          // Wait a bit and try navigating again
+          await this.page.waitForTimeout(2000);
+          // Clear auth state before retry
+          await this.page.context().clearCookies();
+          await this.page.evaluate(() => {
+            localStorage.clear();
+            sessionStorage.clear();
+          });
+        }
       }
     }
+
+    // All retries failed - provide detailed error
+    const currentUrl = this.page.url();
+    const pageTitle = await this.page.title().catch(() => "unknown");
+
+    throw new Error(
+      `Login form not found after ${maxRetries} attempts navigating to ${url}.\n` +
+        `Current URL: ${currentUrl}\n` +
+        `Page title: ${pageTitle}\n` +
+        `Last error: ${lastError?.message}\n` +
+        `Page has email input: ${await this.emailInput
+          .isVisible()
+          .catch(() => false)}`
+    );
   }
 
   /**

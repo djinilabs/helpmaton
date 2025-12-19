@@ -229,7 +229,20 @@ export class WorkspaceDetailPage extends BasePage {
       .first();
     await emailInput.waitFor({ state: "visible", timeout: 10000 });
 
+    // Wait for the user-limit API call to complete (this determines canInvite)
+    // The frontend makes a request to /api/workspaces/:workspaceId/user-limit
+    // Wait for network to be idle to ensure API calls have completed
+    try {
+      await this.page.waitForLoadState("networkidle", { timeout: 10000 });
+    } catch {
+      // If networkidle times out, continue anyway - API might have already completed
+    }
+
+    // Additional wait to ensure React has updated the component state
+    await this.page.waitForTimeout(1000);
+
     // Wait for the input to be enabled (this means canInvite is true and form is ready)
+    // Use a longer timeout (30s) to allow for API calls to complete in slower environments
     await this.page.waitForFunction(
       () => {
         const input = document.querySelector(
@@ -237,7 +250,7 @@ export class WorkspaceDetailPage extends BasePage {
         ) as HTMLInputElement | null;
         return input && !input.disabled;
       },
-      { timeout: 15000 }
+      { timeout: 30000 }
     );
 
     // Fill email using Playwright's fill method (this properly triggers React onChange)
