@@ -405,7 +405,6 @@ export const handler = async (
           },
         },
       });
-      await flushSentry();
     }
 
     // Extract policy ARN from methodArn for the Deny policy
@@ -457,5 +456,13 @@ export const handler = async (
     );
 
     return denyResponse;
+  } finally {
+    // Flush Sentry events before Lambda terminates (critical for Lambda)
+    // This ensures flushing happens on both success and error paths
+    try {
+      await flushSentry();
+    } catch (flushError) {
+      console.error("[Sentry] Error flushing events:", flushError);
+    }
   }
 };

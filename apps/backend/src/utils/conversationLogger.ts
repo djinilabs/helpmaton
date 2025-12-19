@@ -482,10 +482,12 @@ export function extractTokenUsage(
   // Cached tokens can be in various formats:
   // - cachedPromptTokenCount (Google API format)
   // - cachedPromptTokens
+  // - cachedInputTokens (alternative field name)
   // - cachedTokens
   const cachedPromptTokens =
     usage.cachedPromptTokenCount ??
     usage.cachedPromptTokens ??
+    usage.cachedInputTokens ??
     usage.cachedTokens ??
     0;
 
@@ -525,6 +527,7 @@ export function extractTokenUsage(
     "totalTokenCount",
     "cachedPromptTokenCount",
     "cachedPromptTokens",
+    "cachedInputTokens",
     "cachedTokens",
     "reasoningTokens",
     "reasoning",
