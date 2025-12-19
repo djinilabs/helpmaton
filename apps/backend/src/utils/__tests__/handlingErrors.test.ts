@@ -112,10 +112,12 @@ describe("handlingErrors", () => {
         mockContext,
         expect.any(Function)
       );
+      // Both PostHog and Sentry should be flushed in finally block
       expect(flushPostHog).toHaveBeenCalled();
+      expect(flushSentry).toHaveBeenCalled();
     });
 
-    it("should flush PostHog even if flush succeeds", async () => {
+    it("should flush PostHog and Sentry even if flush succeeds", async () => {
       const mockHandler = vi.fn().mockResolvedValue({
         statusCode: 200,
         headers: {},
@@ -125,7 +127,9 @@ describe("handlingErrors", () => {
       const wrappedHandler = handlingErrors(mockHandler);
       await wrappedHandler(mockEvent, mockContext, vi.fn());
 
+      // Both should be flushed in finally block
       expect(flushPostHog).toHaveBeenCalledTimes(1);
+      expect(flushSentry).toHaveBeenCalledTimes(1);
     });
 
     it("should handle PostHog flush errors gracefully", async () => {
@@ -153,9 +157,10 @@ describe("handlingErrors", () => {
       };
 
       expect(result.statusCode).toBe(200);
+      // Error is caught in Promise.all().catch(), so it logs with the new format
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "[PostHog] Error flushing events:",
-        flushError
+        "[PostHog/Sentry] Error flushing events:",
+        expect.anything()
       );
 
       consoleErrorSpy.mockRestore();
@@ -207,12 +212,14 @@ describe("handlingErrors", () => {
 
       // Should still return error response even if Sentry flush fails
       expect(result.statusCode).toBe(500);
+      // Error is caught in Promise.all().catch() in finally block
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "[Sentry] Error flushing events in error handler:",
-        sentryFlushError
+        "[PostHog/Sentry] Error flushing events:",
+        expect.anything()
       );
-      // Should not cause recursion - only called once
+      // Should not cause recursion - only called once in finally block
       expect(flushSentry).toHaveBeenCalledTimes(1);
+      expect(flushPostHog).toHaveBeenCalledTimes(1);
 
       consoleErrorSpy.mockRestore();
     });
@@ -240,12 +247,14 @@ describe("handlingErrors", () => {
 
       // Should still return error response even if PostHog flush fails
       expect(result.statusCode).toBe(500);
+      // Error is caught in Promise.all().catch() in finally block
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "[PostHog] Error flushing events in error handler:",
-        posthogFlushError
+        "[PostHog/Sentry] Error flushing events:",
+        expect.anything()
       );
-      // Should not cause recursion - only called once
+      // Should not cause recursion - only called once in finally block
       expect(flushPostHog).toHaveBeenCalledTimes(1);
+      expect(flushSentry).toHaveBeenCalledTimes(1);
 
       consoleErrorSpy.mockRestore();
     });
@@ -275,16 +284,12 @@ describe("handlingErrors", () => {
 
       // Should still return error response
       expect(result.statusCode).toBe(500);
-      // Both flush errors should be logged
+      // Both flush errors are caught together in Promise.all().catch() in finally block
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "[Sentry] Error flushing events in error handler:",
-        sentryFlushError
+        "[PostHog/Sentry] Error flushing events:",
+        expect.anything()
       );
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "[PostHog] Error flushing events in error handler:",
-        posthogFlushError
-      );
-      // Should not cause recursion - each flush called only once
+      // Should not cause recursion - each flush called only once in finally block
       expect(flushSentry).toHaveBeenCalledTimes(1);
       expect(flushPostHog).toHaveBeenCalledTimes(1);
 
