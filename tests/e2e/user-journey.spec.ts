@@ -35,6 +35,34 @@ testWithUserManagement.describe.serial(
       async ({ page, userManagement }) => {
         console.log("🚀 Test 1: Starting login flow...");
 
+        // Clear authentication state before login
+        // This ensures the login test starts from an unauthenticated state
+        // First, navigate to a page to ensure we have a page context
+        await page.goto("/", { waitUntil: "domcontentloaded" });
+
+        // Clear cookies, localStorage, and sessionStorage (all authentication state)
+        await page.context().clearCookies();
+        await page.evaluate(() => {
+          localStorage.clear();
+          sessionStorage.clear();
+        });
+
+        // Navigate to signout endpoint to ensure we're logged out server-side
+        await page.goto("/api/auth/signout", { waitUntil: "domcontentloaded" });
+
+        // Clear storage again after signout (in case signout set any new values)
+        await page.evaluate(() => {
+          localStorage.clear();
+          sessionStorage.clear();
+        });
+
+        // Navigate to home page and wait for login form to be ready
+        await page.goto("/", { waitUntil: "domcontentloaded" });
+        await page.waitForSelector(
+          '#email, input[type="email"], input[name="email"]',
+          { timeout: 20000, state: "visible" }
+        );
+
         // Create and login user
         const user = await userManagement.createAndLoginUser();
         state.user = user;
