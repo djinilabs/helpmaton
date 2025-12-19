@@ -12,7 +12,20 @@ import { testWithUserManagement, TestUser } from "./fixtures/test-fixtures";
 testWithUserManagement.describe("Login Feature", () => {
   let testUser: TestUser;
 
-  testWithUserManagement.beforeEach(async ({ userManagement }) => {
+  testWithUserManagement.beforeEach(async ({ page, userManagement }) => {
+    // Clear authentication state before each test
+    // This ensures each test starts from an unauthenticated state
+    await page.context().clearCookies();
+
+    // Clear localStorage and sessionStorage (tokens may be stored there)
+    await page.goto("/");
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+    await page.goto("/");
+    await page.waitForLoadState("domcontentloaded");
+
     // Create a fresh test user for each test
     testUser = await userManagement.createTestUser();
   });
@@ -58,4 +71,3 @@ testWithUserManagement.describe("Login Feature", () => {
     }
   );
 });
-
