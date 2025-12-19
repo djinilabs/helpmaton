@@ -715,9 +715,9 @@ async function trackRequestUsage(
 }
 
 /**
- * Logs the conversation asynchronously
+ * Logs the conversation
  */
-async function logConversationAsync(
+async function logConversation(
   db: Awaited<ReturnType<typeof database>>,
   workspaceId: string,
   agentId: string,
@@ -885,7 +885,7 @@ async function logConversationAsync(
         !isMessageContentEmpty(msg)
     );
 
-    // Run this asynchronously without blocking - always update existing conversation
+    // Update existing conversation
     await updateConversation(
       db,
       workspaceId,
@@ -1502,7 +1502,7 @@ const internalHandler = async (
       context.agentId
     );
 
-    await logConversationAsync(
+    await logConversation(
       context.db,
       context.workspaceId,
       context.agentId,

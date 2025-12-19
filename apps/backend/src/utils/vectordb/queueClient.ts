@@ -58,7 +58,13 @@ export async function sendWriteOperation(
     throw new Error(`Invalid write operation message: ${errors.join(", ")}`);
   }
 
+  console.log(
+    `[Queue Client] Getting queue client for ${message.operation} operation, agent ${message.agentId}, grain ${message.temporalGrain}`
+  );
   const queue = await getQueueClient();
+  console.log(
+    `[Queue Client] Queue client obtained, publish function: ${typeof queue.publish}`
+  );
   const queueName = "agent-temporal-grain-queue";
   const messageGroupId = getMessageGroupId(
     message.agentId,
@@ -66,9 +72,21 @@ export async function sendWriteOperation(
   );
   const deduplicationId = generateDeduplicationId(message);
 
+  console.log(
+    `[Queue Client] Preparing to publish to queue: ${queueName}, messageGroupId: ${messageGroupId}, deduplicationId: ${deduplicationId.substring(
+      0,
+      16
+    )}...`
+  );
+
   try {
     // @architect/functions queues.publish API
     // Type assertion needed as the types may not include FIFO queue properties
+    console.log(
+      `[Queue Client] Calling queue.publish with name: ${queueName}, payload keys: ${Object.keys(
+        message
+      ).join(", ")}`
+    );
     await (
       queue.publish as (params: {
         name: string;

@@ -332,11 +332,10 @@ Comprehensive integration tests are available in:
 
 ## Performance Considerations
 
-1. **Asynchronous Writes**: Working memory writes are non-blocking to avoid impacting conversation performance
-2. **Batch Processing**: Summarization processes multiple agents in batches
-3. **SQS Serialization**: Message groups ensure safe concurrent access
-4. **Retention Cleanup**: Runs daily to maintain storage efficiency
-5. **Vector Search**: Uses LanceDB for efficient semantic search
+1. **Batch Processing**: Summarization processes multiple agents in batches
+2. **SQS Serialization**: Message groups ensure safe concurrent access
+3. **Retention Cleanup**: Runs daily to maintain storage efficiency
+4. **Vector Search**: Uses LanceDB for efficient semantic search
 
 ## Future Enhancements
 
@@ -354,4 +353,3 @@ Potential improvements:
 - [Vector Database](./vector-database.md): Details on LanceDB integration
 - [Subscription Management](./subscription-management.md): Subscription plans and features
 - [Agent Configuration](./agent-configuration.md): Agent setup and tools
-

@@ -126,7 +126,7 @@ describe("Memory System Integration", () => {
     });
 
     // Mock SQS write operation - store in memory
-    // For rawFacts, generate embeddings asynchronously (simulated)
+    // For rawFacts, generate embeddings (simulated)
     mockSendWriteOperation.mockImplementation(
       async (message: {
         operation: string;
