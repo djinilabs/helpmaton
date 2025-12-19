@@ -203,6 +203,24 @@ export class WorkspaceDetailPage extends BasePage {
   async inviteTeamMember(email: string): Promise<void> {
     await this.expandTeamSection();
 
+    // Wait for the user limit API call to complete and verify canInvite is true
+    // The frontend fetches /api/workspaces/:workspaceId/user-limit to determine canInvite
+    // Wait for the form to be visible and not showing the "User Limit Reached" error
+    await this.page.waitForSelector(
+      'input[type="email"][placeholder*="example.com"], input[type="email"]',
+      { timeout: 15000 }
+    );
+
+    // Wait for any "User Limit Reached" error message to not be visible
+    // (if it appears, it means canInvite is false)
+    const errorMessage = this.page.locator("text=/User Limit Reached/i");
+    const isErrorVisible = await errorMessage.isVisible().catch(() => false);
+    if (isErrorVisible) {
+      throw new Error(
+        "Cannot invite team member: User limit reached. E2E_OVERRIDE_MAX_USERS may not be working."
+      );
+    }
+
     // Wait for invite form to be visible - look for the form or email input with placeholder
     const emailInput = this.page
       .locator(
@@ -211,47 +229,22 @@ export class WorkspaceDetailPage extends BasePage {
       .first();
     await emailInput.waitFor({ state: "visible", timeout: 10000 });
 
-    // The input is disabled when email is invalid (empty). We need to wait for it to be enabled
-    // or use evaluate to set the value directly, which will trigger validation
-    // First, try to wait for the input to be enabled (in case canInvite is false)
-    await this.page
-      .waitForFunction(
-        () => {
-          const input = document.querySelector(
-            'input[type="email"][placeholder*="example.com"], input[type="email"]'
-          ) as HTMLInputElement | null;
-          return input && !input.disabled;
-        },
-        { timeout: 10000 }
-      )
-      .catch(() => {
-        // If input is still disabled, it might be because canInvite is false
-        // In that case, we can still try to set the value using evaluate
-        console.log("Input is disabled, attempting to set value via evaluate");
-      });
-
-    // Set the email value directly using evaluate to bypass disabled state
-    // This will trigger React's onChange and enable the input
-    await this.page.evaluate(
-      ({ email }) => {
+    // Wait for the input to be enabled (this means canInvite is true and form is ready)
+    await this.page.waitForFunction(
+      () => {
         const input = document.querySelector(
           'input[type="email"][placeholder*="example.com"], input[type="email"]'
         ) as HTMLInputElement | null;
-        if (input) {
-          // Set value and trigger input event to update React state
-          input.value = email;
-          input.dispatchEvent(new Event("input", { bubbles: true }));
-          input.dispatchEvent(new Event("change", { bubbles: true }));
-        }
+        return input && !input.disabled;
       },
-      { email }
+      { timeout: 15000 }
     );
 
-    // Wait a bit for React to process the change
-    await this.page.waitForTimeout(500);
+    // Fill email using Playwright's fill method (this properly triggers React onChange)
+    await emailInput.fill(email);
 
-    // Wait a bit for React to process the change and validate email
-    await this.page.waitForTimeout(1000);
+    // Wait for email validation to complete and button to be enabled
+    await this.page.waitForTimeout(500);
 
     // Wait for the submit button to be enabled (email validation enables it)
     const inviteButton = this.page
@@ -260,10 +253,10 @@ export class WorkspaceDetailPage extends BasePage {
       )
       .first();
 
-    // Wait for button to be visible first
+    // Wait for button to be visible
     await inviteButton.waitFor({ state: "visible", timeout: 5000 });
 
-    // Wait for button to be enabled using waitForFunction with longer timeout
+    // Wait for button to be enabled using waitForFunction
     await this.page.waitForFunction(
       () => {
         const buttons = Array.from(
