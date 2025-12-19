@@ -35,8 +35,37 @@ export class LoginPage extends BasePage {
    * Navigate to login page
    */
   async goto(url: string = "/"): Promise<void> {
-    await this.page.goto(url);
-    await this.waitForPageLoad();
+    await this.page.goto(url, { waitUntil: "domcontentloaded" });
+
+    // Wait for network to be idle (important for PR environments where assets may load slower)
+    try {
+      await this.page.waitForLoadState("networkidle", { timeout: 15000 });
+    } catch {
+      // If networkidle times out, continue anyway - page might still be usable
+    }
+
+    // Wait for the login form to appear (this ensures React has rendered)
+    // Use a longer timeout for PR environments
+    try {
+      await this.emailInput.waitFor({ state: "visible", timeout: 20000 });
+    } catch {
+      // If email input doesn't appear, the page might have redirected or be in a different state
+      // Wait a bit more and check the URL
+      await this.page.waitForTimeout(2000);
+      const currentUrl = this.page.url();
+      if (
+        !currentUrl.includes("/api/auth/signin") &&
+        !currentUrl.endsWith("/")
+      ) {
+        // Page might have redirected - try navigating again
+        await this.page.goto(url, { waitUntil: "domcontentloaded" });
+        await this.emailInput.waitFor({ state: "visible", timeout: 20000 });
+      } else {
+        throw new Error(
+          `Login form not found after navigation to ${url}. Current URL: ${currentUrl}`
+        );
+      }
+    }
   }
 
   /**
