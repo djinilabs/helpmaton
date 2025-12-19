@@ -84,6 +84,13 @@ export const registerGetWorkspaceUserLimit = (app: express.Application) => {
       // Check if can invite (current count is less than max)
       const canInvite = count < limits.maxUsers;
 
+      // Log for debugging E2E tests
+      if (process.env.E2E_OVERRIDE_MAX_USERS) {
+        console.log(
+          `[E2E] User limit check: plan=${plan}, count=${count}, maxUsers=${limits.maxUsers}, canInvite=${canInvite}, E2E_OVERRIDE_MAX_USERS=${process.env.E2E_OVERRIDE_MAX_USERS}`
+        );
+      }
+
       res.json({
         currentUserCount: count,
         maxUsers: limits.maxUsers,

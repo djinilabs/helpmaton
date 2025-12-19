@@ -231,6 +231,9 @@ export class WorkspaceDetailPage extends BasePage {
 
     // Wait for the user-limit API call to complete (this determines canInvite)
     // The frontend makes a request to /api/workspaces/:workspaceId/user-limit
+    // We'll wait for the API response by checking if the input becomes enabled
+    // or if an error message appears
+
     // Wait for network to be idle to ensure API calls have completed
     try {
       await this.page.waitForLoadState("networkidle", { timeout: 10000 });
@@ -239,19 +242,68 @@ export class WorkspaceDetailPage extends BasePage {
     }
 
     // Additional wait to ensure React has updated the component state
-    await this.page.waitForTimeout(1000);
+    await this.page.waitForTimeout(2000);
 
     // Wait for the input to be enabled (this means canInvite is true and form is ready)
-    // Use a longer timeout (30s) to allow for API calls to complete in slower environments
-    await this.page.waitForFunction(
-      () => {
-        const input = document.querySelector(
+    // Use a longer timeout (60s) to allow for API calls to complete in slower environments
+    // Also check for error messages that indicate the limit was reached
+    try {
+      await this.page.waitForFunction(
+        () => {
+          const input = document.querySelector(
+            'input[type="email"][placeholder*="example.com"], input[type="email"]'
+          ) as HTMLInputElement | null;
+
+          // Check if input exists and is enabled
+          if (input && !input.disabled) {
+            return true;
+          }
+
+          // Check if there's an error message about user limit
+          const errorText = document.body.textContent || "";
+          if (
+            errorText.includes("User Limit Reached") ||
+            errorText.includes("user limit")
+          ) {
+            // Error is visible, which means canInvite is false
+            return false;
+          }
+
+          return false;
+        },
+        { timeout: 60000 }
+      );
+    } catch (error) {
+      // If timeout, check what the actual state is
+      const errorMessage = this.page.locator("text=/User Limit Reached/i");
+      const isErrorVisible = await errorMessage.isVisible().catch(() => false);
+      if (isErrorVisible) {
+        throw new Error(
+          "Cannot invite team member: User limit reached. E2E_OVERRIDE_MAX_USERS may not be working. " +
+            "Check backend logs to verify the environment variable is set correctly."
+        );
+      }
+
+      // Check if input exists but is disabled
+      const emailInput = this.page
+        .locator(
           'input[type="email"][placeholder*="example.com"], input[type="email"]'
-        ) as HTMLInputElement | null;
-        return input && !input.disabled;
-      },
-      { timeout: 30000 }
-    );
+        )
+        .first();
+      const isVisible = await emailInput.isVisible().catch(() => false);
+      const isDisabled =
+        isVisible && (await emailInput.isDisabled().catch(() => true));
+
+      if (isDisabled) {
+        throw new Error(
+          `Email input is disabled after waiting. This suggests canInvite is false. ` +
+            `E2E_OVERRIDE_MAX_USERS may not be working. Check backend logs for user limit details.`
+        );
+      }
+
+      // Re-throw original error if we can't determine the issue
+      throw error;
+    }
 
     // Fill email using Playwright's fill method (this properly triggers React onChange)
     await emailInput.fill(email);
