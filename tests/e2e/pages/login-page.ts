@@ -71,28 +71,30 @@ export class LoginPage extends BasePage {
     // NextAuth may redirect to an error page or stay on the login page
     try {
       // Wait for navigation to complete (with timeout)
-      await this.page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {
-        // Navigation might not happen, continue
-      });
-      
+      await this.page
+        .waitForLoadState("networkidle", { timeout: 10000 })
+        .catch(() => {
+          // Navigation might not happen, continue
+        });
+
       // Wait a bit for any redirects to complete
       await this.page.waitForTimeout(2000);
-      
+
       // Check if we've been redirected to an error page
       const currentUrl = this.page.url();
       if (currentUrl.includes("/api/auth/error")) {
         // Try to extract error information from the page
         const errorText = await this.page.textContent("body").catch(() => "");
         const errorParam = new URL(currentUrl).searchParams.get("error");
-        const errorMessage = errorParam 
+        const errorMessage = errorParam
           ? decodeURIComponent(errorParam)
           : errorText || "Unknown authentication error";
-        
+
         throw new Error(
           `Magic link request failed - redirected to error page: ${errorMessage}`
         );
       }
-      
+
       // If we're still on the login page, check button state
       if (currentUrl.includes("/api/auth/signin") || currentUrl.endsWith("/")) {
         // Wait for button text to NOT be "SENDING..." anymore (with a reasonable timeout)
@@ -124,7 +126,9 @@ export class LoginPage extends BasePage {
 
           // Check for success indicator (like "Check your email" message)
           const checkEmailText = this.page.locator("text=/check.*email/i");
-          const hasCheckEmail = await checkEmailText.isVisible().catch(() => false);
+          const hasCheckEmail = await checkEmailText
+            .isVisible()
+            .catch(() => false);
           if (hasCheckEmail) {
             // Success - email was sent
             return;
@@ -139,7 +143,7 @@ export class LoginPage extends BasePage {
           }
         }
       }
-      
+
       // If we're not on login or error page, assume success (might have redirected elsewhere)
       // Check for success indicator as fallback
       const checkEmailText = this.page.locator("text=/check.*email/i");
@@ -147,7 +151,7 @@ export class LoginPage extends BasePage {
       if (hasCheckEmail) {
         return;
       }
-      
+
       // If we can't determine success/failure, get button state for debugging
       let buttonState = "unknown";
       let buttonVisible = false;
@@ -161,22 +165,26 @@ export class LoginPage extends BasePage {
           buttonState = "not visible";
         }
       } catch (err) {
-        buttonState = `error: ${err instanceof Error ? err.message : String(err)}`;
+        buttonState = `error: ${
+          err instanceof Error ? err.message : String(err)
+        }`;
       }
-      
+
       const errorVisible = await this.hasErrorMessage();
-      
+
       throw new Error(
         `Magic link request may have failed. ` +
-        `Button count: ${buttonCount}, visible: ${buttonVisible}, state: ${buttonState}, ` +
-        `Error visible: ${errorVisible}, URL: ${currentUrl}`
+          `Button count: ${buttonCount}, visible: ${buttonVisible}, state: ${buttonState}, ` +
+          `Error visible: ${errorVisible}, URL: ${currentUrl}`
       );
     } catch (error) {
       // Re-throw if it's already a formatted error
       if (error instanceof Error) {
         throw error;
       }
-      throw new Error(`Unexpected error waiting for magic link request: ${error}`);
+      throw new Error(
+        `Unexpected error waiting for magic link request: ${error}`
+      );
     }
   }
 
@@ -251,7 +259,8 @@ export class LoginPage extends BasePage {
     // Wait for the page to be fully loaded
     await this.waitForPageLoad();
     // Check if we can see the login form
-    await this.emailInput.waitFor({ state: "visible", timeout: 5000 });
+    // Use longer timeout (20s) for PR environments where page load may be slower
+    await this.emailInput.waitFor({ state: "visible", timeout: 20000 });
   }
 
   /**
@@ -260,7 +269,8 @@ export class LoginPage extends BasePage {
   async verifyLoginForm(): Promise<void> {
     await this.verifyPageLoaded();
     // Verify the form elements are available
-    await this.emailInput.waitFor({ state: "visible", timeout: 5000 });
-    await this.submitButton.waitFor({ state: "visible", timeout: 5000 });
+    // Use longer timeout (20s) for PR environments where page load may be slower
+    await this.emailInput.waitFor({ state: "visible", timeout: 20000 });
+    await this.submitButton.waitFor({ state: "visible", timeout: 20000 });
   }
 }
