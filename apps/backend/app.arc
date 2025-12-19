@@ -302,6 +302,7 @@ custom-domain
 lambda-urls
 container-images
 sqs-partial-batch-failures
+enable-scheduled-rules
 
 @aws
 runtime typescript
