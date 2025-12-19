@@ -1,4 +1,4 @@
-import { useQueryErrorResetBoundary } from "@tanstack/react-query";
+import { useQueryErrorResetBoundary, useQuery } from "@tanstack/react-query";
 import { useState, Suspense, lazy } from "react";
 import type { FC } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -85,13 +85,14 @@ const InviteMember = lazy(() =>
 import { useAccordion } from "../hooks/useAccordion";
 import { useTrialStatus } from "../hooks/useTrialCredits";
 import { useWorkspaceUsage, useWorkspaceDailyUsage } from "../hooks/useUsage";
-import {
-  useWorkspace,
-  useUpdateWorkspace,
-  useDeleteWorkspace,
-} from "../hooks/useWorkspaces";
+import { useUpdateWorkspace, useDeleteWorkspace } from "../hooks/useWorkspaces";
 import { useWorkspaceUserLimit } from "../hooks/useWorkspaceUserLimit";
-import { setWorkspaceApiKey, deleteWorkspaceApiKey } from "../utils/api";
+import {
+  getWorkspace,
+  setWorkspaceApiKey,
+  deleteWorkspaceApiKey,
+  type Workspace,
+} from "../utils/api";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
 
 const PERMISSION_LEVELS = {
@@ -261,12 +262,63 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
 };
 
 const WorkspaceDataLoader: FC<{ workspaceId: string }> = ({ workspaceId }) => {
-  const { data: workspace } = useWorkspace(workspaceId);
+  const {
+    data: workspace,
+    isLoading,
+    isFetching,
+    isPending,
+    error,
+  } = useQuery({
+    queryKey: ["workspaces", workspaceId],
+    queryFn: () => getWorkspace(workspaceId),
+    refetchOnMount: "always", // Always refetch when component mounts (on navigation)
+    staleTime: 0, // Consider data stale immediately to force refetch
+  });
+
+  // Check if we have data that matches the current workspaceId
+  // If workspace exists but doesn't match, it's stale data from a previous workspace
+  const hasMatchingData = workspace && workspace.id === workspaceId;
+
+  // Show loading if:
+  // 1. We don't have matching data for the current workspaceId
+  // 2. Query is actively fetching (isFetching) - shows loading even with cached data
+  // 3. Query is pending or loading
+  // This ensures loading shows during navigation even if there's cached data for a different workspace
+  const shouldShowLoading =
+    !hasMatchingData || isLoading || isPending || isFetching;
+
+  if (shouldShowLoading) {
+    return <LoadingScreen message="Loading workspace..." />;
+  }
+
+  if (error || !workspace) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-soft p-8">
+        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-error-200">
+          <h1 className="text-4xl font-semibold text-neutral-900 mb-4">
+            Error
+          </h1>
+          <p className="text-xl mb-6 text-error-600 font-semibold">
+            {error instanceof Error
+              ? error.message
+              : "Failed to load workspace"}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-gradient-primary px-6 py-3 text-white font-semibold rounded-xl hover:shadow-colored transition-all duration-200"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return <WorkspaceDetailContent workspace={workspace} />;
 };
 
 interface WorkspaceDetailContentProps {
-  workspace: ReturnType<typeof useWorkspace>["data"];
+  workspace: Workspace;
 }
 
 const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
@@ -459,7 +511,8 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               Trial Credits
             </h3>
             <p className="text-base text-neutral-600 mb-6 leading-relaxed">
-              Your workspace balance is 0. Request trial credits (2 USD) to test the application.
+              Your workspace balance is 0. Request trial credits (2 USD) to test
+              the application.
             </p>
             <button
               onClick={() => setIsTrialCreditModalOpen(true)}
@@ -598,9 +651,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               />
               {canEdit && (
                 <div className="mt-6">
-                  <CreditPurchase
-                    workspaceId={id!}
-                  />
+                  <CreditPurchase workspaceId={id!} />
                 </div>
               )}
             </LazyAccordionContent>
@@ -632,9 +683,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             onToggle={() => toggleSection("usage")}
           >
             <LazyAccordionContent isExpanded={expandedSection === "usage"}>
-              <WorkspaceUsageSection
-                workspaceId={id!}
-              />
+              <WorkspaceUsageSection workspaceId={id!} />
             </LazyAccordionContent>
           </AccordionSection>
         </SectionGroup>
@@ -859,10 +908,6 @@ const WorkspaceUsageSection: FC<WorkspaceUsageSectionProps> = ({
   );
 };
 
-const WorkspaceLoadingFallback: FC = () => {
-  return <LoadingScreen />;
-};
-
 const WorkspaceDetail: FC = () => {
   const { reset } = useQueryErrorResetBoundary();
   const navigate = useNavigate();
@@ -900,9 +945,7 @@ const WorkspaceDetail: FC = () => {
         </div>
       )}
     >
-      <Suspense fallback={<WorkspaceLoadingFallback />}>
-        <WorkspaceDataLoader workspaceId={id!} />
-      </Suspense>
+      <WorkspaceDataLoader workspaceId={id!} />
     </ErrorBoundary>
   );
 };
