@@ -225,12 +225,6 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
               }
             );
 
-            // Flush Sentry events (fire-and-forget)
-            flushSentry().catch((flushError) => {
-              console.error("[Sentry] Error flushing events:", flushError);
-            });
-
-            // Don't block login, but log prominently - subscription will be created on first API call via getUserSubscription
             return true;
           }
 
