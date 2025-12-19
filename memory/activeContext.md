@@ -94,6 +94,25 @@ Successfully implemented and verified a comprehensive chained E2E test suite tha
 - Add document upload functionality to Test 4
 - Enhance agent chat testing with streaming verification
 - Add cleanup logic for test resources
+**Status**: Memory Summarization Chronological Sorting - Completed ✅
+
+Fixed issue where conversations were not sorted by date when creating daily summaries (and other temporal grain summaries). The LLM was receiving events out of chronological order, which could affect summary quality.
+
+**Changes**:
+
+- Added timestamp sorting (oldest first) to all summarization tasks before passing content to LLM
+- Ensures chronological order so LLM sees events in proper sequence
+- Applied to: daily, weekly, monthly, quarterly, and yearly summarization tasks
+
+**Files Modified**:
+
+- `apps/backend/src/scheduled/summarize-memory-daily/index.ts` - Sort working memory by timestamp before summarization
+- `apps/backend/src/scheduled/summarize-memory-weekly/index.ts` - Sort day summaries by timestamp before summarization
+- `apps/backend/src/scheduled/summarize-memory-monthly/index.ts` - Sort week summaries by timestamp before summarization
+- `apps/backend/src/scheduled/summarize-memory-quarterly/index.ts` - Sort month summaries by timestamp before summarization
+- `apps/backend/src/scheduled/summarize-memory-yearly/index.ts` - Sort quarter summaries by timestamp before summarization
+
+**Verification**: Type checking and linting passed successfully
 
 **Previous Status**: README Comprehensive Update with 10 Advanced Features - Completed ✅
 

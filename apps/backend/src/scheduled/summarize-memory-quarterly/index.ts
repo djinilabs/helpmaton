@@ -73,8 +73,17 @@ export const handler = handlingScheduledErrors(
               continue;
             }
 
-            // Extract content
-            const content = monthSummaries.map((record) => record.content);
+            // Sort month summaries by timestamp (oldest first) to ensure chronological order
+            const sortedMonthSummaries = [...monthSummaries].sort((a, b) => {
+              const aTime = new Date(a.timestamp).getTime();
+              const bTime = new Date(b.timestamp).getTime();
+              return aTime - bTime;
+            });
+
+            // Extract content from sorted month summaries
+            const content = sortedMonthSummaries.map(
+              (record) => record.content
+            );
 
             // Summarize
             const summary = await summarizeWithLLM(

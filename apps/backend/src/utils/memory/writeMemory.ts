@@ -181,7 +181,7 @@ export async function writeToWorkingMemory(
 
     // Queue write operation to SQS with raw facts (embeddings will be generated async)
     console.log(
-      `[Memory Write] Queuing ${rawFacts.length} raw facts to SQS for agent ${agentId}, conversation ${conversationId} (embeddings will be generated asynchronously)`
+      `[Memory Write] Queuing ${rawFacts.length} raw facts to SQS for agent ${agentId}, conversation ${conversationId}`
     );
     await sendWriteOperation({
       operation: "insert",

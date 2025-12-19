@@ -523,7 +523,7 @@ async function processWriteOperation(record: SQSRecord): Promise<void> {
     case "insert":
       // Support both rawFacts (for async embedding generation) and records (pre-generated embeddings)
       if (data.rawFacts && data.rawFacts.length > 0) {
-        // Generate embeddings asynchronously
+        // Generate embeddings
         await executeInsert(
           agentId,
           temporalGrain,

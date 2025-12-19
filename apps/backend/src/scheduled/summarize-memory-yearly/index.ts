@@ -71,8 +71,19 @@ export const handler = handlingScheduledErrors(
               continue;
             }
 
-            // Extract content
-            const content = quarterSummaries.map((record) => record.content);
+            // Sort quarter summaries by timestamp (oldest first) to ensure chronological order
+            const sortedQuarterSummaries = [...quarterSummaries].sort(
+              (a, b) => {
+                const aTime = new Date(a.timestamp).getTime();
+                const bTime = new Date(b.timestamp).getTime();
+                return aTime - bTime;
+              }
+            );
+
+            // Extract content from sorted quarter summaries
+            const content = sortedQuarterSummaries.map(
+              (record) => record.content
+            );
 
             // Summarize
             const summary = await summarizeWithLLM(

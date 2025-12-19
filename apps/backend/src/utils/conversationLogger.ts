@@ -630,19 +630,23 @@ export async function startConversation(
     expires: calculateTTL(),
   });
 
-  // Write to working memory asynchronously (don't block)
+  // Write to working memory - await to ensure it completes before Lambda finishes
+  // This prevents Lambda from freezing the execution context before SQS message is sent
   console.log(
     `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${data.agentId}, workspace ${data.workspaceId}, ${filteredMessages.length} filtered messages`
   );
   console.log(
     `[Conversation Logger] Parameter values being passed - agentId: "${data.agentId}", workspaceId: "${data.workspaceId}", conversationId: "${conversationId}"`
   );
-  writeToWorkingMemory(
-    data.agentId,
-    data.workspaceId,
-    conversationId,
-    filteredMessages
-  ).catch((error) => {
+  try {
+    await writeToWorkingMemory(
+      data.agentId,
+      data.workspaceId,
+      conversationId,
+      filteredMessages
+    );
+  } catch (error) {
+    // Log error but don't throw - memory writes should not block conversation logging
     console.error(
       `[Conversation Logger] Failed to write to working memory for conversation ${conversationId}:`,
       error instanceof Error
@@ -653,7 +657,7 @@ export async function startConversation(
           }
         : String(error)
     );
-  });
+  }
 
   return conversationId;
 }
@@ -787,7 +791,8 @@ export async function updateConversation(
     }
   );
 
-  // Write to working memory asynchronously (don't block)
+  // Write to working memory - await to ensure it completes before Lambda finishes
+  // This prevents Lambda from freezing the execution context before SQS message is sent
   // IMPORTANT: Only send truly new messages to the queue (not duplicates)
   // This prevents duplicate fact extraction and embedding generation
   if (trulyNewMessages.length > 0) {
@@ -797,12 +802,15 @@ export async function updateConversation(
     console.log(
       `[Conversation Logger] Parameter values being passed - agentId: "${agentId}", workspaceId: "${workspaceId}", conversationId: "${conversationId}"`
     );
-    writeToWorkingMemory(
-      agentId,
-      workspaceId,
-      conversationId,
-      trulyNewMessages
-    ).catch((error) => {
+    try {
+      await writeToWorkingMemory(
+        agentId,
+        workspaceId,
+        conversationId,
+        trulyNewMessages
+      );
+    } catch (error) {
+      // Log error but don't throw - memory writes should not block conversation logging
       console.error(
         `[Conversation Logger] Failed to write to working memory for conversation ${conversationId}:`,
         error instanceof Error
@@ -813,7 +821,7 @@ export async function updateConversation(
             }
           : String(error)
       );
-    });
+    }
   } else {
     console.log(
       `[Conversation Logger] Skipping writeToWorkingMemory for conversation ${conversationId} - no truly new messages (${filteredNewMessages.length} filtered messages were all duplicates)`

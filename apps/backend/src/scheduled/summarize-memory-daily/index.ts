@@ -89,8 +89,15 @@ export const handler = handlingScheduledErrors(
               `[Daily Memory Summarization] Agent ${agentId}: Found ${workingMemory.length} working memory records`
             );
 
-            // Extract content from working memory
-            const content = workingMemory.map((record) => record.content);
+            // Sort working memory by timestamp (oldest first) to ensure chronological order
+            const sortedWorkingMemory = [...workingMemory].sort((a, b) => {
+              const aTime = new Date(a.timestamp).getTime();
+              const bTime = new Date(b.timestamp).getTime();
+              return aTime - bTime;
+            });
+
+            // Extract content from sorted working memory
+            const content = sortedWorkingMemory.map((record) => record.content);
 
             // Summarize with LLM
             const summary = await summarizeWithLLM(
