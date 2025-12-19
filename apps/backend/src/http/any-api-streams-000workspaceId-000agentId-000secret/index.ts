@@ -603,13 +603,6 @@ async function streamAIResponse(
   console.log("[Stream Handler] All chunks written, ending stream");
   responseStream.end();
 
-  // Flush PostHog events before returning (critical for Lambda)
-  try {
-    await flushPostHog();
-  } catch (flushError) {
-    console.error("[PostHog] Error flushing events:", flushError);
-  }
-
   return streamResult;
 }
 
@@ -1152,12 +1145,6 @@ const internalHandler = async (
     if (event.requestContext.http.method === "OPTIONS") {
       responseStream.write("");
       responseStream.end();
-      // Flush PostHog events before returning (critical for Lambda)
-      try {
-        await flushPostHog();
-      } catch (flushError) {
-        console.error("[PostHog] Error flushing events:", flushError);
-      }
       return;
     }
 
@@ -1231,12 +1218,6 @@ const internalHandler = async (
         })}\n\n`;
         await writeChunkToStream(responseStream, errorChunk);
         responseStream.end();
-        // Flush PostHog events before returning (critical for Lambda)
-        try {
-          await flushPostHog();
-        } catch (flushError) {
-          console.error("[PostHog] Error flushing events:", flushError);
-        }
         return;
       }
       if (error instanceof SpendingLimitExceededError) {
@@ -1262,12 +1243,6 @@ const internalHandler = async (
         })}\n\n`;
         await writeChunkToStream(responseStream, errorChunk);
         responseStream.end();
-        // Flush PostHog events before returning (critical for Lambda)
-        try {
-          await flushPostHog();
-        } catch (flushError) {
-          console.error("[PostHog] Error flushing events:", flushError);
-        }
         return;
       }
 
@@ -1527,18 +1502,8 @@ const internalHandler = async (
           statusCode: boomed.output.statusCode,
         },
       });
-
-      // Flush Sentry events before returning (critical for Lambda)
-      await flushSentry();
     } else {
       console.error("[Stream Handler] Client error:", boomed);
-    }
-
-    // Flush PostHog events before returning (critical for Lambda)
-    try {
-      await flushPostHog();
-    } catch (flushError) {
-      console.error("[PostHog] Error flushing events:", flushError);
     }
 
     try {
@@ -1550,6 +1515,12 @@ const internalHandler = async (
           writeError instanceof Error ? writeError.message : String(writeError),
       });
     }
+  } finally {
+    // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
+    // This ensures flushing happens on both success and error paths
+    await Promise.all([flushPostHog(), flushSentry()]).catch((flushErrors) => {
+      console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+    });
   }
 };
 

@@ -34,12 +34,6 @@ export const handlingErrors = (
       if (!result) {
         throw new Error("Handler returned undefined");
       }
-      // Flush PostHog events before returning (critical for Lambda)
-      try {
-        await flushPostHog();
-      } catch (flushError) {
-        console.error("[PostHog] Error flushing events:", flushError);
-      }
       return result as APIGatewayProxyResultV2;
     } catch (error) {
       const boomed = boomify(error as Error);
@@ -119,34 +113,19 @@ export const handlingErrors = (
         stringHeaders[key] = String(value);
       }
 
-      // Flush Sentry events before returning (critical for Lambda)
-      // Always flush to ensure all errors are reported, not just server errors
-      // Wrap in try-catch to prevent flush errors from causing additional promise rejections
-      try {
-        await flushSentry();
-      } catch (flushError) {
-        console.error(
-          "[Sentry] Error flushing events in error handler:",
-          flushError
-        );
-      }
-
-      // Flush PostHog events before returning (critical for Lambda)
-      // Wrap in try-catch to prevent flush errors from causing additional promise rejections
-      try {
-        await flushPostHog();
-      } catch (flushError) {
-        console.error(
-          "[PostHog] Error flushing events in error handler:",
-          flushError
-        );
-      }
-
       return {
         statusCode,
         headers: stringHeaders,
         body: JSON.stringify(payload),
       };
+    } finally {
+      // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
+      // This ensures flushing happens on both success and error paths
+      await Promise.all([flushPostHog(), flushSentry()]).catch(
+        (flushErrors) => {
+          console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+        }
+      );
     }
   };
 };
@@ -160,12 +139,6 @@ export const handlingHttpAsyncErrors = (
   ): Promise<HttpResponse | void> => {
     try {
       const result = await userHandler(req, context);
-      // Flush PostHog events before returning (critical for Lambda)
-      try {
-        await flushPostHog();
-      } catch (flushError) {
-        console.error("[PostHog] Error flushing events:", flushError);
-      }
       return result;
     } catch (error) {
       const boomed = boomify(error as Error);
@@ -191,19 +164,19 @@ export const handlingHttpAsyncErrors = (
         stringHeaders[key] = String(value);
       }
 
-      // Flush Sentry events before returning (critical for Lambda)
-      if (boomed.isServer) {
-        await flushSentry();
-      }
-
-      // Flush PostHog events before returning (critical for Lambda)
-      await flushPostHog();
-
       return {
         statusCode,
         headers: stringHeaders,
         body: JSON.stringify(payload),
       };
+    } finally {
+      // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
+      // This ensures flushing happens on both success and error paths
+      await Promise.all([flushPostHog(), flushSentry()]).catch(
+        (flushErrors) => {
+          console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+        }
+      );
     }
   };
 };
@@ -269,12 +242,6 @@ export const handlingScheduledErrors = (
   return async (event: ScheduledEvent): Promise<void> => {
     try {
       await userHandler(event);
-      // Flush PostHog events before Lambda terminates (critical for Lambda)
-      try {
-        await flushPostHog();
-      } catch (flushError) {
-        console.error("[PostHog] Error flushing events:", flushError);
-      }
     } catch (error) {
       const boomed = boomify(error as Error);
 
@@ -315,14 +282,16 @@ export const handlingScheduledErrors = (
         },
       });
 
-      // Flush Sentry events before Lambda terminates (critical for Lambda)
-      await flushSentry();
-
-      // Flush PostHog events before Lambda terminates (critical for Lambda)
-      await flushPostHog();
-
       // Re-throw the error so Lambda marks the invocation as failed
       throw error;
+    } finally {
+      // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
+      // This ensures flushing happens on both success and error paths
+      await Promise.all([flushPostHog(), flushSentry()]).catch(
+        (flushErrors) => {
+          console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+        }
+      );
     }
   };
 };

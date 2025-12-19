@@ -331,117 +331,123 @@ export function adaptHttpHandler(
     context: Context,
     callback: Callback
   ): Promise<APIGatewayProxyResultV2> => {
-    const isRest = isRestEvent(event);
-
-    // Convert REST event to HTTP v2 format if needed
-    const httpV2Event = isRest ? transformRestToHttpV2Event(event) : event;
-    const result = await handler(httpV2Event, context, callback);
-    if (!result) {
-      throw new Error("Handler returned undefined");
-    }
-
-    // Flush PostHog events before returning (critical for Lambda)
-    // Import dynamically to avoid circular dependencies
-    const { flushPostHog } = await import("../utils/posthog");
     try {
-      await flushPostHog();
-    } catch (flushError) {
-      console.error("[PostHog] Error flushing events:", flushError);
-    }
+      const isRest = isRestEvent(event);
 
-    // For REST API events, ensure response format is compatible
-    // REST API Gateway expects a specific response format and doesn't support some HTTP API v2 fields
-    if (
-      isRest &&
-      typeof result === "object" &&
-      result !== null &&
-      !Array.isArray(result)
-    ) {
-      const resultObj = result as Record<string, unknown>;
+      // Convert REST event to HTTP v2 format if needed
+      const httpV2Event = isRest ? transformRestToHttpV2Event(event) : event;
+      const result = await handler(httpV2Event, context, callback);
+      if (!result) {
+        throw new Error("Handler returned undefined");
+      }
 
-      // Decode base64-encoded responses (HTTP API v2 automatically decodes, but REST API doesn't)
+      // For REST API events, ensure response format is compatible
+      // REST API Gateway expects a specific response format and doesn't support some HTTP API v2 fields
       if (
-        "isBase64Encoded" in resultObj &&
-        resultObj.isBase64Encoded === true &&
-        "body" in resultObj &&
-        typeof resultObj.body === "string"
+        isRest &&
+        typeof result === "object" &&
+        result !== null &&
+        !Array.isArray(result)
       ) {
-        try {
-          const decodedBody = Buffer.from(resultObj.body, "base64").toString(
-            "utf-8"
-          );
-          resultObj.body = decodedBody;
-          resultObj.isBase64Encoded = false;
-        } catch (error) {
-          // If decoding fails, log and keep original response
-          console.error(
-            "[httpEventAdapter] Failed to decode base64 response:",
-            error
-          );
-        }
-      }
+        const resultObj = result as Record<string, unknown>;
 
-      // Ensure response format is compatible with REST API Gateway
-      // REST API doesn't support multiValueHeaders or cookies array in responses
-      // Transform these fields into REST-compatible format
-      const restApiResponse: APIGatewayProxyResultV2 = {
-        statusCode: resultObj.statusCode as number,
-      };
-
-      // Handle headers: convert multiValueHeaders to headers if present
-      // If both headers and multiValueHeaders exist, prefer multiValueHeaders (convert to headers)
-      if ("multiValueHeaders" in resultObj && resultObj.multiValueHeaders) {
-        // Convert multiValueHeaders to headers (take first value from each array)
-        const multiValueHeaders = resultObj.multiValueHeaders as Record<
-          string,
-          string[]
-        >;
-        const convertedHeaders: Record<string, string> = {};
-        for (const [key, values] of Object.entries(multiValueHeaders)) {
-          if (values && Array.isArray(values) && values.length > 0) {
-            convertedHeaders[key] = values[0];
-          }
-        }
-        restApiResponse.headers = convertedHeaders;
-      } else if ("headers" in resultObj && resultObj.headers) {
-        restApiResponse.headers = resultObj.headers as Record<string, string>;
-      }
-
-      // Handle cookies: convert cookies array to Set-Cookie headers
-      // REST API doesn't support cookies array in responses, but supports Set-Cookie headers
-      // LIMITATION: REST API responses don't support multiValueHeaders, so we can only set one Set-Cookie header
-      // If multiple cookies are present, we'll use the first one (this is a known limitation)
-      if ("cookies" in resultObj && resultObj.cookies) {
-        const cookies = resultObj.cookies as string[];
-        if (!restApiResponse.headers) {
-          restApiResponse.headers = {};
-        }
-        if (cookies.length > 0) {
-          // REST API responses don't support multiple Set-Cookie headers (no multiValueHeaders)
-          // So we can only send the first cookie
-          // This is a limitation when converting from HTTP API v2 to REST API
-          restApiResponse.headers["Set-Cookie"] = cookies[0];
-          if (cookies.length > 1) {
-            console.warn(
-              `[httpEventAdapter] Multiple cookies in response (${cookies.length}), but REST API only supports one Set-Cookie header. Using first cookie only.`
+        // Decode base64-encoded responses (HTTP API v2 automatically decodes, but REST API doesn't)
+        if (
+          "isBase64Encoded" in resultObj &&
+          resultObj.isBase64Encoded === true &&
+          "body" in resultObj &&
+          typeof resultObj.body === "string"
+        ) {
+          try {
+            const decodedBody = Buffer.from(resultObj.body, "base64").toString(
+              "utf-8"
+            );
+            resultObj.body = decodedBody;
+            resultObj.isBase64Encoded = false;
+          } catch (error) {
+            // If decoding fails, log and keep original response
+            console.error(
+              "[httpEventAdapter] Failed to decode base64 response:",
+              error
             );
           }
         }
+
+        // Ensure response format is compatible with REST API Gateway
+        // REST API doesn't support multiValueHeaders or cookies array in responses
+        // Transform these fields into REST-compatible format
+        const restApiResponse: APIGatewayProxyResultV2 = {
+          statusCode: resultObj.statusCode as number,
+        };
+
+        // Handle headers: convert multiValueHeaders to headers if present
+        // If both headers and multiValueHeaders exist, prefer multiValueHeaders (convert to headers)
+        if ("multiValueHeaders" in resultObj && resultObj.multiValueHeaders) {
+          // Convert multiValueHeaders to headers (take first value from each array)
+          const multiValueHeaders = resultObj.multiValueHeaders as Record<
+            string,
+            string[]
+          >;
+          const convertedHeaders: Record<string, string> = {};
+          for (const [key, values] of Object.entries(multiValueHeaders)) {
+            if (values && Array.isArray(values) && values.length > 0) {
+              convertedHeaders[key] = values[0];
+            }
+          }
+          restApiResponse.headers = convertedHeaders;
+        } else if ("headers" in resultObj && resultObj.headers) {
+          restApiResponse.headers = resultObj.headers as Record<string, string>;
+        }
+
+        // Handle cookies: convert cookies array to Set-Cookie headers
+        // REST API doesn't support cookies array in responses, but supports Set-Cookie headers
+        // LIMITATION: REST API responses don't support multiValueHeaders, so we can only set one Set-Cookie header
+        // If multiple cookies are present, we'll use the first one (this is a known limitation)
+        if ("cookies" in resultObj && resultObj.cookies) {
+          const cookies = resultObj.cookies as string[];
+          if (!restApiResponse.headers) {
+            restApiResponse.headers = {};
+          }
+          if (cookies.length > 0) {
+            // REST API responses don't support multiple Set-Cookie headers (no multiValueHeaders)
+            // So we can only send the first cookie
+            // This is a limitation when converting from HTTP API v2 to REST API
+            restApiResponse.headers["Set-Cookie"] = cookies[0];
+            if (cookies.length > 1) {
+              console.warn(
+                `[httpEventAdapter] Multiple cookies in response (${cookies.length}), but REST API only supports one Set-Cookie header. Using first cookie only.`
+              );
+            }
+          }
+        }
+
+        // Include body if present
+        if ("body" in resultObj && resultObj.body !== undefined) {
+          restApiResponse.body = resultObj.body as string;
+        }
+
+        // Include isBase64Encoded if present (after potential decoding above)
+        if ("isBase64Encoded" in resultObj) {
+          restApiResponse.isBase64Encoded = resultObj.isBase64Encoded === true;
+        }
+
+        return restApiResponse;
       }
 
-      // Include body if present
-      if ("body" in resultObj && resultObj.body !== undefined) {
-        restApiResponse.body = resultObj.body as string;
-      }
-
-      // Include isBase64Encoded if present (after potential decoding above)
-      if ("isBase64Encoded" in resultObj) {
-        restApiResponse.isBase64Encoded = resultObj.isBase64Encoded === true;
-      }
-
-      return restApiResponse;
+      return result;
+    } finally {
+      // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
+      // This ensures flushing happens on both success and error paths
+      // Import dynamically to avoid circular dependencies
+      const [{ flushPostHog }, { flushSentry }] = await Promise.all([
+        import("../utils/posthog"),
+        import("../utils/sentry"),
+      ]);
+      await Promise.all([flushPostHog(), flushSentry()]).catch(
+        (flushErrors) => {
+          console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+        }
+      );
     }
-
-    return result;
   };
 }
