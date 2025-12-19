@@ -368,25 +368,60 @@ export class WorkspaceDetailPage extends BasePage {
   ): Promise<void> {
     await this.expandSpendingLimitsSection();
 
-    // Click "Add Limit" button to open the form
-    const addLimitButton = this.page.locator('button:has-text("Add Limit")');
-    const isAddButtonVisible = await addLimitButton
-      .isVisible()
-      .catch(() => false);
+    // Wait for the spending limits section to be fully loaded
+    await this.page.waitForTimeout(1000);
 
-    if (isAddButtonVisible) {
+    // Check if form is already visible (might be shown by default if no limits exist)
+    const formHeading = this.page.locator('h3:has-text("Add Spending Limit")');
+    const isFormVisible = await formHeading.isVisible().catch(() => false);
+
+    if (!isFormVisible) {
+      // Click "Add Limit" button to open the form
+      // The button might be in different places depending on whether limits exist
+      const addLimitButton = this.page.locator('button:has-text("Add Limit")');
+
+      // Wait for button to be visible (it might take time to render)
+      await addLimitButton.waitFor({ state: "visible", timeout: 10000 });
+
+      // Click the button
       await this.clickElement(addLimitButton);
-      // Wait for form to appear
-      await this.page.waitForSelector('h3:has-text("Add Spending Limit")', {
-        timeout: 5000,
-      });
     }
 
-    // Select time frame from dropdown
-    const timeFrameSelect = this.page.locator("select").filter({
-      hasText: "Time Frame",
+    // Wait for the form to appear - wait for the heading first
+    // The form appears conditionally when isAdding is true
+    await this.page.waitForSelector('h3:has-text("Add Spending Limit")', {
+      timeout: 15000,
+      state: "visible",
     });
-    await this.waitForElement(timeFrameSelect);
+
+    // Wait for the form to be fully rendered
+    await this.page.waitForTimeout(1000);
+
+    // Select time frame from dropdown
+    // Find the select element - it's in the form that appears after clicking "Add Limit"
+    // The form has the heading "Add Spending Limit" and contains a select element
+    // Try multiple approaches to find the select element
+
+    // Approach 1: Find select within the form container (div with bg-neutral-50 class)
+    let timeFrameSelect = this.page
+      .locator('div.bg-neutral-50:has(h3:has-text("Add Spending Limit"))')
+      .locator("select")
+      .first();
+
+    // Check if this selector works
+    const selectCount = await timeFrameSelect.count().catch(() => 0);
+
+    if (selectCount === 0) {
+      // Approach 2: Find any select element that's visible after the heading
+      // Use a more general selector
+      await this.page.waitForSelector("select", {
+        timeout: 10000,
+        state: "visible",
+      });
+      timeFrameSelect = this.page.locator("select").first();
+    }
+
+    await this.waitForElement(timeFrameSelect, 10000);
     await timeFrameSelect.selectOption(timeFrame);
 
     // Find amount input (number input in the form)

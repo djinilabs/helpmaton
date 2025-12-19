@@ -1,4 +1,5 @@
 import { testWithUserManagement, TestUser } from "./fixtures/test-fixtures";
+import { LoginPage } from "./pages/login-page";
 
 /**
  * E2E Test for Login Feature
@@ -35,14 +36,9 @@ testWithUserManagement.describe("Login Feature", () => {
       sessionStorage.clear();
     });
 
-    // Navigate to home page and wait for login form
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-
-    // Wait for login form to appear (with longer timeout for PR environments)
-    await page.waitForSelector(
-      '#email, input[type="email"], input[name="email"]',
-      { timeout: 20000, state: "visible" }
-    );
+    // Use LoginPage.goto() which has robust waiting logic for PR environments
+    const loginPage = new LoginPage(page);
+    await loginPage.goto("/");
 
     // Create a fresh test user for each test
     testUser = await userManagement.createTestUser();
