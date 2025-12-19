@@ -1,0 +1,291 @@
+name: Auto Merge
+
+on:
+  check_run:
+    types: [completed]
+
+jobs:
+  auto-merge:
+    name: Auto Merge PR
+    runs-on: ubuntu-latest
+    # Security: Explicit permissions - only what's needed
+    # Note: These write permissions are required for auto-merge functionality
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
+      statuses: read
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get PR number from check run
+        id: pr-info
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const checkRun = context.payload.check_run;
+            const headSha = checkRun.head_sha;
+            
+            console.log(`Check run completed: ${checkRun.name}`);
+            console.log(`Head SHA: ${headSha}`);
+            console.log(`Check run conclusion: ${checkRun.conclusion}`);
+            
+            // Find PRs associated with this commit
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${checkRun.head_branch || 'unknown'}`,
+            });
+            
+            // Also try to find by commit SHA
+            let prNumber = null;
+            if (prs.length > 0) {
+              // Check if any PR has this commit as head
+              for (const pr of prs) {
+                if (pr.head.sha === headSha) {
+                  prNumber = pr.number;
+                  break;
+                }
+              }
+            }
+            
+            // If not found by branch, try searching all open PRs
+            if (!prNumber) {
+              const { data: allPrs } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+              });
+              
+              for (const pr of allPrs) {
+                if (pr.head.sha === headSha) {
+                  prNumber = pr.number;
+                  break;
+                }
+              }
+            }
+            
+            if (prNumber) {
+              console.log(`Found PR #${prNumber} for commit ${headSha}`);
+              core.setOutput('pr_number', prNumber.toString());
+              core.setOutput('head_sha', headSha);
+              core.setOutput('head_branch', checkRun.head_branch || '');
+            } else {
+              console.log(`No open PR found for commit ${headSha}. This might be a direct push to main.`);
+              core.setOutput('pr_number', '');
+            }
+
+      - name: Skip if not a PR
+        if: steps.pr-info.outputs.pr_number == ''
+        run: |
+          echo "No PR found for this check run. Skipping auto-merge."
+          exit 0
+
+      - name: Check if PR is ready for merge
+        id: check-status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = parseInt('${{ steps.pr-info.outputs.pr_number }}');
+            const headSha = '${{ steps.pr-info.outputs.head_sha }}';
+            
+            console.log(`Checking if PR #${prNumber} is ready for merge...`);
+            
+            // Get PR details
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            
+            console.log(`PR state: ${pr.state}`);
+            console.log(`PR author: ${pr.user.login}`);
+            console.log(`PR mergeable: ${pr.mergeable}`);
+            console.log(`PR mergeable_state: ${pr.mergeable_state}`);
+            
+            // Check if PR is already merged or closed
+            if (pr.state !== 'open') {
+              console.log(`PR is ${pr.state}, skipping auto-merge`);
+              core.setOutput('ready', 'false');
+              core.setOutput('reason', `PR is ${pr.state}`);
+              return;
+            }
+            
+            // Check if PR author is Renovate bot
+            const authorLogin = pr.user.login;
+            const isRenovateBot = authorLogin === 'app/renovate' || authorLogin === 'renovate[bot]';
+            
+            if (!isRenovateBot) {
+              console.log(`PR author is ${authorLogin}, not Renovate bot. Skipping auto-merge.`);
+              core.setOutput('ready', 'false');
+              core.setOutput('reason', `PR author is ${authorLogin}, not Renovate bot`);
+              return;
+            }
+            
+            // Check if all commits are from Renovate bot
+            const { data: commits } = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            
+            let allCommitsFromRenovate = true;
+            for (const commit of commits) {
+              const commitAuthor = commit.author?.login || commit.commit.author.name;
+              const isCommitFromRenovate = 
+                commitAuthor === 'app/renovate' || 
+                commitAuthor === 'renovate[bot]' ||
+                commitAuthor === 'renovate';
+              
+              if (!isCommitFromRenovate) {
+                console.log(`Commit ${commit.sha} is from ${commitAuthor}, not Renovate bot`);
+                allCommitsFromRenovate = false;
+                break;
+              }
+            }
+            
+            if (!allCommitsFromRenovate) {
+              console.log('Not all commits are from Renovate bot. Skipping auto-merge.');
+              core.setOutput('ready', 'false');
+              core.setOutput('reason', 'Not all commits are from Renovate bot');
+              return;
+            }
+            
+            // Get branch protection rules to find required checks
+            let requiredChecks = [];
+            try {
+              const { data: protection } = await github.rest.repos.getBranchProtection({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                branch: pr.base.ref,
+              });
+              
+              if (protection.required_status_checks) {
+                if (protection.required_status_checks.contexts) {
+                  requiredChecks = protection.required_status_checks.contexts;
+                  console.log(`Required checks from branch protection: ${requiredChecks.join(', ')}`);
+                } else if (protection.required_status_checks.strict) {
+                  // If strict mode is enabled, we need to check all status checks
+                  console.log('Branch protection has strict mode enabled - checking all status checks');
+                }
+              }
+            } catch (error) {
+              if (error.status === 404) {
+                console.log('No branch protection rules found. Will check all status checks.');
+              } else {
+                console.log(`Error fetching branch protection: ${error.message}`);
+                // Continue anyway - we'll check all status checks
+              }
+            }
+            
+            // Get all check runs for the PR head commit
+            const { data: checkRuns } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: headSha,
+            });
+            
+            console.log(`Found ${checkRuns.total_count} check runs for commit ${headSha}`);
+            
+            // Filter to required checks if we have them, otherwise check all
+            const checksToVerify = requiredChecks.length > 0 
+              ? checkRuns.check_runs.filter(cr => requiredChecks.includes(cr.name))
+              : checkRuns.check_runs;
+            
+            console.log(`Checking ${checksToVerify.length} check(s)...`);
+            
+            // Check if all required checks have passed
+            let allChecksPassed = true;
+            const pendingChecks = [];
+            const failedChecks = [];
+            
+            for (const checkRun of checksToVerify) {
+              console.log(`Check: ${checkRun.name} - Status: ${checkRun.status}, Conclusion: ${checkRun.conclusion}`);
+              
+              if (checkRun.status !== 'completed') {
+                allChecksPassed = false;
+                pendingChecks.push(checkRun.name);
+              } else if (checkRun.conclusion !== 'success') {
+                allChecksPassed = false;
+                failedChecks.push(checkRun.name);
+              }
+            }
+            
+            if (pendingChecks.length > 0) {
+              console.log(`Pending checks: ${pendingChecks.join(', ')}`);
+              core.setOutput('ready', 'false');
+              core.setOutput('reason', `Pending checks: ${pendingChecks.join(', ')}`);
+              return;
+            }
+            
+            if (failedChecks.length > 0) {
+              console.log(`Failed checks: ${failedChecks.join(', ')}`);
+              core.setOutput('ready', 'false');
+              core.setOutput('reason', `Failed checks: ${failedChecks.join(', ')}`);
+              return;
+            }
+            
+            // Check PR mergeability
+            if (pr.mergeable !== true) {
+              console.log(`PR is not mergeable (mergeable: ${pr.mergeable})`);
+              core.setOutput('ready', 'false');
+              core.setOutput('reason', `PR is not mergeable (${pr.mergeable})`);
+              return;
+            }
+            
+            if (pr.mergeable_state !== 'clean') {
+              console.log(`PR merge state is not clean (${pr.mergeable_state})`);
+              core.setOutput('ready', 'false');
+              core.setOutput('reason', `PR merge state is ${pr.mergeable_state}`);
+              return;
+            }
+            
+            console.log('✅ All conditions met! PR is ready for auto-merge.');
+            core.setOutput('ready', 'true');
+
+      - name: Auto merge PR
+        if: steps.check-status.outputs.ready == 'true'
+        run: |
+          PR_NUMBER="${{ steps.pr-info.outputs.pr_number }}"
+          
+          echo "Attempting to merge PR #${PR_NUMBER}..."
+          
+          # Retry logic with exponential backoff
+          MAX_ATTEMPTS=5
+          attempt=1
+          while [ $attempt -le $MAX_ATTEMPTS ]; do
+            echo "Merge attempt ${attempt}/${MAX_ATTEMPTS}..."
+            
+            if gh pr merge $PR_NUMBER --auto --squash; then
+              echo "✅ PR #${PR_NUMBER} merged successfully"
+              exit 0
+            else
+              EXIT_CODE=$?
+              echo "❌ Merge attempt ${attempt} failed with exit code ${EXIT_CODE}"
+              
+              if [ $attempt -lt $MAX_ATTEMPTS ]; then
+                WAIT_TIME=$((2 ** $attempt))
+                echo "Waiting ${WAIT_TIME} seconds before retry..."
+                sleep $WAIT_TIME
+              else
+                echo "❌ Failed to merge PR #${PR_NUMBER} after ${MAX_ATTEMPTS} attempts"
+                exit 1
+              fi
+            fi
+            attempt=$((attempt + 1))
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on PR
+        if: steps.check-status.outputs.ready == 'true'
+        run: |
+          PR_NUMBER="${{ steps.pr-info.outputs.pr_number }}"
+          
+          gh pr comment $PR_NUMBER --body "🤖 **Auto-merge completed!** This Renovate bot PR has been automatically merged after all required checks passed."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

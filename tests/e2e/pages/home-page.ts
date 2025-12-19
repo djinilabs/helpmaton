@@ -138,3 +138,4 @@ export class HomePage extends BasePage {
     return await this.getElementText(heading);
   }
 }
+
