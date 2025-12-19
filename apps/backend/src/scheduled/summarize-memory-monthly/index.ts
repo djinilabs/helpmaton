@@ -76,8 +76,15 @@ export const handler = handlingScheduledErrors(
               continue;
             }
 
-            // Extract content
-            const content = weekSummaries.map((record) => record.content);
+            // Sort week summaries by timestamp (oldest first) to ensure chronological order
+            const sortedWeekSummaries = [...weekSummaries].sort((a, b) => {
+              const aTime = new Date(a.timestamp).getTime();
+              const bTime = new Date(b.timestamp).getTime();
+              return aTime - bTime;
+            });
+
+            // Extract content from sorted week summaries
+            const content = sortedWeekSummaries.map((record) => record.content);
 
             // Summarize
             const summary = await summarizeWithLLM(

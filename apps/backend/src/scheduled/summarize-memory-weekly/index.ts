@@ -71,8 +71,15 @@ export const handler = handlingScheduledErrors(
               continue;
             }
 
-            // Extract content
-            const content = daySummaries.map((record) => record.content);
+            // Sort day summaries by timestamp (oldest first) to ensure chronological order
+            const sortedDaySummaries = [...daySummaries].sort((a, b) => {
+              const aTime = new Date(a.timestamp).getTime();
+              const bTime = new Date(b.timestamp).getTime();
+              return aTime - bTime;
+            });
+
+            // Extract content from sorted day summaries
+            const content = sortedDaySummaries.map((record) => record.content);
 
             // Summarize
             const summary = await summarizeWithLLM(
