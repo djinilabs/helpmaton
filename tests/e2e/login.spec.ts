@@ -15,16 +15,34 @@ testWithUserManagement.describe("Login Feature", () => {
   testWithUserManagement.beforeEach(async ({ page, userManagement }) => {
     // Clear authentication state before each test
     // This ensures each test starts from an unauthenticated state
-    await page.context().clearCookies();
 
-    // Clear localStorage and sessionStorage (tokens may be stored there)
-    await page.goto("/");
+    // First, navigate to a page to ensure we have a page context
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    // Clear cookies, localStorage, and sessionStorage (all authentication state)
+    await page.context().clearCookies();
     await page.evaluate(() => {
       localStorage.clear();
       sessionStorage.clear();
     });
-    await page.goto("/");
-    await page.waitForLoadState("domcontentloaded");
+
+    // Navigate to signout endpoint to ensure we're logged out server-side
+    await page.goto("/api/auth/signout", { waitUntil: "domcontentloaded" });
+
+    // Clear storage again after signout (in case signout set any new values)
+    await page.evaluate(() => {
+      localStorage.clear();
+      sessionStorage.clear();
+    });
+
+    // Navigate to home page and wait for login form
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+
+    // Wait for login form to appear (with longer timeout for PR environments)
+    await page.waitForSelector(
+      '#email, input[type="email"], input[name="email"]',
+      { timeout: 20000, state: "visible" }
+    );
 
     // Create a fresh test user for each test
     testUser = await userManagement.createTestUser();
