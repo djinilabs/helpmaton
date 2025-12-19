@@ -145,3 +145,4 @@ export class WorkspacesPage extends BasePage {
     return await this.isElementVisible(workspaceCard);
   }
 }
+

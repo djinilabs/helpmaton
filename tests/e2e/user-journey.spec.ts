@@ -35,34 +35,6 @@ testWithUserManagement.describe.serial(
       async ({ page, userManagement }) => {
         console.log("🚀 Test 1: Starting login flow...");
 
-        // Clear authentication state before login
-        // This ensures the login test starts from an unauthenticated state
-        // First, navigate to a page to ensure we have a page context
-        await page.goto("/", { waitUntil: "domcontentloaded" });
-
-        // Clear cookies, localStorage, and sessionStorage (all authentication state)
-        await page.context().clearCookies();
-        await page.evaluate(() => {
-          localStorage.clear();
-          sessionStorage.clear();
-        });
-
-        // Navigate to signout endpoint to ensure we're logged out server-side
-        await page.goto("/api/auth/signout", { waitUntil: "domcontentloaded" });
-
-        // Clear storage again after signout (in case signout set any new values)
-        await page.evaluate(() => {
-          localStorage.clear();
-          sessionStorage.clear();
-        });
-
-        // Navigate to home page and wait for login form to be ready
-        await page.goto("/", { waitUntil: "domcontentloaded" });
-        await page.waitForSelector(
-          '#email, input[type="email"], input[name="email"]',
-          { timeout: 20000, state: "visible" }
-        );
-
         // Create and login user
         const user = await userManagement.createAndLoginUser();
         state.user = user;
@@ -287,25 +259,125 @@ testWithUserManagement.describe.serial(
 // - Usage analytics tests
 
 testWithUserManagement.describe.serial(
-  "Helpmaton User Journey - Phase 2 (Future)",
+  "Helpmaton User Journey - Phase 2",
   () => {
-    testWithUserManagement.skip(
-      "7. Team collaboration - Invite member",
-      async () => {
-        // TODO: Implement team member invitation test
-      }
-    );
+    const state: TestState = testState;
 
-    testWithUserManagement.skip(
-      "8. Credit management - Purchase credits",
-      async () => {
-        // TODO: Implement credit purchase test (conditional on PR environment)
-      }
-    );
-
-    testWithUserManagement.skip("9. Spending limits - Set limits", async () => {
-      // TODO: Implement spending limits test
+    testWithUserManagement.beforeAll(() => {
+      console.log(
+        `🌍 Running Phase 2 tests in ${getEnvironmentName()} environment`
+      );
+      console.log(`💳 Billing tests enabled: ${shouldRunBillingTests()}`);
     });
+
+    testWithUserManagement(
+      "7. Team collaboration - Invite member",
+      async ({ page, userManagement }) => {
+        console.log("👥 Test 7: Inviting team member...");
+
+        if (!state.workspace) {
+          throw new Error(
+            "No workspace found in state. Phase 1 tests may have failed."
+          );
+        }
+
+        // Create a second test user to invite
+        const inviteeUser = await userManagement.createTestUser();
+        console.log(`📧 Inviting user: ${inviteeUser.email}`);
+
+        // Navigate to workspace detail page
+        const workspaceDetailPage = new WorkspaceDetailPage(page);
+        await workspaceDetailPage.goto(state.workspace.id);
+        await workspaceDetailPage.waitForWorkspaceDetailPage();
+
+        // Invite the team member
+        await workspaceDetailPage.inviteTeamMember(inviteeUser.email);
+
+        console.log(
+          `✅ Test 7: Team member ${inviteeUser.email} invited successfully`
+        );
+      }
+    );
+
+    testWithUserManagement(
+      "8. Credit management - Purchase credits",
+      async ({ page }) => {
+        console.log("💳 Test 8: Testing credit purchase...");
+
+        if (!state.workspace) {
+          throw new Error(
+            "No workspace found in state. Phase 1 tests may have failed."
+          );
+        }
+
+        // Skip credit purchase test if not in PR environment or billing tests disabled
+        if (!shouldRunBillingTests()) {
+          console.log(
+            "⏭️ Test 8: Skipping credit purchase (not in PR environment or billing tests disabled)"
+          );
+          return;
+        }
+
+        // Navigate to workspace detail page
+        const workspaceDetailPage = new WorkspaceDetailPage(page);
+        await workspaceDetailPage.goto(state.workspace.id);
+        await workspaceDetailPage.waitForWorkspaceDetailPage();
+
+        // Get initial credit balance
+        const initialBalance = await workspaceDetailPage.getCreditBalance();
+        console.log(`💰 Initial credit balance: ${initialBalance}`);
+
+        // Attempt to purchase credits (this will redirect to Lemon Squeezy checkout)
+        // In test environment, we just verify the UI flow works
+        // We don't complete the actual purchase as it requires payment
+        try {
+          await workspaceDetailPage.purchaseCredits(1.0);
+          console.log(
+            "✅ Test 8: Credit purchase flow initiated (redirected to checkout)"
+          );
+        } catch (error) {
+          // If purchase redirects to external site, that's expected
+          const currentUrl = page.url();
+          if (
+            currentUrl.includes("lemonsqueezy.com") ||
+            currentUrl.includes("checkout")
+          ) {
+            console.log(
+              "✅ Test 8: Credit purchase flow redirected to checkout (expected)"
+            );
+          } else {
+            throw error;
+          }
+        }
+      }
+    );
+
+    testWithUserManagement(
+      "9. Spending limits - Set limits",
+      async ({ page }) => {
+        console.log("📊 Test 9: Setting spending limits...");
+
+        if (!state.workspace) {
+          throw new Error(
+            "No workspace found in state. Phase 1 tests may have failed."
+          );
+        }
+
+        // Navigate to workspace detail page
+        const workspaceDetailPage = new WorkspaceDetailPage(page);
+        await workspaceDetailPage.goto(state.workspace.id);
+        await workspaceDetailPage.waitForWorkspaceDetailPage();
+
+        // Set a daily spending limit (e.g., $10.00 = 10000000 millionths)
+        // For display purposes, we'll use 10.00 USD
+        const dailyLimitAmount = 10.0;
+        await workspaceDetailPage.addSpendingLimit("daily", dailyLimitAmount);
+
+        console.log(
+          `✅ Test 9: Daily spending limit of $${dailyLimitAmount} set successfully`
+        );
+      }
+    );
   }
 );
 

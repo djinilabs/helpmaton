@@ -282,3 +282,4 @@ export class AgentDetailPage extends BasePage {
     return await this.getElementText(promptContainer);
   }
 }
+
