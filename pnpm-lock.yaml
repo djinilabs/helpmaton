@@ -115,7 +115,7 @@ importers:
         version: 4.0.3
       '@ai-sdk/google':
         specifier: ^2.0.31
-        version: 2.0.49(zod@4.1.13)
+        version: 2.0.51(zod@4.1.13)
       '@architect/functions':
         specifier: ^8.1.6
         version: 8.1.9(patch_hash=f8a8bfced584be6b0b3d8529985c9c19a0ccb0ace405749a7ab137f1b4cae1e5)
@@ -351,8 +351,8 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/google@2.0.49':
-    resolution: {integrity: sha512-efwKk4mOV0SpumUaQskeYABk37FJPmEYwoDJQEjyLRmGSjtHRe9P5Cwof5ffLvaFav2IaJpBGEz98pyTs7oNWA==}
+  '@ai-sdk/google@2.0.51':
+    resolution: {integrity: sha512-5VMHdZTP4th00hthmh98jP+BZmxiTRMB9R2qh/AuF6OkQeiJikqxZg3hrWDfYrCmQ12wDjy6CbIypnhlwZiYrg==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -5690,6 +5690,7 @@ packages:
   next@16.0.3:
     resolution: {integrity: sha512-Ka0/iNBblPFcIubTA1Jjh6gvwqfjrGq1Y2MTI5lbjeLIAfmC+p5bQmojpRZqgHHVu5cG4+qdIiwXiBSm/8lZ3w==}
     engines: {node: '>=20.9.0'}
+    deprecated: This version has a security vulnerability. Please upgrade to a patched version. See https://nextjs.org/blog/CVE-2025-66478 for more details.
     hasBin: true
     peerDependencies:
       '@opentelemetry/api': ^1.1.0
@@ -7344,7 +7345,7 @@ snapshots:
       '@vercel/oidc': 3.0.3
       zod: 4.1.13
 
-  '@ai-sdk/google@2.0.49(zod@4.1.13)':
+  '@ai-sdk/google@2.0.51(zod@4.1.13)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
       '@ai-sdk/provider-utils': 3.0.19(zod@4.1.13)
