@@ -157,32 +157,74 @@ jobs:
                   continue;
                 }
                 
-                // Check if all commits are from Renovate bot
+                // Check if ALL commits are from Renovate bot (both author and committer)
+                // This ensures Renovate is the ONLY committer on the PR
                 const { data: commits } = await github.rest.pulls.listCommits({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   pull_number: prNumber,
                 });
                 
+                if (commits.length === 0) {
+                  console.log('PR has no commits. Skipping.');
+                  continue;
+                }
+                
+                // Collect all unique committers (both author and committer)
+                const uniqueCommitters = new Set();
                 let allCommitsFromRenovate = true;
+                
                 for (const commit of commits) {
+                  // Check commit author
                   const commitAuthor = commit.author?.login || commit.commit.author.name;
-                  const isCommitFromRenovate = 
+                  const commitAuthorEmail = commit.commit.author.email || '';
+                  
+                  // Check commit committer
+                  const commitCommitter = commit.committer?.login || commit.commit.committer.name;
+                  const commitCommitterEmail = commit.commit.committer.email || '';
+                  
+                  // Check if author is Renovate bot
+                  const isAuthorRenovate = 
                     commitAuthor === 'app/renovate' || 
                     commitAuthor === 'renovate[bot]' ||
-                    commitAuthor === 'renovate';
+                    commitAuthor === 'renovate' ||
+                    commitAuthorEmail.includes('renovate');
                   
-                  if (!isCommitFromRenovate) {
-                    console.log(`Commit ${commit.sha} is from ${commitAuthor}, not Renovate bot`);
+                  // Check if committer is Renovate bot
+                  const isCommitterRenovate = 
+                    commitCommitter === 'app/renovate' || 
+                    commitCommitter === 'renovate[bot]' ||
+                    commitCommitter === 'renovate' ||
+                    commitCommitterEmail.includes('renovate');
+                  
+                  if (!isAuthorRenovate || !isCommitterRenovate) {
+                    console.log(`Commit ${commit.sha.substring(0, 7)}: author=${commitAuthor}, committer=${commitCommitter} - not from Renovate bot`);
                     allCommitsFromRenovate = false;
                     break;
                   }
+                  
+                  // Track unique committers
+                  if (commitAuthor) uniqueCommitters.add(commitAuthor);
+                  if (commitCommitter) uniqueCommitters.add(commitCommitter);
                 }
                 
                 if (!allCommitsFromRenovate) {
                   console.log('Not all commits are from Renovate bot. Skipping.');
                   continue;
                 }
+                
+                // Verify Renovate is the ONLY committer
+                const renovateIdentifiers = ['app/renovate', 'renovate[bot]', 'renovate'];
+                const hasOnlyRenovateCommitters = Array.from(uniqueCommitters).every(committer => 
+                  renovateIdentifiers.some(id => committer.includes(id))
+                );
+                
+                if (!hasOnlyRenovateCommitters) {
+                  console.log(`PR has committers other than Renovate: ${Array.from(uniqueCommitters).join(', ')}. Skipping.`);
+                  continue;
+                }
+                
+                console.log(`✅ All commits verified: only Renovate bot commits found (${commits.length} commit(s))`);
                 
                 // Get branch protection rules to find required checks
                 let requiredChecks = [];
