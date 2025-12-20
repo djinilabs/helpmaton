@@ -2,7 +2,7 @@ name: Nightly Cleanup Closed PR Stacks
 
 on:
   schedule:
-    - cron: "0 2 * * *" # Every day at 02:00 UTC
+    - cron: "0 * * * *" # Every hour at minute 0
   workflow_dispatch:
 
 jobs:
