@@ -221,7 +221,7 @@ importers:
         version: 2.1.0
       '@types/aws-lambda':
         specifier: ^8.10.147
-        version: 8.10.158
+        version: 8.10.159
       '@types/lodash.omit':
         specifier: ^4.5.9
         version: 4.5.9
@@ -2926,8 +2926,8 @@ packages:
     peerDependencies:
       vue: ^2.7.0 || ^3.0.0
 
-  '@types/aws-lambda@8.10.158':
-    resolution: {integrity: sha512-v/n2WsL1ksRKigfqZ9ff7ANobfT3t/T8kI8UOiur98tREwFulv9lRv+pDrocGPWOe3DpD2Y2GKRO+OiyxwgaCQ==}
+  '@types/aws-lambda@8.10.159':
+    resolution: {integrity: sha512-SAP22WSGNN12OQ8PlCzGzRCZ7QDCwI85dQZbmpz7+mAk+L7j+wI7qnvmdKh+o7A5LaOp6QnOZ2NJphAZQTTHQg==}
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -7583,7 +7583,7 @@ snapshots:
 
   '@architect/plugin-typescript@2.1.0':
     dependencies:
-      '@types/aws-lambda': 8.10.158
+      '@types/aws-lambda': 8.10.159
       esbuild: 0.20.2
       source-map-support: 0.5.21
 
@@ -11760,7 +11760,7 @@ snapshots:
       '@tanstack/virtual-core': 3.13.13
       vue: 3.5.26(typescript@5.9.3)
 
-  '@types/aws-lambda@8.10.158': {}
+  '@types/aws-lambda@8.10.159': {}
 
   '@types/babel__core@7.20.5':
     dependencies:
