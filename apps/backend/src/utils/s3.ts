@@ -2,7 +2,9 @@ import awsLite from "@aws-lite/client";
 import s3Plugin from "@aws-lite/s3";
 
 // Use bucket name with period to force path-style addressing for local S3 servers
-const BUCKET_NAME = process.env.HELPMATON_S3_BUCKET || "workspace.documents";
+const BUCKET_NAME = (
+  process.env.HELPMATON_S3_BUCKET || "workspace.documents"
+).trim();
 
 // Get S3 client configuration
 export async function getS3Client() {

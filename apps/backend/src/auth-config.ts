@@ -1,8 +1,9 @@
 import { ExpressAuthConfig } from "@auth/express";
 
 import { getDefined, once } from "./utils";
+import { ensureSubscriptionApiKeyActive } from "./utils/apiGatewayUsagePlans";
 import { getDynamoDBAdapter } from "./utils/authUtils";
-import { Sentry, ensureError, flushSentry, initSentry } from "./utils/sentry";
+import { Sentry, ensureError, initSentry } from "./utils/sentry";
 import { getUserSubscription, getUserByEmail } from "./utils/subscriptionUtils";
 
 // Initialize Sentry when this module is loaded
@@ -229,10 +230,13 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
           }
 
           // Create subscription with retries
+          let subscription: Awaited<
+            ReturnType<typeof getUserSubscription>
+          > | null = null;
           for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
               // This will create a free subscription if one doesn't exist
-              await getUserSubscription(userId);
+              subscription = await getUserSubscription(userId);
               subscriptionCreated = true;
               console.log(
                 `[signIn] Successfully ensured subscription exists for user ${userId} (attempt ${attempt})`
@@ -280,11 +284,6 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
                   extra: errorDetails,
                   level: "error",
                 });
-
-                // Flush Sentry events (fire-and-forget)
-                flushSentry().catch((flushError) => {
-                  console.error("[Sentry] Error flushing events:", flushError);
-                });
               } else {
                 console.warn(
                   `[signIn] Attempt ${attempt}/${maxRetries}: Failed to create subscription for user ${userId}, retrying...`,
@@ -296,7 +295,7 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
             }
           }
 
-          if (!subscriptionCreated) {
+          if (!subscriptionCreated || !subscription) {
             // Log as critical issue - this should be monitored
             const errorMessage = `Subscription creation failed for user ${userId} after all retry attempts. Subscription will be auto-created on first API call, but user may experience issues until then.`;
 
@@ -324,10 +323,87 @@ export const authConfig = once(async (): Promise<ExpressAuthConfig> => {
               level: "error",
             });
 
-            // Flush Sentry events (fire-and-forget)
-            flushSentry().catch((flushError) => {
-              console.error("[Sentry] Error flushing events:", flushError);
-            });
+            // Block login if subscription creation failed
+            return false;
+          }
+
+          // Extract subscriptionId from pk (format: "subscriptions/{subscriptionId}")
+          const subscriptionId = subscription.pk.replace("subscriptions/", "");
+          const plan = subscription.plan;
+
+          // Ensure API key is active with retries
+          let apiKeyVerified = false;
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+              await ensureSubscriptionApiKeyActive(subscriptionId, plan);
+              apiKeyVerified = true;
+              console.log(
+                `[signIn] Successfully verified API key for subscription ${subscriptionId} (attempt ${attempt})`
+              );
+              break;
+            } catch (error) {
+              const isLastAttempt = attempt === maxRetries;
+              const errorMessage =
+                error instanceof Error ? error.message : String(error);
+
+              if (isLastAttempt) {
+                // Critical error - block login if API key cannot be verified/created
+                const errorDetails = {
+                  userId,
+                  email: user.email,
+                  subscriptionId,
+                  plan,
+                  error: errorMessage,
+                  stack: error instanceof Error ? error.stack : undefined,
+                  attempts: maxRetries,
+                };
+
+                console.error(
+                  `[signIn] CRITICAL: Failed to verify/create API key for subscription ${subscriptionId} after ${maxRetries} attempts. Blocking login.`,
+                  errorDetails
+                );
+
+                // Report to Sentry with full context
+                Sentry.captureException(ensureError(error), {
+                  tags: {
+                    handler: "NextAuth.signIn",
+                    errorType: "api_key_verification_failed",
+                    authType: "email",
+                    userId,
+                    subscriptionId,
+                  },
+                  contexts: {
+                    user: {
+                      id: userId,
+                      email: user.email,
+                    },
+                    subscription: {
+                      subscriptionId,
+                      plan,
+                      attempts: maxRetries,
+                      retryDelay: retryDelay,
+                    },
+                  },
+                  extra: errorDetails,
+                  level: "error",
+                });
+              } else {
+                console.warn(
+                  `[signIn] Attempt ${attempt}/${maxRetries}: Failed to verify/create API key for subscription ${subscriptionId}, retrying...`,
+                  errorMessage
+                );
+                // Wait before retrying
+                await new Promise((resolve) => setTimeout(resolve, retryDelay));
+              }
+            }
+          }
+
+          if (!apiKeyVerified) {
+            // Block login if API key verification failed
+            console.error(
+              `[signIn] Blocking login for user ${userId} - API key verification failed after all retry attempts`
+            );
+            return false;
           }
 
           return true;
