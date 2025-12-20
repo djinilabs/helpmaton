@@ -257,6 +257,8 @@ jobs:
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
           CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
           CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
