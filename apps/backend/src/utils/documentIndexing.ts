@@ -69,7 +69,7 @@ export async function indexDocument(
     const snippetText = snippets[snippetIndex];
     const snippetId = `${documentId}:${snippetIndex}`;
 
-    rawFacts.push({
+    const rawFact: RawFactData = {
       id: snippetId,
       content: snippetText,
       timestamp: new Date().toISOString(),
@@ -81,8 +81,27 @@ export async function indexDocument(
       },
       // Cache key format: workspaceId:documentId:snippetHash
       // We don't need to hash the snippet here since the queue handler will handle it
-    });
+    };
+
+    rawFacts.push(rawFact);
   }
+
+  // Log all content and metadata for each snippet
+  console.log(
+    `[Document Indexing] Document split into ${rawFacts.length} snippets for document ${documentId}:`
+  );
+  rawFacts.forEach((fact, index) => {
+    console.log(
+      `[Document Indexing] Snippet ${index + 1}/${rawFacts.length}:`,
+      {
+        id: fact.id,
+        content: fact.content,
+        timestamp: fact.timestamp,
+        metadata: fact.metadata,
+        contentLength: fact.content.length,
+      }
+    );
+  });
 
   // Queue write operation to SQS with raw facts (embeddings will be generated async)
   console.log(
