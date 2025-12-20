@@ -391,7 +391,7 @@ describe("documentSearch", () => {
 
       expect(mockQuery).toHaveBeenCalledWith("workspace-123", "docs", {
         vector: mockEmbedding,
-        filter: "workspaceId = 'workspace-123'",
+        filter: "\"workspaceId\" = 'workspace-123'",
         limit: 5,
       });
       expect(results).toEqual([]);
@@ -430,7 +430,7 @@ describe("documentSearch", () => {
 
       expect(mockQuery).toHaveBeenCalledWith("workspace-123", "docs", {
         vector: mockEmbedding,
-        filter: "workspaceId = 'workspace-123'",
+        filter: "\"workspaceId\" = 'workspace-123'",
         limit: 5,
       });
       expect(results).toBeDefined();
@@ -503,7 +503,7 @@ describe("documentSearch", () => {
         maliciousWorkspaceId,
         "docs",
         expect.objectContaining({
-          filter: "workspaceId = 'workspace'' OR ''1''=''1'", // Single quotes should be doubled
+          filter: "\"workspaceId\" = 'workspace'' OR ''1''=''1'", // Column name quoted, single quotes doubled
         })
       );
     });

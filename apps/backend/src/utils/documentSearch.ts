@@ -181,10 +181,11 @@ export async function searchDocuments(
   // Query LanceDB for document snippets
   // For docs grain, workspaceId is used as agentId
   // Escape workspaceId to prevent SQL injection in filter expression
+  // Note: Column names with camelCase must be quoted in LanceDB SQL filters
   const escapedWorkspaceId = escapeSqlString(workspaceId);
   const results = await query(workspaceId, "docs", {
     vector: queryEmbedding,
-    filter: `workspaceId = '${escapedWorkspaceId}'`, // Safety filter to ensure workspace isolation
+    filter: `"workspaceId" = '${escapedWorkspaceId}'`, // Safety filter to ensure workspace isolation
     limit: topN,
   });
 
