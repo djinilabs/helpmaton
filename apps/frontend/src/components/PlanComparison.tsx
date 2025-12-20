@@ -45,6 +45,12 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
         `${freeLimits?.maxDocuments || 10} documents`,
         `${freeLimits?.maxAgents || 1} agent`,
         `${(freeLimits?.maxDocumentSizeBytes || 0) / (1024 * 1024)} MB storage`,
+        `${freeLimits?.maxDailyRequests || 0} requests/day`,
+        `${freeLimits?.maxUsers || 1} team member`,
+        `${freeLimits?.maxManagers || 1} manager`,
+        `${freeLimits?.maxAgentKeys || 5} agent keys`,
+        `${freeLimits?.maxChannels || 2} channels`,
+        `${freeLimits?.maxMcpServers || 2} MCP servers`,
       ],
     },
     {
@@ -62,6 +68,10 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
         } MB storage`,
         `${starterLimits?.maxDailyRequests || 0} requests/day`,
         `${starterLimits?.maxUsers || 1} team member`,
+        `${starterLimits?.maxManagers || 1} manager`,
+        `${starterLimits?.maxAgentKeys || 25} agent keys`,
+        `${starterLimits?.maxChannels || 10} channels`,
+        `${starterLimits?.maxMcpServers || 10} MCP servers`,
       ],
     },
     {
@@ -78,6 +88,9 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
         `${proLimits?.maxDailyRequests || 0} requests/day`,
         `${proLimits?.maxUsers || 5} team members`,
         "Unlimited managers",
+        `${proLimits?.maxAgentKeys || 250} agent keys`,
+        `${proLimits?.maxChannels || 50} channels`,
+        `${proLimits?.maxMcpServers || 50} MCP servers`,
       ],
     },
   ];
@@ -185,6 +198,10 @@ function getPlanLimits(plan: "free" | "starter" | "pro") {
       maxAgents: number;
       maxDailyRequests: number;
       maxUsers: number;
+      maxManagers?: number;
+      maxAgentKeys: number;
+      maxChannels: number;
+      maxMcpServers: number;
     }
   > = {
     free: {
@@ -194,6 +211,10 @@ function getPlanLimits(plan: "free" | "starter" | "pro") {
       maxAgents: 1,
       maxDailyRequests: 50,
       maxUsers: 1,
+      maxManagers: 1,
+      maxAgentKeys: 5,
+      maxChannels: 2,
+      maxMcpServers: 2,
     },
     starter: {
       maxWorkspaces: 1,
@@ -202,6 +223,10 @@ function getPlanLimits(plan: "free" | "starter" | "pro") {
       maxAgents: 5,
       maxDailyRequests: 2500,
       maxUsers: 1,
+      maxManagers: 1,
+      maxAgentKeys: 25,
+      maxChannels: 10,
+      maxMcpServers: 10,
     },
     pro: {
       maxWorkspaces: 5,
@@ -210,6 +235,10 @@ function getPlanLimits(plan: "free" | "starter" | "pro") {
       maxAgents: 50,
       maxDailyRequests: 25000,
       maxUsers: 5,
+      // maxManagers: undefined (unlimited)
+      maxAgentKeys: 250,
+      maxChannels: 50,
+      maxMcpServers: 50,
     },
   };
   return limits[plan];

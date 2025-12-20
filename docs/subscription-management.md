@@ -15,8 +15,12 @@ Helpmaton supports subscription-based access control with three plans: **free**,
 - **Maximum total document size**: 1 MB
 - **Maximum agents**: 1 (total across all workspaces)
 - **Maximum managers**: 1
-- **Expiration**: 7 days from creation
-- **After expiration**: Agents in all workspaces attached to the subscription will be blocked from executing
+- **Maximum daily requests**: 50 LLM requests per 24 hours (rolling window)
+- **Maximum users**: 1 team member
+- **Maximum agent keys**: 5
+- **Maximum channels**: 2 output channels
+- **Maximum MCP servers**: 2
+- **Expiration**: None (free plans never expire)
 
 ### Starter Plan
 
@@ -25,6 +29,11 @@ Helpmaton supports subscription-based access control with three plans: **free**,
 - **Maximum total document size**: 10 MB
 - **Maximum agents**: 5 (total across all workspaces)
 - **Maximum managers**: 1
+- **Maximum daily requests**: 2,500 LLM requests per 24 hours (rolling window)
+- **Maximum users**: 1 team member
+- **Maximum agent keys**: 25
+- **Maximum channels**: 10 output channels
+- **Maximum MCP servers**: 10
 - **Expiration**: None (active until cancelled or upgraded)
 
 ### Pro Plan
@@ -34,6 +43,11 @@ Helpmaton supports subscription-based access control with three plans: **free**,
 - **Maximum total document size**: 100 MB
 - **Maximum agents**: 50 (total across all workspaces)
 - **Maximum managers**: Unlimited
+- **Maximum daily requests**: 25,000 LLM requests per 24 hours (rolling window)
+- **Maximum users**: 5 team members
+- **Maximum agent keys**: 250
+- **Maximum channels**: 50 output channels
+- **Maximum MCP servers**: 50
 - **Expiration**: None (active until cancelled or upgraded)
 
 ## User Subscription Limit
@@ -82,6 +96,7 @@ Helpmaton supports subscription-based access control with three plans: **free**,
    - Be in a free subscription (they can be added as a manager, but their old free subscription is not automatically removed or transferred)
 
 **API Endpoints:**
+
 ```
 POST /api/subscription/managers/:userId
 POST /api/subscriptions/:subscriptionId/managers/:userId
@@ -90,6 +105,7 @@ POST /api/subscriptions/:subscriptionId/managers/:userId
 **Authorization:** Requires manager permission on the subscription
 
 **Validation:**
+
 - Checks that the current user is a manager
 - Validates that the subscription has not reached its manager limit (for free/starter plans)
 - Validates that the target user can be added (no subscription or free subscription only)
@@ -104,6 +120,7 @@ POST /api/subscriptions/:subscriptionId/managers/:userId
 3. A manager cannot remove themselves if they are the last manager
 
 **API Endpoints:**
+
 ```
 DELETE /api/subscription/managers/:userId
 DELETE /api/subscriptions/:subscriptionId/managers/:userId
@@ -112,6 +129,7 @@ DELETE /api/subscriptions/:subscriptionId/managers/:userId
 **Authorization:** Requires manager permission on the subscription
 
 **Validation:**
+
 - Checks that the current user is a manager
 - Validates that there is more than one manager (prevents orphan)
 - Removes manager permission for the target user
@@ -137,11 +155,37 @@ DELETE /api/subscriptions/:subscriptionId/managers/:userId
 - Counts all agents across all workspaces in the subscription
 - Returns error if limit would be exceeded
 
-### Free Plan Expiration
+### Agent Key Limits
+
+- Enforced when creating a new agent key
+- Counts all agent keys across all agents in the subscription
+- Returns error if limit would be exceeded
+
+### Channel Limits
+
+- Enforced when creating a new output channel
+- Counts all channels across all workspaces in the subscription
+- Returns error if limit would be exceeded
+
+### MCP Server Limits
+
+- Enforced when creating a new MCP server
+- Counts all MCP servers across all workspaces in the subscription
+- Returns error if limit would be exceeded
+
+### User Limits
+
+- Enforced when adding a user to a workspace
+- Counts all unique users across all workspaces in the subscription
+- Returns error if limit would be exceeded
+
+### Daily Request Limits
 
 - Enforced when executing agents (test endpoint and webhook endpoint)
-- If free plan has expired, agent execution is blocked
-- Returns error message indicating plan expiration
+- Tracks LLM requests per subscription using a rolling 24-hour window
+- If daily request limit is exceeded, agent execution is blocked
+- Returns error message indicating request limit exceeded
+- Limits reset automatically as requests age out of the 24-hour window
 
 ## Auto-Migration
 
@@ -160,7 +204,7 @@ DELETE /api/subscriptions/:subscriptionId/managers/:userId
 1. **Creation**: Free subscription created automatically when user first creates a workspace
 2. **Association**: Workspaces are associated with subscriptions at creation time
 3. **Management**: Managers can be added/removed (with restrictions)
-4. **Expiration**: Free plans expire after 7 days, blocking agent execution
+4. **Expiration**: Free plans never expire (active indefinitely)
 5. **Upgrade/Downgrade**: (Future feature - not yet implemented)
 
 ## API Endpoints
@@ -172,6 +216,7 @@ DELETE /api/subscriptions/:subscriptionId/managers/:userId
 Returns the current user's subscription details including plan, expiration, and list of managers with their emails.
 
 **Response:**
+
 ```json
 {
   "subscriptionId": "uuid",
@@ -194,6 +239,7 @@ Returns the current user's subscription details including plan, expiration, and 
 Finds a user by their email address. Used to validate that a user exists before adding them as a manager.
 
 **Response:**
+
 ```json
 {
   "userId": "user-id",
@@ -202,6 +248,7 @@ Finds a user by their email address. Used to validate that a user exists before 
 ```
 
 **Errors:**
+
 - 404: User not found
 
 ## Error Messages
@@ -212,7 +259,11 @@ Common error messages users may encounter:
 - **Document count limit exceeded**: "Document count limit exceeded. Maximum {N} document(s) allowed for {plan} plan."
 - **Document size limit exceeded**: "Document size limit exceeded. Maximum {N} MB total size allowed for {plan} plan."
 - **Agent limit exceeded**: "Agent limit exceeded. Maximum {N} agent(s) allowed for {plan} plan."
-- **Free plan expired**: "Your free plan has expired. Agents are no longer available. Please upgrade your subscription to continue using agents."
+- **Daily request limit exceeded**: "Daily request limit exceeded. Maximum {N} request(s) per 24 hours allowed for {plan} plan."
+- **User limit exceeded**: "User limit exceeded. Maximum {N} user(s) allowed for {plan} plan."
+- **Agent key limit exceeded**: "Agent key limit exceeded. Maximum {N} agent key(s) allowed for {plan} plan."
+- **Channel limit exceeded**: "Channel limit exceeded. Maximum {N} channel(s) allowed for {plan} plan."
+- **MCP server limit exceeded**: "MCP server limit exceeded. Maximum {N} MCP server(s) allowed for {plan} plan."
 - **Cannot add manager**: "User already has a non-free subscription and cannot be added as a manager."
 - **Manager limit reached**: "Free and starter plans can only have one manager. This subscription already has the maximum number of managers."
 - **Cannot remove last manager**: "Cannot remove the last manager. A subscription must have at least one manager."
@@ -223,13 +274,14 @@ Common error messages users may encounter:
 2. **Manager Management**: Only add trusted users as managers
 3. **Workspace Organization**: Organize workspaces within subscription limits
 4. **Document Management**: Monitor document count and size to avoid hitting limits
-5. **Free Plan**: Remember that free plans expire after 7 days - upgrade before expiration to avoid service interruption
+5. **Daily Request Limits**: Monitor your daily request usage to avoid hitting limits, especially on free and starter plans
+6. **Free Plan**: Free plans never expire and remain active indefinitely
 
 ## Technical Details
 
 ### Centralized Limits
 
-All subscription limits (workspaces, documents, agents, and managers) are defined in a single file: `apps/backend/src/utils/subscriptionPlans.ts`. This ensures consistency and makes it easy to update limits by modifying a single source of truth.
+All subscription limits (workspaces, documents, agents, managers, daily requests, users, agent keys, channels, and MCP servers) are defined in a single file: `apps/backend/src/utils/subscriptionPlans.ts`. This ensures consistency and makes it easy to update limits by modifying a single source of truth.
 
 ### Database Schema
 
@@ -246,4 +298,3 @@ All subscription limits (workspaces, documents, agents, and managers) are define
 - Subscriptions use the same permission system as workspaces
 - Manager permissions are stored as OWNER level permissions on the subscription resource
 - Resource type is "subscriptions" for subscription permissions
-
