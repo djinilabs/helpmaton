@@ -24,7 +24,7 @@ const DocumentViewerContent: FC<{
   onClose: () => void;
 }> = ({ workspaceId, documentId, onClose }) => {
   const { data: document } = useDocument(workspaceId, documentId);
-  const { data: folders } = useFolders(workspaceId);
+  const { data: folders = [] } = useFolders(workspaceId);
   const updateDocument = useUpdateDocument(workspaceId, documentId);
   const deleteDocument = useDeleteDocument(workspaceId, documentId);
 

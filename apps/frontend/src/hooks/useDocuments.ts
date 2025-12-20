@@ -1,4 +1,4 @@
-import { useSuspenseQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSuspenseQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
   listDocuments,
@@ -26,12 +26,19 @@ export function useDocuments(workspaceId: string, folderPath?: string) {
 }
 
 export function useFolders(workspaceId: string) {
-  return useSuspenseQuery({
+  return useQuery({
     queryKey: ["folders", workspaceId],
     queryFn: async () => {
       const result = await listFolders(workspaceId);
       return result.folders;
     },
+    // Provide a default empty array so the component can render even if query fails
+    initialData: [],
+    placeholderData: [],
+    // Retry on failure but don't block rendering
+    retry: 2,
+    // Don't throw errors - just return empty array
+    throwOnError: false,
   });
 }
 

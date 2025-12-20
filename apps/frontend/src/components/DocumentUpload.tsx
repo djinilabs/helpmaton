@@ -17,7 +17,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
   workspaceId,
   currentFolder,
 }) => {
-  const { data: folders } = useFolders(workspaceId);
+  const { data: folders = [] } = useFolders(workspaceId);
   const uploadDocument = useUploadDocument(workspaceId);
   const uploadDocuments = useUploadDocuments(workspaceId);
 
