@@ -57,28 +57,7 @@ All tables are configured with `encrypt true` in `app.arc`, meaning DynamoDB enc
 - Get user by ID: Get with `pk = users/{userId}`, `sk = user`
 - Get account by provider: Get with `pk = users/{userId}`, `sk = accounts/{provider}`
 
-### 2. `webhook-logs`
-
-**Purpose**: Temporary storage of webhook request logs
-
-**Partition Key**: `pk` (String) - unique request ID
-**Sort Key**: `sk` (String, optional)
-
-**Fields**:
-
-- `userId` (String): User ID who made the request
-- `key` (String): Agent key used
-- `body` (String): Raw webhook body text
-- `expires` (Number): TTL timestamp (automatic cleanup)
-
-**TTL**: Yes - records expire automatically
-
-**Access Patterns**:
-
-- Log webhook request: Create with unique request ID
-- Retrieve log: Get with `pk = requestId`
-
-### 3. `workspace`
+### 2. `workspace`
 
 **Purpose**: Workspace data, credit balances, and spending limits
 
@@ -630,7 +609,6 @@ GSIs enable efficient queries on non-primary key attributes:
 
 Several tables use TTL for automatic cleanup:
 
-- `webhook-logs`: Temporary request logs
 - `agent-conversations`: Conversation history
 - `credit-reservations`: Expired reservations (15 minutes)
 - `llm-request-buckets`: Old request buckets (25 hours)

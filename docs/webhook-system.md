@@ -387,18 +387,6 @@ Tool calls are included in the response for transparency.
 - **Database error**: `500 Internal Server Error`
 - **Unexpected error**: `500 Internal Server Error`
 
-## Webhook Logging
-
-Webhook requests are logged in the `webhook-logs` table:
-
-- Request ID
-- User ID
-- Agent key used
-- Raw request body
-- TTL for automatic cleanup
-
-Logs are used for debugging and audit purposes.
-
 ## Best Practices
 
 ### Security

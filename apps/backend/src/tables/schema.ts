@@ -43,14 +43,6 @@ export const tableSchemas = {
     identifier: z.string().optional(),
     token: z.string().optional(),
   }),
-  "webhook-logs": TableBaseSchema.extend({
-    pk: z.string(), // unique request ID
-    sk: z.string().optional(), // optional sort key
-    userId: z.string(),
-    key: z.string(),
-    body: z.string(), // raw webhook body text
-    expires: z.number(), // TTL timestamp
-  }),
   workspace: TableBaseSchema.extend({
     pk: z.string(), // workspace ID (e.g., "workspaces/{workspaceId}")
     sk: z.string().optional(), // optional sort key
@@ -365,7 +357,6 @@ export type TableBaseSchemaType = z.infer<typeof TableBaseSchema>;
 export type TableSchemas = typeof tableSchemas;
 export type TableName =
   | "next-auth"
-  | "webhook-logs"
   | "workspace"
   | "permission"
   | "agent"
@@ -386,7 +377,6 @@ export type TableName =
   | "user-api-key"
   | "user-refresh-token";
 
-export type WebhookLogRecord = z.infer<(typeof tableSchemas)["webhook-logs"]>;
 export type WorkspaceRecord = z.infer<typeof tableSchemas.workspace>;
 export type PermissionRecord = z.infer<typeof tableSchemas.permission>;
 export type AgentRecord = z.infer<typeof tableSchemas.agent>;
@@ -519,7 +509,6 @@ export type TableAPI<
 
 export type DatabaseSchema = {
   "next-auth": TableAPI<"next-auth">;
-  "webhook-logs": TableAPI<"webhook-logs">;
   workspace: TableAPI<"workspace">;
   permission: TableAPI<"permission">;
   agent: TableAPI<"agent">;
