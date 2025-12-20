@@ -8,8 +8,8 @@ on:
     branches:
       - "**" # Run for all branches (PRs)
   schedule:
-    # Run every 5 minutes to check for PRs ready to merge (fallback)
-    - cron: "*/5 * * * *"
+    # Run every hour at minute 30 to check for PRs ready to merge (fallback)
+    - cron: "30 * * * *" # Every hour at minute 30
 
 jobs:
   auto-merge:
