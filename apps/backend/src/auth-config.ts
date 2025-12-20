@@ -3,7 +3,7 @@ import { ExpressAuthConfig } from "@auth/express";
 import { getDefined, once } from "./utils";
 import { ensureSubscriptionApiKeyActive } from "./utils/apiGatewayUsagePlans";
 import { getDynamoDBAdapter } from "./utils/authUtils";
-import { Sentry, ensureError, flushSentry, initSentry } from "./utils/sentry";
+import { Sentry, ensureError, initSentry } from "./utils/sentry";
 import { getUserSubscription, getUserByEmail } from "./utils/subscriptionUtils";
 
 // Initialize Sentry when this module is loaded

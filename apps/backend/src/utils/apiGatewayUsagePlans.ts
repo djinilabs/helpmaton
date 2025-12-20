@@ -6,6 +6,7 @@ import {
   DeleteUsagePlanKeyCommand,
   GetUsagePlansCommand,
   GetApiKeyCommand,
+  UpdateApiKeyCommand,
 } from "@aws-sdk/client-api-gateway";
 
 import { database } from "../tables/database";
@@ -145,10 +146,50 @@ export async function getOrCreateApiKeyForSubscription(
       const matchingKey = response.items.find((key) => key.name === apiKeyName);
 
       if (matchingKey?.id) {
-        console.log(
-          `[apiGatewayUsagePlans] Found existing API key for subscription ${subscriptionId}: ${matchingKey.id}`
-        );
-        return matchingKey.id;
+        // Verify the key is enabled by fetching its details
+        try {
+          const getKeyCommand = new GetApiKeyCommand({
+            apiKey: matchingKey.id,
+            includeValue: false,
+          });
+          const keyDetails = await apiGateway.send(getKeyCommand);
+
+          if (keyDetails.enabled === true) {
+            console.log(
+              `[apiGatewayUsagePlans] Found existing enabled API key for subscription ${subscriptionId}: ${matchingKey.id}`
+            );
+            return matchingKey.id;
+          } else {
+            // Key exists but is disabled - enable it
+            console.log(
+              `[apiGatewayUsagePlans] Found existing disabled API key for subscription ${subscriptionId}: ${matchingKey.id}. Enabling it...`
+            );
+
+            const updateCommand = new UpdateApiKeyCommand({
+              apiKey: matchingKey.id,
+              patchOperations: [
+                {
+                  op: "replace",
+                  path: "/enabled",
+                  value: "true",
+                },
+              ],
+            });
+            await apiGateway.send(updateCommand);
+
+            console.log(
+              `[apiGatewayUsagePlans] Successfully enabled API key ${matchingKey.id} for subscription ${subscriptionId}`
+            );
+            return matchingKey.id;
+          }
+        } catch (keyError) {
+          // If we can't fetch key details, log warning and create a new key
+          console.warn(
+            `[apiGatewayUsagePlans] Could not verify API key ${matchingKey.id} status for subscription ${subscriptionId}, will create new key:`,
+            keyError instanceof Error ? keyError.message : String(keyError)
+          );
+          // Fall through to create a new key
+        }
       }
     }
 
@@ -386,7 +427,10 @@ export async function ensureSubscriptionApiKeyActive(
   const subscriptionSk = "subscription";
 
   // Get subscription record
-  const subscription = await db.subscription.get(subscriptionPk, subscriptionSk);
+  const subscription = await db.subscription.get(
+    subscriptionPk,
+    subscriptionSk
+  );
 
   if (!subscription) {
     throw new Error(
@@ -436,8 +480,7 @@ export async function ensureSubscriptionApiKeyActive(
       `[apiGatewayUsagePlans] Successfully ensured API key ${newApiKeyId} is active for subscription ${subscriptionId}`
     );
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(
       `[apiGatewayUsagePlans] Failed to create/update API key for subscription ${subscriptionId}:`,
       errorMessage
