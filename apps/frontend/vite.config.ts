@@ -18,11 +18,9 @@ export default defineConfig(({ mode }) => {
     env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY ||
     "";
 
-  // Determine if we should enable Sentry plugin (only in production/staging builds)
-  const isProduction =
-    mode === "production" ||
-    env.VITE_ENV === "production" ||
-    env.VITE_ENV === "staging";
+  // Determine if we should enable Sentry plugin (only for production deployments, not PR/staging)
+  // Only enable if we have all required Sentry configuration (org, project, authToken)
+  // This ensures releases are only created for production, not PR deployments
   const sentryOrg = env.SENTRY_ORG;
   const sentryProject = env.SENTRY_PROJECT;
   const sentryAuthToken = env.SENTRY_AUTH_TOKEN;
@@ -34,8 +32,9 @@ export default defineConfig(({ mode }) => {
   // Build plugins array
   const plugins = [react()];
 
-  // Add Sentry plugin only if we have the required configuration and it's a production build
-  if (isProduction && sentryOrg && sentryProject && sentryAuthToken) {
+  // Add Sentry plugin only if we have all required configuration
+  // This will only be true in production deployments where all Sentry vars are set
+  if (sentryOrg && sentryProject && sentryAuthToken) {
     plugins.push(
       sentryVitePlugin({
         org: sentryOrg,
