@@ -27,7 +27,7 @@ importers:
         version: 7.0.10
       '@posthog/ai':
         specifier: ^7.2.1
-        version: 7.2.2(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(posthog-node@5.17.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(ws@8.18.3)
+        version: 7.2.2(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(posthog-node@5.17.4)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(ws@8.18.3)
     devDependencies:
       '@aws-sdk/client-cloudformation':
         specifier: ^3.943.0
@@ -202,7 +202,7 @@ importers:
         version: 6.10.1
       posthog-node:
         specifier: ^5.0.0
-        version: 5.17.2
+        version: 5.17.4
       source-map-support:
         specifier: ^0.5.21
         version: 0.5.21
@@ -2255,8 +2255,8 @@ packages:
   '@posthog/core@1.5.5':
     resolution: {integrity: sha512-m7G1EQTgo9xrr3lZxCp9C2egP99MSRpIDD95wYzwUPxMesKxI0xEQ+TC5LS/XOXIdmsNvsx4UcxwmzhSwD2GWA==}
 
-  '@posthog/core@1.7.1':
-    resolution: {integrity: sha512-kjK0eFMIpKo9GXIbts8VtAknsoZ18oZorANdtuTj1CbgS28t4ZVq//HAWhnxEuXRTrtkd+SUJ6Ux3j2Af8NCuA==}
+  '@posthog/core@1.8.1':
+    resolution: {integrity: sha512-jfzBtQIk9auRi/biO+G/gumK5KxqsD5wOr7XpYMROE/I3pazjP4zIziinp21iQuIQJMXrDvwt9Af3njgOGwtew==}
 
   '@prisma/instrumentation@5.22.0':
     resolution: {integrity: sha512-LxccF392NN37ISGxIurUljZSh1YWnphO34V5a0+T7FVQG2u9bhAXRTJpgmQ3483woVhkraQZFF7cbRrpbw/F4Q==}
@@ -6045,8 +6045,8 @@ packages:
   posthog-js@1.297.2:
     resolution: {integrity: sha512-pDtCKHpKegV1D5Yk9PBmkFwI9FMnLJm0TsBO5c5/PhPq5Om4y/t+1qqbNcLCdLajkuYl2px9UlRTzycQ6W7Vmw==}
 
-  posthog-node@5.17.2:
-    resolution: {integrity: sha512-lz3YJOr0Nmiz0yHASaINEDHqoV+0bC3eD8aZAG+Ky292dAnVYul+ga/dMX8KCBXg8hHfKdxw0SztYD5j6dgUqQ==}
+  posthog-node@5.17.4:
+    resolution: {integrity: sha512-hrd+Do/DMt40By12ESIDUfD81V9OASjq9XHjycZrGiD8cX/ZwCIVSJLUb7nQmvSCWcKII+u+nnPVuc4LjTDl9g==}
     engines: {node: '>=20'}
 
   preact-render-to-string@6.5.11:
@@ -10528,7 +10528,7 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
-  '@posthog/ai@7.2.2(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(posthog-node@5.17.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(ws@8.18.3)':
+  '@posthog/ai@7.2.2(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(posthog-node@5.17.4)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(ws@8.18.3)':
     dependencies:
       '@ai-sdk/provider': 2.0.0
       '@anthropic-ai/sdk': 0.71.2(zod@4.2.1)
@@ -10537,7 +10537,7 @@ snapshots:
       ai: 5.0.116(zod@4.2.1)
       langchain: 1.2.2(@langchain/core@1.1.7(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@6.15.0(ws@8.18.3)(zod@4.2.1)))(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@6.15.0(ws@8.18.3)(zod@4.2.1))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       openai: 6.15.0(ws@8.18.3)(zod@4.2.1)
-      posthog-node: 5.17.2
+      posthog-node: 5.17.4
       uuid: 11.1.0
       zod: 4.2.1
     transitivePeerDependencies:
@@ -10557,7 +10557,7 @@ snapshots:
     dependencies:
       cross-spawn: 7.0.6
 
-  '@posthog/core@1.7.1':
+  '@posthog/core@1.8.1':
     dependencies:
       cross-spawn: 7.0.6
 
@@ -15494,9 +15494,9 @@ snapshots:
       preact: 10.24.3
       web-vitals: 4.2.4
 
-  posthog-node@5.17.2:
+  posthog-node@5.17.4:
     dependencies:
-      '@posthog/core': 1.7.1
+      '@posthog/core': 1.8.1
 
   preact-render-to-string@6.5.11(preact@10.24.3):
     dependencies:
