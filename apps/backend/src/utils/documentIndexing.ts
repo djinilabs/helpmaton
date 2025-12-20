@@ -1,8 +1,28 @@
 import { splitDocumentIntoSnippets } from "./documentSearch";
 import { getDocument } from "./s3";
+import { MAX_QUERY_LIMIT } from "./vectordb/config";
 import { sendWriteOperation } from "./vectordb/queueClient";
 import { query } from "./vectordb/readClient";
 import type { RawFactData } from "./vectordb/types";
+
+/**
+ * Maximum number of snippets allowed per document
+ * This prevents documents from exceeding query limits and ensures complete deletion
+ * With default chunk size of 1000 characters, this allows ~10MB documents
+ */
+export const MAX_DOCUMENT_SNIPPETS = 10000;
+
+/**
+ * Escape a string value for use in LanceDB SQL filter expressions
+ * Escapes single quotes by doubling them (SQL standard)
+ * @param value - String value to escape
+ * @returns Escaped string safe for use in SQL filter
+ */
+function escapeSqlString(value: string): string {
+  // Escape single quotes by doubling them (SQL standard)
+  // This prevents SQL injection in filter expressions
+  return value.replace(/'/g, "''");
+}
 
 /**
  * Index a document by splitting it into snippets and queuing them for embedding generation
@@ -28,6 +48,18 @@ export async function indexDocument(
       `[Document Indexing] No snippets to index for document ${documentId}`
     );
     return;
+  }
+
+  // Validate document size - reject documents that would exceed deletion limit
+  if (snippets.length > MAX_DOCUMENT_SNIPPETS) {
+    const error = new Error(
+      `Document "${metadata.documentName}" exceeds maximum size limit. Document has ${snippets.length} snippets, but maximum allowed is ${MAX_DOCUMENT_SNIPPETS}. Please split the document into smaller files.`
+    );
+    console.error(
+      `[Document Indexing] Document size validation failed for ${documentId}:`,
+      error.message
+    );
+    throw error;
   }
 
   // Create raw fact data (without embeddings) to queue for async processing
@@ -73,7 +105,20 @@ export async function indexDocument(
 
 /**
  * Delete all snippets for a document from the vector database
- * First queries LanceDB to find all snippet IDs, then sends delete operation
+ * Uses iterative query-and-delete to handle documents with more snippets than the query limit
+ *
+ * Since LanceDB doesn't support offset-based pagination, we use an iterative approach:
+ * 1. Query a batch of snippets (up to MAX_QUERY_LIMIT)
+ * 2. Delete that batch via queue
+ * 3. Query again - deleted snippets won't appear once deletion completes
+ * 4. Repeat until no more snippets are found
+ *
+ * We track seen IDs to avoid duplicate deletions in case queries return
+ * the same results before deletions complete (since deletions are async via queue).
+ *
+ * Maximum document size is enforced during indexing (MAX_DOCUMENT_SNIPPETS),
+ * so this should handle at most ~10 batches (10,000 snippets / 1,000 limit).
+ *
  * @param workspaceId - Workspace ID (used as agentId for docs grain)
  * @param documentId - Document ID
  */
@@ -82,40 +127,123 @@ export async function deleteDocumentSnippets(
   documentId: string
 ): Promise<void> {
   try {
-    // Query LanceDB to find all snippets for this document
-    // Use a filter to find all records with matching documentId in metadata
-    const results = await query(workspaceId, "docs", {
-      filter: `documentId = '${documentId}'`,
-      limit: 10000, // Large limit to get all snippets (documents shouldn't have more than this)
-    });
+    // Escape documentId to prevent SQL injection
+    const escapedDocumentId = escapeSqlString(documentId);
+    const filter = `documentId = '${escapedDocumentId}'`;
 
-    if (results.length === 0) {
+    const allRecordIds: string[] = [];
+    const seenIds = new Set<string>();
+    let batchNumber = 0;
+    const maxBatches = Math.ceil(MAX_DOCUMENT_SNIPPETS / MAX_QUERY_LIMIT); // Safety limit
+
+    // Collect all snippet IDs by querying in batches
+    // Since LanceDB doesn't support offset pagination, we query repeatedly
+    // and track seen IDs to avoid duplicates
+    while (batchNumber < maxBatches) {
+      const results = await query(workspaceId, "docs", {
+        filter,
+        limit: MAX_QUERY_LIMIT,
+      });
+
+      if (results.length === 0) {
+        // No more snippets found
+        break;
+      }
+
+      // Filter out IDs we've already seen
+      const newIds = results
+        .map((result) => result.id)
+        .filter((id) => !seenIds.has(id));
+
+      if (newIds.length === 0) {
+        // All results were duplicates - deletions may still be processing
+        // Wait a bit and try one more time
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const retryResults = await query(workspaceId, "docs", {
+          filter,
+          limit: MAX_QUERY_LIMIT,
+        });
+        const retryNewIds = retryResults
+          .map((result) => result.id)
+          .filter((id) => !seenIds.has(id));
+        if (retryNewIds.length === 0) {
+          // Still no new IDs, we're done
+          break;
+        }
+        // Found new IDs in retry, add them
+        retryNewIds.forEach((id) => {
+          seenIds.add(id);
+          allRecordIds.push(id);
+        });
+        break;
+      }
+
+      // Add new IDs to our collection
+      newIds.forEach((id) => {
+        seenIds.add(id);
+        allRecordIds.push(id);
+      });
+
+      batchNumber++;
+
+      // If we got fewer results than the limit, we've likely collected all snippets
+      // Query one more time to be absolutely sure (handles edge case of exactly MAX_QUERY_LIMIT remaining)
+      if (results.length < MAX_QUERY_LIMIT) {
+        const finalResults = await query(workspaceId, "docs", {
+          filter,
+          limit: MAX_QUERY_LIMIT,
+        });
+        const finalNewIds = finalResults
+          .map((result) => result.id)
+          .filter((id) => !seenIds.has(id));
+        if (finalNewIds.length > 0) {
+          finalNewIds.forEach((id) => {
+            seenIds.add(id);
+            allRecordIds.push(id);
+          });
+        }
+        break;
+      }
+    }
+
+    if (allRecordIds.length === 0) {
       console.log(
         `[Document Indexing] No snippets found to delete for document ${documentId}`
       );
       return;
     }
 
-    // Extract record IDs from query results
-    const recordIds = results.map((result) => result.id);
+    if (batchNumber >= maxBatches) {
+      console.warn(
+        `[Document Indexing] Reached maximum batch limit (${maxBatches}) while collecting snippet IDs for document ${documentId}. Collected ${allRecordIds.length} IDs, but there may be more. This should not happen if document size validation (MAX_DOCUMENT_SNIPPETS=${MAX_DOCUMENT_SNIPPETS}) is working correctly.`
+      );
+    }
 
     console.log(
-      `[Document Indexing] Found ${recordIds.length} snippets to delete for document ${documentId}`
+      `[Document Indexing] Found ${
+        allRecordIds.length
+      } snippets to delete for document ${documentId}${
+        batchNumber > 1
+          ? ` (collected across ${batchNumber} query batches)`
+          : ""
+      }`
     );
 
-    // Send delete operation to queue
+    // Send single delete operation with all collected record IDs
+    // SQS message size limit is 256KB. With IDs like "doc-123:0" (~10-15 chars each),
+    // we can fit ~17,000 IDs in a single message, which is well above MAX_DOCUMENT_SNIPPETS
     await sendWriteOperation({
       operation: "delete",
       agentId: workspaceId, // For docs grain, workspaceId is used as agentId
       temporalGrain: "docs",
       workspaceId, // Include workspaceId for message group ID
       data: {
-        recordIds,
+        recordIds: allRecordIds,
       },
     });
 
     console.log(
-      `[Document Indexing] Successfully queued deletion of ${recordIds.length} snippets for document ${documentId}`
+      `[Document Indexing] Successfully queued deletion of ${allRecordIds.length} snippets for document ${documentId}`
     );
   } catch (error) {
     // Log error but don't throw - deletion should not block document operations

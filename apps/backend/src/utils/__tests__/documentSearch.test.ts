@@ -63,8 +63,10 @@ describe("documentSearch", () => {
       const snippets = splitDocumentIntoSnippets(longParagraph, 2000);
 
       expect(snippets.length).toBeGreaterThan(1);
+      // With overlap, chunks may be slightly larger than chunkSize
+      // Allow up to chunkSize + overlap (2000 + 200 = 2200)
       snippets.forEach((snippet) => {
-        expect(snippet.length).toBeLessThanOrEqual(2000);
+        expect(snippet.length).toBeLessThanOrEqual(2200);
       });
     });
 
@@ -81,8 +83,10 @@ describe("documentSearch", () => {
       const snippets = splitDocumentIntoSnippets(content, 1000);
 
       expect(snippets.length).toBeGreaterThan(1);
+      // With overlap, chunks may be slightly larger than chunkSize
+      // Allow up to chunkSize + overlap (1000 + 200 = 1200)
       snippets.forEach((snippet) => {
-        expect(snippet.length).toBeLessThanOrEqual(1000);
+        expect(snippet.length).toBeLessThanOrEqual(1200);
       });
     });
 
@@ -91,8 +95,10 @@ describe("documentSearch", () => {
       const snippets = splitDocumentIntoSnippets(content, 500);
 
       expect(snippets.length).toBeGreaterThan(5);
+      // With overlap, chunks may be slightly larger than chunkSize
+      // Allow up to chunkSize + overlap (500 + 200 = 700)
       snippets.forEach((snippet) => {
-        expect(snippet.length).toBeLessThanOrEqual(500);
+        expect(snippet.length).toBeLessThanOrEqual(700);
       });
     });
 
@@ -474,6 +480,32 @@ describe("documentSearch", () => {
       expect(results2).toBeDefined();
       expect(Array.isArray(results1)).toBe(true);
       expect(Array.isArray(results2)).toBe(true);
+    });
+
+    it("should escape single quotes in workspaceId to prevent SQL injection", async () => {
+      // Mock LanceDB query results
+      mockQuery.mockResolvedValue([]);
+
+      const mockEmbedding = Array(768).fill(0.1);
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          embedding: { values: mockEmbedding },
+        }),
+      });
+
+      // Test with workspaceId containing single quote (SQL injection attempt)
+      const maliciousWorkspaceId = "workspace' OR '1'='1";
+      await searchDocuments(maliciousWorkspaceId, "test query");
+
+      // Verify that the filter was called with properly escaped workspaceId
+      expect(mockQuery).toHaveBeenCalledWith(
+        maliciousWorkspaceId,
+        "docs",
+        expect.objectContaining({
+          filter: "workspaceId = 'workspace'' OR ''1''=''1'", // Single quotes should be doubled
+        })
+      );
     });
   });
 

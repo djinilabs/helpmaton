@@ -1,10 +1,14 @@
+import { split } from "llm-splitter";
+
 import { getDefined } from "../utils";
 
 import { generateEmbedding } from "./embedding";
 import { query } from "./vectordb/readClient";
 
-// Default chunk size for splitting documents (~2000 characters for more content)
-const DEFAULT_CHUNK_SIZE = 2000;
+// Default chunk size for splitting documents (llm-splitter default: 1000)
+const DEFAULT_CHUNK_SIZE = 1000;
+// Default chunk overlap (llm-splitter default: 200)
+const DEFAULT_CHUNK_OVERLAP = 200;
 
 export interface DocumentSnippet {
   text: string;
@@ -22,106 +26,94 @@ export interface SearchResult {
 }
 
 /**
- * Split document content into text snippets
- * Combines multiple paragraphs together to create larger snippets (up to chunkSize)
- * Only splits if a single paragraph exceeds chunkSize
+ * Split document content into text snippets using llm-splitter
+ * Uses recursive splitting strategy suitable for markdown documents
+ * @param content - Document content to split
+ * @param chunkSize - Optional chunk size (defaults to 1000, llm-splitter default)
+ * @param chunkOverlap - Optional chunk overlap (defaults to calculated value: 20% of chunkSize, max 200, always less than chunkSize)
+ * @param chunkStrategy - Optional chunk strategy: "paragraph" or "character" (defaults to "paragraph" if content has paragraph breaks, otherwise "character")
+ * @returns Array of text snippets
  */
 export function splitDocumentIntoSnippets(
   content: string,
-  chunkSize: number = DEFAULT_CHUNK_SIZE
+  chunkSize: number = DEFAULT_CHUNK_SIZE,
+  chunkOverlap?: number,
+  chunkStrategy?: "paragraph" | "character"
 ): string[] {
   if (!content || content.trim().length === 0) {
     return [];
   }
 
+  // Calculate overlap - must be less than chunk size
+  // Use provided overlap, or calculate: 20% of chunk size, but not more than DEFAULT_CHUNK_OVERLAP
+  const calculatedOverlap = Math.min(
+    Math.floor(chunkSize * 0.2),
+    DEFAULT_CHUNK_OVERLAP,
+    Math.max(1, chunkSize - 1) // Ensure overlap is always less than chunk size
+  );
+  const finalChunkOverlap =
+    chunkOverlap !== undefined
+      ? Math.min(chunkOverlap, Math.max(1, chunkSize - 1))
+      : calculatedOverlap;
+
+  // Check if content has paragraph breaks
+  const hasParagraphs = /\n\s*\n/.test(content);
+
+  // Use provided strategy or determine based on content structure
+  const finalChunkStrategy =
+    chunkStrategy !== undefined
+      ? chunkStrategy
+      : hasParagraphs
+      ? "paragraph"
+      : "character";
+
+  // Use llm-splitter with appropriate splitter based on content structure
+  const chunks = split(content, {
+    chunkSize,
+    chunkOverlap: finalChunkOverlap,
+    // Use paragraph-based splitter for markdown if paragraphs exist
+    // Otherwise use character-based splitting
+    splitter:
+      finalChunkStrategy === "paragraph"
+        ? (text: string) => text.split(/\n\s*\n/)
+        : (text: string) => text.split(""), // Character-based for content without paragraphs
+    chunkStrategy: finalChunkStrategy,
+  });
+
+  // Extract text from chunks (Chunk.text can be string, string[], or null)
   const snippets: string[] = [];
-
-  // Split by paragraphs (double newlines or single newline followed by content)
-  // This captures both markdown-style paragraphs and regular text paragraphs
-  const paragraphs = content
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
-
-  if (paragraphs.length === 0) {
-    // If no paragraphs found, split by character count
-    let start = 0;
-    while (start < content.length) {
-      const end = Math.min(start + chunkSize, content.length);
-      const chunk = content.slice(start, end).trim();
-      if (chunk.length > 0) {
-        snippets.push(chunk);
-      }
-      start = end;
+  for (const chunk of chunks) {
+    if (chunk.text === null) {
+      continue; // Skip null chunks
     }
-    return snippets;
-  }
-
-  // Combine paragraphs into chunks
-  let currentChunk: string[] = [];
-  let currentLength = 0;
-
-  for (const paragraph of paragraphs) {
-    const paragraphLength = paragraph.length;
-
-    // If a single paragraph exceeds chunkSize, split it first
-    if (paragraphLength > chunkSize) {
-      // Save current chunk if it has content
-      if (currentChunk.length > 0) {
-        snippets.push(currentChunk.join("\n\n"));
-        currentChunk = [];
-        currentLength = 0;
+    if (typeof chunk.text === "string") {
+      const trimmed = chunk.text.trim();
+      if (trimmed.length > 0) {
+        snippets.push(trimmed);
       }
-
-      // Split the large paragraph
-      let start = 0;
-      while (start < paragraphLength) {
-        let end = start + chunkSize;
-
-        // Try to break at sentence boundaries if possible
-        if (end < paragraphLength) {
-          const lastPeriod = paragraph.lastIndexOf(".", end);
-          const lastNewline = paragraph.lastIndexOf("\n", end);
-          const breakPoint = Math.max(lastPeriod, lastNewline);
-
-          if (breakPoint > start + chunkSize * 0.5) {
-            // Use sentence/line break if it's not too early
-            end = breakPoint + 1;
-          }
-        }
-
-        const chunk = paragraph.slice(start, end).trim();
-        if (chunk.length > 0) {
-          snippets.push(chunk);
-        }
-        start = end;
+    } else if (Array.isArray(chunk.text)) {
+      // If text is an array, join it appropriately
+      const separator = finalChunkStrategy === "paragraph" ? "\n\n" : "";
+      const joined = chunk.text.join(separator).trim();
+      if (joined.length > 0) {
+        snippets.push(joined);
       }
-      continue;
-    }
-
-    // Check if adding this paragraph would exceed chunkSize
-    const separatorLength = currentChunk.length > 0 ? 2 : 0; // "\n\n" separator
-    if (
-      currentLength + separatorLength + paragraphLength > chunkSize &&
-      currentChunk.length > 0
-    ) {
-      // Save current chunk and start a new one
-      snippets.push(currentChunk.join("\n\n"));
-      currentChunk = [paragraph];
-      currentLength = paragraphLength;
-    } else {
-      // Add paragraph to current chunk
-      currentChunk.push(paragraph);
-      currentLength += separatorLength + paragraphLength;
     }
   }
 
-  // Add the last chunk if it has content
-  if (currentChunk.length > 0) {
-    snippets.push(currentChunk.join("\n\n"));
-  }
+  return snippets;
+}
 
-  return snippets.filter((s) => s.length > 0);
+/**
+ * Escape a string value for use in LanceDB SQL filter expressions
+ * Escapes single quotes by doubling them (SQL standard)
+ * @param value - String value to escape
+ * @returns Escaped string safe for use in SQL filter
+ */
+function escapeSqlString(value: string): string {
+  // Escape single quotes by doubling them (SQL standard)
+  // This prevents SQL injection in filter expressions
+  return value.replace(/'/g, "''");
 }
 
 /**
@@ -188,18 +180,27 @@ export async function searchDocuments(
 
   // Query LanceDB for document snippets
   // For docs grain, workspaceId is used as agentId
+  // Escape workspaceId to prevent SQL injection in filter expression
+  const escapedWorkspaceId = escapeSqlString(workspaceId);
   const results = await query(workspaceId, "docs", {
     vector: queryEmbedding,
-    filter: `workspaceId = '${workspaceId}'`, // Safety filter to ensure workspace isolation
+    filter: `workspaceId = '${escapedWorkspaceId}'`, // Safety filter to ensure workspace isolation
     limit: topN,
   });
 
   // Map query results to SearchResult format
   const searchResults: SearchResult[] = results.map((result) => {
     // Calculate similarity from distance
-    // LanceDB returns distance (lower is more similar)
-    // Convert to similarity score (higher is more similar)
-    // Using 1 / (1 + distance) to convert distance to similarity
+    // LanceDB uses L2 (Euclidean) distance by default
+    // Distance range: [0, ∞) where 0 = identical vectors, larger = more different
+    // Convert to similarity score [0, 1] where 1 = identical, 0 = very different
+    // Formula: similarity = 1 / (1 + distance)
+    // This formula is appropriate for L2 distance:
+    // - When distance = 0 (identical): similarity = 1
+    // - As distance increases: similarity approaches 0
+    // - The +1 prevents division by zero and provides a smooth curve
+    // Note: If LanceDB distance metric changes (e.g., to cosine distance),
+    // this conversion formula may need to be updated accordingly
     const similarity =
       result.distance !== undefined ? 1 / (1 + result.distance) : 0;
 
