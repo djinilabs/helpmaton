@@ -32,9 +32,14 @@ export function initSentry(): void {
           ? "production"
           : "development";
 
+  // Get release version from build-time environment variable
+  // This should match the release version used during the build process
+  const release = import.meta.env.VITE_SENTRY_RELEASE || undefined;
+
   Sentry.init({
     dsn,
     environment,
+    release,
     integrations: [
       browserTracingIntegration(),
       replayIntegration({

@@ -1,6 +1,7 @@
 import path from "path";
 
 import react from "@vitejs/plugin-react";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { defineConfig, loadEnv } from "vite";
 
 // https://vite.dev/config/
@@ -17,13 +18,52 @@ export default defineConfig(({ mode }) => {
     env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY ||
     "";
 
+  // Determine if we should enable Sentry plugin (only in production/staging builds)
+  const isProduction =
+    mode === "production" ||
+    env.VITE_ENV === "production" ||
+    env.VITE_ENV === "staging";
+  const sentryOrg = env.SENTRY_ORG;
+  const sentryProject = env.SENTRY_PROJECT;
+  const sentryAuthToken = env.SENTRY_AUTH_TOKEN;
+  const githubSha = env.GITHUB_SHA;
+
+  // Generate release version: use commit SHA if available, otherwise use timestamp
+  const release = githubSha || `release-${Date.now()}`;
+
+  // Build plugins array
+  const plugins = [react()];
+
+  // Add Sentry plugin only if we have the required configuration and it's a production build
+  if (isProduction && sentryOrg && sentryProject && sentryAuthToken) {
+    plugins.push(
+      sentryVitePlugin({
+        org: sentryOrg,
+        project: sentryProject,
+        authToken: sentryAuthToken,
+        release: {
+          name: release,
+        },
+        sourcemaps: {
+          assets: "./**",
+          ignore: ["node_modules"],
+          filesToDeleteAfterUpload: "../backend/public/**/*.map",
+        },
+      })
+    );
+  }
+
   return {
-    plugins: [react()],
+    plugins,
     define: {
       "process.env": {},
       // Expose the site key to the frontend
       "import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY":
         JSON.stringify(turnstileSiteKey),
+      // Expose the Sentry release version to the frontend
+      "import.meta.env.VITE_SENTRY_RELEASE": JSON.stringify(
+        env.VITE_SENTRY_RELEASE || release
+      ),
     },
     build: {
       sourcemap: true,

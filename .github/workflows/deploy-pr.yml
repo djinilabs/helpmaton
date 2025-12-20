@@ -159,6 +159,10 @@ jobs:
           HELPMATON_S3_SECRET_ACCESS_KEY: ${{ secrets.HELPMATON_S3_SECRET_ACCESS_KEY }}
           HELPMATON_S3_REGION: ${{ secrets.HELPMATON_S3_REGION }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          GITHUB_SHA: ${{ github.sha }}
           CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
           CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
@@ -223,6 +227,12 @@ jobs:
           HELPMATON_S3_SECRET_ACCESS_KEY: ${{ secrets.HELPMATON_S3_SECRET_ACCESS_KEY }}
           HELPMATON_S3_REGION: ${{ secrets.HELPMATON_S3_REGION }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          GITHUB_SHA: ${{ github.sha }}
+          VITE_SENTRY_RELEASE: ${{ github.sha }}
           CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
           CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
