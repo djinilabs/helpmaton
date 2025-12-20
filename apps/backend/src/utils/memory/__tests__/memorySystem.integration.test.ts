@@ -78,6 +78,7 @@ describe("Memory System Integration", () => {
     monthly: new Map(),
     quarterly: new Map(),
     yearly: new Map(),
+    docs: new Map(), // Documents grain (not used in memory system, but required for type)
   };
 
   // Track all SQS operations for verification

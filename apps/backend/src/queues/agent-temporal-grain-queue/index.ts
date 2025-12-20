@@ -225,6 +225,9 @@ async function executeInsert(
         let conversationId = "";
         let workspaceId = "";
         let agentId = "";
+        let documentId = "";
+        let documentName = "";
+        let folderPath = "";
 
         if (
           r.metadata &&
@@ -236,15 +239,22 @@ async function executeInsert(
             const jsonString = JSON.stringify(r.metadata);
             const parsed = JSON.parse(jsonString) as Record<string, unknown>;
 
-            // Extract metadata fields as strings
+            // Extract metadata fields as strings (memory system fields)
             conversationId = String(parsed.conversationId || "");
             workspaceId = String(parsed.workspaceId || "");
             agentId = String(parsed.agentId || "");
+            // Document system fields (for docs grain)
+            documentId = String(parsed.documentId || "");
+            documentName = String(parsed.documentName || "");
+            folderPath = String(parsed.folderPath || "");
           } catch {
             // Fallback to direct access if JSON fails
             conversationId = String(r.metadata.conversationId || "");
             workspaceId = String(r.metadata.workspaceId || "");
             agentId = String(r.metadata.agentId || "");
+            documentId = String(r.metadata.documentId || "");
+            documentName = String(r.metadata.documentName || "");
+            folderPath = String(r.metadata.folderPath || "");
           }
         }
 
@@ -257,6 +267,9 @@ async function executeInsert(
           conversationId,
           workspaceId,
           agentId,
+          documentId,
+          documentName,
+          folderPath,
         };
       });
       // Log first record's metadata fields for debugging
@@ -289,6 +302,9 @@ async function executeInsert(
       let conversationId = "";
       let workspaceId = "";
       let agentId = "";
+      let documentId = "";
+      let documentName = "";
+      let folderPath = "";
 
       if (
         r.metadata &&
@@ -300,15 +316,22 @@ async function executeInsert(
           const jsonString = JSON.stringify(r.metadata);
           const parsed = JSON.parse(jsonString) as Record<string, unknown>;
 
-          // Extract metadata fields as strings
+          // Extract metadata fields as strings (memory system fields)
           conversationId = String(parsed.conversationId || "");
           workspaceId = String(parsed.workspaceId || "");
           agentId = String(parsed.agentId || "");
+          // Document system fields (for docs grain)
+          documentId = String(parsed.documentId || "");
+          documentName = String(parsed.documentName || "");
+          folderPath = String(parsed.folderPath || "");
         } catch {
           // Fallback to direct access if JSON fails
           conversationId = String(r.metadata.conversationId || "");
           workspaceId = String(r.metadata.workspaceId || "");
           agentId = String(r.metadata.agentId || "");
+          documentId = String(r.metadata.documentId || "");
+          documentName = String(r.metadata.documentName || "");
+          folderPath = String(r.metadata.folderPath || "");
         }
       }
 
@@ -321,6 +344,9 @@ async function executeInsert(
         conversationId,
         workspaceId,
         agentId,
+        documentId,
+        documentName,
+        folderPath,
       };
     });
     // Log first record's metadata fields for debugging
@@ -384,11 +410,17 @@ async function executeUpdate(
         let conversationId = "";
         let workspaceId = "";
         let agentId = "";
+        let documentId = "";
+        let documentName = "";
+        let folderPath = "";
 
         if (r.metadata && typeof r.metadata === "object") {
           conversationId = String(r.metadata.conversationId || "");
           workspaceId = String(r.metadata.workspaceId || "");
           agentId = String(r.metadata.agentId || "");
+          documentId = String(r.metadata.documentId || "");
+          documentName = String(r.metadata.documentName || "");
+          folderPath = String(r.metadata.folderPath || "");
         }
 
         return {
@@ -400,6 +432,9 @@ async function executeUpdate(
           conversationId,
           workspaceId,
           agentId,
+          documentId,
+          documentName,
+          folderPath,
         };
       })
     );

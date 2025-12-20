@@ -6,6 +6,7 @@ import multer from "multer";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { indexDocument } from "../../../utils/documentIndexing";
 import {
   uploadDocument,
   generateUniqueFilename,
@@ -209,6 +210,18 @@ export const registerPostWorkspaceDocuments = (app: express.Application) => {
             size: document.size,
             createdAt: document.createdAt,
           });
+
+          // Index document for search (async, errors are logged but don't block upload)
+          const content = file.buffer.toString("utf-8");
+          indexDocument(workspaceId, documentId, content, {
+            documentName: document.name,
+            folderPath: document.folderPath,
+          }).catch((error) => {
+            console.error(
+              `[Document Upload] Failed to index document ${documentId}:`,
+              error
+            );
+          });
         }
       }
 
@@ -266,6 +279,17 @@ export const registerPostWorkspaceDocuments = (app: express.Application) => {
             contentType: document.contentType,
             size: document.size,
             createdAt: document.createdAt,
+          });
+
+          // Index document for search (async, errors are logged but don't block upload)
+          indexDocument(workspaceId, documentId, textDoc.content, {
+            documentName: document.name,
+            folderPath: document.folderPath,
+          }).catch((error) => {
+            console.error(
+              `[Document Upload] Failed to index document ${documentId}:`,
+              error
+            );
           });
         }
       }

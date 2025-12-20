@@ -9,7 +9,8 @@ export type TemporalGrain =
   | "weekly"
   | "monthly"
   | "quarterly"
-  | "yearly";
+  | "yearly"
+  | "docs";
 
 /**
  * All temporal grains in order from smallest to largest
@@ -109,6 +110,7 @@ export const WriteOperationMessageSchema = z
       "monthly",
       "quarterly",
       "yearly",
+      "docs",
     ]),
     workspaceId: z.string().optional(),
     data: z.object({

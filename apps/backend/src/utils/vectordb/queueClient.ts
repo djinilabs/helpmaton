@@ -66,9 +66,11 @@ export async function sendWriteOperation(
     `[Queue Client] Queue client obtained, publish function: ${typeof queue.publish}`
   );
   const queueName = "agent-temporal-grain-queue";
+  // For docs grain, use workspaceId for message group ID if provided
   const messageGroupId = getMessageGroupId(
     message.agentId,
-    message.temporalGrain
+    message.temporalGrain,
+    message.workspaceId
   );
   const deduplicationId = generateDeduplicationId(message);
 

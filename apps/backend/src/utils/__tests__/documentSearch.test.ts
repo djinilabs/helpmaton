@@ -1,64 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
-const {
-  mockDatabase,
-  mockGetDocument,
-  mockBuildS3Key,
-  mockNormalizeFolderPath,
-} = vi.hoisted(() => {
+const { mockQuery } = vi.hoisted(() => {
   return {
-    mockDatabase: vi.fn(),
-    mockGetDocument: vi.fn(),
-    mockBuildS3Key: vi.fn(),
-    mockNormalizeFolderPath: vi.fn(),
+    mockQuery: vi.fn(),
   };
 });
 
-// Mock the database module
-vi.mock("../../tables/database", () => ({
-  database: mockDatabase,
-}));
-
-// Mock s3 utilities
-vi.mock("../s3", () => ({
-  getDocument: mockGetDocument,
-  buildS3Key: mockBuildS3Key,
-  normalizeFolderPath: mockNormalizeFolderPath,
+// Mock LanceDB readClient
+vi.mock("../vectordb/readClient", () => ({
+  query: mockQuery,
 }));
 
 // Mock fetch globally
 global.fetch = vi.fn();
 
 // Import after mocks are set up
-import type { DatabaseSchema } from "../../tables/schema";
 import {
   splitDocumentIntoSnippets,
   cosineSimilarity,
   searchDocuments,
-  clearWorkspaceCache,
 } from "../documentSearch";
 import { generateEmbedding } from "../embedding";
 
 describe("documentSearch", () => {
-  let mockDb: DatabaseSchema;
-  let mockQuery: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
 
-    // Setup mock query
-    mockQuery = vi.fn().mockResolvedValue({ items: [] });
-
-    // Setup mock database
-    mockDb = {
-      "workspace-document": {
-        query: mockQuery,
-      },
-    } as unknown as DatabaseSchema;
-
-    mockDatabase.mockResolvedValue(mockDb);
+    // Setup mock LanceDB query to return empty results by default
+    mockQuery.mockResolvedValue([]);
 
     // Setup default environment
     process.env.GEMINI_API_KEY = "test-api-key";
@@ -197,8 +168,7 @@ describe("documentSearch", () => {
   describe("generateEmbedding", () => {
     beforeEach(() => {
       // Clear all caches before each test
-      clearWorkspaceCache("test-workspace");
-      clearWorkspaceCache("workspace-123");
+      // clearWorkspaceCache removed - no longer needed with LanceDB
       // Clear fetch mocks
       vi.clearAllMocks();
     });
@@ -388,7 +358,7 @@ describe("documentSearch", () => {
   describe("searchDocuments", () => {
     beforeEach(() => {
       // Clear caches
-      clearWorkspaceCache("workspace-123");
+      // clearWorkspaceCache removed - no longer needed with LanceDB
     });
 
     it("should return empty array for empty query", async () => {
@@ -400,34 +370,48 @@ describe("documentSearch", () => {
     });
 
     it("should return empty array when no documents exist", async () => {
-      mockQuery.mockResolvedValue({ items: [] });
+      mockQuery.mockResolvedValue([]);
+
+      // Mock embedding generation for query
+      const mockEmbedding = Array(768).fill(0.1);
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          embedding: { values: mockEmbedding },
+        }),
+      });
 
       const results = await searchDocuments("workspace-123", "test query");
 
+      expect(mockQuery).toHaveBeenCalledWith("workspace-123", "docs", {
+        vector: mockEmbedding,
+        filter: "workspaceId = 'workspace-123'",
+        limit: 5,
+      });
       expect(results).toEqual([]);
     });
 
     it("should perform search after indexing documents", async () => {
-      const document = {
-        pk: "workspace-documents/workspace-123/doc-1",
-        sk: "document",
-        workspaceId: "workspace-123",
-        name: "Test Document",
-        filename: "test.txt",
-        s3Key: "workspace-123/test.txt",
-        folderPath: "",
-        version: 1,
-        createdAt: new Date().toISOString(),
-      };
+      // Mock LanceDB query results
+      const mockQueryResults = [
+        {
+          id: "doc-1:0",
+          content: "This is test content for searching.",
+          embedding: Array(768).fill(0.1),
+          timestamp: new Date().toISOString(),
+          metadata: {
+            documentId: "doc-1",
+            documentName: "Test Document",
+            folderPath: "",
+            workspaceId: "workspace-123",
+          },
+          distance: 0.5,
+        },
+      ];
 
-      mockQuery.mockResolvedValue({ items: [document] });
+      mockQuery.mockResolvedValue(mockQueryResults);
 
-      // Mock document content fetch
-      mockGetDocument.mockResolvedValue(
-        Buffer.from("This is test content for searching.")
-      );
-
-      // Mock embedding generation
+      // Mock embedding generation for query
       const mockEmbedding = Array(768).fill(0.1);
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
         ok: true,
@@ -438,27 +422,38 @@ describe("documentSearch", () => {
 
       const results = await searchDocuments("workspace-123", "test query", 5);
 
-      // Should have indexed and searched
-      expect(mockGetDocument).toHaveBeenCalled();
+      expect(mockQuery).toHaveBeenCalledWith("workspace-123", "docs", {
+        vector: mockEmbedding,
+        filter: "workspaceId = 'workspace-123'",
+        limit: 5,
+      });
       expect(results).toBeDefined();
       expect(Array.isArray(results)).toBe(true);
+      expect(results.length).toBe(1);
+      expect(results[0].snippet).toBe("This is test content for searching.");
+      expect(results[0].documentName).toBe("Test Document");
+      expect(results[0].documentId).toBe("doc-1");
     });
 
     it("should wait for existing indexing promise", async () => {
-      const document = {
-        pk: "workspace-documents/workspace-123/doc-1",
-        sk: "document",
-        workspaceId: "workspace-123",
-        name: "Test Document",
-        filename: "test.txt",
-        s3Key: "workspace-123/test.txt",
-        folderPath: "",
-        version: 1,
-        createdAt: new Date().toISOString(),
-      };
+      // Mock LanceDB query results
+      const mockQueryResults = [
+        {
+          id: "doc-1:0",
+          content: "Test content",
+          embedding: Array(768).fill(0.1),
+          timestamp: new Date().toISOString(),
+          metadata: {
+            documentId: "doc-1",
+            documentName: "Test Document",
+            folderPath: "",
+            workspaceId: "workspace-123",
+          },
+          distance: 0.5,
+        },
+      ];
 
-      mockQuery.mockResolvedValue({ items: [document] });
-      mockGetDocument.mockResolvedValue(Buffer.from("Test content"));
+      mockQuery.mockResolvedValue(mockQueryResults);
 
       const mockEmbedding = Array(768).fill(0.1);
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -477,25 +472,10 @@ describe("documentSearch", () => {
       // Both should complete successfully
       expect(results1).toBeDefined();
       expect(results2).toBeDefined();
-
-      // Indexing should only happen once (shared promise)
-      // We can't easily verify this, but both searches should work
+      expect(Array.isArray(results1)).toBe(true);
+      expect(Array.isArray(results2)).toBe(true);
     });
   });
 
-  describe("clearWorkspaceCache", () => {
-    it("should clear embeddings cache for a workspace", () => {
-      // This is tested indirectly through generateEmbedding cache tests
-      // But we can verify the function exists and doesn't throw
-      expect(() => clearWorkspaceCache("workspace-123")).not.toThrow();
-    });
-
-    it("should clear document cache for a workspace", () => {
-      expect(() => clearWorkspaceCache("workspace-123")).not.toThrow();
-    });
-  });
+  // clearWorkspaceCache test removed - function no longer exists with LanceDB migration
 });
-
-
-
-

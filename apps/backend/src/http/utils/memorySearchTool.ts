@@ -14,7 +14,7 @@ export function createSearchMemoryTool(agentId: string, workspaceId: string) {
       .enum(["working", "daily", "weekly", "monthly", "quarterly", "yearly"])
       .default("working")
       .describe(
-        "The time grain to search. Options: 'working' (most recent events - default), 'daily' (day summaries), 'weekly' (week summaries), 'monthly', 'quarterly', or 'yearly'. Defaults to 'working' if not specified."
+        "The time grain to search. Options: 'working' (most recent events - default), 'daily' (day summaries), 'weekly' (week summaries), 'monthly', 'quarterly', or 'yearly'. Note: 'docs' grain is for document search, not memory search. Defaults to 'working' if not specified."
       ),
     minimumDaysAgo: z
       .number()

@@ -4,11 +4,13 @@ import multer from "multer";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { updateDocument } from "../../../utils/documentIndexing";
 import {
   uploadDocument,
   renameDocument,
   generateUniqueFilename,
   normalizeFolderPath,
+  getDocument,
 } from "../../../utils/s3";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
@@ -226,6 +228,51 @@ export const registerPutWorkspaceDocument = (app: express.Application) => {
         },
         null
       );
+
+      // Re-index document if content, name, or folder changed
+      // (async, errors are logged but don't block update)
+      const contentChanged = newContent !== undefined;
+      const metadataChanged =
+        newName !== document.name || newFolderPath !== document.folderPath;
+
+      if (contentChanged || metadataChanged) {
+        // Get document content for indexing
+        let contentToIndex: string;
+        if (newContent !== undefined) {
+          contentToIndex =
+            typeof newContent === "string"
+              ? newContent
+              : newContent.toString("utf-8");
+        } else {
+          // Fetch from S3 if content wasn't updated
+          try {
+            const contentBuffer = await getDocument(
+              workspaceId,
+              documentId,
+              newS3Key
+            );
+            contentToIndex = contentBuffer.toString("utf-8");
+          } catch (error) {
+            console.error(
+              `[Document Update] Failed to fetch document content for indexing:`,
+              error
+            );
+            contentToIndex = ""; // Will result in no snippets, but won't fail
+          }
+        }
+
+        if (contentToIndex) {
+          updateDocument(workspaceId, documentId, contentToIndex, {
+            documentName: updated.name,
+            folderPath: updated.folderPath,
+          }).catch((error) => {
+            console.error(
+              `[Document Update] Failed to re-index document ${documentId}:`,
+              error
+            );
+          });
+        }
+      }
 
       res.json({
         id: documentId,

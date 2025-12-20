@@ -125,6 +125,9 @@ interface LanceDBRow {
   conversationId?: string;
   workspaceId?: string;
   agentId?: string;
+  documentId?: string;
+  documentName?: string;
+  folderPath?: string;
   // Legacy: some tables might still have nested metadata
   metadata?: Record<string, unknown>;
   _distance?: number;
@@ -284,6 +287,9 @@ export async function query(
                 conversationId: row.conversationId,
                 workspaceId: row.workspaceId,
                 agentId: row.agentId,
+                documentId: row.documentId,
+                documentName: row.documentName,
+                folderPath: row.folderPath,
               },
               null,
               4
@@ -306,6 +312,10 @@ export async function query(
               row.conversationId || row.metadata?.conversationId || null,
             workspaceId: row.workspaceId || row.metadata?.workspaceId || null,
             agentId: row.agentId || row.metadata?.agentId || null,
+            documentId: row.documentId || row.metadata?.documentId || null,
+            documentName:
+              row.documentName || row.metadata?.documentName || null,
+            folderPath: row.folderPath || row.metadata?.folderPath || null,
           };
 
           console.log(
@@ -342,6 +352,9 @@ export async function query(
                 conversationId: row.conversationId,
                 workspaceId: row.workspaceId,
                 agentId: row.agentId,
+                documentId: row.documentId,
+                documentName: row.documentName,
+                folderPath: row.folderPath,
               },
               null,
               4
@@ -364,6 +377,10 @@ export async function query(
               row.conversationId || row.metadata?.conversationId || null,
             workspaceId: row.workspaceId || row.metadata?.workspaceId || null,
             agentId: row.agentId || row.metadata?.agentId || null,
+            documentId: row.documentId || row.metadata?.documentId || null,
+            documentName:
+              row.documentName || row.metadata?.documentName || null,
+            folderPath: row.folderPath || row.metadata?.folderPath || null,
           };
 
           console.log(
@@ -412,6 +429,9 @@ export async function query(
                 conversationId: row.conversationId,
                 workspaceId: row.workspaceId,
                 agentId: row.agentId,
+                documentId: row.documentId,
+                documentName: row.documentName,
+                folderPath: row.folderPath,
               },
               null,
               4
@@ -434,6 +454,10 @@ export async function query(
               row.conversationId || row.metadata?.conversationId || null,
             workspaceId: row.workspaceId || row.metadata?.workspaceId || null,
             agentId: row.agentId || row.metadata?.agentId || null,
+            documentId: row.documentId || row.metadata?.documentId || null,
+            documentName:
+              row.documentName || row.metadata?.documentName || null,
+            folderPath: row.folderPath || row.metadata?.folderPath || null,
           };
 
           console.log(

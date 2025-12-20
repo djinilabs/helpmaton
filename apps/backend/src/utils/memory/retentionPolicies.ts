@@ -22,6 +22,7 @@ const RETENTION_PERIODS: Record<
     monthly: 6, // 6 months
     quarterly: 4, // 4 quarters
     yearly: 2, // 2 years
+    docs: 0, // Documents are not subject to automatic retention cleanup
   },
   starter: {
     working: 120, // 120 hours (5 days)
@@ -30,6 +31,7 @@ const RETENTION_PERIODS: Record<
     monthly: 12, // 12 months
     quarterly: 8, // 8 quarters
     yearly: 4, // 4 years
+    docs: 0, // Documents are not subject to automatic retention cleanup
   },
   pro: {
     working: 240, // 240 hours (10 days)
@@ -38,6 +40,7 @@ const RETENTION_PERIODS: Record<
     monthly: 24, // 24 months
     quarterly: 16, // 16 quarters
     yearly: 8, // 8 years
+    docs: 0, // Documents are not subject to automatic retention cleanup
   },
 };
 
@@ -98,8 +101,12 @@ export function calculateRetentionCutoff(
       cutoff.setFullYear(cutoff.getFullYear() - retentionPeriod);
       return cutoff;
     }
+    case "docs": {
+      // Documents are not subject to automatic retention cleanup
+      // Return a date far in the past so nothing gets deleted
+      return new Date(0);
+    }
     default:
       throw new Error(`Unknown temporal grain: ${grain}`);
   }
 }
-

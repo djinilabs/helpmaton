@@ -38,6 +38,13 @@ export async function searchMemory(
     queryText,
   } = options;
 
+  // Reject docs grain - it's for document search, not memory search
+  if (grain === "docs") {
+    throw new Error(
+      "The 'docs' grain is for document search, not memory search. Use document search tools instead."
+    );
+  }
+
   console.log(
     `[Memory Search] Searching memory for agent ${agentId}, grain ${grain}, minDays: ${minimumDaysAgo}, maxDays: ${maximumDaysAgo}, maxResults: ${maxResults}`
   );
