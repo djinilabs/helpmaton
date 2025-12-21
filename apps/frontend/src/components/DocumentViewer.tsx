@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import type { FC } from "react";
 
 import {
@@ -28,23 +28,12 @@ const DocumentViewerContent: FC<{
   const updateDocument = useUpdateDocument(workspaceId, documentId);
   const deleteDocument = useDeleteDocument(workspaceId, documentId);
 
-  const [name, setName] = useState("");
-  const [content, setContent] = useState("");
-  const [folderPath, setFolderPath] = useState("");
+  // Initialize state from document (always available due to useSuspenseQuery)
+  // Component remounts when documentId changes (via key prop), so state is always fresh
+  const [name, setName] = useState(() => document.name);
+  const [content, setContent] = useState(() => document.content || "");
+  const [folderPath, setFolderPath] = useState(() => document.folderPath || "");
   const [isDeleting, setIsDeleting] = useState(false);
-  const previousDocumentIdRef = useRef<string | undefined>(undefined);
-
-  // Reset form when document changes (only when documentId changes, not on every render)
-  useEffect(() => {
-    if (document && document.id !== previousDocumentIdRef.current) {
-      previousDocumentIdRef.current = document.id;
-      setName(document.name);
-      setContent(document.content);
-      setFolderPath(document.folderPath);
-    }
-    // We intentionally sync state with query data when documentId changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [document?.id]);
 
   const handleSave = async () => {
     try {
@@ -206,6 +195,7 @@ export const DocumentViewer: FC<DocumentViewerProps> = ({
           }
         >
           <DocumentViewerContent
+            key={documentId}
             workspaceId={workspaceId}
             documentId={documentId}
             onClose={onClose}
