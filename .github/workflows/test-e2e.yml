@@ -41,7 +41,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # For workflow_run events, checkout the commit that triggered the deploy
           # For push/workflow_dispatch events, use the current commit SHA
