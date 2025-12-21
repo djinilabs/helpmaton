@@ -105,18 +105,6 @@ export function splitDocumentIntoSnippets(
 }
 
 /**
- * Escape a string value for use in LanceDB SQL filter expressions
- * Escapes single quotes by doubling them (SQL standard)
- * @param value - String value to escape
- * @returns Escaped string safe for use in SQL filter
- */
-function escapeSqlString(value: string): string {
-  // Escape single quotes by doubling them (SQL standard)
-  // This prevents SQL injection in filter expressions
-  return value.replace(/'/g, "''");
-}
-
-/**
  * Calculate cosine similarity between two vectors
  */
 export function cosineSimilarity(vecA: number[], vecB: number[]): number {
@@ -180,12 +168,9 @@ export async function searchDocuments(
 
   // Query LanceDB for document snippets
   // For docs grain, workspaceId is used as agentId
-  // Escape workspaceId to prevent SQL injection in filter expression
-  // Note: Column names with camelCase must be quoted in LanceDB SQL filters
-  const escapedWorkspaceId = escapeSqlString(workspaceId);
+  // No filter needed - each workspace has its own isolated database at vectordb/{workspaceId}/docs/
   const results = await query(workspaceId, "docs", {
     vector: queryEmbedding,
-    filter: `"workspaceId" = '${escapedWorkspaceId}'`, // Safety filter to ensure workspace isolation
     limit: topN,
   });
 

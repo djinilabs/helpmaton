@@ -287,8 +287,23 @@ async function executeInsert(
           )
         );
       }
-      table = await db.createTable("vectors", initialRecords);
-      console.log(`[Write Server] Created new table "vectors" in ${uri}`);
+      // Create table with first record to establish schema
+      table = await db.createTable("vectors", [initialRecords[0]]);
+      console.log(
+        `[Write Server] Created new table "vectors" in ${uri} with schema from first record`
+      );
+      // Add remaining records (skip first since it's already in createTable)
+      if (initialRecords.length > 1) {
+        await table.add(initialRecords.slice(1));
+        console.log(
+          `[Write Server] Added ${
+            initialRecords.length - 1
+          } additional records to table`
+        );
+      }
+      console.log(
+        `[Write Server] Successfully inserted ${initialRecords.length} records into newly created table for agent ${agentId}, grain ${temporalGrain}`
+      );
       return;
     }
 
