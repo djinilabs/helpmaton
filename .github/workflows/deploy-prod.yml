@@ -137,7 +137,7 @@ jobs:
         if: steps.check-pr.outputs.is_pr != 'true'
         uses: pnpm/action-setup@v4
         with:
-          version: 10.24.0
+          version: 10.26.1
 
       - name: Get pnpm store directory
         if: steps.check-pr.outputs.is_pr != 'true'
