@@ -174,8 +174,8 @@ importers:
         specifier: ^2.1692.0
         version: 2.1692.0
       chalk:
-        specifier: ^4.1.2
-        version: 4.1.2
+        specifier: ^5.0.0
+        version: 5.6.2
       express:
         specifier: ^5.0.0
         version: 5.1.0
@@ -2812,10 +2812,6 @@ packages:
   '@sentry/core@10.32.1':
     resolution: {integrity: sha512-PH2ldpSJlhqsMj2vCTyU0BI2Fx1oIDhm7Izo5xFALvjVCS0gmlqHt1udu6YlKn8BtpGH6bGzssvv5APrk+OdPQ==}
     engines: {node: '>=18'}
-
-  '@sentry/core@8.55.0':
-    resolution: {integrity: sha512-6g7jpbefjHYs821Z+EBJ8r4Z7LT5h80YSWRJaylGS4nW5W5Z2KXzpdnyFarv37O7QjauzVC2E+PABmpkw5/JGA==}
-    engines: {node: '>=14.18'}
 
   '@sentry/node-core@10.32.1':
     resolution: {integrity: sha512-w56rxdBanBKc832zuwnE+zNzUQ19fPxfHEtOhK8JGPu3aSwQYcIxwz9z52lOx3HN7k/8Fj5694qlT3x/PokhRw==}
@@ -11579,8 +11575,6 @@ snapshots:
       - supports-color
 
   '@sentry/core@10.32.1': {}
-
-  '@sentry/core@8.55.0': {}
 
   '@sentry/node-core@10.32.1(@opentelemetry/api@1.9.0)(@opentelemetry/context-async-hooks@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/core@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/instrumentation@0.208.0(@opentelemetry/api@1.9.0))(@opentelemetry/resources@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(@opentelemetry/semantic-conventions@1.38.0)':
     dependencies:
