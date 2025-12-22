@@ -4,14 +4,13 @@ import type { FC } from "react";
 import { useCreateAgent, useUpdateAgent } from "../hooks/useAgents";
 import { useChannels } from "../hooks/useChannels";
 import { useEscapeKey } from "../hooks/useEscapeKey";
-import type { Agent, ClientTool } from "../utils/api";
+import type { Agent } from "../utils/api";
 import {
   getModelsForProvider,
   getDefaultModelForProvider,
   type Provider,
 } from "../utils/modelConfig";
 
-import { ClientToolEditor } from "./ClientToolEditor";
 import { PromptGeneratorDialog } from "./PromptGeneratorDialog";
 import { QueryPanel } from "./QueryPanel";
 import { ToolsHelpDialog } from "./ToolsHelpDialog";
@@ -30,7 +29,6 @@ const AgentModalContent: FC<{
   systemPrompt: string;
   notificationChannelId: string | null;
   modelName: string | null;
-  clientTools: ClientTool[];
   availableModels: string[];
   defaultModel: string;
   isLoadingModels: boolean;
@@ -39,7 +37,6 @@ const AgentModalContent: FC<{
   onSystemPromptChange: (prompt: string) => void;
   onNotificationChannelChange: (id: string | null) => void;
   onModelNameChange: (modelName: string | null) => void;
-  onClientToolsChange: (tools: ClientTool[]) => void;
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
   isPending: boolean;
@@ -60,8 +57,6 @@ const AgentModalContent: FC<{
   onSystemPromptChange,
   onNotificationChannelChange,
   onModelNameChange,
-  clientTools,
-  onClientToolsChange,
   onSubmit,
   onClose,
   isPending,
@@ -189,9 +184,6 @@ const AgentModalContent: FC<{
           this agent.
         </p>
       </div>
-      <div>
-        <ClientToolEditor tools={clientTools} onChange={onClientToolsChange} />
-      </div>
       <div className="flex gap-3">
         <button
           type="submit"
@@ -236,9 +228,6 @@ export const AgentModal: FC<AgentModalProps> = ({
   >(agent?.notificationChannelId || null);
   const [modelName, setModelName] = useState<string | null>(
     agent?.modelName || null
-  );
-  const [clientTools, setClientTools] = useState<ClientTool[]>(
-    agent?.clientTools || []
   );
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isPromptGeneratorOpen, setIsPromptGeneratorOpen] = useState(false);
@@ -296,13 +285,11 @@ export const AgentModal: FC<AgentModalProps> = ({
         setSystemPrompt(agent.systemPrompt);
         setNotificationChannelId(agent.notificationChannelId || null);
         setModelName(agent.modelName || null);
-        setClientTools(agent.clientTools || []);
       } else {
         setName("");
         setSystemPrompt("");
         setNotificationChannelId(null);
         setModelName(null);
-        setClientTools([]);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -313,7 +300,6 @@ export const AgentModal: FC<AgentModalProps> = ({
     setSystemPrompt("");
     setNotificationChannelId(null);
     setModelName(null);
-    setClientTools([]);
     onClose();
   };
 
@@ -330,7 +316,6 @@ export const AgentModal: FC<AgentModalProps> = ({
           systemPrompt: systemPrompt.trim(),
           notificationChannelId: notificationChannelId || null,
           modelName: modelName || null,
-          clientTools: clientTools.length > 0 ? clientTools : undefined,
         });
       } else {
         await createAgent.mutateAsync({
@@ -338,7 +323,6 @@ export const AgentModal: FC<AgentModalProps> = ({
           systemPrompt: systemPrompt.trim(),
           notificationChannelId: notificationChannelId || null,
           modelName: modelName || null,
-          clientTools: clientTools.length > 0 ? clientTools : undefined,
         });
       }
       handleClose();
@@ -381,8 +365,6 @@ export const AgentModal: FC<AgentModalProps> = ({
             onSystemPromptChange={setSystemPrompt}
             onNotificationChannelChange={setNotificationChannelId}
             onModelNameChange={setModelName}
-            clientTools={clientTools}
-            onClientToolsChange={setClientTools}
             onSubmit={handleSubmit}
             onClose={handleClose}
             isPending={isPending}

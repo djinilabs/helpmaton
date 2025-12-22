@@ -147,6 +147,14 @@ export interface DocumentWithContent extends Document {
   content: string;
 }
 
+export interface DocumentSearchResult {
+  snippet: string;
+  documentName: string;
+  documentId: string;
+  folderPath: string;
+  similarity: number;
+}
+
 export interface CreateDocumentInput {
   name: string;
   content: string;
@@ -908,6 +916,22 @@ export async function deleteDocument(
   await apiFetch(`/api/workspaces/${workspaceId}/documents/${documentId}`, {
     method: "DELETE",
   });
+}
+
+export async function searchDocuments(
+  workspaceId: string,
+  query: string,
+  limit?: number
+): Promise<{ results: DocumentSearchResult[] }> {
+  const params = new URLSearchParams();
+  params.append("q", query);
+  if (limit !== undefined) {
+    params.append("limit", limit.toString());
+  }
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/documents/search?${params.toString()}`
+  );
+  return response.json();
 }
 
 export async function listChannels(
