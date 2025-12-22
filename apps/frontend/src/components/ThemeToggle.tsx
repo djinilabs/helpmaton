@@ -6,13 +6,14 @@ export const ThemeToggle: FC = () => {
   const { theme, preference, setPreference } = useTheme();
 
   const toggleTheme = () => {
-    // Cycle through: light -> dark -> system -> light
+    // Toggle directly between light and dark
     if (preference === "light") {
       setPreference("dark");
     } else if (preference === "dark") {
-      setPreference("system");
-    } else {
       setPreference("light");
+    } else {
+      // If preference is "system", toggle based on current resolved theme
+      setPreference(theme === "dark" ? "light" : "dark");
     }
   };
 
