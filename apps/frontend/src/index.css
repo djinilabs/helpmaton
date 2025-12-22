@@ -108,11 +108,6 @@
   }
 }
 
-/* Dark mode variant for manga-shine-overlay */
-.dark .manga-shine-overlay {
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 15%, transparent 30%), linear-gradient(45deg, transparent 25%, rgba(255, 255, 255, 0.05) 45%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.05) 55%, transparent 75%) !important;
-}
-
 /* Make logo white in dark mode */
 .dark img[src*="helpmaton_logo"] {
   filter: brightness(0) invert(1);

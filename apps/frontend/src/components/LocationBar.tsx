@@ -140,7 +140,7 @@ const LocationBarContent: FC = () => {
 
 export const LocationBar: FC = () => {
   return (
-    <nav className="border-b-4 border-neutral-900 bg-white sticky top-0 z-40 dark:border-neutral-50 dark:bg-neutral-900">
+    <nav className="border-b-4 border-neutral-900 bg-white sticky top-0 z-40 dark:border-neutral-700 dark:bg-neutral-900">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-3">
         <div className="flex items-center gap-2 text-sm font-bold">
           <QueryPanel fallback={<LoadingScreen compact />}>

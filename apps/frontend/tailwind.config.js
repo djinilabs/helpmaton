@@ -5,6 +5,10 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   darkMode: 'class',
+  safelist: [
+    'bg-gradient-soft-dark',
+    'dark:bg-gradient-soft-dark',
+  ],
   theme: {
     extend: {
       colors: {
