@@ -84,7 +84,7 @@ const AgentModalContent: FC<{
           type="text"
           value={name}
           onChange={(e) => onNameChange(e.target.value)}
-          className="w-full border-2 border-neutral-300 rounded-lg bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+          className="w-full border-2 border-neutral-300 rounded-lg bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
           required
           autoFocus
         />
@@ -93,7 +93,7 @@ const AgentModalContent: FC<{
         <div className="flex items-center justify-between mb-2">
           <label
             htmlFor="systemPrompt"
-            className="block text-sm font-medium text-neutral-700"
+            className="block text-sm font-medium text-neutral-700 dark:text-neutral-300"
           >
             System Prompt *
           </label>
@@ -101,14 +101,14 @@ const AgentModalContent: FC<{
             <button
               type="button"
               onClick={onPromptGeneratorOpen}
-              className="text-xs font-medium border-2 border-neutral-300 bg-white px-2.5 py-1 rounded-lg hover:bg-neutral-50 transition-colors"
+              className="text-xs font-medium border-2 border-neutral-300 bg-white px-2.5 py-1 rounded-lg hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               ✨ Get Help
             </button>
             <button
               type="button"
               onClick={onHelpOpen}
-              className="text-xs font-medium border-2 border-neutral-300 bg-white px-2.5 py-1 rounded-lg hover:bg-neutral-50 transition-colors"
+              className="text-xs font-medium border-2 border-neutral-300 bg-white px-2.5 py-1 rounded-lg hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               ? Available Tools
             </button>
@@ -118,18 +118,18 @@ const AgentModalContent: FC<{
           id="systemPrompt"
           value={systemPrompt}
           onChange={(e) => onSystemPromptChange(e.target.value)}
-          className="w-full border-2 border-neutral-300 rounded-lg bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+          className="w-full border-2 border-neutral-300 rounded-lg bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
           rows={12}
           required
         />
-        <p className="text-xs mt-1.5 text-neutral-600">
+        <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-400">
           Markdown is supported in the system prompt.
         </p>
       </div>
       <div>
         <label
           htmlFor="model"
-          className="block text-sm font-medium text-neutral-700 mb-2"
+          className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
         >
           Model
         </label>
@@ -143,7 +143,7 @@ const AgentModalContent: FC<{
               selectedModel === defaultModel ? null : selectedModel
             );
           }}
-          className="w-full border-2 border-neutral-300 rounded-lg bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full border-2 border-neutral-300 rounded-lg bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
         >
           {isLoadingModels ? (
             <option value="">Loading models...</option>
@@ -157,17 +157,17 @@ const AgentModalContent: FC<{
             ))
           )}
         </select>
-        <p className="text-xs mt-1.5 text-neutral-600">
+        <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-400">
           Select the AI model to use for this agent. Default: {defaultModel}
         </p>
         {modelLoadError && (
-          <p className="text-xs mt-1.5 text-red-600">{modelLoadError}</p>
+          <p className="text-xs mt-1.5 text-red-600 dark:text-red-400">{modelLoadError}</p>
         )}
       </div>
       <div>
         <label
           htmlFor="notificationChannel"
-          className="block text-sm font-medium text-neutral-700 mb-2"
+          className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
         >
           Notification Channel
         </label>
@@ -175,7 +175,7 @@ const AgentModalContent: FC<{
           id="notificationChannel"
           value={notificationChannelId || ""}
           onChange={(e) => onNotificationChannelChange(e.target.value || null)}
-          className="w-full border-2 border-neutral-300 rounded-lg bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+          className="w-full border-2 border-neutral-300 rounded-lg bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
         >
           <option value="">None</option>
           {channels.map((channel) => (
@@ -184,7 +184,7 @@ const AgentModalContent: FC<{
             </option>
           ))}
         </select>
-        <p className="text-xs mt-1.5 text-neutral-600">
+        <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-400">
           Select a notification channel to enable the send_notification tool for
           this agent.
         </p>
@@ -210,7 +210,7 @@ const AgentModalContent: FC<{
           type="button"
           onClick={onClose}
           disabled={isPending}
-          className="flex-1 border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-medium rounded-lg hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-medium rounded-lg hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
         >
           Cancel
         </button>
@@ -353,14 +353,14 @@ export const AgentModal: FC<AgentModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border-2 border-neutral-300 rounded-2xl shadow-dramatic p-10 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <h2 className="text-4xl font-black text-neutral-900 mb-8 tracking-tight">
+      <div className="bg-white border-2 border-neutral-300 rounded-2xl shadow-dramatic p-10 max-w-2xl w-full max-h-[90vh] overflow-y-auto dark:bg-neutral-900 dark:border-neutral-700">
+        <h2 className="text-4xl font-black text-neutral-900 mb-8 tracking-tight dark:text-neutral-50">
           {isEditing ? "Edit Agent" : "Create Agent"}
         </h2>
         <QueryPanel
           fallback={
             <div className="text-center py-8">
-              <div className="text-lg font-medium text-neutral-600">
+              <div className="text-lg font-medium text-neutral-600 dark:text-neutral-400">
                 Loading channels...
               </div>
             </div>

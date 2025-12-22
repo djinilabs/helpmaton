@@ -68,11 +68,11 @@ export const DocumentList: FC<DocumentListProps> = ({
 
   return (
     <>
-      <div className="border border-neutral-200 rounded-2xl p-6 mb-8 bg-white shadow-soft">
+      <div className="border border-neutral-200 rounded-2xl p-6 mb-8 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-3xl font-bold text-neutral-900">Documents</h2>
+          <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Documents</h2>
         </div>
-        <p className="text-sm text-neutral-600 mb-6">
+        <p className="text-sm text-neutral-600 mb-6 dark:text-neutral-400">
           Browse and manage documents uploaded to this workspace. Documents are
           organized in folders and can be accessed by agents during
           conversations. Click on a document to view its contents.
@@ -88,8 +88,8 @@ export const DocumentList: FC<DocumentListProps> = ({
                   onClick={() => handleBreadcrumbClick(index)}
                   className={`text-sm font-medium hover:text-primary-600 transition-colors ${
                     index === breadcrumbs.length - 1
-                      ? "text-neutral-900"
-                      : "text-neutral-600"
+                      ? "text-neutral-900 dark:text-neutral-50"
+                      : "text-neutral-600 dark:text-neutral-400"
                   }`}
                 >
                   {crumb}
@@ -123,7 +123,7 @@ export const DocumentList: FC<DocumentListProps> = ({
                     <button
                       key={folder}
                       onClick={() => onFolderChange?.(folder)}
-                      className="border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors"
+                      className="border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
                     >
                       📁 {folderName}
                     </button>
@@ -135,7 +135,7 @@ export const DocumentList: FC<DocumentListProps> = ({
 
         {/* Documents list */}
         {documents.length === 0 ? (
-          <p className="text-lg text-neutral-600">
+          <p className="text-lg text-neutral-600 dark:text-neutral-400">
             {currentFolder
               ? `No documents in "${getFolderDisplayName(
                   currentFolder
@@ -149,12 +149,12 @@ export const DocumentList: FC<DocumentListProps> = ({
               .map((document) => (
                 <div
                   key={document.id}
-                  className="border-2 border-neutral-300 rounded-xl p-6 bg-white flex justify-between items-center hover:shadow-bold hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99]"
+                  className="border-2 border-neutral-300 rounded-xl p-6 bg-white flex justify-between items-center hover:shadow-bold hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
                 >
                   <div className="flex-1">
                     <button
                       onClick={() => handleDocumentClick(document.id)}
-                      className="text-xl font-bold text-neutral-900 hover:text-primary-600 transition-colors text-left"
+                      className="text-xl font-bold text-neutral-900 hover:text-primary-600 transition-colors text-left dark:text-neutral-50 dark:hover:text-primary-400"
                     >
                       {document.name}
                     </button>

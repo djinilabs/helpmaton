@@ -108,45 +108,45 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-neutral-200 rounded-2xl shadow-dramatic border-2 border-neutral-300 p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white border border-neutral-200 rounded-2xl shadow-dramatic border-2 border-neutral-300 p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto dark:bg-neutral-900 dark:border-neutral-700">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-3xl font-bold text-neutral-900">
+          <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">
             Conversation Details
           </h2>
           <button
             onClick={onClose}
-            className="border border-neutral-300 bg-white px-4 py-2 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 transition-colors"
+            className="border border-neutral-300 bg-white px-4 py-2 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             Close
           </button>
         </div>
 
         {/* Expiration Notice */}
-        <div className="border border-yellow-200 rounded-xl bg-yellow-50 p-3 mb-4">
-          <p className="text-xs font-medium text-yellow-800">
+        <div className="border border-yellow-200 rounded-xl bg-yellow-50 p-3 mb-4 dark:border-yellow-800 dark:bg-yellow-950">
+          <p className="text-xs font-medium text-yellow-800 dark:text-yellow-200">
             Note: This conversation log expires after 1 month and is
             automatically deleted
           </p>
         </div>
 
         {/* Conversation Metadata */}
-        <div className="border border-neutral-200 rounded-xl p-4 mb-4 bg-neutral-50">
+        <div className="border border-neutral-200 rounded-xl p-4 mb-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <div className="font-medium text-neutral-700 mb-1">Type</div>
-              <div className="text-xs bg-white px-2 py-1 border border-neutral-300 rounded inline-block text-neutral-900">
+              <div className="font-medium text-neutral-700 mb-1 dark:text-neutral-300">Type</div>
+              <div className="text-xs bg-white px-2 py-1 border border-neutral-300 rounded inline-block text-neutral-900 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-50">
                 {conversationDetail.conversationType}
               </div>
             </div>
             <div>
-              <div className="font-medium text-neutral-700 mb-1">Messages</div>
-              <div className="text-neutral-900">
+              <div className="font-medium text-neutral-700 mb-1 dark:text-neutral-300">Messages</div>
+              <div className="text-neutral-900 dark:text-neutral-50">
                 {conversationDetail.messageCount}
               </div>
             </div>
             <div>
-              <div className="font-medium text-neutral-700 mb-1">Started</div>
-              <div className="text-xs text-neutral-600">
+              <div className="font-medium text-neutral-700 mb-1 dark:text-neutral-300">Started</div>
+              <div className="text-xs text-neutral-600 dark:text-neutral-400">
                 {formatDate(conversationDetail.startedAt)}
               </div>
             </div>
@@ -202,7 +202,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
         <div className="mb-4">
           <button
             onClick={() => setShowRawJson(!showRawJson)}
-            className="border border-neutral-300 bg-white px-4 py-2 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 transition-colors"
+            className="border border-neutral-300 bg-white px-4 py-2 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             {showRawJson ? "Show Formatted" : "Show Raw JSON"}
           </button>
@@ -210,8 +210,8 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
 
         {showRawJson ? (
           /* Raw JSON View */
-          <div className="border border-neutral-200 rounded-xl p-4 bg-neutral-50">
-            <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap text-neutral-900">
+          <div className="border border-neutral-200 rounded-xl p-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+            <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap text-neutral-900 dark:text-neutral-50">
               {JSON.stringify(conversationDetail, null, 2)}
             </pre>
           </div>
@@ -219,7 +219,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
           <>
             {/* Messages */}
             <div className="mb-6">
-              <h3 className="text-xl font-semibold text-neutral-900 mb-4 border-b border-neutral-200 pb-2">
+              <h3 className="text-xl font-semibold text-neutral-900 mb-4 border-b border-neutral-200 pb-2 dark:text-neutral-50 dark:border-neutral-700">
                 Messages
               </h3>
               <div className="space-y-4">
@@ -294,7 +294,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
             {Array.isArray(conversationDetail.toolCalls) &&
               conversationDetail.toolCalls.length > 0 && (
                 <div className="mb-6">
-                  <h3 className="text-xl font-semibold text-neutral-900 mb-4 border-b border-neutral-200 pb-2">
+                  <h3 className="text-xl font-semibold text-neutral-900 mb-4 border-b border-neutral-200 pb-2 dark:text-neutral-50 dark:border-neutral-700">
                     Tool Calls
                   </h3>
                   <div className="space-y-2">
@@ -302,9 +302,9 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                       (toolCall: unknown, index: number) => (
                         <div
                           key={index}
-                          className="border border-neutral-200 rounded-xl p-4 bg-neutral-50"
+                          className="border border-neutral-200 rounded-xl p-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800"
                         >
-                          <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap text-neutral-900">
+                          <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap text-neutral-900 dark:text-neutral-50">
                             {JSON.stringify(toolCall, null, 2)}
                           </pre>
                         </div>
@@ -318,7 +318,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
             {Array.isArray(conversationDetail.toolResults) &&
               conversationDetail.toolResults.length > 0 && (
                 <div className="mb-6">
-                  <h3 className="text-xl font-semibold text-neutral-900 mb-4 border-b border-neutral-200 pb-2">
+                  <h3 className="text-xl font-semibold text-neutral-900 mb-4 border-b border-neutral-200 pb-2 dark:text-neutral-50 dark:border-neutral-700">
                     Tool Results
                   </h3>
                   <div className="space-y-2">
@@ -326,9 +326,9 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                       (toolResult: unknown, index: number) => (
                         <div
                           key={index}
-                          className="border border-neutral-200 rounded-xl p-4 bg-neutral-50"
+                          className="border border-neutral-200 rounded-xl p-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800"
                         >
-                          <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap text-neutral-900">
+                          <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap text-neutral-900 dark:text-neutral-50">
                             {JSON.stringify(toolResult, null, 2)}
                           </pre>
                         </div>

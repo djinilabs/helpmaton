@@ -32,13 +32,13 @@ export const AgentList: FC<AgentListProps> = ({ workspaceId, canEdit }) => {
             </button>
           </div>
         )}
-        <p className="text-sm text-neutral-600 mb-6">
+        <p className="text-sm text-neutral-600 mb-6 dark:text-neutral-400">
           Agents are AI assistants that can process requests, access documents,
           and send notifications. Each agent has its own system prompt, spending
           limits, and usage statistics. Click on an agent to configure it.
         </p>
         {agents.length === 0 ? (
-          <p className="text-lg text-neutral-600">
+          <p className="text-lg text-neutral-600 dark:text-neutral-400">
             No agents yet. Create your first agent to get started.
           </p>
         ) : (
@@ -46,11 +46,11 @@ export const AgentList: FC<AgentListProps> = ({ workspaceId, canEdit }) => {
             {agents.map((agent) => (
               <div
                 key={agent.id}
-                className="border-2 border-neutral-300 rounded-xl p-6 bg-white hover:shadow-bold hover:border-primary-400 transition-all duration-200 cursor-pointer transform hover:scale-[1.02] active:scale-[0.98]"
+                className="border-2 border-neutral-300 rounded-xl p-6 bg-white hover:shadow-bold hover:border-primary-400 transition-all duration-200 cursor-pointer transform hover:scale-[1.02] active:scale-[0.98] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
               >
                 <Link
                   to={`/workspaces/${workspaceId}/agents/${agent.id}`}
-                  className="text-xl font-bold text-neutral-900 hover:text-primary-600 transition-colors"
+                  className="text-xl font-bold text-neutral-900 hover:text-primary-600 transition-colors dark:text-neutral-50 dark:hover:text-primary-400"
                 >
                   {agent.name}
                 </Link>

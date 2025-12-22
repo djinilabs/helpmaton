@@ -114,9 +114,9 @@ export const AgentChat: FC<AgentChatProps> = ({
   }, [messages, isLoading]);
 
   return (
-    <div className="border-2 border-neutral-300 rounded-2xl flex flex-col h-[600px] bg-white shadow-large">
-      <div className="border-b-2 border-neutral-300 p-5 bg-neutral-100 rounded-t-2xl">
-        <p className="text-base font-bold text-neutral-800">
+    <div className="border-2 border-neutral-300 rounded-2xl flex flex-col h-[600px] bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="border-b-2 border-neutral-300 p-5 bg-neutral-100 rounded-t-2xl dark:border-neutral-700 dark:bg-neutral-800">
+        <p className="text-base font-bold text-neutral-800 dark:text-neutral-200">
           Test your agent by having a conversation. This chat interface lets you
           interact with the agent in real-time to verify its behavior and
           responses before deploying it.
@@ -125,18 +125,18 @@ export const AgentChat: FC<AgentChatProps> = ({
       {/* Messages Container */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 bg-white"
+        className="flex-1 overflow-y-auto p-4 bg-white dark:bg-neutral-900"
       >
         {error && (
-          <div className="border-2 border-error-300 bg-error-100 rounded-xl p-5 mb-4">
-            <div className="text-base font-bold text-error-900">Error</div>
-            <div className="text-sm font-medium text-error-800 mt-2">
+          <div className="border-2 border-error-300 bg-error-100 rounded-xl p-5 mb-4 dark:border-error-700 dark:bg-error-950">
+            <div className="text-base font-bold text-error-900 dark:text-error-100">Error</div>
+            <div className="text-sm font-medium text-error-800 mt-2 dark:text-error-200">
               {error.message}
             </div>
           </div>
         )}
         {messages.length === 0 ? (
-          <div className="text-base font-bold text-neutral-600 text-center py-10">
+          <div className="text-base font-bold text-neutral-600 text-center py-10 dark:text-neutral-400">
             No messages yet. Start a conversation.
           </div>
         ) : (
@@ -161,10 +161,10 @@ export const AgentChat: FC<AgentChatProps> = ({
                   case "user":
                     return "bg-gradient-primary text-white ml-auto shadow-colored";
                   case "system":
-                    return "bg-neutral-200 text-neutral-800 italic border-2 border-neutral-400 font-bold";
+                    return "bg-neutral-200 text-neutral-800 italic border-2 border-neutral-400 font-bold dark:bg-neutral-700 dark:text-neutral-200 dark:border-neutral-600";
                   case "assistant":
                   default:
-                    return "bg-neutral-100 text-neutral-900 border-2 border-neutral-300";
+                    return "bg-neutral-100 text-neutral-900 border-2 border-neutral-300 dark:bg-neutral-800 dark:text-neutral-50 dark:border-neutral-700";
                 }
               };
 
@@ -205,7 +205,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                                 if (isInline) {
                                   return (
                                     <code
-                                      className="border-2 border-neutral-300 bg-neutral-100 px-2 py-1 rounded-lg font-mono text-xs font-bold"
+                                      className="border-2 border-neutral-300 bg-neutral-100 px-2 py-1 rounded-lg font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
                                       {...rest}
                                     >
                                       {children}
@@ -214,7 +214,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                                 }
                                 return (
                                   <code
-                                    className="block border-2 border-neutral-300 bg-neutral-100 rounded-xl p-5 font-mono text-sm font-bold overflow-x-auto"
+                                    className="block border-2 border-neutral-300 bg-neutral-100 rounded-xl p-5 font-mono text-sm font-bold overflow-x-auto dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
                                     {...rest}
                                   >
                                     {children}
@@ -243,12 +243,12 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="rounded-xl p-4 bg-indigo-50 border border-indigo-200 max-w-[80%]"
+                      className="rounded-xl p-4 bg-indigo-50 border border-indigo-200 max-w-[80%] dark:bg-indigo-950 dark:border-indigo-800"
                     >
-                      <div className="text-xs font-medium mb-2 text-indigo-700">
+                      <div className="text-xs font-medium mb-2 text-indigo-700 dark:text-indigo-300">
                         🧠 Reasoning
                       </div>
-                      <div className="text-sm text-indigo-900 whitespace-pre-wrap">
+                      <div className="text-sm text-indigo-900 whitespace-pre-wrap dark:text-indigo-100">
                         {reasoningPart.text}
                       </div>
                     </div>
@@ -279,23 +279,23 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="rounded-xl p-4 bg-blue-50 border border-blue-200 max-w-[80%]"
+                      className="rounded-xl p-4 bg-blue-50 border border-blue-200 max-w-[80%] dark:bg-blue-950 dark:border-blue-800"
                     >
-                      <div className="text-xs font-medium mb-2 text-blue-700">
+                      <div className="text-xs font-medium mb-2 text-blue-700 dark:text-blue-300">
                         🔧 Tool Call: {toolPart.toolName}
                       </div>
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-mono text-blue-600 bg-blue-100 px-2 py-1 rounded font-semibold">
+                        <span className="text-xs font-mono text-blue-600 bg-blue-100 px-2 py-1 rounded font-semibold dark:text-blue-300 dark:bg-blue-900">
                           {toolPart.toolName}
                         </span>
                         {toolPart.state && (
-                          <span className="text-xs text-blue-600">
+                          <span className="text-xs text-blue-600 dark:text-blue-400">
                             ({toolPart.state})
                           </span>
                         )}
                       </div>
                       <details className="text-xs">
-                        <summary className="cursor-pointer text-blue-600 hover:text-blue-700 font-medium">
+                        <summary className="cursor-pointer text-blue-600 hover:text-blue-700 font-medium dark:text-blue-400 dark:hover:text-blue-300">
                           View{" "}
                           {hasOutput
                             ? "output"
@@ -305,29 +305,29 @@ export const AgentChat: FC<AgentChatProps> = ({
                         </summary>
                         <div className="mt-2 space-y-2">
                           <div>
-                            <div className="font-medium text-blue-700 mb-1">
+                            <div className="font-medium text-blue-700 mb-1 dark:text-blue-300">
                               Arguments:
                             </div>
-                            <pre className="p-2 bg-blue-100 rounded text-xs overflow-x-auto">
+                            <pre className="p-2 bg-blue-100 rounded text-xs overflow-x-auto dark:bg-blue-900 dark:text-blue-50">
                               {JSON.stringify(toolInput, null, 2)}
                             </pre>
                           </div>
                           {hasOutput && (
                             <div>
-                              <div className="font-medium text-green-700 mb-1">
+                              <div className="font-medium text-green-700 mb-1 dark:text-green-300">
                                 Output:
                               </div>
-                              <pre className="p-2 bg-green-100 rounded text-xs overflow-x-auto">
+                              <pre className="p-2 bg-green-100 rounded text-xs overflow-x-auto dark:bg-green-900 dark:text-green-50">
                                 {JSON.stringify(toolPart.output, null, 2)}
                               </pre>
                             </div>
                           )}
                           {hasError && (
                             <div>
-                              <div className="font-medium text-red-700 mb-1">
+                              <div className="font-medium text-red-700 mb-1 dark:text-red-300">
                                 Error:
                               </div>
-                              <div className="p-2 bg-red-100 rounded text-xs text-red-800">
+                              <div className="p-2 bg-red-100 rounded text-xs text-red-800 dark:bg-red-900 dark:text-red-200">
                                 {toolPart.errorText}
                               </div>
                             </div>
@@ -743,14 +743,14 @@ export const AgentChat: FC<AgentChatProps> = ({
       {/* Input Form */}
       <form
         onSubmit={handleSubmit}
-        className="border-t-2 border-neutral-300 p-5 bg-white flex gap-4 rounded-b-2xl"
+        className="border-t-2 border-neutral-300 p-5 bg-white flex gap-4 rounded-b-2xl dark:border-neutral-700 dark:bg-neutral-900"
       >
         <input
           type="text"
           value={input}
           onChange={handleInputChange}
           placeholder="Type your message..."
-          className="flex-1 border-2 border-neutral-300 rounded-xl p-4 bg-white text-neutral-900 text-base font-medium focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-600 transition-all duration-200"
+          className="flex-1 border-2 border-neutral-300 rounded-xl p-4 bg-white text-neutral-900 text-base font-medium focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-600 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
         />
         <button
           type="submit"

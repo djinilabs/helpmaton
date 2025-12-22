@@ -151,11 +151,11 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
     ));
 
   return (
-    <div className="border border-neutral-200 rounded-lg p-6 mb-8 bg-white shadow-soft">
-      <h2 className="text-3xl font-bold text-neutral-900 mb-5">
+    <div className="border border-neutral-200 rounded-lg p-6 mb-8 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+      <h2 className="text-3xl font-bold text-neutral-900 mb-5 dark:text-neutral-50">
         Upload Documents
       </h2>
-      <p className="text-sm text-neutral-600 mb-4">
+      <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-400">
         Upload documents (markdown or text files) that your agents can reference
         when answering questions. Documents are organized in folders and can be
         searched by agents during conversations. Maximum file size is 10MB per
@@ -164,7 +164,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
 
       {/* Folder selection */}
       <div className="mb-4">
-        <label className="block text-sm font-medium text-neutral-700 mb-2">
+        <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
           Destination Folder
         </label>
         <div className="flex gap-2">
@@ -174,7 +174,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
               setSelectedFolder(e.target.value);
               setNewFolderName("");
             }}
-            className="flex-1 border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+            className="flex-1 border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
           >
             <option value="">Root</option>
             {folderOptions}
@@ -187,7 +187,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
               setSelectedFolder("");
             }}
             placeholder="Or create new folder..."
-            className="flex-1 border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+            className="flex-1 border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
           />
         </div>
       </div>
@@ -195,17 +195,17 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
       {/* Drag and drop area */}
       <div
         className={`border-2 border-dashed border-neutral-300 rounded-lg p-8 mb-4 text-center transition-colors ${
-          isDragging ? "bg-primary-50 border-primary-400" : "bg-neutral-50"
+          isDragging ? "bg-primary-50 border-primary-400 dark:bg-primary-950 dark:border-primary-500" : "bg-neutral-50 dark:bg-neutral-800"
         }`}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <p className="text-lg font-semibold text-neutral-900 mb-2">
+        <p className="text-lg font-semibold text-neutral-900 mb-2 dark:text-neutral-50">
           Drag and drop files here
         </p>
-        <p className="text-sm text-neutral-600 mb-4">or</p>
+        <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-400">or</p>
         <input
           ref={fileInputRef}
           type="file"
@@ -221,19 +221,19 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
         >
           Select Files
         </label>
-        <p className="text-xs mt-2 text-neutral-500">
+        <p className="text-xs mt-2 text-neutral-500 dark:text-neutral-400">
           Supported: .md, .txt, .markdown (max 10MB per file)
         </p>
       </div>
 
       {/* Text document creation */}
-      <div className="border border-neutral-200 rounded-lg p-4 bg-neutral-50">
-        <h3 className="text-lg font-semibold text-neutral-900 mb-4">
+      <div className="border border-neutral-200 rounded-lg p-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+        <h3 className="text-lg font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
           Create Text Document
         </h3>
         <form onSubmit={handleTextDocumentSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
+            <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
               Document Name
             </label>
             <input
@@ -241,18 +241,18 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
               value={textDocumentName}
               onChange={(e) => setTextDocumentName(e.target.value)}
               placeholder="e.g., My Document"
-              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
+            <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
               Content
             </label>
             <textarea
               value={textDocumentContent}
               onChange={(e) => setTextDocumentContent(e.target.value)}
               placeholder="Enter document content here..."
-              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors font-mono"
+              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors font-mono dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
               rows={8}
             />
           </div>
@@ -272,8 +272,8 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
 
       {/* Upload progress */}
       {uploadProgress && (
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="font-medium text-blue-900">{uploadProgress}</p>
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-950 dark:border-blue-800">
+          <p className="font-medium text-blue-900 dark:text-blue-100">{uploadProgress}</p>
         </div>
       )}
     </div>

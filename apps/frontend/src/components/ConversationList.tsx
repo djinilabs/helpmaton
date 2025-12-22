@@ -58,18 +58,18 @@ export const ConversationList: FC<ConversationListProps> = ({
     return (
       <>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-3xl font-bold text-neutral-900">
+          <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">
             Recent Conversations
           </h2>
           <button
             onClick={() => refetch()}
             disabled={isRefetching}
-            className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             {isRefetching ? "Refreshing..." : "Refresh"}
           </button>
         </div>
-        <p className="text-sm text-neutral-600">Loading conversations...</p>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">Loading conversations...</p>
       </>
     );
   }
@@ -78,20 +78,20 @@ export const ConversationList: FC<ConversationListProps> = ({
     return (
       <>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-3xl font-bold text-neutral-900">
+          <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">
             Recent Conversations
           </h2>
           <button
             onClick={() => refetch()}
             disabled={isRefetching}
-            className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             {isRefetching ? "Refreshing..." : "Refresh"}
           </button>
         </div>
-        <div className="border border-red-200 bg-red-50 rounded-xl p-4">
-          <div className="text-sm font-semibold text-red-800">Error</div>
-          <div className="text-xs text-red-700 mt-1">
+        <div className="border border-red-200 bg-red-50 rounded-xl p-4 dark:border-red-800 dark:bg-red-950">
+          <div className="text-sm font-semibold text-red-800 dark:text-red-200">Error</div>
+          <div className="text-xs text-red-700 mt-1 dark:text-red-300">
             {error instanceof Error
               ? error.message
               : "Failed to load conversations"}
@@ -104,25 +104,25 @@ export const ConversationList: FC<ConversationListProps> = ({
   return (
     <>
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-semibold text-neutral-900">
+        <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
           Recent Conversations
         </h2>
         <button
           onClick={() => refetch()}
           disabled={isRefetching}
-          className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
         >
           {isRefetching ? "Refreshing..." : "Refresh"}
         </button>
       </div>
       <div className="mb-4 space-y-2">
-        <p className="text-sm text-neutral-600">
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
           View all conversations this agent has participated in. Each
           conversation shows the message count, token usage, and timestamps.
           Click on a conversation to view its full details and message history.
         </p>
-        <div className="border border-yellow-200 bg-yellow-50 rounded-xl p-3">
-          <p className="text-xs font-medium text-yellow-800">
+        <div className="border border-yellow-200 bg-yellow-50 rounded-xl p-3 dark:border-yellow-800 dark:bg-yellow-950">
+          <p className="text-xs font-medium text-yellow-800 dark:text-yellow-200">
             Note: Conversation logs expire after 1 month and are automatically
             deleted
           </p>
@@ -130,7 +130,7 @@ export const ConversationList: FC<ConversationListProps> = ({
       </div>
 
       {conversations.length === 0 ? (
-        <p className="text-sm text-neutral-600">No conversations yet.</p>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">No conversations yet.</p>
       ) : (
         <>
           <div className="space-y-2 mb-4">
@@ -138,31 +138,31 @@ export const ConversationList: FC<ConversationListProps> = ({
               <div
                 key={conversation.id}
                 onClick={() => onConversationClick(conversation)}
-                className="border-2 border-neutral-300 rounded-xl p-6 bg-white cursor-pointer hover:shadow-bold hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99]"
+                className="border-2 border-neutral-300 rounded-xl p-6 bg-white cursor-pointer hover:shadow-bold hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
               >
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium bg-neutral-100 text-neutral-700 px-2 py-1 rounded border border-neutral-200">
+                      <span className="text-xs font-medium bg-neutral-100 text-neutral-700 px-2 py-1 rounded border border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700">
                         {conversation.conversationType}
                       </span>
-                      <span className="text-xs text-neutral-600">
+                      <span className="text-xs text-neutral-600 dark:text-neutral-400">
                         {conversation.messageCount} message
                         {conversation.messageCount !== 1 ? "s" : ""}
                       </span>
                     </div>
-                    <div className="text-xs text-neutral-500 mb-1">
+                    <div className="text-xs text-neutral-500 mb-1 dark:text-neutral-400">
                       Started: {formatDate(conversation.startedAt)}
                     </div>
-                    <div className="text-xs text-neutral-500">
+                    <div className="text-xs text-neutral-500 dark:text-neutral-400">
                       Last: {formatDate(conversation.lastMessageAt)}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs font-medium text-neutral-700 mb-1">
+                    <div className="text-xs font-medium text-neutral-700 mb-1 dark:text-neutral-300">
                       Tokens
                     </div>
-                    <div className="text-xs text-neutral-600">
+                    <div className="text-xs text-neutral-600 dark:text-neutral-400">
                       {formatTokenUsage(conversation.tokenUsage)}
                     </div>
                   </div>
@@ -175,7 +175,7 @@ export const ConversationList: FC<ConversationListProps> = ({
             <button
               onClick={() => fetchNextPage()}
               disabled={isFetchingNextPage}
-              className="w-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               {isFetchingNextPage ? "Loading..." : "Load More"}
             </button>

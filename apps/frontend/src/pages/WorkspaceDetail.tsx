@@ -169,9 +169,9 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="border border-primary-200 rounded-xl p-5 bg-primary-50/50">
-        <p className="text-sm font-semibold text-neutral-900 mb-3">Help:</p>
-        <ul className="text-sm space-y-2 list-disc list-inside text-neutral-700">
+      <div className="border border-primary-200 rounded-xl p-5 bg-primary-50/50 dark:border-primary-800 dark:bg-primary-950/50">
+        <p className="text-sm font-semibold text-neutral-900 mb-3 dark:text-neutral-50">Help:</p>
+        <ul className="text-sm space-y-2 list-disc list-inside text-neutral-700 dark:text-neutral-300">
           <li>
             Select the LLM provider for which you want to configure an API key
           </li>
@@ -187,11 +187,11 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
       </div>
 
       {hasKey && (
-        <div className="border border-accent-200 rounded-xl p-5 bg-accent-50/50">
-          <p className="text-sm font-semibold text-accent-800">
+        <div className="border border-accent-200 rounded-xl p-5 bg-accent-50/50 dark:border-accent-800 dark:bg-accent-950/50">
+          <p className="text-sm font-semibold text-accent-800 dark:text-accent-300">
             API Key is Configured
           </p>
-          <p className="text-xs mt-1.5 text-accent-700">
+          <p className="text-xs mt-1.5 text-accent-700 dark:text-accent-400">
             A {providerDisplayNames[selectedProvider]} API key is currently set
             for this workspace. Requests will use your key and workspace credits
             will not be deducted.
@@ -201,7 +201,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
 
       <div className="space-y-3">
         <div>
-          <label className="block text-sm font-medium text-neutral-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
             LLM Provider
           </label>
           <select
@@ -212,7 +212,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
               );
               setApiKey("");
             }}
-            className="w-full border border-neutral-300 rounded-xl p-3 text-sm bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full border border-neutral-300 rounded-xl p-3 text-sm bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
             disabled={isSaving || isClearing}
           >
             <option value="google">Google AI</option>
@@ -222,7 +222,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-neutral-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
             {providerDisplayNames[selectedProvider]} API Key
           </label>
           <input
@@ -234,7 +234,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
                 ? "Enter new key to replace existing"
                 : `Enter your ${providerDisplayNames[selectedProvider]} API key`
             }
-            className="w-full border border-neutral-300 rounded-xl p-3 font-mono text-sm bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full border border-neutral-300 rounded-xl p-3 font-mono text-sm bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
             disabled={isSaving || isClearing}
           />
         </div>
@@ -250,7 +250,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
             <button
               onClick={handleClear}
               disabled={isSaving || isClearing}
-              className="border border-neutral-300 bg-white px-5 py-2.5 text-neutral-700 text-sm font-semibold rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="border border-neutral-300 bg-white px-5 py-2.5 text-neutral-700 text-sm font-semibold rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               {isClearing ? "Clearing..." : "Clear Key"}
             </button>
@@ -294,11 +294,11 @@ const WorkspaceDataLoader: FC<{ workspaceId: string }> = ({ workspaceId }) => {
   if (error || !workspace) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-soft p-8">
-        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-error-200">
-          <h1 className="text-4xl font-semibold text-neutral-900 mb-4">
+        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-error-200 dark:bg-neutral-900 dark:border-error-700">
+          <h1 className="text-4xl font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
             Error
           </h1>
-          <p className="text-xl mb-6 text-error-600 font-semibold">
+          <p className="text-xl mb-6 text-error-600 font-semibold dark:text-error-400">
             {error instanceof Error
               ? error.message
               : "Failed to load workspace"}
@@ -391,13 +391,13 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
   return (
     <div className="min-h-screen bg-gradient-soft p-6 lg:p-10">
       <div className="max-w-5xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-large p-8 lg:p-10 mb-8 border border-neutral-200 relative overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-large p-8 lg:p-10 mb-8 border border-neutral-200 relative overflow-hidden dark:bg-neutral-900 dark:border-neutral-700">
           <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-primary opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
           <div className="relative z-10">
             <div className="flex justify-between items-center mb-6">
               <button
                 onClick={() => navigate("/workspaces")}
-                className="border border-neutral-300 bg-white px-5 py-2.5 text-neutral-700 text-sm font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200 flex items-center gap-2"
+                className="border border-neutral-300 bg-white px-5 py-2.5 text-neutral-700 text-sm font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200 flex items-center gap-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
                 <svg
                   className="w-4 h-4"
@@ -423,7 +423,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                 </button>
               )}
             </div>
-            <p className="text-sm text-neutral-600 mb-6 leading-relaxed">
+            <p className="text-sm text-neutral-600 mb-6 leading-relaxed dark:text-neutral-400">
               This workspace contains your agents, documents, and settings. Use
               the sections below to manage credits, spending limits, channels,
               agents, and documents.
@@ -432,25 +432,25 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             {isEditing ? (
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2.5">
+                  <label className="block text-sm font-medium text-neutral-700 mb-2.5 dark:text-neutral-300">
                     Name
                   </label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                    className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2.5">
+                  <label className="block text-sm font-medium text-neutral-700 mb-2.5 dark:text-neutral-300">
                     Description
                   </label>
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                    className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                     rows={4}
                   />
                 </div>
@@ -465,7 +465,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                   <button
                     onClick={handleCancel}
                     disabled={updateWorkspace.isPending}
-                    className="border border-neutral-300 bg-white px-6 py-3 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    className="border border-neutral-300 bg-white px-6 py-3 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
                   >
                     Cancel
                   </button>
@@ -473,15 +473,15 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               </div>
             ) : (
               <div>
-                <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-4 tracking-tight">
+                <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-4 tracking-tight dark:text-neutral-50">
                   {workspace.name}
                 </h1>
                 {workspace.description && (
-                  <p className="text-xl mb-4 text-neutral-700 leading-relaxed">
+                  <p className="text-xl mb-4 text-neutral-700 leading-relaxed dark:text-neutral-300">
                     {workspace.description}
                   </p>
                 )}
-                <div className="flex items-center gap-2 text-sm text-neutral-500">
+                <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
                   <svg
                     className="w-4 h-4"
                     fill="none"
@@ -506,11 +506,11 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
         {/* Trial Credit Request Button - Show when balance is 0 */}
         {workspace.creditBalance === 0 && canEdit && (
-          <div className="bg-gradient-accent/5 rounded-2xl shadow-medium p-8 mb-8 border border-accent-200/50">
-            <h3 className="text-2xl font-semibold text-neutral-900 mb-3">
+          <div className="bg-gradient-accent/5 rounded-2xl shadow-medium p-8 mb-8 border border-accent-200/50 dark:border-accent-800/50">
+            <h3 className="text-2xl font-semibold text-neutral-900 mb-3 dark:text-neutral-50">
               Trial Credits
             </h3>
-            <p className="text-base text-neutral-600 mb-6 leading-relaxed">
+            <p className="text-base text-neutral-600 mb-6 leading-relaxed dark:text-neutral-400">
               Your workspace balance is 0. Request trial credits (2 USD) to test
               the application.
             </p>
@@ -757,7 +757,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                         )}
                       </div>
                     )}
-                    <h3 className="text-lg font-semibold text-neutral-900 mb-4">
+                    <h3 className="text-lg font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
                       Invite Member
                     </h3>
                     <InviteMember
@@ -778,12 +778,12 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             isExpanded={expandedSection === "danger"}
             onToggle={() => toggleSection("danger")}
           >
-            <p className="text-sm text-neutral-600 mb-4 leading-relaxed">
+            <p className="text-sm text-neutral-600 mb-4 leading-relaxed dark:text-neutral-400">
               This section contains destructive actions. Deleting a workspace
               will permanently remove all agents, documents, conversations, and
               settings. This action cannot be undone.
             </p>
-            <p className="mb-6 text-neutral-700 font-medium">
+            <p className="mb-6 text-neutral-700 font-medium dark:text-neutral-300">
               Deleting a workspace is permanent and cannot be undone.
             </p>
             <button
@@ -917,11 +917,11 @@ const WorkspaceDetail: FC = () => {
     <ErrorBoundary
       fallback={(error, resetError) => (
         <div className="flex items-center justify-center min-h-screen bg-gradient-soft p-8">
-          <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-error-200">
-            <h1 className="text-4xl font-semibold text-neutral-900 mb-4">
+          <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-error-200 dark:bg-neutral-900 dark:border-error-700">
+            <h1 className="text-4xl font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
               Error
             </h1>
-            <p className="text-xl mb-6 text-error-600 font-semibold">
+            <p className="text-xl mb-6 text-error-600 font-semibold dark:text-error-400">
               {error.message || "Failed to load workspace"}
             </p>
             <div className="flex gap-3">
@@ -936,7 +936,7 @@ const WorkspaceDetail: FC = () => {
               </button>
               <button
                 onClick={() => navigate("/workspaces")}
-                className="border border-neutral-300 bg-white px-6 py-3 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200"
+                className="border border-neutral-300 bg-white px-6 py-3 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
                 Back to Workspaces
               </button>
