@@ -61,12 +61,6 @@ import { asyncHandler, requireAuth, requirePermission } from "../middleware";
  *                 tokenUsage:
  *                   type: object
  *                   nullable: true
- *                 modelName:
- *                   type: string
- *                   nullable: true
- *                 provider:
- *                   type: string
- *                   nullable: true
  *                 startedAt:
  *                   type: string
  *                   format: date-time
@@ -131,8 +125,6 @@ export const registerGetAgentConversation = (app: express.Application) => {
         toolCalls: conversation.toolCalls || [],
         toolResults: conversation.toolResults || [],
         tokenUsage: conversation.tokenUsage || null,
-        modelName: conversation.modelName || null,
-        provider: conversation.provider || null,
         startedAt: conversation.startedAt,
         lastMessageAt: conversation.lastMessageAt,
       });

@@ -606,6 +606,20 @@ export const AgentChat: FC<AgentChatProps> = ({
                     })
                   : null;
 
+              // Check if message has modelName and provider (for assistant messages)
+              const modelName =
+                message.role === "assistant" &&
+                "modelName" in message &&
+                typeof message.modelName === "string"
+                  ? message.modelName
+                  : null;
+              const provider =
+                message.role === "assistant" &&
+                "provider" in message &&
+                typeof message.provider === "string"
+                  ? message.provider
+                  : null;
+
               const formatTokenUsage = (usage: {
                 promptTokens?: number;
                 completionTokens?: number;
@@ -664,11 +678,18 @@ export const AgentChat: FC<AgentChatProps> = ({
                               <div className="text-xs font-medium opacity-80">
                                 {getRoleLabel()}
                               </div>
-                              {tokenUsage && (
-                                <div className="text-xs font-mono opacity-70 bg-black bg-opacity-10 px-2 py-1 rounded">
-                                  {formatTokenUsage(tokenUsage)}
-                                </div>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {modelName && provider && (
+                                  <div className="text-xs font-medium opacity-70 bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                    {provider}/{modelName}
+                                  </div>
+                                )}
+                                {tokenUsage && (
+                                  <div className="text-xs font-mono opacity-70 bg-black bg-opacity-10 px-2 py-1 rounded">
+                                    {formatTokenUsage(tokenUsage)}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             {renderPart(part, partIndex)}
                           </div>
@@ -686,11 +707,18 @@ export const AgentChat: FC<AgentChatProps> = ({
                         <div className="text-sm font-bold opacity-90">
                           {getRoleLabel()}
                         </div>
-                        {tokenUsage && (
-                          <div className="text-xs font-mono opacity-70 bg-black bg-opacity-10 px-2 py-1 rounded">
-                            {formatTokenUsage(tokenUsage)}
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {modelName && provider && (
+                            <div className="text-xs font-medium opacity-70 bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                              {provider}/{modelName}
+                            </div>
+                          )}
+                          {tokenUsage && (
+                            <div className="text-xs font-mono opacity-70 bg-black bg-opacity-10 px-2 py-1 rounded">
+                              {formatTokenUsage(tokenUsage)}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="text-base text-neutral-600 italic font-medium">
                         (Empty message)

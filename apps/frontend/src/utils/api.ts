@@ -742,8 +742,6 @@ export interface Conversation {
     completionTokens: number;
     totalTokens: number;
   } | null;
-  modelName: string | null;
-  provider: string | null;
 }
 
 export interface ConversationDetail extends Conversation {

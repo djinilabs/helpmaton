@@ -35,6 +35,8 @@ export type UIMessage =
         reasoningTokens?: number;
         cachedPromptTokens?: number;
       };
+      modelName?: string; // AI model name used for this message (e.g., "gemini-2.0-flash-exp")
+      provider?: string; // AI provider name used for this message (e.g., "google")
     }
   | {
       role: "system";

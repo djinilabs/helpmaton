@@ -619,7 +619,7 @@ export const handler = adaptHttpHandler(
         }
       );
 
-      // Create assistant message
+      // Create assistant message with modelName and provider
       // Ensure content is always an array if we have tool calls/results, even if text is empty
       const assistantMessage: UIMessage = {
         role: "assistant",
@@ -627,6 +627,8 @@ export const handler = adaptHttpHandler(
           assistantContent.length > 0
             ? assistantContent
             : responseContent || "",
+        modelName: finalModelName,
+        provider: "google",
       };
 
       // DIAGNOSTIC: Log final assistant message structure
@@ -687,8 +689,6 @@ export const handler = adaptHttpHandler(
             conversationType: "webhook",
             messages: messagesToLog,
             tokenUsage,
-            modelName: finalModelName,
-            provider: "google",
             usesByok,
           });
         } else {

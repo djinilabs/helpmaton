@@ -69,12 +69,6 @@ import { asyncHandler, requireAuth, requirePermission } from "../middleware";
  *                       tokenUsage:
  *                         type: object
  *                         nullable: true
- *                       modelName:
- *                         type: string
- *                         nullable: true
- *                       provider:
- *                         type: string
- *                         nullable: true
  *                 nextCursor:
  *                   type: string
  *                   nullable: true
@@ -159,8 +153,6 @@ export const registerGetAgentConversations = (app: express.Application) => {
             lastMessageAt: c.lastMessageAt,
             messageCount: Array.isArray(c.messages) ? c.messages.length : 0,
             tokenUsage: c.tokenUsage || null,
-            modelName: c.modelName || null,
-            provider: c.provider || null,
           };
         });
 

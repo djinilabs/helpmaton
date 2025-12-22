@@ -23,8 +23,6 @@ export interface ConversationLogData {
   toolCalls?: unknown[];
   toolResults?: unknown[];
   tokenUsage?: TokenUsage;
-  modelName?: string;
-  provider?: string;
   usesByok?: boolean;
 }
 
@@ -607,12 +605,21 @@ export async function startConversation(
   const toolCalls = extractToolCalls(filteredMessages);
   const toolResults = extractToolResults(filteredMessages);
 
-  // Calculate costs at conversation time
-  const costs = calculateConversationCosts(
-    data.provider,
-    data.modelName,
-    data.tokenUsage
-  );
+  // Calculate costs from per-message model/provider data
+  // Extract model/provider and tokenUsage from assistant messages
+  let totalCostUsd = 0;
+  for (const message of filteredMessages) {
+    if (message.role === "assistant" && "tokenUsage" in message && message.tokenUsage) {
+      const modelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
+      const provider = "provider" in message && typeof message.provider === "string" ? message.provider : "google";
+      const messageCosts = calculateConversationCosts(
+        provider,
+        modelName,
+        message.tokenUsage
+      );
+      totalCostUsd += messageCosts.usd;
+    }
+  }
 
   await db["agent-conversations"].create({
     pk,
@@ -624,10 +631,8 @@ export async function startConversation(
     toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     toolResults: toolResults.length > 0 ? toolResults : undefined,
     tokenUsage: data.tokenUsage,
-    modelName: data.modelName,
-    provider: data.provider,
     usesByok: data.usesByok,
-    costUsd: costs.usd > 0 ? costs.usd : undefined,
+    costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
     startedAt: now,
     lastMessageAt: now,
     expires: calculateTTL(),
@@ -675,9 +680,7 @@ export async function updateConversation(
   agentId: string,
   conversationId: string,
   newMessages: UIMessage[],
-  additionalTokenUsage?: TokenUsage,
-  modelName?: string,
-  provider?: string
+  additionalTokenUsage?: TokenUsage
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
@@ -704,11 +707,21 @@ export async function updateConversation(
 
         const toolCalls = extractToolCalls(filteredNewMessages);
         const toolResults = extractToolResults(filteredNewMessages);
-        const costs = calculateConversationCosts(
-          provider || "google", // Use provided provider or default
-          modelName || undefined, // Use provided modelName or undefined
-          additionalTokenUsage
-        );
+        
+        // Calculate costs from per-message model/provider data
+        let totalCostUsd = 0;
+        for (const message of filteredNewMessages) {
+          if (message.role === "assistant" && "tokenUsage" in message && message.tokenUsage) {
+            const msgModelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
+            const msgProvider = "provider" in message && typeof message.provider === "string" ? message.provider : "google";
+            const messageCosts = calculateConversationCosts(
+              msgProvider,
+              msgModelName,
+              message.tokenUsage
+            );
+            totalCostUsd += messageCosts.usd;
+          }
+        }
 
         return {
           pk,
@@ -720,10 +733,8 @@ export async function updateConversation(
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
           tokenUsage: additionalTokenUsage,
-          modelName: modelName || undefined,
-          provider: provider || "google",
           usesByok: undefined,
-          costUsd: costs.usd > 0 ? costs.usd : undefined,
+          costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
           startedAt: now,
           lastMessageAt: now,
           expires: calculateTTL(),
@@ -760,16 +771,20 @@ export async function updateConversation(
         additionalTokenUsage
       );
 
-      // Recalculate costs with aggregated token usage
-      // Use provided modelName/provider if available, otherwise preserve existing
-      const finalProvider = provider || existing.provider || "google";
-      const finalModelName =
-        modelName !== undefined ? modelName : existing.modelName;
-      const costs = calculateConversationCosts(
-        finalProvider,
-        finalModelName,
-        aggregatedTokenUsage
-      );
+      // Calculate costs from per-message model/provider data
+      let totalCostUsd = 0;
+      for (const message of filteredAllMessages) {
+        if (message.role === "assistant" && "tokenUsage" in message && message.tokenUsage) {
+          const msgModelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
+          const msgProvider = "provider" in message && typeof message.provider === "string" ? message.provider : "google";
+          const messageCosts = calculateConversationCosts(
+            msgProvider,
+            msgModelName,
+            message.tokenUsage
+          );
+          totalCostUsd += messageCosts.usd;
+        }
+      }
 
       // Update conversation, preserving existing fields
       return {
@@ -784,10 +799,7 @@ export async function updateConversation(
         tokenUsage: aggregatedTokenUsage,
         lastMessageAt: now,
         expires: calculateTTL(),
-        costUsd: costs.usd > 0 ? costs.usd : undefined,
-        // Use provided modelName/provider if available, otherwise preserve existing
-        modelName: finalModelName,
-        provider: finalProvider,
+        costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
         usesByok: existing.usesByok,
         startedAt: existing.startedAt,
       };

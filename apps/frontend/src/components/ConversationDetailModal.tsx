@@ -158,24 +158,6 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                 {formatDate(conversationDetail.lastMessageAt)}
               </div>
             </div>
-            {conversationDetail.modelName && (
-              <div>
-                <div className="font-medium text-neutral-700 mb-1">Model</div>
-                <div className="text-xs bg-white px-2 py-1 border border-neutral-300 rounded inline-block text-neutral-900">
-                  {conversationDetail.modelName}
-                </div>
-              </div>
-            )}
-            {conversationDetail.provider && (
-              <div>
-                <div className="font-medium text-neutral-700 mb-1">
-                  Provider
-                </div>
-                <div className="text-xs bg-white px-2 py-1 border border-neutral-300 rounded inline-block text-neutral-900">
-                  {conversationDetail.provider}
-                </div>
-              </div>
-            )}
             {conversationDetail.tokenUsage && (
               <div className="col-span-2">
                 <div className="font-medium text-neutral-700 mb-1">
@@ -256,6 +238,18 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                           "tokenUsage" in message
                             ? formatTokenUsage(message.tokenUsage)
                             : null;
+                        const modelName =
+                          role === "assistant" &&
+                          "modelName" in message &&
+                          typeof message.modelName === "string"
+                            ? message.modelName
+                            : null;
+                        const provider =
+                          role === "assistant" &&
+                          "provider" in message &&
+                          typeof message.provider === "string"
+                            ? message.provider
+                            : null;
                         return (
                           <div
                             key={index}
@@ -271,11 +265,18 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                               <div className="text-xs font-medium opacity-80">
                                 {role}
                               </div>
-                              {tokenUsage && (
-                                <div className="text-xs font-mono opacity-70 bg-black bg-opacity-10 px-2 py-1 rounded">
-                                  {tokenUsage}
-                                </div>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {modelName && provider && (
+                                  <div className="text-xs font-medium opacity-70 bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                    {provider}/{modelName}
+                                  </div>
+                                )}
+                                {tokenUsage && (
+                                  <div className="text-xs font-mono opacity-70 bg-black bg-opacity-10 px-2 py-1 rounded">
+                                    {tokenUsage}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             <div className="text-sm whitespace-pre-wrap">
                               {content}
