@@ -1,5 +1,6 @@
 import { splitDocumentIntoSnippets } from "./documentSearch";
 import { getDocument } from "./s3";
+import { Sentry, ensureError } from "./sentry";
 import { MAX_QUERY_LIMIT } from "./vectordb/config";
 import { sendWriteOperation } from "./vectordb/queueClient";
 import { query } from "./vectordb/readClient";
@@ -276,6 +277,23 @@ export async function deleteDocumentSnippets(
       errorMessage
     );
 
+    // Report to Sentry (without flushing - flushing is done unconditionally at end of request)
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        operation: "document_indexing",
+        action: "delete_snippets",
+        workspaceId,
+        documentId,
+        throwOnError,
+      },
+      contexts: {
+        document: {
+          documentId,
+          workspaceId,
+        },
+      },
+    });
+
     // For updates, throw errors to prevent duplicate snippets
     // For deletions, swallow errors (orphaned snippets are acceptable)
     if (throwOnError) {
@@ -344,6 +362,24 @@ export async function indexDocumentFromS3(
           }
         : String(error)
     );
+    // Report to Sentry (without flushing - flushing is done unconditionally at end of request)
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        operation: "document_indexing",
+        action: "index_from_s3",
+        workspaceId,
+        documentId,
+      },
+      contexts: {
+        document: {
+          documentId,
+          s3Key,
+          documentName: metadata.documentName,
+          folderPath: metadata.folderPath,
+          workspaceId,
+        },
+      },
+    });
     // Don't throw - allow document operations to proceed even if indexing fails
   }
 }

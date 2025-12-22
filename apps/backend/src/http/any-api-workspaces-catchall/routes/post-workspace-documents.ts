@@ -12,6 +12,7 @@ import {
   generateUniqueFilename,
   normalizeFolderPath,
 } from "../../../utils/s3";
+import { Sentry, ensureError } from "../../../utils/sentry";
 import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
@@ -221,6 +222,23 @@ export const registerPostWorkspaceDocuments = (app: express.Application) => {
               `[Document Upload] Failed to index document ${documentId}:`,
               error
             );
+            // Report to Sentry (without flushing - flushing is done unconditionally at end of request)
+            Sentry.captureException(ensureError(error), {
+              tags: {
+                operation: "document_indexing",
+                action: "upload",
+                workspaceId,
+                documentId,
+              },
+              contexts: {
+                document: {
+                  documentId,
+                  documentName: document.name,
+                  folderPath: document.folderPath,
+                  workspaceId,
+                },
+              },
+            });
           });
         }
       }
@@ -290,6 +308,23 @@ export const registerPostWorkspaceDocuments = (app: express.Application) => {
               `[Document Upload] Failed to index document ${documentId}:`,
               error
             );
+            // Report to Sentry (without flushing - flushing is done unconditionally at end of request)
+            Sentry.captureException(ensureError(error), {
+              tags: {
+                operation: "document_indexing",
+                action: "upload",
+                workspaceId,
+                documentId,
+              },
+              contexts: {
+                document: {
+                  documentId,
+                  documentName: document.name,
+                  folderPath: document.folderPath,
+                  workspaceId,
+                },
+              },
+            });
           });
         }
       }

@@ -6,12 +6,13 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { updateDocument } from "../../../utils/documentIndexing";
 import {
-  uploadDocument,
-  renameDocument,
+  getDocument,
   generateUniqueFilename,
   normalizeFolderPath,
-  getDocument,
+  renameDocument,
+  uploadDocument,
 } from "../../../utils/s3";
+import { Sentry, ensureError } from "../../../utils/sentry";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 // Configure multer for file uploads
@@ -271,6 +272,25 @@ export const registerPutWorkspaceDocument = (app: express.Application) => {
             `[Document Update] Failed to re-index document ${documentId}:`,
             error
           );
+          // Report to Sentry (without flushing - flushing is done unconditionally at end of request)
+          Sentry.captureException(ensureError(error), {
+            tags: {
+              operation: "document_indexing",
+              action: "update",
+              workspaceId,
+              documentId,
+            },
+            contexts: {
+              document: {
+                documentId,
+                documentName: updated.name,
+                folderPath: updated.folderPath,
+                workspaceId,
+                contentChanged,
+                metadataChanged,
+              },
+            },
+          });
         });
       }
 
