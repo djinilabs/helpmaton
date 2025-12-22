@@ -151,19 +151,19 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
               </div>
             </div>
             <div>
-              <div className="font-medium text-neutral-700 mb-1">
+              <div className="font-medium text-neutral-700 mb-1 dark:text-neutral-300">
                 Last Message
               </div>
-              <div className="text-xs text-neutral-600">
+              <div className="text-xs text-neutral-600 dark:text-neutral-300">
                 {formatDate(conversationDetail.lastMessageAt)}
               </div>
             </div>
             {conversationDetail.tokenUsage && (
               <div className="col-span-2">
-                <div className="font-medium text-neutral-700 mb-1">
+                <div className="font-medium text-neutral-700 mb-1 dark:text-neutral-300">
                   Token Usage
                 </div>
-                <div className="text-xs text-neutral-600 font-mono">
+                <div className="text-xs text-neutral-600 font-mono dark:text-neutral-300">
                   Total:{" "}
                   {conversationDetail.tokenUsage.totalTokens.toLocaleString()} |
                   Prompt:{" "}
@@ -257,22 +257,22 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                               role === "user"
                                 ? "bg-gradient-primary text-white"
                                 : role === "assistant"
-                                ? "bg-neutral-50 text-neutral-900 border border-neutral-200"
-                                : "bg-neutral-50 text-neutral-900 border border-neutral-200"
+                                ? "bg-neutral-50 text-neutral-900 border border-neutral-200 dark:bg-neutral-800 dark:text-neutral-50 dark:border-neutral-700"
+                                : "bg-neutral-50 text-neutral-900 border border-neutral-200 dark:bg-neutral-800 dark:text-neutral-50 dark:border-neutral-700"
                             }`}
                           >
                             <div className="flex justify-between items-center mb-2">
-                              <div className="text-xs font-medium opacity-80">
+                              <div className="text-xs font-medium opacity-80 dark:opacity-90">
                                 {role}
                               </div>
                               <div className="flex items-center gap-2">
                                 {modelName && provider && (
-                                  <div className="text-xs font-medium opacity-70 bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                  <div className="text-xs font-medium opacity-70 bg-blue-100 text-blue-800 px-2 py-1 rounded dark:bg-blue-900 dark:text-blue-200">
                                     {provider}/{modelName}
                                   </div>
                                 )}
                                 {tokenUsage && (
-                                  <div className="text-xs font-mono opacity-70 bg-black bg-opacity-10 px-2 py-1 rounded">
+                                  <div className="text-xs font-mono opacity-70 bg-black bg-opacity-10 px-2 py-1 rounded dark:bg-white dark:bg-opacity-10 dark:text-neutral-200">
                                     {tokenUsage}
                                   </div>
                                 )}

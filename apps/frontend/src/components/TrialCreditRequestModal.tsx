@@ -119,23 +119,23 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-neutral-200 rounded-2xl shadow-dramatic border-2 border-neutral-300 p-8 max-w-md w-full">
-        <h2 className="text-3xl font-bold text-neutral-900 mb-6">
+      <div className="bg-white border border-neutral-200 rounded-2xl shadow-dramatic border-2 border-neutral-300 p-8 max-w-md w-full dark:bg-neutral-900 dark:border-neutral-700">
+        <h2 className="text-3xl font-bold text-neutral-900 mb-6 dark:text-neutral-50">
           Request Trial Credits
         </h2>
-        <p className="text-sm text-neutral-600 mb-4">
+        <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-300">
           You are within your 7-day trial period. Request trial credits (2
           USD) to test the application.
         </p>
         {daysRemaining > 0 && (
-          <p className="text-sm font-medium text-neutral-900 mb-4">
+          <p className="text-sm font-medium text-neutral-900 mb-4 dark:text-neutral-50">
             {daysRemaining} day{daysRemaining !== 1 ? "s" : ""} remaining in
             your trial period.
           </p>
         )}
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2">
+            <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
               Verify you&apos;re human
             </label>
             <div
@@ -143,14 +143,14 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
               className="flex justify-center"
             ></div>
             {!turnstileSiteKey && (
-              <div className="mt-2 p-3 border border-red-200 bg-red-50 rounded-xl">
-                <p className="text-xs font-semibold text-red-800 mb-1">
+              <div className="mt-2 p-3 border border-red-200 bg-red-50 rounded-xl dark:border-red-800 dark:bg-red-950">
+                <p className="text-xs font-semibold text-red-800 mb-1 dark:text-red-400">
                   CAPTCHA Configuration Missing
                 </p>
-                <p className="text-xs text-red-700">
+                <p className="text-xs text-red-700 dark:text-red-300">
                   The Cloudflare Turnstile site key is not configured. Please
                   set the{" "}
-                  <code className="bg-red-100 px-1 rounded">
+                  <code className="bg-red-100 px-1 rounded dark:bg-red-900 dark:text-red-50">
                     VITE_CLOUDFLARE_TURNSTILE_SITE_KEY
                   </code>{" "}
                   environment variable.
@@ -172,7 +172,7 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
               type="button"
               onClick={handleClose}
               disabled={requestCredits.isPending}
-              className="flex-1 border border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 border border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               Cancel
             </button>

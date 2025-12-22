@@ -128,9 +128,9 @@ export const AgentChat: FC<AgentChatProps> = ({
         className="flex-1 overflow-y-auto p-4 bg-white dark:bg-neutral-900"
       >
         {error && (
-          <div className="border-2 border-error-300 bg-error-100 rounded-xl p-5 mb-4 dark:border-error-700 dark:bg-error-950">
-            <div className="text-base font-bold text-error-900 dark:text-error-100">Error</div>
-            <div className="text-sm font-medium text-error-800 mt-2 dark:text-error-200">
+          <div className="border-2 border-error-300 bg-error-100 rounded-xl p-5 mb-4 dark:border-error-800 dark:bg-error-900">
+            <div className="text-base font-bold text-error-900 dark:text-error-50">Error</div>
+            <div className="text-sm font-medium text-error-800 mt-2 dark:text-error-100">
               {error.message}
             </div>
           </div>
