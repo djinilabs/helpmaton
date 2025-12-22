@@ -427,16 +427,23 @@ describe("documentIndexing", () => {
       // Final check: 500 more matching snippets
       expect(mockQuery).toHaveBeenCalledTimes(2);
 
-      // Should send single delete operation with all IDs from target document only
-      expect(mockSendWriteOperation).toHaveBeenCalledTimes(1);
-      const callArgs = mockSendWriteOperation.mock.calls[0][0];
-      expect(callArgs.data.recordIds).toHaveLength(1000); // 500 from first batch + 500 from final check
-      expect(callArgs.data.recordIds[0]).toBe(`${documentId}:0`);
-      expect(callArgs.data.recordIds[499]).toBe(`${documentId}:499`);
-      expect(callArgs.data.recordIds[500]).toBe(`${documentId}:500`);
-      expect(callArgs.data.recordIds[999]).toBe(`${documentId}:999`);
+      // Should send delete operations for each batch immediately
+      // First batch: 500 IDs, final check: 500 IDs
+      expect(mockSendWriteOperation).toHaveBeenCalledTimes(2);
+
+      // First delete operation: 500 IDs from first batch
+      const firstCallArgs = mockSendWriteOperation.mock.calls[0][0];
+      expect(firstCallArgs.data.recordIds).toHaveLength(500);
+      expect(firstCallArgs.data.recordIds[0]).toBe(`${documentId}:0`);
+      expect(firstCallArgs.data.recordIds[499]).toBe(`${documentId}:499`);
       // Should not contain IDs from other documents
-      expect(callArgs.data.recordIds).not.toContain("other-doc:0");
+      expect(firstCallArgs.data.recordIds).not.toContain("other-doc:0");
+
+      // Second delete operation: 500 IDs from final check
+      const secondCallArgs = mockSendWriteOperation.mock.calls[1][0];
+      expect(secondCallArgs.data.recordIds).toHaveLength(500);
+      expect(secondCallArgs.data.recordIds[0]).toBe(`${documentId}:500`);
+      expect(secondCallArgs.data.recordIds[499]).toBe(`${documentId}:999`);
     });
 
     it("should handle duplicate IDs across query batches", async () => {
@@ -489,16 +496,22 @@ describe("documentIndexing", () => {
 
       await deleteDocumentSnippets(workspaceId, documentId);
 
-      // Should only delete unique IDs (duplicates are filtered out)
-      // allRecordIds should have: 0, 1 (from batch1) + 2 (from batch2) = 3 total
-      expect(mockSendWriteOperation).toHaveBeenCalledTimes(1);
-      const callArgs = mockSendWriteOperation.mock.calls[0][0];
-      expect(callArgs.data.recordIds).toHaveLength(3); // 0, 1, 2 (no duplicates)
-      expect(callArgs.data.recordIds).toEqual([
+      // Should delete each batch immediately
+      // Batch1: 2 new IDs (0, 1), Batch2: 1 new ID (2, since 0 is duplicate)
+      expect(mockSendWriteOperation).toHaveBeenCalledTimes(2);
+
+      // First delete operation: 2 IDs from batch1
+      const firstCallArgs = mockSendWriteOperation.mock.calls[0][0];
+      expect(firstCallArgs.data.recordIds).toHaveLength(2);
+      expect(firstCallArgs.data.recordIds).toEqual([
         `${documentId}:0`,
         `${documentId}:1`,
-        `${documentId}:2`,
       ]);
+
+      // Second delete operation: 1 new ID from batch2 (duplicate filtered out)
+      const secondCallArgs = mockSendWriteOperation.mock.calls[1][0];
+      expect(secondCallArgs.data.recordIds).toHaveLength(1);
+      expect(secondCallArgs.data.recordIds).toEqual([`${documentId}:2`]);
     });
 
     it("should respect max batches limit to prevent infinite loops", async () => {
@@ -528,13 +541,17 @@ describe("documentIndexing", () => {
       expect(mockQuery).toHaveBeenCalled();
       expect(mockQuery.mock.calls.length).toBeLessThanOrEqual(maxBatches + 1); // maxBatches + possible final check
 
-      // Should still attempt to delete collected IDs
-      if (mockSendWriteOperation.mock.calls.length > 0) {
-        const callArgs = mockSendWriteOperation.mock.calls[0][0];
+      // Should delete each batch immediately (one delete per batch with new IDs)
+      // Since each batch has unique IDs, we should have multiple delete operations
+      expect(mockSendWriteOperation.mock.calls.length).toBeGreaterThan(0);
+      mockSendWriteOperation.mock.calls.forEach((call) => {
+        const callArgs = call[0];
         expect(callArgs.operation).toBe("delete");
-        // Should have collected at least some IDs before hitting the limit
         expect(callArgs.data.recordIds.length).toBeGreaterThan(0);
-      }
+        expect(callArgs.data.recordIds.length).toBeLessThanOrEqual(
+          MAX_QUERY_LIMIT
+        );
+      });
     });
 
     it("should use dummy vector for queries", async () => {

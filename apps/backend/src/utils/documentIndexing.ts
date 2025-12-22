@@ -147,6 +147,14 @@ async function querySnippetsByDocumentId(
  * Since LanceDB filters don't work reliably (schema issues), we query all documents
  * and filter by documentId in memory. Each workspace has its own isolated database.
  *
+ * Algorithm:
+ * 1. Query snippets in batches of MAX_QUERY_LIMIT
+ * 2. Delete each batch immediately after collecting it
+ * 3. Continue querying until no new IDs are found
+ *
+ * This ensures subsequent queries return different results, allowing us to collect
+ * all snippets even when there are more than MAX_QUERY_LIMIT snippets.
+ *
  * @param workspaceId - Workspace ID (used as agentId for docs grain)
  * @param documentId - Document ID
  */
@@ -156,11 +164,13 @@ export async function deleteDocumentSnippets(
 ): Promise<void> {
   try {
     const dummyVector = createDummyVector();
-    const allRecordIds: string[] = [];
     const seenIds = new Set<string>();
     const maxBatches = Math.ceil(MAX_DOCUMENT_SNIPPETS / MAX_QUERY_LIMIT);
+    let totalDeleted = 0;
 
-    // Collect all snippet IDs by querying in batches
+    // Query and delete snippets in batches
+    // Delete each batch immediately so subsequent queries (after async processing) return different results
+    // Continue querying all batches to ensure we collect all IDs, even if deletions are still processing
     for (let batchNumber = 0; batchNumber < maxBatches; batchNumber++) {
       const snippetIds = await querySnippetsByDocumentId(
         workspaceId,
@@ -169,23 +179,34 @@ export async function deleteDocumentSnippets(
         MAX_QUERY_LIMIT
       );
 
-      // Filter out IDs we've already seen
+      // Filter out IDs we've already seen and queued for deletion
       const newIds = snippetIds.filter((id) => !seenIds.has(id));
 
-      if (newIds.length === 0) {
-        // No new IDs found - we've collected all snippets for this document
-        break;
+      // Mark all IDs from this query as seen (even duplicates) to avoid re-processing
+      snippetIds.forEach((id) => seenIds.add(id));
+
+      // Delete new IDs immediately (async via SQS)
+      // Even if deletions haven't processed yet, we continue querying all batches
+      // to ensure we collect all IDs that exist at query time
+      if (newIds.length > 0) {
+        // SQS message size limit is 256KB. With IDs like "doc-123:0" (~10-15 chars each),
+        // we can fit ~17,000 IDs in a single message, which is well above MAX_QUERY_LIMIT
+        await sendWriteOperation({
+          operation: "delete",
+          agentId: workspaceId, // For docs grain, workspaceId is used as agentId
+          temporalGrain: "docs",
+          workspaceId, // Include workspaceId for message group ID
+          data: {
+            recordIds: newIds,
+          },
+        });
+
+        totalDeleted += newIds.length;
       }
 
-      // Add new IDs to our collection
-      newIds.forEach((id) => {
-        seenIds.add(id);
-        allRecordIds.push(id);
-      });
-
-      // If we got fewer results than the limit, we've likely collected all snippets
+      // If we got fewer results than the limit, we've likely found all snippets
+      // Query one more time to handle edge case of exactly MAX_QUERY_LIMIT remaining
       if (snippetIds.length < MAX_QUERY_LIMIT) {
-        // Query one more time to handle edge case of exactly MAX_QUERY_LIMIT remaining
         const finalSnippetIds = await querySnippetsByDocumentId(
           workspaceId,
           documentId,
@@ -193,30 +214,28 @@ export async function deleteDocumentSnippets(
           MAX_QUERY_LIMIT
         );
         const finalNewIds = finalSnippetIds.filter((id) => !seenIds.has(id));
-        finalNewIds.forEach((id) => {
-          seenIds.add(id);
-          allRecordIds.push(id);
-        });
+        if (finalNewIds.length > 0) {
+          finalSnippetIds.forEach((id) => seenIds.add(id));
+          await sendWriteOperation({
+            operation: "delete",
+            agentId: workspaceId,
+            temporalGrain: "docs",
+            workspaceId,
+            data: {
+              recordIds: finalNewIds,
+            },
+          });
+          totalDeleted += finalNewIds.length;
+        }
         break;
       }
     }
 
-    if (allRecordIds.length === 0) {
-      return;
+    if (totalDeleted > 0) {
+      console.log(
+        `[Document Indexing] Deleted ${totalDeleted} snippets for document ${documentId}`
+      );
     }
-
-    // Send single delete operation with all collected record IDs
-    // SQS message size limit is 256KB. With IDs like "doc-123:0" (~10-15 chars each),
-    // we can fit ~17,000 IDs in a single message, which is well above MAX_DOCUMENT_SNIPPETS
-    await sendWriteOperation({
-      operation: "delete",
-      agentId: workspaceId, // For docs grain, workspaceId is used as agentId
-      temporalGrain: "docs",
-      workspaceId, // Include workspaceId for message group ID
-      data: {
-        recordIds: allRecordIds,
-      },
-    });
   } catch (error) {
     // Log error but don't throw - deletion should not block document operations
     console.error(
