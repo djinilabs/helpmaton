@@ -83,7 +83,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-2
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: steps.check-pr.outputs.is_pr != 'true'
         with:
           # For push/workflow_dispatch events, use the current commit SHA
