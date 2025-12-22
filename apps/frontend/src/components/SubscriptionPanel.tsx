@@ -57,7 +57,7 @@ export const SubscriptionPanel: FC = () => {
           {planName} Plan
         </div>
         {expiresAt && (
-          <div className="text-sm text-neutral-600 mb-2 dark:text-neutral-400">
+          <div className="text-sm text-neutral-600 mb-2 dark:text-neutral-300">
             {isExpired ? (
               <span className="text-error-600 font-semibold dark:text-error-400">Expired</span>
             ) : daysUntilExpiry !== null && daysUntilExpiry <= 7 ? (
@@ -70,7 +70,7 @@ export const SubscriptionPanel: FC = () => {
             )}
           </div>
         )}
-        <div className="text-sm text-neutral-600 dark:text-neutral-400">
+        <div className="text-sm text-neutral-600 dark:text-neutral-300">
           {subscription.managers.length} Manager
           {subscription.managers.length !== 1 ? "s" : ""}
         </div>

@@ -24,7 +24,7 @@ export const CreditBalance: FC<CreditBalanceProps> = ({
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Credit Balance</h2>
       </div>
-      <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-400">
+      <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-300">
         Your workspace credit balance is used to pay for AI agent usage. Credits
         are deducted when agents process requests. You can add credits to
         maintain a positive balance.
@@ -34,7 +34,7 @@ export const CreditBalance: FC<CreditBalanceProps> = ({
         <span className="text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
           {formattedBalance}
         </span>
-        <span className="text-lg font-medium text-neutral-600 dark:text-neutral-400">
+        <span className="text-lg font-medium text-neutral-600 dark:text-neutral-300">
           USD
         </span>
       </div>

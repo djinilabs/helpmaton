@@ -72,7 +72,7 @@ export const DocumentList: FC<DocumentListProps> = ({
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Documents</h2>
         </div>
-        <p className="text-sm text-neutral-600 mb-6 dark:text-neutral-400">
+        <p className="text-sm text-neutral-600 mb-6 dark:text-neutral-300">
           Browse and manage documents uploaded to this workspace. Documents are
           organized in folders and can be accessed by agents during
           conversations. Click on a document to view its contents.
@@ -89,7 +89,7 @@ export const DocumentList: FC<DocumentListProps> = ({
                   className={`text-sm font-medium hover:text-primary-600 transition-colors ${
                     index === breadcrumbs.length - 1
                       ? "text-neutral-900 dark:text-neutral-50"
-                      : "text-neutral-600 dark:text-neutral-400"
+                      : "text-neutral-600 dark:text-neutral-300"
                   }`}
                 >
                   {crumb}
@@ -135,7 +135,7 @@ export const DocumentList: FC<DocumentListProps> = ({
 
         {/* Documents list */}
         {documents.length === 0 ? (
-          <p className="text-lg text-neutral-600 dark:text-neutral-400">
+          <p className="text-lg text-neutral-600 dark:text-neutral-300">
             {currentFolder
               ? `No documents in "${getFolderDisplayName(
                   currentFolder

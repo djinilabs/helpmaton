@@ -117,17 +117,17 @@ export const InviteAccept: FC = () => {
           </h1>
           <div className="space-y-4 mb-8">
             <div>
-              <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-400">Workspace</p>
+              <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Workspace</p>
               <p className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
                 {invite.workspaceName}
               </p>
             </div>
             <div>
-              <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-400">Permission Level</p>
+              <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Permission Level</p>
               <p className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
                 {getPermissionLabel(invite.permissionLevel)}
               </p>
-              <p className="text-sm text-neutral-600 mt-1 dark:text-neutral-400">
+              <p className="text-sm text-neutral-600 mt-1 dark:text-neutral-300">
                 {invite.permissionLevel === PERMISSION_LEVELS.OWNER
                   ? "You can manage the workspace, invite and remove users, and make any changes."
                   : invite.permissionLevel === PERMISSION_LEVELS.WRITE
@@ -137,14 +137,14 @@ export const InviteAccept: FC = () => {
             </div>
             {invite.inviterEmail && (
               <div>
-                <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-400">Invited by</p>
+                <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Invited by</p>
                 <p className="text-lg text-neutral-900 dark:text-neutral-50">
                   {invite.inviterEmail}
                 </p>
               </div>
             )}
             <div>
-              <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-400">Email</p>
+              <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Email</p>
               <p className="text-lg text-neutral-900 dark:text-neutral-50">{invite.email}</p>
             </div>
           </div>
@@ -183,7 +183,7 @@ export const InviteAccept: FC = () => {
             This invitation was sent to {invite.email}, but you&apos;re signed
             in as {userEmail}.
           </p>
-          <p className="text-base mb-6 text-neutral-600 dark:text-neutral-400">
+          <p className="text-base mb-6 text-neutral-600 dark:text-neutral-300">
             Please sign in with the email address that received the invitation.
           </p>
           <button
@@ -205,17 +205,17 @@ export const InviteAccept: FC = () => {
         </h1>
         <div className="space-y-4 mb-8">
           <div>
-            <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-400">Workspace</p>
+            <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Workspace</p>
             <p className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
               {invite.workspaceName}
             </p>
           </div>
           <div>
-            <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-400">Permission Level</p>
+            <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Permission Level</p>
             <p className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
               {getPermissionLabel(invite.permissionLevel)}
             </p>
-            <p className="text-sm text-neutral-600 mt-1 dark:text-neutral-400">
+            <p className="text-sm text-neutral-600 mt-1 dark:text-neutral-300">
               {invite.permissionLevel === PERMISSION_LEVELS.OWNER
                 ? "You can manage the workspace, invite and remove users, and make any changes."
                 : invite.permissionLevel === PERMISSION_LEVELS.WRITE
@@ -225,7 +225,7 @@ export const InviteAccept: FC = () => {
           </div>
           {invite.inviterEmail && (
             <div>
-              <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-400">Invited by</p>
+              <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Invited by</p>
               <p className="text-lg text-neutral-900 dark:text-neutral-50">{invite.inviterEmail}</p>
             </div>
           )}

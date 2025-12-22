@@ -733,7 +733,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               </button>
             )}
           </div>
-          <p className="text-sm opacity-75 dark:text-neutral-400 mb-4 dark:text-neutral-400">
+          <p className="text-sm opacity-75 dark:text-neutral-300 mb-4 dark:text-neutral-300">
             Configure your agent&apos;s behavior, system prompt, spending
             limits, and webhook keys. Use the sections below to manage
             conversations, test the agent, and monitor usage.
@@ -741,7 +741,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
 
           <div>
             <h1 className="text-4xl font-bold mb-4 dark:text-neutral-50">{agent.name}</h1>
-            <p className="text-sm opacity-75 dark:text-neutral-400 mb-4 dark:text-neutral-400">
+            <p className="text-sm opacity-75 dark:text-neutral-300 mb-4 dark:text-neutral-300">
               Created: {new Date(agent.createdAt).toLocaleString()}
               {agent.updatedAt &&
                 ` • Updated: ${new Date(agent.updatedAt).toLocaleString()}`}
@@ -750,11 +750,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <div className="flex items-center gap-4">
                 <div>
                   <span className="text-sm font-semibold dark:text-neutral-300">Provider: </span>
-                  <span className="text-sm dark:text-neutral-400">Google</span>
+                  <span className="text-sm dark:text-neutral-300">Google</span>
                 </div>
                 <div>
                   <span className="text-sm font-semibold dark:text-neutral-300">Model: </span>
-                  <span className="text-sm dark:text-neutral-400">
+                  <span className="text-sm dark:text-neutral-300">
                     {isEditing ? (
                       <>
                         <select
@@ -989,7 +989,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 {showScrollIndicator && (
                   <div className="absolute bottom-0 left-0 right-0 bg-neutral-50 dark:bg-neutral-800 border-t border-neutral-200 dark:border-neutral-700 py-1.5 px-4 pointer-events-none rounded-b-lg">
                     <div className="text-center">
-                      <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-400">
+                      <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                         ▼ More below
                       </span>
                       <div aria-live="polite" className="sr-only">
@@ -1059,7 +1059,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <LazyAccordionContent
                 isExpanded={expandedSection === "delegation"}
               >
-                <p className="text-sm opacity-75 dark:text-neutral-400 mb-4">
+                <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
                   Configure which other agents in this workspace this agent can
                   delegate tasks to. When delegation is enabled, this agent will
                   have access to the{" "}
@@ -1096,7 +1096,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                               <div className="font-bold dark:text-neutral-50">
                                 {targetAgent.name}
                               </div>
-                              <div className="text-xs opacity-75 dark:text-neutral-400 mt-1">
+                              <div className="text-xs opacity-75 dark:text-neutral-300 mt-1">
                                 {targetAgent.systemPrompt.length > 100
                                   ? `${targetAgent.systemPrompt.substring(
                                       0,
@@ -1117,7 +1117,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <p className="text-sm opacity-75 dark:text-neutral-400">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
                     No other agents available in this workspace. Create another
                     agent to enable delegation.
                   </p>
@@ -1135,7 +1135,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               onToggle={() => toggleSection("advanced")}
             >
               <LazyAccordionContent isExpanded={expandedSection === "advanced"}>
-                <p className="text-sm opacity-75 dark:text-neutral-400 mb-4">
+                <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
                   Configure advanced model generation parameters. These settings
                   control how the AI model generates responses. Leave fields
                   empty to use model defaults.
@@ -1146,7 +1146,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                       Temperature
                     </label>
-                    <p className="text-xs opacity-75 dark:text-neutral-400 mb-2">
+                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                       Controls the randomness of responses. Lower values (0-0.5)
                       produce more focused and deterministic outputs, while
                       higher values (1.5-2) create more creative and varied
@@ -1167,7 +1167,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           setTemperature(isNaN(parsed) ? undefined : parsed);
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                       placeholder="Model default"
                     />
                   </div>
@@ -1177,7 +1177,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                       Top-p / Nucleus Sampling
                     </label>
-                    <p className="text-xs opacity-75 dark:text-neutral-400 mb-2">
+                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                       Controls diversity by considering tokens with cumulative
                       probability up to this threshold. Lower values (0.1-0.5)
                       produce more focused outputs, higher values (0.9-1.0)
@@ -1198,7 +1198,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           setTopP(isNaN(parsed) ? undefined : parsed);
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                       placeholder="Model default"
                     />
                   </div>
@@ -1208,7 +1208,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                       Top-k
                     </label>
-                    <p className="text-xs opacity-75 dark:text-neutral-400 mb-2">
+                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                       Limits token selection to the top K most probable tokens
                       at each step. Lower values (10-20) produce more focused
                       outputs, higher values (50-100) allow more diversity.
@@ -1228,7 +1228,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           setTopK(isNaN(parsed) ? undefined : parsed);
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                       placeholder="Model default"
                     />
                   </div>
@@ -1238,7 +1238,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                       Max Output Tokens
                     </label>
-                    <p className="text-xs opacity-75 dark:text-neutral-400 mb-2">
+                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                       Maximum number of tokens the model can generate in a
                       response. This limits the length of generated text. Higher
                       values allow longer responses but may increase costs.
@@ -1260,7 +1260,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           );
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                       placeholder="Model default"
                     />
                   </div>
@@ -1270,7 +1270,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                       Stop Sequences
                     </label>
-                    <p className="text-xs opacity-75 dark:text-neutral-400 mb-2">
+                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                       Text sequences that will stop generation when encountered.
                       The model will stop immediately after generating any of
                       these sequences. Enter multiple sequences separated by
@@ -1280,7 +1280,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       type="text"
                       value={stopSequences}
                       onChange={(e) => setStopSequences(e.target.value)}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                       placeholder="e.g., END, STOP, ###"
                     />
                   </div>
@@ -1290,7 +1290,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                       Max Tool Roundtrips
                     </label>
-                    <p className="text-xs opacity-75 dark:text-neutral-400 mb-2">
+                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                       Maximum number of tool call iterations allowed before
                       stopping. Each roundtrip allows the agent to call tools,
                       receive results, and continue processing. Higher values
@@ -1312,7 +1312,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           );
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                       placeholder="5"
                     />
                   </div>
@@ -1331,7 +1331,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <button
                       onClick={handleResetAdvanced}
                       disabled={updateAgent.isPending}
-                      className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                     >
                       Reset to Defaults
                     </button>
@@ -1354,7 +1354,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <LazyAccordionContent
                 isExpanded={expandedSection === "mcp-servers"}
               >
-                <p className="text-sm opacity-75 dark:text-neutral-400 mb-4">
+                <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
                   Enable MCP servers from your workspace to make them available
                   as tools to this agent. When enabled, the agent will be able
                   to call the MCP server methods.
@@ -1375,7 +1375,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           />
                           <div className="flex-1">
                             <div className="font-bold">{server.name}</div>
-                            <div className="text-xs font-mono mt-1 opacity-75 dark:text-neutral-400">
+                            <div className="text-xs font-mono mt-1 opacity-75 dark:text-neutral-300">
                               {server.url}
                             </div>
                             <div className="text-xs uppercase mt-1">
@@ -1394,7 +1394,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <p className="text-sm opacity-75 dark:text-neutral-400">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
                     No MCP servers available in this workspace. Create MCP
                     servers in the workspace settings to enable them for agents.
                   </p>
@@ -1415,7 +1415,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 isExpanded={expandedSection === "memory-search"}
               >
                 <div className="space-y-4">
-                  <p className="text-sm opacity-75 dark:text-neutral-400">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
                     Enable the memory search tool to allow this agent to search
                     its factual memory across different time periods and recall
                     past conversations.
@@ -1442,7 +1442,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     />
                     <div className="flex-1">
                       <div className="font-bold">Enable Memory Search</div>
-                      <div className="text-sm opacity-75 dark:text-neutral-400 mt-1">
+                      <div className="text-sm opacity-75 dark:text-neutral-300 mt-1">
                         Allow this agent to use the search_memory tool to recall
                         past conversations and information
                       </div>
@@ -1473,7 +1473,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <LazyAccordionContent
                 isExpanded={expandedSection === "client-tools"}
               >
-                <p className="text-sm opacity-75 dark:text-neutral-400 mb-4">
+                <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
                   Define client-side tools that will be executed in the browser.
                   These tools are available to the AI model, but execution
                   happens on the client side.
@@ -1505,7 +1505,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               isExpanded={expandedSection === "stream-server"}
               onToggle={() => toggleSection("stream-server")}
             >
-              <div className="text-sm opacity-75 dark:text-neutral-400 mb-4 space-y-3">
+              <div className="text-sm opacity-75 dark:text-neutral-300 mb-4 space-y-3">
                 <p>
                   Stream servers enable real-time streaming responses from your
                   agent using Lambda Function URLs. Configure allowed origins
@@ -1618,7 +1618,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                           Allowed Origins
                         </label>
-                        <p className="text-xs opacity-75 dark:text-neutral-400 mb-2">
+                        <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                           Comma-separated list of allowed origins for CORS. Use
                           &quot;*&quot; to allow all origins.
                         </p>
@@ -1736,7 +1736,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                           Allowed Origins
                         </label>
-                        <p className="text-xs opacity-75 dark:text-neutral-400 mb-2">
+                        <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                           Comma-separated list of allowed origins for CORS. Use
                           &quot;*&quot; to allow all origins.
                         </p>
@@ -1786,7 +1786,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             onToggle={() => toggleSection("keys")}
           >
             <LazyAccordionContent isExpanded={expandedSection === "keys"}>
-              <p className="text-sm opacity-75 dark:text-neutral-400 mb-4">
+              <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
                 Webhook keys allow external services to send requests to this
                 agent. Each key generates a unique webhook URL that can be used
                 to trigger the agent from external systems. Keep your keys
@@ -1834,7 +1834,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         setIsCreatingKey(false);
                         setNewKeyName("");
                       }}
-                      className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 transition-all duration-200"
+                      className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700 transition-all duration-200"
                     >
                       Cancel
                     </button>
@@ -1843,7 +1843,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               )}
 
               {keys.length === 0 ? (
-                <p className="text-sm opacity-75 dark:text-neutral-400">No keys created yet.</p>
+                <p className="text-sm opacity-75 dark:text-neutral-300">No keys created yet.</p>
               ) : (
                 <div className="space-y-4">
                   {keys.map((key) => {
@@ -1912,7 +1912,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             onToggle={() => toggleSection("danger")}
           >
             <LazyAccordionContent isExpanded={expandedSection === "danger"}>
-              <p className="text-sm opacity-75 dark:text-neutral-400 mb-4">
+              <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
                 This section contains destructive actions. Deleting an agent
                 will permanently remove all its conversations, webhook keys, and
                 settings. This action cannot be undone.
@@ -2082,12 +2082,12 @@ const KeyItem: FC<KeyItemProps> = ({
               {keyData.name || `Key ${keyData.id.slice(0, 8)}`}
             </h3>
             {keyData.name && (
-              <span className="text-xs opacity-75 dark:text-neutral-400">
+              <span className="text-xs opacity-75 dark:text-neutral-300">
                 ({keyData.id.slice(0, 8)})
               </span>
             )}
           </div>
-          <p className="text-xs opacity-75 dark:text-neutral-400 mb-2">
+          <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
             Created: {new Date(keyData.createdAt).toLocaleString()}
           </p>
           <div className="mb-2">
@@ -2117,7 +2117,7 @@ const KeyItem: FC<KeyItemProps> = ({
             ) : (
               <div className="text-xs bg-amber-50 p-2 border border-amber-200 rounded-lg">
                 <p className="font-semibold mb-1">Key Value Not Available</p>
-                <p className="opacity-75 dark:text-neutral-400">
+                <p className="opacity-75 dark:text-neutral-300">
                   For security, key values are only shown once when created. If
                   you need the key value again, please create a new key.
                 </p>

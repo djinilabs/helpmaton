@@ -423,7 +423,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                 </button>
               )}
             </div>
-            <p className="text-sm text-neutral-600 mb-6 leading-relaxed dark:text-neutral-400">
+            <p className="text-sm text-neutral-600 mb-6 leading-relaxed dark:text-neutral-300">
               This workspace contains your agents, documents, and settings. Use
               the sections below to manage credits, spending limits, channels,
               agents, and documents.
@@ -481,7 +481,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                     {workspace.description}
                   </p>
                 )}
-                <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+                <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-300">
                   <svg
                     className="w-4 h-4"
                     fill="none"
@@ -510,7 +510,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             <h3 className="text-2xl font-semibold text-neutral-900 mb-3 dark:text-neutral-50">
               Trial Credits
             </h3>
-            <p className="text-base text-neutral-600 mb-6 leading-relaxed dark:text-neutral-400">
+            <p className="text-base text-neutral-600 mb-6 leading-relaxed dark:text-neutral-300">
               Your workspace balance is 0. Request trial credits (2 USD) to test
               the application.
             </p>
@@ -778,7 +778,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             isExpanded={expandedSection === "danger"}
             onToggle={() => toggleSection("danger")}
           >
-            <p className="text-sm text-neutral-600 mb-4 leading-relaxed dark:text-neutral-400">
+            <p className="text-sm text-neutral-600 mb-4 leading-relaxed dark:text-neutral-300">
               This section contains destructive actions. Deleting a workspace
               will permanently remove all agents, documents, conversations, and
               settings. This action cannot be undone.

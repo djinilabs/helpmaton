@@ -122,7 +122,7 @@ const AgentModalContent: FC<{
           rows={12}
           required
         />
-        <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-400">
+        <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-300">
           Markdown is supported in the system prompt.
         </p>
       </div>
@@ -157,7 +157,7 @@ const AgentModalContent: FC<{
             ))
           )}
         </select>
-        <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-400">
+        <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-300">
           Select the AI model to use for this agent. Default: {defaultModel}
         </p>
         {modelLoadError && (
@@ -184,7 +184,7 @@ const AgentModalContent: FC<{
             </option>
           ))}
         </select>
-        <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-400">
+        <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-300">
           Select a notification channel to enable the send_notification tool for
           this agent.
         </p>
@@ -360,7 +360,7 @@ export const AgentModal: FC<AgentModalProps> = ({
         <QueryPanel
           fallback={
             <div className="text-center py-8">
-              <div className="text-lg font-medium text-neutral-600 dark:text-neutral-400">
+              <div className="text-lg font-medium text-neutral-600 dark:text-neutral-300">
                 Loading channels...
               </div>
             </div>

@@ -32,13 +32,13 @@ export const AgentList: FC<AgentListProps> = ({ workspaceId, canEdit }) => {
             </button>
           </div>
         )}
-        <p className="text-sm text-neutral-600 mb-6 dark:text-neutral-400">
+        <p className="text-sm text-neutral-600 mb-6 dark:text-neutral-300">
           Agents are AI assistants that can process requests, access documents,
           and send notifications. Each agent has its own system prompt, spending
           limits, and usage statistics. Click on an agent to configure it.
         </p>
         {agents.length === 0 ? (
-          <p className="text-lg text-neutral-600 dark:text-neutral-400">
+          <p className="text-lg text-neutral-600 dark:text-neutral-300">
             No agents yet. Create your first agent to get started.
           </p>
         ) : (

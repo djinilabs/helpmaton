@@ -155,7 +155,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
       <h2 className="text-3xl font-bold text-neutral-900 mb-5 dark:text-neutral-50">
         Upload Documents
       </h2>
-      <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-400">
+      <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-300">
         Upload documents (markdown or text files) that your agents can reference
         when answering questions. Documents are organized in folders and can be
         searched by agents during conversations. Maximum file size is 10MB per
@@ -205,7 +205,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
         <p className="text-lg font-semibold text-neutral-900 mb-2 dark:text-neutral-50">
           Drag and drop files here
         </p>
-        <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-400">or</p>
+        <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-300">or</p>
         <input
           ref={fileInputRef}
           type="file"
@@ -221,7 +221,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
         >
           Select Files
         </label>
-        <p className="text-xs mt-2 text-neutral-500 dark:text-neutral-400">
+        <p className="text-xs mt-2 text-neutral-500 dark:text-neutral-300">
           Supported: .md, .txt, .markdown (max 10MB per file)
         </p>
       </div>

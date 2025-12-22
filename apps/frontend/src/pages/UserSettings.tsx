@@ -99,7 +99,7 @@ const UserSettings: FC = () => {
           <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-2 tracking-tight dark:text-neutral-50">
             API Keys
           </h1>
-          <p className="text-lg text-neutral-600 mb-6 dark:text-neutral-400">
+          <p className="text-lg text-neutral-600 mb-6 dark:text-neutral-300">
             These API keys are used to authenticate requests to the{" "}
             <Link
               to="/docs/api"
@@ -202,7 +202,7 @@ const UserSettings: FC = () => {
                   placeholder="e.g., Production API, CI/CD"
                   className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                 />
-                <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+                <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-300">
                   Give your key a descriptive name to help you identify it
                   later.
                 </p>
@@ -240,7 +240,7 @@ const UserSettings: FC = () => {
             <h2 className="text-2xl font-bold text-neutral-900 mb-2 dark:text-neutral-50">
               API Key Created
             </h2>
-            <p className="text-neutral-600 mb-6 dark:text-neutral-400">
+            <p className="text-neutral-600 mb-6 dark:text-neutral-300">
               Your API key has been created. Make sure to copy it now - you
               won&apos;t be able to see it again!
             </p>

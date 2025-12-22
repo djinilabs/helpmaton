@@ -85,7 +85,7 @@ const WorkspacesList: FC = () => {
               <p className="mb-6 text-lg font-medium text-neutral-700 dark:text-neutral-300">
                 Create your first workspace to get started.
               </p>
-              <p className="text-base text-neutral-600 mb-10 dark:text-neutral-400">
+              <p className="text-base text-neutral-600 mb-10 dark:text-neutral-300">
                 A workspace is where you&apos;ll create agents, upload
                 documents, and manage your AI resources.
               </p>
@@ -124,7 +124,7 @@ const WorkspacesList: FC = () => {
                       {workspace.description}
                     </p>
                   )}
-                  <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+                  <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-300">
                     <svg
                       className="w-4 h-4"
                       fill="none"

@@ -69,7 +69,7 @@ export const ConversationList: FC<ConversationListProps> = ({
             {isRefetching ? "Refreshing..." : "Refresh"}
           </button>
         </div>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">Loading conversations...</p>
+        <p className="text-sm text-neutral-600 dark:text-neutral-300">Loading conversations...</p>
       </>
     );
   }
@@ -116,7 +116,7 @@ export const ConversationList: FC<ConversationListProps> = ({
         </button>
       </div>
       <div className="mb-4 space-y-2">
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+        <p className="text-sm text-neutral-600 dark:text-neutral-300">
           View all conversations this agent has participated in. Each
           conversation shows the message count, token usage, and timestamps.
           Click on a conversation to view its full details and message history.
@@ -130,7 +130,7 @@ export const ConversationList: FC<ConversationListProps> = ({
       </div>
 
       {conversations.length === 0 ? (
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">No conversations yet.</p>
+        <p className="text-sm text-neutral-600 dark:text-neutral-300">No conversations yet.</p>
       ) : (
         <>
           <div className="space-y-2 mb-4">
@@ -146,15 +146,15 @@ export const ConversationList: FC<ConversationListProps> = ({
                       <span className="text-xs font-medium bg-neutral-100 text-neutral-700 px-2 py-1 rounded border border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700">
                         {conversation.conversationType}
                       </span>
-                      <span className="text-xs text-neutral-600 dark:text-neutral-400">
+                      <span className="text-xs text-neutral-600 dark:text-neutral-300">
                         {conversation.messageCount} message
                         {conversation.messageCount !== 1 ? "s" : ""}
                       </span>
                     </div>
-                    <div className="text-xs text-neutral-500 mb-1 dark:text-neutral-400">
+                    <div className="text-xs text-neutral-500 mb-1 dark:text-neutral-300">
                       Started: {formatDate(conversation.startedAt)}
                     </div>
-                    <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                    <div className="text-xs text-neutral-500 dark:text-neutral-300">
                       Last: {formatDate(conversation.lastMessageAt)}
                     </div>
                   </div>
@@ -162,7 +162,7 @@ export const ConversationList: FC<ConversationListProps> = ({
                     <div className="text-xs font-medium text-neutral-700 mb-1 dark:text-neutral-300">
                       Tokens
                     </div>
-                    <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                    <div className="text-xs text-neutral-600 dark:text-neutral-300">
                       {formatTokenUsage(conversation.tokenUsage)}
                     </div>
                   </div>

@@ -20,21 +20,21 @@ export const UsageStats: FC<UsageStatsProps> = ({
   return (
     <div className="bg-white rounded-2xl shadow-medium p-8 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
       <h3 className="text-2xl font-bold text-neutral-900 mb-4 tracking-tight dark:text-neutral-50">{title}</h3>
-      <p className="text-base text-neutral-600 mb-8 leading-relaxed dark:text-neutral-400">
+      <p className="text-base text-neutral-600 mb-8 leading-relaxed dark:text-neutral-300">
         Input tokens are the text you send to the AI. Output tokens are the text the AI generates. Total tokens is the sum of both. Cost is calculated based on the model used and token counts. BYOK (Bring Your Own Key) shows usage with your own API keys, while Platform shows usage with platform-provided keys.
       </p>
 
       <div className="grid grid-cols-2 gap-4 mb-8">
         <div className="border border-neutral-200 rounded-xl p-5 bg-neutral-50/50 dark:border-neutral-700 dark:bg-neutral-800/50">
-          <div className="text-sm font-semibold text-neutral-600 mb-2 dark:text-neutral-400">Input Tokens</div>
+          <div className="text-sm font-semibold text-neutral-600 mb-2 dark:text-neutral-300">Input Tokens</div>
           <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.inputTokens)}</div>
         </div>
         <div className="border border-neutral-200 rounded-xl p-5 bg-neutral-50/50 dark:border-neutral-700 dark:bg-neutral-800/50">
-          <div className="text-sm font-semibold text-neutral-600 mb-2 dark:text-neutral-400">Output Tokens</div>
+          <div className="text-sm font-semibold text-neutral-600 mb-2 dark:text-neutral-300">Output Tokens</div>
           <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.outputTokens)}</div>
         </div>
         <div className="border border-neutral-200 rounded-xl p-5 bg-neutral-50/50 dark:border-neutral-700 dark:bg-neutral-800/50">
-          <div className="text-sm font-semibold text-neutral-600 mb-2 dark:text-neutral-400">Total Tokens</div>
+          <div className="text-sm font-semibold text-neutral-600 mb-2 dark:text-neutral-300">Total Tokens</div>
           <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.totalTokens)}</div>
         </div>
         <div className="border border-primary-300 rounded-xl p-5 bg-gradient-primary/10 dark:border-primary-700 dark:bg-primary-950/50">
@@ -55,7 +55,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
                 <div className="flex justify-between items-center">
                   <span className="font-semibold text-neutral-900 dark:text-neutral-50">{model.model}</span>
                   <div className="text-right">
-                    <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                    <div className="text-sm text-neutral-600 dark:text-neutral-300">
                       {formatNumber(model.totalTokens)} tokens
                     </div>
                     <div className="font-bold text-neutral-900 dark:text-neutral-50">
@@ -81,7 +81,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
                 <div className="flex justify-between items-center">
                   <span className="font-semibold text-neutral-900 dark:text-neutral-50">{provider.provider}</span>
                   <div className="text-right">
-                    <div className="text-sm text-neutral-600 dark:text-neutral-400">
+                    <div className="text-sm text-neutral-600 dark:text-neutral-300">
                       {formatNumber(provider.totalTokens)} tokens
                     </div>
                     <div className="font-bold text-neutral-900 dark:text-neutral-50">
@@ -99,11 +99,11 @@ export const UsageStats: FC<UsageStatsProps> = ({
         <h4 className="text-xl font-bold text-neutral-900 mb-4 dark:text-neutral-50">By Key Type</h4>
         <div className="grid grid-cols-2 gap-4">
           <div className="border border-neutral-200 rounded-xl p-5 bg-white dark:border-neutral-700 dark:bg-neutral-900">
-            <div className="text-sm font-semibold text-neutral-600 mb-2 dark:text-neutral-400">BYOK</div>
+            <div className="text-sm font-semibold text-neutral-600 mb-2 dark:text-neutral-300">BYOK</div>
             <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
               {formatCurrency(stats.byByok.byok.cost, currency, 4)}
             </div>
-            <div className="text-xs text-neutral-600 mt-1 dark:text-neutral-400">
+            <div className="text-xs text-neutral-600 mt-1 dark:text-neutral-300">
               {formatNumber(stats.byByok.byok.totalTokens)} tokens
             </div>
           </div>

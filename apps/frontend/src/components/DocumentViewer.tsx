@@ -121,7 +121,7 @@ const DocumentViewerContent: FC<{
             <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
               Content
             </label>
-            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+            <span className="text-xs text-neutral-500 dark:text-neutral-300">
               {new Date(document.createdAt).toLocaleString()} •{" "}
               {(document.size / 1024).toFixed(2)} KB
             </span>
@@ -188,7 +188,7 @@ export const DocumentViewer: FC<DocumentViewerProps> = ({
         <QueryPanel
           fallback={
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-lg font-medium text-neutral-600 dark:text-neutral-400">
+              <div className="text-lg font-medium text-neutral-600 dark:text-neutral-300">
                 Loading document...
               </div>
             </div>

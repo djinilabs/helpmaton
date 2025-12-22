@@ -130,7 +130,7 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
               className="w-full border border-neutral-300 rounded px-3 py-2 font-mono dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
               placeholder="e.g., getWeather"
             />
-            <p className="text-xs text-neutral-500 mt-1 dark:text-neutral-400">
+            <p className="text-xs text-neutral-500 mt-1 dark:text-neutral-300">
               Must be a valid JavaScript identifier (letters, numbers,
               underscore, $; no spaces or special characters)
             </p>
@@ -200,7 +200,7 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
             >
               <div className="flex-1">
                 <div className="font-medium dark:text-neutral-50">{tool.name}</div>
-                <div className="text-sm text-neutral-600 mt-1 dark:text-neutral-400">
+                <div className="text-sm text-neutral-600 mt-1 dark:text-neutral-300">
                   {tool.description}
                 </div>
               </div>
@@ -226,7 +226,7 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
       )}
 
       {tools.length === 0 && !editingTool && (
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+        <p className="text-sm text-neutral-500 dark:text-neutral-300">
           No client-side tools defined. Click &quot;Add Tool&quot; to create
           one.
         </p>

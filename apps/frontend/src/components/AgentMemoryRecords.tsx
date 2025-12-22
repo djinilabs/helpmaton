@@ -59,7 +59,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
   return (
     <div className="space-y-4">
       <div className="mb-4">
-        <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-400">
+        <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-300">
           Search and browse the agent&apos;s memory records across different
           temporal grains. Working memory contains the most recent, detailed
           facts, while higher-level grains contain progressively summarized
@@ -111,7 +111,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
           <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
             Search Query (Optional)
           </label>
-          <p className="text-xs text-neutral-600 mb-2 dark:text-neutral-400">
+          <p className="text-xs text-neutral-600 mb-2 dark:text-neutral-300">
             Enter a search query for semantic search. Leave empty to browse
             recent records filtered by date range.
           </p>
@@ -185,7 +185,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
       {/* Results */}
       {isLoading && !data && (
         <div className="text-center py-8">
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">Loading memory records...</p>
+          <p className="text-sm text-neutral-600 dark:text-neutral-300">Loading memory records...</p>
         </div>
       )}
 
@@ -210,7 +210,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
 
           {data.records.length === 0 ? (
             <div className="border border-neutral-200 rounded-xl p-6 bg-white text-center dark:border-neutral-700 dark:bg-neutral-900">
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">
+              <p className="text-sm text-neutral-600 dark:text-neutral-300">
                 No memory records found for the selected filters.
               </p>
             </div>
@@ -227,7 +227,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                         <span className="text-xs font-semibold bg-primary-100 text-primary-800 px-2 py-1 rounded border border-primary-200 dark:bg-primary-900 dark:text-primary-200 dark:border-primary-800">
                           {record.date}
                         </span>
-                        <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                        <span className="text-xs text-neutral-500 dark:text-neutral-300">
                           {formatTimestamp(record.timestamp)}
                         </span>
                       </div>
@@ -237,7 +237,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                       {record.metadata &&
                         Object.keys(record.metadata).length > 0 && (
                           <details className="mt-2">
-                            <summary className="text-xs font-semibold text-neutral-600 cursor-pointer hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-50">
+                            <summary className="text-xs font-semibold text-neutral-600 cursor-pointer hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50">
                               Metadata
                             </summary>
                             <pre className="mt-1 text-xs bg-neutral-50 p-2 rounded border border-neutral-200 overflow-x-auto dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-50">

@@ -172,7 +172,7 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
           <h2 className="text-2xl font-bold text-neutral-900 tracking-tight dark:text-neutral-50">
             {title}
           </h2>
-          <span className="text-2xl font-bold text-neutral-600 dark:text-neutral-400">
+          <span className="text-2xl font-bold text-neutral-600 dark:text-neutral-300">
             {isExpanded ? "−" : "+"}
           </span>
         </div>

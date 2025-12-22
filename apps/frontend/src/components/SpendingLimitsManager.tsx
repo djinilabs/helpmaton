@@ -149,7 +149,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
             </button>
           )}
       </div>
-      <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-400">
+      <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-300">
         {agentId
           ? "Set spending limits for this specific agent to control costs. Limits can be set for daily, weekly, or monthly periods. When a limit is reached, the agent will stop processing requests until the next period."
           : "Set spending limits for this workspace to control costs across all agents. Limits can be set for daily, weekly, or monthly periods. When a limit is reached, all agents in this workspace will stop processing requests until the next period."}
@@ -157,7 +157,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
 
       {spendingLimits.length === 0 && !isAdding && (
         <div className="flex justify-between items-center">
-          <p className="text-lg text-neutral-600 dark:text-neutral-400">
+          <p className="text-lg text-neutral-600 dark:text-neutral-300">
             No spending limits defined. Add a limit to control spending.
           </p>
           {canEdit && availableTimeFrames.length > 0 && (

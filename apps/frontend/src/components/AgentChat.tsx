@@ -136,7 +136,7 @@ export const AgentChat: FC<AgentChatProps> = ({
           </div>
         )}
         {messages.length === 0 ? (
-          <div className="text-base font-bold text-neutral-600 text-center py-10 dark:text-neutral-400">
+          <div className="text-base font-bold text-neutral-600 text-center py-10 dark:text-neutral-300">
             No messages yet. Start a conversation.
           </div>
         ) : (

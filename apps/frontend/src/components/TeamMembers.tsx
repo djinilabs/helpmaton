@@ -178,7 +178,7 @@ export const TeamMembers: FC<TeamMembersProps> = ({
                       <div className="font-semibold text-neutral-900 dark:text-neutral-50">
                         {invite.email}
                       </div>
-                      <div className="text-sm text-neutral-500 mt-1 dark:text-neutral-400">
+                      <div className="text-sm text-neutral-500 mt-1 dark:text-neutral-300">
                         Invited{" "}
                         {new Date(invite.createdAt).toLocaleDateString()}
                         {" • "}
@@ -226,7 +226,7 @@ export const TeamMembers: FC<TeamMembersProps> = ({
           Team Members
         </h3>
         {members.length === 0 ? (
-          <div className="text-neutral-600 dark:text-neutral-400">
+          <div className="text-neutral-600 dark:text-neutral-300">
             No members found in this workspace.
           </div>
         ) : (
@@ -241,7 +241,7 @@ export const TeamMembers: FC<TeamMembersProps> = ({
                     <div className="font-semibold text-neutral-900 dark:text-neutral-50">
                       {member.email || `User ${member.userId.slice(0, 8)}`}
                     </div>
-                    <div className="text-sm text-neutral-500 mt-1 dark:text-neutral-400">
+                    <div className="text-sm text-neutral-500 mt-1 dark:text-neutral-300">
                       Added {new Date(member.createdAt).toLocaleDateString()}
                     </div>
                   </div>

@@ -146,7 +146,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
             </div>
             <div>
               <div className="font-medium text-neutral-700 mb-1 dark:text-neutral-300">Started</div>
-              <div className="text-xs text-neutral-600 dark:text-neutral-400">
+              <div className="text-xs text-neutral-600 dark:text-neutral-300">
                 {formatDate(conversationDetail.startedAt)}
               </div>
             </div>

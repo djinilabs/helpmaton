@@ -71,7 +71,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
           className={`flex items-center justify-center gap-3 py-8 ${className}`}
         >
           <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+          <div className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
             {message || "Loading..."}
           </div>
         </div>
@@ -84,7 +84,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
       >
         <div className="flex items-center gap-3">
           <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-xl font-medium text-neutral-600 dark:text-neutral-400">
+          <div className="text-xl font-medium text-neutral-600 dark:text-neutral-300">
             {message || "Loading..."}
           </div>
         </div>

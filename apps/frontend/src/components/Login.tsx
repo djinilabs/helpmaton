@@ -92,7 +92,7 @@ const Login: FC = () => {
         </form>
 
         {status === "authenticated" && (
-          <p className="mt-6 text-sm text-neutral-600 text-center dark:text-neutral-400">
+          <p className="mt-6 text-sm text-neutral-600 text-center dark:text-neutral-300">
             Check your email for the sign-in link.
           </p>
         )}

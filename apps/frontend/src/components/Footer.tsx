@@ -25,11 +25,11 @@ export const Footer: FC = () => {
                 }}
               ></div>
             </div>
-            <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+            <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
               Helpmaton
             </span>
           </div>
-          <div className="text-xs text-neutral-500 text-right dark:text-neutral-400">
+          <div className="text-xs text-neutral-500 text-right dark:text-neutral-300">
             <div className="mb-1">RAW AI. NO BULLSHIT.</div>
             <div className="text-[10px]">
               © {currentYear} DjiniLabs & Gordon & Teixeira Lda.
@@ -37,21 +37,21 @@ export const Footer: FC = () => {
             <div className="mt-3 flex items-center justify-end gap-2">
               <Link
                 to="/docs/api"
-                className="text-neutral-600 hover:text-neutral-900 font-semibold border-b-2 border-neutral-900 transition-colors dark:text-neutral-400 dark:hover:text-neutral-50 dark:border-neutral-50"
+                className="text-neutral-600 hover:text-neutral-900 font-semibold border-b-2 border-neutral-900 transition-colors dark:text-neutral-300 dark:hover:text-neutral-50 dark:border-neutral-50"
               >
                 API Docs
               </Link>
               <span className="text-neutral-400 dark:text-neutral-600">|</span>
               <a
                 href="/privacy"
-                className="text-neutral-600 hover:text-neutral-900 font-semibold border-b-2 border-neutral-900 transition-colors dark:text-neutral-400 dark:hover:text-neutral-50 dark:border-neutral-50"
+                className="text-neutral-600 hover:text-neutral-900 font-semibold border-b-2 border-neutral-900 transition-colors dark:text-neutral-300 dark:hover:text-neutral-50 dark:border-neutral-50"
               >
                 Privacy Statement
               </a>
               <span className="text-neutral-400 dark:text-neutral-600">|</span>
               <a
                 href="/terms-of-service"
-                className="text-neutral-600 hover:text-neutral-900 font-semibold border-b-2 border-neutral-900 transition-colors dark:text-neutral-400 dark:hover:text-neutral-50 dark:border-neutral-50"
+                className="text-neutral-600 hover:text-neutral-900 font-semibold border-b-2 border-neutral-900 transition-colors dark:text-neutral-300 dark:hover:text-neutral-50 dark:border-neutral-50"
               >
                 Terms of Service
               </a>

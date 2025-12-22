@@ -271,7 +271,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 }
                 required={!isEditing && authType === "header"}
               />
-              <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-400">
+              <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-300">
                 {isEditing
                   ? "Leave empty to keep the existing value. Enter a new value to update it."
                   : "This value will be used in the Authorization header"}
@@ -300,7 +300,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   required={!isEditing && authType === "basic"}
                 />
                 {isEditing && (
-                  <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-400">
+                  <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-300">
                     Leave empty to keep the existing value. Enter a new value to
                     update it.
                   </p>
@@ -325,7 +325,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   required={!isEditing && authType === "basic"}
                 />
                 {isEditing && (
-                  <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-400">
+                  <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-300">
                     Leave empty to keep the existing value. Enter a new value to
                     update it.
                   </p>

@@ -349,7 +349,7 @@ const SubscriptionManagement: FC = () => {
                   )}
                   {subscription.status === "cancelled" &&
                     subscription.plan !== "free" && (
-                      <span className="text-neutral-600 font-semibold dark:text-neutral-400">
+                      <span className="text-neutral-600 font-semibold dark:text-neutral-300">
                         Cancelled
                       </span>
                     )}
@@ -366,12 +366,12 @@ const SubscriptionManagement: FC = () => {
                 </div>
               )}
               {subscription.renewsAt && subscription.plan !== "free" && (
-                <div className="text-base text-neutral-600 mb-2 dark:text-neutral-400">
+                <div className="text-base text-neutral-600 mb-2 dark:text-neutral-300">
                   Renews: {new Date(subscription.renewsAt).toLocaleDateString()}
                 </div>
               )}
               {expiresAt && (
-                <div className="text-base text-neutral-600 mb-2 dark:text-neutral-400">
+                <div className="text-base text-neutral-600 mb-2 dark:text-neutral-300">
                   {isExpired ? (
                     <span className="text-error-600 font-semibold dark:text-error-400">
                       Expired
@@ -386,7 +386,7 @@ const SubscriptionManagement: FC = () => {
                   )}
                 </div>
               )}
-              <div className="text-sm text-neutral-600 font-mono mb-4 dark:text-neutral-400">
+              <div className="text-sm text-neutral-600 font-mono mb-4 dark:text-neutral-300">
                 Subscription ID: {subscription.subscriptionId}
               </div>
               <div className="flex gap-4">
@@ -501,13 +501,13 @@ const SubscriptionManagement: FC = () => {
           <div className="space-y-6">
             {/* Seat Usage - Prominently Displayed */}
             <div className="border border-neutral-200 rounded-xl p-6 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-              <div className="text-sm font-semibold text-neutral-600 mb-2 dark:text-neutral-400">
+              <div className="text-sm font-semibold text-neutral-600 mb-2 dark:text-neutral-300">
                 Seats
               </div>
               <div className="text-4xl font-bold text-neutral-900 mb-2 dark:text-neutral-50">
                 {subscription.usage.users} / {subscription.limits.maxUsers}
               </div>
-              <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+              <div className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
                 {subscription.usage.users === subscription.limits.maxUsers
                   ? "Limit reached"
                   : `${
@@ -520,7 +520,7 @@ const SubscriptionManagement: FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Workspaces */}
               <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
-                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-300">
                   Workspaces
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
@@ -531,14 +531,14 @@ const SubscriptionManagement: FC = () => {
 
               {/* Documents */}
               <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
-                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-300">
                   Documents
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 mb-1 dark:text-neutral-50">
                   {subscription.usage.documents} /{" "}
                   {subscription.limits.maxDocuments}
                 </div>
-                <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                <div className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
                   {(
                     subscription.usage.documentSizeBytes /
                     (1024 * 1024)
@@ -554,7 +554,7 @@ const SubscriptionManagement: FC = () => {
 
               {/* Agents */}
               <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
-                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-300">
                   Agents
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
@@ -564,7 +564,7 @@ const SubscriptionManagement: FC = () => {
 
               {/* Managers */}
               <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
-                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-300">
                   Managers
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
@@ -577,7 +577,7 @@ const SubscriptionManagement: FC = () => {
 
               {/* Agent Keys */}
               <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
-                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-300">
                   Agent Keys
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
@@ -588,7 +588,7 @@ const SubscriptionManagement: FC = () => {
 
               {/* Channels */}
               <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
-                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-300">
                   Channels
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
@@ -599,7 +599,7 @@ const SubscriptionManagement: FC = () => {
 
               {/* MCP Servers */}
               <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
-                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-300">
                   MCP Servers
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
@@ -617,7 +617,7 @@ const SubscriptionManagement: FC = () => {
           </h2>
 
           {subscription.managers.length === 0 ? (
-            <p className="text-neutral-600 dark:text-neutral-400">No managers found.</p>
+            <p className="text-neutral-600 dark:text-neutral-300">No managers found.</p>
           ) : (
             <div className="space-y-4">
               {subscription.managers.map((manager) => {
@@ -633,7 +633,7 @@ const SubscriptionManagement: FC = () => {
                       <div className="font-semibold text-neutral-900 text-lg dark:text-neutral-50">
                         {manager.email || "Unknown email"}
                       </div>
-                      <div className="text-sm text-neutral-600 font-mono dark:text-neutral-400">
+                      <div className="text-sm text-neutral-600 font-mono dark:text-neutral-300">
                         {manager.userId}
                       </div>
                     </div>
@@ -649,7 +649,7 @@ const SubscriptionManagement: FC = () => {
                       </button>
                     )}
                     {manager.userId === currentUserId && (
-                      <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
+                      <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
                         You
                       </span>
                     )}

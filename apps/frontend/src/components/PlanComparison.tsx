@@ -125,7 +125,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
                 <span className="text-4xl font-bold text-neutral-900 dark:text-neutral-50">
                   {plan.price}
                 </span>
-                <span className="text-neutral-600 dark:text-neutral-400">
+                <span className="text-neutral-600 dark:text-neutral-300">
                   {plan.period}
                 </span>
               </div>
@@ -180,7 +180,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
             )}
 
             {isCurrent && !canUpgrade && !canDowngrade && (
-              <div className="text-center text-neutral-600 font-medium py-3 dark:text-neutral-400">
+              <div className="text-center text-neutral-600 font-medium py-3 dark:text-neutral-300">
                 Your current plan
               </div>
             )}
