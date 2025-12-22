@@ -391,7 +391,6 @@ describe("documentSearch", () => {
 
       expect(mockQuery).toHaveBeenCalledWith("workspace-123", "docs", {
         vector: mockEmbedding,
-        filter: "\"workspaceId\" = 'workspace-123'",
         limit: 5,
       });
       expect(results).toEqual([]);
@@ -430,7 +429,6 @@ describe("documentSearch", () => {
 
       expect(mockQuery).toHaveBeenCalledWith("workspace-123", "docs", {
         vector: mockEmbedding,
-        filter: "\"workspaceId\" = 'workspace-123'",
         limit: 5,
       });
       expect(results).toBeDefined();
@@ -482,7 +480,7 @@ describe("documentSearch", () => {
       expect(Array.isArray(results2)).toBe(true);
     });
 
-    it("should escape single quotes in workspaceId to prevent SQL injection", async () => {
+    it("should use workspaceId for database isolation (no filter needed)", async () => {
       // Mock LanceDB query results
       mockQuery.mockResolvedValue([]);
 
@@ -494,18 +492,23 @@ describe("documentSearch", () => {
         }),
       });
 
-      // Test with workspaceId containing single quote (SQL injection attempt)
-      const maliciousWorkspaceId = "workspace' OR '1'='1";
-      await searchDocuments(maliciousWorkspaceId, "test query");
+      // Test with workspaceId - each workspace has its own isolated database
+      // No filter needed since workspace isolation is handled at the database path level
+      const workspaceId = "workspace-123";
+      await searchDocuments(workspaceId, "test query");
 
-      // Verify that the filter was called with properly escaped workspaceId
+      // Verify that query was called without filter (workspace isolation via database path)
       expect(mockQuery).toHaveBeenCalledWith(
-        maliciousWorkspaceId,
+        workspaceId,
         "docs",
         expect.objectContaining({
-          filter: "\"workspaceId\" = 'workspace'' OR ''1''=''1'", // Column name quoted, single quotes doubled
+          vector: mockEmbedding,
+          limit: 5,
         })
       );
+      // Verify no filter is used (workspace isolation is at database level)
+      const queryCall = mockQuery.mock.calls[0];
+      expect(queryCall[2]).not.toHaveProperty("filter");
     });
   });
 
