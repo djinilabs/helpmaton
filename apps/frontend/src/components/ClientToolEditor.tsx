@@ -103,16 +103,16 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
         <button
           type="button"
           onClick={() => startEditing(null)}
-          className="px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+          className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
         >
           + Add Tool
         </button>
       </div>
 
       {editingIndex !== null || editingTool ? (
-        <div className="border border-neutral-300 rounded-lg p-4 space-y-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+        <div className="space-y-4 rounded-lg border border-neutral-300 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1 dark:text-neutral-300">
+            <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
               Tool Name (Function Name) *
             </label>
             <input
@@ -127,17 +127,17 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
                   setEditingTool({ ...editingTool, name: value });
                 }
               }}
-              className="w-full border border-neutral-300 rounded px-3 py-2 font-mono dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+              className="w-full rounded border border-neutral-300 px-3 py-2 font-mono dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
               placeholder="e.g., getWeather"
             />
-            <p className="text-xs text-neutral-500 mt-1 dark:text-neutral-300">
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-300">
               Must be a valid JavaScript identifier (letters, numbers,
               underscore, $; no spaces or special characters)
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1 dark:text-neutral-300">
+            <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
               Description *
             </label>
             <textarea
@@ -145,14 +145,14 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
               onChange={(e) =>
                 setEditingTool({ ...editingTool, description: e.target.value })
               }
-              className="w-full border border-neutral-300 rounded px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+              className="w-full rounded border border-neutral-300 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
               rows={3}
               placeholder="Describe what this tool does for the AI"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1 dark:text-neutral-300">
+            <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
               Parameters Schema
             </label>
             <ClientToolParameterBuilder
@@ -173,7 +173,7 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
             <button
               type="button"
               onClick={saveTool}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-700"
             >
               Save
             </button>
@@ -183,7 +183,7 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
                 setEditingIndex(null);
                 setEditingTool(null);
               }}
-              className="px-4 py-2 bg-neutral-300 text-neutral-700 rounded hover:bg-neutral-400 dark:bg-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-600"
+              className="rounded bg-neutral-300 px-4 py-2 text-neutral-700 hover:bg-neutral-400 dark:bg-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-600"
             >
               Cancel
             </button>
@@ -196,15 +196,15 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
           {tools.map((tool, index) => (
             <div
               key={index}
-              className="border border-neutral-300 rounded p-3 flex items-start justify-between dark:border-neutral-700 dark:bg-neutral-900"
+              className="flex items-start justify-between rounded border border-neutral-300 p-3 dark:border-neutral-700 dark:bg-neutral-900"
             >
               <div className="flex-1">
                 <div className="font-medium dark:text-neutral-50">{tool.name}</div>
-                <div className="text-sm text-neutral-600 mt-1 dark:text-neutral-300">
+                <div className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
                   {tool.description}
                 </div>
               </div>
-              <div className="flex space-x-2 ml-4">
+              <div className="ml-4 flex space-x-2">
                 <button
                   type="button"
                   onClick={() => startEditing(index)}

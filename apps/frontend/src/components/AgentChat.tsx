@@ -114,8 +114,8 @@ export const AgentChat: FC<AgentChatProps> = ({
   }, [messages, isLoading]);
 
   return (
-    <div className="border-2 border-neutral-300 rounded-2xl flex flex-col h-[600px] bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900">
-      <div className="border-b-2 border-neutral-300 p-5 bg-neutral-100 rounded-t-2xl dark:border-neutral-700 dark:bg-neutral-800">
+    <div className="flex h-[600px] flex-col rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="rounded-t-2xl border-b-2 border-neutral-300 bg-neutral-100 p-5 dark:border-neutral-700 dark:bg-neutral-800">
         <p className="text-base font-bold text-neutral-800 dark:text-neutral-200">
           Test your agent by having a conversation. This chat interface lets you
           interact with the agent in real-time to verify its behavior and
@@ -125,18 +125,18 @@ export const AgentChat: FC<AgentChatProps> = ({
       {/* Messages Container */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 bg-white dark:bg-neutral-900"
+        className="flex-1 overflow-y-auto bg-white p-4 dark:bg-neutral-900"
       >
         {error && (
-          <div className="border-2 border-error-300 bg-error-100 rounded-xl p-5 mb-4 dark:border-error-800 dark:bg-error-900">
+          <div className="mb-4 rounded-xl border-2 border-error-300 bg-error-100 p-5 dark:border-error-800 dark:bg-error-900">
             <div className="text-base font-bold text-error-900 dark:text-error-50">Error</div>
-            <div className="text-sm font-medium text-error-800 mt-2 dark:text-error-100">
+            <div className="mt-2 text-sm font-medium text-error-800 dark:text-error-100">
               {error.message}
             </div>
           </div>
         )}
         {messages.length === 0 ? (
-          <div className="text-base font-bold text-neutral-600 text-center py-10 dark:text-neutral-300">
+          <div className="py-10 text-center text-base font-bold text-neutral-600 dark:text-neutral-300">
             No messages yet. Start a conversation.
           </div>
         ) : (
@@ -205,7 +205,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                                 if (isInline) {
                                   return (
                                     <code
-                                      className="border-2 border-neutral-300 bg-neutral-100 px-2 py-1 rounded-lg font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                      className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
                                       {...rest}
                                     >
                                       {children}
@@ -214,7 +214,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                                 }
                                 return (
                                   <code
-                                    className="block border-2 border-neutral-300 bg-neutral-100 rounded-xl p-5 font-mono text-sm font-bold overflow-x-auto dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                    className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
                                     {...rest}
                                   >
                                     {children}
@@ -243,12 +243,12 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="rounded-xl p-4 bg-indigo-50 border border-indigo-200 max-w-[80%] dark:bg-indigo-950 dark:border-indigo-800"
+                      className="max-w-[80%] rounded-xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-950"
                     >
-                      <div className="text-xs font-medium mb-2 text-indigo-700 dark:text-indigo-300">
+                      <div className="mb-2 text-xs font-medium text-indigo-700 dark:text-indigo-300">
                         🧠 Reasoning
                       </div>
-                      <div className="text-sm text-indigo-900 whitespace-pre-wrap dark:text-indigo-100">
+                      <div className="whitespace-pre-wrap text-sm text-indigo-900 dark:text-indigo-100">
                         {reasoningPart.text}
                       </div>
                     </div>
@@ -279,13 +279,13 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="rounded-xl p-4 bg-blue-50 border border-blue-200 max-w-[80%] dark:bg-blue-950 dark:border-blue-800"
+                      className="max-w-[80%] rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950"
                     >
-                      <div className="text-xs font-medium mb-2 text-blue-700 dark:text-blue-300">
+                      <div className="mb-2 text-xs font-medium text-blue-700 dark:text-blue-300">
                         🔧 Tool Call: {toolPart.toolName}
                       </div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-mono text-blue-600 bg-blue-100 px-2 py-1 rounded font-semibold dark:text-blue-300 dark:bg-blue-900">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="rounded bg-blue-100 px-2 py-1 font-mono text-xs font-semibold text-blue-600 dark:bg-blue-900 dark:text-blue-300">
                           {toolPart.toolName}
                         </span>
                         {toolPart.state && (
@@ -295,7 +295,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                         )}
                       </div>
                       <details className="text-xs">
-                        <summary className="cursor-pointer text-blue-600 hover:text-blue-700 font-medium dark:text-blue-400 dark:hover:text-blue-300">
+                        <summary className="cursor-pointer font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
                           View{" "}
                           {hasOutput
                             ? "output"
@@ -305,29 +305,29 @@ export const AgentChat: FC<AgentChatProps> = ({
                         </summary>
                         <div className="mt-2 space-y-2">
                           <div>
-                            <div className="font-medium text-blue-700 mb-1 dark:text-blue-300">
+                            <div className="mb-1 font-medium text-blue-700 dark:text-blue-300">
                               Arguments:
                             </div>
-                            <pre className="p-2 bg-blue-100 rounded text-xs overflow-x-auto dark:bg-blue-900 dark:text-blue-50">
+                            <pre className="overflow-x-auto rounded bg-blue-100 p-2 text-xs dark:bg-blue-900 dark:text-blue-50">
                               {JSON.stringify(toolInput, null, 2)}
                             </pre>
                           </div>
                           {hasOutput && (
                             <div>
-                              <div className="font-medium text-green-700 mb-1 dark:text-green-300">
+                              <div className="mb-1 font-medium text-green-700 dark:text-green-300">
                                 Output:
                               </div>
-                              <pre className="p-2 bg-green-100 rounded text-xs overflow-x-auto dark:bg-green-900 dark:text-green-50">
+                              <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
                                 {JSON.stringify(toolPart.output, null, 2)}
                               </pre>
                             </div>
                           )}
                           {hasError && (
                             <div>
-                              <div className="font-medium text-red-700 mb-1 dark:text-red-300">
+                              <div className="mb-1 font-medium text-red-700 dark:text-red-300">
                                 Error:
                               </div>
-                              <div className="p-2 bg-red-100 rounded text-xs text-red-800 dark:bg-red-900 dark:text-red-200">
+                              <div className="rounded bg-red-100 p-2 text-xs text-red-800 dark:bg-red-900 dark:text-red-200">
                                 {toolPart.errorText}
                               </div>
                             </div>
@@ -362,13 +362,13 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="rounded-xl p-4 bg-blue-50 border border-blue-200 max-w-[80%]"
+                      className="max-w-[80%] rounded-xl border border-blue-200 bg-blue-50 p-4"
                     >
-                      <div className="text-xs font-medium mb-2 text-blue-700">
+                      <div className="mb-2 text-xs font-medium text-blue-700">
                         🔧 Tool Call: {toolName}
                       </div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-mono text-blue-600 bg-blue-100 px-2 py-1 rounded font-semibold">
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="rounded bg-blue-100 px-2 py-1 font-mono text-xs font-semibold text-blue-600">
                           {toolName}
                         </span>
                         {toolPart.state && (
@@ -378,7 +378,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                         )}
                       </div>
                       <details className="text-xs">
-                        <summary className="cursor-pointer text-blue-600 hover:text-blue-700 font-medium">
+                        <summary className="cursor-pointer font-medium text-blue-600 hover:text-blue-700">
                           View{" "}
                           {hasOutput
                             ? "output"
@@ -388,29 +388,29 @@ export const AgentChat: FC<AgentChatProps> = ({
                         </summary>
                         <div className="mt-2 space-y-2">
                           <div>
-                            <div className="font-medium text-blue-700 mb-1">
+                            <div className="mb-1 font-medium text-blue-700">
                               Arguments:
                             </div>
-                            <pre className="p-2 bg-blue-100 rounded text-xs overflow-x-auto">
+                            <pre className="overflow-x-auto rounded bg-blue-100 p-2 text-xs">
                               {JSON.stringify(toolInput, null, 2)}
                             </pre>
                           </div>
                           {hasOutput && (
                             <div>
-                              <div className="font-medium text-green-700 mb-1">
+                              <div className="mb-1 font-medium text-green-700">
                                 Output:
                               </div>
-                              <pre className="p-2 bg-green-100 rounded text-xs overflow-x-auto">
+                              <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs">
                                 {JSON.stringify(toolPart.output, null, 2)}
                               </pre>
                             </div>
                           )}
                           {hasError && (
                             <div>
-                              <div className="font-medium text-red-700 mb-1">
+                              <div className="mb-1 font-medium text-red-700">
                                 Error:
                               </div>
-                              <div className="p-2 bg-red-100 rounded text-xs text-red-800">
+                              <div className="rounded bg-red-100 p-2 text-xs text-red-800">
                                 {toolPart.errorText}
                               </div>
                             </div>
@@ -436,16 +436,16 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="rounded-xl p-3 bg-amber-50 border border-amber-200 max-w-[80%]"
+                      className="max-w-[80%] rounded-xl border border-amber-200 bg-amber-50 p-3"
                     >
-                      <div className="text-xs font-medium mb-1 text-amber-700">
+                      <div className="mb-1 text-xs font-medium text-amber-700">
                         📎 Source
                       </div>
                       <a
                         href={sourcePart.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-amber-900 hover:text-amber-700 underline break-all"
+                        className="break-all text-sm text-amber-900 underline hover:text-amber-700"
                       >
                         {sourcePart.title || sourcePart.url}
                       </a>
@@ -469,20 +469,20 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="rounded-xl p-3 bg-amber-50 border border-amber-200 max-w-[80%]"
+                      className="max-w-[80%] rounded-xl border border-amber-200 bg-amber-50 p-3"
                     >
-                      <div className="text-xs font-medium mb-1 text-amber-700">
+                      <div className="mb-1 text-xs font-medium text-amber-700">
                         📄 Document Source
                       </div>
-                      <div className="text-sm text-amber-900 font-medium">
+                      <div className="text-sm font-medium text-amber-900">
                         {docPart.title}
                       </div>
                       {docPart.filename && (
-                        <div className="text-xs text-amber-700 mt-1">
+                        <div className="mt-1 text-xs text-amber-700">
                           {docPart.filename}
                         </div>
                       )}
-                      <div className="text-xs text-amber-600 mt-1">
+                      <div className="mt-1 text-xs text-amber-600">
                         {docPart.mediaType}
                       </div>
                     </div>
@@ -504,22 +504,22 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="rounded-xl p-3 bg-purple-50 border border-purple-200 max-w-[80%]"
+                      className="max-w-[80%] rounded-xl border border-purple-200 bg-purple-50 p-3"
                     >
-                      <div className="text-xs font-medium mb-1 text-purple-700">
+                      <div className="mb-1 text-xs font-medium text-purple-700">
                         📎 File
                       </div>
-                      <div className="text-sm text-purple-900 font-medium">
+                      <div className="text-sm font-medium text-purple-900">
                         {filePart.filename || "Untitled file"}
                       </div>
-                      <div className="text-xs text-purple-600 mt-1">
+                      <div className="mt-1 text-xs text-purple-600">
                         {filePart.mediaType}
                       </div>
                       <a
                         href={filePart.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-purple-700 hover:text-purple-900 underline mt-2 inline-block"
+                        className="mt-2 inline-block text-xs text-purple-700 underline hover:text-purple-900"
                       >
                         View/Download
                       </a>
@@ -542,16 +542,16 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="rounded-xl p-3 bg-slate-50 border border-slate-200 max-w-[80%]"
+                      className="max-w-[80%] rounded-xl border border-slate-200 bg-slate-50 p-3"
                     >
-                      <div className="text-xs font-medium mb-2 text-slate-700">
+                      <div className="mb-2 text-xs font-medium text-slate-700">
                         📊 Data: {dataName}
                       </div>
                       <details className="text-xs">
-                        <summary className="cursor-pointer text-slate-600 hover:text-slate-700 font-medium">
+                        <summary className="cursor-pointer font-medium text-slate-600 hover:text-slate-700">
                           View data
                         </summary>
-                        <pre className="mt-2 p-2 bg-slate-100 rounded text-xs overflow-x-auto">
+                        <pre className="mt-2 overflow-x-auto rounded bg-slate-100 p-2 text-xs">
                           {JSON.stringify(dataPart.data, null, 2)}
                         </pre>
                       </details>
@@ -564,10 +564,10 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="flex items-center gap-2 my-2 max-w-[80%]"
+                      className="my-2 flex max-w-[80%] items-center gap-2"
                     >
                       <div className="flex-1 border-t border-neutral-300"></div>
-                      <div className="text-xs text-neutral-500 font-medium px-2">
+                      <div className="px-2 text-xs font-medium text-neutral-500">
                         Step
                       </div>
                       <div className="flex-1 border-t border-neutral-300"></div>
@@ -579,12 +579,12 @@ export const AgentChat: FC<AgentChatProps> = ({
                 return (
                   <div
                     key={`${message.id}-part-${partIndex}`}
-                    className="rounded-xl p-3 bg-yellow-50 border border-yellow-200 max-w-[80%]"
+                    className="max-w-[80%] rounded-xl border border-yellow-200 bg-yellow-50 p-3"
                   >
-                    <div className="text-xs font-medium mb-1 text-yellow-700">
+                    <div className="mb-1 text-xs font-medium text-yellow-700">
                       Unknown part type: {partType}
                     </div>
-                    <pre className="text-xs text-yellow-900 overflow-x-auto">
+                    <pre className="overflow-x-auto text-xs text-yellow-900">
                       {JSON.stringify(part, null, 2)}
                     </pre>
                   </div>
@@ -674,18 +674,18 @@ export const AgentChat: FC<AgentChatProps> = ({
                             key={`${message.id}-container-${partIndex}`}
                             className={`rounded-xl p-4 ${getRoleStyling()} max-w-[80%]`}
                           >
-                            <div className="flex justify-between items-center mb-2">
+                            <div className="mb-2 flex items-center justify-between">
                               <div className="text-xs font-medium opacity-80">
                                 {getRoleLabel()}
                               </div>
                               <div className="flex items-center gap-2">
                                 {modelName && provider && (
-                                  <div className="text-xs font-medium opacity-70 bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                  <div className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 opacity-70">
                                     {provider}/{modelName}
                                   </div>
                                 )}
                                 {tokenUsage && (
-                                  <div className="text-xs font-mono opacity-70 bg-black bg-opacity-10 px-2 py-1 rounded">
+                                  <div className="rounded bg-black bg-opacity-10 px-2 py-1 font-mono text-xs opacity-70">
                                     {formatTokenUsage(tokenUsage)}
                                   </div>
                                 )}
@@ -703,24 +703,24 @@ export const AgentChat: FC<AgentChatProps> = ({
                     <div
                       className={`rounded-xl p-5 ${getRoleStyling()} max-w-[80%]`}
                     >
-                      <div className="flex justify-between items-center mb-3">
+                      <div className="mb-3 flex items-center justify-between">
                         <div className="text-sm font-bold opacity-90">
                           {getRoleLabel()}
                         </div>
                         <div className="flex items-center gap-2">
                           {modelName && provider && (
-                            <div className="text-xs font-medium opacity-70 bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                            <div className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 opacity-70">
                               {provider}/{modelName}
                             </div>
                           )}
                           {tokenUsage && (
-                            <div className="text-xs font-mono opacity-70 bg-black bg-opacity-10 px-2 py-1 rounded">
+                            <div className="rounded bg-black bg-opacity-10 px-2 py-1 font-mono text-xs opacity-70">
                               {formatTokenUsage(tokenUsage)}
                             </div>
                           )}
                         </div>
                       </div>
-                      <div className="text-base text-neutral-600 italic font-medium">
+                      <div className="text-base font-medium italic text-neutral-600">
                         (Empty message)
                       </div>
                     </div>
@@ -729,8 +729,8 @@ export const AgentChat: FC<AgentChatProps> = ({
               );
             })}
             {isLoading && (
-              <div className="border border-neutral-200 rounded-xl p-4 bg-neutral-50 text-neutral-900 max-w-[80%]">
-                <div className="text-xs font-medium mb-2 text-neutral-600">
+              <div className="max-w-[80%] rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-neutral-900">
+                <div className="mb-2 text-xs font-medium text-neutral-600">
                   Agent
                 </div>
                 <div className="text-sm text-neutral-600">Thinking...</div>
@@ -743,19 +743,19 @@ export const AgentChat: FC<AgentChatProps> = ({
       {/* Input Form */}
       <form
         onSubmit={handleSubmit}
-        className="border-t-2 border-neutral-300 p-5 bg-white flex gap-4 rounded-b-2xl dark:border-neutral-700 dark:bg-neutral-900"
+        className="flex gap-4 rounded-b-2xl border-t-2 border-neutral-300 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900"
       >
         <input
           type="text"
           value={input}
           onChange={handleInputChange}
           placeholder="Type your message..."
-          className="flex-1 border-2 border-neutral-300 rounded-xl p-4 bg-white text-neutral-900 text-base font-medium focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-600 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+          className="flex-1 rounded-xl border-2 border-neutral-300 bg-white p-4 text-base font-medium text-neutral-900 transition-all duration-200 focus:border-primary-600 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
         />
         <button
           type="submit"
           disabled={isLoading || !input.trim()}
-          className="bg-gradient-primary px-8 py-4 text-white font-bold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none transition-all duration-200 transform hover:scale-[1.03] active:scale-[0.97]"
+          className="transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
         >
           Send
         </button>

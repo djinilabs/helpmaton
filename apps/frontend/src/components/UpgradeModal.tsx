@@ -18,24 +18,24 @@ export const UpgradeModal: FC<UpgradeModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-neutral-200 rounded-2xl shadow-dramatic border-2 border-neutral-300 p-8 max-w-md w-full">
-        <h2 className="text-3xl font-bold text-neutral-900 mb-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="w-full max-w-md rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic">
+        <h2 className="mb-6 text-3xl font-bold text-neutral-900">
           Upgrade Now
         </h2>
-        <p className="text-lg font-medium text-neutral-700 mb-6">
+        <p className="mb-6 text-lg font-medium text-neutral-700">
           Loving the agent? Upgrade now to keep it running without interruption.
         </p>
         <div className="flex gap-3">
           <button
             onClick={onUpgrade}
-            className="flex-1 bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored transition-colors"
+            className="flex-1 rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored"
           >
             Upgrade
           </button>
           <button
             onClick={onClose}
-            className="flex-1 border border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 transition-colors"
+            className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
           >
             Later
           </button>

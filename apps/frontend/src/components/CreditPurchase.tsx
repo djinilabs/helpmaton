@@ -61,8 +61,8 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-medium p-8 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
-      <h2 className="text-2xl font-semibold text-neutral-900 mb-6 dark:text-neutral-50">
+    <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
+      <h2 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
         Purchase Credits
       </h2>
 
@@ -71,7 +71,7 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
           <div>
             <label
               htmlFor="workspace"
-              className="block text-sm font-semibold text-neutral-900 mb-2 dark:text-neutral-300"
+              className="mb-2 block text-sm font-semibold text-neutral-900 dark:text-neutral-300"
             >
               Workspace
             </label>
@@ -79,7 +79,7 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
               id="workspace"
               value={selectedWorkspaceId}
               onChange={(e) => setSelectedWorkspaceId(e.target.value)}
-              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
             >
               <option value="">Select a workspace</option>
               {workspaces.map((workspace) => (
@@ -94,12 +94,12 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
         <div>
           <label
             htmlFor="amount"
-            className="block text-sm font-semibold text-neutral-900 mb-2 dark:text-neutral-300"
+            className="mb-2 block text-sm font-semibold text-neutral-900 dark:text-neutral-300"
           >
             Credit Amount ({currency.toUpperCase()})
           </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600 font-medium dark:text-neutral-300">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-medium text-neutral-600 dark:text-neutral-300">
               $
             </span>
             <input
@@ -110,7 +110,7 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
               value={amount}
               onChange={handleAmountChange}
               placeholder="0.00"
-              className="w-full border border-neutral-300 rounded-xl bg-white pl-10 pr-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:placeholder:text-neutral-400 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+              className="w-full rounded-xl border border-neutral-300 bg-white py-3 pl-10 pr-4 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:placeholder:text-neutral-400 dark:focus:border-primary-500 dark:focus:ring-primary-400"
             />
           </div>
           {amountError && (
@@ -133,7 +133,7 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
             !!amountError ||
             parseFloat(amount) < 1
           }
-          className="w-full bg-gradient-primary text-white font-semibold py-3 px-6 rounded-xl hover:shadow-colored transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full rounded-xl bg-gradient-primary px-6 py-3 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
         >
           {purchaseMutation.isPending ? "Processing..." : "Purchase Credits"}
         </button>

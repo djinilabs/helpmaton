@@ -96,7 +96,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
       {plans.map((plan) => {
         const isCurrent = plan.plan === currentPlan;
         const canUpgrade =
@@ -111,14 +111,14 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
         return (
           <div
             key={plan.plan}
-            className={`border rounded-2xl p-6 ${
+            className={`rounded-2xl border p-6 ${
               isCurrent
                 ? "border-primary-500 bg-primary-50 dark:border-primary-500 dark:bg-primary-950"
                 : "border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900"
             }`}
           >
             <div className="mb-4">
-              <h3 className="text-2xl font-bold text-neutral-900 mb-2 dark:text-neutral-50">
+              <h3 className="mb-2 text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                 {plan.name}
               </h3>
               <div className="flex items-baseline gap-2">
@@ -130,17 +130,17 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
                 </span>
               </div>
               {isCurrent && (
-                <span className="inline-block mt-2 px-3 py-1 bg-primary-500 text-white text-sm font-semibold rounded-full">
+                <span className="mt-2 inline-block rounded-full bg-primary-500 px-3 py-1 text-sm font-semibold text-white">
                   Current Plan
                 </span>
               )}
             </div>
 
-            <ul className="space-y-2 mb-6">
+            <ul className="mb-6 space-y-2">
               {plan.features.map((feature, index) => (
                 <li key={index} className="flex items-start gap-2">
                   <svg
-                    className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0"
+                    className="mt-0.5 size-5 flex-shrink-0 text-green-500"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -163,7 +163,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
               <button
                 onClick={() => handleUpgrade(plan.plan)}
                 disabled={isUpgradeLoading}
-                className="w-full bg-gradient-primary text-white font-semibold py-3 px-6 rounded-xl hover:shadow-colored transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full rounded-xl bg-gradient-primary px-6 py-3 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isUpgradeLoading ? "Loading..." : "Upgrade"}
               </button>
@@ -173,14 +173,14 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
               <button
                 onClick={() => onDowngrade(plan.plan)}
                 disabled={isDowngradeLoading}
-                className="w-full border border-neutral-300 text-neutral-700 font-semibold py-3 px-6 rounded-xl hover:bg-neutral-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed dark:border-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                className="w-full rounded-xl border border-neutral-300 px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
                 {isDowngradeLoading ? "Loading..." : "Downgrade"}
               </button>
             )}
 
             {isCurrent && !canUpgrade && !canDowngrade && (
-              <div className="text-center text-neutral-600 font-medium py-3 dark:text-neutral-300">
+              <div className="py-3 text-center font-medium text-neutral-600 dark:text-neutral-300">
                 Your current plan
               </div>
             )}

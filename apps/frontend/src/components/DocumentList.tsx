@@ -85,13 +85,13 @@ export const DocumentList: FC<DocumentListProps> = ({
 
   return (
     <>
-      <div className="border border-neutral-200 rounded-2xl p-6 mb-8 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-        <div className="flex justify-between items-center mb-4">
+      <div className="mb-8 rounded-2xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="mb-4 flex items-center justify-between">
           <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">
             Documents
           </h2>
         </div>
-        <p className="text-sm text-neutral-600 mb-6 dark:text-neutral-300">
+        <p className="mb-6 text-sm text-neutral-600 dark:text-neutral-300">
           Browse and manage documents uploaded to this workspace. Documents are
           organized in folders and can be accessed by agents during
           conversations. Click on a document to view its contents.
@@ -101,9 +101,9 @@ export const DocumentList: FC<DocumentListProps> = ({
         <div className="mb-6">
           <div className="flex gap-3">
             <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
                 <svg
-                  className="w-5 h-5 text-neutral-400 dark:text-neutral-500"
+                  className="size-5 text-neutral-400 dark:text-neutral-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -126,20 +126,20 @@ export const DocumentList: FC<DocumentListProps> = ({
                   }
                 }}
                 placeholder="Search documents..."
-                className="w-full border border-neutral-300 rounded-xl bg-white pl-12 pr-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:placeholder:text-neutral-400 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                className="w-full rounded-xl border border-neutral-300 bg-white py-3 pl-12 pr-4 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:placeholder:text-neutral-400 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               />
             </div>
             <button
               onClick={handleSearch}
               disabled={!searchQuery.trim()}
-              className="bg-gradient-primary px-6 py-3 text-white text-sm font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none transition-all duration-200"
+              className="rounded-xl bg-gradient-primary px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
             >
               Search
             </button>
             {activeSearchQuery && (
               <button
                 onClick={handleClearSearch}
-                className="border border-neutral-300 bg-white px-6 py-3 text-neutral-700 text-sm font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                className="rounded-xl border border-neutral-300 bg-white px-6 py-3 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
                 Clear
               </button>
@@ -149,13 +149,13 @@ export const DocumentList: FC<DocumentListProps> = ({
 
         {/* Breadcrumb navigation */}
         {currentFolder !== undefined && (
-          <div className="mb-4 flex items-center gap-2 flex-wrap">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             {breadcrumbs.map((crumb, index) => (
               <div key={index} className="flex items-center gap-2">
                 {index > 0 && <span className="text-neutral-400">/</span>}
                 <button
                   onClick={() => handleBreadcrumbClick(index)}
-                  className={`text-sm font-medium hover:text-primary-600 transition-colors ${
+                  className={`text-sm font-medium transition-colors hover:text-primary-600 ${
                     index === breadcrumbs.length - 1
                       ? "text-neutral-900 dark:text-neutral-50"
                       : "text-neutral-600 dark:text-neutral-300"
@@ -192,7 +192,7 @@ export const DocumentList: FC<DocumentListProps> = ({
                     <button
                       key={folder}
                       onClick={() => onFolderChange?.(folder)}
-                      className="border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                      className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
                     >
                       📁 {folderName}
                     </button>
@@ -232,29 +232,29 @@ export const DocumentList: FC<DocumentListProps> = ({
                       0,
                       50
                     )}`}
-                    className="border-2 border-primary-200 rounded-xl p-6 bg-primary-50/30 flex flex-col gap-3 hover:shadow-bold hover:border-primary-400 transition-all duration-200 dark:border-primary-800 dark:bg-primary-950/30 dark:hover:border-primary-600"
+                    className="flex flex-col gap-3 rounded-xl border-2 border-primary-200 bg-primary-50/30 p-6 transition-all duration-200 hover:border-primary-400 hover:shadow-bold dark:border-primary-800 dark:bg-primary-950/30 dark:hover:border-primary-600"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <button
                           onClick={() => handleDocumentClick(result.documentId)}
-                          className="text-xl font-bold text-neutral-900 hover:text-primary-600 transition-colors text-left dark:text-neutral-50 dark:hover:text-primary-400"
+                          className="text-left text-xl font-bold text-neutral-900 transition-colors hover:text-primary-600 dark:text-neutral-50 dark:hover:text-primary-400"
                         >
                           {result.documentName}
                         </button>
                         {result.folderPath && (
-                          <div className="text-sm text-neutral-500 mt-1 dark:text-neutral-400">
+                          <div className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
                             📁 {result.folderPath || "Root"}
                           </div>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 bg-primary-100 text-primary-700 text-sm font-semibold rounded-lg dark:bg-primary-900 dark:text-primary-200">
+                        <span className="rounded-lg bg-primary-100 px-3 py-1 text-sm font-semibold text-primary-700 dark:bg-primary-900 dark:text-primary-200">
                           {similarityPercent}% match
                         </span>
                       </div>
                     </div>
-                    <div className="text-sm text-neutral-700 bg-white rounded-lg p-4 border border-neutral-200 dark:text-neutral-300 dark:bg-neutral-800 dark:border-neutral-700">
+                    <div className="rounded-lg border border-neutral-200 bg-white p-4 text-sm text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                       {truncatedSnippet}
                     </div>
                   </div>
@@ -277,16 +277,16 @@ export const DocumentList: FC<DocumentListProps> = ({
               .map((document) => (
                 <div
                   key={document.id}
-                  className="border-2 border-neutral-300 rounded-xl p-6 bg-white flex justify-between items-center hover:shadow-bold hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
+                  className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:border-primary-400 hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
                 >
                   <div className="flex-1">
                     <button
                       onClick={() => handleDocumentClick(document.id)}
-                      className="text-xl font-bold text-neutral-900 hover:text-primary-600 transition-colors text-left dark:text-neutral-50 dark:hover:text-primary-400"
+                      className="text-left text-xl font-bold text-neutral-900 transition-colors hover:text-primary-600 dark:text-neutral-50 dark:hover:text-primary-400"
                     >
                       {document.name}
                     </button>
-                    <div className="text-sm text-neutral-500 mt-1">
+                    <div className="mt-1 text-sm text-neutral-500">
                       {formatSize(document.size)} •{" "}
                       {new Date(document.createdAt).toLocaleDateString()}
                     </div>
@@ -351,7 +351,7 @@ const DeleteButton: FC<DeleteButtonProps> = ({
     <button
       onClick={handleDelete}
       disabled={isDeleting}
-      className="bg-error-600 px-5 py-2.5 text-white text-sm font-bold rounded-xl hover:bg-error-700 hover:shadow-error disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+      className="transform rounded-xl bg-error-600 px-5 py-2.5 text-sm font-bold text-white transition-all duration-200 hover:scale-[1.02] hover:bg-error-700 hover:shadow-error active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
     >
       {isDeleting ? "Deleting..." : "Delete"}
     </button>

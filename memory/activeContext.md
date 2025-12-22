@@ -2,6 +2,39 @@
 
 ## Current Status
 
+**Status**: Tailwind CSS Linting Rules Implementation - Completed ✅
+
+Added comprehensive Tailwind CSS linting rules to enforce code quality and consistency across the frontend codebase.
+
+**Changes Made**:
+
+- Installed `eslint-plugin-tailwindcss` as a dev dependency
+- Added Tailwind CSS plugin to frontend ESLint configuration
+- Configured standard Tailwind linting rules:
+  - `tailwindcss/classnames-order`: Enforces proper class ordering (warning)
+  - `tailwindcss/enforces-negative-arbitrary-values`: Enforces negative arbitrary values (warning)
+  - `tailwindcss/enforces-shorthand`: Suggests using shorthand utilities like `size-*` instead of `w-* h-*` (warning)
+  - `tailwindcss/no-contradicting-classname`: Prevents conflicting classes (error)
+- Fixed all 20 conflicting classname errors across 8 files
+- Auto-fixed 1090 classname ordering warnings across the entire frontend codebase
+
+**Files Modified**:
+
+- `eslint.config.js` - Added Tailwind CSS plugin and rules configuration
+- `package.json` - Added `eslint-plugin-tailwindcss` dependency
+- `apps/frontend/src/components/ChannelModal.tsx` - Fixed conflicting border classes
+- `apps/frontend/src/components/ConversationDetailModal.tsx` - Fixed conflicting border classes
+- `apps/frontend/src/components/DocumentViewer.tsx` - Fixed conflicting border classes
+- `apps/frontend/src/components/EmailConnectionModal.tsx` - Fixed conflicting border classes
+- `apps/frontend/src/components/McpServerModal.tsx` - Fixed conflicting border classes
+- `apps/frontend/src/components/PromptGeneratorDialog.tsx` - Fixed conflicting border classes
+- `apps/frontend/src/components/ToolsHelpDialog.tsx` - Fixed conflicting border classes
+- `apps/frontend/src/components/TrialCreditRequestModal.tsx` - Fixed conflicting border classes
+- `apps/frontend/src/components/UpgradeModal.tsx` - Fixed conflicting border classes
+- `apps/frontend/src/pages/AgentDetail.tsx` - Fixed conflicting dark:bg classes (2 instances)
+
+**Verification**: Type checking and linting passed successfully
+
 **Status**: webhook-logs Table Removal - Completed ✅
 
 Removed the `webhook-logs` table and all its usage from the codebase. The table was write-only (no retrieval functionality) and was not being used for any operational purpose.

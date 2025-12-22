@@ -151,11 +151,11 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
     ));
 
   return (
-    <div className="border border-neutral-200 rounded-lg p-6 mb-8 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-      <h2 className="text-3xl font-bold text-neutral-900 mb-5 dark:text-neutral-50">
+    <div className="mb-8 rounded-lg border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+      <h2 className="mb-5 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
         Upload Documents
       </h2>
-      <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-300">
+      <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-300">
         Upload documents (markdown or text files) that your agents can reference
         when answering questions. Documents are organized in folders and can be
         searched by agents during conversations. Maximum file size is 10MB per
@@ -164,7 +164,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
 
       {/* Folder selection */}
       <div className="mb-4">
-        <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
+        <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
           Destination Folder
         </label>
         <div className="flex gap-2">
@@ -174,7 +174,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
               setSelectedFolder(e.target.value);
               setNewFolderName("");
             }}
-            className="flex-1 border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+            className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
           >
             <option value="">Root</option>
             {folderOptions}
@@ -187,25 +187,25 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
               setSelectedFolder("");
             }}
             placeholder="Or create new folder..."
-            className="flex-1 border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+            className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
           />
         </div>
       </div>
 
       {/* Drag and drop area */}
       <div
-        className={`border-2 border-dashed border-neutral-300 rounded-lg p-8 mb-4 text-center transition-colors ${
-          isDragging ? "bg-primary-50 border-primary-400 dark:bg-primary-950 dark:border-primary-500" : "bg-neutral-50 dark:bg-neutral-800"
+        className={`mb-4 rounded-lg border-2 border-dashed border-neutral-300 p-8 text-center transition-colors ${
+          isDragging ? "border-primary-400 bg-primary-50 dark:border-primary-500 dark:bg-primary-950" : "bg-neutral-50 dark:bg-neutral-800"
         }`}
         onDragEnter={handleDragEnter}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <p className="text-lg font-semibold text-neutral-900 mb-2 dark:text-neutral-50">
+        <p className="mb-2 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
           Drag and drop files here
         </p>
-        <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-300">or</p>
+        <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-300">or</p>
         <input
           ref={fileInputRef}
           type="file"
@@ -217,23 +217,23 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
         />
         <label
           htmlFor="file-upload"
-          className="inline-block bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored cursor-pointer transition-colors"
+          className="inline-block cursor-pointer rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored"
         >
           Select Files
         </label>
-        <p className="text-xs mt-2 text-neutral-500 dark:text-neutral-300">
+        <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-300">
           Supported: .md, .txt, .markdown (max 10MB per file)
         </p>
       </div>
 
       {/* Text document creation */}
-      <div className="border border-neutral-200 rounded-lg p-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-        <h3 className="text-lg font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
+      <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+        <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
           Create Text Document
         </h3>
         <form onSubmit={handleTextDocumentSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
+            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
               Document Name
             </label>
             <input
@@ -241,18 +241,18 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
               value={textDocumentName}
               onChange={(e) => setTextDocumentName(e.target.value)}
               placeholder="e.g., My Document"
-              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
+            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
               Content
             </label>
             <textarea
               value={textDocumentContent}
               onChange={(e) => setTextDocumentContent(e.target.value)}
               placeholder="Enter document content here..."
-              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors font-mono dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               rows={8}
             />
           </div>
@@ -263,7 +263,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
               !textDocumentContent.trim() ||
               uploadDocument.isPending
             }
-            className="bg-primary-600 px-4 py-2.5 text-white font-medium rounded-xl hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="rounded-xl bg-primary-600 px-4 py-2.5 font-medium text-white transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {uploadDocument.isPending ? "Uploading..." : "Create Document"}
           </button>
@@ -272,7 +272,7 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
 
       {/* Upload progress */}
       {uploadProgress && (
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-950 dark:border-blue-800">
+        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950">
           <p className="font-medium text-blue-900 dark:text-blue-100">{uploadProgress}</p>
         </div>
       )}

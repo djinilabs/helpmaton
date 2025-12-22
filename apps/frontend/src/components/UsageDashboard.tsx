@@ -80,15 +80,15 @@ export const UsageDashboard: FC<UsageDashboardProps> = ({
   ];
 
   return (
-    <div className={`${showBorder ? "bg-white rounded-2xl shadow-medium p-8 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700" : ""} mb-8`}>
-      <div className={`flex flex-col sm:flex-row items-start sm:items-center mb-6 gap-4 ${showBorder ? 'justify-between' : 'justify-end'}`}>
-        {showBorder && <h2 className="text-3xl font-bold text-neutral-900 tracking-tight dark:text-neutral-50">{title}</h2>}
-        <div className="flex flex-wrap gap-3 items-center">
+    <div className={`${showBorder ? "rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900" : ""} mb-8`}>
+      <div className={`mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-center ${showBorder ? 'justify-between' : 'justify-end'}`}>
+        {showBorder && <h2 className="text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">{title}</h2>}
+        <div className="flex flex-wrap items-center gap-3">
           {onDateRangeChange && (
             <select
               value={dateRangePreset}
               onChange={(e) => onDateRangeChange(e.target.value as DateRangePreset)}
-              className="border border-neutral-300 rounded-xl px-4 py-2.5 text-sm font-semibold bg-white text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+              className="rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
             >
               {dateRangePresets.map((preset) => (
                 <option key={preset} value={preset}>
@@ -101,7 +101,7 @@ export const UsageDashboard: FC<UsageDashboardProps> = ({
             <button
               onClick={onRefresh}
               disabled={isRefreshing}
-              className="border border-neutral-300 rounded-xl px-4 py-2.5 text-sm font-semibold bg-white text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              className="rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               {isRefreshing ? "Refreshing..." : "Refresh"}
             </button>
@@ -110,13 +110,13 @@ export const UsageDashboard: FC<UsageDashboardProps> = ({
       </div>
 
       {showBorder && (
-        <p className="text-base text-neutral-600 mb-6 leading-relaxed dark:text-neutral-300">
+        <p className="mb-6 text-base leading-relaxed text-neutral-600 dark:text-neutral-300">
           Track token usage and costs over time. Statistics show input tokens (what you send), output tokens (what the AI generates), total tokens, and the associated cost. Use the date range selector to view different time periods.
         </p>
       )}
       {dateRange && (
         <div className="mb-6 flex items-center gap-2 text-sm font-medium text-neutral-600 dark:text-neutral-300">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           <span>{dateRange.startDate} to {dateRange.endDate}</span>

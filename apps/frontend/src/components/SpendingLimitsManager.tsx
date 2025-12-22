@@ -134,8 +134,8 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
   };
 
   return (
-    <div className="border border-neutral-200 rounded-xl p-6 mb-8 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-      <div className="flex justify-between items-center mb-4">
+    <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="mb-4 flex items-center justify-between">
         <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Spending Limits</h2>
         {canEdit &&
           !isAdding &&
@@ -143,27 +143,27 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
           availableTimeFrames.length > 0 && (
             <button
               onClick={handleStartAdding}
-              className="bg-gradient-primary px-4 py-2.5 text-white text-sm font-semibold rounded-xl hover:shadow-colored transition-colors"
+              className="rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:shadow-colored"
             >
               Add Limit
             </button>
           )}
       </div>
-      <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-300">
+      <p className="mb-4 text-sm text-neutral-600 dark:text-neutral-300">
         {agentId
           ? "Set spending limits for this specific agent to control costs. Limits can be set for daily, weekly, or monthly periods. When a limit is reached, the agent will stop processing requests until the next period."
           : "Set spending limits for this workspace to control costs across all agents. Limits can be set for daily, weekly, or monthly periods. When a limit is reached, all agents in this workspace will stop processing requests until the next period."}
       </p>
 
       {spendingLimits.length === 0 && !isAdding && (
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <p className="text-lg text-neutral-600 dark:text-neutral-300">
             No spending limits defined. Add a limit to control spending.
           </p>
           {canEdit && availableTimeFrames.length > 0 && (
             <button
               onClick={handleStartAdding}
-              className="bg-gradient-primary px-4 py-2.5 text-white text-sm font-semibold rounded-xl hover:shadow-colored transition-colors"
+              className="rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:shadow-colored"
             >
               Add Limit
             </button>
@@ -172,13 +172,13 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
       )}
 
       {isAdding && (
-        <div className="border border-neutral-200 rounded-xl p-4 mb-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-          <h3 className="text-xl font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
+        <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+          <h3 className="mb-4 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
             Add Spending Limit
           </h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
+              <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
                 Time Frame
               </label>
               <select
@@ -193,7 +193,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                       | "",
                   })
                 }
-                className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               >
                 <option value="">Select time frame</option>
                 {availableTimeFrames.map((tf) => (
@@ -204,7 +204,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
+              <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
                 Amount (USD)
               </label>
               <input
@@ -215,7 +215,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                 onChange={(e) =>
                   setNewLimit({ ...newLimit, amount: e.target.value })
                 }
-                className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                 placeholder="0.00"
               />
             </div>
@@ -229,7 +229,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                   !newLimit.amount ||
                   parseFloat(newLimit.amount) <= 0
                 }
-                className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {addLimit.isPending || updateWorkspace.isPending
                   ? "Adding..."
@@ -241,7 +241,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                   setNewLimit({ timeFrame: "", amount: "" });
                 }}
                 disabled={addLimit.isPending || updateWorkspace.isPending}
-                className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
                 Cancel
               </button>
@@ -255,12 +255,12 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
           {spendingLimits.map((limit) => (
             <div
               key={limit.timeFrame}
-              className="border border-neutral-200 rounded-xl p-4 bg-white flex justify-between items-center dark:border-neutral-700 dark:bg-neutral-900"
+              className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
             >
               {editingLimit === limit.timeFrame ? (
-                <div className="flex-1 flex items-center gap-4">
+                <div className="flex flex-1 items-center gap-4">
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
+                    <div className="mb-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
                       {TIME_FRAMES.find((tf) => tf.value === limit.timeFrame)
                         ?.label || limit.timeFrame.toUpperCase()}
                     </div>
@@ -270,7 +270,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                       min="0"
                       value={editAmount}
                       onChange={(e) => setEditAmount(e.target.value)}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                     />
                   </div>
                   <div className="flex gap-2">
@@ -281,14 +281,14 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                         !editAmount ||
                         parseFloat(editAmount) <= 0
                       }
-                      className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {updateLimit.isPending ? "Saving..." : "Save"}
                     </button>
                     <button
                       onClick={cancelEdit}
                       disabled={updateLimit.isPending}
-                      className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                      className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
                     >
                       Cancel
                     </button>
@@ -301,7 +301,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                       {TIME_FRAMES.find((tf) => tf.value === limit.timeFrame)
                         ?.label || limit.timeFrame.toUpperCase()}
                     </div>
-                    <div className="text-lg mt-1 text-neutral-700 dark:text-neutral-300">
+                    <div className="mt-1 text-lg text-neutral-700 dark:text-neutral-300">
                       {formatCurrency(limit.amount, "usd", 2)}
                     </div>
                   </div>
@@ -309,14 +309,14 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                     <div className="flex gap-2">
                       <button
                         onClick={() => startEdit(limit)}
-                        className="border-2 border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                        className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleRemove(limit.timeFrame)}
                         disabled={removeLimit.isPending}
-                        className="bg-error-600 px-4 py-2.5 text-white text-sm font-semibold rounded-xl hover:bg-error-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="rounded-xl bg-error-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-error-700 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {removeLimit.isPending ? "Removing..." : "Remove"}
                       </button>

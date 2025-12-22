@@ -178,16 +178,16 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-neutral-200 rounded-2xl shadow-dramatic border-2 border-neutral-300 p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto dark:bg-neutral-900 dark:border-neutral-700">
-        <h2 className="text-3xl font-bold text-neutral-900 mb-8 dark:text-neutral-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+        <h2 className="mb-8 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
           {isEditing ? "Edit Email Connection" : "Create Email Connection"}
         </h2>
         <form onSubmit={handleSMTPSubmit} className="space-y-5">
           <div>
             <label
               htmlFor="type"
-              className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
+              className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
             >
               Provider *
             </label>
@@ -197,7 +197,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
               onChange={(e) =>
                 setType(e.target.value as "gmail" | "outlook" | "smtp")
               }
-              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               required
               disabled={isEditing}
             >
@@ -209,7 +209,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
           <div>
             <label
               htmlFor="name"
-              className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
+              className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
             >
               Name *
             </label>
@@ -218,15 +218,15 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               required
               autoFocus
             />
           </div>
 
           {(type === "gmail" || type === "outlook") && (
-            <div className="border border-neutral-200 rounded-lg p-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-              <p className="text-sm text-neutral-700 mb-4 dark:text-neutral-300">
+            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+              <p className="mb-4 text-sm text-neutral-700 dark:text-neutral-300">
                 Connect your {type === "gmail" ? "Gmail" : "Outlook"} account
                 using OAuth2. Click the button below to authorize Helpmaton to
                 send emails on your behalf.
@@ -235,13 +235,13 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                 type="button"
                 onClick={() => handleOAuthConnect(type)}
                 disabled={isPending || !name.trim()}
-                className="w-full bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isPending
                   ? "Connecting..."
                   : `Connect ${type.charAt(0).toUpperCase() + type.slice(1)}`}
               </button>
-              <p className="text-xs mt-2 text-neutral-600 dark:text-neutral-300">
+              <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-300">
                 You will be redirected to{" "}
                 {type === "gmail" ? "Google" : "Microsoft"} to authorize the
                 connection.
@@ -254,7 +254,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
               <div>
                 <label
                   htmlFor="smtpHost"
-                  className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
                 >
                   SMTP Host {isEditing ? "(leave blank to keep current)" : "*"}
                 </label>
@@ -263,7 +263,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                   type="text"
                   value={smtpHost}
                   onChange={(e) => setSmtpHost(e.target.value)}
-                  className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   required={!isEditing}
                   placeholder="smtp.gmail.com"
                 />
@@ -271,7 +271,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
               <div>
                 <label
                   htmlFor="smtpPort"
-                  className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
                 >
                   SMTP Port {isEditing ? "(leave blank to keep current)" : "*"}
                 </label>
@@ -280,16 +280,16 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                   type="number"
                   value={smtpPort}
                   onChange={(e) => setSmtpPort(e.target.value)}
-                  className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   required={!isEditing}
                   placeholder="587"
                 />
-                <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-300">
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
                   Common ports: 587 (TLS), 465 (SSL), 25 (unencrypted)
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
+                <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
                   <input
                     type="checkbox"
                     checked={smtpSecure}
@@ -302,7 +302,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
               <div>
                 <label
                   htmlFor="smtpUsername"
-                  className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
                 >
                   Username {isEditing ? "(leave blank to keep current)" : "*"}
                 </label>
@@ -311,11 +311,11 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                   type="text"
                   value={smtpUsername}
                   onChange={(e) => setSmtpUsername(e.target.value)}
-                  className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   required={!isEditing}
                   placeholder="your-email@example.com"
                 />
-                <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-300">
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
                   For accounts with 2FA, use an App Password instead of your
                   regular password.
                 </p>
@@ -323,7 +323,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
               <div>
                 <label
                   htmlFor="smtpPassword"
-                  className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
                 >
                   Password {isEditing ? "(leave blank to keep current)" : "*"}
                 </label>
@@ -332,7 +332,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                   type="password"
                   value={smtpPassword}
                   onChange={(e) => setSmtpPassword(e.target.value)}
-                  className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   required={!isEditing}
                   placeholder={
                     isEditing
@@ -344,7 +344,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
               <div>
                 <label
                   htmlFor="smtpFromEmail"
-                  className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
                 >
                   From Email {isEditing ? "(leave blank to keep current)" : "*"}
                 </label>
@@ -353,7 +353,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                   type="email"
                   value={smtpFromEmail}
                   onChange={(e) => setSmtpFromEmail(e.target.value)}
-                  className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   required={!isEditing}
                   placeholder="sender@example.com"
                 />
@@ -362,8 +362,8 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
           )}
 
           {isEditing && connection && (
-            <div className="border border-neutral-200 rounded-lg p-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-              <div className="flex items-center justify-between mb-2">
+            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+              <div className="mb-2 flex items-center justify-between">
                 <span className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
                   Test Connection
                 </span>
@@ -377,7 +377,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                     }
                   }}
                   disabled={testConnection.isPending || isPending}
-                  className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                  className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
                 >
                   {testConnection.isPending ? "Testing..." : "Send Test Email"}
                 </button>
@@ -403,7 +403,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
                       !smtpPassword.trim() ||
                       !smtpFromEmail.trim()))
                 }
-                className="flex-1 bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex-1 rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isPending
                   ? isEditing
@@ -418,7 +418,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
               type="button"
               onClick={handleClose}
               disabled={isPending}
-              className="flex-1 border border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               Cancel
             </button>

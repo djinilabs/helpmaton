@@ -27,15 +27,15 @@ const McpServerItem: FC<McpServerItemProps> = ({
   const deleteServer = useDeleteMcpServer(workspaceId);
 
   return (
-    <div className="border-2 border-neutral-300 rounded-xl p-6 bg-white flex justify-between items-center hover:shadow-bold transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99]">
+    <div className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:shadow-bold active:scale-[0.99]">
       <div>
         <div className="text-lg font-semibold text-neutral-900">
           {server.name}
         </div>
-        <div className="text-sm mt-1 text-neutral-600 font-mono">
+        <div className="mt-1 font-mono text-sm text-neutral-600">
           {server.url}
         </div>
-        <div className="text-sm text-neutral-600 mt-1">
+        <div className="mt-1 text-sm text-neutral-600">
           Auth: {server.authType}
         </div>
       </div>
@@ -43,7 +43,7 @@ const McpServerItem: FC<McpServerItemProps> = ({
         <div className="flex gap-2">
           <button
             onClick={() => onEdit(server.id)}
-            className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 transition-colors"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50"
           >
             Edit
           </button>
@@ -63,7 +63,7 @@ const McpServerItem: FC<McpServerItemProps> = ({
               }
             }}
             disabled={deleteServer.isPending}
-            className="bg-error-600 px-4 py-2.5 text-white text-sm font-semibold rounded-xl hover:bg-error-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="rounded-xl bg-error-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-error-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {deleteServer.isPending ? "Deleting..." : "Delete"}
           </button>
@@ -92,8 +92,8 @@ export const McpServerList: FC<McpServerListProps> = ({
 
   if (isLoading) {
     return (
-      <div className="border-2 border-neutral-300 rounded-xl p-6 bg-white">
-        <p className="font-bold text-lg">Loading MCP servers...</p>
+      <div className="rounded-xl border-2 border-neutral-300 bg-white p-6">
+        <p className="text-lg font-bold">Loading MCP servers...</p>
       </div>
     );
   }
@@ -106,7 +106,7 @@ export const McpServerList: FC<McpServerListProps> = ({
         <div className="flex justify-end">
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="bg-gradient-primary px-4 py-2.5 text-white text-sm font-semibold rounded-xl hover:shadow-colored transition-colors"
+            className="rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:shadow-colored"
           >
             Create MCP Server
           </button>
@@ -114,7 +114,7 @@ export const McpServerList: FC<McpServerListProps> = ({
       )}
 
       {servers.length === 0 ? (
-        <div className="border-2 border-neutral-300 rounded-xl p-6 bg-white">
+        <div className="rounded-xl border-2 border-neutral-300 bg-white p-6">
           <p className="text-base font-bold text-neutral-700">
             No MCP servers configured.
           </p>

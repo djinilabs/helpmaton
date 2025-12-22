@@ -32,12 +32,12 @@ const ChannelItem: FC<ChannelItemProps> = ({
   const testChannel = useTestChannel(workspaceId, channel.id);
 
   return (
-    <div className="border-2 border-neutral-300 rounded-xl p-6 bg-white flex justify-between items-center hover:shadow-bold transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900">
+    <div className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900">
       <div>
         <div className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
           {channel.name}
         </div>
-        <div className="text-sm text-neutral-600 mt-1 dark:text-neutral-300">
+        <div className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
           Type: {channel.type}
         </div>
       </div>
@@ -52,13 +52,13 @@ const ChannelItem: FC<ChannelItemProps> = ({
               }
             }}
             disabled={testChannel.isPending}
-            className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             {testChannel.isPending ? "Testing..." : "Test"}
           </button>
           <button
             onClick={() => onEdit(channel.id)}
-            className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             Edit
           </button>
@@ -78,7 +78,7 @@ const ChannelItem: FC<ChannelItemProps> = ({
               }
             }}
             disabled={deleteChannel.isPending}
-            className="bg-error-600 px-4 py-2.5 text-white text-sm font-semibold rounded-xl hover:bg-error-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="rounded-xl bg-error-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-error-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {deleteChannel.isPending ? "Deleting..." : "Delete"}
           </button>
@@ -108,21 +108,21 @@ export const ChannelList: FC<ChannelListProps> = ({ workspaceId, canEdit }) => {
 
   return (
     <>
-      <div className="border-2 border-neutral-300 rounded-2xl p-8 mb-8 bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900">
-        <div className="flex justify-between items-center mb-5">
+      <div className="mb-8 rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="mb-5 flex items-center justify-between">
           <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">
             Notification Channels
           </h2>
           {canEdit && (
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="bg-gradient-primary px-4 py-2.5 text-white text-sm font-semibold rounded-xl hover:shadow-colored transition-colors"
+              className="rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:shadow-colored"
             >
               Create Channel
             </button>
           )}
         </div>
-        <p className="text-sm text-neutral-600 mb-6 dark:text-neutral-300">
+        <p className="mb-6 text-sm text-neutral-600 dark:text-neutral-300">
           Notification channels allow your agents to send messages to external
           services like Discord, Slack, or webhooks. Configure channels here and
           agents can use them to send notifications and updates.

@@ -38,7 +38,7 @@
 - **Package Manager**: pnpm 10.24.0
 - **Monorepo**: pnpm workspaces
 - **Type Checking**: TypeScript strict mode
-- **Linting**: ESLint with TypeScript, React plugins
+- **Linting**: ESLint with TypeScript, React plugins, Tailwind CSS plugin
 - **E2E Testing**: Playwright
 - **API Docs**: OpenAPI/Swagger generation
 

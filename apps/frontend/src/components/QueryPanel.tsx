@@ -21,14 +21,14 @@ const DefaultErrorFallback: React.FC<{
   };
 
   return (
-    <div className="border border-red-200 bg-red-50 rounded-lg p-4">
-      <div className="text-sm font-semibold text-red-800 mb-2">Error</div>
-      <div className="text-xs text-red-700 mb-3">
+    <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+      <div className="mb-2 text-sm font-semibold text-red-800">Error</div>
+      <div className="mb-3 text-xs text-red-700">
         {error.message || "Something went wrong"}
       </div>
       <button
         onClick={handleRetry}
-        className="border border-red-300 bg-white px-3 py-1.5 text-sm font-medium rounded-lg hover:bg-red-50 transition-colors text-red-700"
+        className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50"
       >
         Try Again
       </button>

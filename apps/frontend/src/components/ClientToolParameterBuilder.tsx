@@ -85,7 +85,7 @@ export const ClientToolParameterBuilder: FC<ParameterBuilderProps> = ({
 
   if (schema.type === "object") {
     return (
-      <div className="space-y-4 border-l-2 border-neutral-300 pl-4 ml-2">
+      <div className="ml-2 space-y-4 border-l-2 border-neutral-300 pl-4">
         <div className="space-y-2">
           <label className="block text-sm font-medium text-neutral-700">
             Properties
@@ -98,7 +98,7 @@ export const ClientToolParameterBuilder: FC<ParameterBuilderProps> = ({
               return (
                 <div
                   key={key} // Use original key for stable identity
-                  className="space-y-2 border border-neutral-200 p-3 rounded"
+                  className="space-y-2 rounded border border-neutral-200 p-3"
                 >
                   <div className="flex items-center justify-between">
                     {isEditing ? (
@@ -130,7 +130,7 @@ export const ClientToolParameterBuilder: FC<ParameterBuilderProps> = ({
                             });
                           }
                         }}
-                        className="flex-1 border border-neutral-300 rounded px-2 py-1 text-sm font-medium"
+                        className="flex-1 rounded border border-neutral-300 px-2 py-1 text-sm font-medium"
                         placeholder="Property name"
                         autoFocus
                       />
@@ -138,7 +138,7 @@ export const ClientToolParameterBuilder: FC<ParameterBuilderProps> = ({
                       <button
                         type="button"
                         onClick={() => startEditingKey(key)}
-                        className="flex-1 border border-neutral-300 rounded px-2 py-1 text-sm font-medium text-left hover:bg-neutral-50"
+                        className="flex-1 rounded border border-neutral-300 px-2 py-1 text-left text-sm font-medium hover:bg-neutral-50"
                       >
                         {key}
                       </button>
@@ -157,7 +157,7 @@ export const ClientToolParameterBuilder: FC<ParameterBuilderProps> = ({
                             newRequired.length > 0 ? newRequired : undefined,
                         });
                       }}
-                      className="ml-2 text-red-600 hover:text-red-800 text-sm"
+                      className="ml-2 text-sm text-red-600 hover:text-red-800"
                     >
                       Remove
                     </button>
@@ -207,7 +207,7 @@ export const ClientToolParameterBuilder: FC<ParameterBuilderProps> = ({
               };
               updateSchema({ properties: newProperties });
             }}
-            className="text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded px-2 py-1"
+            className="rounded border border-blue-300 px-2 py-1 text-sm text-blue-600 hover:text-blue-800"
           >
             + Add Property
           </button>
@@ -218,7 +218,7 @@ export const ClientToolParameterBuilder: FC<ParameterBuilderProps> = ({
 
   if (schema.type === "array") {
     return (
-      <div className="space-y-2 border-l-2 border-neutral-300 pl-4 ml-2">
+      <div className="ml-2 space-y-2 border-l-2 border-neutral-300 pl-4">
         <label className="block text-sm font-medium text-neutral-700">
           Array Items
         </label>
@@ -235,7 +235,7 @@ export const ClientToolParameterBuilder: FC<ParameterBuilderProps> = ({
             onClick={() => {
               updateSchema({ items: { type: "string" } });
             }}
-            className="text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded px-2 py-1"
+            className="rounded border border-blue-300 px-2 py-1 text-sm text-blue-600 hover:text-blue-800"
           >
             + Define Item Schema
           </button>
@@ -267,7 +267,7 @@ export const ClientToolParameterBuilder: FC<ParameterBuilderProps> = ({
               updateSchema({ type: newType });
             }
           }}
-          className="border border-neutral-300 rounded px-2 py-1 text-sm"
+          className="rounded border border-neutral-300 px-2 py-1 text-sm"
         >
           <option value="string">String</option>
           <option value="number">Number</option>
@@ -284,7 +284,7 @@ export const ClientToolParameterBuilder: FC<ParameterBuilderProps> = ({
           });
         }}
         placeholder="Description (optional)"
-        className="w-full border border-neutral-300 rounded px-2 py-1 text-sm"
+        className="w-full rounded border border-neutral-300 px-2 py-1 text-sm"
         rows={2}
       />
     </div>

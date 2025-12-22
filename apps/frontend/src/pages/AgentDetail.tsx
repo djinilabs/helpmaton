@@ -714,34 +714,34 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-neutral-950 p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="border border-neutral-200 dark:border-neutral-700 rounded-xl p-8 mb-8 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-          <div className="flex justify-between items-center mb-4">
+    <div className="min-h-screen bg-white p-8 dark:bg-neutral-950">
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+          <div className="mb-4 flex items-center justify-between">
             <button
               onClick={() => navigate(`/workspaces/${workspaceId}`)}
-              className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               ← Back
             </button>
             {canEdit && !isEditing && (
               <button
                 onClick={handleEdit}
-                className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored transition-all duration-200"
+                className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored"
               >
                 Edit
               </button>
             )}
           </div>
-          <p className="text-sm opacity-75 dark:text-neutral-300 mb-4 dark:text-neutral-300">
+          <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
             Configure your agent&apos;s behavior, system prompt, spending
             limits, and webhook keys. Use the sections below to manage
             conversations, test the agent, and monitor usage.
           </p>
 
           <div>
-            <h1 className="text-4xl font-bold mb-4 dark:text-neutral-50">{agent.name}</h1>
-            <p className="text-sm opacity-75 dark:text-neutral-300 mb-4 dark:text-neutral-300">
+            <h1 className="mb-4 text-4xl font-bold dark:text-neutral-50">{agent.name}</h1>
+            <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
               Created: {new Date(agent.createdAt).toLocaleString()}
               {agent.updatedAt &&
                 ` • Updated: ${new Date(agent.updatedAt).toLocaleString()}`}
@@ -770,7 +770,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                 : selectedModel
                             );
                           }}
-                          className="border-2 border-neutral-300 rounded-xl bg-white px-3 py-1.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 ml-2 disabled:opacity-50 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                          className="ml-2 rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                         >
                           {isLoadingModels ? (
                             <option value="">Loading...</option>
@@ -785,7 +785,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           )}
                         </select>
                         {modelLoadError && (
-                          <span className="text-xs text-red-600 ml-2 dark:text-red-400">
+                          <span className="ml-2 text-xs text-red-600 dark:text-red-400">
                             {modelLoadError}
                           </span>
                         )}
@@ -813,7 +813,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       }
                     }}
                     disabled={updateAgent.isPending}
-                    className="text-xs font-semibold bg-gradient-primary px-3 py-1.5 text-white rounded-lg hover:shadow-colored disabled:opacity-50 transition-all duration-200"
+                    className="rounded-lg bg-gradient-primary px-3 py-1.5 text-xs font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:opacity-50"
                   >
                     {updateAgent.isPending ? "Saving..." : "Save"}
                   </button>
@@ -821,20 +821,20 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               </div>
             </div>
             <div className="mt-4">
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-semibold dark:text-neutral-300">System Prompt:</p>
                 <button
                   type="button"
                   onClick={() => setIsHelpOpen(true)}
-                  className="text-xs font-semibold border-2 border-neutral-300 bg-white px-3 py-1.5 rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 transition-all duration-200"
+                  className="rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold transition-all duration-200 hover:bg-neutral-50 dark:bg-neutral-800"
                 >
                   ? Available Tools
                 </button>
               </div>
-              <div className="relative border border-neutral-200 dark:border-neutral-700 rounded-lg">
+              <div className="relative rounded-lg border border-neutral-200 dark:border-neutral-700">
                 <div
                   ref={systemPromptRef}
-                  className="text-sm bg-neutral-50 dark:bg-neutral-800 p-4 max-h-[400px] overflow-y-auto rounded-lg"
+                  className="max-h-[400px] overflow-y-auto rounded-lg bg-neutral-50 p-4 text-sm dark:bg-neutral-800"
                 >
                   <Suspense
                     fallback={
@@ -851,7 +851,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           if (isInline) {
                             return (
                               <code
-                                className="border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-1.5 py-0.5 rounded font-mono text-xs"
+                                className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800"
                                 {...rest}
                               >
                                 {children}
@@ -860,7 +860,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           }
                           return (
                             <code
-                              className="block border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 rounded-lg p-4 font-mono text-xs overflow-x-auto"
+                              className="block overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800"
                               {...rest}
                             >
                               {children}
@@ -873,32 +873,32 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         },
                         // Headings
                         h1: ({ children }) => (
-                          <h1 className="text-2xl font-semibold mb-2 mt-4 first:mt-0 dark:text-neutral-50">
+                          <h1 className="mb-2 mt-4 text-2xl font-semibold first:mt-0 dark:text-neutral-50">
                             {children}
                           </h1>
                         ),
                         h2: ({ children }) => (
-                          <h2 className="text-xl font-semibold mb-2 mt-4 first:mt-0 dark:text-neutral-50">
+                          <h2 className="mb-2 mt-4 text-xl font-semibold first:mt-0 dark:text-neutral-50">
                             {children}
                           </h2>
                         ),
                         h3: ({ children }) => (
-                          <h3 className="text-lg font-semibold mb-2 mt-4 first:mt-0 dark:text-neutral-50">
+                          <h3 className="mb-2 mt-4 text-lg font-semibold first:mt-0 dark:text-neutral-50">
                             {children}
                           </h3>
                         ),
                         h4: ({ children }) => (
-                          <h4 className="text-base font-semibold mb-2 mt-4 first:mt-0 dark:text-neutral-50">
+                          <h4 className="mb-2 mt-4 text-base font-semibold first:mt-0 dark:text-neutral-50">
                             {children}
                           </h4>
                         ),
                         h5: ({ children }) => (
-                          <h5 className="text-sm font-semibold mb-2 mt-4 first:mt-0 dark:text-neutral-50">
+                          <h5 className="mb-2 mt-4 text-sm font-semibold first:mt-0 dark:text-neutral-50">
                             {children}
                           </h5>
                         ),
                         h6: ({ children }) => (
-                          <h6 className="text-xs font-semibold mb-2 mt-4 first:mt-0 dark:text-neutral-50">
+                          <h6 className="mb-2 mt-4 text-xs font-semibold first:mt-0 dark:text-neutral-50">
                             {children}
                           </h6>
                         ),
@@ -908,17 +908,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         ),
                         // Lists
                         ul: ({ children }) => (
-                          <ul className="list-none border-l-4 border-primary-500 pl-4 my-2 space-y-1">
+                          <ul className="my-2 list-none space-y-1 border-l-4 border-primary-500 pl-4">
                             {children}
                           </ul>
                         ),
                         ol: ({ children }) => (
-                          <ol className="list-none border-l-4 border-primary-500 pl-4 my-2 space-y-1">
+                          <ol className="my-2 list-none space-y-1 border-l-4 border-primary-500 pl-4">
                             {children}
                           </ol>
                         ),
                         li: ({ children }) => (
-                          <li className="before:content-['•'] before:font-bold before:mr-2 dark:text-neutral-200">
+                          <li className="before:mr-2 before:font-bold before:content-['•'] dark:text-neutral-200">
                             {children}
                           </li>
                         ),
@@ -928,14 +928,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                             href={href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="border-b-2 border-primary-500 font-semibold hover:text-primary-600 px-1 transition-colors dark:text-primary-400 dark:hover:text-primary-300"
+                            className="border-b-2 border-primary-500 px-1 font-semibold transition-colors hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300"
                           >
                             {children}
                           </a>
                         ),
                         // Blockquotes
                         blockquote: ({ children }) => (
-                          <blockquote className="border-l-4 border-primary-500 pl-4 my-2 italic bg-neutral-50 dark:bg-neutral-800 py-2 rounded-r">
+                          <blockquote className="my-2 rounded-r border-l-4 border-primary-500 bg-neutral-50 py-2 pl-4 italic dark:bg-neutral-800">
                             {children}
                           </blockquote>
                         ),
@@ -949,12 +949,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         ),
                         // Horizontal rule
                         hr: () => (
-                          <hr className="border-t border-neutral-300 my-4" />
+                          <hr className="my-4 border-t border-neutral-300" />
                         ),
                         // Tables
                         table: ({ children }) => (
-                          <div className="overflow-x-auto my-2 rounded-lg border border-neutral-200 dark:border-neutral-700">
-                            <table className="border-collapse min-w-full">
+                          <div className="my-2 overflow-x-auto rounded-lg border border-neutral-200 dark:border-neutral-700">
+                            <table className="min-w-full border-collapse">
                               {children}
                             </table>
                           </div>
@@ -971,12 +971,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           </tr>
                         ),
                         th: ({ children }) => (
-                          <th className="border-r border-neutral-200 dark:border-neutral-700 p-2 font-semibold text-left last:border-r-0 dark:text-neutral-50">
+                          <th className="border-r border-neutral-200 p-2 text-left font-semibold last:border-r-0 dark:border-neutral-700 dark:text-neutral-50">
                             {children}
                           </th>
                         ),
                         td: ({ children }) => (
-                          <td className="border-r border-neutral-200 dark:border-neutral-700 p-2 last:border-r-0 dark:text-neutral-200">
+                          <td className="border-r border-neutral-200 p-2 last:border-r-0 dark:border-neutral-700 dark:text-neutral-200">
                             {children}
                           </td>
                         ),
@@ -987,7 +987,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   </Suspense>
                 </div>
                 {showScrollIndicator && (
-                  <div className="absolute bottom-0 left-0 right-0 bg-neutral-50 dark:bg-neutral-800 border-t border-neutral-200 dark:border-neutral-700 py-1.5 px-4 pointer-events-none rounded-b-lg">
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 rounded-b-lg border-t border-neutral-200 bg-neutral-50 px-4 py-1.5 dark:border-neutral-700 dark:bg-neutral-800">
                     <div className="text-center">
                       <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                         ▼ More below
@@ -1059,15 +1059,15 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <LazyAccordionContent
                 isExpanded={expandedSection === "delegation"}
               >
-                <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
+                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                   Configure which other agents in this workspace this agent can
                   delegate tasks to. When delegation is enabled, this agent will
                   have access to the{" "}
-                  <code className="border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-1.5 py-0.5 rounded font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                     list_agents
                   </code>{" "}
                   and{" "}
-                  <code className="border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-1.5 py-0.5 rounded font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                     call_agent
                   </code>{" "}
                   tools.
@@ -1080,7 +1080,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         .map((targetAgent) => (
                           <label
                             key={targetAgent.id}
-                            className="flex items-start gap-2 p-3 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:bg-neutral-800 cursor-pointer transition-colors dark:border-neutral-700 dark:hover:bg-neutral-800"
+                            className="flex cursor-pointer items-start gap-2 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-800"
                           >
                             <input
                               type="checkbox"
@@ -1090,13 +1090,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                               onChange={() =>
                                 handleDelegationToggle(targetAgent.id)
                               }
-                              className="mt-1 border-2 border-neutral-300 rounded dark:border-neutral-700"
+                              className="mt-1 rounded border-2 border-neutral-300 dark:border-neutral-700"
                             />
                             <div className="flex-1">
                               <div className="font-bold dark:text-neutral-50">
                                 {targetAgent.name}
                               </div>
-                              <div className="text-xs opacity-75 dark:text-neutral-300 mt-1">
+                              <div className="mt-1 text-xs opacity-75 dark:text-neutral-300">
                                 {targetAgent.systemPrompt.length > 100
                                   ? `${targetAgent.systemPrompt.substring(
                                       0,
@@ -1111,7 +1111,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <button
                       onClick={handleSaveDelegation}
                       disabled={updateAgent.isPending}
-                      className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {updateAgent.isPending ? "Saving..." : "Save Delegation"}
                     </button>
@@ -1135,7 +1135,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               onToggle={() => toggleSection("advanced")}
             >
               <LazyAccordionContent isExpanded={expandedSection === "advanced"}>
-                <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
+                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                   Configure advanced model generation parameters. These settings
                   control how the AI model generates responses. Leave fields
                   empty to use model defaults.
@@ -1143,10 +1143,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 <div className="space-y-6">
                   {/* Temperature */}
                   <div>
-                    <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
+                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
                       Temperature
                     </label>
-                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
+                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
                       Controls the randomness of responses. Lower values (0-0.5)
                       produce more focused and deterministic outputs, while
                       higher values (1.5-2) create more creative and varied
@@ -1167,17 +1167,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           setTemperature(isNaN(parsed) ? undefined : parsed);
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                       placeholder="Model default"
                     />
                   </div>
 
                   {/* Top-p */}
                   <div>
-                    <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
+                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
                       Top-p / Nucleus Sampling
                     </label>
-                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
+                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
                       Controls diversity by considering tokens with cumulative
                       probability up to this threshold. Lower values (0.1-0.5)
                       produce more focused outputs, higher values (0.9-1.0)
@@ -1198,17 +1198,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           setTopP(isNaN(parsed) ? undefined : parsed);
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                       placeholder="Model default"
                     />
                   </div>
 
                   {/* Top-k */}
                   <div>
-                    <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
+                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
                       Top-k
                     </label>
-                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
+                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
                       Limits token selection to the top K most probable tokens
                       at each step. Lower values (10-20) produce more focused
                       outputs, higher values (50-100) allow more diversity.
@@ -1228,17 +1228,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           setTopK(isNaN(parsed) ? undefined : parsed);
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                       placeholder="Model default"
                     />
                   </div>
 
                   {/* Max Output Tokens */}
                   <div>
-                    <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
+                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
                       Max Output Tokens
                     </label>
-                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
+                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
                       Maximum number of tokens the model can generate in a
                       response. This limits the length of generated text. Higher
                       values allow longer responses but may increase costs.
@@ -1260,17 +1260,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           );
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                       placeholder="Model default"
                     />
                   </div>
 
                   {/* Stop Sequences */}
                   <div>
-                    <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
+                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
                       Stop Sequences
                     </label>
-                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
+                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
                       Text sequences that will stop generation when encountered.
                       The model will stop immediately after generating any of
                       these sequences. Enter multiple sequences separated by
@@ -1280,17 +1280,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       type="text"
                       value={stopSequences}
                       onChange={(e) => setStopSequences(e.target.value)}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                       placeholder="e.g., END, STOP, ###"
                     />
                   </div>
 
                   {/* Max Tool Roundtrips */}
                   <div>
-                    <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
+                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
                       Max Tool Roundtrips
                     </label>
-                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
+                    <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
                       Maximum number of tool call iterations allowed before
                       stopping. Each roundtrip allows the agent to call tools,
                       receive results, and continue processing. Higher values
@@ -1312,7 +1312,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           );
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                       placeholder="5"
                     />
                   </div>
@@ -1322,7 +1322,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <button
                       onClick={handleSaveAdvanced}
                       disabled={updateAgent.isPending}
-                      className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {updateAgent.isPending
                         ? "Saving..."
@@ -1331,7 +1331,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <button
                       onClick={handleResetAdvanced}
                       disabled={updateAgent.isPending}
-                      className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700"
                     >
                       Reset to Defaults
                     </button>
@@ -1354,7 +1354,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <LazyAccordionContent
                 isExpanded={expandedSection === "mcp-servers"}
               >
-                <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
+                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                   Enable MCP servers from your workspace to make them available
                   as tools to this agent. When enabled, the agent will be able
                   to call the MCP server methods.
@@ -1365,20 +1365,20 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       {mcpServersData.servers.map((server) => (
                         <label
                           key={server.id}
-                          className="flex items-start gap-2 p-3 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:bg-neutral-800 cursor-pointer transition-colors"
+                          className="flex cursor-pointer items-start gap-2 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800"
                         >
                           <input
                             type="checkbox"
                             checked={enabledMcpServerIds.includes(server.id)}
                             onChange={() => handleMcpServerToggle(server.id)}
-                            className="mt-1 border-2 border-neutral-300 rounded"
+                            className="mt-1 rounded border-2 border-neutral-300"
                           />
                           <div className="flex-1">
                             <div className="font-bold">{server.name}</div>
-                            <div className="text-xs font-mono mt-1 opacity-75 dark:text-neutral-300">
+                            <div className="mt-1 font-mono text-xs opacity-75 dark:text-neutral-300">
                               {server.url}
                             </div>
-                            <div className="text-xs uppercase mt-1">
+                            <div className="mt-1 text-xs uppercase">
                               Auth: {server.authType}
                             </div>
                           </div>
@@ -1388,7 +1388,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <button
                       onClick={handleSaveMcpServers}
                       disabled={updateAgent.isPending}
-                      className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {updateAgent.isPending ? "Saving..." : "Save MCP Servers"}
                     </button>
@@ -1420,8 +1420,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     its factual memory across different time periods and recall
                     past conversations.
                   </p>
-                  <div className="p-4 border-2 border-yellow-400 bg-yellow-50 rounded-lg">
-                    <p className="text-sm font-semibold text-yellow-900 mb-2">
+                  <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
+                    <p className="mb-2 text-sm font-semibold text-yellow-900">
                       ⚠️ Privacy Warning
                     </p>
                     <p className="text-sm text-yellow-900">
@@ -1433,16 +1433,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       implications.
                     </p>
                   </div>
-                  <label className="flex items-start gap-3 p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:bg-neutral-800 cursor-pointer transition-colors">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
                     <input
                       type="checkbox"
                       checked={enableMemorySearch}
                       onChange={(e) => setEnableMemorySearch(e.target.checked)}
-                      className="mt-1 border-2 border-neutral-300 rounded"
+                      className="mt-1 rounded border-2 border-neutral-300"
                     />
                     <div className="flex-1">
                       <div className="font-bold">Enable Memory Search</div>
-                      <div className="text-sm opacity-75 dark:text-neutral-300 mt-1">
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
                         Allow this agent to use the search_memory tool to recall
                         past conversations and information
                       </div>
@@ -1451,7 +1451,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   <button
                     onClick={handleSaveMemorySearch}
                     disabled={updateAgent.isPending}
-                    className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {updateAgent.isPending
                       ? "Saving..."
@@ -1473,7 +1473,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <LazyAccordionContent
                 isExpanded={expandedSection === "client-tools"}
               >
-                <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
+                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                   Define client-side tools that will be executed in the browser.
                   These tools are available to the AI model, but execution
                   happens on the client side.
@@ -1486,7 +1486,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   <button
                     onClick={handleSaveClientTools}
                     disabled={updateAgent.isPending}
-                    className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {updateAgent.isPending ? "Saving..." : "Save Client Tools"}
                   </button>
@@ -1505,15 +1505,15 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               isExpanded={expandedSection === "stream-server"}
               onToggle={() => toggleSection("stream-server")}
             >
-              <div className="text-sm opacity-75 dark:text-neutral-300 mb-4 space-y-3">
+              <div className="mb-4 space-y-3 text-sm opacity-75 dark:text-neutral-300">
                 <p>
                   Stream servers enable real-time streaming responses from your
                   agent using Lambda Function URLs. Configure allowed origins
                   for CORS and manage the secret used to authenticate requests.
                 </p>
                 {!streamUrlData && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                    <p className="font-semibold text-amber-800 mb-1">
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <p className="mb-1 font-semibold text-amber-800">
                       ⚠️ Streaming Function URL Not Configured
                     </p>
                     <p className="text-xs text-yellow-700">
@@ -1526,7 +1526,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   </div>
                 )}
                 <div>
-                  <p className="font-semibold mb-2">
+                  <p className="mb-2 font-semibold">
                     Server-Sent Events (SSE) Format
                   </p>
                   <p className="mb-2">
@@ -1546,16 +1546,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   <p className="mb-2">
                     The response stream uses SSE format with JSON objects:
                   </p>
-                  <ul className="list-disc list-inside space-y-1 ml-2 mb-2">
+                  <ul className="mb-2 ml-2 list-inside list-disc space-y-1">
                     <li>
                       Text chunks:{" "}
-                      <code className="bg-neutral-100 dark:bg-neutral-800 px-1">
+                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">
                         data: {`{"type":"text-delta","textDelta":"Hello"}`}\n\n
                       </code>
                     </li>
                     <li>
                       Tool calls:{" "}
-                      <code className="bg-neutral-100 dark:bg-neutral-800 px-1">
+                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">
                         data:{" "}
                         {`{"type":"tool-call","toolCallId":"...","toolName":"...","args":{...}}`}
                         \n\n
@@ -1563,7 +1563,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     </li>
                   </ul>
                   <p className="mb-2">To build a client:</p>
-                  <ul className="list-disc list-inside space-y-1 ml-2 mb-2">
+                  <ul className="mb-2 ml-2 list-inside list-disc space-y-1">
                     <li>
                       <strong>React apps:</strong> Use the{" "}
                       <a
@@ -1575,13 +1575,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         useChat hook
                       </a>{" "}
                       from{" "}
-                      <code className="bg-neutral-100 dark:bg-neutral-800 px-1">@ai-sdk/react</code>{" "}
+                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">@ai-sdk/react</code>{" "}
                       - it handles SSE parsing automatically
                     </li>
                     <li>
                       <strong>Other frameworks:</strong> Parse SSE format by
                       reading lines starting with{" "}
-                      <code className="bg-neutral-100 dark:bg-neutral-800 px-1">data: </code>, then
+                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">data: </code>, then
                       parse the JSON object
                     </li>
                   </ul>
@@ -1605,20 +1605,20 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   {!isConfiguringStreamServer ? (
                     <button
                       onClick={() => setIsConfiguringStreamServer(true)}
-                      className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored transition-all duration-200"
+                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored"
                     >
                       Create Stream Server
                     </button>
                   ) : (
                     <form
                       onSubmit={handleCreateStreamServer}
-                      className="p-4 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg"
+                      className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
                     >
                       <div className="mb-4">
-                        <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
+                        <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
                           Allowed Origins
                         </label>
-                        <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
+                        <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
                           Comma-separated list of allowed origins for CORS. Use
                           &quot;*&quot; to allow all origins.
                         </p>
@@ -1626,7 +1626,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           type="text"
                           value={allowedOrigins}
                           onChange={(e) => setAllowedOrigins(e.target.value)}
-                          className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500"
                           placeholder="* or https://example.com, https://app.example.com"
                         />
                       </div>
@@ -1634,7 +1634,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         <button
                           type="submit"
                           disabled={createStreamServer.isPending}
-                          className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                          className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {createStreamServer.isPending
                             ? "Creating..."
@@ -1646,7 +1646,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                             setIsConfiguringStreamServer(false);
                             setAllowedOrigins("");
                           }}
-                          className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 transition-all duration-200"
+                          className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:bg-neutral-800"
                         >
                           Cancel
                         </button>
@@ -1657,9 +1657,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               ) : (
                 <div className="space-y-4">
                   <div>
-                    <p className="text-xs font-semibold mb-2">Stream URL:</p>
+                    <p className="mb-2 text-xs font-semibold">Stream URL:</p>
                     <div className="flex items-center gap-2">
-                      <code className="text-xs bg-neutral-50 dark:bg-neutral-800 p-2 border border-neutral-200 dark:border-neutral-700 rounded-lg flex-1 break-all">
+                      <code className="flex-1 break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-neutral-800">
                         {getStreamUrl(streamServerConfig?.secret)}
                       </code>
                       <button
@@ -1668,7 +1668,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                             getStreamUrl(streamServerConfig?.secret)
                           );
                         }}
-                        className="bg-gradient-primary px-4 py-2 text-white text-xs font-semibold rounded-lg hover:shadow-colored whitespace-nowrap transition-all duration-200"
+                        className="whitespace-nowrap rounded-lg bg-gradient-primary px-4 py-2 text-xs font-semibold text-white transition-all duration-200 hover:shadow-colored"
                       >
                         Copy
                       </button>
@@ -1677,10 +1677,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   {!isConfiguringStreamServer ? (
                     <div className="space-y-2">
                       <div>
-                        <p className="text-xs font-semibold mb-2">
+                        <p className="mb-2 text-xs font-semibold">
                           Allowed Origins:
                         </p>
-                        <p className="text-xs bg-neutral-50 dark:bg-neutral-800 p-2 border border-neutral-200 dark:border-neutral-700 rounded-lg">
+                        <p className="rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-neutral-800">
                           {streamServerConfig.allowedOrigins.join(", ")}
                         </p>
                       </div>
@@ -1706,20 +1706,20 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                               ? "Cannot test: The stream URL is not configured."
                               : "Test stream server"
                           }
-                          className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                          className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Test
                         </button>
                         <button
                           onClick={() => setIsConfiguringStreamServer(true)}
-                          className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored transition-all duration-200"
+                          className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored"
                         >
                           Edit
                         </button>
                         <button
                           onClick={handleDeleteStreamServer}
                           disabled={deleteStreamServer.isPending}
-                          className="bg-error-600 px-4 py-2.5 text-white font-semibold rounded-xl hover:bg-error-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                          className="rounded-xl bg-error-600 px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:bg-error-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {deleteStreamServer.isPending
                             ? "Deleting..."
@@ -1730,13 +1730,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   ) : (
                     <form
                       onSubmit={handleUpdateStreamServer}
-                      className="p-4 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg"
+                      className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
                     >
                       <div className="mb-4">
-                        <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
+                        <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
                           Allowed Origins
                         </label>
-                        <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
+                        <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
                           Comma-separated list of allowed origins for CORS. Use
                           &quot;*&quot; to allow all origins.
                         </p>
@@ -1744,7 +1744,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           type="text"
                           value={allowedOrigins}
                           onChange={(e) => setAllowedOrigins(e.target.value)}
-                          className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500"
                           placeholder="* or https://example.com, https://app.example.com"
                         />
                       </div>
@@ -1752,7 +1752,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         <button
                           type="submit"
                           disabled={updateStreamServer.isPending}
-                          className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                          className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {updateStreamServer.isPending ? "Saving..." : "Save"}
                         </button>
@@ -1766,7 +1766,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                               );
                             }
                           }}
-                          className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 transition-all duration-200"
+                          className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:bg-neutral-800"
                         >
                           Cancel
                         </button>
@@ -1786,17 +1786,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             onToggle={() => toggleSection("keys")}
           >
             <LazyAccordionContent isExpanded={expandedSection === "keys"}>
-              <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
+              <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                 Webhook keys allow external services to send requests to this
                 agent. Each key generates a unique webhook URL that can be used
                 to trigger the agent from external systems. Keep your keys
                 secure and rotate them regularly.
               </p>
               {canEdit && (
-                <div className="flex justify-between items-center mb-4">
+                <div className="mb-4 flex items-center justify-between">
                   <button
                     onClick={() => setIsCreatingKey(true)}
-                    className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored transition-all duration-200"
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored"
                   >
                     Create Key
                   </button>
@@ -1806,17 +1806,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               {isCreatingKey && canEdit && (
                 <form
                   onSubmit={handleCreateKey}
-                  className="mb-4 p-4 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg"
+                  className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
                 >
                   <div className="mb-4">
-                    <label className="block text-sm font-semibold mb-2">
+                    <label className="mb-2 block text-sm font-semibold">
                       Key Name (optional)
                     </label>
                     <input
                       type="text"
                       value={newKeyName}
                       onChange={(e) => setNewKeyName(e.target.value)}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500"
                       placeholder="e.g., Production Key"
                     />
                   </div>
@@ -1824,7 +1824,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <button
                       type="submit"
                       disabled={createKey.isPending}
-                      className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {createKey.isPending ? "Creating..." : "Create"}
                     </button>
@@ -1834,7 +1834,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         setIsCreatingKey(false);
                         setNewKeyName("");
                       }}
-                      className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700 transition-all duration-200"
+                      className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700"
                     >
                       Cancel
                     </button>
@@ -1912,7 +1912,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             onToggle={() => toggleSection("danger")}
           >
             <LazyAccordionContent isExpanded={expandedSection === "danger"}>
-              <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
+              <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                 This section contains destructive actions. Deleting an agent
                 will permanently remove all its conversations, webhook keys, and
                 settings. This action cannot be undone.
@@ -1923,7 +1923,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="bg-error-600 px-4 py-2.5 text-white font-semibold rounded-xl hover:bg-error-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                className="rounded-xl bg-error-600 px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:bg-error-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isDeleting ? "Deleting..." : "Delete Agent"}
               </button>
@@ -1946,8 +1946,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
         {selectedConversation && (
           <Suspense
             fallback={
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl p-8">
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+                <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700">
                   <div className="text-2xl font-semibold">
                     Loading conversation...
                   </div>
@@ -1957,8 +1957,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           >
             <QueryPanel
               fallback={
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                  <div className="bg-white border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl p-8">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+                  <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700">
                     <div className="text-2xl font-semibold">
                       Loading conversation...
                     </div>
@@ -1992,15 +1992,15 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           streamServerConfig &&
           streamUrlData?.url &&
           streamServerConfig.secret && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <div className="bg-white border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl p-6 max-w-4xl w-full max-h-[90vh] flex flex-col">
-                <div className="flex justify-between items-center mb-4 border-b border-neutral-200 dark:border-neutral-700 pb-4">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+              <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border border-neutral-200 bg-white p-6 shadow-xl dark:border-neutral-700">
+                <div className="mb-4 flex items-center justify-between border-b border-neutral-200 pb-4 dark:border-neutral-700">
                   <h2 className="text-2xl font-semibold text-neutral-900">
                     Test Stream Server
                   </h2>
                   <button
                     onClick={() => setIsStreamTestModalOpen(false)}
-                    className="border-2 border-neutral-300 bg-white px-4 py-2 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 transition-all duration-200"
+                    className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:bg-neutral-800"
                   >
                     Close
                   </button>
@@ -2074,11 +2074,11 @@ const KeyItem: FC<KeyItemProps> = ({
   };
 
   return (
-    <div className="border border-neutral-200 dark:border-neutral-700 rounded-lg p-4 bg-white">
-      <div className="flex justify-between items-start mb-2">
+    <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700">
+      <div className="mb-2 flex items-start justify-between">
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="font-semibold text-lg">
+          <div className="mb-2 flex items-center gap-2">
+            <h3 className="text-lg font-semibold">
               {keyData.name || `Key ${keyData.id.slice(0, 8)}`}
             </h3>
             {keyData.name && (
@@ -2087,36 +2087,36 @@ const KeyItem: FC<KeyItemProps> = ({
               </span>
             )}
           </div>
-          <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
+          <p className="mb-2 text-xs opacity-75 dark:text-neutral-300">
             Created: {new Date(keyData.createdAt).toLocaleString()}
           </p>
           <div className="mb-2">
-            <p className="text-xs font-semibold mb-1">Webhook URL:</p>
+            <p className="mb-1 text-xs font-semibold">Webhook URL:</p>
             <div className="flex items-center gap-2">
               <code
                 onClick={handleCopyUrl}
-                className="text-xs bg-neutral-50 dark:bg-neutral-800 p-2 border border-neutral-200 dark:border-neutral-700 rounded-lg flex-1 break-all cursor-pointer hover:bg-neutral-100 dark:bg-neutral-800 select-all transition-colors"
+                className="flex-1 cursor-pointer select-all break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800"
                 title="Click to copy"
               >
                 {webhookUrl}
               </code>
               <button
                 onClick={handleCopyUrl}
-                className="bg-gradient-primary px-4 py-2 text-white text-xs font-semibold rounded-lg hover:shadow-colored whitespace-nowrap transition-all duration-200"
+                className="whitespace-nowrap rounded-lg bg-gradient-primary px-4 py-2 text-xs font-semibold text-white transition-all duration-200 hover:shadow-colored"
               >
                 {copied ? "Copied!" : "Copy"}
               </button>
             </div>
           </div>
           <div>
-            <p className="text-xs font-semibold mb-1">Key Value:</p>
+            <p className="mb-1 text-xs font-semibold">Key Value:</p>
             {keyData.key ? (
-              <code className="text-xs bg-neutral-50 dark:bg-neutral-800 p-2 border border-neutral-200 dark:border-neutral-700 rounded-lg block break-all">
+              <code className="block break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-neutral-800">
                 {keyData.key}
               </code>
             ) : (
-              <div className="text-xs bg-amber-50 p-2 border border-amber-200 rounded-lg">
-                <p className="font-semibold mb-1">Key Value Not Available</p>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs">
+                <p className="mb-1 font-semibold">Key Value Not Available</p>
                 <p className="opacity-75 dark:text-neutral-300">
                   For security, key values are only shown once when created. If
                   you need the key value again, please create a new key.
@@ -2129,7 +2129,7 @@ const KeyItem: FC<KeyItemProps> = ({
           <button
             onClick={handleDelete}
             disabled={isDeleting || deleteKey.isPending}
-            className="bg-red-600 px-3 py-1 text-white text-xs font-semibold rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed ml-4 transition-all duration-200"
+            className="ml-4 rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white transition-all duration-200 hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isDeleting || deleteKey.isPending ? "Deleting..." : "Delete"}
           </button>
@@ -2188,7 +2188,7 @@ const AgentUsageSection: FC<AgentUsageSectionProps> = ({
   if (error) {
     return (
       <div>
-        <p className="text-red-600 font-bold">
+        <p className="font-bold text-red-600">
           Error loading usage:{" "}
           {error instanceof Error ? error.message : "Unknown error"}
         </p>
@@ -2199,7 +2199,7 @@ const AgentUsageSection: FC<AgentUsageSectionProps> = ({
   if (dailyError) {
     return (
       <div>
-        <p className="text-red-600 font-bold">
+        <p className="font-bold text-red-600">
           Error loading daily usage:{" "}
           {dailyError instanceof Error ? dailyError.message : "Unknown error"}
         </p>
@@ -2241,10 +2241,10 @@ const AgentDetail: FC = () => {
   return (
     <ErrorBoundary
       fallback={(error, resetError) => (
-        <div className="flex items-center justify-center min-h-screen bg-white dark:bg-neutral-950 p-8">
-          <div className="max-w-2xl w-full border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl p-8 bg-white dark:border-neutral-700 dark:bg-neutral-900">
-            <h1 className="text-4xl font-semibold mb-4 dark:text-neutral-50">Error</h1>
-            <p className="text-xl mb-4 text-red-600 font-semibold dark:text-red-400">
+        <div className="flex min-h-screen items-center justify-center bg-white p-8 dark:bg-neutral-950">
+          <div className="w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
+            <h1 className="mb-4 text-4xl font-semibold dark:text-neutral-50">Error</h1>
+            <p className="mb-4 text-xl font-semibold text-red-600 dark:text-red-400">
               {error.message || "Failed to load agent"}
             </p>
             <div className="space-y-4">
@@ -2253,13 +2253,13 @@ const AgentDetail: FC = () => {
                   reset();
                   resetError();
                 }}
-                className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored transition-all duration-200"
+                className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored"
               >
                 Try Again
               </button>
               <button
                 onClick={() => navigate(`/workspaces/${workspaceId || ""}`)}
-                className="ml-4 border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                className="ml-4 rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
                 Back to Workspace
               </button>

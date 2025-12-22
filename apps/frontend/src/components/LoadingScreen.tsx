@@ -70,7 +70,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
         <div
           className={`flex items-center justify-center gap-3 py-8 ${className}`}
         >
-          <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="size-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
           <div className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
             {message || "Loading..."}
           </div>
@@ -80,10 +80,10 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
 
     return (
       <div
-        className={`flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark ${className}`}
+        className={`flex min-h-screen items-center justify-center bg-gradient-soft dark:bg-gradient-soft-dark ${className}`}
       >
         <div className="flex items-center gap-3">
-          <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="size-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
           <div className="text-xl font-medium text-neutral-600 dark:text-neutral-300">
             {message || "Loading..."}
           </div>
@@ -98,16 +98,16 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
       <div
         className={`flex items-center justify-center gap-3 py-8 ${className}`}
       >
-        <div className="relative w-12 h-12">
+        <div className="relative size-12">
           <div
-            className="absolute inset-0 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"
+            className="absolute inset-0 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
             style={{ animationDuration: "1s" }}
           ></div>
           <div className="absolute inset-2 flex items-center justify-center">
             <img
               src="/images/helpmaton_logo.svg"
               alt="Helpmaton Logo"
-              className="w-full h-full opacity-80"
+              className="size-full opacity-80"
             />
           </div>
         </div>
@@ -120,19 +120,19 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
 
   return (
     <div
-      className={`flex flex-col items-center justify-center min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark ${className}`}
+      className={`flex min-h-screen flex-col items-center justify-center bg-gradient-soft dark:bg-gradient-soft-dark ${className}`}
     >
       <div className="relative mb-8">
         {/* Animated logo container */}
-        <div className="relative w-32 h-32">
+        <div className="relative size-32">
           {/* Rotating outer ring with gradient */}
           <div
-            className="absolute inset-0 border-4 border-primary-200 border-t-primary-500 rounded-full animate-spin"
+            className="absolute inset-0 animate-spin rounded-full border-4 border-primary-200 border-t-primary-500"
             style={{ animationDuration: "2s" }}
           ></div>
 
           {/* Subtle glow effect */}
-          <div className="absolute inset-0 bg-gradient-primary/10 rounded-full blur-xl"></div>
+          <div className="bg-gradient-primary/10 absolute inset-0 rounded-full blur-xl"></div>
 
           {/* Logo */}
           <div className="absolute inset-4 flex items-center justify-center">
@@ -140,7 +140,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
               <img
                 src="/images/helpmaton_logo.svg"
                 alt="Helpmaton Logo"
-                className="w-full h-full opacity-90 drop-shadow-sm"
+                className="size-full opacity-90 drop-shadow-sm"
               />
             </div>
           </div>
@@ -150,7 +150,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="absolute w-2 h-2 bg-primary-400 rounded-full"
+                className="absolute size-2 rounded-full bg-primary-400"
                 style={{
                   top: "50%",
                   left: "50%",
@@ -167,28 +167,28 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
       </div>
 
       {/* Status message */}
-      <div className="text-center px-6">
-        <div className="text-2xl font-semibold text-neutral-900 mb-2 tracking-tight dark:text-neutral-50">
+      <div className="px-6 text-center">
+        <div className="mb-2 text-2xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50">
           {currentMessage}
         </div>
         {/* Animated dots */}
-        <div className="flex items-center justify-center gap-1.5 mt-4">
+        <div className="mt-4 flex items-center justify-center gap-1.5">
           <div
-            className="w-2 h-2 bg-primary-400 rounded-full"
+            className="size-2 rounded-full bg-primary-400"
             style={{
               animation: "pulse 1.4s ease-in-out infinite",
               animationDelay: "0s",
             }}
           />
           <div
-            className="w-2 h-2 bg-primary-400 rounded-full"
+            className="size-2 rounded-full bg-primary-400"
             style={{
               animation: "pulse 1.4s ease-in-out infinite",
               animationDelay: "0.2s",
             }}
           />
           <div
-            className="w-2 h-2 bg-primary-400 rounded-full"
+            className="size-2 rounded-full bg-primary-400"
             style={{
               animation: "pulse 1.4s ease-in-out infinite",
               animationDelay: "0.4s",

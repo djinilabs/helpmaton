@@ -9,7 +9,7 @@ const ApiDocs = () => {
   // useSession({ required: false });
 
   return (
-    <div className="h-full w-full">
+    <div className="size-full">
       <ApiReferenceReact
         configuration={{
           url: "/openapi.json",

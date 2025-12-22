@@ -50,9 +50,9 @@ const EmailOAuthCallback = () => {
 
   if (!workspaceId && !error && !success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="border border-neutral-200 rounded-xl shadow-soft p-8 max-w-md w-full bg-white">
-          <h1 className="text-2xl font-semibold mb-4">Connecting...</h1>
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft">
+          <h1 className="mb-4 text-2xl font-semibold">Connecting...</h1>
           <p className="text-sm">
             Please wait while we complete the connection.
           </p>
@@ -63,16 +63,16 @@ const EmailOAuthCallback = () => {
 
   if (status === "error") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="border border-neutral-200 rounded-xl shadow-soft p-8 max-w-md w-full bg-white">
-          <h1 className="text-2xl font-semibold mb-4 text-red-600">Error</h1>
-          <p className="text-sm mb-4">
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft">
+          <h1 className="mb-4 text-2xl font-semibold text-red-600">Error</h1>
+          <p className="mb-4 text-sm">
             {errorMessage || "Failed to connect email account."}
           </p>
           {workspaceId && (
             <button
               onClick={() => navigate(`/workspaces/${workspaceId}`)}
-              className="bg-gradient-primary px-4 py-2.5 text-white font-semibold rounded-xl hover:shadow-colored transition-all duration-200"
+              className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored"
             >
               Go Back
             </button>
@@ -83,10 +83,10 @@ const EmailOAuthCallback = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
-      <div className="border border-neutral-200 rounded-xl shadow-soft p-8 max-w-md w-full bg-white">
-        <h1 className="text-2xl font-semibold mb-4 text-green-600">Success</h1>
-        <p className="text-sm mb-4">
+    <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft">
+        <h1 className="mb-4 text-2xl font-semibold text-green-600">Success</h1>
+        <p className="mb-4 text-sm">
           Your {provider === "gmail" ? "Gmail" : "Outlook"} account has been
           connected successfully!
         </p>

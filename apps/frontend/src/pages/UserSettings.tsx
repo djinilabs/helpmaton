@@ -87,50 +87,50 @@ const UserSettings: FC = () => {
   useEscapeKey(!!newlyCreatedKey, () => setNewlyCreatedKey(null));
 
   return (
-    <div className="min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-6 lg:p-10">
-      <div className="max-w-4xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div className="min-h-screen bg-gradient-soft p-6 dark:bg-gradient-soft-dark lg:p-10">
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Suspense fallback={<LoadingScreen compact />}>
             <SubscriptionPanel />
           </Suspense>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-medium p-8 lg:p-10 border border-neutral-200 mb-6 dark:bg-neutral-900 dark:border-neutral-700">
-          <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-2 tracking-tight dark:text-neutral-50">
+        <div className="mb-6 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
+          <h1 className="mb-2 text-4xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-5xl">
             API Keys
           </h1>
-          <p className="text-lg text-neutral-600 mb-6 dark:text-neutral-300">
+          <p className="mb-6 text-lg text-neutral-600 dark:text-neutral-300">
             These API keys are used to authenticate requests to the{" "}
             <Link
               to="/docs/api"
-              className="text-primary-600 hover:text-primary-700 font-semibold underline"
+              className="font-semibold text-primary-600 underline hover:text-primary-700"
             >
               Helpmaton API
             </Link>
             . Use these keys with the{" "}
-            <code className="px-2 py-1 bg-neutral-100 rounded text-sm font-mono">
+            <code className="rounded bg-neutral-100 px-2 py-1 font-mono text-sm">
               Authorization: Bearer &lt;key&gt;
             </code>{" "}
             header.
           </p>
 
-          <div className="flex justify-end mb-6">
+          <div className="mb-6 flex justify-end">
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-6 py-3 bg-gradient-primary text-white font-semibold rounded-xl hover:shadow-colored transition-colors shadow-sm"
+              className="rounded-xl bg-gradient-primary px-6 py-3 font-semibold text-white shadow-sm transition-colors hover:shadow-colored"
             >
               Create New Key
             </button>
           </div>
 
           {apiKeys.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed border-neutral-300 rounded-xl">
-              <p className="text-neutral-600 mb-4">
+            <div className="rounded-xl border-2 border-dashed border-neutral-300 py-12 text-center">
+              <p className="mb-4 text-neutral-600">
                 You don&apos;t have any API keys yet.
               </p>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-6 py-3 bg-gradient-primary text-white font-semibold rounded-xl hover:shadow-colored transition-colors"
+                className="rounded-xl bg-gradient-primary px-6 py-3 font-semibold text-white transition-colors hover:shadow-colored"
               >
                 Create Your First Key
               </button>
@@ -140,32 +140,32 @@ const UserSettings: FC = () => {
               {apiKeys.map((key) => (
                 <div
                   key={key.id}
-                  className="border border-neutral-200 rounded-xl p-6 hover:border-neutral-300 transition-colors"
+                  className="rounded-xl border border-neutral-200 p-6 transition-colors hover:border-neutral-300"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="mb-2 flex items-center gap-3">
                         <h3 className="text-lg font-semibold text-neutral-900">
                           {key.name || "Unnamed Key"}
                         </h3>
-                        <span className="px-2 py-1 bg-neutral-100 text-neutral-600 text-xs font-mono rounded">
+                        <span className="rounded bg-neutral-100 px-2 py-1 font-mono text-xs text-neutral-600">
                           {key.maskedKey}
                         </span>
                       </div>
-                      <div className="text-sm text-neutral-600 space-y-1">
+                      <div className="space-y-1 text-sm text-neutral-600">
                         <p>Created: {formatDate(key.createdAt)}</p>
                         {key.lastUsedAt && (
                           <p>Last used: {formatDate(key.lastUsedAt)}</p>
                         )}
                         {!key.lastUsedAt && (
-                          <p className="text-neutral-400 italic">Never used</p>
+                          <p className="italic text-neutral-400">Never used</p>
                         )}
                       </div>
                     </div>
                     <button
                       onClick={() => handleDeleteKey(key.id)}
                       disabled={deleteApiKeyMutation.isPending}
-                      className="px-4 py-2 text-error-600 hover:bg-error-50 font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="rounded-xl px-4 py-2 font-medium text-error-600 transition-colors hover:bg-error-50 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {deleteApiKeyMutation.isPending
                         ? "Deleting..."
@@ -181,16 +181,16 @@ const UserSettings: FC = () => {
 
       {/* Create Key Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-large p-8 max-w-md w-full dark:bg-neutral-900 dark:border-neutral-700">
-            <h2 className="text-2xl font-bold text-neutral-900 mb-4 dark:text-neutral-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+            <h2 className="mb-4 text-2xl font-bold text-neutral-900 dark:text-neutral-50">
               Create New API Key
             </h2>
             <form onSubmit={handleCreateKey}>
               <div className="mb-6">
                 <label
                   htmlFor="keyName"
-                  className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
                 >
                   Name (optional)
                 </label>
@@ -200,7 +200,7 @@ const UserSettings: FC = () => {
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
                   placeholder="e.g., Production API, CI/CD"
-                  className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
+                  className="w-full rounded-xl border border-neutral-300 px-4 py-2 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                 />
                 <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-300">
                   Give your key a descriptive name to help you identify it
@@ -214,14 +214,14 @@ const UserSettings: FC = () => {
                     setShowCreateModal(false);
                     setNewKeyName("");
                   }}
-                  className="flex-1 px-4 py-2 border border-neutral-300 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                  className="flex-1 rounded-xl border border-neutral-300 px-4 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-800"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={createApiKeyMutation.isPending}
-                  className="flex-1 px-4 py-2 bg-gradient-primary text-white font-medium rounded-xl hover:shadow-colored transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 rounded-xl bg-gradient-primary px-4 py-2 font-medium text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {createApiKeyMutation.isPending
                     ? "Creating..."
@@ -235,34 +235,34 @@ const UserSettings: FC = () => {
 
       {/* Show Key Modal */}
       {newlyCreatedKey && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-large p-8 max-w-md w-full dark:bg-neutral-900 dark:border-neutral-700">
-            <h2 className="text-2xl font-bold text-neutral-900 mb-2 dark:text-neutral-50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+            <h2 className="mb-2 text-2xl font-bold text-neutral-900 dark:text-neutral-50">
               API Key Created
             </h2>
-            <p className="text-neutral-600 mb-6 dark:text-neutral-300">
+            <p className="mb-6 text-neutral-600 dark:text-neutral-300">
               Your API key has been created. Make sure to copy it now - you
               won&apos;t be able to see it again!
             </p>
             <div className="mb-6">
-              <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
+              <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
                 API Key
               </label>
               <div className="flex gap-2">
-                <code className="flex-1 px-4 py-3 bg-neutral-100 border border-neutral-300 rounded-xl font-mono text-sm break-all dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-50">
+                <code className="flex-1 break-all rounded-xl border border-neutral-300 bg-neutral-100 px-4 py-3 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                   {newlyCreatedKey.key}
                 </code>
                 <button
                   onClick={() =>
                     handleCopyKey(newlyCreatedKey.key, newlyCreatedKey.id)
                   }
-                  className="px-4 py-2 bg-gradient-primary text-white font-medium rounded-xl hover:shadow-colored transition-colors whitespace-nowrap"
+                  className="whitespace-nowrap rounded-xl bg-gradient-primary px-4 py-2 font-medium text-white transition-colors hover:shadow-colored"
                 >
                   {copiedKeyId === newlyCreatedKey.id ? "Copied!" : "Copy"}
                 </button>
               </div>
             </div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 dark:bg-yellow-950 dark:border-yellow-800">
+            <div className="mb-6 rounded-xl border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-950">
               <p className="text-sm text-yellow-800 dark:text-yellow-200">
                 <strong>Important:</strong> Store this key securely. It will not
                 be shown again.
@@ -270,7 +270,7 @@ const UserSettings: FC = () => {
             </div>
             <button
               onClick={() => setNewlyCreatedKey(null)}
-              className="w-full px-4 py-2 bg-gradient-primary text-white font-medium rounded-xl hover:shadow-colored transition-colors"
+              className="w-full rounded-xl bg-gradient-primary px-4 py-2 font-medium text-white transition-colors hover:shadow-colored"
             >
               I&apos;ve Saved My Key
             </button>

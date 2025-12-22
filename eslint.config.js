@@ -7,6 +7,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import importPlugin from 'eslint-plugin-import'
+import tailwindcss from 'eslint-plugin-tailwindcss'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -66,11 +67,16 @@ export default tseslint.config(
       react,
       'react-hooks': reactHooks,
       'react-refresh': reactRefresh,
-      import: importPlugin
+      import: importPlugin,
+      tailwindcss
     },
     settings: {
       react: {
         version: 'detect'
+      },
+      tailwindcss: {
+        callees: ['classnames', 'clsx', 'cn', 'cva'],
+        config: './apps/frontend/tailwind.config.js'
       }
     },
     rules: {
@@ -79,7 +85,14 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       ...reactRefresh.configs.recommended.rules,
       'react/react-in-jsx-scope': 'off',
-      'react/prop-types': 'off'
+      'react/prop-types': 'off',
+      // Tailwind CSS rules
+      'tailwindcss/classnames-order': 'warn',
+      'tailwindcss/enforces-negative-arbitrary-values': 'warn',
+      'tailwindcss/enforces-shorthand': 'warn',
+      'tailwindcss/no-arbitrary-value': 'off', // Allow arbitrary values for flexibility
+      'tailwindcss/no-custom-classname': 'off', // Allow custom classnames when needed
+      'tailwindcss/no-contradicting-classname': 'error'
     }
   },
   // Configuration for backend - disable React rules

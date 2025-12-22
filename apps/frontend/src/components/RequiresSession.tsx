@@ -32,7 +32,7 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
   // If it's an invite route, allow it through without requiring authentication
   if (isInviteRoute) {
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className="flex min-h-screen flex-col">
         <main className="flex-1">{children}</main>
       </div>
     );
@@ -42,7 +42,7 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
   // but still show the layout (Header, LocationBar, Footer)
   if (isApiDocsRoute) {
     return (
-      <div className="flex flex-col min-h-screen">
+      <div className="flex min-h-screen flex-col">
         <Header />
         <LocationBar />
         <main className="flex-1">{children}</main>
@@ -56,7 +56,7 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-neutral-50 dark:bg-neutral-950">
+    <div className="flex min-h-screen flex-col bg-neutral-50 dark:bg-neutral-950">
       <Header />
       <LocationBar />
       <main className="flex-1 bg-neutral-50 dark:bg-neutral-950">

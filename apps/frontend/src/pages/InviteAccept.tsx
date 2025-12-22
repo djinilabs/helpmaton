@@ -87,17 +87,17 @@ export const InviteAccept: FC = () => {
 
   if (error || !invite) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-8">
-        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-error-200 dark:bg-neutral-900 dark:border-error-700">
-          <h1 className="text-4xl font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-soft p-8 dark:bg-gradient-soft-dark">
+        <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-neutral-900 lg:p-10">
+          <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
             Invalid Invite
           </h1>
-          <p className="text-xl mb-6 text-error-600 font-semibold dark:text-error-400">
+          <p className="mb-6 text-xl font-semibold text-error-600 dark:text-error-400">
             {error || "This invite link is invalid or has expired."}
           </p>
           <button
             onClick={() => navigate("/workspaces")}
-            className="bg-gradient-primary px-6 py-3 text-white font-semibold rounded-xl hover:shadow-colored transition-all duration-200"
+            className="rounded-xl bg-gradient-primary px-6 py-3 font-semibold text-white transition-all duration-200 hover:shadow-colored"
           >
             Go to Workspaces
           </button>
@@ -110,24 +110,24 @@ export const InviteAccept: FC = () => {
   // The accept API will create the user if needed and send a magic link
   if (!session?.user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-8">
-        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
-          <h1 className="text-4xl font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-soft p-8 dark:bg-gradient-soft-dark">
+        <div className="w-full max-w-2xl rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
+          <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
             Workspace Invitation
           </h1>
-          <div className="space-y-4 mb-8">
+          <div className="mb-8 space-y-4">
             <div>
-              <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Workspace</p>
+              <p className="mb-1 text-sm text-neutral-600 dark:text-neutral-300">Workspace</p>
               <p className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
                 {invite.workspaceName}
               </p>
             </div>
             <div>
-              <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Permission Level</p>
+              <p className="mb-1 text-sm text-neutral-600 dark:text-neutral-300">Permission Level</p>
               <p className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
                 {getPermissionLabel(invite.permissionLevel)}
               </p>
-              <p className="text-sm text-neutral-600 mt-1 dark:text-neutral-300">
+              <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
                 {invite.permissionLevel === PERMISSION_LEVELS.OWNER
                   ? "You can manage the workspace, invite and remove users, and make any changes."
                   : invite.permissionLevel === PERMISSION_LEVELS.WRITE
@@ -137,14 +137,14 @@ export const InviteAccept: FC = () => {
             </div>
             {invite.inviterEmail && (
               <div>
-                <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Invited by</p>
+                <p className="mb-1 text-sm text-neutral-600 dark:text-neutral-300">Invited by</p>
                 <p className="text-lg text-neutral-900 dark:text-neutral-50">
                   {invite.inviterEmail}
                 </p>
               </div>
             )}
             <div>
-              <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Email</p>
+              <p className="mb-1 text-sm text-neutral-600 dark:text-neutral-300">Email</p>
               <p className="text-lg text-neutral-900 dark:text-neutral-50">{invite.email}</p>
             </div>
           </div>
@@ -152,14 +152,14 @@ export const InviteAccept: FC = () => {
             <button
               onClick={() => accept.mutate()}
               disabled={accept.isPending}
-              className="bg-gradient-primary px-6 py-3 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              className="rounded-xl bg-gradient-primary px-6 py-3 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
             >
               {accept.isPending ? "Accepting..." : "Accept Invitation"}
             </button>
             <button
               onClick={() => navigate("/workspaces")}
               disabled={accept.isPending}
-              className="border border-neutral-300 bg-white px-6 py-3 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              className="rounded-xl border border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               Cancel
             </button>
@@ -174,21 +174,21 @@ export const InviteAccept: FC = () => {
   const inviteEmail = invite.email.toLowerCase();
   if (userEmail !== inviteEmail) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-8">
-        <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-error-200 dark:bg-neutral-900 dark:border-error-700">
-          <h1 className="text-4xl font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-soft p-8 dark:bg-gradient-soft-dark">
+        <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-neutral-900 lg:p-10">
+          <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
             Email Mismatch
           </h1>
-          <p className="text-xl mb-6 text-error-600 font-semibold dark:text-error-400">
+          <p className="mb-6 text-xl font-semibold text-error-600 dark:text-error-400">
             This invitation was sent to {invite.email}, but you&apos;re signed
             in as {userEmail}.
           </p>
-          <p className="text-base mb-6 text-neutral-600 dark:text-neutral-300">
+          <p className="mb-6 text-base text-neutral-600 dark:text-neutral-300">
             Please sign in with the email address that received the invitation.
           </p>
           <button
             onClick={() => navigate("/api/auth/signin")}
-            className="bg-gradient-primary px-6 py-3 text-white font-semibold rounded-xl hover:shadow-colored transition-all duration-200"
+            className="rounded-xl bg-gradient-primary px-6 py-3 font-semibold text-white transition-all duration-200 hover:shadow-colored"
           >
             Sign In with Different Account
           </button>
@@ -198,24 +198,24 @@ export const InviteAccept: FC = () => {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-8">
-      <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
-        <h1 className="text-4xl font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-soft p-8 dark:bg-gradient-soft-dark">
+      <div className="w-full max-w-2xl rounded-2xl border border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900 lg:p-10">
+        <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
           Workspace Invitation
         </h1>
-        <div className="space-y-4 mb-8">
+        <div className="mb-8 space-y-4">
           <div>
-            <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Workspace</p>
+            <p className="mb-1 text-sm text-neutral-600 dark:text-neutral-300">Workspace</p>
             <p className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
               {invite.workspaceName}
             </p>
           </div>
           <div>
-            <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Permission Level</p>
+            <p className="mb-1 text-sm text-neutral-600 dark:text-neutral-300">Permission Level</p>
             <p className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
               {getPermissionLabel(invite.permissionLevel)}
             </p>
-            <p className="text-sm text-neutral-600 mt-1 dark:text-neutral-300">
+            <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">
               {invite.permissionLevel === PERMISSION_LEVELS.OWNER
                 ? "You can manage the workspace, invite and remove users, and make any changes."
                 : invite.permissionLevel === PERMISSION_LEVELS.WRITE
@@ -225,7 +225,7 @@ export const InviteAccept: FC = () => {
           </div>
           {invite.inviterEmail && (
             <div>
-              <p className="text-sm text-neutral-600 mb-1 dark:text-neutral-300">Invited by</p>
+              <p className="mb-1 text-sm text-neutral-600 dark:text-neutral-300">Invited by</p>
               <p className="text-lg text-neutral-900 dark:text-neutral-50">{invite.inviterEmail}</p>
             </div>
           )}
@@ -234,14 +234,14 @@ export const InviteAccept: FC = () => {
           <button
             onClick={() => accept.mutate()}
             disabled={accept.isPending}
-            className="bg-gradient-primary px-6 py-3 text-white font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            className="rounded-xl bg-gradient-primary px-6 py-3 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
           >
             {accept.isPending ? "Accepting..." : "Accept Invitation"}
           </button>
           <button
             onClick={() => navigate("/workspaces")}
             disabled={accept.isPending}
-            className="border border-neutral-300 bg-white px-6 py-3 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-6 py-3 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             Cancel
           </button>

@@ -212,22 +212,22 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-neutral-200 rounded-2xl shadow-dramatic border-2 border-neutral-300 p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto dark:bg-neutral-900 dark:border-neutral-700">
-        <div className="flex justify-between items-center mb-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="mb-6 flex items-center justify-between">
           <h2 className="text-4xl font-black text-neutral-900 dark:text-neutral-50">
             Available Tools
           </h2>
           <button
             onClick={onClose}
-            className="border border-neutral-300 bg-white px-6 py-2 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            className="rounded-xl border border-neutral-300 bg-white px-6 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             Close
           </button>
         </div>
 
-        <div className="mb-6 p-4 border border-yellow-200 rounded-lg bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
-          <p className="text-sm font-semibold text-yellow-800 mb-2 dark:text-yellow-200">
+        <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-950">
+          <p className="mb-2 text-sm font-semibold text-yellow-800 dark:text-yellow-200">
             ⚠️ Important
           </p>
           <p className="text-sm text-yellow-900 dark:text-yellow-100">
@@ -242,22 +242,22 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
           {tools.map((tool) => (
             <div
               key={tool.name}
-              className="border border-neutral-200 rounded-lg p-4 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900"
+              className="rounded-lg border border-neutral-200 bg-white p-4 shadow-soft dark:border-neutral-700 dark:bg-neutral-900"
             >
-              <div className="flex items-start justify-between mb-2">
-                <code className="text-lg font-semibold font-mono border border-neutral-300 rounded bg-neutral-100 px-2 py-1 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+              <div className="mb-2 flex items-start justify-between">
+                <code className="rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-lg font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                   {tool.name}
                 </code>
                 {tool.alwaysAvailable ? (
-                  <span className="text-xs font-medium bg-green-100 border border-green-300 rounded px-2 py-1 text-green-800 dark:bg-green-900 dark:border-green-700 dark:text-green-200">
+                  <span className="rounded border border-green-300 bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:border-green-700 dark:bg-green-900 dark:text-green-200">
                     Always Available
                   </span>
                 ) : (
                   <span
-                    className={`text-xs font-medium rounded px-2 py-1 border ${
+                    className={`rounded border px-2 py-1 text-xs font-medium ${
                       tool.condition?.includes("Available")
-                        ? "bg-green-100 border-green-300 text-green-800 dark:bg-green-900 dark:border-green-700 dark:text-green-200"
-                        : "bg-red-100 border-red-300 text-red-800 dark:bg-red-900 dark:border-red-700 dark:text-red-200"
+                        ? "border-green-300 bg-green-100 text-green-800 dark:border-green-700 dark:bg-green-900 dark:text-green-200"
+                        : "border-red-300 bg-red-100 text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200"
                     }`}
                   >
                     {tool.condition?.includes("Available")
@@ -266,22 +266,22 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                   </span>
                 )}
               </div>
-              <p className="text-sm text-neutral-700 mb-3 dark:text-neutral-300">
+              <p className="mb-3 text-sm text-neutral-700 dark:text-neutral-300">
                 {tool.description}
               </p>
               {!tool.alwaysAvailable && (
                 <p
-                  className={`text-xs font-medium rounded border px-2 py-1 inline-block mb-3 ${
+                  className={`mb-3 inline-block rounded border px-2 py-1 text-xs font-medium ${
                     tool.condition?.includes("Available")
-                      ? "bg-green-50 border-green-200 text-green-800 dark:bg-green-950 dark:border-green-800 dark:text-green-200"
-                      : "bg-red-50 border-red-200 text-red-800 dark:bg-red-950 dark:border-red-800 dark:text-red-200"
+                      ? "border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200"
+                      : "border-red-200 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
                   }`}
                 >
                   {tool.condition}
                 </p>
               )}
-              <div className="mt-3 border border-neutral-200 rounded-lg p-3 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-                <p className="text-xs font-semibold text-neutral-900 mb-2 dark:text-neutral-50">
+              <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                <p className="mb-2 text-xs font-semibold text-neutral-900 dark:text-neutral-50">
                   Parameters:
                 </p>
                 {tool.parameters.length === 0 ? (
@@ -293,21 +293,21 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                     {tool.parameters.map((param, index) => (
                       <div
                         key={index}
-                        className="border border-neutral-200 rounded p-2 bg-white dark:border-neutral-700 dark:bg-neutral-900"
+                        className="rounded border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
                       >
-                        <div className="flex items-center gap-2 mb-1">
-                          <code className="text-xs font-medium font-mono border border-neutral-300 rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                        <div className="mb-1 flex items-center gap-2">
+                          <code className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                             {param.name}
                           </code>
-                          <span className="text-xs font-medium border border-neutral-300 rounded px-1.5 py-0.5 text-neutral-700 dark:border-neutral-700 dark:text-neutral-300">
+                          <span className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-300">
                             {param.type}
                           </span>
                           {param.required ? (
-                            <span className="text-xs font-medium bg-red-100 border border-red-300 rounded px-1.5 py-0.5 text-red-800 dark:bg-red-900 dark:border-red-700 dark:text-red-200">
+                            <span className="rounded border border-red-300 bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
                               Required
                             </span>
                           ) : (
-                            <span className="text-xs font-medium bg-neutral-100 border border-neutral-300 rounded px-1.5 py-0.5 text-neutral-700 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+                            <span className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                               Optional
                             </span>
                           )}
@@ -324,8 +324,8 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
           ))}
 
           {enabledMcpServers.length > 0 && (
-            <div className="border border-neutral-200 rounded-lg p-4 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-              <h3 className="text-xl font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
+            <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+              <h3 className="mb-4 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
                 MCP Server Tools
               </h3>
               <div className="space-y-3">
@@ -337,37 +337,37 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                   return (
                     <div
                       key={server.id}
-                      className="border border-neutral-200 rounded-lg p-4 bg-white dark:border-neutral-700 dark:bg-neutral-900"
+                      className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <code className="text-lg font-semibold font-mono border border-neutral-300 rounded bg-neutral-100 px-2 py-1 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                      <div className="mb-2 flex items-start justify-between">
+                        <code className="rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-lg font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                           {toolName}
                         </code>
-                        <span className="text-xs font-medium bg-green-100 border border-green-300 rounded px-2 py-1 text-green-800 dark:bg-green-900 dark:border-green-700 dark:text-green-200">
+                        <span className="rounded border border-green-300 bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:border-green-700 dark:bg-green-900 dark:text-green-200">
                           Available
                         </span>
                       </div>
-                      <p className="text-sm text-neutral-700 mb-3 dark:text-neutral-300">
+                      <p className="mb-3 text-sm text-neutral-700 dark:text-neutral-300">
                         Call the MCP server &quot;{server.name}&quot;. Provide
                         the MCP method name and optional parameters.
                       </p>
-                      <p className="text-xs font-medium bg-green-50 border border-green-200 rounded px-2 py-1 inline-block mb-3 text-green-800 dark:bg-green-950 dark:border-green-800 dark:text-green-200">
+                      <p className="mb-3 inline-block rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
                         Available (MCP server &quot;{server.name}&quot; enabled)
                       </p>
-                      <div className="mt-3 border border-neutral-200 rounded-lg p-3 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-                        <p className="text-xs font-semibold text-neutral-900 mb-2 dark:text-neutral-50">
+                      <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                        <p className="mb-2 text-xs font-semibold text-neutral-900 dark:text-neutral-50">
                           Parameters:
                         </p>
                         <div className="space-y-2">
-                          <div className="border border-neutral-200 rounded p-2 bg-white dark:border-neutral-700 dark:bg-neutral-900">
-                            <div className="flex items-center gap-2 mb-1">
-                              <code className="text-xs font-medium font-mono border border-neutral-300 rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                          <div className="rounded border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
+                            <div className="mb-1 flex items-center gap-2">
+                              <code className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                                 method
                               </code>
-                              <span className="text-xs font-medium border border-neutral-300 rounded px-1.5 py-0.5 text-neutral-700 dark:border-neutral-700 dark:text-neutral-300">
+                              <span className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-300">
                                 string
                               </span>
-                              <span className="text-xs font-medium bg-red-100 border border-red-300 rounded px-1.5 py-0.5 text-red-800 dark:bg-red-900 dark:border-red-700 dark:text-red-200">
+                              <span className="rounded border border-red-300 bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
                                 Required
                               </span>
                             </div>
@@ -375,15 +375,15 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                               The MCP method to call.
                             </p>
                           </div>
-                          <div className="border border-neutral-200 rounded p-2 bg-white dark:border-neutral-700 dark:bg-neutral-900">
-                            <div className="flex items-center gap-2 mb-1">
-                              <code className="text-xs font-medium font-mono border border-neutral-300 rounded bg-neutral-100 px-1.5 py-0.5 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                          <div className="rounded border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900">
+                            <div className="mb-1 flex items-center gap-2">
+                              <code className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                                 params
                               </code>
-                              <span className="text-xs font-medium border border-neutral-300 rounded px-1.5 py-0.5 text-neutral-700 dark:border-neutral-700 dark:text-neutral-300">
+                              <span className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-300">
                                 object
                               </span>
-                              <span className="text-xs font-medium bg-neutral-100 border border-neutral-300 rounded px-1.5 py-0.5 text-neutral-700 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-300">
+                              <span className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
                                 Optional
                               </span>
                             </div>
@@ -401,8 +401,8 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
           )}
 
           {enabledMcpServerIds.length === 0 && (
-            <div className="border border-neutral-200 rounded-lg p-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-              <p className="text-sm font-semibold text-neutral-900 mb-2 dark:text-neutral-50">
+            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+              <p className="mb-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
                 MCP Server Tools
               </p>
               <p className="text-xs text-neutral-600 dark:text-neutral-300">

@@ -23,20 +23,20 @@ const Home: FC = () => {
   const { data: session } = useSession();
 
   return (
-    <div className="min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-6 lg:p-10">
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-dramatic p-10 lg:p-12 mb-10 border-2 border-neutral-300 relative overflow-hidden dark:bg-neutral-900 dark:border-neutral-700">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-primary opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+    <div className="min-h-screen bg-gradient-soft p-6 dark:bg-gradient-soft-dark lg:p-10">
+      <div className="mx-auto max-w-6xl">
+        <div className="relative mb-10 overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900 lg:p-12">
+          <div className="absolute right-0 top-0 size-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-primary opacity-5 blur-3xl"></div>
           <div className="relative z-10">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-6">
+            <div className="mb-6 flex flex-col items-start gap-6 sm:flex-row sm:items-center">
               <div className="relative overflow-hidden">
                 <img
                   src="/images/helpmaton_logo.svg"
                   alt="Helmaton Logo"
-                  className="w-20 h-20 relative z-10"
+                  className="relative z-10 size-20"
                 />
                 <div
-                  className="manga-shine-overlay absolute inset-0 z-20 pointer-events-none"
+                  className="manga-shine-overlay pointer-events-none absolute inset-0 z-20"
                   style={{
                     background:
                       "radial-gradient(circle at center, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 15%, transparent 30%), linear-gradient(45deg, transparent 25%, rgba(255, 255, 255, 0.3) 45%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0.3) 55%, transparent 75%)",
@@ -44,10 +44,10 @@ const Home: FC = () => {
                     height: "200%",
                   }}
                 ></div>
-                <div className="absolute inset-0 bg-gradient-primary opacity-20 rounded-full blur-xl"></div>
+                <div className="absolute inset-0 rounded-full bg-gradient-primary opacity-20 blur-xl"></div>
               </div>
               <div>
-                <h1 className="text-5xl lg:text-6xl font-black text-neutral-900 mb-3 tracking-tight dark:text-neutral-50">
+                <h1 className="mb-3 text-5xl font-black tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-6xl">
                   Dashboard
                 </h1>
                 <p className="text-2xl font-bold text-neutral-700 dark:text-neutral-300">
@@ -55,30 +55,30 @@ const Home: FC = () => {
                 </p>
               </div>
             </div>
-            <p className="text-lg font-semibold text-neutral-700 leading-relaxed max-w-2xl dark:text-neutral-300">
+            <p className="max-w-2xl text-lg font-semibold leading-relaxed text-neutral-700 dark:text-neutral-300">
               Your central hub for managing workspaces, agents, and monitoring
               usage across all your projects.
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-large p-10 border-2 border-neutral-300 dark:bg-neutral-900 dark:border-neutral-700">
-            <h2 className="text-3xl font-bold text-neutral-900 mb-5 dark:text-neutral-50">
+        <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+            <h2 className="mb-5 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
               Get Started
             </h2>
-            <p className="text-base font-medium text-neutral-700 mb-8 leading-relaxed dark:text-neutral-300">
+            <p className="mb-8 text-base font-medium leading-relaxed text-neutral-700 dark:text-neutral-300">
               Workspaces are isolated environments where you can organize your
               agents, documents, and settings. Each workspace has its own credit
               balance and spending limits.
             </p>
             <Link
               to="/workspaces"
-              className="inline-flex items-center gap-3 bg-gradient-primary px-8 py-4 text-white font-bold rounded-xl hover:shadow-colored transition-all duration-200 transform hover:scale-[1.03] active:scale-[0.97]"
+              className="inline-flex transform items-center gap-3 rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
             >
               Manage Workspaces
               <svg
-                className="w-5 h-5"
+                className="size-5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -100,14 +100,14 @@ const Home: FC = () => {
 
         <UserUsageSection />
 
-        <div className="bg-white rounded-2xl shadow-large p-8 border-2 border-neutral-300 flex justify-end dark:bg-neutral-900 dark:border-neutral-700">
+        <div className="flex justify-end rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
           <button
             onClick={() => {
               // Clear tokens immediately on logout
               clearTokens();
               signOut();
             }}
-            className="px-7 py-3.5 text-neutral-900 font-bold rounded-xl hover:bg-neutral-100 hover:text-neutral-900 transition-all duration-200 border-2 border-neutral-300 hover:border-neutral-400 transform hover:scale-[1.02] active:scale-[0.98] dark:text-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800 dark:hover:border-neutral-600"
+            className="transform rounded-xl border-2 border-neutral-300 px-7 py-3.5 font-bold text-neutral-900 transition-all duration-200 hover:scale-[1.02] hover:border-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 active:scale-[0.98] dark:border-neutral-700 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
           >
             Sign Out
           </button>
@@ -138,7 +138,7 @@ const UserUsageSection: FC<UserUsageSectionProps> = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-2xl shadow-large p-10 mb-8 border-2 border-neutral-300 dark:bg-neutral-900 dark:border-neutral-700">
+      <div className="mb-8 rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
         <LoadingScreen compact message="Loading usage data..." />
       </div>
     );
@@ -146,8 +146,8 @@ const UserUsageSection: FC<UserUsageSectionProps> = () => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-2xl shadow-large p-10 mb-8 border-2 border-error-300 dark:bg-neutral-900 dark:border-error-700">
-        <p className="text-error-700 font-bold text-lg dark:text-error-400">
+      <div className="mb-8 rounded-2xl border-2 border-error-300 bg-white p-10 shadow-large dark:border-error-700 dark:bg-neutral-900">
+        <p className="text-lg font-bold text-error-700 dark:text-error-400">
           Error loading usage:{" "}
           {error instanceof Error ? error.message : "Unknown error"}
         </p>

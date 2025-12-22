@@ -19,8 +19,8 @@ export const UsageChart: FC<UsageChartProps> = ({
   
   if (data.length === 0) {
     return (
-      <div className="border border-neutral-200 rounded-xl p-6 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-        <h3 className="text-xl font-semibold text-neutral-900 mb-6 dark:text-neutral-50">{title}</h3>
+      <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+        <h3 className="mb-6 text-xl font-semibold text-neutral-900 dark:text-neutral-50">{title}</h3>
         <p className="text-lg text-neutral-600 dark:text-neutral-300">No data available</p>
       </div>
     );
@@ -38,9 +38,9 @@ export const UsageChart: FC<UsageChartProps> = ({
   const svgBorderColor = isDark ? "#4b5563" : "#d1d3d4";
 
   return (
-    <div className="border border-neutral-200 rounded-xl p-6 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-      <h3 className="text-xl font-semibold text-neutral-900 mb-4 dark:text-neutral-50">{title}</h3>
-      <p className="text-sm text-neutral-600 mb-6 dark:text-neutral-300">
+    <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+      <h3 className="mb-4 text-xl font-semibold text-neutral-900 dark:text-neutral-50">{title}</h3>
+      <p className="mb-6 text-sm text-neutral-600 dark:text-neutral-300">
         This chart shows daily spending over the selected time period. Each bar
         represents one day&apos;s total cost. Use this to identify spending
         patterns and trends.
@@ -49,7 +49,7 @@ export const UsageChart: FC<UsageChartProps> = ({
         <svg
           width={Math.max(600, data.length * 40)}
           height={chartHeight + 60}
-          className="border rounded-xl"
+          className="rounded-xl border"
           style={{ borderColor: svgBorderColor }}
         >
           {/* Grid lines */}
@@ -84,7 +84,7 @@ export const UsageChart: FC<UsageChartProps> = ({
                   fill="#0ea5e9"
                   stroke="#0284c7"
                   strokeWidth={1}
-                  className="hover:fill-primary-700 transition-colors"
+                  className="transition-colors hover:fill-primary-700"
                 />
                 <text
                   x={x + barWidth / 2}

@@ -10,8 +10,8 @@ export const SubscriptionPanel: FC = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-2xl shadow-medium p-8 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
-        <h2 className="text-3xl font-bold text-neutral-900 mb-5 dark:text-neutral-50">
+      <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
+        <h2 className="mb-5 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
           Subscription
         </h2>
         <LoadingScreen compact message="Loading subscription..." />
@@ -21,11 +21,11 @@ export const SubscriptionPanel: FC = () => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-2xl shadow-medium p-8 border border-error-200 dark:bg-neutral-900 dark:border-error-700">
-        <h2 className="text-3xl font-bold text-neutral-900 mb-5 dark:text-neutral-50">
+      <div className="rounded-2xl border border-error-200 bg-white p-8 shadow-medium dark:border-error-700 dark:bg-neutral-900">
+        <h2 className="mb-5 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
           Subscription
         </h2>
-        <p className="text-error-600 font-semibold dark:text-error-400">
+        <p className="font-semibold text-error-600 dark:text-error-400">
           Error loading subscription:{" "}
           {error instanceof Error ? error.message : "Unknown error"}
         </p>
@@ -50,18 +50,18 @@ export const SubscriptionPanel: FC = () => {
     : null;
 
   return (
-    <div className="bg-white rounded-2xl shadow-medium p-8 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
-      <h2 className="text-3xl font-bold text-neutral-900 mb-5 dark:text-neutral-50">Subscription</h2>
+    <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
+      <h2 className="mb-5 text-3xl font-bold text-neutral-900 dark:text-neutral-50">Subscription</h2>
       <div className="mb-6">
-        <div className="text-3xl font-bold text-neutral-900 mb-2 dark:text-neutral-50">
+        <div className="mb-2 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
           {planName} Plan
         </div>
         {expiresAt && (
-          <div className="text-sm text-neutral-600 mb-2 dark:text-neutral-300">
+          <div className="mb-2 text-sm text-neutral-600 dark:text-neutral-300">
             {isExpired ? (
-              <span className="text-error-600 font-semibold dark:text-error-400">Expired</span>
+              <span className="font-semibold text-error-600 dark:text-error-400">Expired</span>
             ) : daysUntilExpiry !== null && daysUntilExpiry <= 7 ? (
-              <span className="text-orange-600 font-semibold dark:text-orange-400">
+              <span className="font-semibold text-orange-600 dark:text-orange-400">
                 Expires in {daysUntilExpiry} day
                 {daysUntilExpiry !== 1 ? "s" : ""}
               </span>
@@ -77,11 +77,11 @@ export const SubscriptionPanel: FC = () => {
       </div>
       <Link
         to="/subscription"
-        className="inline-flex items-center gap-2 bg-gradient-primary px-6 py-3 text-white font-semibold rounded-xl hover:shadow-colored transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+        className="inline-flex transform items-center gap-2 rounded-xl bg-gradient-primary px-6 py-3 font-semibold text-white transition-all duration-200 hover:scale-[1.02] hover:shadow-colored active:scale-[0.98]"
       >
         Manage Subscription
         <svg
-          className="w-5 h-5"
+          className="size-5"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"

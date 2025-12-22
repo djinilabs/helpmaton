@@ -24,7 +24,7 @@ export const EmailConnectionCard: FC<EmailConnectionCardProps> = ({
 
   if (isLoading) {
     return (
-      <div className="border border-neutral-200 rounded-xl p-4 bg-white dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
         <LoadingScreen compact message="Loading..." />
       </div>
     );
@@ -32,14 +32,14 @@ export const EmailConnectionCard: FC<EmailConnectionCardProps> = ({
 
   if (!connection) {
     return (
-      <div className="border border-neutral-200 rounded-xl p-4 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-        <div className="flex items-center justify-between mb-4">
+      <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
             Email Connection
           </h3>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-gradient-primary px-4 py-2.5 text-white text-sm font-semibold rounded-xl hover:shadow-colored transition-colors"
+            className="rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:shadow-colored"
           >
             Create
           </button>
@@ -59,15 +59,15 @@ export const EmailConnectionCard: FC<EmailConnectionCardProps> = ({
 
   return (
     <>
-      <div className="border border-neutral-200 rounded-xl p-4 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-        <div className="flex items-center justify-between mb-4">
+      <div className="rounded-xl border border-neutral-200 bg-white p-4 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+        <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
             Email Connection
           </h3>
           <div className="flex gap-2">
             <button
               onClick={() => setIsModalOpen(true)}
-              className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               Edit
             </button>
@@ -86,7 +86,7 @@ export const EmailConnectionCard: FC<EmailConnectionCardProps> = ({
                 }
               }}
               disabled={deleteConnection.isPending}
-              className="bg-error-600 px-4 py-2.5 text-white text-sm font-semibold rounded-xl hover:bg-error-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="rounded-xl bg-error-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-error-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {deleteConnection.isPending ? "Deleting..." : "Delete"}
             </button>
@@ -110,7 +110,7 @@ export const EmailConnectionCard: FC<EmailConnectionCardProps> = ({
             </span>
           </div>
         </div>
-        <div className="mt-4 border border-neutral-200 rounded-xl p-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+        <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
               Test Connection
@@ -124,12 +124,12 @@ export const EmailConnectionCard: FC<EmailConnectionCardProps> = ({
                 }
               }}
               disabled={testConnection.isPending}
-              className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               {testConnection.isPending ? "Testing..." : "Send Test Email"}
             </button>
           </div>
-          <p className="text-xs mt-2 text-neutral-600 dark:text-neutral-300">
+          <p className="mt-2 text-xs text-neutral-600 dark:text-neutral-300">
             Send a test email to verify your connection is working correctly.
           </p>
         </div>
