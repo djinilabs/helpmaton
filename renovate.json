@@ -2,5 +2,19 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "prHourlyLimit": 2,
+  "prConcurrentLimit": 5,
+  "stabilityDays": 3,
+  "packageRules": [
+    {
+      "groupName": "All non-major updates",
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": false
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "groupName": null
+    }
   ]
 }

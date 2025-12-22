@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Check if E2E Tests was for a PR
         id: check-pr
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -83,7 +83,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-2
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: steps.check-pr.outputs.is_pr != 'true'
         with:
           # For push/workflow_dispatch events, use the current commit SHA
@@ -147,7 +147,7 @@ jobs:
 
       - name: Setup pnpm cache
         if: steps.check-pr.outputs.is_pr != 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
@@ -156,7 +156,7 @@ jobs:
 
       - name: Use Node.js
         if: steps.check-pr.outputs.is_pr != 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
           cache: pnpm
@@ -255,6 +255,11 @@ jobs:
           HELPMATON_S3_REGION: ${{ secrets.HELPMATON_S3_REGION }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          GITHUB_SHA: ${{ github.sha }}
+          VITE_SENTRY_RELEASE: ${{ github.sha }}
           VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
