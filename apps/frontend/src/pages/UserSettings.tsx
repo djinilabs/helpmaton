@@ -87,7 +87,7 @@ const UserSettings: FC = () => {
   useEscapeKey(!!newlyCreatedKey, () => setNewlyCreatedKey(null));
 
   return (
-    <div className="min-h-screen bg-gradient-soft dark:bg-neutral-950 p-6 lg:p-10">
+    <div className="min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-6 lg:p-10">
       <div className="max-w-4xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <Suspense fallback={<LoadingScreen compact />}>
@@ -95,11 +95,11 @@ const UserSettings: FC = () => {
           </Suspense>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-medium p-8 lg:p-10 border border-neutral-200 mb-6">
-          <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-2 tracking-tight">
+        <div className="bg-white rounded-2xl shadow-medium p-8 lg:p-10 border border-neutral-200 mb-6 dark:bg-neutral-900 dark:border-neutral-700">
+          <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-2 tracking-tight dark:text-neutral-50">
             API Keys
           </h1>
-          <p className="text-lg text-neutral-600 mb-6">
+          <p className="text-lg text-neutral-600 mb-6 dark:text-neutral-400">
             These API keys are used to authenticate requests to the{" "}
             <Link
               to="/docs/api"
@@ -182,15 +182,15 @@ const UserSettings: FC = () => {
       {/* Create Key Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-large p-8 max-w-md w-full">
-            <h2 className="text-2xl font-bold text-neutral-900 mb-4">
+          <div className="bg-white rounded-2xl shadow-large p-8 max-w-md w-full dark:bg-neutral-900 dark:border-neutral-700">
+            <h2 className="text-2xl font-bold text-neutral-900 mb-4 dark:text-neutral-50">
               Create New API Key
             </h2>
             <form onSubmit={handleCreateKey}>
               <div className="mb-6">
                 <label
                   htmlFor="keyName"
-                  className="block text-sm font-medium text-neutral-700 mb-2"
+                  className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
                 >
                   Name (optional)
                 </label>
@@ -200,9 +200,9 @@ const UserSettings: FC = () => {
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
                   placeholder="e.g., Production API, CI/CD"
-                  className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                  className="w-full px-4 py-2 border border-neutral-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                 />
-                <p className="mt-2 text-sm text-neutral-500">
+                <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
                   Give your key a descriptive name to help you identify it
                   later.
                 </p>
@@ -214,7 +214,7 @@ const UserSettings: FC = () => {
                     setShowCreateModal(false);
                     setNewKeyName("");
                   }}
-                  className="flex-1 px-4 py-2 border border-neutral-300 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 transition-colors"
+                  className="flex-1 px-4 py-2 border border-neutral-300 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-800"
                 >
                   Cancel
                 </button>
@@ -236,20 +236,20 @@ const UserSettings: FC = () => {
       {/* Show Key Modal */}
       {newlyCreatedKey && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-large p-8 max-w-md w-full">
-            <h2 className="text-2xl font-bold text-neutral-900 mb-2">
+          <div className="bg-white rounded-2xl shadow-large p-8 max-w-md w-full dark:bg-neutral-900 dark:border-neutral-700">
+            <h2 className="text-2xl font-bold text-neutral-900 mb-2 dark:text-neutral-50">
               API Key Created
             </h2>
-            <p className="text-neutral-600 mb-6">
+            <p className="text-neutral-600 mb-6 dark:text-neutral-400">
               Your API key has been created. Make sure to copy it now - you
               won&apos;t be able to see it again!
             </p>
             <div className="mb-6">
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
+              <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
                 API Key
               </label>
               <div className="flex gap-2">
-                <code className="flex-1 px-4 py-3 bg-neutral-100 border border-neutral-300 rounded-xl font-mono text-sm break-all">
+                <code className="flex-1 px-4 py-3 bg-neutral-100 border border-neutral-300 rounded-xl font-mono text-sm break-all dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-50">
                   {newlyCreatedKey.key}
                 </code>
                 <button
@@ -262,8 +262,8 @@ const UserSettings: FC = () => {
                 </button>
               </div>
             </div>
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-              <p className="text-sm text-yellow-800">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 dark:bg-yellow-950 dark:border-yellow-800">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
                 <strong>Important:</strong> Store this key securely. It will not
                 be shown again.
               </p>

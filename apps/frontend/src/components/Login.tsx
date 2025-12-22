@@ -30,9 +30,9 @@ const Login: FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-soft dark:bg-neutral-950 p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(13,148,136,0.08),transparent_50%)] pointer-events-none"></div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(124,58,237,0.08),transparent_50%)] pointer-events-none"></div>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-soft dark:bg-gradient-soft-dark p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(13,148,136,0.08),transparent_50%)] dark:bg-[radial-gradient(circle_at_30%_20%,rgba(13,148,136,0.15),transparent_50%)] pointer-events-none"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(124,58,237,0.08),transparent_50%)] dark:bg-[radial-gradient(circle_at_70%_80%,rgba(124,58,237,0.15),transparent_50%)] pointer-events-none"></div>
 
       <div className="w-full max-w-md bg-white/90 backdrop-blur-sm border border-neutral-200 rounded-2xl shadow-large p-10 relative z-10 dark:bg-neutral-900/90 dark:border-neutral-700">
         <div className="flex items-center gap-4 mb-10">

@@ -56,10 +56,12 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen bg-neutral-50 dark:bg-neutral-950">
       <Header />
       <LocationBar />
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 bg-neutral-50 dark:bg-neutral-950">
+        {children}
+      </main>
       <Footer />
     </div>
   );

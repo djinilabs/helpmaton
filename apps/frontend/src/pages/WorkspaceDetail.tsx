@@ -293,7 +293,7 @@ const WorkspaceDataLoader: FC<{ workspaceId: string }> = ({ workspaceId }) => {
 
   if (error || !workspace) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-neutral-950 p-8">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-8">
         <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-error-200 dark:bg-neutral-900 dark:border-error-700">
           <h1 className="text-4xl font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
             Error
@@ -389,7 +389,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-soft dark:bg-neutral-950 p-6 lg:p-10">
+    <div className="min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-6 lg:p-10">
       <div className="max-w-5xl mx-auto">
         <div className="bg-white rounded-2xl shadow-large p-8 lg:p-10 mb-8 border border-neutral-200 relative overflow-hidden dark:bg-neutral-900 dark:border-neutral-700">
           <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-primary opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
@@ -506,7 +506,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
         {/* Trial Credit Request Button - Show when balance is 0 */}
         {workspace.creditBalance === 0 && canEdit && (
-          <div className="bg-gradient-accent/5 rounded-2xl shadow-medium p-8 mb-8 border border-accent-200/50 dark:border-accent-800/50">
+          <div className="bg-gradient-accent/5 rounded-2xl shadow-medium p-8 mb-8 border border-accent-200/50 dark:bg-accent-950/50 dark:border-accent-800/50">
             <h3 className="text-2xl font-semibold text-neutral-900 mb-3 dark:text-neutral-50">
               Trial Credits
             </h3>
@@ -916,7 +916,7 @@ const WorkspaceDetail: FC = () => {
   return (
     <ErrorBoundary
       fallback={(error, resetError) => (
-        <div className="flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-neutral-950 p-8">
+        <div className="flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-8">
           <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-error-200 dark:bg-neutral-900 dark:border-error-700">
             <h1 className="text-4xl font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
               Error

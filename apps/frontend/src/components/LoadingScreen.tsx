@@ -80,7 +80,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
 
     return (
       <div
-        className={`flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-neutral-950 ${className}`}
+        className={`flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark ${className}`}
       >
         <div className="flex items-center gap-3">
           <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
@@ -120,7 +120,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
 
   return (
     <div
-      className={`flex flex-col items-center justify-center min-h-screen bg-gradient-soft dark:bg-neutral-950 ${className}`}
+      className={`flex flex-col items-center justify-center min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark ${className}`}
     >
       <div className="relative mb-8">
         {/* Animated logo container */}

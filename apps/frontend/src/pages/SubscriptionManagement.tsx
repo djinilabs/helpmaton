@@ -188,9 +188,9 @@ const SubscriptionManagement: FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-soft dark:bg-neutral-950 p-6 lg:p-10">
+      <div className="min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-6 lg:p-10">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-medium p-8 lg:p-10 border border-neutral-200">
+          <div className="bg-white rounded-2xl shadow-medium p-8 lg:p-10 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
             <LoadingScreen compact message="Loading subscription..." />
           </div>
         </div>
@@ -200,13 +200,13 @@ const SubscriptionManagement: FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-soft dark:bg-neutral-950 p-6 lg:p-10">
+      <div className="min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-6 lg:p-10">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-2xl shadow-medium p-8 lg:p-10 border border-error-200">
-            <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-4 tracking-tight">
+          <div className="bg-white rounded-2xl shadow-medium p-8 lg:p-10 border border-error-200 dark:bg-neutral-900 dark:border-error-700">
+            <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-4 tracking-tight dark:text-neutral-50">
               Error
             </h1>
-            <p className="text-lg font-semibold text-error-600 mb-4">
+            <p className="text-lg font-semibold text-error-600 mb-4 dark:text-error-400">
               Failed to load subscription:{" "}
               {error instanceof Error ? error.message : "Unknown error"}
             </p>
@@ -325,38 +325,38 @@ const SubscriptionManagement: FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-soft dark:bg-neutral-950 p-6 lg:p-10">
+    <div className="min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-6 lg:p-10">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-large p-8 lg:p-10 mb-8 border border-neutral-200 relative overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-large p-8 lg:p-10 mb-8 border border-neutral-200 relative overflow-hidden dark:bg-neutral-900 dark:border-neutral-700">
           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-primary opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
           <div className="relative z-10">
-            <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-4 tracking-tight">
+            <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-4 tracking-tight dark:text-neutral-50">
               Subscription Management
             </h1>
             <div className="mb-6">
-              <div className="text-3xl font-bold text-neutral-900 mb-2">
+              <div className="text-3xl font-bold text-neutral-900 mb-2 dark:text-neutral-50">
                 {planName} Plan
               </div>
               {subscription.status && (
                 <div className="text-base mb-2">
                   {subscription.status === "past_due" && (
-                    <span className="text-error-600 font-semibold">
+                    <span className="text-error-600 font-semibold dark:text-error-400">
                       Payment Past Due
                     </span>
                   )}
                   {subscription.status === "active" && (
-                    <span className="text-green-600 font-semibold">Active</span>
+                    <span className="text-green-600 font-semibold dark:text-green-400">Active</span>
                   )}
                   {subscription.status === "cancelled" &&
                     subscription.plan !== "free" && (
-                      <span className="text-neutral-600 font-semibold">
+                      <span className="text-neutral-600 font-semibold dark:text-neutral-400">
                         Cancelled
                       </span>
                     )}
                 </div>
               )}
               {subscription.gracePeriodEndsAt && (
-                <div className="text-base text-orange-600 mb-2">
+                <div className="text-base text-orange-600 mb-2 dark:text-orange-400">
                   <span className="font-semibold">
                     Grace period ends:{" "}
                     {new Date(
@@ -366,18 +366,18 @@ const SubscriptionManagement: FC = () => {
                 </div>
               )}
               {subscription.renewsAt && subscription.plan !== "free" && (
-                <div className="text-base text-neutral-600 mb-2">
+                <div className="text-base text-neutral-600 mb-2 dark:text-neutral-400">
                   Renews: {new Date(subscription.renewsAt).toLocaleDateString()}
                 </div>
               )}
               {expiresAt && (
-                <div className="text-base text-neutral-600 mb-2">
+                <div className="text-base text-neutral-600 mb-2 dark:text-neutral-400">
                   {isExpired ? (
-                    <span className="text-error-600 font-semibold">
+                    <span className="text-error-600 font-semibold dark:text-error-400">
                       Expired
                     </span>
                   ) : daysUntilExpiry !== null && daysUntilExpiry <= 7 ? (
-                    <span className="text-orange-600 font-semibold">
+                    <span className="text-orange-600 font-semibold dark:text-orange-400">
                       Expires in {daysUntilExpiry} day
                       {daysUntilExpiry !== 1 ? "s" : ""}
                     </span>
@@ -386,7 +386,7 @@ const SubscriptionManagement: FC = () => {
                   )}
                 </div>
               )}
-              <div className="text-sm text-neutral-600 font-mono mb-4">
+              <div className="text-sm text-neutral-600 font-mono mb-4 dark:text-neutral-400">
                 Subscription ID: {subscription.subscriptionId}
               </div>
               <div className="flex gap-4">
@@ -417,7 +417,7 @@ const SubscriptionManagement: FC = () => {
                       }
                     }}
                     disabled={cancelMutation.isPending}
-                    className="px-6 py-3 border border-neutral-300 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-colors disabled:opacity-50"
+                    className="px-6 py-3 border border-neutral-300 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-colors disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-800"
                   >
                     {cancelMutation.isPending
                       ? "Cancelling..."
@@ -433,7 +433,7 @@ const SubscriptionManagement: FC = () => {
                         }
                       });
                     }}
-                    className="px-6 py-3 border border-neutral-300 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-colors"
+                    className="px-6 py-3 border border-neutral-300 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-800"
                   >
                     Manage Payment
                   </button>
@@ -443,8 +443,8 @@ const SubscriptionManagement: FC = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-medium p-8 mb-8 border border-neutral-200">
-          <h2 className="text-2xl font-semibold text-neutral-900 mb-6">
+        <div className="bg-white rounded-2xl shadow-medium p-8 mb-8 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
+          <h2 className="text-2xl font-semibold text-neutral-900 mb-6 dark:text-neutral-50">
             Upgrade or Downgrade Plan
           </h2>
           <PlanComparison
@@ -493,21 +493,21 @@ const SubscriptionManagement: FC = () => {
           />
         </div>
 
-        <div className="bg-white rounded-2xl shadow-medium p-8 mb-8 border border-neutral-200">
-          <h2 className="text-2xl font-semibold text-neutral-900 mb-6">
+        <div className="bg-white rounded-2xl shadow-medium p-8 mb-8 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
+          <h2 className="text-2xl font-semibold text-neutral-900 mb-6 dark:text-neutral-50">
             Subscription Limits & Usage
           </h2>
 
           <div className="space-y-6">
             {/* Seat Usage - Prominently Displayed */}
-            <div className="border border-neutral-200 rounded-xl p-6 bg-neutral-50">
-              <div className="text-sm font-semibold text-neutral-600 mb-2">
+            <div className="border border-neutral-200 rounded-xl p-6 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+              <div className="text-sm font-semibold text-neutral-600 mb-2 dark:text-neutral-400">
                 Seats
               </div>
-              <div className="text-4xl font-bold text-neutral-900 mb-2">
+              <div className="text-4xl font-bold text-neutral-900 mb-2 dark:text-neutral-50">
                 {subscription.usage.users} / {subscription.limits.maxUsers}
               </div>
-              <div className="text-sm font-medium text-neutral-600">
+              <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
                 {subscription.usage.users === subscription.limits.maxUsers
                   ? "Limit reached"
                   : `${
@@ -519,26 +519,26 @@ const SubscriptionManagement: FC = () => {
             {/* Other Limits */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Workspaces */}
-              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200">
-                <div className="text-sm font-semibold text-neutral-600 mb-1">
+              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
                   Workspaces
                 </div>
-                <div className="text-2xl font-bold text-neutral-900">
+                <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   {subscription.usage.workspaces} /{" "}
                   {subscription.limits.maxWorkspaces}
                 </div>
               </div>
 
               {/* Documents */}
-              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200">
-                <div className="text-sm font-semibold text-neutral-600 mb-1">
+              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
                   Documents
                 </div>
-                <div className="text-2xl font-bold text-neutral-900 mb-1">
+                <div className="text-2xl font-bold text-neutral-900 mb-1 dark:text-neutral-50">
                   {subscription.usage.documents} /{" "}
                   {subscription.limits.maxDocuments}
                 </div>
-                <div className="text-sm font-medium text-neutral-600">
+                <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
                   {(
                     subscription.usage.documentSizeBytes /
                     (1024 * 1024)
@@ -553,21 +553,21 @@ const SubscriptionManagement: FC = () => {
               </div>
 
               {/* Agents */}
-              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200">
-                <div className="text-sm font-semibold text-neutral-600 mb-1">
+              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
                   Agents
                 </div>
-                <div className="text-2xl font-bold text-neutral-900">
+                <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   {subscription.usage.agents} / {subscription.limits.maxAgents}
                 </div>
               </div>
 
               {/* Managers */}
-              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200">
-                <div className="text-sm font-semibold text-neutral-600 mb-1">
+              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
                   Managers
                 </div>
-                <div className="text-2xl font-bold text-neutral-900">
+                <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   {subscription.managers.length}
                   {subscription.limits.maxManagers !== undefined
                     ? ` / ${subscription.limits.maxManagers}`
@@ -576,33 +576,33 @@ const SubscriptionManagement: FC = () => {
               </div>
 
               {/* Agent Keys */}
-              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200">
-                <div className="text-sm font-semibold text-neutral-600 mb-1">
+              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
                   Agent Keys
                 </div>
-                <div className="text-2xl font-bold text-neutral-900">
+                <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   {subscription.usage.agentKeys} /{" "}
                   {subscription.limits.maxAgentKeys}
                 </div>
               </div>
 
               {/* Channels */}
-              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200">
-                <div className="text-sm font-semibold text-neutral-600 mb-1">
+              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
                   Channels
                 </div>
-                <div className="text-2xl font-bold text-neutral-900">
+                <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   {subscription.usage.channels} /{" "}
                   {subscription.limits.maxChannels}
                 </div>
               </div>
 
               {/* MCP Servers */}
-              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200">
-                <div className="text-sm font-semibold text-neutral-600 mb-1">
+              <div className="border border-neutral-200 rounded-xl p-4 bg-white hover:bg-neutral-50 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
+                <div className="text-sm font-semibold text-neutral-600 mb-1 dark:text-neutral-400">
                   MCP Servers
                 </div>
-                <div className="text-2xl font-bold text-neutral-900">
+                <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   {subscription.usage.mcpServers} /{" "}
                   {subscription.limits.maxMcpServers}
                 </div>
@@ -611,13 +611,13 @@ const SubscriptionManagement: FC = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-medium p-8 mb-8 border border-neutral-200">
-          <h2 className="text-2xl font-semibold text-neutral-900 mb-6">
+        <div className="bg-white rounded-2xl shadow-medium p-8 mb-8 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
+          <h2 className="text-2xl font-semibold text-neutral-900 mb-6 dark:text-neutral-50">
             Managers
           </h2>
 
           {subscription.managers.length === 0 ? (
-            <p className="text-neutral-600">No managers found.</p>
+            <p className="text-neutral-600 dark:text-neutral-400">No managers found.</p>
           ) : (
             <div className="space-y-4">
               {subscription.managers.map((manager) => {
@@ -627,20 +627,20 @@ const SubscriptionManagement: FC = () => {
                 return (
                   <div
                     key={manager.userId}
-                    className="border border-neutral-200 rounded-xl p-4 flex items-center justify-between bg-neutral-50 hover:bg-neutral-100 transition-colors duration-200"
+                    className="border border-neutral-200 rounded-xl p-4 flex items-center justify-between bg-neutral-50 hover:bg-neutral-100 transition-colors duration-200 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-700"
                   >
                     <div>
-                      <div className="font-semibold text-neutral-900 text-lg">
+                      <div className="font-semibold text-neutral-900 text-lg dark:text-neutral-50">
                         {manager.email || "Unknown email"}
                       </div>
-                      <div className="text-sm text-neutral-600 font-mono">
+                      <div className="text-sm text-neutral-600 font-mono dark:text-neutral-400">
                         {manager.userId}
                       </div>
                     </div>
                     {canRemoveManager && (
                       <button
                         onClick={() => handleRemoveManager(manager.userId)}
-                        className="px-4 py-2 text-error-600 font-semibold rounded-xl hover:bg-error-50 border border-error-200 transition-all duration-200"
+                        className="px-4 py-2 text-error-600 font-semibold rounded-xl hover:bg-error-50 border border-error-200 transition-all duration-200 dark:text-error-400 dark:hover:bg-error-950 dark:border-error-800"
                         disabled={removeManagerMutation.isPending}
                       >
                         {removeManagerMutation.isPending
@@ -649,13 +649,13 @@ const SubscriptionManagement: FC = () => {
                       </button>
                     )}
                     {manager.userId === currentUserId && (
-                      <span className="text-sm font-medium text-neutral-600">
+                      <span className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
                         You
                       </span>
                     )}
                     {manager.userId !== currentUserId &&
                       subscription.managers.length === 1 && (
-                        <span className="text-sm font-medium text-neutral-500">
+                        <span className="text-sm font-medium text-neutral-500 dark:text-neutral-500">
                           Cannot remove last manager
                         </span>
                       )}
@@ -667,15 +667,15 @@ const SubscriptionManagement: FC = () => {
         </div>
 
         {!isManagerLimitReached && (
-          <div className="bg-white rounded-2xl shadow-medium p-8 border border-neutral-200">
-            <h2 className="text-2xl font-semibold text-neutral-900 mb-6">
+          <div className="bg-white rounded-2xl shadow-medium p-8 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
+            <h2 className="text-2xl font-semibold text-neutral-900 mb-6 dark:text-neutral-50">
               Add Manager
             </h2>
             <form onSubmit={handleAddManager}>
               <div className="mb-4">
                 <label
                   htmlFor="email"
-                  className="block text-sm font-semibold text-neutral-900 mb-2"
+                  className="block text-sm font-semibold text-neutral-900 mb-2 dark:text-neutral-300"
                 >
                   Email Address
                 </label>
@@ -684,12 +684,12 @@ const SubscriptionManagement: FC = () => {
                   type="email"
                   value={email}
                   onChange={handleEmailChange}
-                  className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                  className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                   placeholder="user@example.com"
                   disabled={isSubmitting}
                 />
                 {emailError && (
-                  <div className="mt-2 text-sm font-semibold text-error-600">
+                  <div className="mt-2 text-sm font-semibold text-error-600 dark:text-error-400">
                     {emailError}
                   </div>
                 )}
