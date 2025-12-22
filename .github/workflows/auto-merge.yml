@@ -30,7 +30,7 @@ jobs:
 
       - name: Get PR number(s) to check
         id: pr-info
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const eventName = context.eventName;
@@ -116,7 +116,7 @@ jobs:
 
       - name: Check if PRs are ready for merge
         id: check-status
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const prNumbersStr = '${{ steps.pr-info.outputs.pr_numbers }}';

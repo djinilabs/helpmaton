@@ -120,7 +120,7 @@ jobs:
       - name: Get PR number from workflow run
         if: github.event_name == 'workflow_run'
         id: pr-number
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const workflowRun = context.payload.workflow_run;
@@ -258,7 +258,7 @@ jobs:
       - name: Create check run for PR
         if: always() && github.event_name == 'workflow_run' && steps.pr-number.outputs.pr_number != ''
         id: check-run
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
