@@ -23,9 +23,9 @@ const Home: FC = () => {
   const { data: session } = useSession();
 
   return (
-    <div className="min-h-screen bg-gradient-soft p-6 lg:p-10">
+    <div className="min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark p-6 lg:p-10">
       <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-dramatic p-10 lg:p-12 mb-10 border-2 border-neutral-300 relative overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-dramatic p-10 lg:p-12 mb-10 border-2 border-neutral-300 relative overflow-hidden dark:bg-neutral-900 dark:border-neutral-700">
           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-primary opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
           <div className="relative z-10">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-6">
@@ -47,15 +47,15 @@ const Home: FC = () => {
                 <div className="absolute inset-0 bg-gradient-primary opacity-20 rounded-full blur-xl"></div>
               </div>
               <div>
-                <h1 className="text-5xl lg:text-6xl font-black text-neutral-900 mb-3 tracking-tight">
+                <h1 className="text-5xl lg:text-6xl font-black text-neutral-900 mb-3 tracking-tight dark:text-neutral-50">
                   Dashboard
                 </h1>
-                <p className="text-2xl font-bold text-neutral-700">
+                <p className="text-2xl font-bold text-neutral-700 dark:text-neutral-300">
                   Welcome, {session?.user?.email || "User"}
                 </p>
               </div>
             </div>
-            <p className="text-lg font-semibold text-neutral-700 leading-relaxed max-w-2xl">
+            <p className="text-lg font-semibold text-neutral-700 leading-relaxed max-w-2xl dark:text-neutral-300">
               Your central hub for managing workspaces, agents, and monitoring
               usage across all your projects.
             </p>
@@ -63,11 +63,11 @@ const Home: FC = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-large p-10 border-2 border-neutral-300">
-            <h2 className="text-3xl font-bold text-neutral-900 mb-5">
+          <div className="bg-white rounded-2xl shadow-large p-10 border-2 border-neutral-300 dark:bg-neutral-900 dark:border-neutral-700">
+            <h2 className="text-3xl font-bold text-neutral-900 mb-5 dark:text-neutral-50">
               Get Started
             </h2>
-            <p className="text-base font-medium text-neutral-700 mb-8 leading-relaxed">
+            <p className="text-base font-medium text-neutral-700 mb-8 leading-relaxed dark:text-neutral-300">
               Workspaces are isolated environments where you can organize your
               agents, documents, and settings. Each workspace has its own credit
               balance and spending limits.
@@ -100,14 +100,14 @@ const Home: FC = () => {
 
         <UserUsageSection />
 
-        <div className="bg-white rounded-2xl shadow-large p-8 border-2 border-neutral-300 flex justify-end">
+        <div className="bg-white rounded-2xl shadow-large p-8 border-2 border-neutral-300 flex justify-end dark:bg-neutral-900 dark:border-neutral-700">
           <button
             onClick={() => {
               // Clear tokens immediately on logout
               clearTokens();
               signOut();
             }}
-            className="px-7 py-3.5 text-neutral-900 font-bold rounded-xl hover:bg-neutral-100 hover:text-neutral-900 transition-all duration-200 border-2 border-neutral-300 hover:border-neutral-400 transform hover:scale-[1.02] active:scale-[0.98]"
+            className="px-7 py-3.5 text-neutral-900 font-bold rounded-xl hover:bg-neutral-100 hover:text-neutral-900 transition-all duration-200 border-2 border-neutral-300 hover:border-neutral-400 transform hover:scale-[1.02] active:scale-[0.98] dark:text-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800 dark:hover:border-neutral-600"
           >
             Sign Out
           </button>
@@ -138,7 +138,7 @@ const UserUsageSection: FC<UserUsageSectionProps> = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-2xl shadow-large p-10 mb-8 border-2 border-neutral-300">
+      <div className="bg-white rounded-2xl shadow-large p-10 mb-8 border-2 border-neutral-300 dark:bg-neutral-900 dark:border-neutral-700">
         <LoadingScreen compact message="Loading usage data..." />
       </div>
     );
@@ -146,8 +146,8 @@ const UserUsageSection: FC<UserUsageSectionProps> = () => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-2xl shadow-large p-10 mb-8 border-2 border-error-300">
-        <p className="text-error-700 font-bold text-lg">
+      <div className="bg-white rounded-2xl shadow-large p-10 mb-8 border-2 border-error-300 dark:bg-neutral-900 dark:border-error-700">
+        <p className="text-error-700 font-bold text-lg dark:text-error-400">
           Error loading usage:{" "}
           {error instanceof Error ? error.message : "Unknown error"}
         </p>

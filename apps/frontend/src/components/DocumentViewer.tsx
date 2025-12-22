@@ -84,25 +84,25 @@ const DocumentViewerContent: FC<{
     <>
       <div className="flex-1 overflow-y-auto space-y-4">
         <div>
-          <label className="block text-sm font-medium text-neutral-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
             Name
           </label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+            className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-neutral-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300">
             Folder
           </label>
           <select
             value={folderPath}
             onChange={(e) => setFolderPath(e.target.value)}
-            className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+            className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
           >
             <option value="">Root</option>
             {folders
@@ -118,10 +118,10 @@ const DocumentViewerContent: FC<{
 
         <div>
           <div className="flex justify-between items-center mb-2">
-            <label className="block text-sm font-medium text-neutral-700">
+            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
               Content
             </label>
-            <span className="text-xs text-neutral-500">
+            <span className="text-xs text-neutral-500 dark:text-neutral-300">
               {new Date(document.createdAt).toLocaleString()} •{" "}
               {(document.size / 1024).toFixed(2)} KB
             </span>
@@ -129,13 +129,13 @@ const DocumentViewerContent: FC<{
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors font-mono"
+            className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors font-mono dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
             rows={20}
           />
         </div>
       </div>
 
-      <div className="flex gap-3 mt-4 pt-4 border-t border-neutral-200">
+      <div className="flex gap-3 mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
         <button
           onClick={handleSave}
           disabled={updateDocument.isPending || !name.trim() || !hasChanges}
@@ -146,7 +146,7 @@ const DocumentViewerContent: FC<{
         <button
           onClick={handleCancel}
           disabled={updateDocument.isPending}
-          className="border border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="border border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
         >
           Cancel
         </button>
@@ -174,12 +174,12 @@ export const DocumentViewer: FC<DocumentViewerProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-neutral-200 rounded-2xl shadow-dramatic border-2 border-neutral-300 p-8 max-w-4xl w-full max-h-[90vh] flex flex-col">
+      <div className="bg-white border border-neutral-200 rounded-2xl shadow-dramatic border-2 border-neutral-300 p-8 max-w-4xl w-full max-h-[90vh] flex flex-col dark:bg-neutral-900 dark:border-neutral-700">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-3xl font-bold text-neutral-900">Document</h2>
+          <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Document</h2>
           <button
             onClick={onClose}
-            className="border border-neutral-300 bg-white px-4 py-2 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 transition-colors"
+            className="border border-neutral-300 bg-white px-4 py-2 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             aria-label="Close"
           >
             ×
@@ -188,7 +188,7 @@ export const DocumentViewer: FC<DocumentViewerProps> = ({
         <QueryPanel
           fallback={
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-lg font-medium text-neutral-600">
+              <div className="text-lg font-medium text-neutral-600 dark:text-neutral-300">
                 Loading document...
               </div>
             </div>

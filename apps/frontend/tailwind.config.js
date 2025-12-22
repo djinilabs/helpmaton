@@ -4,6 +4,11 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
+  safelist: [
+    'bg-gradient-soft-dark',
+    'dark:bg-gradient-soft-dark',
+  ],
   theme: {
     extend: {
       colors: {
@@ -121,6 +126,7 @@ export default {
         'gradient-primary': 'linear-gradient(135deg, #0d9488 0%, #14b8a6 50%, #2dd4bf 100%)',
         'gradient-accent': 'linear-gradient(135deg, #7c3aed 0%, #9333ea 50%, #a855f7 100%)',
         'gradient-soft': 'linear-gradient(135deg, #f5f5f4 0%, #e7e5e4 100%)',
+        'gradient-soft-dark': 'linear-gradient(135deg, #1c1917 0%, #292524 100%)',
       },
     },
   },

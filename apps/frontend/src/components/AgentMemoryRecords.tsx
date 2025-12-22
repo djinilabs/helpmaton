@@ -59,7 +59,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
   return (
     <div className="space-y-4">
       <div className="mb-4">
-        <p className="text-sm text-neutral-600 mb-4">
+        <p className="text-sm text-neutral-600 mb-4 dark:text-neutral-300">
           Search and browse the agent&apos;s memory records across different
           temporal grains. Working memory contains the most recent, detailed
           facts, while higher-level grains contain progressively summarized
@@ -68,16 +68,16 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
       </div>
 
       {/* Filters */}
-      <div className="space-y-4 p-4 bg-neutral-50 border border-neutral-200 rounded-lg">
+      <div className="space-y-4 p-4 bg-neutral-50 border border-neutral-200 rounded-lg dark:bg-neutral-800 dark:border-neutral-700">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold mb-2">
+            <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
               Temporal Grain
             </label>
             <select
               value={grain}
               onChange={(e) => setGrain(e.target.value as TemporalGrain)}
-              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
             >
               {grainOptions.map((g) => (
                 <option key={g} value={g}>
@@ -88,7 +88,7 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-2">
+            <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
               Max Results
             </label>
             <input
@@ -102,16 +102,16 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                   setMaxResults(Math.min(value, 200));
                 }
               }}
-              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-semibold mb-2">
+          <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
             Search Query (Optional)
           </label>
-          <p className="text-xs text-neutral-600 mb-2">
+          <p className="text-xs text-neutral-600 mb-2 dark:text-neutral-300">
             Enter a search query for semantic search. Leave empty to browse
             recent records filtered by date range.
           </p>
@@ -120,13 +120,13 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
             value={queryText}
             onChange={(e) => setQueryText(e.target.value)}
             placeholder="e.g., React project discussion"
-            className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+            className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
           />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold mb-2">
+            <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
               Minimum Days Ago
             </label>
             <input
@@ -139,12 +139,12 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                   setMinimumDaysAgo(value);
                 }
               }}
-              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-semibold mb-2">
+            <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
               Maximum Days Ago
             </label>
             <input
@@ -157,14 +157,14 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
                   setMaximumDaysAgo(value);
                 }
               }}
-              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
             />
           </div>
         </div>
 
         {minimumDaysAgo > maximumDaysAgo && (
-          <div className="border border-red-200 bg-red-50 rounded-xl p-3">
-            <p className="text-xs font-medium text-red-800">
+          <div className="border border-red-200 bg-red-50 rounded-xl p-3 dark:border-red-800 dark:bg-red-950">
+            <p className="text-xs font-medium text-red-800 dark:text-red-200">
               Warning: Minimum days ago must be less than or equal to maximum
               days ago.
             </p>
@@ -185,14 +185,14 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
       {/* Results */}
       {isLoading && !data && (
         <div className="text-center py-8">
-          <p className="text-sm text-neutral-600">Loading memory records...</p>
+          <p className="text-sm text-neutral-600 dark:text-neutral-300">Loading memory records...</p>
         </div>
       )}
 
       {error && (
-        <div className="border border-red-200 bg-red-50 rounded-xl p-4">
-          <div className="text-sm font-semibold text-red-800">Error</div>
-          <div className="text-xs text-red-700 mt-1">
+        <div className="border border-red-200 bg-red-50 rounded-xl p-4 dark:border-red-800 dark:bg-red-950">
+          <div className="text-sm font-semibold text-red-800 dark:text-red-200">Error</div>
+          <div className="text-xs text-red-700 mt-1 dark:text-red-300">
             {error instanceof Error
               ? error.message
               : "Failed to load memory records"}
@@ -203,14 +203,14 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
       {data && (
         <>
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-neutral-900">
+            <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
               Memory Records ({data.records.length})
             </h3>
           </div>
 
           {data.records.length === 0 ? (
-            <div className="border border-neutral-200 rounded-xl p-6 bg-white text-center">
-              <p className="text-sm text-neutral-600">
+            <div className="border border-neutral-200 rounded-xl p-6 bg-white text-center dark:border-neutral-700 dark:bg-neutral-900">
+              <p className="text-sm text-neutral-600 dark:text-neutral-300">
                 No memory records found for the selected filters.
               </p>
             </div>
@@ -219,28 +219,28 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
               {data.records.map((record, index) => (
                 <div
                   key={`${record.timestamp}-${index}`}
-                  className="border-2 border-neutral-300 rounded-xl p-4 bg-white hover:shadow-bold hover:border-primary-400 transition-all duration-200"
+                  className="border-2 border-neutral-300 rounded-xl p-4 bg-white hover:shadow-bold hover:border-primary-400 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
                 >
                   <div className="flex justify-between items-start mb-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs font-semibold bg-primary-100 text-primary-800 px-2 py-1 rounded border border-primary-200">
+                        <span className="text-xs font-semibold bg-primary-100 text-primary-800 px-2 py-1 rounded border border-primary-200 dark:bg-primary-900 dark:text-primary-200 dark:border-primary-800">
                           {record.date}
                         </span>
-                        <span className="text-xs text-neutral-500">
+                        <span className="text-xs text-neutral-500 dark:text-neutral-300">
                           {formatTimestamp(record.timestamp)}
                         </span>
                       </div>
-                      <div className="text-sm text-neutral-900 whitespace-pre-wrap break-words">
+                      <div className="text-sm text-neutral-900 whitespace-pre-wrap break-words dark:text-neutral-50">
                         {record.content}
                       </div>
                       {record.metadata &&
                         Object.keys(record.metadata).length > 0 && (
                           <details className="mt-2">
-                            <summary className="text-xs font-semibold text-neutral-600 cursor-pointer hover:text-neutral-900">
+                            <summary className="text-xs font-semibold text-neutral-600 cursor-pointer hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50">
                               Metadata
                             </summary>
-                            <pre className="mt-1 text-xs bg-neutral-50 p-2 rounded border border-neutral-200 overflow-x-auto">
+                            <pre className="mt-1 text-xs bg-neutral-50 p-2 rounded border border-neutral-200 overflow-x-auto dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-50">
                               {JSON.stringify(record.metadata, null, 2)}
                             </pre>
                           </details>

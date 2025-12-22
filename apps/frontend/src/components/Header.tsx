@@ -1,11 +1,13 @@
 import type { FC } from "react";
 import { Link, useLocation } from "react-router-dom";
 
+import { ThemeToggle } from "./ThemeToggle";
+
 export const Header: FC = () => {
   const location = useLocation();
 
   return (
-    <header className="border-b-2 border-neutral-300 bg-white/90 backdrop-blur-md shadow-medium">
+    <header className="border-b-2 border-neutral-300 bg-white/90 backdrop-blur-md shadow-medium dark:border-neutral-700 dark:bg-neutral-900/90">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
         <div className="flex items-center justify-between">
           <Link
@@ -29,7 +31,7 @@ export const Header: FC = () => {
               ></div>
               <div className="absolute inset-0 bg-gradient-primary opacity-0 group-hover:opacity-10 rounded-full blur-xl transition-opacity duration-200"></div>
             </div>
-            <span className="text-2xl font-black text-neutral-900 tracking-tight">
+            <span className="text-2xl font-black text-neutral-900 tracking-tight dark:text-neutral-50">
               Helpmaton
             </span>
           </Link>
@@ -40,7 +42,7 @@ export const Header: FC = () => {
               className={`px-6 py-3 text-base font-bold rounded-xl transition-all duration-200 transform hover:scale-[1.05] ${
                 location.pathname === "/"
                   ? "bg-gradient-primary text-white shadow-colored"
-                  : "text-neutral-900 hover:bg-neutral-100 hover:text-primary-600 border-2 border-transparent hover:border-neutral-300"
+                  : "text-neutral-900 hover:bg-neutral-100 hover:text-primary-600 border-2 border-transparent hover:border-neutral-300 dark:text-neutral-50 dark:hover:bg-neutral-800 dark:hover:text-primary-400 dark:hover:border-neutral-600"
               }`}
             >
               Home
@@ -50,7 +52,7 @@ export const Header: FC = () => {
               className={`px-6 py-3 text-base font-bold rounded-xl transition-all duration-200 transform hover:scale-[1.05] ${
                 location.pathname.startsWith("/workspaces")
                   ? "bg-gradient-primary text-white shadow-colored"
-                  : "text-neutral-900 hover:bg-neutral-100 hover:text-primary-600 border-2 border-transparent hover:border-neutral-300"
+                  : "text-neutral-900 hover:bg-neutral-100 hover:text-primary-600 border-2 border-transparent hover:border-neutral-300 dark:text-neutral-50 dark:hover:bg-neutral-800 dark:hover:text-primary-400 dark:hover:border-neutral-600"
               }`}
             >
               Workspaces
@@ -61,11 +63,12 @@ export const Header: FC = () => {
                 location.pathname === "/settings" ||
                 location.pathname.startsWith("/settings/")
                   ? "bg-gradient-primary text-white shadow-colored"
-                  : "text-neutral-900 hover:bg-neutral-100 hover:text-primary-600 border-2 border-transparent hover:border-neutral-300"
+                  : "text-neutral-900 hover:bg-neutral-100 hover:text-primary-600 border-2 border-transparent hover:border-neutral-300 dark:text-neutral-50 dark:hover:bg-neutral-800 dark:hover:text-primary-400 dark:hover:border-neutral-600"
               }`}
             >
               Settings
             </Link>
+            <ThemeToggle />
           </nav>
         </div>
       </div>

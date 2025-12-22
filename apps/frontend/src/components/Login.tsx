@@ -30,11 +30,11 @@ const Login: FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-soft p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(13,148,136,0.08),transparent_50%)] pointer-events-none"></div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(124,58,237,0.08),transparent_50%)] pointer-events-none"></div>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-soft dark:bg-gradient-soft-dark p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(13,148,136,0.08),transparent_50%)] dark:bg-[radial-gradient(circle_at_30%_20%,rgba(13,148,136,0.15),transparent_50%)] pointer-events-none"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(124,58,237,0.08),transparent_50%)] dark:bg-[radial-gradient(circle_at_70%_80%,rgba(124,58,237,0.15),transparent_50%)] pointer-events-none"></div>
 
-      <div className="w-full max-w-md bg-white/90 backdrop-blur-sm border border-neutral-200 rounded-2xl shadow-large p-10 relative z-10">
+      <div className="w-full max-w-md bg-white/90 backdrop-blur-sm border border-neutral-200 rounded-2xl shadow-large p-10 relative z-10 dark:bg-neutral-900/90 dark:border-neutral-700">
         <div className="flex items-center gap-4 mb-10">
           <div className="relative overflow-hidden">
             <img
@@ -53,17 +53,17 @@ const Login: FC = () => {
             ></div>
             <div className="absolute inset-0 bg-gradient-primary opacity-20 rounded-full blur-xl"></div>
           </div>
-          <h1 className="text-4xl font-black text-neutral-900 tracking-tight">
+          <h1 className="text-4xl font-black text-neutral-900 tracking-tight dark:text-neutral-50">
             Helpmaton
           </h1>
         </div>
-        <h2 className="mb-10 text-3xl font-bold text-neutral-900">Sign in</h2>
+        <h2 className="mb-10 text-3xl font-bold text-neutral-900 dark:text-neutral-50">Sign in</h2>
 
         <form onSubmit={handleEmailSignIn} className="space-y-6">
           <div>
             <label
               htmlFor="email"
-              className="block text-sm font-medium text-neutral-700 mb-2.5"
+              className="block text-sm font-medium text-neutral-700 mb-2.5 dark:text-neutral-300"
             >
               Email Address
             </label>
@@ -77,7 +77,7 @@ const Login: FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:placeholder:text-neutral-400 dark:focus:ring-primary-400 dark:focus:border-primary-500"
               placeholder="your@email.com"
             />
           </div>
@@ -92,7 +92,7 @@ const Login: FC = () => {
         </form>
 
         {status === "authenticated" && (
-          <p className="mt-6 text-sm text-neutral-600 text-center">
+          <p className="mt-6 text-sm text-neutral-600 text-center dark:text-neutral-300">
             Check your email for the sign-in link.
           </p>
         )}

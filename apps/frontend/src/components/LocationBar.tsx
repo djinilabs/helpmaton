@@ -13,19 +13,23 @@ const WorkspaceLocationBar: FC<{ workspaceId: string }> = ({ workspaceId }) => {
     <>
       <Link
         to="/"
-        className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900"
+        className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 dark:hover:border-neutral-50"
       >
         Home
       </Link>
-      <span className="text-neutral-900 font-black">/</span>
+      <span className="text-neutral-900 font-black dark:text-neutral-50">
+        /
+      </span>
       <Link
         to="/workspaces"
-        className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900"
+        className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 dark:hover:border-neutral-50"
       >
         Workspaces
       </Link>
-      <span className="text-neutral-900 font-black">/</span>
-      <span className="text-neutral-900 uppercase tracking-wide">
+      <span className="text-neutral-900 font-black dark:text-neutral-50">
+        /
+      </span>
+      <span className="text-neutral-900 uppercase tracking-wide dark:text-neutral-50">
         {workspace.name}
       </span>
     </>
@@ -42,26 +46,32 @@ const AgentLocationBar: FC<{ workspaceId: string; agentId: string }> = ({
     <>
       <Link
         to="/"
-        className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900"
+        className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 dark:hover:border-neutral-50"
       >
         Home
       </Link>
-      <span className="text-neutral-900 font-black">/</span>
+      <span className="text-neutral-900 font-black dark:text-neutral-50">
+        /
+      </span>
       <Link
         to="/workspaces"
-        className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900"
+        className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 dark:hover:border-neutral-50"
       >
         Workspaces
       </Link>
-      <span className="text-neutral-900 font-black">/</span>
+      <span className="text-neutral-900 font-black dark:text-neutral-50">
+        /
+      </span>
       <Link
         to={`/workspaces/${workspaceId}`}
-        className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900"
+        className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 dark:hover:border-neutral-50"
       >
         {workspace.name}
       </Link>
-      <span className="text-neutral-900 font-black">/</span>
-      <span className="text-neutral-900 uppercase tracking-wide">
+      <span className="text-neutral-900 font-black dark:text-neutral-50">
+        /
+      </span>
+      <span className="text-neutral-900 uppercase tracking-wide dark:text-neutral-50">
         {agent.name}
       </span>
     </>
@@ -80,7 +90,10 @@ const LocationBarContent: FC = () => {
 
   if (pathname === "/") {
     return (
-      <Link to="/" className="text-neutral-900 uppercase tracking-wide">
+      <Link
+        to="/"
+        className="text-neutral-900 uppercase tracking-wide dark:text-neutral-50"
+      >
         Home
       </Link>
     );
@@ -91,12 +104,14 @@ const LocationBarContent: FC = () => {
       <>
         <Link
           to="/"
-          className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900"
+          className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 dark:hover:border-neutral-50"
         >
           Home
         </Link>
-        <span className="text-neutral-900 font-black">/</span>
-        <span className="text-neutral-900 uppercase tracking-wide">
+        <span className="text-neutral-900 font-black dark:text-neutral-50">
+          /
+        </span>
+        <span className="text-neutral-900 uppercase tracking-wide dark:text-neutral-50">
           Workspaces
         </span>
       </>
@@ -131,7 +146,7 @@ const LocationBarContent: FC = () => {
   return (
     <Link
       to="/"
-      className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900"
+      className="text-neutral-600 hover:text-neutral-900 uppercase tracking-wide transition-colors border-b-2 border-transparent hover:border-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 dark:hover:border-neutral-50"
     >
       Home
     </Link>
@@ -140,7 +155,7 @@ const LocationBarContent: FC = () => {
 
 export const LocationBar: FC = () => {
   return (
-    <nav className="border-b-4 border-neutral-900 bg-white sticky top-0 z-40">
+    <nav className="border-b-4 border-neutral-900 bg-white sticky top-0 z-40 dark:border-neutral-700 dark:bg-neutral-900">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-3">
         <div className="flex items-center gap-2 text-sm font-bold">
           <QueryPanel fallback={<LoadingScreen compact />}>

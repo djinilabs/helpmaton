@@ -71,7 +71,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
           className={`flex items-center justify-center gap-3 py-8 ${className}`}
         >
           <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-sm font-medium text-neutral-600">
+          <div className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
             {message || "Loading..."}
           </div>
         </div>
@@ -80,11 +80,11 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
 
     return (
       <div
-        className={`flex items-center justify-center min-h-screen bg-gradient-soft ${className}`}
+        className={`flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark ${className}`}
       >
         <div className="flex items-center gap-3">
           <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-xl font-medium text-neutral-600">
+          <div className="text-xl font-medium text-neutral-600 dark:text-neutral-300">
             {message || "Loading..."}
           </div>
         </div>
@@ -111,7 +111,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
             />
           </div>
         </div>
-        <div className="text-sm font-semibold text-neutral-700">
+        <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
           {currentMessage}
         </div>
       </div>
@@ -120,7 +120,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
 
   return (
     <div
-      className={`flex flex-col items-center justify-center min-h-screen bg-gradient-soft ${className}`}
+      className={`flex flex-col items-center justify-center min-h-screen bg-gradient-soft dark:bg-gradient-soft-dark ${className}`}
     >
       <div className="relative mb-8">
         {/* Animated logo container */}
@@ -168,7 +168,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
 
       {/* Status message */}
       <div className="text-center px-6">
-        <div className="text-2xl font-semibold text-neutral-900 mb-2 tracking-tight">
+        <div className="text-2xl font-semibold text-neutral-900 mb-2 tracking-tight dark:text-neutral-50">
           {currentMessage}
         </div>
         {/* Animated dots */}

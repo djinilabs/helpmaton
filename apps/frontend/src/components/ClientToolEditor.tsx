@@ -99,7 +99,7 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Client-Side Tools</h3>
+        <h3 className="text-lg font-semibold dark:text-neutral-50">Client-Side Tools</h3>
         <button
           type="button"
           onClick={() => startEditing(null)}
@@ -110,9 +110,9 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
       </div>
 
       {editingIndex !== null || editingTool ? (
-        <div className="border border-neutral-300 rounded-lg p-4 space-y-4 bg-neutral-50">
+        <div className="border border-neutral-300 rounded-lg p-4 space-y-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-1 dark:text-neutral-300">
               Tool Name (Function Name) *
             </label>
             <input
@@ -127,17 +127,17 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
                   setEditingTool({ ...editingTool, name: value });
                 }
               }}
-              className="w-full border border-neutral-300 rounded px-3 py-2 font-mono"
+              className="w-full border border-neutral-300 rounded px-3 py-2 font-mono dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
               placeholder="e.g., getWeather"
             />
-            <p className="text-xs text-neutral-500 mt-1">
+            <p className="text-xs text-neutral-500 mt-1 dark:text-neutral-300">
               Must be a valid JavaScript identifier (letters, numbers,
               underscore, $; no spaces or special characters)
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-1 dark:text-neutral-300">
               Description *
             </label>
             <textarea
@@ -145,14 +145,14 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
               onChange={(e) =>
                 setEditingTool({ ...editingTool, description: e.target.value })
               }
-              className="w-full border border-neutral-300 rounded px-3 py-2"
+              className="w-full border border-neutral-300 rounded px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
               rows={3}
               placeholder="Describe what this tool does for the AI"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-1 dark:text-neutral-300">
               Parameters Schema
             </label>
             <ClientToolParameterBuilder
@@ -183,7 +183,7 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
                 setEditingIndex(null);
                 setEditingTool(null);
               }}
-              className="px-4 py-2 bg-neutral-300 text-neutral-700 rounded hover:bg-neutral-400"
+              className="px-4 py-2 bg-neutral-300 text-neutral-700 rounded hover:bg-neutral-400 dark:bg-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-600"
             >
               Cancel
             </button>
@@ -196,11 +196,11 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
           {tools.map((tool, index) => (
             <div
               key={index}
-              className="border border-neutral-300 rounded p-3 flex items-start justify-between"
+              className="border border-neutral-300 rounded p-3 flex items-start justify-between dark:border-neutral-700 dark:bg-neutral-900"
             >
               <div className="flex-1">
-                <div className="font-medium">{tool.name}</div>
-                <div className="text-sm text-neutral-600 mt-1">
+                <div className="font-medium dark:text-neutral-50">{tool.name}</div>
+                <div className="text-sm text-neutral-600 mt-1 dark:text-neutral-300">
                   {tool.description}
                 </div>
               </div>
@@ -208,14 +208,14 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => startEditing(index)}
-                  className="px-2 py-1 text-sm text-blue-600 hover:text-blue-800"
+                  className="px-2 py-1 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                 >
                   Edit
                 </button>
                 <button
                   type="button"
                   onClick={() => deleteTool(index)}
-                  className="px-2 py-1 text-sm text-red-600 hover:text-red-800"
+                  className="px-2 py-1 text-sm text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
                 >
                   Delete
                 </button>
@@ -226,7 +226,7 @@ export const ClientToolEditor: FC<ClientToolEditorProps> = ({
       )}
 
       {tools.length === 0 && !editingTool && (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-neutral-500 dark:text-neutral-300">
           No client-side tools defined. Click &quot;Add Tool&quot; to create
           one.
         </p>

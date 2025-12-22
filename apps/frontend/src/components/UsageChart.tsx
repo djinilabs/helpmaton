@@ -1,5 +1,6 @@
 import type { FC } from "react";
 
+import { useTheme } from "../hooks/useTheme";
 import type { DailyUsageData } from "../utils/api";
 import { formatCurrency } from "../utils/currency";
 
@@ -12,12 +13,15 @@ export const UsageChart: FC<UsageChartProps> = ({
   data,
   title = "Daily Usage",
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const currency = "usd";
+  
   if (data.length === 0) {
     return (
-      <div className="border border-neutral-200 rounded-xl p-6 bg-white shadow-soft">
-        <h3 className="text-xl font-semibold text-neutral-900 mb-6">{title}</h3>
-        <p className="text-lg text-neutral-600">No data available</p>
+      <div className="border border-neutral-200 rounded-xl p-6 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+        <h3 className="text-xl font-semibold text-neutral-900 mb-6 dark:text-neutral-50">{title}</h3>
+        <p className="text-lg text-neutral-600 dark:text-neutral-300">No data available</p>
       </div>
     );
   }
@@ -26,10 +30,17 @@ export const UsageChart: FC<UsageChartProps> = ({
   const chartHeight = 200;
   const barWidth = Math.max(20, (100 / data.length) * 0.8);
 
+  // Colors for dark/light mode
+  const gridLineColor = isDark ? "#374151" : "#e5e7eb";
+  const textColor = isDark ? "#9ca3af" : "#6b7280";
+  const valueTextColor = isDark ? "#e5e7eb" : "#374151";
+  const axisLabelColor = isDark ? "#d1d5db" : "#000";
+  const svgBorderColor = isDark ? "#4b5563" : "#d1d3d4";
+
   return (
-    <div className="border border-neutral-200 rounded-xl p-6 bg-white shadow-soft">
-      <h3 className="text-xl font-semibold text-neutral-900 mb-4">{title}</h3>
-      <p className="text-sm text-neutral-600 mb-6">
+    <div className="border border-neutral-200 rounded-xl p-6 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+      <h3 className="text-xl font-semibold text-neutral-900 mb-4 dark:text-neutral-50">{title}</h3>
+      <p className="text-sm text-neutral-600 mb-6 dark:text-neutral-300">
         This chart shows daily spending over the selected time period. Each bar
         represents one day&apos;s total cost. Use this to identify spending
         patterns and trends.
@@ -38,7 +49,8 @@ export const UsageChart: FC<UsageChartProps> = ({
         <svg
           width={Math.max(600, data.length * 40)}
           height={chartHeight + 60}
-          className="border border-neutral-300 rounded-xl"
+          className="border rounded-xl"
+          style={{ borderColor: svgBorderColor }}
         >
           {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
@@ -48,7 +60,7 @@ export const UsageChart: FC<UsageChartProps> = ({
               y1={chartHeight * ratio + 20}
               x2={Math.max(600, data.length * 40)}
               y2={chartHeight * ratio + 20}
-              stroke="#e5e7eb"
+              stroke={gridLineColor}
               strokeWidth={1}
               strokeDasharray="4 4"
             />
@@ -79,7 +91,7 @@ export const UsageChart: FC<UsageChartProps> = ({
                   y={chartHeight + 45}
                   textAnchor="middle"
                   className="text-xs font-medium"
-                  fill="#6b7280"
+                  fill={textColor}
                 >
                   {new Date(day.date).toLocaleDateString("en-US", {
                     month: "short",
@@ -92,7 +104,7 @@ export const UsageChart: FC<UsageChartProps> = ({
                     y={y - 5}
                     textAnchor="middle"
                     className="text-xs font-medium"
-                    fill="#374151"
+                    fill={valueTextColor}
                   >
                     {formatCurrency(day.cost, currency, 2)}
                   </text>
@@ -108,7 +120,7 @@ export const UsageChart: FC<UsageChartProps> = ({
               x={5}
               y={chartHeight * (1 - ratio) + 25}
               className="text-xs font-bold"
-              fill="#000"
+              fill={axisLabelColor}
             >
               {formatCurrency(maxCost * ratio, currency, 2)}
             </text>

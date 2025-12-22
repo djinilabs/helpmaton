@@ -31,10 +31,8 @@ export const DocumentList: FC<DocumentListProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearchQuery, setActiveSearchQuery] = useState("");
 
-  const {
-    data: searchResults = [],
-    isLoading: isSearching,
-  } = useSearchDocuments(workspaceId, activeSearchQuery);
+  const { data: searchResults = [], isLoading: isSearching } =
+    useSearchDocuments(workspaceId, activeSearchQuery);
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
@@ -87,11 +85,13 @@ export const DocumentList: FC<DocumentListProps> = ({
 
   return (
     <>
-      <div className="border border-neutral-200 rounded-2xl p-6 mb-8 bg-white shadow-soft">
+      <div className="border border-neutral-200 rounded-2xl p-6 mb-8 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-3xl font-bold text-neutral-900">Documents</h2>
+          <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">
+            Documents
+          </h2>
         </div>
-        <p className="text-sm text-neutral-600 mb-6">
+        <p className="text-sm text-neutral-600 mb-6 dark:text-neutral-300">
           Browse and manage documents uploaded to this workspace. Documents are
           organized in folders and can be accessed by agents during
           conversations. Click on a document to view its contents.
@@ -103,7 +103,7 @@ export const DocumentList: FC<DocumentListProps> = ({
             <div className="relative flex-1">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <svg
-                  className="w-5 h-5 text-neutral-400"
+                  className="w-5 h-5 text-neutral-400 dark:text-neutral-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -126,7 +126,7 @@ export const DocumentList: FC<DocumentListProps> = ({
                   }
                 }}
                 placeholder="Search documents..."
-                className="w-full border border-neutral-300 rounded-xl bg-white pl-12 pr-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                className="w-full border border-neutral-300 rounded-xl bg-white pl-12 pr-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:placeholder:text-neutral-400 dark:focus:ring-primary-400 dark:focus:border-primary-500"
               />
             </div>
             <button
@@ -139,7 +139,7 @@ export const DocumentList: FC<DocumentListProps> = ({
             {activeSearchQuery && (
               <button
                 onClick={handleClearSearch}
-                className="border border-neutral-300 bg-white px-6 py-3 text-neutral-700 text-sm font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200"
+                className="border border-neutral-300 bg-white px-6 py-3 text-neutral-700 text-sm font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
                 Clear
               </button>
@@ -157,8 +157,8 @@ export const DocumentList: FC<DocumentListProps> = ({
                   onClick={() => handleBreadcrumbClick(index)}
                   className={`text-sm font-medium hover:text-primary-600 transition-colors ${
                     index === breadcrumbs.length - 1
-                      ? "text-neutral-900"
-                      : "text-neutral-600"
+                      ? "text-neutral-900 dark:text-neutral-50"
+                      : "text-neutral-600 dark:text-neutral-300"
                   }`}
                 >
                   {crumb}
@@ -192,7 +192,7 @@ export const DocumentList: FC<DocumentListProps> = ({
                     <button
                       key={folder}
                       onClick={() => onFolderChange?.(folder)}
-                      className="border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors"
+                      className="border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium rounded-lg hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
                     >
                       📁 {folderName}
                     </button>
@@ -205,16 +205,19 @@ export const DocumentList: FC<DocumentListProps> = ({
         {/* Search results or documents list */}
         {activeSearchQuery ? (
           isSearching ? (
-            <p className="text-lg text-neutral-600">Searching...</p>
+            <p className="text-lg text-neutral-600 dark:text-neutral-300">
+              Searching...
+            </p>
           ) : searchResults.length === 0 ? (
-            <p className="text-lg text-neutral-600">
+            <p className="text-lg text-neutral-600 dark:text-neutral-300">
               No results found for &ldquo;{activeSearchQuery}&rdquo;.
             </p>
           ) : (
             <div className="space-y-3">
-              <p className="text-sm font-medium text-neutral-700">
+              <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
                 Found {searchResults.length} result
-                {searchResults.length !== 1 ? "s" : ""} for &ldquo;{activeSearchQuery}&rdquo;
+                {searchResults.length !== 1 ? "s" : ""} for &ldquo;
+                {activeSearchQuery}&rdquo;
               </p>
               {searchResults.map((result) => {
                 const truncatedSnippet =
@@ -225,30 +228,33 @@ export const DocumentList: FC<DocumentListProps> = ({
 
                 return (
                   <div
-                    key={`${result.documentId}-${result.snippet.substring(0, 50)}`}
-                    className="border-2 border-primary-200 rounded-xl p-6 bg-primary-50/30 flex flex-col gap-3 hover:shadow-bold hover:border-primary-400 transition-all duration-200"
+                    key={`${result.documentId}-${result.snippet.substring(
+                      0,
+                      50
+                    )}`}
+                    className="border-2 border-primary-200 rounded-xl p-6 bg-primary-50/30 flex flex-col gap-3 hover:shadow-bold hover:border-primary-400 transition-all duration-200 dark:border-primary-800 dark:bg-primary-950/30 dark:hover:border-primary-600"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <button
                           onClick={() => handleDocumentClick(result.documentId)}
-                          className="text-xl font-bold text-neutral-900 hover:text-primary-600 transition-colors text-left"
+                          className="text-xl font-bold text-neutral-900 hover:text-primary-600 transition-colors text-left dark:text-neutral-50 dark:hover:text-primary-400"
                         >
                           {result.documentName}
                         </button>
                         {result.folderPath && (
-                          <div className="text-sm text-neutral-500 mt-1">
+                          <div className="text-sm text-neutral-500 mt-1 dark:text-neutral-400">
                             📁 {result.folderPath || "Root"}
                           </div>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="px-3 py-1 bg-primary-100 text-primary-700 text-sm font-semibold rounded-lg">
+                        <span className="px-3 py-1 bg-primary-100 text-primary-700 text-sm font-semibold rounded-lg dark:bg-primary-900 dark:text-primary-200">
                           {similarityPercent}% match
                         </span>
                       </div>
                     </div>
-                    <div className="text-sm text-neutral-700 bg-white rounded-lg p-4 border border-neutral-200">
+                    <div className="text-sm text-neutral-700 bg-white rounded-lg p-4 border border-neutral-200 dark:text-neutral-300 dark:bg-neutral-800 dark:border-neutral-700">
                       {truncatedSnippet}
                     </div>
                   </div>
@@ -257,7 +263,7 @@ export const DocumentList: FC<DocumentListProps> = ({
             </div>
           )
         ) : documents.length === 0 ? (
-          <p className="text-lg text-neutral-600">
+          <p className="text-lg text-neutral-600 dark:text-neutral-300">
             {currentFolder
               ? `No documents in "${getFolderDisplayName(
                   currentFolder
@@ -271,12 +277,12 @@ export const DocumentList: FC<DocumentListProps> = ({
               .map((document) => (
                 <div
                   key={document.id}
-                  className="border-2 border-neutral-300 rounded-xl p-6 bg-white flex justify-between items-center hover:shadow-bold hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99]"
+                  className="border-2 border-neutral-300 rounded-xl p-6 bg-white flex justify-between items-center hover:shadow-bold hover:border-primary-400 transition-all duration-200 transform hover:scale-[1.01] active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
                 >
                   <div className="flex-1">
                     <button
                       onClick={() => handleDocumentClick(document.id)}
-                      className="text-xl font-bold text-neutral-900 hover:text-primary-600 transition-colors text-left"
+                      className="text-xl font-bold text-neutral-900 hover:text-primary-600 transition-colors text-left dark:text-neutral-50 dark:hover:text-primary-400"
                     >
                       {document.name}
                     </button>

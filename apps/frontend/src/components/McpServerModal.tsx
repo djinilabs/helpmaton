@@ -188,15 +188,15 @@ export const McpServerModal: FC<McpServerModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white border border-neutral-200 rounded-2xl shadow-dramatic border-2 border-neutral-300 p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <h2 className="text-3xl font-bold text-neutral-900 mb-8">
+      <div className="bg-white border border-neutral-200 rounded-2xl shadow-dramatic border-2 border-neutral-300 p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto dark:bg-neutral-900 dark:border-neutral-700">
+        <h2 className="text-3xl font-bold text-neutral-900 mb-8 dark:text-neutral-50">
           {isEditing ? "Edit MCP Server" : "Create MCP Server"}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label
               htmlFor="name"
-              className="block text-sm font-medium text-neutral-700 mb-2"
+              className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
             >
               Name *
             </label>
@@ -205,7 +205,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
               required
             />
           </div>
@@ -213,7 +213,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           <div>
             <label
               htmlFor="url"
-              className="block text-sm font-medium text-neutral-700 mb-2"
+              className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
             >
               URL *
             </label>
@@ -222,7 +222,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
               placeholder="https://example.com/mcp"
               required
             />
@@ -231,7 +231,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           <div>
             <label
               htmlFor="authType"
-              className="block text-sm font-medium text-neutral-700 mb-2"
+              className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
             >
               Authentication Type *
             </label>
@@ -241,7 +241,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
               onChange={(e) =>
                 setAuthType(e.target.value as "none" | "header" | "basic")
               }
-              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
               required
             >
               <option value="none">None</option>
@@ -254,7 +254,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             <div>
               <label
                 htmlFor="headerValue"
-                className="block text-sm font-medium text-neutral-700 mb-2"
+                className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
               >
                 Authorization Header Value {!isEditing ? "*" : ""}
               </label>
@@ -263,7 +263,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 type="password"
                 value={headerValue}
                 onChange={(e) => setHeaderValue(e.target.value)}
-                className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                 placeholder={
                   isEditing
                     ? "Leave empty to keep existing value"
@@ -271,7 +271,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 }
                 required={!isEditing && authType === "header"}
               />
-              <p className="text-xs mt-1.5 text-neutral-600">
+              <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-300">
                 {isEditing
                   ? "Leave empty to keep the existing value. Enter a new value to update it."
                   : "This value will be used in the Authorization header"}
@@ -284,7 +284,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
               <div>
                 <label
                   htmlFor="username"
-                  className="block text-sm font-medium text-neutral-700 mb-2"
+                  className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
                 >
                   Username {!isEditing ? "*" : ""}
                 </label>
@@ -293,14 +293,14 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                  className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                   placeholder={
                     isEditing ? "Leave empty to keep existing value" : ""
                   }
                   required={!isEditing && authType === "basic"}
                 />
                 {isEditing && (
-                  <p className="text-xs mt-1.5 text-neutral-600">
+                  <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-300">
                     Leave empty to keep the existing value. Enter a new value to
                     update it.
                   </p>
@@ -309,7 +309,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-sm font-medium text-neutral-700 mb-2"
+                  className="block text-sm font-medium text-neutral-700 mb-2 dark:text-neutral-300"
                 >
                   Password {!isEditing ? "*" : ""}
                 </label>
@@ -318,14 +318,14 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
+                  className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                   placeholder={
                     isEditing ? "Leave empty to keep existing value" : ""
                   }
                   required={!isEditing && authType === "basic"}
                 />
                 {isEditing && (
-                  <p className="text-xs mt-1.5 text-neutral-600">
+                  <p className="text-xs mt-1.5 text-neutral-600 dark:text-neutral-300">
                     Leave empty to keep the existing value. Enter a new value to
                     update it.
                   </p>
@@ -352,7 +352,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
               type="button"
               onClick={handleClose}
               disabled={isPending}
-              className="border border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="border border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               Cancel
             </button>

@@ -113,19 +113,21 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
             key={plan.plan}
             className={`border rounded-2xl p-6 ${
               isCurrent
-                ? "border-primary-500 bg-primary-50"
-                : "border-neutral-200 bg-white"
+                ? "border-primary-500 bg-primary-50 dark:border-primary-500 dark:bg-primary-950"
+                : "border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900"
             }`}
           >
             <div className="mb-4">
-              <h3 className="text-2xl font-bold text-neutral-900 mb-2">
+              <h3 className="text-2xl font-bold text-neutral-900 mb-2 dark:text-neutral-50">
                 {plan.name}
               </h3>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-bold text-neutral-900">
+                <span className="text-4xl font-bold text-neutral-900 dark:text-neutral-50">
                   {plan.price}
                 </span>
-                <span className="text-neutral-600">{plan.period}</span>
+                <span className="text-neutral-600 dark:text-neutral-300">
+                  {plan.period}
+                </span>
               </div>
               {isCurrent && (
                 <span className="inline-block mt-2 px-3 py-1 bg-primary-500 text-white text-sm font-semibold rounded-full">
@@ -150,7 +152,9 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                  <span className="text-neutral-700">{feature}</span>
+                  <span className="text-neutral-700 dark:text-neutral-300">
+                    {feature}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -169,14 +173,14 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
               <button
                 onClick={() => onDowngrade(plan.plan)}
                 disabled={isDowngradeLoading}
-                className="w-full border border-neutral-300 text-neutral-700 font-semibold py-3 px-6 rounded-xl hover:bg-neutral-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full border border-neutral-300 text-neutral-700 font-semibold py-3 px-6 rounded-xl hover:bg-neutral-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed dark:border-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
                 {isDowngradeLoading ? "Loading..." : "Downgrade"}
               </button>
             )}
 
             {isCurrent && !canUpgrade && !canDowngrade && (
-              <div className="text-center text-neutral-600 font-medium py-3">
+              <div className="text-center text-neutral-600 font-medium py-3 dark:text-neutral-300">
                 Your current plan
               </div>
             )}

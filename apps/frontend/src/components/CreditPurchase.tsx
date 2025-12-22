@@ -61,8 +61,8 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-medium p-8 border border-neutral-200">
-      <h2 className="text-2xl font-semibold text-neutral-900 mb-6">
+    <div className="bg-white rounded-2xl shadow-medium p-8 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
+      <h2 className="text-2xl font-semibold text-neutral-900 mb-6 dark:text-neutral-50">
         Purchase Credits
       </h2>
 
@@ -71,7 +71,7 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
           <div>
             <label
               htmlFor="workspace"
-              className="block text-sm font-semibold text-neutral-900 mb-2"
+              className="block text-sm font-semibold text-neutral-900 mb-2 dark:text-neutral-300"
             >
               Workspace
             </label>
@@ -79,7 +79,7 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
               id="workspace"
               value={selectedWorkspaceId}
               onChange={(e) => setSelectedWorkspaceId(e.target.value)}
-              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+              className="w-full border border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
             >
               <option value="">Select a workspace</option>
               {workspaces.map((workspace) => (
@@ -94,12 +94,12 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
         <div>
           <label
             htmlFor="amount"
-            className="block text-sm font-semibold text-neutral-900 mb-2"
+            className="block text-sm font-semibold text-neutral-900 mb-2 dark:text-neutral-300"
           >
             Credit Amount ({currency.toUpperCase()})
           </label>
           <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600 font-medium">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-600 font-medium dark:text-neutral-300">
               $
             </span>
             <input
@@ -110,15 +110,15 @@ export const CreditPurchase: FC<CreditPurchaseProps> = ({
               value={amount}
               onChange={handleAmountChange}
               placeholder="0.00"
-              className="w-full border border-neutral-300 rounded-xl bg-white pl-10 pr-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+              className="w-full border border-neutral-300 rounded-xl bg-white pl-10 pr-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:placeholder:text-neutral-400 dark:focus:ring-primary-400 dark:focus:border-primary-500"
             />
           </div>
           {amountError && (
-            <div className="mt-2 text-sm font-semibold text-error-600">
+            <div className="mt-2 text-sm font-semibold text-error-600 dark:text-error-400">
               {amountError}
             </div>
           )}
-          <div className="mt-2 text-sm text-neutral-600">
+          <div className="mt-2 text-sm text-neutral-600 dark:text-neutral-300">
             Minimum: 1 {currency.toUpperCase()}. The exact amount you enter will
             be added as credits to your workspace.
           </div>

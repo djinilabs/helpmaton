@@ -159,20 +159,20 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
   }, [isExpanded]);
 
   return (
-    <div className="border border-neutral-200 rounded-2xl mb-4 bg-white shadow-medium">
+    <div className="border border-neutral-200 rounded-2xl mb-4 bg-white shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
       <button
         ref={headerRef}
         onClick={onToggle}
-        className="w-full text-left p-6 lg:p-8 bg-white hover:bg-neutral-50 transition-all duration-200 rounded-2xl"
+        className="w-full text-left p-6 lg:p-8 bg-white hover:bg-neutral-50 transition-all duration-200 rounded-2xl dark:bg-neutral-900 dark:hover:bg-neutral-800"
         aria-expanded={isExpanded}
         aria-controls={`accordion-content-${id}`}
         aria-label={`${isExpanded ? "Collapse" : "Expand"} section ${title}`}
       >
         <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-neutral-900 tracking-tight">
+          <h2 className="text-2xl font-bold text-neutral-900 tracking-tight dark:text-neutral-50">
             {title}
           </h2>
-          <span className="text-2xl font-bold text-neutral-600">
+          <span className="text-2xl font-bold text-neutral-600 dark:text-neutral-300">
             {isExpanded ? "−" : "+"}
           </span>
         </div>
@@ -195,7 +195,7 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
       >
         <div
           ref={innerContentRef}
-          className="p-6 lg:p-8 border-t border-neutral-200"
+          className="p-6 lg:p-8 border-t border-neutral-200 dark:border-neutral-700"
         >
           <LazyAccordionContent isExpanded={isExpanded}>
             {children}

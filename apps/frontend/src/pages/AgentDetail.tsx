@@ -714,13 +714,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-white p-8">
+    <div className="min-h-screen bg-white dark:bg-neutral-950 p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="border border-neutral-200 rounded-xl p-8 mb-8 bg-white shadow-soft">
+        <div className="border border-neutral-200 dark:border-neutral-700 rounded-xl p-8 mb-8 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
           <div className="flex justify-between items-center mb-4">
             <button
               onClick={() => navigate(`/workspaces/${workspaceId}`)}
-              className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200"
+              className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               ← Back
             </button>
@@ -733,15 +733,15 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               </button>
             )}
           </div>
-          <p className="text-sm opacity-75 mb-4">
+          <p className="text-sm opacity-75 dark:text-neutral-300 mb-4 dark:text-neutral-300">
             Configure your agent&apos;s behavior, system prompt, spending
             limits, and webhook keys. Use the sections below to manage
             conversations, test the agent, and monitor usage.
           </p>
 
           <div>
-            <h1 className="text-4xl font-bold mb-4">{agent.name}</h1>
-            <p className="text-sm opacity-75 mb-4">
+            <h1 className="text-4xl font-bold mb-4 dark:text-neutral-50">{agent.name}</h1>
+            <p className="text-sm opacity-75 dark:text-neutral-300 mb-4 dark:text-neutral-300">
               Created: {new Date(agent.createdAt).toLocaleString()}
               {agent.updatedAt &&
                 ` • Updated: ${new Date(agent.updatedAt).toLocaleString()}`}
@@ -749,12 +749,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             <div className="mb-4">
               <div className="flex items-center gap-4">
                 <div>
-                  <span className="text-sm font-semibold">Provider: </span>
-                  <span className="text-sm">Google</span>
+                  <span className="text-sm font-semibold dark:text-neutral-300">Provider: </span>
+                  <span className="text-sm dark:text-neutral-300">Google</span>
                 </div>
                 <div>
-                  <span className="text-sm font-semibold">Model: </span>
-                  <span className="text-sm">
+                  <span className="text-sm font-semibold dark:text-neutral-300">Model: </span>
+                  <span className="text-sm dark:text-neutral-300">
                     {isEditing ? (
                       <>
                         <select
@@ -770,7 +770,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                 : selectedModel
                             );
                           }}
-                          className="border-2 border-neutral-300 rounded-xl bg-white px-3 py-1.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 ml-2 disabled:opacity-50 transition-all duration-200"
+                          className="border-2 border-neutral-300 rounded-xl bg-white px-3 py-1.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 ml-2 disabled:opacity-50 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                         >
                           {isLoadingModels ? (
                             <option value="">Loading...</option>
@@ -785,7 +785,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           )}
                         </select>
                         {modelLoadError && (
-                          <span className="text-xs text-red-600 ml-2">
+                          <span className="text-xs text-red-600 ml-2 dark:text-red-400">
                             {modelLoadError}
                           </span>
                         )}
@@ -822,19 +822,19 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             </div>
             <div className="mt-4">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold">System Prompt:</p>
+                <p className="text-sm font-semibold dark:text-neutral-300">System Prompt:</p>
                 <button
                   type="button"
                   onClick={() => setIsHelpOpen(true)}
-                  className="text-xs font-semibold border-2 border-neutral-300 bg-white px-3 py-1.5 rounded-xl hover:bg-neutral-50 transition-all duration-200"
+                  className="text-xs font-semibold border-2 border-neutral-300 bg-white px-3 py-1.5 rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 transition-all duration-200"
                 >
                   ? Available Tools
                 </button>
               </div>
-              <div className="relative border border-neutral-200 rounded-lg">
+              <div className="relative border border-neutral-200 dark:border-neutral-700 rounded-lg">
                 <div
                   ref={systemPromptRef}
-                  className="text-sm bg-neutral-50 p-4 max-h-[400px] overflow-y-auto rounded-lg"
+                  className="text-sm bg-neutral-50 dark:bg-neutral-800 p-4 max-h-[400px] overflow-y-auto rounded-lg"
                 >
                   <Suspense
                     fallback={
@@ -851,7 +851,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           if (isInline) {
                             return (
                               <code
-                                className="border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 rounded font-mono text-xs"
+                                className="border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-1.5 py-0.5 rounded font-mono text-xs"
                                 {...rest}
                               >
                                 {children}
@@ -860,7 +860,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           }
                           return (
                             <code
-                              className="block border border-neutral-200 bg-neutral-50 rounded-lg p-4 font-mono text-xs overflow-x-auto"
+                              className="block border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 rounded-lg p-4 font-mono text-xs overflow-x-auto"
                               {...rest}
                             >
                               {children}
@@ -873,32 +873,32 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         },
                         // Headings
                         h1: ({ children }) => (
-                          <h1 className="text-2xl font-semibold mb-2 mt-4 first:mt-0">
+                          <h1 className="text-2xl font-semibold mb-2 mt-4 first:mt-0 dark:text-neutral-50">
                             {children}
                           </h1>
                         ),
                         h2: ({ children }) => (
-                          <h2 className="text-xl font-semibold mb-2 mt-4 first:mt-0">
+                          <h2 className="text-xl font-semibold mb-2 mt-4 first:mt-0 dark:text-neutral-50">
                             {children}
                           </h2>
                         ),
                         h3: ({ children }) => (
-                          <h3 className="text-lg font-semibold mb-2 mt-4 first:mt-0">
+                          <h3 className="text-lg font-semibold mb-2 mt-4 first:mt-0 dark:text-neutral-50">
                             {children}
                           </h3>
                         ),
                         h4: ({ children }) => (
-                          <h4 className="text-base font-semibold mb-2 mt-4 first:mt-0">
+                          <h4 className="text-base font-semibold mb-2 mt-4 first:mt-0 dark:text-neutral-50">
                             {children}
                           </h4>
                         ),
                         h5: ({ children }) => (
-                          <h5 className="text-sm font-semibold mb-2 mt-4 first:mt-0">
+                          <h5 className="text-sm font-semibold mb-2 mt-4 first:mt-0 dark:text-neutral-50">
                             {children}
                           </h5>
                         ),
                         h6: ({ children }) => (
-                          <h6 className="text-xs font-semibold mb-2 mt-4 first:mt-0">
+                          <h6 className="text-xs font-semibold mb-2 mt-4 first:mt-0 dark:text-neutral-50">
                             {children}
                           </h6>
                         ),
@@ -918,7 +918,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           </ol>
                         ),
                         li: ({ children }) => (
-                          <li className="before:content-['•'] before:font-bold before:mr-2">
+                          <li className="before:content-['•'] before:font-bold before:mr-2 dark:text-neutral-200">
                             {children}
                           </li>
                         ),
@@ -928,20 +928,20 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                             href={href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="border-b-2 border-primary-500 font-semibold hover:text-primary-600 px-1 transition-colors"
+                            className="border-b-2 border-primary-500 font-semibold hover:text-primary-600 px-1 transition-colors dark:text-primary-400 dark:hover:text-primary-300"
                           >
                             {children}
                           </a>
                         ),
                         // Blockquotes
                         blockquote: ({ children }) => (
-                          <blockquote className="border-l-4 border-primary-500 pl-4 my-2 italic bg-neutral-50 py-2 rounded-r">
+                          <blockquote className="border-l-4 border-primary-500 pl-4 my-2 italic bg-neutral-50 dark:bg-neutral-800 py-2 rounded-r">
                             {children}
                           </blockquote>
                         ),
                         // Strong/Bold
                         strong: ({ children }) => (
-                          <strong className="font-bold">{children}</strong>
+                          <strong className="font-bold dark:text-neutral-50">{children}</strong>
                         ),
                         // Emphasis/Italic
                         em: ({ children }) => (
@@ -953,7 +953,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         ),
                         // Tables
                         table: ({ children }) => (
-                          <div className="overflow-x-auto my-2 rounded-lg border border-neutral-200">
+                          <div className="overflow-x-auto my-2 rounded-lg border border-neutral-200 dark:border-neutral-700">
                             <table className="border-collapse min-w-full">
                               {children}
                             </table>
@@ -966,17 +966,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         ),
                         tbody: ({ children }) => <tbody>{children}</tbody>,
                         tr: ({ children }) => (
-                          <tr className="border-b border-neutral-200">
+                          <tr className="border-b border-neutral-200 dark:border-neutral-700">
                             {children}
                           </tr>
                         ),
                         th: ({ children }) => (
-                          <th className="border-r border-neutral-200 p-2 font-semibold text-left last:border-r-0">
+                          <th className="border-r border-neutral-200 dark:border-neutral-700 p-2 font-semibold text-left last:border-r-0 dark:text-neutral-50">
                             {children}
                           </th>
                         ),
                         td: ({ children }) => (
-                          <td className="border-r border-neutral-200 p-2 last:border-r-0">
+                          <td className="border-r border-neutral-200 dark:border-neutral-700 p-2 last:border-r-0 dark:text-neutral-200">
                             {children}
                           </td>
                         ),
@@ -987,9 +987,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   </Suspense>
                 </div>
                 {showScrollIndicator && (
-                  <div className="absolute bottom-0 left-0 right-0 bg-neutral-50 border-t border-neutral-200 py-1.5 px-4 pointer-events-none rounded-b-lg">
+                  <div className="absolute bottom-0 left-0 right-0 bg-neutral-50 dark:bg-neutral-800 border-t border-neutral-200 dark:border-neutral-700 py-1.5 px-4 pointer-events-none rounded-b-lg">
                     <div className="text-center">
-                      <span className="text-xs font-semibold text-neutral-600">
+                      <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                         ▼ More below
                       </span>
                       <div aria-live="polite" className="sr-only">
@@ -1059,15 +1059,15 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <LazyAccordionContent
                 isExpanded={expandedSection === "delegation"}
               >
-                <p className="text-sm opacity-75 mb-4">
+                <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
                   Configure which other agents in this workspace this agent can
                   delegate tasks to. When delegation is enabled, this agent will
                   have access to the{" "}
-                  <code className="border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 rounded font-mono text-xs">
+                  <code className="border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-1.5 py-0.5 rounded font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                     list_agents
                   </code>{" "}
                   and{" "}
-                  <code className="border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 rounded font-mono text-xs">
+                  <code className="border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-1.5 py-0.5 rounded font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                     call_agent
                   </code>{" "}
                   tools.
@@ -1080,7 +1080,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         .map((targetAgent) => (
                           <label
                             key={targetAgent.id}
-                            className="flex items-start gap-2 p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 cursor-pointer transition-colors"
+                            className="flex items-start gap-2 p-3 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:bg-neutral-800 cursor-pointer transition-colors dark:border-neutral-700 dark:hover:bg-neutral-800"
                           >
                             <input
                               type="checkbox"
@@ -1090,13 +1090,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                               onChange={() =>
                                 handleDelegationToggle(targetAgent.id)
                               }
-                              className="mt-1 border-2 border-neutral-300 rounded"
+                              className="mt-1 border-2 border-neutral-300 rounded dark:border-neutral-700"
                             />
                             <div className="flex-1">
-                              <div className="font-bold">
+                              <div className="font-bold dark:text-neutral-50">
                                 {targetAgent.name}
                               </div>
-                              <div className="text-xs opacity-75 mt-1">
+                              <div className="text-xs opacity-75 dark:text-neutral-300 mt-1">
                                 {targetAgent.systemPrompt.length > 100
                                   ? `${targetAgent.systemPrompt.substring(
                                       0,
@@ -1117,7 +1117,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <p className="text-sm opacity-75">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
                     No other agents available in this workspace. Create another
                     agent to enable delegation.
                   </p>
@@ -1135,7 +1135,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               onToggle={() => toggleSection("advanced")}
             >
               <LazyAccordionContent isExpanded={expandedSection === "advanced"}>
-                <p className="text-sm opacity-75 mb-4">
+                <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
                   Configure advanced model generation parameters. These settings
                   control how the AI model generates responses. Leave fields
                   empty to use model defaults.
@@ -1143,10 +1143,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 <div className="space-y-6">
                   {/* Temperature */}
                   <div>
-                    <label className="block text-sm font-semibold mb-2">
+                    <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                       Temperature
                     </label>
-                    <p className="text-xs opacity-75 mb-2">
+                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                       Controls the randomness of responses. Lower values (0-0.5)
                       produce more focused and deterministic outputs, while
                       higher values (1.5-2) create more creative and varied
@@ -1167,17 +1167,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           setTemperature(isNaN(parsed) ? undefined : parsed);
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                       placeholder="Model default"
                     />
                   </div>
 
                   {/* Top-p */}
                   <div>
-                    <label className="block text-sm font-semibold mb-2">
+                    <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                       Top-p / Nucleus Sampling
                     </label>
-                    <p className="text-xs opacity-75 mb-2">
+                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                       Controls diversity by considering tokens with cumulative
                       probability up to this threshold. Lower values (0.1-0.5)
                       produce more focused outputs, higher values (0.9-1.0)
@@ -1198,17 +1198,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           setTopP(isNaN(parsed) ? undefined : parsed);
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                       placeholder="Model default"
                     />
                   </div>
 
                   {/* Top-k */}
                   <div>
-                    <label className="block text-sm font-semibold mb-2">
+                    <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                       Top-k
                     </label>
-                    <p className="text-xs opacity-75 mb-2">
+                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                       Limits token selection to the top K most probable tokens
                       at each step. Lower values (10-20) produce more focused
                       outputs, higher values (50-100) allow more diversity.
@@ -1228,17 +1228,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           setTopK(isNaN(parsed) ? undefined : parsed);
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                       placeholder="Model default"
                     />
                   </div>
 
                   {/* Max Output Tokens */}
                   <div>
-                    <label className="block text-sm font-semibold mb-2">
+                    <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                       Max Output Tokens
                     </label>
-                    <p className="text-xs opacity-75 mb-2">
+                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                       Maximum number of tokens the model can generate in a
                       response. This limits the length of generated text. Higher
                       values allow longer responses but may increase costs.
@@ -1260,17 +1260,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           );
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                       placeholder="Model default"
                     />
                   </div>
 
                   {/* Stop Sequences */}
                   <div>
-                    <label className="block text-sm font-semibold mb-2">
+                    <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                       Stop Sequences
                     </label>
-                    <p className="text-xs opacity-75 mb-2">
+                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                       Text sequences that will stop generation when encountered.
                       The model will stop immediately after generating any of
                       these sequences. Enter multiple sequences separated by
@@ -1280,17 +1280,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       type="text"
                       value={stopSequences}
                       onChange={(e) => setStopSequences(e.target.value)}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                       placeholder="e.g., END, STOP, ###"
                     />
                   </div>
 
                   {/* Max Tool Roundtrips */}
                   <div>
-                    <label className="block text-sm font-semibold mb-2">
+                    <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                       Max Tool Roundtrips
                     </label>
-                    <p className="text-xs opacity-75 mb-2">
+                    <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                       Maximum number of tool call iterations allowed before
                       stopping. Each roundtrip allows the agent to call tools,
                       receive results, and continue processing. Higher values
@@ -1312,7 +1312,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           );
                         }
                       }}
-                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+                      className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-2.5 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
                       placeholder="5"
                     />
                   </div>
@@ -1331,7 +1331,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <button
                       onClick={handleResetAdvanced}
                       disabled={updateAgent.isPending}
-                      className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                     >
                       Reset to Defaults
                     </button>
@@ -1354,7 +1354,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <LazyAccordionContent
                 isExpanded={expandedSection === "mcp-servers"}
               >
-                <p className="text-sm opacity-75 mb-4">
+                <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
                   Enable MCP servers from your workspace to make them available
                   as tools to this agent. When enabled, the agent will be able
                   to call the MCP server methods.
@@ -1365,7 +1365,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       {mcpServersData.servers.map((server) => (
                         <label
                           key={server.id}
-                          className="flex items-start gap-2 p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 cursor-pointer transition-colors"
+                          className="flex items-start gap-2 p-3 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:bg-neutral-800 cursor-pointer transition-colors"
                         >
                           <input
                             type="checkbox"
@@ -1375,7 +1375,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           />
                           <div className="flex-1">
                             <div className="font-bold">{server.name}</div>
-                            <div className="text-xs font-mono mt-1 opacity-75">
+                            <div className="text-xs font-mono mt-1 opacity-75 dark:text-neutral-300">
                               {server.url}
                             </div>
                             <div className="text-xs uppercase mt-1">
@@ -1394,7 +1394,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     </button>
                   </div>
                 ) : (
-                  <p className="text-sm opacity-75">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
                     No MCP servers available in this workspace. Create MCP
                     servers in the workspace settings to enable them for agents.
                   </p>
@@ -1415,7 +1415,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 isExpanded={expandedSection === "memory-search"}
               >
                 <div className="space-y-4">
-                  <p className="text-sm opacity-75">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
                     Enable the memory search tool to allow this agent to search
                     its factual memory across different time periods and recall
                     past conversations.
@@ -1433,7 +1433,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       implications.
                     </p>
                   </div>
-                  <label className="flex items-start gap-3 p-4 border border-neutral-200 rounded-lg hover:bg-neutral-50 cursor-pointer transition-colors">
+                  <label className="flex items-start gap-3 p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:bg-neutral-800 cursor-pointer transition-colors">
                     <input
                       type="checkbox"
                       checked={enableMemorySearch}
@@ -1442,7 +1442,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     />
                     <div className="flex-1">
                       <div className="font-bold">Enable Memory Search</div>
-                      <div className="text-sm opacity-75 mt-1">
+                      <div className="text-sm opacity-75 dark:text-neutral-300 mt-1">
                         Allow this agent to use the search_memory tool to recall
                         past conversations and information
                       </div>
@@ -1473,7 +1473,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <LazyAccordionContent
                 isExpanded={expandedSection === "client-tools"}
               >
-                <p className="text-sm opacity-75 mb-4">
+                <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
                   Define client-side tools that will be executed in the browser.
                   These tools are available to the AI model, but execution
                   happens on the client side.
@@ -1505,7 +1505,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               isExpanded={expandedSection === "stream-server"}
               onToggle={() => toggleSection("stream-server")}
             >
-              <div className="text-sm opacity-75 mb-4 space-y-3">
+              <div className="text-sm opacity-75 dark:text-neutral-300 mb-4 space-y-3">
                 <p>
                   Stream servers enable real-time streaming responses from your
                   agent using Lambda Function URLs. Configure allowed origins
@@ -1549,13 +1549,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   <ul className="list-disc list-inside space-y-1 ml-2 mb-2">
                     <li>
                       Text chunks:{" "}
-                      <code className="bg-neutral-100 px-1">
+                      <code className="bg-neutral-100 dark:bg-neutral-800 px-1">
                         data: {`{"type":"text-delta","textDelta":"Hello"}`}\n\n
                       </code>
                     </li>
                     <li>
                       Tool calls:{" "}
-                      <code className="bg-neutral-100 px-1">
+                      <code className="bg-neutral-100 dark:bg-neutral-800 px-1">
                         data:{" "}
                         {`{"type":"tool-call","toolCallId":"...","toolName":"...","args":{...}}`}
                         \n\n
@@ -1575,13 +1575,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         useChat hook
                       </a>{" "}
                       from{" "}
-                      <code className="bg-neutral-100 px-1">@ai-sdk/react</code>{" "}
+                      <code className="bg-neutral-100 dark:bg-neutral-800 px-1">@ai-sdk/react</code>{" "}
                       - it handles SSE parsing automatically
                     </li>
                     <li>
                       <strong>Other frameworks:</strong> Parse SSE format by
                       reading lines starting with{" "}
-                      <code className="bg-neutral-100 px-1">data: </code>, then
+                      <code className="bg-neutral-100 dark:bg-neutral-800 px-1">data: </code>, then
                       parse the JSON object
                     </li>
                   </ul>
@@ -1612,13 +1612,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   ) : (
                     <form
                       onSubmit={handleCreateStreamServer}
-                      className="p-4 bg-neutral-50 border border-neutral-200 rounded-lg"
+                      className="p-4 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg"
                     >
                       <div className="mb-4">
-                        <label className="block text-sm font-semibold mb-2">
+                        <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                           Allowed Origins
                         </label>
-                        <p className="text-xs opacity-75 mb-2">
+                        <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                           Comma-separated list of allowed origins for CORS. Use
                           &quot;*&quot; to allow all origins.
                         </p>
@@ -1646,7 +1646,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                             setIsConfiguringStreamServer(false);
                             setAllowedOrigins("");
                           }}
-                          className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200"
+                          className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 transition-all duration-200"
                         >
                           Cancel
                         </button>
@@ -1659,7 +1659,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   <div>
                     <p className="text-xs font-semibold mb-2">Stream URL:</p>
                     <div className="flex items-center gap-2">
-                      <code className="text-xs bg-neutral-50 p-2 border border-neutral-200 rounded-lg flex-1 break-all">
+                      <code className="text-xs bg-neutral-50 dark:bg-neutral-800 p-2 border border-neutral-200 dark:border-neutral-700 rounded-lg flex-1 break-all">
                         {getStreamUrl(streamServerConfig?.secret)}
                       </code>
                       <button
@@ -1680,7 +1680,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         <p className="text-xs font-semibold mb-2">
                           Allowed Origins:
                         </p>
-                        <p className="text-xs bg-neutral-50 p-2 border border-neutral-200 rounded-lg">
+                        <p className="text-xs bg-neutral-50 dark:bg-neutral-800 p-2 border border-neutral-200 dark:border-neutral-700 rounded-lg">
                           {streamServerConfig.allowedOrigins.join(", ")}
                         </p>
                       </div>
@@ -1730,13 +1730,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   ) : (
                     <form
                       onSubmit={handleUpdateStreamServer}
-                      className="p-4 bg-neutral-50 border border-neutral-200 rounded-lg"
+                      className="p-4 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg"
                     >
                       <div className="mb-4">
-                        <label className="block text-sm font-semibold mb-2">
+                        <label className="block text-sm font-semibold mb-2 dark:text-neutral-300">
                           Allowed Origins
                         </label>
-                        <p className="text-xs opacity-75 mb-2">
+                        <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
                           Comma-separated list of allowed origins for CORS. Use
                           &quot;*&quot; to allow all origins.
                         </p>
@@ -1766,7 +1766,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                               );
                             }
                           }}
-                          className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200"
+                          className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 transition-all duration-200"
                         >
                           Cancel
                         </button>
@@ -1786,7 +1786,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             onToggle={() => toggleSection("keys")}
           >
             <LazyAccordionContent isExpanded={expandedSection === "keys"}>
-              <p className="text-sm opacity-75 mb-4">
+              <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
                 Webhook keys allow external services to send requests to this
                 agent. Each key generates a unique webhook URL that can be used
                 to trigger the agent from external systems. Keep your keys
@@ -1806,7 +1806,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               {isCreatingKey && canEdit && (
                 <form
                   onSubmit={handleCreateKey}
-                  className="mb-4 p-4 bg-neutral-50 border border-neutral-200 rounded-lg"
+                  className="mb-4 p-4 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg"
                 >
                   <div className="mb-4">
                     <label className="block text-sm font-semibold mb-2">
@@ -1834,7 +1834,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         setIsCreatingKey(false);
                         setNewKeyName("");
                       }}
-                      className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200"
+                      className="border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-700 transition-all duration-200"
                     >
                       Cancel
                     </button>
@@ -1843,7 +1843,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               )}
 
               {keys.length === 0 ? (
-                <p className="text-sm opacity-75">No keys created yet.</p>
+                <p className="text-sm opacity-75 dark:text-neutral-300">No keys created yet.</p>
               ) : (
                 <div className="space-y-4">
                   {keys.map((key) => {
@@ -1912,12 +1912,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             onToggle={() => toggleSection("danger")}
           >
             <LazyAccordionContent isExpanded={expandedSection === "danger"}>
-              <p className="text-sm opacity-75 mb-4">
+              <p className="text-sm opacity-75 dark:text-neutral-300 mb-4">
                 This section contains destructive actions. Deleting an agent
                 will permanently remove all its conversations, webhook keys, and
                 settings. This action cannot be undone.
               </p>
-              <p className="mb-4">
+              <p className="mb-4 dark:text-neutral-300">
                 Deleting an agent is permanent and cannot be undone.
               </p>
               <button
@@ -1947,7 +1947,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           <Suspense
             fallback={
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                <div className="bg-white border border-neutral-200 rounded-xl shadow-xl p-8">
+                <div className="bg-white border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl p-8">
                   <div className="text-2xl font-semibold">
                     Loading conversation...
                   </div>
@@ -1958,7 +1958,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             <QueryPanel
               fallback={
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                  <div className="bg-white border border-neutral-200 rounded-xl shadow-xl p-8">
+                  <div className="bg-white border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl p-8">
                     <div className="text-2xl font-semibold">
                       Loading conversation...
                     </div>
@@ -1993,14 +1993,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           streamUrlData?.url &&
           streamServerConfig.secret && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <div className="bg-white border border-neutral-200 rounded-xl shadow-xl p-6 max-w-4xl w-full max-h-[90vh] flex flex-col">
-                <div className="flex justify-between items-center mb-4 border-b border-neutral-200 pb-4">
+              <div className="bg-white border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl p-6 max-w-4xl w-full max-h-[90vh] flex flex-col">
+                <div className="flex justify-between items-center mb-4 border-b border-neutral-200 dark:border-neutral-700 pb-4">
                   <h2 className="text-2xl font-semibold text-neutral-900">
                     Test Stream Server
                   </h2>
                   <button
                     onClick={() => setIsStreamTestModalOpen(false)}
-                    className="border-2 border-neutral-300 bg-white px-4 py-2 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200"
+                    className="border-2 border-neutral-300 bg-white px-4 py-2 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 transition-all duration-200"
                   >
                     Close
                   </button>
@@ -2074,7 +2074,7 @@ const KeyItem: FC<KeyItemProps> = ({
   };
 
   return (
-    <div className="border border-neutral-200 rounded-lg p-4 bg-white">
+    <div className="border border-neutral-200 dark:border-neutral-700 rounded-lg p-4 bg-white">
       <div className="flex justify-between items-start mb-2">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
@@ -2082,12 +2082,12 @@ const KeyItem: FC<KeyItemProps> = ({
               {keyData.name || `Key ${keyData.id.slice(0, 8)}`}
             </h3>
             {keyData.name && (
-              <span className="text-xs opacity-75">
+              <span className="text-xs opacity-75 dark:text-neutral-300">
                 ({keyData.id.slice(0, 8)})
               </span>
             )}
           </div>
-          <p className="text-xs opacity-75 mb-2">
+          <p className="text-xs opacity-75 dark:text-neutral-300 mb-2">
             Created: {new Date(keyData.createdAt).toLocaleString()}
           </p>
           <div className="mb-2">
@@ -2095,7 +2095,7 @@ const KeyItem: FC<KeyItemProps> = ({
             <div className="flex items-center gap-2">
               <code
                 onClick={handleCopyUrl}
-                className="text-xs bg-neutral-50 p-2 border border-neutral-200 rounded-lg flex-1 break-all cursor-pointer hover:bg-neutral-100 select-all transition-colors"
+                className="text-xs bg-neutral-50 dark:bg-neutral-800 p-2 border border-neutral-200 dark:border-neutral-700 rounded-lg flex-1 break-all cursor-pointer hover:bg-neutral-100 dark:bg-neutral-800 select-all transition-colors"
                 title="Click to copy"
               >
                 {webhookUrl}
@@ -2111,13 +2111,13 @@ const KeyItem: FC<KeyItemProps> = ({
           <div>
             <p className="text-xs font-semibold mb-1">Key Value:</p>
             {keyData.key ? (
-              <code className="text-xs bg-neutral-50 p-2 border border-neutral-200 rounded-lg block break-all">
+              <code className="text-xs bg-neutral-50 dark:bg-neutral-800 p-2 border border-neutral-200 dark:border-neutral-700 rounded-lg block break-all">
                 {keyData.key}
               </code>
             ) : (
               <div className="text-xs bg-amber-50 p-2 border border-amber-200 rounded-lg">
                 <p className="font-semibold mb-1">Key Value Not Available</p>
-                <p className="opacity-75">
+                <p className="opacity-75 dark:text-neutral-300">
                   For security, key values are only shown once when created. If
                   you need the key value again, please create a new key.
                 </p>
@@ -2241,10 +2241,10 @@ const AgentDetail: FC = () => {
   return (
     <ErrorBoundary
       fallback={(error, resetError) => (
-        <div className="flex items-center justify-center min-h-screen bg-white p-8">
-          <div className="max-w-2xl w-full border border-neutral-200 rounded-xl shadow-xl p-8 bg-white">
-            <h1 className="text-4xl font-semibold mb-4">Error</h1>
-            <p className="text-xl mb-4 text-red-600 font-semibold">
+        <div className="flex items-center justify-center min-h-screen bg-white dark:bg-neutral-950 p-8">
+          <div className="max-w-2xl w-full border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-xl p-8 bg-white dark:border-neutral-700 dark:bg-neutral-900">
+            <h1 className="text-4xl font-semibold mb-4 dark:text-neutral-50">Error</h1>
+            <p className="text-xl mb-4 text-red-600 font-semibold dark:text-red-400">
               {error.message || "Failed to load agent"}
             </p>
             <div className="space-y-4">
@@ -2259,7 +2259,7 @@ const AgentDetail: FC = () => {
               </button>
               <button
                 onClick={() => navigate(`/workspaces/${workspaceId || ""}`)}
-                className="ml-4 border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200"
+                className="ml-4 border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-700 font-semibold rounded-xl hover:bg-neutral-50 dark:bg-neutral-800 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
                 Back to Workspace
               </button>

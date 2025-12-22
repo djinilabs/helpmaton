@@ -49,15 +49,15 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white border-2 border-neutral-300 rounded-2xl shadow-dramatic p-10 max-w-md w-full">
-        <h2 className="text-4xl font-black text-neutral-900 mb-8 tracking-tight">
+      <div className="bg-white border-2 border-neutral-300 rounded-2xl shadow-dramatic p-10 max-w-md w-full dark:bg-neutral-900 dark:border-neutral-700">
+        <h2 className="text-4xl font-black text-neutral-900 mb-8 tracking-tight dark:text-neutral-50">
           Create Workspace
         </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label
               htmlFor="name"
-              className="block text-sm font-medium text-neutral-700 mb-2.5"
+              className="block text-sm font-medium text-neutral-700 mb-2.5 dark:text-neutral-300"
             >
               Name *
             </label>
@@ -66,7 +66,7 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
               required
               autoFocus
             />
@@ -74,7 +74,7 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
           <div>
             <label
               htmlFor="description"
-              className="block text-sm font-medium text-neutral-700 mb-2.5"
+              className="block text-sm font-medium text-neutral-700 mb-2.5 dark:text-neutral-300"
             >
               Description
             </label>
@@ -82,7 +82,7 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+              className="w-full border-2 border-neutral-300 rounded-xl bg-white px-4 py-3 text-neutral-900 focus:outline-none focus:ring-4 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400 dark:focus:border-primary-500"
               rows={4}
             />
           </div>
@@ -98,7 +98,7 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
               type="button"
               onClick={handleClose}
               disabled={createWorkspace.isPending}
-              className="flex-1 border-2 border-neutral-300 bg-white px-8 py-4 text-neutral-900 font-bold rounded-xl hover:bg-neutral-100 hover:border-neutral-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]"
+              className="flex-1 border-2 border-neutral-300 bg-white px-8 py-4 text-neutral-900 font-bold rounded-xl hover:bg-neutral-100 hover:border-neutral-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800 dark:hover:border-neutral-600"
             >
               Cancel
             </button>
