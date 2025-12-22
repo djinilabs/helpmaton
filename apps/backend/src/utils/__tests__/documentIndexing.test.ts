@@ -210,7 +210,7 @@ describe("documentIndexing", () => {
 
   describe("deleteDocumentSnippets", () => {
     it("should query LanceDB and delete all snippets for a document", async () => {
-      // Mock query results with snippet records
+      // Mock query results with snippet records (includes snippets from other documents)
       const mockResults = [
         {
           id: `${documentId}:0`,
@@ -220,9 +220,21 @@ describe("documentIndexing", () => {
           metadata: { documentId, documentName, folderPath, workspaceId },
         },
         {
+          id: "other-doc:0",
+          content: "other snippet",
+          embedding: [0.2, 0.3],
+          timestamp: new Date().toISOString(),
+          metadata: {
+            documentId: "other-doc",
+            documentName,
+            folderPath,
+            workspaceId,
+          },
+        },
+        {
           id: `${documentId}:1`,
           content: "snippet 2",
-          embedding: [0.2, 0.3],
+          embedding: [0.3, 0.4],
           timestamp: new Date().toISOString(),
           metadata: { documentId, documentName, folderPath, workspaceId },
         },
@@ -232,13 +244,17 @@ describe("documentIndexing", () => {
 
       await deleteDocumentSnippets(workspaceId, documentId);
 
-      // Verify query was called with correct filter (with escaped documentId) and MAX_QUERY_LIMIT
+      // Verify query was called with dummy vector (no filter - filtering is done in memory)
       expect(mockQuery).toHaveBeenCalledWith(workspaceId, "docs", {
-        filter: `documentId = '${documentId}'`,
+        vector: expect.any(Array),
         limit: MAX_QUERY_LIMIT,
       });
+      // Verify vector has correct dimension (768)
+      const vectorCall = mockQuery.mock.calls[0][2].vector;
+      expect(vectorCall).toHaveLength(768);
+      expect(typeof vectorCall[0]).toBe("number");
 
-      // Verify delete operation was sent with correct record IDs
+      // Verify delete operation was sent with correct record IDs (only matching documentId)
       expect(mockSendWriteOperation).toHaveBeenCalledTimes(1);
       const callArgs = mockSendWriteOperation.mock.calls[0][0];
       expect(callArgs).toMatchObject({
@@ -252,17 +268,50 @@ describe("documentIndexing", () => {
       });
     });
 
-    it("should escape single quotes in documentId to prevent SQL injection", async () => {
-      const maliciousDocumentId = "doc' OR '1'='1";
-      mockQuery.mockResolvedValue([]);
+    it("should filter snippets by documentId in memory", async () => {
+      // Mock query results with snippets from multiple documents
+      const mockResults = [
+        {
+          id: `${documentId}:0`,
+          content: "snippet 1",
+          embedding: [0.1],
+          timestamp: new Date().toISOString(),
+          metadata: { documentId },
+        },
+        {
+          id: "other-doc-1:0",
+          content: "other snippet 1",
+          embedding: [0.2],
+          timestamp: new Date().toISOString(),
+          metadata: { documentId: "other-doc-1" },
+        },
+        {
+          id: `${documentId}:1`,
+          content: "snippet 2",
+          embedding: [0.3],
+          timestamp: new Date().toISOString(),
+          metadata: { documentId },
+        },
+        {
+          id: "other-doc-2:0",
+          content: "other snippet 2",
+          embedding: [0.4],
+          timestamp: new Date().toISOString(),
+          metadata: { documentId: "other-doc-2" },
+        },
+      ];
+      mockQuery.mockResolvedValueOnce(mockResults).mockResolvedValueOnce([]);
 
-      await deleteDocumentSnippets(workspaceId, maliciousDocumentId);
+      await deleteDocumentSnippets(workspaceId, documentId);
 
-      // Verify escaped documentId in filter
-      expect(mockQuery).toHaveBeenCalledWith(workspaceId, "docs", {
-        filter: "documentId = 'doc'' OR ''1''=''1'", // Single quotes doubled
-        limit: MAX_QUERY_LIMIT,
-      });
+      // Should only delete snippets matching the documentId
+      const callArgs = mockSendWriteOperation.mock.calls[0][0];
+      expect(callArgs.data.recordIds).toEqual([
+        `${documentId}:0`,
+        `${documentId}:1`,
+      ]);
+      expect(callArgs.data.recordIds).not.toContain("other-doc-1:0");
+      expect(callArgs.data.recordIds).not.toContain("other-doc-2:0");
     });
 
     it("should handle empty results gracefully", async () => {
@@ -308,33 +357,34 @@ describe("documentIndexing", () => {
     });
 
     it("should extract record IDs correctly from query results", async () => {
+      const targetDocId = "doc-1";
       const mockResults = [
         {
           id: "doc-1:0",
           content: "snippet 1",
           embedding: [0.1],
           timestamp: new Date().toISOString(),
-          metadata: {},
+          metadata: { documentId: targetDocId },
         },
         {
           id: "doc-1:5",
           content: "snippet 2",
           embedding: [0.2],
           timestamp: new Date().toISOString(),
-          metadata: {},
+          metadata: { documentId: targetDocId },
         },
         {
           id: "doc-1:10",
           content: "snippet 3",
           embedding: [0.3],
           timestamp: new Date().toISOString(),
-          metadata: {},
+          metadata: { documentId: targetDocId },
         },
       ];
       // First query returns results, second query (final check) returns empty
       mockQuery.mockResolvedValueOnce(mockResults).mockResolvedValueOnce([]);
 
-      await deleteDocumentSnippets(workspaceId, "doc-1");
+      await deleteDocumentSnippets(workspaceId, targetDocId);
 
       const callArgs = mockSendWriteOperation.mock.calls[0][0];
       expect(callArgs.data.recordIds).toEqual([
@@ -346,42 +396,47 @@ describe("documentIndexing", () => {
 
     it("should handle pagination for documents with more snippets than query limit", async () => {
       // Simulate a document with more snippets than MAX_QUERY_LIMIT (1000)
-      // First batch: 1000 snippets
-      const firstBatch = Array.from({ length: 1000 }, (_, i) => ({
-        id: `${documentId}:${i}`,
+      // The function filters by documentId in memory, so snippetIds.length is the filtered count
+      // First batch: exactly MAX_QUERY_LIMIT total snippets, but only 500 match documentId
+      // After filtering, snippetIds.length = 500 < MAX_QUERY_LIMIT, so it does final check immediately
+      const firstBatch = Array.from({ length: MAX_QUERY_LIMIT }, (_, i) => ({
+        id: i < 500 ? `${documentId}:${i}` : `other-doc:${i - 500}`,
         content: `snippet ${i}`,
         embedding: [0.1],
         timestamp: new Date().toISOString(),
-        metadata: { documentId },
+        metadata: { documentId: i < 500 ? documentId : "other-doc" },
       }));
-      // Second batch: 500 more snippets
-      const secondBatch = Array.from({ length: 500 }, (_, i) => ({
-        id: `${documentId}:${1000 + i}`,
-        content: `snippet ${1000 + i}`,
+      // Final check returns more snippets from target document
+      const finalCheck = Array.from({ length: 500 }, (_, i) => ({
+        id: `${documentId}:${500 + i}`,
+        content: `snippet ${500 + i}`,
         embedding: [0.1],
         timestamp: new Date().toISOString(),
         metadata: { documentId },
       }));
 
-      // Mock query to return first batch, then second batch, then empty
+      // Mock query to return first batch, then final check
       mockQuery
         .mockResolvedValueOnce(firstBatch)
-        .mockResolvedValueOnce(secondBatch)
-        .mockResolvedValueOnce([]);
+        .mockResolvedValueOnce(finalCheck);
 
       await deleteDocumentSnippets(workspaceId, documentId);
 
-      // Should have queried multiple times
-      expect(mockQuery).toHaveBeenCalledTimes(3); // 2 batches + 1 final check
+      // Should have queried twice:
+      // First batch: 500 matching snippets (< MAX_QUERY_LIMIT) -> does final check, then breaks
+      // Final check: 500 more matching snippets
+      expect(mockQuery).toHaveBeenCalledTimes(2);
 
-      // Should send single delete operation with all IDs
+      // Should send single delete operation with all IDs from target document only
       expect(mockSendWriteOperation).toHaveBeenCalledTimes(1);
       const callArgs = mockSendWriteOperation.mock.calls[0][0];
-      expect(callArgs.data.recordIds).toHaveLength(1500);
+      expect(callArgs.data.recordIds).toHaveLength(1000); // 500 from first batch + 500 from final check
       expect(callArgs.data.recordIds[0]).toBe(`${documentId}:0`);
+      expect(callArgs.data.recordIds[499]).toBe(`${documentId}:499`);
+      expect(callArgs.data.recordIds[500]).toBe(`${documentId}:500`);
       expect(callArgs.data.recordIds[999]).toBe(`${documentId}:999`);
-      expect(callArgs.data.recordIds[1000]).toBe(`${documentId}:1000`);
-      expect(callArgs.data.recordIds[1499]).toBe(`${documentId}:1499`);
+      // Should not contain IDs from other documents
+      expect(callArgs.data.recordIds).not.toContain("other-doc:0");
     });
 
     it("should handle duplicate IDs across query batches", async () => {
@@ -403,32 +458,40 @@ describe("documentIndexing", () => {
           metadata: { documentId },
         },
       ];
-      // Second query returns same IDs (deletion not complete yet)
+      // Second query returns one duplicate and one new ID
+      // After filtering by documentId, we get 2 IDs
+      // One is duplicate (already in seenIds), one is new
+      // newIds.length = 1 (> 0), so it continues
+      // Since snippetIds.length (2) < MAX_QUERY_LIMIT, it does final check
       const batch2 = [
         {
-          id: `${documentId}:0`, // Duplicate
+          id: `${documentId}:0`, // Duplicate (already in seenIds)
           content: "snippet",
           embedding: [0.1],
           timestamp: new Date().toISOString(),
           metadata: { documentId },
         },
         {
-          id: `${documentId}:2`, // New
+          id: `${documentId}:2`, // New (not in seenIds)
           content: "snippet",
           embedding: [0.1],
           timestamp: new Date().toISOString(),
           metadata: { documentId },
         },
       ];
+      // Final check returns empty (no more snippets)
+      const finalCheck: typeof batch2 = [];
 
       mockQuery
         .mockResolvedValueOnce(batch1)
         .mockResolvedValueOnce(batch2)
-        .mockResolvedValueOnce([]);
+        .mockResolvedValueOnce(finalCheck);
 
       await deleteDocumentSnippets(workspaceId, documentId);
 
-      // Should only delete unique IDs
+      // Should only delete unique IDs (duplicates are filtered out)
+      // allRecordIds should have: 0, 1 (from batch1) + 2 (from batch2) = 3 total
+      expect(mockSendWriteOperation).toHaveBeenCalledTimes(1);
       const callArgs = mockSendWriteOperation.mock.calls[0][0];
       expect(callArgs.data.recordIds).toHaveLength(3); // 0, 1, 2 (no duplicates)
       expect(callArgs.data.recordIds).toEqual([
@@ -439,17 +502,16 @@ describe("documentIndexing", () => {
     });
 
     it("should respect max batches limit to prevent infinite loops", async () => {
-      // Simulate a scenario where queries keep returning results
+      // Simulate a scenario where queries keep returning new unique IDs
       // This tests the safety mechanism that prevents infinite loops
       const maxBatches = Math.ceil(MAX_DOCUMENT_SNIPPETS / MAX_QUERY_LIMIT);
       let callCount = 0;
 
       // Create mock that always returns full batches with unique IDs
-      // This simulates a worst-case scenario where deletions never complete
-      // and queries keep returning the same results
+      // This simulates a worst-case scenario where queries keep returning new results
       mockQuery.mockImplementation(async () => {
         callCount++;
-        // Always return a full batch with unique IDs
+        // Always return a full batch with unique IDs matching documentId
         return Array.from({ length: MAX_QUERY_LIMIT }, (_, j) => ({
           id: `${documentId}:call${callCount}:${j}`, // Unique IDs per call
           content: "snippet",
@@ -464,7 +526,7 @@ describe("documentIndexing", () => {
       // Should have stopped after maxBatches queries (safety limit)
       // The function should not loop infinitely
       expect(mockQuery).toHaveBeenCalled();
-      expect(mockQuery.mock.calls.length).toBeLessThanOrEqual(maxBatches + 1); // maxBatches + possible retry
+      expect(mockQuery.mock.calls.length).toBeLessThanOrEqual(maxBatches + 1); // maxBatches + possible final check
 
       // Should still attempt to delete collected IDs
       if (mockSendWriteOperation.mock.calls.length > 0) {
@@ -473,6 +535,108 @@ describe("documentIndexing", () => {
         // Should have collected at least some IDs before hitting the limit
         expect(callArgs.data.recordIds.length).toBeGreaterThan(0);
       }
+    });
+
+    it("should use dummy vector for queries", async () => {
+      mockQuery.mockResolvedValue([]);
+
+      await deleteDocumentSnippets(workspaceId, documentId);
+
+      // Verify query was called with a vector (dummy vector)
+      expect(mockQuery).toHaveBeenCalledWith(
+        workspaceId,
+        "docs",
+        expect.objectContaining({
+          vector: expect.any(Array),
+          limit: MAX_QUERY_LIMIT,
+        })
+      );
+
+      // Verify vector has correct dimension (768 for text-embedding-004)
+      const vector = mockQuery.mock.calls[0][2].vector;
+      expect(vector).toHaveLength(768);
+      expect(vector.every((v: number) => typeof v === "number")).toBe(true);
+      expect(vector.every((v: number) => v >= 0 && v <= 0.01)).toBe(true); // Small random values
+    });
+
+    it("should handle results with missing metadata gracefully", async () => {
+      // Mock query results with some missing metadata
+      const mockResults = [
+        {
+          id: `${documentId}:0`,
+          content: "snippet 1",
+          embedding: [0.1],
+          timestamp: new Date().toISOString(),
+          metadata: { documentId }, // Has documentId
+        },
+        {
+          id: `${documentId}:1`,
+          content: "snippet 2",
+          embedding: [0.1],
+          timestamp: new Date().toISOString(),
+          metadata: {}, // Missing documentId - will be filtered out
+        },
+        {
+          id: `${documentId}:2`,
+          content: "snippet 3",
+          embedding: [0.1],
+          timestamp: new Date().toISOString(),
+          metadata: null, // Null metadata - will be filtered out
+        },
+        {
+          id: "other-doc:0",
+          content: "other snippet",
+          embedding: [0.1],
+          timestamp: new Date().toISOString(),
+          metadata: { documentId: "other-doc" }, // Different documentId
+        },
+      ];
+      // First query returns results, second query (final check) returns empty
+      mockQuery.mockResolvedValueOnce(mockResults).mockResolvedValueOnce([]);
+
+      await deleteDocumentSnippets(workspaceId, documentId);
+
+      // Should only delete snippets with matching documentId in metadata
+      expect(mockSendWriteOperation).toHaveBeenCalledTimes(1);
+      const callArgs = mockSendWriteOperation.mock.calls[0][0];
+      expect(callArgs.data.recordIds).toEqual([`${documentId}:0`]);
+      expect(callArgs.data.recordIds).not.toContain(`${documentId}:1`);
+      expect(callArgs.data.recordIds).not.toContain(`${documentId}:2`);
+      expect(callArgs.data.recordIds).not.toContain("other-doc:0");
+    });
+
+    it("should break early when no new IDs are found", async () => {
+      // First query returns some results
+      const batch1 = [
+        {
+          id: `${documentId}:0`,
+          content: "snippet",
+          embedding: [0.1],
+          timestamp: new Date().toISOString(),
+          metadata: { documentId },
+        },
+      ];
+      // Second query returns same IDs (no new IDs)
+      const batch2 = [
+        {
+          id: `${documentId}:0`, // Same ID - no new IDs
+          content: "snippet",
+          embedding: [0.1],
+          timestamp: new Date().toISOString(),
+          metadata: { documentId },
+        },
+      ];
+
+      mockQuery.mockResolvedValueOnce(batch1).mockResolvedValueOnce(batch2);
+
+      await deleteDocumentSnippets(workspaceId, documentId);
+
+      // Should stop after second query (no new IDs found)
+      expect(mockQuery).toHaveBeenCalledTimes(2);
+      // Should still send delete operation with IDs from first batch
+      expect(mockSendWriteOperation).toHaveBeenCalledTimes(1);
+      const callArgs = mockSendWriteOperation.mock.calls[0][0];
+      expect(callArgs.data.recordIds).toEqual([`${documentId}:0`]);
     });
   });
 
@@ -495,9 +659,9 @@ describe("documentIndexing", () => {
 
       await updateDocument(workspaceId, documentId, newContent, metadata);
 
-      // Verify delete was called first (query uses MAX_QUERY_LIMIT for pagination)
+      // Verify delete was called first (query uses dummy vector, no filter)
       expect(mockQuery).toHaveBeenCalledWith(workspaceId, "docs", {
-        filter: `documentId = '${documentId}'`,
+        vector: expect.any(Array),
         limit: MAX_QUERY_LIMIT,
       });
 
@@ -676,15 +840,33 @@ describe("documentIndexing", () => {
 
     it("should handle documentId with special characters", async () => {
       const specialDocumentId = "doc-123:test@example.com";
-      mockQuery.mockResolvedValue([]);
+      const mockResults = [
+        {
+          id: `${specialDocumentId}:0`,
+          content: "snippet",
+          embedding: [0.1],
+          timestamp: new Date().toISOString(),
+          metadata: { documentId: specialDocumentId },
+        },
+      ];
+      mockQuery.mockResolvedValueOnce(mockResults).mockResolvedValueOnce([]);
 
       await deleteDocumentSnippets(workspaceId, specialDocumentId);
 
-      // Should escape special characters properly
+      // Should query with dummy vector (no filter - filtering is done in memory)
       expect(mockQuery).toHaveBeenCalledWith(workspaceId, "docs", {
-        filter: `documentId = '${specialDocumentId}'`,
+        vector: expect.any(Array),
         limit: MAX_QUERY_LIMIT,
       });
+
+      // Should correctly filter by documentId in memory
+      expect(mockSendWriteOperation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            recordIds: [`${specialDocumentId}:0`],
+          },
+        })
+      );
     });
 
     it("should handle workspaceId with special characters in filter", async () => {

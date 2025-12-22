@@ -1,6 +1,6 @@
-import { spawn, type ChildProcess } from "child_process";
+import { exec, spawn, type ChildProcess } from "child_process";
 import { randomUUID } from "crypto";
-import { readFileSync, writeFileSync } from "fs";
+import { writeFileSync } from "fs";
 import { join } from "path";
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -26,7 +26,6 @@ interface TestWorkspace {
 
 let sandboxProcess: ChildProcess | undefined;
 let testUser: TestUser | undefined;
-let testWorkspace: TestWorkspace | undefined;
 
 // Store the AUTH_SECRET so we can use it for token generation
 let sharedAuthSecret: string;
@@ -36,7 +35,6 @@ let sharedAuthSecret: string;
  */
 async function killProcessOnPort(port: number): Promise<void> {
   return new Promise((resolve) => {
-    const { exec } = require("child_process");
     exec(`lsof -ti:${port}`, (error: Error | null, stdout: string) => {
       if (stdout) {
         const pids = stdout.trim().split("\n");
@@ -509,13 +507,6 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
       // Create test user
       testUser = await createTestUser();
       console.log(`Created test user: ${testUser.email}`);
-
-      // Create test workspace
-      if (!testUser) {
-        throw new Error("Test user not created");
-      }
-      testWorkspace = await createTestWorkspace(testUser.accessToken);
-      console.log(`Created test workspace: ${testWorkspace.id}`);
     }, 120000); // 2 minute timeout for setup
 
     afterAll(async () => {
@@ -524,9 +515,13 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
     }, 30000);
 
     it("should upload a document and find it via search", async () => {
-      if (!testUser || !testWorkspace) {
+      if (!testUser) {
         throw new Error("Test setup incomplete");
       }
+
+      // Create a new workspace for this test
+      const testWorkspace = await createTestWorkspace(testUser.accessToken);
+      console.log(`Created test workspace: ${testWorkspace.id}`);
 
       const documentContent = "The quick brown fox jumps over the lazy dog";
       const documentName = "test-document-1.txt";
@@ -565,9 +560,13 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
     }, 60000); // 60 second timeout
 
     it("should search multiple documents", async () => {
-      if (!testUser || !testWorkspace) {
+      if (!testUser) {
         throw new Error("Test setup incomplete");
       }
+
+      // Create a new workspace for this test
+      const testWorkspace = await createTestWorkspace(testUser.accessToken);
+      console.log(`Created test workspace: ${testWorkspace.id}`);
 
       const documents = [
         {
@@ -585,7 +584,7 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
       ];
 
       // Upload all documents
-      const uploadedDocs = [];
+      const uploadedDocs: Array<{ id: string; name: string }> = [];
       for (const doc of documents) {
         const uploaded = await uploadDocument(
           testWorkspace.id,
@@ -640,9 +639,13 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
     }, 60000);
 
     it("should update document and replace old content", async () => {
-      if (!testUser || !testWorkspace) {
+      if (!testUser) {
         throw new Error("Test setup incomplete");
       }
+
+      // Create a new workspace for this test
+      const testWorkspace = await createTestWorkspace(testUser.accessToken);
+      console.log(`Created test workspace: ${testWorkspace.id}`);
 
       const initialContent = "This is the original document content";
       const updatedContent =
@@ -733,9 +736,13 @@ describe.skipIf(!process.env.GEMINI_API_KEY)(
     }, 60000);
 
     it("should delete document and remove it from search", async () => {
-      if (!testUser || !testWorkspace) {
+      if (!testUser) {
         throw new Error("Test setup incomplete");
       }
+
+      // Create a new workspace for this test
+      const testWorkspace = await createTestWorkspace(testUser.accessToken);
+      console.log(`Created test workspace: ${testWorkspace.id}`);
 
       const documentContent = "This document will be deleted";
       const documentName = "delete-test.txt";

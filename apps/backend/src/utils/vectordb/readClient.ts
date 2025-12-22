@@ -511,6 +511,9 @@ export async function query(
       `[Read Client] Metadata summary:`,
       JSON.stringify(metadataStats, null, 2)
     );
+    console.log(
+      `[Read Client] Returning ${filteredResults.length} filtered results`
+    );
 
     return filteredResults;
   } catch (error) {
