@@ -188,8 +188,8 @@ export const tableSchemas = {
         cachedPromptTokens: z.number().optional(), // Cached prompt tokens (if prompt caching is used)
       })
       .optional(), // aggregated token usage across all API calls
-    modelName: z.string().optional(), // name of the AI model used (e.g., "gemini-2.5-flash-preview-05-20")
-    provider: z.string().optional(), // AI provider name (e.g., "google")
+    modelName: z.string().optional(), // @deprecated - Use per-message modelName instead. Kept for backward compatibility.
+    provider: z.string().optional(), // @deprecated - Use per-message provider instead. Kept for backward compatibility.
     usesByok: z.boolean().optional(), // whether this conversation used BYOK (Bring Your Own Key)
     costUsd: z.number().int().optional(), // cost in USD in millionths
     startedAt: z.string().datetime(), // when conversation started

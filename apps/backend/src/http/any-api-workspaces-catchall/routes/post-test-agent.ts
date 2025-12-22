@@ -771,11 +771,13 @@ export const registerPostTestAgent = (app: express.Application) => {
         assistantContent.push({ type: "text", text: responseText });
       }
 
-      // Create assistant message with token usage
+      // Create assistant message with token usage, modelName, and provider
       const assistantMessage: UIMessage = {
         role: "assistant",
         content: assistantContent.length > 0 ? assistantContent : responseText,
         ...(tokenUsage && { tokenUsage }),
+        modelName: finalModelName,
+        provider: "google",
       };
 
       // Combine user messages and assistant message for logging
@@ -808,9 +810,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           agentId,
           conversationId,
           validMessages,
-          tokenUsage,
-          finalModelName,
-          "google" // provider
+          tokenUsage
         );
       } catch (error) {
         // Log error but don't fail the request

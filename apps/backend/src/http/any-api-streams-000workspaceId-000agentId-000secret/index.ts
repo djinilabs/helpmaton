@@ -820,12 +820,14 @@ async function logConversation(
       assistantContent.push({ type: "text", text: finalResponseText });
     }
 
-    // Create assistant message with token usage (same as test endpoint)
+    // Create assistant message with token usage, modelName, and provider (same as test endpoint)
     const assistantMessage: UIMessage = {
       role: "assistant",
       content:
         assistantContent.length > 0 ? assistantContent : finalResponseText,
       ...(tokenUsage && { tokenUsage }),
+      modelName: finalModelName,
+      provider: "google",
     };
 
     // DIAGNOSTIC: Log assistant message structure
@@ -885,9 +887,7 @@ async function logConversation(
       agentId,
       conversationId,
       validMessages,
-      tokenUsage,
-      finalModelName,
-      "google" // provider
+      tokenUsage
     ).catch((error) => {
       // Log error but don't fail the request
       console.error("[Stream Handler] Error logging conversation:", {
