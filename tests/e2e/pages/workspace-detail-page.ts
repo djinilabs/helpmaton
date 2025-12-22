@@ -6,7 +6,6 @@ export class WorkspaceDetailPage extends BasePage {
   // Locators
   private agentsAccordion: Locator;
   private documentsAccordion: Locator;
-  private documentsUploadAccordion: Locator;
   private teamAccordion: Locator;
   private creditsAccordion: Locator;
   private backButton: Locator;
@@ -17,7 +16,6 @@ export class WorkspaceDetailPage extends BasePage {
     // Accordion section locators - using the accordion structure
     this.agentsAccordion = page.locator('[id="agents"]');
     this.documentsAccordion = page.locator('[id="documents"]');
-    this.documentsUploadAccordion = page.locator('[id="documents-upload"]');
     this.teamAccordion = page.locator('[id="team"]');
     this.creditsAccordion = page.locator('[id="credits"]');
     this.backButton = page.locator('button:has-text("Back")').first();
@@ -171,9 +169,11 @@ export class WorkspaceDetailPage extends BasePage {
 
   /**
    * Expand Document Upload section
+   * Note: Document upload is now inside the Documents section
    */
   async expandDocumentUploadSection(): Promise<void> {
-    await this.expandAccordion("Document Upload");
+    // Upload functionality is now inside the Documents section
+    await this.expandDocumentsSection();
   }
 
   /**
