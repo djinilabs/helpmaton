@@ -123,6 +123,9 @@ export default {
         'gradient-accent': 'linear-gradient(135deg, #7c3aed 0%, #9333ea 50%, #a855f7 100%)',
         'gradient-soft': 'linear-gradient(135deg, #f5f5f4 0%, #e7e5e4 100%)',
       },
+      backgroundColor: {
+        'gradient-soft-dark': 'linear-gradient(135deg, #1c1917 0%, #292524 100%)',
+      },
     },
   },
   plugins: [],

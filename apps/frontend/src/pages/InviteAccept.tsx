@@ -87,7 +87,7 @@ export const InviteAccept: FC = () => {
 
   if (error || !invite) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-soft p-8">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-neutral-950 p-8">
         <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-error-200">
           <h1 className="text-4xl font-semibold text-neutral-900 mb-4">
             Invalid Invite
@@ -110,7 +110,7 @@ export const InviteAccept: FC = () => {
   // The accept API will create the user if needed and send a magic link
   if (!session?.user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-soft p-8">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-neutral-950 p-8">
         <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-neutral-200">
           <h1 className="text-4xl font-semibold text-neutral-900 mb-4">
             Workspace Invitation
@@ -174,7 +174,7 @@ export const InviteAccept: FC = () => {
   const inviteEmail = invite.email.toLowerCase();
   if (userEmail !== inviteEmail) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-soft p-8">
+      <div className="flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-neutral-950 p-8">
         <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-error-200">
           <h1 className="text-4xl font-semibold text-neutral-900 mb-4">
             Email Mismatch
@@ -198,7 +198,7 @@ export const InviteAccept: FC = () => {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-soft p-8">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-soft dark:bg-neutral-950 p-8">
       <div className="max-w-2xl w-full bg-white rounded-2xl shadow-large p-8 lg:p-10 border border-neutral-200">
         <h1 className="text-4xl font-semibold text-neutral-900 mb-4">
           Workspace Invitation

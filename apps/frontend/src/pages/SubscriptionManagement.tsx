@@ -188,7 +188,7 @@ const SubscriptionManagement: FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-soft p-6 lg:p-10">
+      <div className="min-h-screen bg-gradient-soft dark:bg-neutral-950 p-6 lg:p-10">
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-2xl shadow-medium p-8 lg:p-10 border border-neutral-200">
             <LoadingScreen compact message="Loading subscription..." />
@@ -200,7 +200,7 @@ const SubscriptionManagement: FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-soft p-6 lg:p-10">
+      <div className="min-h-screen bg-gradient-soft dark:bg-neutral-950 p-6 lg:p-10">
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-2xl shadow-medium p-8 lg:p-10 border border-error-200">
             <h1 className="text-4xl lg:text-5xl font-bold text-neutral-900 mb-4 tracking-tight">
@@ -325,7 +325,7 @@ const SubscriptionManagement: FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-soft p-6 lg:p-10">
+    <div className="min-h-screen bg-gradient-soft dark:bg-neutral-950 p-6 lg:p-10">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white rounded-2xl shadow-large p-8 lg:p-10 mb-8 border border-neutral-200 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-primary opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>

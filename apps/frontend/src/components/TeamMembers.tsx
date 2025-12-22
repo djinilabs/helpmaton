@@ -150,7 +150,7 @@ export const TeamMembers: FC<TeamMembersProps> = ({
         <button
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="border border-neutral-300 rounded-xl px-4 py-2.5 text-sm font-semibold bg-white text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+          className="border border-neutral-300 rounded-xl px-4 py-2.5 text-sm font-semibold bg-white text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
         >
           {isRefreshing ? "Refreshing..." : "Refresh"}
         </button>
@@ -159,7 +159,7 @@ export const TeamMembers: FC<TeamMembersProps> = ({
       {/* Pending Invitations */}
       {canManage && invites.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-neutral-900 mb-4">
+          <h3 className="text-lg font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
             Pending Invitations
           </h3>
           <div className="space-y-3">
@@ -171,20 +171,20 @@ export const TeamMembers: FC<TeamMembersProps> = ({
               return (
                 <div
                   key={invite.inviteId}
-                  className="flex items-center justify-between p-4 border border-neutral-200 rounded-xl bg-neutral-50"
+                  className="flex items-center justify-between p-4 border border-neutral-200 rounded-xl bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800"
                 >
                   <div className="flex items-center gap-4">
                     <div className="flex-1">
-                      <div className="font-semibold text-neutral-900">
+                      <div className="font-semibold text-neutral-900 dark:text-neutral-50">
                         {invite.email}
                       </div>
-                      <div className="text-sm text-neutral-500 mt-1">
+                      <div className="text-sm text-neutral-500 mt-1 dark:text-neutral-400">
                         Invited{" "}
                         {new Date(invite.createdAt).toLocaleDateString()}
                         {" • "}
                         Expires {expiresAt.toLocaleDateString()}
                         {isExpiringSoon && (
-                          <span className="text-error-600 font-medium ml-1">
+                          <span className="text-error-600 font-medium ml-1 dark:text-error-400">
                             (expiring soon)
                           </span>
                         )}
@@ -209,7 +209,7 @@ export const TeamMembers: FC<TeamMembersProps> = ({
                       }
                     }}
                     disabled={cancelInvite.isPending}
-                    className="px-4 py-2 text-sm font-semibold text-error-600 hover:bg-error-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm font-semibold text-error-600 hover:bg-error-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed dark:text-error-400 dark:hover:bg-error-950"
                   >
                     {cancelInvite.isPending ? "Cancelling..." : "Cancel"}
                   </button>
@@ -222,11 +222,11 @@ export const TeamMembers: FC<TeamMembersProps> = ({
 
       {/* Team Members */}
       <div>
-        <h3 className="text-lg font-semibold text-neutral-900 mb-4">
+        <h3 className="text-lg font-semibold text-neutral-900 mb-4 dark:text-neutral-50">
           Team Members
         </h3>
         {members.length === 0 ? (
-          <div className="text-neutral-600">
+          <div className="text-neutral-600 dark:text-neutral-400">
             No members found in this workspace.
           </div>
         ) : (
@@ -234,14 +234,14 @@ export const TeamMembers: FC<TeamMembersProps> = ({
             {members.map((member: Member) => (
               <div
                 key={member.userId}
-                className="flex items-center justify-between p-4 border border-neutral-200 rounded-xl bg-white"
+                className="flex items-center justify-between p-4 border border-neutral-200 rounded-xl bg-white dark:border-neutral-700 dark:bg-neutral-900"
               >
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
-                    <div className="font-semibold text-neutral-900">
+                    <div className="font-semibold text-neutral-900 dark:text-neutral-50">
                       {member.email || `User ${member.userId.slice(0, 8)}`}
                     </div>
-                    <div className="text-sm text-neutral-500 mt-1">
+                    <div className="text-sm text-neutral-500 mt-1 dark:text-neutral-400">
                       Added {new Date(member.createdAt).toLocaleDateString()}
                     </div>
                   </div>
@@ -267,7 +267,7 @@ export const TeamMembers: FC<TeamMembersProps> = ({
                       }
                     }}
                     disabled={removeMember.isPending}
-                    className="px-4 py-2 text-sm font-semibold text-error-600 hover:bg-error-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-2 text-sm font-semibold text-error-600 hover:bg-error-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed dark:text-error-400 dark:hover:bg-error-950"
                   >
                     {removeMember.isPending ? "Removing..." : "Remove"}
                   </button>

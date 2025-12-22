@@ -10,8 +10,8 @@ export const SubscriptionPanel: FC = () => {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-2xl shadow-medium p-8 border border-neutral-200">
-        <h2 className="text-3xl font-bold text-neutral-900 mb-5">
+      <div className="bg-white rounded-2xl shadow-medium p-8 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
+        <h2 className="text-3xl font-bold text-neutral-900 mb-5 dark:text-neutral-50">
           Subscription
         </h2>
         <LoadingScreen compact message="Loading subscription..." />
@@ -21,11 +21,11 @@ export const SubscriptionPanel: FC = () => {
 
   if (error) {
     return (
-      <div className="bg-white rounded-2xl shadow-medium p-8 border border-error-200">
-        <h2 className="text-3xl font-bold text-neutral-900 mb-5">
+      <div className="bg-white rounded-2xl shadow-medium p-8 border border-error-200 dark:bg-neutral-900 dark:border-error-700">
+        <h2 className="text-3xl font-bold text-neutral-900 mb-5 dark:text-neutral-50">
           Subscription
         </h2>
-        <p className="text-error-600 font-semibold">
+        <p className="text-error-600 font-semibold dark:text-error-400">
           Error loading subscription:{" "}
           {error instanceof Error ? error.message : "Unknown error"}
         </p>
@@ -50,18 +50,18 @@ export const SubscriptionPanel: FC = () => {
     : null;
 
   return (
-    <div className="bg-white rounded-2xl shadow-medium p-8 border border-neutral-200">
-      <h2 className="text-3xl font-bold text-neutral-900 mb-5">Subscription</h2>
+    <div className="bg-white rounded-2xl shadow-medium p-8 border border-neutral-200 dark:bg-neutral-900 dark:border-neutral-700">
+      <h2 className="text-3xl font-bold text-neutral-900 mb-5 dark:text-neutral-50">Subscription</h2>
       <div className="mb-6">
-        <div className="text-3xl font-bold text-neutral-900 mb-2">
+        <div className="text-3xl font-bold text-neutral-900 mb-2 dark:text-neutral-50">
           {planName} Plan
         </div>
         {expiresAt && (
-          <div className="text-sm text-neutral-600 mb-2">
+          <div className="text-sm text-neutral-600 mb-2 dark:text-neutral-400">
             {isExpired ? (
-              <span className="text-error-600 font-semibold">Expired</span>
+              <span className="text-error-600 font-semibold dark:text-error-400">Expired</span>
             ) : daysUntilExpiry !== null && daysUntilExpiry <= 7 ? (
-              <span className="text-orange-600 font-semibold">
+              <span className="text-orange-600 font-semibold dark:text-orange-400">
                 Expires in {daysUntilExpiry} day
                 {daysUntilExpiry !== 1 ? "s" : ""}
               </span>
@@ -70,7 +70,7 @@ export const SubscriptionPanel: FC = () => {
             )}
           </div>
         )}
-        <div className="text-sm text-neutral-600">
+        <div className="text-sm text-neutral-600 dark:text-neutral-400">
           {subscription.managers.length} Manager
           {subscription.managers.length !== 1 ? "s" : ""}
         </div>

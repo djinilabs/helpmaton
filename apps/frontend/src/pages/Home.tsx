@@ -23,7 +23,7 @@ const Home: FC = () => {
   const { data: session } = useSession();
 
   return (
-    <div className="min-h-screen bg-gradient-soft p-6 lg:p-10">
+    <div className="min-h-screen bg-gradient-soft dark:bg-neutral-950 p-6 lg:p-10">
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-2xl shadow-dramatic p-10 lg:p-12 mb-10 border-2 border-neutral-300 relative overflow-hidden dark:bg-neutral-900 dark:border-neutral-700">
           <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-primary opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
