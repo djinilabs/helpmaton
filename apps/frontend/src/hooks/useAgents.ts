@@ -74,10 +74,20 @@ export function useUpdateAgent(workspaceId: string, agentId: string) {
         ["workspaces", workspaceId, "agents", agentId],
         data
       );
-      // Invalidate the list query to ensure it reflects the update
-      // We don't invalidate the specific agent query since we've already set it with fresh data
+      // Invalidate only the list query (not the specific agent query) to ensure it reflects the update
+      // We use a predicate to only match the exact list query key, not the specific agent query
       queryClient.invalidateQueries({
-        queryKey: ["workspaces", workspaceId, "agents"],
+        predicate: (query) => {
+          const queryKey = query.queryKey;
+          // Only invalidate the exact list query: ["workspaces", workspaceId, "agents"]
+          return (
+            Array.isArray(queryKey) &&
+            queryKey.length === 3 &&
+            queryKey[0] === "workspaces" &&
+            queryKey[1] === workspaceId &&
+            queryKey[2] === "agents"
+          );
+        },
       });
       toast.success("Agent updated successfully");
     },

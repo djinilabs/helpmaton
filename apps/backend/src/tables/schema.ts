@@ -89,6 +89,8 @@ export const tableSchemas = {
     delegatableAgentIds: z.array(z.string()).optional(), // list of agent IDs this agent can delegate to
     enabledMcpServerIds: z.array(z.string()).optional(), // list of MCP server IDs enabled for this agent
     enableMemorySearch: z.boolean().optional(), // enable memory search tool for this agent (default: false)
+    enableSearchDocuments: z.boolean().optional(), // enable document search tool for this agent (default: false)
+    enableSendEmail: z.boolean().optional(), // enable email sending tool for this agent (default: false, requires workspace email connection)
     spendingLimits: z
       .array(
         z.object({

@@ -692,11 +692,6 @@ async function callAgentInternal(
     usesByok
   );
 
-  // Set up tools for target agent
-  const searchDocumentsTool = createSearchDocumentsTool(workspaceId, {
-    messages: [{ role: "user", content: message }],
-  });
-
   // Extract agentId from targetAgent.pk (format: "agents/{workspaceId}/{agentId}")
   const extractedTargetAgentId = targetAgent.pk.replace(
     `agents/${workspaceId}/`,
@@ -704,9 +699,15 @@ async function callAgentInternal(
   );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Tools have varying types
-  const tools: Record<string, any> = {
-    search_documents: searchDocumentsTool,
-  };
+  const tools: Record<string, any> = {};
+
+  // Add document search tool if enabled
+  if (targetAgent.enableSearchDocuments === true) {
+    const searchDocumentsTool = createSearchDocumentsTool(workspaceId, {
+      messages: [{ role: "user", content: message }],
+    });
+    tools.search_documents = searchDocumentsTool;
+  }
 
   // Add memory search tool if enabled
   if (targetAgent.enableMemorySearch === true) {
@@ -724,14 +725,16 @@ async function callAgentInternal(
     );
   }
 
-  // Check if workspace has email connection
-  const emailConnectionPk = `email-connections/${workspaceId}`;
-  const emailConnection = await db["email-connection"].get(
-    emailConnectionPk,
-    "connection"
-  );
-  if (emailConnection) {
-    tools.send_email = createSendEmailTool(workspaceId);
+  // Add email tool if enabled and workspace has email connection
+  if (targetAgent.enableSendEmail === true) {
+    const emailConnectionPk = `email-connections/${workspaceId}`;
+    const emailConnection = await db["email-connection"].get(
+      emailConnectionPk,
+      "connection"
+    );
+    if (emailConnection) {
+      tools.send_email = createSendEmailTool(workspaceId);
+    }
   }
 
   // Add MCP server tools if target agent has enabled MCP servers

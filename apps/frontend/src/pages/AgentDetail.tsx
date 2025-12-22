@@ -46,6 +46,7 @@ import {
   useAgents,
   useUpdateAgent,
 } from "../hooks/useAgents";
+import { useEmailConnection } from "../hooks/useEmailConnection";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useMcpServers } from "../hooks/useMcpServers";
 import {
@@ -153,6 +154,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   const updateAgent = useUpdateAgent(workspaceId, agentId);
   const { data: allAgents } = useAgents(workspaceId);
   const { data: mcpServersData } = useMcpServers(workspaceId);
+  const { data: emailConnection } = useEmailConnection(workspaceId);
   const { data: streamServerConfig } = useStreamServer(workspaceId, agentId);
   const createStreamServer = useCreateStreamServer(workspaceId, agentId);
   const updateStreamServer = useUpdateStreamServer(workspaceId, agentId);
@@ -199,6 +201,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   // Use agent prop directly for enableMemorySearch, with local state for editing
   const [enableMemorySearch, setEnableMemorySearch] = useState<boolean>(
     () => agent?.enableMemorySearch ?? false
+  );
+
+  // Use agent prop directly for enableSearchDocuments, with local state for editing
+  const [enableSearchDocuments, setEnableSearchDocuments] = useState<boolean>(
+    () => agent?.enableSearchDocuments ?? false
+  );
+
+  // Use agent prop directly for enableSendEmail, with local state for editing
+  const [enableSendEmail, setEnableSendEmail] = useState<boolean>(
+    () => agent?.enableSendEmail ?? false
   );
 
   // Use agent prop directly for clientTools, with local state for editing
@@ -377,6 +389,32 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       setEnableMemorySearch(currentValue);
     }
   }, [agent?.id, agent?.enableMemorySearch]);
+
+  // Synchronize enableSearchDocuments state with agent prop using useEffect
+  const prevEnableSearchDocumentsRef = useRef<boolean | undefined>(
+    agent?.enableSearchDocuments
+  );
+  useEffect(() => {
+    const currentValue = agent?.enableSearchDocuments ?? false;
+    const prevValue = prevEnableSearchDocumentsRef.current ?? false;
+    if (currentValue !== prevValue) {
+      prevEnableSearchDocumentsRef.current = currentValue;
+      setEnableSearchDocuments(currentValue);
+    }
+  }, [agent?.id, agent?.enableSearchDocuments]);
+
+  // Synchronize enableSendEmail state with agent prop using useEffect
+  const prevEnableSendEmailRef = useRef<boolean | undefined>(
+    agent?.enableSendEmail
+  );
+  useEffect(() => {
+    const currentValue = agent?.enableSendEmail ?? false;
+    const prevValue = prevEnableSendEmailRef.current ?? false;
+    if (currentValue !== prevValue) {
+      prevEnableSendEmailRef.current = currentValue;
+      setEnableSendEmail(currentValue);
+    }
+  }, [agent?.id, agent?.enableSendEmail]);
 
   // Synchronize clientTools state with agent prop using useEffect
   useEffect(() => {
@@ -604,6 +642,44 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       setEnableMemorySearch(updated.enableMemorySearch ?? false);
     } catch {
       // Error is handled by toast in the hook
+    }
+  };
+
+  const handleSaveSearchDocuments = async () => {
+    try {
+      const valueToSave = enableSearchDocuments;
+      // Update ref immediately to prevent useEffect from overwriting our changes
+      prevEnableSearchDocumentsRef.current = valueToSave;
+      const updated = await updateAgent.mutateAsync({
+        enableSearchDocuments: valueToSave,
+      });
+      // Sync local state with updated agent data
+      const savedValue = updated.enableSearchDocuments ?? false;
+      prevEnableSearchDocumentsRef.current = savedValue;
+      setEnableSearchDocuments(savedValue);
+    } catch {
+      // Error is handled by toast in the hook
+      // Reset ref on error so useEffect can sync properly
+      prevEnableSearchDocumentsRef.current = agent?.enableSearchDocuments;
+    }
+  };
+
+  const handleSaveSendEmail = async () => {
+    try {
+      const valueToSave = enableSendEmail;
+      // Update ref immediately to prevent useEffect from overwriting our changes
+      prevEnableSendEmailRef.current = valueToSave;
+      const updated = await updateAgent.mutateAsync({
+        enableSendEmail: valueToSave,
+      });
+      // Sync local state with updated agent data
+      const savedValue = updated.enableSendEmail ?? false;
+      prevEnableSendEmailRef.current = savedValue;
+      setEnableSendEmail(savedValue);
+    } catch {
+      // Error is handled by toast in the hook
+      // Reset ref on error so useEffect can sync properly
+      prevEnableSendEmailRef.current = agent?.enableSendEmail;
     }
   };
 
@@ -1456,6 +1532,112 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     {updateAgent.isPending
                       ? "Saving..."
                       : "Save Memory Search Setting"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
+          {/* Document Search Tool Section */}
+          {canEdit && (
+            <AccordionSection
+              id="document-search"
+              title="DOCUMENT SEARCH TOOL"
+              isExpanded={expandedSection === "document-search"}
+              onToggle={() => toggleSection("document-search")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "document-search"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Enable the document search tool to allow this agent to search
+                    workspace documents using semantic vector search.
+                  </p>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={enableSearchDocuments}
+                      onChange={(e) =>
+                        setEnableSearchDocuments(e.target.checked)
+                      }
+                      className="mt-1 rounded border-2 border-neutral-300"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">Enable Document Search</div>
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                        Allow this agent to use the search_documents tool to
+                        search workspace documents
+                      </div>
+                    </div>
+                  </label>
+                  <button
+                    onClick={handleSaveSearchDocuments}
+                    disabled={updateAgent.isPending}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Document Search Setting"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
+          {/* Email Tool Section */}
+          {canEdit && (
+            <AccordionSection
+              id="email-tool"
+              title="EMAIL TOOL"
+              isExpanded={expandedSection === "email-tool"}
+              onToggle={() => toggleSection("email-tool")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "email-tool"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Enable the email tool to allow this agent to send emails
+                    using the workspace email connection.
+                  </p>
+                  {!emailConnection && (
+                    <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
+                      <p className="text-sm font-semibold text-yellow-900">
+                        ⚠️ Email Connection Required
+                      </p>
+                      <p className="mt-1 text-sm text-yellow-800">
+                        This workspace does not have an email connection
+                        configured. Please configure an email connection in the
+                        workspace settings before enabling this tool.
+                      </p>
+                    </div>
+                  )}
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={enableSendEmail}
+                      onChange={(e) => setEnableSendEmail(e.target.checked)}
+                      disabled={!emailConnection}
+                      className="mt-1 rounded border-2 border-neutral-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">Enable Email Sending</div>
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                        Allow this agent to use the send_email tool to send
+                        emails using the workspace email connection
+                        {!emailConnection && " (requires email connection)"}
+                      </div>
+                    </div>
+                  </label>
+                  <button
+                    onClick={handleSaveSendEmail}
+                    disabled={updateAgent.isPending || !emailConnection}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Email Tool Setting"}
                   </button>
                 </div>
               </LazyAccordionContent>

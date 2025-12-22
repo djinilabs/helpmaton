@@ -101,6 +101,8 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           delegatableAgentIds,
           enabledMcpServerIds,
           enableMemorySearch,
+          enableSearchDocuments,
+          enableSendEmail,
           clientTools,
           temperature,
           topP,
@@ -396,6 +398,14 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             enableMemorySearch !== undefined
               ? enableMemorySearch
               : agent.enableMemorySearch,
+          enableSearchDocuments:
+            enableSearchDocuments !== undefined
+              ? enableSearchDocuments
+              : agent.enableSearchDocuments,
+          enableSendEmail:
+            enableSendEmail !== undefined
+              ? enableSendEmail
+              : agent.enableSendEmail,
           clientTools:
             clientTools !== undefined ? clientTools : agent.clientTools,
           spendingLimits:
@@ -456,6 +466,8 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           delegatableAgentIds: updated.delegatableAgentIds ?? [],
           enabledMcpServerIds: updated.enabledMcpServerIds ?? [],
           enableMemorySearch: updated.enableMemorySearch ?? false,
+          enableSearchDocuments: updated.enableSearchDocuments ?? false,
+          enableSendEmail: updated.enableSendEmail ?? false,
           clientTools: updated.clientTools ?? [],
           spendingLimits: updated.spendingLimits ?? [],
           temperature: updated.temperature ?? null,

@@ -109,6 +109,8 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           delegatableAgentIds: agent.delegatableAgentIds ?? [],
           enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
           enableMemorySearch: agent.enableMemorySearch ?? false,
+          enableSearchDocuments: agent.enableSearchDocuments ?? false,
+          enableSendEmail: agent.enableSendEmail ?? false,
           clientTools: agent.clientTools ?? [],
           spendingLimits: agent.spendingLimits ?? [],
           temperature: agent.temperature ?? null,

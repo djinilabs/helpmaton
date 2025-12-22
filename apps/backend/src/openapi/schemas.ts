@@ -166,6 +166,14 @@ export const openApiSchemas = {
         type: "boolean",
         description: "Enable the memory search tool for this agent",
       },
+      enableSearchDocuments: {
+        type: "boolean",
+        description: "Enable the document search tool for this agent",
+      },
+      enableSendEmail: {
+        type: "boolean",
+        description: "Enable the email sending tool for this agent (requires workspace email connection)",
+      },
       createdAt: {
         type: "string",
         format: "date-time",
@@ -252,6 +260,14 @@ export const openApiSchemas = {
         type: "boolean",
         description: "Enable the memory search tool for this agent",
       },
+      enableSearchDocuments: {
+        type: "boolean",
+        description: "Enable the document search tool for this agent",
+      },
+      enableSendEmail: {
+        type: "boolean",
+        description: "Enable the email sending tool for this agent (requires workspace email connection)",
+      },
     },
   },
   UpdateAgentRequest: {
@@ -294,6 +310,14 @@ export const openApiSchemas = {
       enableMemorySearch: {
         type: "boolean",
         description: "Enable the memory search tool for this agent",
+      },
+      enableSearchDocuments: {
+        type: "boolean",
+        description: "Enable the document search tool for this agent",
+      },
+      enableSendEmail: {
+        type: "boolean",
+        description: "Enable the email sending tool for this agent (requires workspace email connection)",
       },
     },
   },

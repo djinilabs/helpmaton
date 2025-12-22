@@ -79,6 +79,8 @@ export interface Agent {
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
   enableMemorySearch?: boolean;
+  enableSearchDocuments?: boolean;
+  enableSendEmail?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
   temperature?: number;
@@ -108,6 +110,8 @@ export interface UpdateAgentInput {
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
   enableMemorySearch?: boolean;
+  enableSearchDocuments?: boolean;
+  enableSendEmail?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
   temperature?: number | null;
