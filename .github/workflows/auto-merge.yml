@@ -49,6 +49,15 @@ jobs:
               console.log(`Head branch: ${headBranch}`);
               console.log(`Conclusion: ${workflowRun.conclusion}`);
               
+              // Skip if this is a push to main (not a PR)
+              // The default branch doesn't have PRs to merge
+              const defaultBranch = context.payload.repository?.default_branch || 'main';
+              if (headBranch === defaultBranch) {
+                console.log(`Head branch is ${defaultBranch} (default branch), skipping auto-merge check. This is not a PR.`);
+                core.setOutput('pr_numbers', '');
+                return;
+              }
+              
               // Only process if workflow completed successfully
               if (workflowRun.conclusion !== 'success') {
                 console.log(`Workflow did not complete successfully (${workflowRun.conclusion}), skipping auto-merge check.`);
