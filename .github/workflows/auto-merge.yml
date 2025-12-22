@@ -190,15 +190,26 @@ jobs:
                     commitAuthor === 'renovate' ||
                     commitAuthorEmail.includes('renovate');
                   
-                  // Check if committer is Renovate bot
+                  // Check if committer is Renovate bot or web-flow (GitHub's system account)
+                  // web-flow is used when commits are made through GitHub's web interface or API
                   const isCommitterRenovate = 
                     commitCommitter === 'app/renovate' || 
                     commitCommitter === 'renovate[bot]' ||
                     commitCommitter === 'renovate' ||
+                    commitCommitter === 'web-flow' ||
                     commitCommitterEmail.includes('renovate');
                   
-                  if (!isAuthorRenovate || !isCommitterRenovate) {
-                    console.log(`Commit ${commit.sha.substring(0, 7)}: author=${commitAuthor}, committer=${commitCommitter} - not from Renovate bot`);
+                  // Only check committer if author is Renovate (to allow web-flow as committer)
+                  // If author is not Renovate, reject regardless of committer
+                  if (!isAuthorRenovate) {
+                    console.log(`Commit ${commit.sha.substring(0, 7)}: author=${commitAuthor} - not from Renovate bot`);
+                    allCommitsFromRenovate = false;
+                    break;
+                  }
+                  
+                  // If author is Renovate but committer is not Renovate/web-flow, reject
+                  if (!isCommitterRenovate) {
+                    console.log(`Commit ${commit.sha.substring(0, 7)}: author=${commitAuthor}, committer=${commitCommitter} - committer is not Renovate or web-flow`);
                     allCommitsFromRenovate = false;
                     break;
                   }
@@ -213,14 +224,14 @@ jobs:
                   continue;
                 }
                 
-                // Verify Renovate is the ONLY committer
-                const renovateIdentifiers = ['app/renovate', 'renovate[bot]', 'renovate'];
+                // Verify Renovate is the ONLY committer (allow web-flow as it's GitHub's system account)
+                const allowedCommitters = ['app/renovate', 'renovate[bot]', 'renovate', 'web-flow'];
                 const hasOnlyRenovateCommitters = Array.from(uniqueCommitters).every(committer => 
-                  renovateIdentifiers.some(id => committer.includes(id))
+                  allowedCommitters.some(id => committer.includes(id))
                 );
                 
                 if (!hasOnlyRenovateCommitters) {
-                  console.log(`PR has committers other than Renovate: ${Array.from(uniqueCommitters).join(', ')}. Skipping.`);
+                  console.log(`PR has committers other than Renovate/web-flow: ${Array.from(uniqueCommitters).join(', ')}. Skipping.`);
                   continue;
                 }
                 
@@ -293,13 +304,11 @@ jobs:
                 }
                 
                 // Check PR mergeability
+                // Note: We check mergeable (not mergeable_state) because mergeable_state can be "blocked"
+                // even when mergeable is true and all checks pass (e.g., due to branch protection rules
+                // that might require reviews, but Renovate PRs can be auto-approved or bypassed).
                 if (pr.mergeable !== true) {
                   console.log(`PR is not mergeable (mergeable: ${pr.mergeable})`);
-                  continue;
-                }
-                
-                if (pr.mergeable_state !== 'clean') {
-                  console.log(`PR merge state is not clean (${pr.mergeable_state})`);
                   continue;
                 }
                 

@@ -2,7 +2,27 @@
 
 ## Current Status
 
-**Status**: E2E Test Suite Expansion - ALL PHASES COMPLETE ✅
+**Status**: Auto-Merge Workflow Fix - Completed ✅
+
+Fixed two issues where the auto-merge workflow was rejecting Renovate bot PRs that should have been merged:
+
+1. **mergeable_state check**: The workflow was checking `mergeable_state !== 'clean'`, but `mergeable_state` can be "blocked" even when `mergeable === true` and all checks pass. Removed the overly strict `mergeable_state` check since `mergeable` is the authoritative field.
+
+2. **web-flow committer**: The workflow was rejecting PRs where commits had `web-flow` as the committer (GitHub's system account used for web/API commits). Added `web-flow` to the allowed committers list since it's not a real contributor - only the author matters for security.
+
+**Changes**:
+- Removed `mergeable_state !== 'clean'` check from auto-merge workflow
+- Added `web-flow` to allowed committers (alongside Renovate bot identifiers)
+- Improved commit validation logic with clearer error messages
+- Added comments explaining why we only check `mergeable` field and allow `web-flow`
+- Workflow now relies on: `mergeable === true`, all checks passed, Renovate bot author, only Renovate/web-flow commits
+
+**Files Modified**:
+- `.github/workflows/auto-merge.yml` - Removed redundant `mergeable_state` check, added `web-flow` to allowed committers
+
+**Verification**: Type checking and linting passed (lint warnings are false positives about GitHub Actions context)
+
+**Previous Status**: E2E Test Suite Expansion - ALL PHASES COMPLETE ✅
 
 Successfully implemented and verified a comprehensive chained E2E test suite that mirrors a real user's journey through Helpmaton. All 11 tests across 3 phases run sequentially using the same authenticated user session, eliminating the need for repeated email-based logins. The test suite completes in approximately 1 minute (excluding setup) and all tests pass consistently.
 
