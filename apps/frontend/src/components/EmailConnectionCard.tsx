@@ -24,7 +24,7 @@ export const EmailConnectionCard: FC<EmailConnectionCardProps> = ({
 
   if (isLoading) {
     return (
-      <div className="border border-neutral-200 rounded-xl p-4 bg-white">
+      <div className="border border-neutral-200 rounded-xl p-4 bg-white dark:border-neutral-700 dark:bg-neutral-900">
         <LoadingScreen compact message="Loading..." />
       </div>
     );
@@ -32,9 +32,9 @@ export const EmailConnectionCard: FC<EmailConnectionCardProps> = ({
 
   if (!connection) {
     return (
-      <div className="border border-neutral-200 rounded-xl p-4 bg-white shadow-soft">
+      <div className="border border-neutral-200 rounded-xl p-4 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-neutral-900">
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
             Email Connection
           </h3>
           <button
@@ -44,7 +44,7 @@ export const EmailConnectionCard: FC<EmailConnectionCardProps> = ({
             Create
           </button>
         </div>
-        <p className="text-sm text-neutral-600">
+        <p className="text-sm text-neutral-600 dark:text-neutral-300">
           No email connection configured. Create one to enable email sending for
           agents.
         </p>
@@ -59,15 +59,15 @@ export const EmailConnectionCard: FC<EmailConnectionCardProps> = ({
 
   return (
     <>
-      <div className="border border-neutral-200 rounded-xl p-4 bg-white shadow-soft">
+      <div className="border border-neutral-200 rounded-xl p-4 bg-white shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-neutral-900">
+          <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
             Email Connection
           </h3>
           <div className="flex gap-2">
             <button
               onClick={() => setIsModalOpen(true)}
-              className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 transition-colors"
+              className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               Edit
             </button>
@@ -94,25 +94,25 @@ export const EmailConnectionCard: FC<EmailConnectionCardProps> = ({
         </div>
         <div className="space-y-2">
           <div>
-            <span className="text-sm font-medium text-neutral-700">Name:</span>{" "}
-            <span className="text-sm text-neutral-900">{connection.name}</span>
+            <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Name:</span>{" "}
+            <span className="text-sm text-neutral-900 dark:text-neutral-50">{connection.name}</span>
           </div>
           <div>
-            <span className="text-sm font-medium text-neutral-700">Type:</span>{" "}
-            <span className="text-sm text-neutral-900">{connection.type}</span>
+            <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Type:</span>{" "}
+            <span className="text-sm text-neutral-900 dark:text-neutral-50">{connection.type}</span>
           </div>
           <div>
-            <span className="text-sm font-medium text-neutral-700">
+            <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
               Created:
             </span>{" "}
-            <span className="text-sm text-neutral-900">
+            <span className="text-sm text-neutral-900 dark:text-neutral-50">
               {new Date(connection.createdAt).toLocaleDateString()}
             </span>
           </div>
         </div>
-        <div className="mt-4 border border-neutral-200 rounded-xl p-4 bg-neutral-50">
+        <div className="mt-4 border border-neutral-200 rounded-xl p-4 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-neutral-900">
+            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
               Test Connection
             </span>
             <button
@@ -124,12 +124,12 @@ export const EmailConnectionCard: FC<EmailConnectionCardProps> = ({
                 }
               }}
               disabled={testConnection.isPending}
-              className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="border border-neutral-300 bg-white px-4 py-2 text-sm font-medium rounded-xl hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               {testConnection.isPending ? "Testing..." : "Send Test Email"}
             </button>
           </div>
-          <p className="text-xs mt-2 text-neutral-600">
+          <p className="text-xs mt-2 text-neutral-600 dark:text-neutral-300">
             Send a test email to verify your connection is working correctly.
           </p>
         </div>
