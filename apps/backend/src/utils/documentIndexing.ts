@@ -157,10 +157,13 @@ async function querySnippetsByDocumentId(
  *
  * @param workspaceId - Workspace ID (used as agentId for docs grain)
  * @param documentId - Document ID
+ * @param throwOnError - If true, throw errors instead of swallowing them. Defaults to false.
+ *                       Use true for updates (to prevent duplicates), false for deletions (orphaned snippets are acceptable).
  */
 export async function deleteDocumentSnippets(
   workspaceId: string,
-  documentId: string
+  documentId: string,
+  throwOnError: boolean = false
 ): Promise<void> {
   try {
     const dummyVector = createDummyVector();
@@ -237,11 +240,17 @@ export async function deleteDocumentSnippets(
       );
     }
   } catch (error) {
-    // Log error but don't throw - deletion should not block document operations
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(
       `[Document Indexing] Failed to delete snippets for document ${documentId}:`,
-      error instanceof Error ? error.message : String(error)
+      errorMessage
     );
+
+    // For updates, throw errors to prevent duplicate snippets
+    // For deletions, swallow errors (orphaned snippets are acceptable)
+    if (throwOnError) {
+      throw error;
+    }
     // Don't throw - allow document deletion to proceed even if vector DB deletion fails
   }
 }
@@ -263,7 +272,8 @@ export async function updateDocument(
   }
 ): Promise<void> {
   // First delete old snippets
-  await deleteDocumentSnippets(workspaceId, documentId);
+  // Throw on error to prevent duplicate snippets (old + new) in the index
+  await deleteDocumentSnippets(workspaceId, documentId, true);
 
   // Then index new content
   await indexDocument(workspaceId, documentId, content, metadata);

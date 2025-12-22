@@ -736,6 +736,22 @@ describe("documentIndexing", () => {
       expect(mockSendWriteOperation).toHaveBeenCalledTimes(1);
     });
 
+    it("should propagate errors from deleteDocumentSnippets", async () => {
+      // Setup: deleteDocumentSnippets fails during query
+      const deleteError = new Error("Delete failed");
+      mockQuery.mockRejectedValueOnce(deleteError);
+
+      await expect(
+        updateDocument(workspaceId, documentId, "content", {
+          documentName,
+          folderPath,
+        })
+      ).rejects.toThrow("Delete failed");
+
+      // Verify indexDocument was not called
+      expect(mockSplitDocumentIntoSnippets).not.toHaveBeenCalled();
+    });
+
     it("should propagate errors from indexDocument", async () => {
       // Setup: deleteDocumentSnippets finds no snippets, so no delete operation
       mockQuery.mockResolvedValue([]);
