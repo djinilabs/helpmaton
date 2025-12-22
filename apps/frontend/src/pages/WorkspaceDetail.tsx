@@ -567,36 +567,15 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                   onFolderChange={setCurrentFolder}
                   canEdit={!!canEdit}
                 />
-              </QueryPanel>
-            </LazyAccordionContent>
-          </AccordionSection>
-
-          {canEdit && (
-            <AccordionSection
-              id="documents-upload"
-              title="Document Upload"
-              isExpanded={expandedSection === "documents-upload"}
-              onToggle={() => toggleSection("documents-upload")}
-            >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "documents-upload"}
-              >
-                <QueryPanel
-                  fallback={
-                    <LoadingScreen
-                      compact
-                      message="Preparing upload portal..."
-                    />
-                  }
-                >
+                {canEdit && (
                   <DocumentUpload
                     workspaceId={id!}
                     currentFolder={currentFolder}
                   />
-                </QueryPanel>
-              </LazyAccordionContent>
-            </AccordionSection>
-          )}
+                )}
+              </QueryPanel>
+            </LazyAccordionContent>
+          </AccordionSection>
         </SectionGroup>
 
         <SectionGroup title="Communications">
