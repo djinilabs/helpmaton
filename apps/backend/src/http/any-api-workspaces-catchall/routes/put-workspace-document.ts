@@ -264,7 +264,7 @@ export const registerPutWorkspaceDocument = (app: express.Application) => {
 
         // Always call updateDocument to delete old snippets, even if content is empty
         // This ensures stale snippets are removed when content is cleared or S3 fetch fails
-        updateDocument(workspaceId, documentId, contentToIndex, {
+        await updateDocument(workspaceId, documentId, contentToIndex, {
           documentName: updated.name,
           folderPath: updated.folderPath,
         }).catch((error) => {

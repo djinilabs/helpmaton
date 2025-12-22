@@ -300,7 +300,7 @@ export const registerPostWorkspaceDocuments = (app: express.Application) => {
           });
 
           // Index document for search (async, errors are logged but don't block upload)
-          indexDocument(workspaceId, documentId, textDoc.content, {
+          await indexDocument(workspaceId, documentId, textDoc.content, {
             documentName: document.name,
             folderPath: document.folderPath,
           }).catch((error) => {

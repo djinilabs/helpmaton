@@ -73,7 +73,7 @@ export const registerDeleteWorkspaceDocument = (app: express.Application) => {
       }
 
       // Delete document snippets from vector database (async, errors are logged but don't block deletion)
-      deleteDocumentSnippets(workspaceId, documentId).catch((error) => {
+      await deleteDocumentSnippets(workspaceId, documentId).catch((error) => {
         console.error(
           `[Document Delete] Failed to delete snippets for document ${documentId}:`,
           error
