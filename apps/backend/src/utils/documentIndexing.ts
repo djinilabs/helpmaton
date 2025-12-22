@@ -74,22 +74,14 @@ export async function indexDocument(
     rawFacts.push(rawFact);
   }
 
-  // Log all content and metadata for each snippet
-  console.log(
-    `[Document Indexing] Document split into ${rawFacts.length} snippets for document ${documentId}:`
+  // Log summary information (without exposing document content)
+  const totalContentLength = rawFacts.reduce(
+    (sum, fact) => sum + fact.content.length,
+    0
   );
-  rawFacts.forEach((fact, index) => {
-    console.log(
-      `[Document Indexing] Snippet ${index + 1}/${rawFacts.length}:`,
-      {
-        id: fact.id,
-        content: fact.content,
-        timestamp: fact.timestamp,
-        metadata: fact.metadata,
-        contentLength: fact.content.length,
-      }
-    );
-  });
+  console.log(
+    `[Document Indexing] Document split into ${rawFacts.length} snippets for document ${documentId} (total content length: ${totalContentLength} characters)`
+  );
 
   // Queue write operation to SQS with raw facts (embeddings will be generated async)
   console.log(
