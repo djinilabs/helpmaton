@@ -5,6 +5,7 @@ import {
   useDocuments,
   useDeleteDocument,
   useFolders,
+  useSearchDocuments,
 } from "../hooks/useDocuments";
 
 import { DocumentViewer } from "./DocumentViewer";
@@ -27,6 +28,24 @@ export const DocumentList: FC<DocumentListProps> = ({
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
     null
   );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSearchQuery, setActiveSearchQuery] = useState("");
+
+  const {
+    data: searchResults = [],
+    isLoading: isSearching,
+  } = useSearchDocuments(workspaceId, activeSearchQuery);
+
+  const handleSearch = () => {
+    if (searchQuery.trim()) {
+      setActiveSearchQuery(searchQuery.trim());
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setActiveSearchQuery("");
+  };
 
   // Get folders for navigation
   const folderList = useMemo(() => {
@@ -77,6 +96,56 @@ export const DocumentList: FC<DocumentListProps> = ({
           organized in folders and can be accessed by agents during
           conversations. Click on a document to view its contents.
         </p>
+
+        {/* Search input */}
+        <div className="mb-6">
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg
+                  className="w-5 h-5 text-neutral-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && searchQuery.trim()) {
+                    handleSearch();
+                  }
+                }}
+                placeholder="Search documents..."
+                className="w-full border border-neutral-300 rounded-xl bg-white pl-12 pr-4 py-3 text-neutral-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+              />
+            </div>
+            <button
+              onClick={handleSearch}
+              disabled={!searchQuery.trim()}
+              className="bg-gradient-primary px-6 py-3 text-white text-sm font-semibold rounded-xl hover:shadow-colored disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none transition-all duration-200"
+            >
+              Search
+            </button>
+            {activeSearchQuery && (
+              <button
+                onClick={handleClearSearch}
+                className="border border-neutral-300 bg-white px-6 py-3 text-neutral-700 text-sm font-semibold rounded-xl hover:bg-neutral-50 transition-all duration-200"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Breadcrumb navigation */}
         {currentFolder !== undefined && (
@@ -133,8 +202,61 @@ export const DocumentList: FC<DocumentListProps> = ({
           </div>
         )}
 
-        {/* Documents list */}
-        {documents.length === 0 ? (
+        {/* Search results or documents list */}
+        {activeSearchQuery ? (
+          isSearching ? (
+            <p className="text-lg text-neutral-600">Searching...</p>
+          ) : searchResults.length === 0 ? (
+            <p className="text-lg text-neutral-600">
+              No results found for &ldquo;{activeSearchQuery}&rdquo;.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-neutral-700">
+                Found {searchResults.length} result
+                {searchResults.length !== 1 ? "s" : ""} for &ldquo;{activeSearchQuery}&rdquo;
+              </p>
+              {searchResults.map((result) => {
+                const truncatedSnippet =
+                  result.snippet.length > 200
+                    ? `${result.snippet.substring(0, 200)}...`
+                    : result.snippet;
+                const similarityPercent = Math.round(result.similarity * 100);
+
+                return (
+                  <div
+                    key={`${result.documentId}-${result.snippet.substring(0, 50)}`}
+                    className="border-2 border-primary-200 rounded-xl p-6 bg-primary-50/30 flex flex-col gap-3 hover:shadow-bold hover:border-primary-400 transition-all duration-200"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <button
+                          onClick={() => handleDocumentClick(result.documentId)}
+                          className="text-xl font-bold text-neutral-900 hover:text-primary-600 transition-colors text-left"
+                        >
+                          {result.documentName}
+                        </button>
+                        {result.folderPath && (
+                          <div className="text-sm text-neutral-500 mt-1">
+                            📁 {result.folderPath || "Root"}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="px-3 py-1 bg-primary-100 text-primary-700 text-sm font-semibold rounded-lg">
+                          {similarityPercent}% match
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-sm text-neutral-700 bg-white rounded-lg p-4 border border-neutral-200">
+                      {truncatedSnippet}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : documents.length === 0 ? (
           <p className="text-lg text-neutral-600">
             {currentFolder
               ? `No documents in "${getFolderDisplayName(

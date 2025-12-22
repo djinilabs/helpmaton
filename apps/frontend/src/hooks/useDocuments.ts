@@ -9,6 +9,7 @@ import {
   updateDocument,
   renameDocument,
   deleteDocument,
+  searchDocuments,
   type CreateDocumentInput,
   type UpdateDocumentInput,
 } from "../utils/api";
@@ -148,6 +149,21 @@ export function useDeleteDocument(workspaceId: string, documentId: string) {
     onError: (error: Error) => {
       toast.error(error.message || "Failed to delete document");
     },
+  });
+}
+
+export function useSearchDocuments(
+  workspaceId: string,
+  query: string,
+  limit?: number
+) {
+  return useQuery({
+    queryKey: ["documents-search", workspaceId, query, limit],
+    queryFn: async () => {
+      const result = await searchDocuments(workspaceId, query, limit);
+      return result.results;
+    },
+    enabled: query.trim().length > 0,
   });
 }
 
