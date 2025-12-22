@@ -111,49 +111,67 @@ export async function indexDocument(
 }
 
 /**
- * Create a dummy vector for querying LanceDB
- * LanceDB requires a vector for queries, so we use a dummy vector with small random values
- * This ensures we get results (zero vector might return no results)
- */
-function createDummyVector(dimension: number = 768): number[] {
-  return new Array(dimension).fill(0).map(() => Math.random() * 0.01);
-}
-
-/**
- * Query all snippets in a workspace and filter by documentId in memory
- * Since LanceDB filters don't work reliably (schema issues), we query all documents
- * and filter by documentId in memory. Each workspace has its own isolated database.
+ * Query all snippets for a specific document from the vector database
+ * Uses filter-based query (without vector similarity) to find all snippets matching documentId.
+ * Falls back to scanning all records if filter doesn't work.
+ *
+ * @param workspaceId - Workspace ID (used as agentId for docs grain)
+ * @param documentId - Document ID to filter by
+ * @param limit - Maximum number of results to return per query
+ * @returns Array of snippet IDs matching the documentId
  */
 async function querySnippetsByDocumentId(
   workspaceId: string,
   documentId: string,
-  dummyVector: number[],
   limit: number
 ): Promise<string[]> {
-  const results = await query(workspaceId, "docs", {
-    vector: dummyVector,
-    limit,
-  });
+  try {
+    // First, try using a filter without vector similarity search
+    // This is the most efficient approach if filters work correctly
+    const results = await query(workspaceId, "docs", {
+      filter: `documentId = '${documentId.replace(/'/g, "''")}'`, // Escape single quotes in documentId
+      limit,
+    });
 
-  // Filter results by documentId in memory
-  return results
-    .filter((result) => result.metadata?.documentId === documentId)
-    .map((result) => result.id);
+    // Filter results by documentId in memory as a safety check
+    // (in case the filter didn't work correctly)
+    return results
+      .filter((result) => result.metadata?.documentId === documentId)
+      .map((result) => result.id);
+  } catch (filterError) {
+    // If filter-based query fails, fall back to scanning all records without vector similarity
+    console.warn(
+      `[Document Indexing] Filter-based query failed for document ${documentId}, falling back to full scan:`,
+      filterError instanceof Error ? filterError.message : String(filterError)
+    );
+
+    // Query all records without vector similarity (no vector, no filter)
+    // This returns records in an arbitrary order, but we can filter by documentId in memory
+    const results = await query(workspaceId, "docs", {
+      limit,
+    });
+
+    // Filter results by documentId in memory
+    return results
+      .filter((result) => result.metadata?.documentId === documentId)
+      .map((result) => result.id);
+  }
 }
 
 /**
  * Delete all snippets for a document from the vector database
  *
- * Since LanceDB filters don't work reliably (schema issues), we query all documents
- * and filter by documentId in memory. Each workspace has its own isolated database.
+ * Uses filter-based queries (without vector similarity) to find all snippets matching documentId.
+ * Queries in batches until no more snippets are found, ensuring complete deletion even when
+ * there are more than MAX_QUERY_LIMIT snippets.
  *
  * Algorithm:
- * 1. Query snippets in batches of MAX_QUERY_LIMIT
+ * 1. Query snippets matching documentId in batches of MAX_QUERY_LIMIT
  * 2. Delete each batch immediately after collecting it
  * 3. Continue querying until no new IDs are found
  *
- * This ensures subsequent queries return different results, allowing us to collect
- * all snippets even when there are more than MAX_QUERY_LIMIT snippets.
+ * This approach queries without vector similarity, so it's not limited to the K nearest neighbors
+ * and can find all snippets regardless of workspace size.
  *
  * @param workspaceId - Workspace ID (used as agentId for docs grain)
  * @param documentId - Document ID
@@ -166,19 +184,18 @@ export async function deleteDocumentSnippets(
   throwOnError: boolean = false
 ): Promise<void> {
   try {
-    const dummyVector = createDummyVector();
     const seenIds = new Set<string>();
     const maxBatches = Math.ceil(MAX_DOCUMENT_SNIPPETS / MAX_QUERY_LIMIT);
     let totalDeleted = 0;
+    let consecutiveEmptyBatches = 0;
+    const MAX_CONSECUTIVE_EMPTY = 2; // Stop after 2 consecutive empty batches
 
     // Query and delete snippets in batches
-    // Delete each batch immediately so subsequent queries (after async processing) return different results
-    // Continue querying all batches to ensure we collect all IDs, even if deletions are still processing
+    // Continue until we've checked all possible batches or get consecutive empty results
     for (let batchNumber = 0; batchNumber < maxBatches; batchNumber++) {
       const snippetIds = await querySnippetsByDocumentId(
         workspaceId,
         documentId,
-        dummyVector,
         MAX_QUERY_LIMIT
       );
 
@@ -189,9 +206,8 @@ export async function deleteDocumentSnippets(
       snippetIds.forEach((id) => seenIds.add(id));
 
       // Delete new IDs immediately (async via SQS)
-      // Even if deletions haven't processed yet, we continue querying all batches
-      // to ensure we collect all IDs that exist at query time
       if (newIds.length > 0) {
+        consecutiveEmptyBatches = 0; // Reset counter when we find new IDs
         // SQS message size limit is 256KB. With IDs like "doc-123:0" (~10-15 chars each),
         // we can fit ~17,000 IDs in a single message, which is well above MAX_QUERY_LIMIT
         await sendWriteOperation({
@@ -205,15 +221,30 @@ export async function deleteDocumentSnippets(
         });
 
         totalDeleted += newIds.length;
+        console.log(
+          `[Document Indexing] Batch ${batchNumber + 1}: Found ${
+            newIds.length
+          } new snippets to delete (${totalDeleted} total)`
+        );
+      } else {
+        consecutiveEmptyBatches++;
+        // If we get consecutive empty batches, we've likely found all snippets
+        // This handles the case where filter-based queries return results in a consistent order
+        if (consecutiveEmptyBatches >= MAX_CONSECUTIVE_EMPTY) {
+          console.log(
+            `[Document Indexing] Stopping after ${consecutiveEmptyBatches} consecutive empty batches`
+          );
+          break;
+        }
       }
 
       // If we got fewer results than the limit, we've likely found all snippets
-      // Query one more time to handle edge case of exactly MAX_QUERY_LIMIT remaining
+      // But continue for one more batch to handle edge cases
       if (snippetIds.length < MAX_QUERY_LIMIT) {
+        // Query one more time to handle edge case of exactly MAX_QUERY_LIMIT remaining
         const finalSnippetIds = await querySnippetsByDocumentId(
           workspaceId,
           documentId,
-          dummyVector,
           MAX_QUERY_LIMIT
         );
         const finalNewIds = finalSnippetIds.filter((id) => !seenIds.has(id));
@@ -229,6 +260,9 @@ export async function deleteDocumentSnippets(
             },
           });
           totalDeleted += finalNewIds.length;
+          console.log(
+            `[Document Indexing] Final batch: Found ${finalNewIds.length} additional snippets (${totalDeleted} total)`
+          );
         }
         break;
       }
@@ -236,7 +270,11 @@ export async function deleteDocumentSnippets(
 
     if (totalDeleted > 0) {
       console.log(
-        `[Document Indexing] Deleted ${totalDeleted} snippets for document ${documentId}`
+        `[Document Indexing] Successfully deleted ${totalDeleted} snippets for document ${documentId}`
+      );
+    } else {
+      console.log(
+        `[Document Indexing] No snippets found to delete for document ${documentId}`
       );
     }
   } catch (error) {
