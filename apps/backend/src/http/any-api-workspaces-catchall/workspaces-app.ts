@@ -39,6 +39,7 @@ import { registerGetWorkspaceChannels } from "./routes/get-workspace-channels";
 import { registerGetWorkspaceDocument } from "./routes/get-workspace-document";
 import { registerGetWorkspaceDocumentFolders } from "./routes/get-workspace-document-folders";
 import { registerGetWorkspaceDocuments } from "./routes/get-workspace-documents";
+import { registerGetWorkspaceDocumentsSearch } from "./routes/get-workspace-documents-search";
 import { registerGetWorkspaceEmailOauthCallback } from "./routes/get-workspace-email-oauth-callback";
 import { registerGetWorkspaceInvite } from "./routes/get-workspace-invite";
 import { registerGetWorkspaceInvites } from "./routes/get-workspace-invites";
@@ -132,6 +133,7 @@ export const createApp: () => express.Application = () => {
   registerGetAgentConversation(app);
   registerGetWorkspaceDocuments(app);
   registerGetWorkspaceDocumentFolders(app);
+  registerGetWorkspaceDocumentsSearch(app);
   registerPostWorkspaceDocuments(app);
   registerGetWorkspaceDocument(app);
   registerPutWorkspaceDocument(app);

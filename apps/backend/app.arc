@@ -5,8 +5,8 @@ helpmaton
 spa true
 
 @http
-post /api/webhook/:workspaceId/:agentId/:key
 post /api/webhooks/lemonsqueezy
+post /api/webhook/:workspaceId/:agentId/:key
 get /api/usage
 get /api/models
 get /api/streams/url
@@ -30,11 +30,6 @@ next-auth
   sk **String
   expires TTL
   encrypt true
-
-webhook-logs
-  pk *String
-  sk **String
-  expires TTL
 
 workspace
   pk *String

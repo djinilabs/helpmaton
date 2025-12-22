@@ -23,7 +23,7 @@ export const DocumentList: FC<DocumentListProps> = ({
   canEdit,
 }) => {
   const { data: documents } = useDocuments(workspaceId, currentFolder);
-  const { data: folders } = useFolders(workspaceId);
+  const { data: folders = [] } = useFolders(workspaceId);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
     null
   );

@@ -6,11 +6,13 @@ import multer from "multer";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { indexDocument } from "../../../utils/documentIndexing";
 import {
   uploadDocument,
   generateUniqueFilename,
   normalizeFolderPath,
 } from "../../../utils/s3";
+import { Sentry, ensureError } from "../../../utils/sentry";
 import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
@@ -209,6 +211,35 @@ export const registerPostWorkspaceDocuments = (app: express.Application) => {
             size: document.size,
             createdAt: document.createdAt,
           });
+
+          // Index document for search (async, errors are logged but don't block upload)
+          const content = file.buffer.toString("utf-8");
+          await indexDocument(workspaceId, documentId, content, {
+            documentName: document.name,
+            folderPath: document.folderPath,
+          }).catch((error) => {
+            console.error(
+              `[Document Upload] Failed to index document ${documentId}:`,
+              error
+            );
+            // Report to Sentry (without flushing - flushing is done unconditionally at end of request)
+            Sentry.captureException(ensureError(error), {
+              tags: {
+                operation: "document_indexing",
+                action: "upload",
+                workspaceId,
+                documentId,
+              },
+              contexts: {
+                document: {
+                  documentId,
+                  documentName: document.name,
+                  folderPath: document.folderPath,
+                  workspaceId,
+                },
+              },
+            });
+          });
         }
       }
 
@@ -266,6 +297,34 @@ export const registerPostWorkspaceDocuments = (app: express.Application) => {
             contentType: document.contentType,
             size: document.size,
             createdAt: document.createdAt,
+          });
+
+          // Index document for search (async, errors are logged but don't block upload)
+          await indexDocument(workspaceId, documentId, textDoc.content, {
+            documentName: document.name,
+            folderPath: document.folderPath,
+          }).catch((error) => {
+            console.error(
+              `[Document Upload] Failed to index document ${documentId}:`,
+              error
+            );
+            // Report to Sentry (without flushing - flushing is done unconditionally at end of request)
+            Sentry.captureException(ensureError(error), {
+              tags: {
+                operation: "document_indexing",
+                action: "upload",
+                workspaceId,
+                documentId,
+              },
+              contexts: {
+                document: {
+                  documentId,
+                  documentName: document.name,
+                  folderPath: document.folderPath,
+                  workspaceId,
+                },
+              },
+            });
           });
         }
       }

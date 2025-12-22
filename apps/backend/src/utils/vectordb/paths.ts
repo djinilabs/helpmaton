@@ -28,13 +28,19 @@ export function getDatabaseUri(
 
 /**
  * Get the message group ID for SQS FIFO queue
- * Format: {agentId}-{temporalGrain}
+ * Format: {agentId}-{temporalGrain} or {workspaceId}-docs for docs grain
  * This ensures serialized processing per database
+ * For docs grain, workspaceId should be provided and will be used instead of agentId
  */
 export function getMessageGroupId(
   agentId: string,
-  temporalGrain: TemporalGrain
+  temporalGrain: TemporalGrain,
+  workspaceId?: string
 ): string {
+  // For docs grain, use workspaceId if provided (since docs are workspace-scoped)
+  if (temporalGrain === "docs" && workspaceId) {
+    return `${workspaceId}-${temporalGrain}`;
+  }
   return `${agentId}-${temporalGrain}`;
 }
 

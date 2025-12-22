@@ -5,8 +5,6 @@ import { getDefined } from "../../utils";
 import { getPostHogClient } from "../../utils/posthog";
 import { getModelPricing, loadPricingConfig } from "../../utils/pricing";
 
-import { getWorkspaceApiKey } from "./agentUtils";
-
 export type Provider = "google";
 
 /**
@@ -93,9 +91,11 @@ export async function createModel(
   }
 
   // Try to get workspace API key first, fall back to system key
+  // Lazy import to avoid pulling in documentSearch dependencies when not needed
   let apiKey: string;
   let usesByok = false;
   if (workspaceId) {
+    const { getWorkspaceApiKey } = await import("./agentUtils");
     const workspaceKey = await getWorkspaceApiKey(workspaceId, provider);
     usesByok = workspaceKey !== null;
     apiKey = workspaceKey || getSystemApiKey(provider);

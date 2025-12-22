@@ -251,14 +251,6 @@ export function createMockDatabase() {
       delete: async () => ({}),
       query: async () => ({ items: [] }),
     },
-    "webhook-logs": {
-      get: async () => null,
-      put: async () => ({}),
-      create: async () => ({}),
-      update: async () => ({}),
-      delete: async () => ({}),
-      query: async () => ({ items: [] }),
-    },
     "agent-key": {
       get: async () => null,
       put: async () => ({}),

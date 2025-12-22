@@ -155,6 +155,78 @@ async function generateEmbeddingsForFacts(
 }
 
 /**
+ * Normalize a record to ensure consistent schema for LanceDB
+ * All records must have the same fields, even if empty, to maintain schema consistency
+ */
+function normalizeRecordSchema(r: FactRecord): {
+  id: string;
+  content: string;
+  vector: number[];
+  timestamp: string;
+  conversationId: string;
+  workspaceId: string;
+  agentId: string;
+  documentId: string;
+  documentName: string;
+  folderPath: string;
+} {
+  // Extract metadata fields and store them at the top level
+  // LanceDB doesn't handle nested metadata objects well, so we flatten the structure
+  // Always ensure all fields are present as strings (never undefined/null) to maintain schema consistency
+  let conversationId = "";
+  let workspaceId = "";
+  let agentId = "";
+  let documentId = "";
+  let documentName = "";
+  let folderPath = "";
+
+  if (
+    r.metadata &&
+    typeof r.metadata === "object" &&
+    !Array.isArray(r.metadata)
+  ) {
+    try {
+      // Use JSON serialization to convert any Arrow Structs to plain objects
+      const jsonString = JSON.stringify(r.metadata);
+      const parsed = JSON.parse(jsonString) as Record<string, unknown>;
+
+      // Extract metadata fields as strings (memory system fields)
+      // Always convert to string and default to empty string to ensure schema consistency
+      conversationId = String(parsed.conversationId || "");
+      workspaceId = String(parsed.workspaceId || "");
+      agentId = String(parsed.agentId || "");
+      // Document system fields (for docs grain)
+      documentId = String(parsed.documentId || "");
+      documentName = String(parsed.documentName || "");
+      folderPath = String(parsed.folderPath || "");
+    } catch {
+      // Fallback to direct access if JSON fails
+      conversationId = String(r.metadata.conversationId || "");
+      workspaceId = String(r.metadata.workspaceId || "");
+      agentId = String(r.metadata.agentId || "");
+      documentId = String(r.metadata.documentId || "");
+      documentName = String(r.metadata.documentName || "");
+      folderPath = String(r.metadata.folderPath || "");
+    }
+  }
+
+  return {
+    id: r.id,
+    content: r.content,
+    vector: r.embedding,
+    timestamp: r.timestamp,
+    // Store metadata fields at top level instead of nested
+    // All fields must always be present as strings to maintain schema consistency
+    conversationId,
+    workspaceId,
+    agentId,
+    documentId,
+    documentName,
+    folderPath,
+  };
+}
+
+/**
  * Execute insert operation on LanceDB database
  */
 async function executeInsert(
@@ -219,63 +291,43 @@ async function executeInsert(
     } catch {
       // Table doesn't exist, create it
       // LanceDB will infer schema from the first batch of records
-      const initialRecords = finalRecords.map((r) => {
-        // Extract metadata fields and store them at the top level
-        // LanceDB doesn't handle nested metadata objects well, so we flatten the structure
-        let conversationId = "";
-        let workspaceId = "";
-        let agentId = "";
-
-        if (
-          r.metadata &&
-          typeof r.metadata === "object" &&
-          !Array.isArray(r.metadata)
-        ) {
-          try {
-            // Use JSON serialization to convert any Arrow Structs to plain objects
-            const jsonString = JSON.stringify(r.metadata);
-            const parsed = JSON.parse(jsonString) as Record<string, unknown>;
-
-            // Extract metadata fields as strings
-            conversationId = String(parsed.conversationId || "");
-            workspaceId = String(parsed.workspaceId || "");
-            agentId = String(parsed.agentId || "");
-          } catch {
-            // Fallback to direct access if JSON fails
-            conversationId = String(r.metadata.conversationId || "");
-            workspaceId = String(r.metadata.workspaceId || "");
-            agentId = String(r.metadata.agentId || "");
-          }
-        }
-
-        return {
-          id: r.id,
-          content: r.content,
-          vector: r.embedding,
-          timestamp: r.timestamp,
-          // Store metadata fields at top level instead of nested
-          conversationId,
-          workspaceId,
-          agentId,
-        };
-      });
+      // Use normalizeRecordSchema to ensure all records have the same schema structure
+      const initialRecords = finalRecords.map((r) => normalizeRecordSchema(r));
       // Log first record's metadata fields for debugging
       if (initialRecords.length > 0) {
         console.log(
-          `[Write Server] Creating table with sample record metadata fields:`,
+          `[Write Server] Creating table with sample record metadata fields (ensuring consistent schema):`,
           JSON.stringify(
             {
               conversationId: initialRecords[0].conversationId,
               workspaceId: initialRecords[0].workspaceId,
               agentId: initialRecords[0].agentId,
+              documentId: initialRecords[0].documentId,
+              documentName: initialRecords[0].documentName,
+              folderPath: initialRecords[0].folderPath,
             },
             null,
             2
           )
         );
       }
-      table = await db.createTable("vectors", initialRecords);
-      console.log(`[Write Server] Created new table "vectors" in ${uri}`);
+      // Create table with first record to establish schema
+      table = await db.createTable("vectors", [initialRecords[0]]);
+      console.log(
+        `[Write Server] Created new table "vectors" in ${uri} with schema from first record`
+      );
+      // Add remaining records (skip first since it's already in createTable)
+      if (initialRecords.length > 1) {
+        await table.add(initialRecords.slice(1));
+        console.log(
+          `[Write Server] Added ${
+            initialRecords.length - 1
+          } additional records to table`
+        );
+      }
+      console.log(
+        `[Write Server] Successfully inserted ${initialRecords.length} records into newly created table for agent ${agentId}, grain ${temporalGrain}`
+      );
       return;
     }
 
@@ -283,55 +335,20 @@ async function executeInsert(
     console.log(
       `[Write Server] Adding ${finalRecords.length} records to existing table for agent ${agentId}, grain ${temporalGrain}`
     );
-    const recordsToInsert = finalRecords.map((r) => {
-      // Extract metadata fields and store them at the top level
-      // LanceDB doesn't handle nested metadata objects well, so we flatten the structure
-      let conversationId = "";
-      let workspaceId = "";
-      let agentId = "";
-
-      if (
-        r.metadata &&
-        typeof r.metadata === "object" &&
-        !Array.isArray(r.metadata)
-      ) {
-        try {
-          // Use JSON serialization to convert any Arrow Structs to plain objects
-          const jsonString = JSON.stringify(r.metadata);
-          const parsed = JSON.parse(jsonString) as Record<string, unknown>;
-
-          // Extract metadata fields as strings
-          conversationId = String(parsed.conversationId || "");
-          workspaceId = String(parsed.workspaceId || "");
-          agentId = String(parsed.agentId || "");
-        } catch {
-          // Fallback to direct access if JSON fails
-          conversationId = String(r.metadata.conversationId || "");
-          workspaceId = String(r.metadata.workspaceId || "");
-          agentId = String(r.metadata.agentId || "");
-        }
-      }
-
-      return {
-        id: r.id,
-        content: r.content,
-        vector: r.embedding,
-        timestamp: r.timestamp,
-        // Store metadata fields at top level instead of nested
-        conversationId,
-        workspaceId,
-        agentId,
-      };
-    });
+    // Use normalizeRecordSchema to ensure all records have the same schema structure
+    const recordsToInsert = finalRecords.map((r) => normalizeRecordSchema(r));
     // Log first record's metadata fields for debugging
     if (recordsToInsert.length > 0) {
       console.log(
-        `[Write Server] Sample record metadata fields being inserted:`,
+        `[Write Server] Sample record metadata fields being inserted (ensuring consistent schema):`,
         JSON.stringify(
           {
             conversationId: recordsToInsert[0].conversationId,
             workspaceId: recordsToInsert[0].workspaceId,
             agentId: recordsToInsert[0].agentId,
+            documentId: recordsToInsert[0].documentId,
+            documentName: recordsToInsert[0].documentName,
+            folderPath: recordsToInsert[0].folderPath,
           },
           null,
           2
@@ -378,31 +395,8 @@ async function executeUpdate(
     }
 
     // Insert updated records with flattened metadata
-    await table.add(
-      records.map((r) => {
-        // Extract metadata fields
-        let conversationId = "";
-        let workspaceId = "";
-        let agentId = "";
-
-        if (r.metadata && typeof r.metadata === "object") {
-          conversationId = String(r.metadata.conversationId || "");
-          workspaceId = String(r.metadata.workspaceId || "");
-          agentId = String(r.metadata.agentId || "");
-        }
-
-        return {
-          id: r.id,
-          content: r.content,
-          vector: r.embedding,
-          timestamp: r.timestamp,
-          // Store metadata fields at top level instead of nested
-          conversationId,
-          workspaceId,
-          agentId,
-        };
-      })
-    );
+    // Use normalizeRecordSchema to ensure all records have the same schema structure
+    await table.add(records.map((r) => normalizeRecordSchema(r)));
 
     console.log(
       `[Write Server] Successfully updated ${records.length} records`

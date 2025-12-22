@@ -2,6 +2,31 @@
 
 ## Current Status
 
+**Status**: webhook-logs Table Removal - Completed ✅
+
+Removed the `webhook-logs` table and all its usage from the codebase. The table was write-only (no retrieval functionality) and was not being used for any operational purpose.
+
+**Changes Made**:
+
+- Removed table definition from `app.arc`
+- Removed schema definition, type exports, and DatabaseSchema entry from `schema.ts`
+- Removed all logging code from webhook handler (`post-api-webhook-000userId-000key/index.ts`)
+- Simplified handler response (removed `requestId` from response)
+- Updated tests to remove logging assertions and database mocks
+- Removed `webhook-logs` mock from test helpers
+- Removed documentation references from `database-schema.md` and `webhook-system.md`
+
+**Files Modified**:
+
+- `apps/backend/app.arc` - Removed table definition
+- `apps/backend/src/tables/schema.ts` - Removed schema, types, and DatabaseSchema entry
+- `apps/backend/src/http/post-api-webhook-000userId-000key/index.ts` - Removed logging code
+- `apps/backend/src/http/post-api-webhook-000userId-000key/__tests__/handler.test.ts` - Updated tests
+- `apps/backend/src/http/utils/__tests__/test-helpers.ts` - Removed mock
+- `docs/database-schema.md` - Removed table documentation
+- `docs/webhook-system.md` - Removed logging section
+
+**Verification**: Type checking and linting passed successfully
 **Status**: Auto-Merge Workflow Fix - Completed ✅
 
 Fixed three issues where the auto-merge workflow was not working correctly:

@@ -3,7 +3,9 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { deleteDocumentSnippets } from "../../../utils/documentIndexing";
 import { deleteDocument } from "../../../utils/s3";
+import { Sentry, ensureError } from "../../../utils/sentry";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -69,6 +71,29 @@ export const registerDeleteWorkspaceDocument = (app: express.Application) => {
       if (document.workspaceId !== workspaceId) {
         throw forbidden("Document does not belong to this workspace");
       }
+
+      // Delete document snippets from vector database (async, errors are logged but don't block deletion)
+      await deleteDocumentSnippets(workspaceId, documentId).catch((error) => {
+        console.error(
+          `[Document Delete] Failed to delete snippets for document ${documentId}:`,
+          error
+        );
+        // Report to Sentry (without flushing - flushing is done unconditionally at end of request)
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            operation: "document_indexing",
+            action: "delete",
+            workspaceId,
+            documentId,
+          },
+          contexts: {
+            document: {
+              documentId,
+              workspaceId,
+            },
+          },
+        });
+      });
 
       // Delete from S3
       await deleteDocument(workspaceId, documentId, document.s3Key);

@@ -147,7 +147,25 @@ export default tseslint.config(
       'react-hooks/rules-of-hooks': 'off',
       'react-hooks/exhaustive-deps': 'off',
       // Disable React Refresh rules
-      'react-refresh/only-export-components': 'off'
+      'react-refresh/only-export-components': 'off',
+      // Enforce promise handling to prevent unawaited promises (critical for Lambda)
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': ['error', {
+        checksConditionals: true,
+        checksVoidReturn: true,
+        checksSpreads: true
+      }]
+    }
+  },
+  // Configuration for test files - relax void return check for mocks
+  {
+    files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-misused-promises': ['error', {
+        checksConditionals: true,
+        checksVoidReturn: false, // Allow promises in mocks that expect void
+        checksSpreads: true
+      }]
     }
   }
 )

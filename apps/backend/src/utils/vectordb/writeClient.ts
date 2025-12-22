@@ -4,11 +4,13 @@ import type { FactRecord, TemporalGrain, WriteOperationMessage } from "./types";
 /**
  * Insert fact records into the vector database
  * Sends the operation to SQS FIFO queue for processing
+ * For docs grain, workspaceId should be provided and will be used as agentId
  */
 export async function insert(
   agentId: string,
   temporalGrain: TemporalGrain,
-  records: FactRecord[]
+  records: FactRecord[],
+  workspaceId?: string
 ): Promise<void> {
   if (records.length === 0) {
     return;
@@ -18,6 +20,7 @@ export async function insert(
     operation: "insert",
     agentId,
     temporalGrain,
+    workspaceId,
     data: {
       records,
     },
@@ -29,11 +32,13 @@ export async function insert(
 /**
  * Update fact records in the vector database
  * Sends the operation to SQS FIFO queue for processing
+ * For docs grain, workspaceId should be provided and will be used as agentId
  */
 export async function update(
   agentId: string,
   temporalGrain: TemporalGrain,
-  records: FactRecord[]
+  records: FactRecord[],
+  workspaceId?: string
 ): Promise<void> {
   if (records.length === 0) {
     return;
@@ -43,6 +48,7 @@ export async function update(
     operation: "update",
     agentId,
     temporalGrain,
+    workspaceId,
     data: {
       records,
     },
@@ -54,11 +60,13 @@ export async function update(
 /**
  * Delete fact records from the vector database
  * Sends the operation to SQS FIFO queue for processing
+ * For docs grain, workspaceId should be provided and will be used as agentId
  */
 export async function remove(
   agentId: string,
   temporalGrain: TemporalGrain,
-  recordIds: string[]
+  recordIds: string[],
+  workspaceId?: string
 ): Promise<void> {
   if (recordIds.length === 0) {
     return;
@@ -68,6 +76,7 @@ export async function remove(
     operation: "delete",
     agentId,
     temporalGrain,
+    workspaceId,
     data: {
       recordIds,
     },
@@ -78,4 +87,3 @@ export async function remove(
 
 // Export as delete for consistency with common naming
 export { remove as delete };
-

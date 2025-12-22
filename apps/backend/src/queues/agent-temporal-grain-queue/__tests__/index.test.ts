@@ -139,6 +139,9 @@ describe("agent-temporal-grain-queue handler", () => {
             conversationId: "",
             workspaceId: "",
             agentId: "",
+            documentId: "",
+            documentName: "",
+            folderPath: "",
           },
         ]);
         expect(result).toEqual([]);
@@ -379,6 +382,9 @@ describe("agent-temporal-grain-queue handler", () => {
             conversationId: "conv-1",
             workspaceId: "",
             agentId: "",
+            documentId: "",
+            documentName: "",
+            folderPath: "",
           },
         ]);
         expect(result).toEqual([]);
