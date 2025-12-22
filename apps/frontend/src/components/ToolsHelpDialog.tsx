@@ -30,6 +30,8 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
   const hasDelegation =
     agent?.delegatableAgentIds && agent.delegatableAgentIds.length > 0;
   const hasMemorySearch = agent?.enableMemorySearch === true;
+  const hasSearchDocuments = agent?.enableSearchDocuments === true;
+  const hasSendEmail = agent?.enableSendEmail === true && hasEmailConnection;
   const enabledMcpServerIds = agent?.enabledMcpServerIds || [];
   const enabledMcpServers =
     mcpServersData?.servers.filter((server) =>
@@ -41,8 +43,10 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
       name: "search_documents",
       description:
         "Search workspace documents using semantic vector search. Returns the most relevant document snippets based on the query.",
-      alwaysAvailable: true,
-      condition: null,
+      alwaysAvailable: false,
+      condition: hasSearchDocuments
+        ? "Available (document search enabled)"
+        : "Not available (document search not enabled)",
       parameters: [
         {
           name: "query",
@@ -128,9 +132,13 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
       description:
         "Send an email using the workspace email connection (Gmail, Outlook, or SMTP).",
       alwaysAvailable: false,
-      condition: hasEmailConnection
-        ? "Available (email connection configured)"
-        : "Not available (no email connection configured)",
+      condition: hasSendEmail
+        ? "Available (email tool enabled and email connection configured)"
+        : agent?.enableSendEmail === true && !hasEmailConnection
+          ? "Not available (email tool enabled but no email connection configured)"
+          : !agent?.enableSendEmail
+            ? "Not available (email tool not enabled)"
+            : "Not available (email tool not enabled and no email connection configured)",
       parameters: [
         {
           name: "to",

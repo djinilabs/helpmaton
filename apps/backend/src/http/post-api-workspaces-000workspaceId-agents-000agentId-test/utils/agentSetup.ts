@@ -145,17 +145,19 @@ export async function setupAgentAndTools(
     options?.userId
   );
 
-  const searchDocumentsTool = createSearchDocumentsTool(workspaceId, {
-    messages,
-    ...options?.searchDocumentsOptions,
-  });
-
   // Extract agentId from agent.pk (format: "agents/{workspaceId}/{agentId}")
   const extractedAgentId = agent.pk.replace(`agents/${workspaceId}/`, "");
 
-  const tools: AgentSetup["tools"] = {
-    search_documents: searchDocumentsTool,
-  };
+  const tools: AgentSetup["tools"] = {};
+
+  // Add document search tool if enabled
+  if (agent.enableSearchDocuments === true) {
+    const searchDocumentsTool = createSearchDocumentsTool(workspaceId, {
+      messages,
+      ...options?.searchDocumentsOptions,
+    });
+    tools.search_documents = searchDocumentsTool;
+  }
 
   // Add memory search tool if enabled
   if (agent.enableMemorySearch === true) {
@@ -169,15 +171,17 @@ export async function setupAgentAndTools(
     );
   }
 
-  // Check if workspace has email connection
-  const db = await database();
-  const emailConnectionPk = `email-connections/${workspaceId}`;
-  const emailConnection = await db["email-connection"].get(
-    emailConnectionPk,
-    "connection"
-  );
-  if (emailConnection) {
-    tools.send_email = createSendEmailTool(workspaceId);
+  // Add email tool if enabled and workspace has email connection
+  if (agent.enableSendEmail === true) {
+    const db = await database();
+    const emailConnectionPk = `email-connections/${workspaceId}`;
+    const emailConnection = await db["email-connection"].get(
+      emailConnectionPk,
+      "connection"
+    );
+    if (emailConnection) {
+      tools.send_email = createSendEmailTool(workspaceId);
+    }
   }
 
   // Add delegation tools if agent has delegatable agents configured

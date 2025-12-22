@@ -111,6 +111,8 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
           delegatableAgentIds?: string[];
           enabledMcpServerIds?: string[];
           enableMemorySearch?: boolean;
+          enableSearchDocuments?: boolean;
+          enableSendEmail?: boolean;
         } | null = null;
 
         if (agentId && typeof agentId === "string") {
@@ -128,6 +130,8 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
             delegatableAgentIds: agentRecord.delegatableAgentIds,
             enabledMcpServerIds: agentRecord.enabledMcpServerIds,
             enableMemorySearch: agentRecord.enableMemorySearch,
+            enableSearchDocuments: agentRecord.enableSearchDocuments,
+            enableSendEmail: agentRecord.enableSendEmail,
           };
         }
 
@@ -145,9 +149,14 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
 
         // Server-side tools
         toolsInfo.push("## Server-Side Tools (Built-in)");
-        toolsInfo.push(
-          "- **search_documents**: Always available. Search workspace documents using semantic vector search."
-        );
+        
+        // Document search tool (conditional)
+        if (agent?.enableSearchDocuments === true) {
+          availableTools.push("search_documents");
+          toolsInfo.push(
+            "- **search_documents**: Available. Search workspace documents using semantic vector search."
+          );
+        }
 
         // Memory search tool (conditional)
         if (agent?.enableMemorySearch === true) {
@@ -164,7 +173,8 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
           );
         }
 
-        if (hasEmailConnection) {
+        // Email tool (conditional - requires both agent flag and workspace email connection)
+        if (agent?.enableSendEmail === true && hasEmailConnection) {
           availableTools.push("send_email");
           toolsInfo.push(
             "- **send_email**: Available. Send emails using the workspace email connection."

@@ -58,14 +58,14 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
         <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-3xl font-semibold text-neutral-900">
+          <h2 className="text-3xl font-semibold text-neutral-900 dark:text-neutral-50">
             Generate System Prompt
           </h2>
           <button
             onClick={handleClose}
-            className="rounded-xl border border-neutral-300 bg-white px-6 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
+            className="rounded-xl border border-neutral-300 bg-white px-6 py-2 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
           >
             Close
           </button>
@@ -75,7 +75,7 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
           <div>
             <label
               htmlFor="goal"
-              className="mb-2 block text-sm font-medium text-neutral-700"
+              className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
             >
               Describe your agent&apos;s goal
             </label>
@@ -84,10 +84,10 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
               placeholder="e.g., I want an agent that helps customers with technical support questions, provides clear explanations, and escalates complex issues to the engineering team."
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400"
               rows={4}
             />
-            <p className="mt-1.5 text-xs text-neutral-600">
+            <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
               Provide a description of what you want your agent to do. The more
               specific you are, the better the generated prompt will be.
             </p>
@@ -106,25 +106,25 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
               type="button"
               onClick={handleClose}
               disabled={generatePrompt.isPending}
-              className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
               Cancel
             </button>
           </div>
 
           {generatePrompt.isPending && (
-            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-6">
+            <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-6 dark:border-neutral-700 dark:bg-neutral-800">
               <LoadingScreen compact message="Generating your prompt..." />
             </div>
           )}
 
           {generatedPrompt && !generatePrompt.isPending && (
             <div className="space-y-4">
-              <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-                <p className="mb-2 text-sm font-semibold text-green-800">
+              <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950">
+                <p className="mb-2 text-sm font-semibold text-green-800 dark:text-green-200">
                   ✓ Prompt Generated
                 </p>
-                <p className="text-xs text-green-900">
+                <p className="text-xs text-green-900 dark:text-green-100">
                   Review the generated prompt below. You can use it as-is or
                   modify it before applying.
                 </p>
@@ -133,7 +133,7 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
               <div>
                 <label
                   htmlFor="generatedPrompt"
-                  className="mb-2 block text-sm font-medium text-neutral-700"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
                 >
                   Generated System Prompt
                 </label>
@@ -141,10 +141,10 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
                   id="generatedPrompt"
                   value={generatedPrompt}
                   onChange={(e) => setGeneratedPrompt(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-sm text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-sm text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400"
                   rows={12}
                 />
-                <p className="mt-1.5 text-xs text-neutral-600">
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
                   You can edit the generated prompt before using it.
                 </p>
               </div>
@@ -160,7 +160,7 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
+                  className="flex-1 rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
                 >
                   Cancel
                 </button>
@@ -169,11 +169,11 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
           )}
 
           {generatePrompt.isError && !generatePrompt.isPending && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-              <p className="mb-1 text-sm font-semibold text-red-800">
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
+              <p className="mb-1 text-sm font-semibold text-red-800 dark:text-red-200">
                 Error generating prompt
               </p>
-              <p className="text-xs text-red-900">
+              <p className="text-xs text-red-900 dark:text-red-100">
                 {generatePrompt.error instanceof Error
                   ? generatePrompt.error.message
                   : "An error occurred while generating the prompt. Please try again."}
