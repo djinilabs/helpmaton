@@ -214,13 +214,6 @@
             "cachedInput": 0
           }
         },
-        "openrouter/bodybuilder": {
-          "usd": {
-            "input": -1,
-            "output": -1,
-            "cachedInput": -0.1
-          }
-        },
         "openai/gpt-5.1-codex-max": {
           "usd": {
             "input": 0,
@@ -2410,13 +2403,6 @@
             "input": 0,
             "output": 0,
             "cachedInput": 0
-          }
-        },
-        "openrouter/auto": {
-          "usd": {
-            "input": -1,
-            "output": -1,
-            "cachedInput": -0.1
           }
         },
         "openai/gpt-4-1106-preview": {
