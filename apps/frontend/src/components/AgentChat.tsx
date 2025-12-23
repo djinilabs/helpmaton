@@ -8,6 +8,8 @@ import type { FC } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { formatCurrency } from "../utils/currency";
+
 interface AgentChatProps {
   workspaceId: string;
   agentId: string;
@@ -620,6 +622,14 @@ export const AgentChat: FC<AgentChatProps> = ({
                   ? message.provider
                   : null;
 
+              // Extract finalCostUsd if available (preferred over calculated cost)
+              const finalCostUsd =
+                message.role === "assistant" &&
+                "finalCostUsd" in message &&
+                typeof message.finalCostUsd === "number"
+                  ? message.finalCostUsd
+                  : null;
+
               const formatTokenUsage = (usage: {
                 promptTokens?: number;
                 completionTokens?: number;
@@ -687,6 +697,11 @@ export const AgentChat: FC<AgentChatProps> = ({
                                 {tokenUsage && (
                                   <div className="rounded bg-black bg-opacity-10 px-2 py-1 font-mono text-xs opacity-70">
                                     {formatTokenUsage(tokenUsage)}
+                                  </div>
+                                )}
+                                {finalCostUsd !== null && (
+                                  <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 opacity-70 dark:bg-green-900 dark:text-green-200">
+                                    {formatCurrency(finalCostUsd, "usd", 4)}
                                   </div>
                                 )}
                               </div>

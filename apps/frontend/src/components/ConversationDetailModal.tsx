@@ -4,6 +4,7 @@ import type { FC } from "react";
 import { useAgentConversation } from "../hooks/useAgentConversations";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import type { Conversation } from "../utils/api";
+import { formatCurrency } from "../utils/currency";
 
 interface ConversationDetailModalProps {
   isOpen: boolean;
@@ -250,6 +251,12 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                           typeof message.provider === "string"
                             ? message.provider
                             : null;
+                        const finalCostUsd =
+                          role === "assistant" &&
+                          "finalCostUsd" in message &&
+                          typeof message.finalCostUsd === "number"
+                            ? message.finalCostUsd
+                            : null;
                         return (
                           <div
                             key={index}
@@ -274,6 +281,11 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                 {tokenUsage && (
                                   <div className="rounded bg-black bg-opacity-10 px-2 py-1 font-mono text-xs opacity-70 dark:bg-white dark:bg-opacity-10 dark:text-neutral-200">
                                     {tokenUsage}
+                                  </div>
+                                )}
+                                {finalCostUsd !== null && (
+                                  <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 opacity-70 dark:bg-green-900 dark:text-green-200">
+                                    {formatCurrency(finalCostUsd, "usd", 4)}
                                   </div>
                                 )}
                               </div>
