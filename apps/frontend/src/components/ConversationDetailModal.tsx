@@ -253,6 +253,12 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                           typeof message.provider === "string"
                             ? message.provider
                             : null;
+                        const provisionalCostUsd =
+                          role === "assistant" &&
+                          "provisionalCostUsd" in message &&
+                          typeof message.provisionalCostUsd === "number"
+                            ? message.provisionalCostUsd
+                            : null;
                         const finalCostUsd =
                           role === "assistant" &&
                           "finalCostUsd" in message &&
@@ -285,9 +291,21 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                     {tokenUsage}
                                   </div>
                                 )}
+                                {provisionalCostUsd !== null &&
+                                  finalCostUsd === null && (
+                                    <div className="rounded bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800 opacity-70 dark:bg-yellow-900 dark:text-yellow-200">
+                                      {formatCurrency(provisionalCostUsd, "usd", 4)} (est.)
+                                    </div>
+                                  )}
                                 {finalCostUsd !== null && (
                                   <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 opacity-70 dark:bg-green-900 dark:text-green-200">
                                     {formatCurrency(finalCostUsd, "usd", 4)}
+                                    {provisionalCostUsd !== null &&
+                                      provisionalCostUsd !== finalCostUsd && (
+                                        <span className="ml-1 text-yellow-700 dark:text-yellow-300">
+                                          (was {formatCurrency(provisionalCostUsd, "usd", 4)})
+                                        </span>
+                                      )}
                                   </div>
                                 )}
                               </div>

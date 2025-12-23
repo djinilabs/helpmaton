@@ -2,6 +2,7 @@ import type { FC } from "react";
 
 import { useAgentConversations } from "../hooks/useAgentConversations";
 import type { Conversation } from "../utils/api";
+import { formatCurrency } from "../utils/currency";
 
 interface ConversationListProps {
   workspaceId: string;
@@ -162,9 +163,19 @@ export const ConversationList: FC<ConversationListProps> = ({
                     <div className="mb-1 text-xs font-medium text-neutral-700 dark:text-neutral-300">
                       Tokens
                     </div>
-                    <div className="text-xs text-neutral-600 dark:text-neutral-300">
+                    <div className="mb-1 text-xs text-neutral-600 dark:text-neutral-300">
                       {formatTokenUsage(conversation.tokenUsage)}
                     </div>
+                    {conversation.costUsd !== undefined && (
+                      <>
+                        <div className="mb-1 text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                          Cost
+                        </div>
+                        <div className="text-xs text-neutral-600 dark:text-neutral-300">
+                          {formatCurrency(conversation.costUsd, "usd", 4)}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

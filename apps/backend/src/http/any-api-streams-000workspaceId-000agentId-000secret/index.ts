@@ -54,7 +54,10 @@ import {
   transformLambdaUrlToHttpV2Event,
   type LambdaUrlEvent,
 } from "../../utils/httpEventAdapter";
-import { extractOpenRouterGenerationId } from "../../utils/openrouterUtils";
+import {
+  extractOpenRouterCost,
+  extractOpenRouterGenerationId,
+} from "../../utils/openrouterUtils";
 import { flushPostHog } from "../../utils/posthog";
 import {
   checkDailyRequestLimit,
@@ -74,6 +77,7 @@ import {
   checkFreePlanExpiration,
   getWorkspaceSubscription,
 } from "../../utils/subscriptionUtils";
+import { calculateConversationCosts } from "../../utils/tokenAccounting";
 import {
   logToolDefinitions,
   setupAgentAndTools,
@@ -904,10 +908,38 @@ async function logConversation(
     const openrouterGenerationId = streamResult
       ? extractOpenRouterGenerationId(streamResult)
       : undefined;
-    // TODO: Use openrouterCost from providerMetadata when available instead of calculating
-    // const openrouterCost = streamResult ? extractOpenRouterCost(streamResult) : undefined;
 
-    // Create assistant message with token usage, modelName, and provider (same as test endpoint)
+    // Extract cost from LLM response for provisional cost
+    const openrouterCostUsd = streamResult
+      ? extractOpenRouterCost(streamResult)
+      : undefined;
+    let provisionalCostUsd: number | undefined;
+    if (openrouterCostUsd !== undefined && openrouterCostUsd >= 0) {
+      // Convert from USD to millionths with 5.5% markup
+      // Math.ceil ensures we never undercharge
+      provisionalCostUsd = Math.ceil(openrouterCostUsd * 1_000_000 * 1.055);
+      console.log("[Stream Handler] Extracted cost from response:", {
+        openrouterCostUsd,
+        provisionalCostUsd,
+      });
+    } else if (tokenUsage && finalModelName) {
+      // Fallback to calculated cost from tokenUsage if not available in response
+      const calculatedCosts = calculateConversationCosts(
+        "openrouter",
+        finalModelName,
+        tokenUsage
+      );
+      provisionalCostUsd = calculatedCosts.usd;
+      console.log(
+        "[Stream Handler] Cost not in response, using calculated cost:",
+        {
+          provisionalCostUsd,
+          tokenUsage,
+        }
+      );
+    }
+
+    // Create assistant message with token usage, modelName, provider, and costs
     const assistantMessage: UIMessage = {
       role: "assistant",
       content:
@@ -916,6 +948,7 @@ async function logConversation(
       modelName: finalModelName,
       provider: "openrouter",
       ...(openrouterGenerationId && { openrouterGenerationId }),
+      ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
     };
 
     // DIAGNOSTIC: Log assistant message structure

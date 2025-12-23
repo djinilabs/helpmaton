@@ -256,12 +256,18 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
           let totalCostUsd = 0;
           for (const msg of updatedMessages) {
             if (msg.role === "assistant") {
-              // Prefer finalCostUsd if available, otherwise calculate from tokenUsage
+              // Prefer finalCostUsd if available, then provisionalCostUsd, then calculate from tokenUsage
               if (
                 "finalCostUsd" in msg &&
                 typeof msg.finalCostUsd === "number"
               ) {
                 totalCostUsd += msg.finalCostUsd;
+              } else if (
+                "provisionalCostUsd" in msg &&
+                typeof msg.provisionalCostUsd === "number"
+              ) {
+                // Fall back to provisionalCostUsd if finalCostUsd not available
+                totalCostUsd += msg.provisionalCostUsd;
               } else if (
                 "tokenUsage" in msg &&
                 msg.tokenUsage &&

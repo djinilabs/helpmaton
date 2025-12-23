@@ -29,7 +29,10 @@ import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation
 import { isCreditDeductionEnabled } from "../../utils/featureFlags";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
-import { extractOpenRouterGenerationId } from "../../utils/openrouterUtils";
+import {
+  extractOpenRouterCost,
+  extractOpenRouterGenerationId,
+} from "../../utils/openrouterUtils";
 import {
   checkDailyRequestLimit,
   incrementRequestBucket,
@@ -39,6 +42,7 @@ import {
   checkFreePlanExpiration,
   getWorkspaceSubscription,
 } from "../../utils/subscriptionUtils";
+import { calculateConversationCosts } from "../../utils/tokenAccounting";
 import {
   logToolDefinitions,
   setupAgentAndTools,
@@ -149,6 +153,7 @@ export const handler = adaptHttpHandler(
       let result: Awaited<ReturnType<typeof generateText>> | undefined;
       let tokenUsage: ReturnType<typeof extractTokenUsage> | undefined;
       let openrouterGenerationId: string | undefined;
+      let provisionalCostUsd: number | undefined;
 
       try {
         // Convert tools object to array format for estimation
@@ -222,8 +227,33 @@ export const handler = adaptHttpHandler(
 
         // Extract OpenRouter generation ID for cost verification
         openrouterGenerationId = extractOpenRouterGenerationId(result);
-        // TODO: Use openrouterCost from providerMetadata when available instead of calculating
-        // const openrouterCost = extractOpenRouterCost(result);
+
+        // Extract cost from LLM response for provisional cost
+        const openrouterCostUsd = extractOpenRouterCost(result);
+        if (openrouterCostUsd !== undefined && openrouterCostUsd >= 0) {
+          // Convert from USD to millionths with 5.5% markup
+          // Math.ceil ensures we never undercharge
+          provisionalCostUsd = Math.ceil(openrouterCostUsd * 1_000_000 * 1.055);
+          console.log("[Webhook Handler] Extracted cost from response:", {
+            openrouterCostUsd,
+            provisionalCostUsd,
+          });
+        } else if (tokenUsage && finalModelName) {
+          // Fallback to calculated cost from tokenUsage if not available in response
+          const calculatedCosts = calculateConversationCosts(
+            "openrouter",
+            finalModelName,
+            tokenUsage
+          );
+          provisionalCostUsd = calculatedCosts.usd;
+          console.log(
+            "[Webhook Handler] Cost not in response, using calculated cost:",
+            {
+              provisionalCostUsd,
+              tokenUsage,
+            }
+          );
+        }
 
         console.log("[Webhook Handler] Token usage extracted:", {
           tokenUsage,
@@ -639,7 +669,7 @@ export const handler = adaptHttpHandler(
         }
       );
 
-      // Create assistant message with modelName and provider
+      // Create assistant message with modelName, provider, and costs
       // Ensure content is always an array if we have tool calls/results, even if text is empty
       const assistantMessage: UIMessage = {
         role: "assistant",
@@ -647,9 +677,11 @@ export const handler = adaptHttpHandler(
           assistantContent.length > 0
             ? assistantContent
             : responseContent || "",
+        ...(tokenUsage && { tokenUsage }),
         modelName: finalModelName,
         provider: "openrouter",
         ...(openrouterGenerationId && { openrouterGenerationId }),
+        ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
       };
 
       // DIAGNOSTIC: Log final assistant message structure

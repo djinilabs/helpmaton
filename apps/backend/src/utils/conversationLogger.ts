@@ -606,13 +606,19 @@ export async function startConversation(
   const toolResults = extractToolResults(filteredMessages);
 
   // Calculate costs from per-message model/provider data
-  // Prefer finalCostUsd (from OpenRouter API verification) if available, otherwise calculate from tokenUsage
+  // Prefer finalCostUsd (from OpenRouter API verification) if available, then provisionalCostUsd, then calculate from tokenUsage
   let totalCostUsd = 0;
   for (const message of filteredMessages) {
     if (message.role === "assistant") {
       // Prefer finalCostUsd if available (from OpenRouter cost verification)
       if ("finalCostUsd" in message && typeof message.finalCostUsd === "number") {
         totalCostUsd += message.finalCostUsd;
+      } else if (
+        "provisionalCostUsd" in message &&
+        typeof message.provisionalCostUsd === "number"
+      ) {
+        // Fall back to provisionalCostUsd if finalCostUsd not available
+        totalCostUsd += message.provisionalCostUsd;
       } else if ("tokenUsage" in message && message.tokenUsage) {
         // Fall back to calculating from tokenUsage
         const modelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
@@ -778,13 +784,19 @@ export async function updateConversation(
       );
 
       // Calculate costs from per-message model/provider data
-      // Prefer finalCostUsd (from OpenRouter API verification) if available, otherwise calculate from tokenUsage
+      // Prefer finalCostUsd (from OpenRouter API verification) if available, then provisionalCostUsd, then calculate from tokenUsage
       let totalCostUsd = 0;
       for (const message of filteredAllMessages) {
         if (message.role === "assistant") {
           // Prefer finalCostUsd if available (from OpenRouter cost verification)
           if ("finalCostUsd" in message && typeof message.finalCostUsd === "number") {
             totalCostUsd += message.finalCostUsd;
+          } else if (
+            "provisionalCostUsd" in message &&
+            typeof message.provisionalCostUsd === "number"
+          ) {
+            // Fall back to provisionalCostUsd if finalCostUsd not available
+            totalCostUsd += message.provisionalCostUsd;
           } else if ("tokenUsage" in message && message.tokenUsage) {
             // Fall back to calculating from tokenUsage
             const msgModelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;

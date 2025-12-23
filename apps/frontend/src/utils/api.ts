@@ -754,6 +754,7 @@ export interface Conversation {
     completionTokens: number;
     totalTokens: number;
   } | null;
+  costUsd?: number;
 }
 
 export interface ConversationDetail extends Conversation {

@@ -622,7 +622,13 @@ export const AgentChat: FC<AgentChatProps> = ({
                   ? message.provider
                   : null;
 
-              // Extract finalCostUsd if available (preferred over calculated cost)
+              // Extract provisionalCostUsd and finalCostUsd if available
+              const provisionalCostUsd =
+                message.role === "assistant" &&
+                "provisionalCostUsd" in message &&
+                typeof message.provisionalCostUsd === "number"
+                  ? message.provisionalCostUsd
+                  : null;
               const finalCostUsd =
                 message.role === "assistant" &&
                 "finalCostUsd" in message &&
@@ -699,9 +705,21 @@ export const AgentChat: FC<AgentChatProps> = ({
                                     {formatTokenUsage(tokenUsage)}
                                   </div>
                                 )}
+                                {provisionalCostUsd !== null &&
+                                  finalCostUsd === null && (
+                                    <div className="rounded bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800 opacity-70 dark:bg-yellow-900 dark:text-yellow-200">
+                                      {formatCurrency(provisionalCostUsd, "usd", 4)} (est.)
+                                    </div>
+                                  )}
                                 {finalCostUsd !== null && (
                                   <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 opacity-70 dark:bg-green-900 dark:text-green-200">
                                     {formatCurrency(finalCostUsd, "usd", 4)}
+                                    {provisionalCostUsd !== null &&
+                                      provisionalCostUsd !== finalCostUsd && (
+                                        <span className="ml-1 text-yellow-700 dark:text-yellow-300">
+                                          (was {formatCurrency(provisionalCostUsd, "usd", 4)})
+                                        </span>
+                                      )}
                                   </div>
                                 )}
                               </div>

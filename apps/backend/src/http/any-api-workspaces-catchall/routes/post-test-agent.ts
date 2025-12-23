@@ -22,7 +22,10 @@ import {
 } from "../../../utils/creditManagement";
 import { validateCreditsAndLimitsAndReserve } from "../../../utils/creditValidation";
 import { isCreditDeductionEnabled } from "../../../utils/featureFlags";
-import { extractOpenRouterGenerationId } from "../../../utils/openrouterUtils";
+import {
+  extractOpenRouterCost,
+  extractOpenRouterGenerationId,
+} from "../../../utils/openrouterUtils";
 import {
   checkDailyRequestLimit,
   incrementRequestBucket,
@@ -32,6 +35,7 @@ import {
   checkFreePlanExpiration,
   getWorkspaceSubscription,
 } from "../../../utils/subscriptionUtils";
+import { calculateConversationCosts } from "../../../utils/tokenAccounting";
 import {
   logToolDefinitions,
   setupAgentAndTools,
@@ -629,8 +633,34 @@ export const registerPostTestAgent = (app: express.Application) => {
         ...result,
         usage,
       });
-      // TODO: Use openrouterCost from providerMetadata when available instead of calculating
-      // const openrouterCost = extractOpenRouterCost({ ...result, usage });
+
+      // Extract cost from LLM response for provisional cost
+      const openrouterCostUsd = extractOpenRouterCost({ ...result, usage });
+      let provisionalCostUsd: number | undefined;
+      if (openrouterCostUsd !== undefined && openrouterCostUsd >= 0) {
+        // Convert from USD to millionths with 5.5% markup
+        // Math.ceil ensures we never undercharge
+        provisionalCostUsd = Math.ceil(openrouterCostUsd * 1_000_000 * 1.055);
+        console.log("[Agent Test Handler] Extracted cost from response:", {
+          openrouterCostUsd,
+          provisionalCostUsd,
+        });
+      } else if (tokenUsage && finalModelName) {
+        // Fallback to calculated cost from tokenUsage if not available in response
+        const calculatedCosts = calculateConversationCosts(
+          "openrouter",
+          finalModelName,
+          tokenUsage
+        );
+        provisionalCostUsd = calculatedCosts.usd;
+        console.log(
+          "[Agent Test Handler] Cost not in response, using calculated cost:",
+          {
+            provisionalCostUsd,
+            tokenUsage,
+          }
+        );
+      }
 
       // Log token usage for debugging
       console.log("[Agent Test Handler] Extracted token usage:", {
@@ -792,7 +822,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         assistantContent.push({ type: "text", text: responseText });
       }
 
-      // Create assistant message with token usage, modelName, and provider
+      // Create assistant message with token usage, modelName, provider, and costs
       const assistantMessage: UIMessage = {
         role: "assistant",
         content: assistantContent.length > 0 ? assistantContent : responseText,
@@ -800,6 +830,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         modelName: finalModelName,
         provider: "openrouter",
         ...(openrouterGenerationId && { openrouterGenerationId }),
+        ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
       };
 
       // Combine user messages and assistant message for logging
