@@ -9,21 +9,12 @@ export const Footer: FC = () => {
       <div className="mx-auto max-w-6xl px-8 py-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="relative overflow-hidden">
+            <div className="relative">
               <img
                 src="/images/helpmaton_logo.svg"
                 alt="Helmaton Logo"
                 className="relative z-10 size-8 opacity-60"
               />
-              <div
-                className="manga-shine-overlay pointer-events-none absolute inset-0 z-20"
-                style={{
-                  background:
-                    "radial-gradient(circle at center, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 15%, transparent 30%), linear-gradient(45deg, transparent 25%, rgba(255, 255, 255, 0.3) 45%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0.3) 55%, transparent 75%)",
-                  width: "200%",
-                  height: "200%",
-                }}
-              ></div>
             </div>
             <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
               Helpmaton

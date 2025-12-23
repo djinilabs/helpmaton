@@ -36,22 +36,12 @@ const Login: FC = () => {
 
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-neutral-200 bg-white/90 p-10 shadow-large backdrop-blur-sm dark:border-neutral-700 dark:bg-neutral-900/90">
         <div className="mb-10 flex items-center gap-4">
-          <div className="relative overflow-hidden">
+          <div className="relative">
             <img
               src="/images/helpmaton_logo.svg"
               alt="Helmaton Logo"
               className="relative z-10 size-16"
             />
-            <div
-              className="manga-shine-overlay pointer-events-none absolute inset-0 z-20"
-              style={{
-                background:
-                  "radial-gradient(circle at center, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 15%, transparent 30%), linear-gradient(45deg, transparent 25%, rgba(255, 255, 255, 0.3) 45%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0.3) 55%, transparent 75%)",
-                width: "200%",
-                height: "200%",
-              }}
-            ></div>
-            <div className="absolute inset-0 rounded-full bg-gradient-primary opacity-20 blur-xl"></div>
           </div>
           <h1 className="text-4xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
             Helpmaton
