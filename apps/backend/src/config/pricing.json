@@ -1,5 +1,4 @@
 {
-  "_comment": "Pricing configuration for AI models. All prices are per 1 million tokens. The normalizeModelName function in pricing.ts handles mapping preview/variant model names to their base models, so duplicate entries for preview versions are not necessary. Supports both flat pricing (backward compatible) and tiered pricing (for models with different rates based on token count thresholds). Flat pricing uses 'input' and 'output' fields. Tiered pricing uses 'tiers' array with threshold-based rates. Reasoning tokens can be specified with 'reasoning' field (flat) or 'reasoning' in tiers. Cached input tokens can be specified with 'cachedInput' field (flat) or 'cachedInput' in tiers, typically ~10% of input token rate.",
   "providers": {
     "google": {
       "models": {
@@ -8,6 +7,23 @@
             "input": 0.075,
             "output": 0.3,
             "cachedInput": 0.0075
+          }
+        },
+        "gemini-2.5-pro": {
+          "usd": {
+            "tiers": [
+              {
+                "threshold": 200000,
+                "input": 1.25,
+                "output": 10,
+                "cachedInput": 0.125
+              },
+              {
+                "input": 2.5,
+                "output": 15,
+                "cachedInput": 0.25
+              }
+            ]
           }
         },
         "gemini-2.0-flash-exp": {
@@ -37,62 +53,23 @@
             "output": 0.3,
             "cachedInput": 0.0075
           }
-        },
-        "gemini-2.5-pro": {
-          "usd": {
-            "tiers": [
-              {
-                "threshold": 200000,
-                "input": 1.25,
-                "output": 10,
-                "cachedInput": 0.125
-              },
-              {
-                "input": 2.5,
-                "output": 15,
-                "cachedInput": 0.25
-              }
-            ]
-          }
         }
       }
     },
     "openrouter": {
       "models": {
-        "google/gemini-2.5-flash": {
+        "bytedance-seed/seed-1.6-flash": {
           "usd": {
-            "input": 0.3,
-            "output": 2.5,
-            "cachedInput": 0.03
+            "input": 0.075,
+            "output": 0.3,
+            "cachedInput": 0.0075
           }
         },
-        "google/gemini-2.5-pro": {
+        "bytedance-seed/seed-1.6": {
           "usd": {
-            "input": 1.25,
-            "output": 10,
-            "cachedInput": 0.125
-          }
-        },
-        "anthropic/claude-3.5-sonnet": {
-          "usd": {
-            "input": 6,
-            "output": 30,
-            "cachedInput": 0.6000000000000001
-          }
-        },
-        "anthropic/claude-3-opus": {
-          "usd": {
-            "input": 15,
-            "output": 75,
-            "cachedInput": 1.5
-          }
-        },
-        "auto": {
-          "_comment": "Average pricing for auto-selection (OpenRouter chooses model)",
-          "usd": {
-            "input": 2,
-            "output": 10,
-            "cachedInput": 0.2
+            "input": 0.25,
+            "output": 2,
+            "cachedInput": 0.025
           }
         },
         "minimax/minimax-m2.1": {
@@ -1160,6 +1137,20 @@
             "cachedInput": 0.04
           }
         },
+        "google/gemini-2.5-flash": {
+          "usd": {
+            "input": 0.3,
+            "output": 2.5,
+            "cachedInput": 0.03
+          }
+        },
+        "google/gemini-2.5-pro": {
+          "usd": {
+            "input": 1.25,
+            "output": 10,
+            "cachedInput": 0.125
+          }
+        },
         "moonshotai/kimi-dev-72b": {
           "usd": {
             "input": 0.29,
@@ -1976,6 +1967,13 @@
             "cachedInput": 0.30000000000000004
           }
         },
+        "anthropic/claude-3.5-sonnet": {
+          "usd": {
+            "input": 6,
+            "output": 30,
+            "cachedInput": 0.6000000000000001
+          }
+        },
         "mistralai/ministral-8b": {
           "usd": {
             "input": 0.09999999999999999,
@@ -2354,6 +2352,13 @@
             "cachedInput": 0.025
           }
         },
+        "anthropic/claude-3-opus": {
+          "usd": {
+            "input": 15,
+            "output": 75,
+            "cachedInput": 1.5
+          }
+        },
         "mistralai/mistral-large": {
           "usd": {
             "input": 2,
@@ -2479,23 +2484,8 @@
             "output": 1.5,
             "cachedInput": 0.05
           }
-        },
-        "bytedance-seed/seed-1.6-flash": {
-          "usd": {
-            "input": 0.075,
-            "output": 0.3,
-            "cachedInput": 0.0075
-          }
-        },
-        "bytedance-seed/seed-1.6": {
-          "usd": {
-            "input": 0.25,
-            "output": 2,
-            "cachedInput": 0.025
-          }
         }
       }
     }
-  },
-  "lastUpdated": "2025-12-16T08:52:33.602Z"
+  }
 }
