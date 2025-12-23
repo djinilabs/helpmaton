@@ -116,6 +116,7 @@ export const tableSchemas = {
         })
       )
       .optional(), // User-defined client-side tools
+    avatar: z.string().optional(), // Avatar image path (e.g., "/images/helpmaton_logo_10.svg")
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),

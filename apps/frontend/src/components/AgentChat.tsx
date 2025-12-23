@@ -8,6 +8,8 @@ import type { FC } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { useAgent } from "../hooks/useAgents";
+import { getDefaultAvatar } from "../utils/avatarUtils";
 import { formatCurrency } from "../utils/currency";
 
 interface AgentChatProps {
@@ -38,6 +40,7 @@ export const AgentChat: FC<AgentChatProps> = ({
   agentId,
   api,
 }) => {
+  const { data: agent } = useAgent(workspaceId, agentId);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
 
@@ -693,8 +696,17 @@ export const AgentChat: FC<AgentChatProps> = ({
                             className={`rounded-xl p-4 ${getRoleStyling()} max-w-[80%]`}
                           >
                             <div className="mb-2 flex items-center justify-between">
-                              <div className="text-xs font-medium opacity-80">
-                                {getRoleLabel()}
+                              <div className="flex items-center gap-2">
+                                {message.role === "assistant" && agent?.avatar && (
+                                  <img
+                                    src={agent.avatar || getDefaultAvatar()}
+                                    alt="Agent avatar"
+                                    className="size-6 rounded object-contain"
+                                  />
+                                )}
+                                <div className="text-xs font-medium opacity-80">
+                                  {getRoleLabel()}
+                                </div>
                               </div>
                               <div className="flex items-center gap-2">
                                 {modelName && provider && (
@@ -738,8 +750,17 @@ export const AgentChat: FC<AgentChatProps> = ({
                       className={`rounded-xl p-5 ${getRoleStyling()} max-w-[80%]`}
                     >
                       <div className="mb-3 flex items-center justify-between">
-                        <div className="text-sm font-bold opacity-90">
-                          {getRoleLabel()}
+                        <div className="flex items-center gap-2">
+                          {message.role === "assistant" && agent?.avatar && (
+                            <img
+                              src={agent.avatar || getDefaultAvatar()}
+                              alt="Agent avatar"
+                              className="size-6 rounded object-contain"
+                            />
+                          )}
+                          <div className="text-sm font-bold opacity-90">
+                            {getRoleLabel()}
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {modelName && provider && (
@@ -764,8 +785,17 @@ export const AgentChat: FC<AgentChatProps> = ({
             })}
             {isLoading && (
               <div className="max-w-[80%] rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-neutral-900">
-                <div className="mb-2 text-xs font-medium text-neutral-600">
-                  Agent
+                <div className="mb-2 flex items-center gap-2">
+                  {agent?.avatar && (
+                    <img
+                      src={agent.avatar || getDefaultAvatar()}
+                      alt="Agent avatar"
+                      className="size-6 rounded object-contain"
+                    />
+                  )}
+                  <div className="text-xs font-medium text-neutral-600">
+                    Agent
+                  </div>
                 </div>
                 <div className="text-sm text-neutral-600">Thinking...</div>
               </div>

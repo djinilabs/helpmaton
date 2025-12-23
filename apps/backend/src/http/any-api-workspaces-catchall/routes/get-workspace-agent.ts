@@ -121,6 +121,7 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           maxToolRoundtrips: agent.maxToolRoundtrips ?? null,
           provider: agent.provider,
           modelName: agent.modelName ?? null,
+          avatar: agent.avatar ?? null,
           createdAt: agent.createdAt,
           updatedAt: agent.updatedAt,
         });

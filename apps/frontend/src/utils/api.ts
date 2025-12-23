@@ -91,6 +91,7 @@ export interface Agent {
   maxToolRoundtrips?: number;
   provider?: string;
   modelName?: string;
+  avatar?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -101,6 +102,7 @@ export interface CreateAgentInput {
   notificationChannelId?: string | null;
   modelName?: string | null;
   clientTools?: ClientTool[];
+  avatar?: string | null;
 }
 
 export interface UpdateAgentInput {
@@ -122,6 +124,7 @@ export interface UpdateAgentInput {
   maxToolRoundtrips?: number | null;
   provider?: string;
   modelName?: string | null;
+  avatar?: string | null;
 }
 
 export interface AgentKey {

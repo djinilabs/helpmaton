@@ -3,6 +3,7 @@ import type { FC } from "react";
 import { Link } from "react-router-dom";
 
 import { useAgents } from "../hooks/useAgents";
+import { getDefaultAvatar } from "../utils/avatarUtils";
 
 import { AgentModal } from "./AgentModal";
 
@@ -43,19 +44,29 @@ export const AgentList: FC<AgentListProps> = ({ workspaceId, canEdit }) => {
           </p>
         ) : (
           <div className="space-y-3">
-            {agents.map((agent) => (
-              <div
-                key={agent.id}
-                className="transform cursor-pointer rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.02] hover:border-primary-400 hover:shadow-bold active:scale-[0.98] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
-              >
-                <Link
-                  to={`/workspaces/${workspaceId}/agents/${agent.id}`}
-                  className="text-xl font-bold text-neutral-900 transition-colors hover:text-primary-600 dark:text-neutral-50 dark:hover:text-primary-400"
+            {agents.map((agent) => {
+              const avatar = agent.avatar || getDefaultAvatar();
+              return (
+                <div
+                  key={agent.id}
+                  className="transform cursor-pointer rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.02] hover:border-primary-400 hover:shadow-bold active:scale-[0.98] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
                 >
-                  {agent.name}
-                </Link>
-              </div>
-            ))}
+                  <Link
+                    to={`/workspaces/${workspaceId}/agents/${agent.id}`}
+                    className="flex items-center gap-4"
+                  >
+                    <img
+                      src={avatar}
+                      alt={`${agent.name} avatar`}
+                      className="size-12 rounded-lg border-2 border-neutral-300 object-contain dark:border-neutral-700"
+                    />
+                    <span className="text-xl font-bold text-neutral-900 transition-colors hover:text-primary-600 dark:text-neutral-50 dark:hover:text-primary-400">
+                      {agent.name}
+                    </span>
+                  </Link>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

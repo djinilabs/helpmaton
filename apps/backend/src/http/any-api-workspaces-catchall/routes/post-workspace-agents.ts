@@ -5,6 +5,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { getRandomAvatar, isValidAvatar } from "../../../utils/avatarUtils";
 import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
@@ -53,6 +54,10 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *                 items:
  *                   $ref: '#/components/schemas/ClientTool'
  *                 description: Client-side tools
+ *               avatar:
+ *                 type: string
+ *                 nullable: true
+ *                 description: Avatar image path (e.g., "/images/helpmaton_logo_10.svg"). If not provided, a random avatar will be assigned.
  *     responses:
  *       201:
  *         description: Agent created successfully
@@ -76,6 +81,9 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/ClientTool'
+ *                 avatar:
+ *                   type: string
+ *                   nullable: true
  *                 createdAt:
  *                   type: string
  *                   format: date-time
@@ -95,7 +103,7 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
-        const { name, systemPrompt, modelName, clientTools } = req.body;
+        const { name, systemPrompt, modelName, clientTools, avatar } = req.body;
         if (!name || typeof name !== "string") {
           throw badRequest("name is required and must be a string");
         }
@@ -168,6 +176,23 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           }
         }
 
+        // Validate avatar if provided, otherwise assign random
+        let avatarPath: string | undefined;
+        if (avatar !== undefined && avatar !== null) {
+          if (typeof avatar !== "string") {
+            throw badRequest("avatar must be a string or null");
+          }
+          if (!isValidAvatar(avatar)) {
+            throw badRequest(
+              `Invalid avatar path. Avatar must be one of the available logo paths.`
+            );
+          }
+          avatarPath = avatar;
+        } else {
+          // Assign random avatar if not provided
+          avatarPath = getRandomAvatar();
+        }
+
         // Create agent entity
         const agent = await db.agent.create({
           pk: agentPk,
@@ -181,6 +206,7 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
               ? modelName.trim()
               : undefined,
           clientTools: clientTools || undefined,
+          avatar: avatarPath,
           createdBy: currentUserRef,
         });
 
@@ -195,6 +221,7 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           enableMemorySearch: agent.enableMemorySearch ?? false,
           clientTools: agent.clientTools ?? [],
           spendingLimits: agent.spendingLimits ?? [],
+          avatar: agent.avatar ?? null,
           createdAt: agent.createdAt,
         });
       } catch (error) {

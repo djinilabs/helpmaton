@@ -75,6 +75,7 @@ export const registerGetWorkspaceAgents = (app: express.Application) => {
           spendingLimits: agent.spendingLimits ?? [],
           provider: agent.provider,
           modelName: agent.modelName ?? null,
+          avatar: agent.avatar ?? null,
           createdAt: agent.createdAt,
           updatedAt: agent.updatedAt,
         }));

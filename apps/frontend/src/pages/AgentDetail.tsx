@@ -59,6 +59,7 @@ import { useStreamUrl } from "../hooks/useStreamUrl";
 import { useAgentUsage, useAgentDailyUsage } from "../hooks/useUsage";
 import { useWorkspace } from "../hooks/useWorkspaces";
 import type { ClientTool, Conversation } from "../utils/api";
+import { getDefaultAvatar } from "../utils/avatarUtils";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
 import {
   getModelsForProvider,
@@ -816,7 +817,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           </p>
 
           <div>
-            <h1 className="mb-4 text-4xl font-bold dark:text-neutral-50">{agent.name}</h1>
+            <div className="mb-4 flex items-center gap-4">
+              <img
+                src={agent.avatar || getDefaultAvatar()}
+                alt={`${agent.name} avatar`}
+                className="size-16 rounded-lg border-2 border-neutral-300 object-contain dark:border-neutral-700"
+              />
+              <h1 className="text-4xl font-bold dark:text-neutral-50">{agent.name}</h1>
+            </div>
             <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
               Created: {new Date(agent.createdAt).toLocaleString()}
               {agent.updatedAt &&
