@@ -77,7 +77,7 @@
           "usd": {
             "input": 6,
             "output": 30,
-            "cachedInput": 0.6
+            "cachedInput": 0.6000000000000001
           }
         },
         "anthropic/claude-3-opus": {
@@ -104,7 +104,7 @@
         },
         "z-ai/glm-4.7": {
           "usd": {
-            "input": 0.4,
+            "input": 0.39999999999999997,
             "output": 1.5,
             "cachedInput": 0.04
           }
@@ -118,7 +118,7 @@
         },
         "mistralai/mistral-small-creative": {
           "usd": {
-            "input": 0.1,
+            "input": 0.09999999999999999,
             "output": 0.3,
             "cachedInput": 0.01
           }
@@ -155,7 +155,7 @@
           "usd": {
             "input": 1.75,
             "output": 14,
-            "cachedInput": 0.175
+            "cachedInput": 0.17500000000000002
           }
         },
         "openai/gpt-5.2-pro": {
@@ -169,7 +169,7 @@
           "usd": {
             "input": 1.75,
             "output": 14,
-            "cachedInput": 0.175
+            "cachedInput": 0.17500000000000002
           }
         },
         "mistralai/devstral-2512:free": {
@@ -181,7 +181,7 @@
         },
         "mistralai/devstral-2512": {
           "usd": {
-            "input": 0.05,
+            "input": 0.049999999999999996,
             "output": 0.22,
             "cachedInput": 0.005
           }
@@ -196,7 +196,7 @@
         "z-ai/glm-4.6v": {
           "usd": {
             "input": 0.3,
-            "output": 0.9,
+            "output": 0.8999999999999999,
             "cachedInput": 0.03
           }
         },
@@ -230,8 +230,8 @@
         },
         "mistralai/ministral-14b-2512": {
           "usd": {
-            "input": 0.2,
-            "output": 0.2,
+            "input": 0.19999999999999998,
+            "output": 0.19999999999999998,
             "cachedInput": 0.02
           }
         },
@@ -244,8 +244,8 @@
         },
         "mistralai/ministral-3b-2512": {
           "usd": {
-            "input": 0.1,
-            "output": 0.1,
+            "input": 0.09999999999999999,
+            "output": 0.09999999999999999,
             "cachedInput": 0.01
           }
         },
@@ -267,26 +267,26 @@
           "usd": {
             "input": 0.045,
             "output": 0.15,
-            "cachedInput": 0.005
+            "cachedInput": 0.0045
           }
         },
         "deepseek/deepseek-v3.2-speciale": {
           "usd": {
             "input": 0.27,
             "output": 0.41,
-            "cachedInput": 0.027
+            "cachedInput": 0.027000000000000003
           }
         },
         "deepseek/deepseek-v3.2": {
           "usd": {
             "input": 0.224,
             "output": 0.32,
-            "cachedInput": 0.022
+            "cachedInput": 0.022400000000000003
           }
         },
         "prime-intellect/intellect-3": {
           "usd": {
-            "input": 0.2,
+            "input": 0.19999999999999998,
             "output": 1.1,
             "cachedInput": 0.02
           }
@@ -321,21 +321,21 @@
         },
         "allenai/olmo-3-7b-instruct": {
           "usd": {
-            "input": 0.1,
-            "output": 0.2,
+            "input": 0.09999999999999999,
+            "output": 0.19999999999999998,
             "cachedInput": 0.01
           }
         },
         "allenai/olmo-3-7b-think": {
           "usd": {
             "input": 0.12,
-            "output": 0.2,
+            "output": 0.19999999999999998,
             "cachedInput": 0.012
           }
         },
         "x-ai/grok-4.1-fast": {
           "usd": {
-            "input": 0.2,
+            "input": 0.19999999999999998,
             "output": 0.5,
             "cachedInput": 0.02
           }
@@ -391,7 +391,7 @@
         },
         "moonshotai/kimi-k2-thinking": {
           "usd": {
-            "input": 0.4,
+            "input": 0.39999999999999997,
             "output": 1.75,
             "cachedInput": 0.04
           }
@@ -407,12 +407,13 @@
           "usd": {
             "input": 3,
             "output": 15,
-            "cachedInput": 0.3
+            "cachedInput": 0.30000000000000004,
+            "request": 0.018
           }
         },
         "mistralai/voxtral-small-24b-2507": {
           "usd": {
-            "input": 0.1,
+            "input": 0.09999999999999999,
             "output": 0.3,
             "cachedInput": 0.01
           }
@@ -421,7 +422,7 @@
           "usd": {
             "input": 0.075,
             "output": 0.3,
-            "cachedInput": 0.008
+            "cachedInput": 0.0075
           }
         },
         "nvidia/nemotron-nano-12b-v2-vl:free": {
@@ -433,14 +434,14 @@
         },
         "nvidia/nemotron-nano-12b-v2-vl": {
           "usd": {
-            "input": 0.2,
+            "input": 0.19999999999999998,
             "output": 0.6,
             "cachedInput": 0.02
           }
         },
         "minimax/minimax-m2": {
           "usd": {
-            "input": 0.2,
+            "input": 0.19999999999999998,
             "output": 1,
             "cachedInput": 0.02
           }
@@ -454,15 +455,15 @@
         },
         "liquid/lfm2-8b-a1b": {
           "usd": {
-            "input": 0.05,
-            "output": 0.1,
+            "input": 0.049999999999999996,
+            "output": 0.09999999999999999,
             "cachedInput": 0.005
           }
         },
         "liquid/lfm-2.2-6b": {
           "usd": {
-            "input": 0.05,
-            "output": 0.1,
+            "input": 0.049999999999999996,
+            "output": 0.09999999999999999,
             "cachedInput": 0.005
           }
         },
@@ -470,14 +471,14 @@
           "usd": {
             "input": 0.017,
             "output": 0.11,
-            "cachedInput": 0.002
+            "cachedInput": 0.0017000000000000001
           }
         },
         "deepcogito/cogito-v2-preview-llama-405b": {
           "usd": {
             "input": 3.5,
             "output": 3.5,
-            "cachedInput": 0.35
+            "cachedInput": 0.35000000000000003
           }
         },
         "anthropic/claude-haiku-4.5": {
@@ -490,15 +491,15 @@
         "qwen/qwen3-vl-8b-thinking": {
           "usd": {
             "input": 0.18,
-            "output": 2.1,
+            "output": 2.0999999999999996,
             "cachedInput": 0.018
           }
         },
         "qwen/qwen3-vl-8b-instruct": {
           "usd": {
             "input": 0.064,
-            "output": 0.4,
-            "cachedInput": 0.006
+            "output": 0.39999999999999997,
+            "cachedInput": 0.0064
           }
         },
         "openai/o3-deep-research": {
@@ -517,8 +518,8 @@
         },
         "nvidia/llama-3.3-nemotron-super-49b-v1.5": {
           "usd": {
-            "input": 0.1,
-            "output": 0.4,
+            "input": 0.09999999999999999,
+            "output": 0.39999999999999997,
             "cachedInput": 0.01
           }
         },
@@ -526,13 +527,13 @@
           "usd": {
             "input": 0.056,
             "output": 0.224,
-            "cachedInput": 0.006
+            "cachedInput": 0.005600000000000001
           }
         },
         "qwen/qwen3-vl-30b-a3b-thinking": {
           "usd": {
             "input": 0.16,
-            "output": 0.8,
+            "output": 0.7999999999999999,
             "cachedInput": 0.016
           }
         },
@@ -554,21 +555,21 @@
           "usd": {
             "input": 0.39,
             "output": 1.9,
-            "cachedInput": 0.039
+            "cachedInput": 0.03900000000000001
           }
         },
         "z-ai/glm-4.6:exacto": {
           "usd": {
             "input": 0.44,
             "output": 1.76,
-            "cachedInput": 0.044
+            "cachedInput": 0.044000000000000004
           }
         },
         "anthropic/claude-sonnet-4.5": {
           "usd": {
             "input": 3,
             "output": 15,
-            "cachedInput": 0.3
+            "cachedInput": 0.30000000000000004
           }
         },
         "deepseek/deepseek-v3.2-exp": {
@@ -601,8 +602,8 @@
         },
         "google/gemini-2.5-flash-lite-preview-09-2025": {
           "usd": {
-            "input": 0.1,
-            "output": 0.4,
+            "input": 0.09999999999999999,
+            "output": 0.39999999999999997,
             "cachedInput": 0.01
           }
         },
@@ -615,7 +616,7 @@
         },
         "qwen/qwen3-vl-235b-a22b-instruct": {
           "usd": {
-            "input": 0.2,
+            "input": 0.19999999999999998,
             "output": 1.2,
             "cachedInput": 0.02
           }
@@ -644,20 +645,20 @@
         "deepseek/deepseek-v3.1-terminus:exacto": {
           "usd": {
             "input": 0.21,
-            "output": 0.79,
+            "output": 0.7899999999999999,
             "cachedInput": 0.021
           }
         },
         "deepseek/deepseek-v3.1-terminus": {
           "usd": {
             "input": 0.21,
-            "output": 0.79,
+            "output": 0.7899999999999999,
             "cachedInput": 0.021
           }
         },
         "x-ai/grok-4-fast": {
           "usd": {
-            "input": 0.2,
+            "input": 0.19999999999999998,
             "output": 0.5,
             "cachedInput": 0.02
           }
@@ -672,7 +673,7 @@
         "alibaba/tongyi-deepresearch-30b-a3b": {
           "usd": {
             "input": 0.09,
-            "output": 0.4,
+            "output": 0.39999999999999997,
             "cachedInput": 0.009
           }
         },
@@ -685,7 +686,7 @@
         },
         "opengvlab/internvl3-78b": {
           "usd": {
-            "input": 0.1,
+            "input": 0.09999999999999999,
             "output": 0.39,
             "cachedInput": 0.01
           }
@@ -706,21 +707,21 @@
         },
         "meituan/longcat-flash-chat": {
           "usd": {
-            "input": 0.2,
-            "output": 0.8,
+            "input": 0.19999999999999998,
+            "output": 0.7999999999999999,
             "cachedInput": 0.02
           }
         },
         "qwen/qwen-plus-2025-07-28": {
           "usd": {
-            "input": 0.4,
+            "input": 0.39999999999999997,
             "output": 1.2,
             "cachedInput": 0.04
           }
         },
         "qwen/qwen-plus-2025-07-28:thinking": {
           "usd": {
-            "input": 0.4,
+            "input": 0.39999999999999997,
             "output": 4,
             "cachedInput": 0.04
           }
@@ -743,7 +744,7 @@
           "usd": {
             "input": 0.39,
             "output": 1.9,
-            "cachedInput": 0.039
+            "cachedInput": 0.03900000000000001
           }
         },
         "moonshotai/kimi-k2-0905:exacto": {
@@ -757,7 +758,7 @@
           "usd": {
             "input": 0.88,
             "output": 0.88,
-            "cachedInput": 0.088
+            "cachedInput": 0.08800000000000001
           }
         },
         "deepcogito/cogito-v2-preview-llama-109b-moe": {
@@ -769,21 +770,21 @@
         },
         "stepfun-ai/step3": {
           "usd": {
-            "input": 0.57,
+            "input": 0.5700000000000001,
             "output": 1.42,
-            "cachedInput": 0.057
+            "cachedInput": 0.05700000000000001
           }
         },
         "qwen/qwen3-30b-a3b-thinking-2507": {
           "usd": {
             "input": 0.051,
-            "output": 0.34,
-            "cachedInput": 0.005
+            "output": 0.33999999999999997,
+            "cachedInput": 0.0051
           }
         },
         "x-ai/grok-code-fast-1": {
           "usd": {
-            "input": 0.2,
+            "input": 0.19999999999999998,
             "output": 1.5,
             "cachedInput": 0.02
           }
@@ -792,7 +793,7 @@
           "usd": {
             "input": 0.11,
             "output": 0.38,
-            "cachedInput": 0.011
+            "cachedInput": 0.011000000000000001
           }
         },
         "nousresearch/hermes-4-405b": {
@@ -818,7 +819,7 @@
         },
         "mistralai/mistral-medium-3.1": {
           "usd": {
-            "input": 0.4,
+            "input": 0.39999999999999997,
             "output": 2,
             "cachedInput": 0.04
           }
@@ -827,14 +828,14 @@
           "usd": {
             "input": 0.056,
             "output": 0.224,
-            "cachedInput": 0.006
+            "cachedInput": 0.005600000000000001
           }
         },
         "baidu/ernie-4.5-vl-28b-a3b": {
           "usd": {
             "input": 0.112,
             "output": 0.448,
-            "cachedInput": 0.011
+            "cachedInput": 0.011200000000000002
           }
         },
         "z-ai/glm-4.5v": {
@@ -846,8 +847,8 @@
         },
         "ai21/jamba-mini-1.7": {
           "usd": {
-            "input": 0.2,
-            "output": 0.4,
+            "input": 0.19999999999999998,
+            "output": 0.39999999999999997,
             "cachedInput": 0.02
           }
         },
@@ -881,8 +882,8 @@
         },
         "openai/gpt-5-nano": {
           "usd": {
-            "input": 0.05,
-            "output": 0.4,
+            "input": 0.049999999999999996,
+            "output": 0.39999999999999997,
             "cachedInput": 0.005
           }
         },
@@ -897,14 +898,14 @@
           "usd": {
             "input": 0.039,
             "output": 0.19,
-            "cachedInput": 0.004
+            "cachedInput": 0.0039000000000000003
           }
         },
         "openai/gpt-oss-120b:exacto": {
           "usd": {
             "input": 0.039,
             "output": 0.19,
-            "cachedInput": 0.004
+            "cachedInput": 0.0039000000000000003
           }
         },
         "openai/gpt-oss-20b:free": {
@@ -931,7 +932,7 @@
         "mistralai/codestral-2508": {
           "usd": {
             "input": 0.3,
-            "output": 0.9,
+            "output": 0.8999999999999999,
             "cachedInput": 0.03
           }
         },
@@ -939,7 +940,7 @@
           "usd": {
             "input": 0.07,
             "output": 0.27,
-            "cachedInput": 0.007
+            "cachedInput": 0.007000000000000001
           }
         },
         "qwen/qwen3-30b-a3b-instruct-2507": {
@@ -953,7 +954,7 @@
           "usd": {
             "input": 0.35,
             "output": 1.55,
-            "cachedInput": 0.035
+            "cachedInput": 0.034999999999999996
           }
         },
         "z-ai/glm-4.5-air:free": {
@@ -965,22 +966,22 @@
         },
         "z-ai/glm-4.5-air": {
           "usd": {
-            "input": 0.104,
-            "output": 0.68,
-            "cachedInput": 0.01
+            "input": 0.10400000000000001,
+            "output": 0.6799999999999999,
+            "cachedInput": 0.010400000000000001
           }
         },
         "qwen/qwen3-235b-a22b-thinking-2507": {
           "usd": {
             "input": 0.11,
             "output": 0.6,
-            "cachedInput": 0.011
+            "cachedInput": 0.011000000000000001
           }
         },
         "z-ai/glm-4-32b": {
           "usd": {
-            "input": 0.1,
-            "output": 0.1,
+            "input": 0.09999999999999999,
+            "output": 0.09999999999999999,
             "cachedInput": 0.01
           }
         },
@@ -995,27 +996,27 @@
           "usd": {
             "input": 0.22,
             "output": 0.95,
-            "cachedInput": 0.022
+            "cachedInput": 0.022000000000000002
           }
         },
         "qwen/qwen3-coder:exacto": {
           "usd": {
             "input": 0.22,
-            "output": 1.8,
-            "cachedInput": 0.022
+            "output": 1.7999999999999998,
+            "cachedInput": 0.022000000000000002
           }
         },
         "bytedance/ui-tars-1.5-7b": {
           "usd": {
-            "input": 0.1,
-            "output": 0.2,
+            "input": 0.09999999999999999,
+            "output": 0.19999999999999998,
             "cachedInput": 0.01
           }
         },
         "google/gemini-2.5-flash-lite": {
           "usd": {
-            "input": 0.1,
-            "output": 0.4,
+            "input": 0.09999999999999999,
+            "output": 0.39999999999999997,
             "cachedInput": 0.01
           }
         },
@@ -1023,7 +1024,7 @@
           "usd": {
             "input": 0.071,
             "output": 0.463,
-            "cachedInput": 0.007
+            "cachedInput": 0.0070999999999999995
           }
         },
         "switchpoint/router": {
@@ -1043,20 +1044,20 @@
         "moonshotai/kimi-k2": {
           "usd": {
             "input": 0.456,
-            "output": 1.84,
-            "cachedInput": 0.046
+            "output": 1.8399999999999999,
+            "cachedInput": 0.0456
           }
         },
         "thudm/glm-4.1v-9b-thinking": {
           "usd": {
             "input": 0.028,
-            "output": 0.11,
-            "cachedInput": 0.003
+            "output": 0.1104,
+            "cachedInput": 0.0028000000000000004
           }
         },
         "mistralai/devstral-medium": {
           "usd": {
-            "input": 0.4,
+            "input": 0.39999999999999997,
             "output": 2,
             "cachedInput": 0.04
           }
@@ -1065,7 +1066,7 @@
           "usd": {
             "input": 0.07,
             "output": 0.28,
-            "cachedInput": 0.007
+            "cachedInput": 0.007000000000000001
           }
         },
         "cognitivecomputations/dolphin-mistral-24b-venice-edition:free": {
@@ -1079,7 +1080,7 @@
           "usd": {
             "input": 3,
             "output": 15,
-            "cachedInput": 0.3
+            "cachedInput": 0.30000000000000004
           }
         },
         "google/gemma-3n-e2b-it:free": {
@@ -1092,8 +1093,8 @@
         "tencent/hunyuan-a13b-instruct": {
           "usd": {
             "input": 0.14,
-            "output": 0.57,
-            "cachedInput": 0.014
+            "output": 0.5700000000000001,
+            "cachedInput": 0.014000000000000002
           }
         },
         "tngtech/deepseek-r1t2-chimera:free": {
@@ -1112,30 +1113,30 @@
         },
         "morph/morph-v3-large": {
           "usd": {
-            "input": 0.9,
+            "input": 0.8999999999999999,
             "output": 1.9,
             "cachedInput": 0.09
           }
         },
         "morph/morph-v3-fast": {
           "usd": {
-            "input": 0.8,
+            "input": 0.7999999999999999,
             "output": 1.2,
             "cachedInput": 0.08
           }
         },
         "baidu/ernie-4.5-vl-424b-a47b": {
           "usd": {
-            "input": 0.336,
+            "input": 0.33599999999999997,
             "output": 1,
-            "cachedInput": 0.034
+            "cachedInput": 0.0336
           }
         },
         "baidu/ernie-4.5-300b-a47b": {
           "usd": {
             "input": 0.224,
             "output": 0.88,
-            "cachedInput": 0.022
+            "cachedInput": 0.022400000000000003
           }
         },
         "inception/mercury": {
@@ -1154,7 +1155,7 @@
         },
         "minimax/minimax-m1": {
           "usd": {
-            "input": 0.4,
+            "input": 0.39999999999999997,
             "output": 2.2,
             "cachedInput": 0.04
           }
@@ -1163,7 +1164,7 @@
           "usd": {
             "input": 0.29,
             "output": 1.15,
-            "cachedInput": 0.029
+            "cachedInput": 0.028999999999999998
           }
         },
         "openai/o3-pro": {
@@ -1184,7 +1185,7 @@
           "usd": {
             "input": 3,
             "output": 15,
-            "cachedInput": 0.3
+            "cachedInput": 0.30000000000000004
           }
         },
         "google/gemini-2.5-pro-preview": {
@@ -1197,7 +1198,7 @@
         "deepseek/deepseek-r1-0528-qwen3-8b": {
           "usd": {
             "input": 0.02,
-            "output": 0.1,
+            "output": 0.09999999999999999,
             "cachedInput": 0.002
           }
         },
@@ -1210,7 +1211,7 @@
         },
         "deepseek/deepseek-r1-0528": {
           "usd": {
-            "input": 0.4,
+            "input": 0.39999999999999997,
             "output": 1.75,
             "cachedInput": 0.04
           }
@@ -1226,7 +1227,7 @@
           "usd": {
             "input": 3,
             "output": 15,
-            "cachedInput": 0.3
+            "cachedInput": 0.30000000000000004
           }
         },
         "mistralai/devstral-small-2505": {
@@ -1254,19 +1255,19 @@
           "usd": {
             "input": 1.5,
             "output": 6,
-            "cachedInput": 0.15
+            "cachedInput": 0.15000000000000002
           }
         },
         "nousresearch/deephermes-3-mistral-24b-preview": {
           "usd": {
             "input": 0.02,
-            "output": 0.1,
+            "output": 0.09999999999999999,
             "cachedInput": 0.002
           }
         },
         "mistralai/mistral-medium-3": {
           "usd": {
-            "input": 0.4,
+            "input": 0.39999999999999997,
             "output": 2,
             "cachedInput": 0.04
           }
@@ -1287,8 +1288,8 @@
         },
         "arcee-ai/maestro-reasoning": {
           "usd": {
-            "input": 0.9,
-            "output": 3.3,
+            "input": 0.8999999999999999,
+            "output": 3.3000000000000003,
             "cachedInput": 0.09
           }
         },
@@ -1296,13 +1297,13 @@
           "usd": {
             "input": 0.75,
             "output": 1.2,
-            "cachedInput": 0.075
+            "cachedInput": 0.07500000000000001
           }
         },
         "arcee-ai/coder-large": {
           "usd": {
             "input": 0.5,
-            "output": 0.8,
+            "output": 0.7999999999999999,
             "cachedInput": 0.05
           }
         },
@@ -1310,7 +1311,7 @@
           "usd": {
             "input": 0.07,
             "output": 0.35,
-            "cachedInput": 0.007
+            "cachedInput": 0.007000000000000001
           }
         },
         "inception/mercury-coder": {
@@ -1330,7 +1331,7 @@
         "deepseek/deepseek-prover-v2": {
           "usd": {
             "input": 0.5,
-            "output": 2.18,
+            "output": 2.1799999999999997,
             "cachedInput": 0.05
           }
         },
@@ -1351,13 +1352,13 @@
         "qwen/qwen3-8b": {
           "usd": {
             "input": 0.028,
-            "output": 0.11,
-            "cachedInput": 0.003
+            "output": 0.1104,
+            "cachedInput": 0.0028000000000000004
           }
         },
         "qwen/qwen3-14b": {
           "usd": {
-            "input": 0.05,
+            "input": 0.049999999999999996,
             "output": 0.22,
             "cachedInput": 0.005
           }
@@ -1394,7 +1395,7 @@
           "usd": {
             "input": 1.1,
             "output": 4.4,
-            "cachedInput": 0.11
+            "cachedInput": 0.11000000000000001
           }
         },
         "openai/o3": {
@@ -1408,7 +1409,7 @@
           "usd": {
             "input": 1.1,
             "output": 4.4,
-            "cachedInput": 0.11
+            "cachedInput": 0.11000000000000001
           }
         },
         "qwen/qwen2.5-coder-7b-instruct": {
@@ -1427,28 +1428,28 @@
         },
         "openai/gpt-4.1-mini": {
           "usd": {
-            "input": 0.4,
-            "output": 1.6,
+            "input": 0.39999999999999997,
+            "output": 1.5999999999999999,
             "cachedInput": 0.04
           }
         },
         "openai/gpt-4.1-nano": {
           "usd": {
-            "input": 0.1,
-            "output": 0.4,
+            "input": 0.09999999999999999,
+            "output": 0.39999999999999997,
             "cachedInput": 0.01
           }
         },
         "eleutherai/llemma_7b": {
           "usd": {
-            "input": 0.8,
+            "input": 0.7999999999999999,
             "output": 1.2,
             "cachedInput": 0.08
           }
         },
         "alfredpros/codellama-7b-instruct-solidity": {
           "usd": {
-            "input": 0.8,
+            "input": 0.7999999999999999,
             "output": 1.2,
             "cachedInput": 0.08
           }
@@ -1471,13 +1472,13 @@
           "usd": {
             "input": 3,
             "output": 15,
-            "cachedInput": 0.3
+            "cachedInput": 0.30000000000000004
           }
         },
         "nvidia/llama-3.1-nemotron-ultra-253b-v1": {
           "usd": {
             "input": 0.6,
-            "output": 1.8,
+            "output": 1.7999999999999998,
             "cachedInput": 0.06
           }
         },
@@ -1497,14 +1498,14 @@
         },
         "qwen/qwen2.5-vl-32b-instruct": {
           "usd": {
-            "input": 0.05,
+            "input": 0.049999999999999996,
             "output": 0.22,
             "cachedInput": 0.005
           }
         },
         "deepseek/deepseek-chat-v3-0324": {
           "usd": {
-            "input": 0.2,
+            "input": 0.19999999999999998,
             "output": 0.88,
             "cachedInput": 0.02
           }
@@ -1532,8 +1533,8 @@
         },
         "allenai/olmo-2-0325-32b-instruct": {
           "usd": {
-            "input": 0.05,
-            "output": 0.2,
+            "input": 0.049999999999999996,
+            "output": 0.19999999999999998,
             "cachedInput": 0.005
           }
         },
@@ -1546,9 +1547,9 @@
         },
         "google/gemma-3-4b-it": {
           "usd": {
-            "input": 0.017,
-            "output": 0.068,
-            "cachedInput": 0.002
+            "input": 0.01703012,
+            "output": 0.0681536,
+            "cachedInput": 0.001703012
           }
         },
         "google/gemma-3-12b-it:free": {
@@ -1561,7 +1562,7 @@
         "google/gemma-3-12b-it": {
           "usd": {
             "input": 0.03,
-            "output": 0.1,
+            "output": 0.09999999999999999,
             "cachedInput": 0.003
           }
         },
@@ -1576,14 +1577,16 @@
           "usd": {
             "input": 0.15,
             "output": 0.6,
-            "cachedInput": 0.015
+            "cachedInput": 0.015,
+            "request": 0.0275
           }
         },
         "openai/gpt-4o-search-preview": {
           "usd": {
             "input": 2.5,
             "output": 10,
-            "cachedInput": 0.25
+            "cachedInput": 0.25,
+            "request": 0.035
           }
         },
         "google/gemma-3-27b-it:free": {
@@ -1603,14 +1606,14 @@
         "thedrummer/skyfall-36b-v2": {
           "usd": {
             "input": 0.55,
-            "output": 0.8,
-            "cachedInput": 0.055
+            "output": 0.7999999999999999,
+            "cachedInput": 0.05500000000000001
           }
         },
         "microsoft/phi-4-multimodal-instruct": {
           "usd": {
-            "input": 0.05,
-            "output": 0.1,
+            "input": 0.049999999999999996,
+            "output": 0.09999999999999999,
             "cachedInput": 0.005
           }
         },
@@ -1625,7 +1628,7 @@
           "usd": {
             "input": 3,
             "output": 15,
-            "cachedInput": 0.3
+            "cachedInput": 0.30000000000000004
           }
         },
         "perplexity/sonar-deep-research": {
@@ -1638,7 +1641,7 @@
         "qwen/qwq-32b": {
           "usd": {
             "input": 0.15,
-            "output": 0.4,
+            "output": 0.39999999999999997,
             "cachedInput": 0.015
           }
         },
@@ -1646,26 +1649,26 @@
           "usd": {
             "input": 0.075,
             "output": 0.3,
-            "cachedInput": 0.008
+            "cachedInput": 0.0075
           }
         },
         "anthropic/claude-3.7-sonnet:thinking": {
           "usd": {
             "input": 3,
             "output": 15,
-            "cachedInput": 0.3
+            "cachedInput": 0.30000000000000004
           }
         },
         "anthropic/claude-3.7-sonnet": {
           "usd": {
             "input": 3,
             "output": 15,
-            "cachedInput": 0.3
+            "cachedInput": 0.30000000000000004
           }
         },
         "mistralai/mistral-saba": {
           "usd": {
-            "input": 0.2,
+            "input": 0.19999999999999998,
             "output": 0.6,
             "cachedInput": 0.02
           }
@@ -1681,13 +1684,13 @@
           "usd": {
             "input": 1.1,
             "output": 4.4,
-            "cachedInput": 0.11
+            "cachedInput": 0.11000000000000001
           }
         },
         "google/gemini-2.0-flash-001": {
           "usd": {
-            "input": 0.1,
-            "output": 0.4,
+            "input": 0.09999999999999999,
+            "output": 0.39999999999999997,
             "cachedInput": 0.01
           }
         },
@@ -1709,27 +1712,27 @@
           "usd": {
             "input": 0.7,
             "output": 1.4,
-            "cachedInput": 0.07
+            "cachedInput": 0.06999999999999999
           }
         },
         "aion-labs/aion-rp-llama-3.1-8b": {
           "usd": {
-            "input": 0.8,
-            "output": 1.6,
+            "input": 0.7999999999999999,
+            "output": 1.5999999999999999,
             "cachedInput": 0.08
           }
         },
         "qwen/qwen-vl-max": {
           "usd": {
-            "input": 0.8,
-            "output": 3.2,
+            "input": 0.7999999999999999,
+            "output": 3.1999999999999997,
             "cachedInput": 0.08
           }
         },
         "qwen/qwen-turbo": {
           "usd": {
-            "input": 0.05,
-            "output": 0.2,
+            "input": 0.049999999999999996,
+            "output": 0.19999999999999998,
             "cachedInput": 0.005
           }
         },
@@ -1737,20 +1740,20 @@
           "usd": {
             "input": 0.07,
             "output": 0.26,
-            "cachedInput": 0.007
+            "cachedInput": 0.007000000000000001
           }
         },
         "qwen/qwen-plus": {
           "usd": {
-            "input": 0.4,
+            "input": 0.39999999999999997,
             "output": 1.2,
             "cachedInput": 0.04
           }
         },
         "qwen/qwen-max": {
           "usd": {
-            "input": 1.6,
-            "output": 6.4,
+            "input": 1.5999999999999999,
+            "output": 6.3999999999999995,
             "cachedInput": 0.16
           }
         },
@@ -1758,7 +1761,7 @@
           "usd": {
             "input": 1.1,
             "output": 4.4,
-            "cachedInput": 0.11
+            "cachedInput": 0.11000000000000001
           }
         },
         "mistralai/mistral-small-24b-instruct-2501": {
@@ -1786,14 +1789,16 @@
           "usd": {
             "input": 1,
             "output": 5,
-            "cachedInput": 0.1
+            "cachedInput": 0.1,
+            "request": 0.005
           }
         },
         "perplexity/sonar": {
           "usd": {
             "input": 1,
             "output": 1,
-            "cachedInput": 0.1
+            "cachedInput": 0.1,
+            "request": 0.005
           }
         },
         "deepseek/deepseek-r1-distill-llama-70b": {
@@ -1812,7 +1817,7 @@
         },
         "minimax/minimax-01": {
           "usd": {
-            "input": 0.2,
+            "input": 0.19999999999999998,
             "output": 1.1,
             "cachedInput": 0.02
           }
@@ -1828,7 +1833,7 @@
           "usd": {
             "input": 3,
             "output": 3,
-            "cachedInput": 0.3
+            "cachedInput": 0.30000000000000004
           }
         },
         "deepseek/deepseek-chat": {
@@ -1854,9 +1859,9 @@
         },
         "cohere/command-r7b-12-2024": {
           "usd": {
-            "input": 0.038,
+            "input": 0.0375,
             "output": 0.15,
-            "cachedInput": 0.004
+            "cachedInput": 0.00375
           }
         },
         "google/gemini-2.0-flash-exp:free": {
@@ -1875,7 +1880,7 @@
         },
         "meta-llama/llama-3.3-70b-instruct": {
           "usd": {
-            "input": 0.1,
+            "input": 0.09999999999999999,
             "output": 0.32,
             "cachedInput": 0.01
           }
@@ -1891,13 +1896,13 @@
           "usd": {
             "input": 0.035,
             "output": 0.14,
-            "cachedInput": 0.004
+            "cachedInput": 0.0035000000000000005
           }
         },
         "amazon/nova-pro-v1": {
           "usd": {
-            "input": 0.8,
-            "output": 3.2,
+            "input": 0.7999999999999999,
+            "output": 3.1999999999999997,
             "cachedInput": 0.08
           }
         },
@@ -1945,21 +1950,21 @@
         },
         "thedrummer/unslopnemo-12b": {
           "usd": {
-            "input": 0.4,
-            "output": 0.4,
+            "input": 0.39999999999999997,
+            "output": 0.39999999999999997,
             "cachedInput": 0.04
           }
         },
         "anthropic/claude-3.5-haiku-20241022": {
           "usd": {
-            "input": 0.8,
+            "input": 0.7999999999999999,
             "output": 4,
             "cachedInput": 0.08
           }
         },
         "anthropic/claude-3.5-haiku": {
           "usd": {
-            "input": 0.8,
+            "input": 0.7999999999999999,
             "output": 4,
             "cachedInput": 0.08
           }
@@ -1968,13 +1973,13 @@
           "usd": {
             "input": 3,
             "output": 5,
-            "cachedInput": 0.3
+            "cachedInput": 0.30000000000000004
           }
         },
         "mistralai/ministral-8b": {
           "usd": {
-            "input": 0.1,
-            "output": 0.1,
+            "input": 0.09999999999999999,
+            "output": 0.09999999999999999,
             "cachedInput": 0.01
           }
         },
@@ -1988,7 +1993,7 @@
         "qwen/qwen-2.5-7b-instruct": {
           "usd": {
             "input": 0.04,
-            "output": 0.1,
+            "output": 0.09999999999999999,
             "cachedInput": 0.004
           }
         },
@@ -2015,9 +2020,9 @@
         },
         "thedrummer/rocinante-12b": {
           "usd": {
-            "input": 0.17,
+            "input": 0.16999999999999998,
             "output": 0.43,
-            "cachedInput": 0.017
+            "cachedInput": 0.016999999999999998
           }
         },
         "meta-llama/llama-3.2-3b-instruct:free": {
@@ -2037,22 +2042,22 @@
         "meta-llama/llama-3.2-1b-instruct": {
           "usd": {
             "input": 0.027,
-            "output": 0.2,
-            "cachedInput": 0.003
+            "output": 0.19999999999999998,
+            "cachedInput": 0.0027
           }
         },
         "meta-llama/llama-3.2-90b-vision-instruct": {
           "usd": {
             "input": 0.35,
-            "output": 0.4,
-            "cachedInput": 0.035
+            "output": 0.39999999999999997,
+            "cachedInput": 0.034999999999999996
           }
         },
         "meta-llama/llama-3.2-11b-vision-instruct": {
           "usd": {
             "input": 0.049,
             "output": 0.049,
-            "cachedInput": 0.005
+            "cachedInput": 0.004900000000000001
           }
         },
         "qwen/qwen-2.5-72b-instruct": {
@@ -2071,8 +2076,8 @@
         },
         "mistralai/pixtral-12b": {
           "usd": {
-            "input": 0.1,
-            "output": 0.1,
+            "input": 0.09999999999999999,
+            "output": 0.09999999999999999,
             "cachedInput": 0.01
           }
         },
@@ -2106,15 +2111,15 @@
         },
         "qwen/qwen-2.5-vl-7b-instruct": {
           "usd": {
-            "input": 0.2,
-            "output": 0.2,
+            "input": 0.19999999999999998,
+            "output": 0.19999999999999998,
             "cachedInput": 0.02
           }
         },
         "microsoft/phi-3.5-mini-128k-instruct": {
           "usd": {
-            "input": 0.1,
-            "output": 0.1,
+            "input": 0.09999999999999999,
+            "output": 0.09999999999999999,
             "cachedInput": 0.01
           }
         },
@@ -2149,7 +2154,7 @@
         "sao10k/l3-lunaris-8b": {
           "usd": {
             "input": 0.04,
-            "output": 0.05,
+            "output": 0.049999999999999996,
             "cachedInput": 0.004
           }
         },
@@ -2185,13 +2190,13 @@
           "usd": {
             "input": 3.5,
             "output": 3.5,
-            "cachedInput": 0.35
+            "cachedInput": 0.35000000000000003
           }
         },
         "meta-llama/llama-3.1-70b-instruct": {
           "usd": {
-            "input": 0.4,
-            "output": 0.4,
+            "input": 0.39999999999999997,
+            "output": 0.39999999999999997,
             "cachedInput": 0.04
           }
         },
@@ -2239,9 +2244,9 @@
         },
         "nousresearch/hermes-2-pro-llama-3-8b": {
           "usd": {
-            "input": 0.025,
+            "input": 0.024999999999999998,
             "output": 0.08,
-            "cachedInput": 0.003
+            "cachedInput": 0.0025
           }
         },
         "mistralai/mistral-7b-instruct:free": {
@@ -2255,20 +2260,20 @@
           "usd": {
             "input": 0.028,
             "output": 0.054,
-            "cachedInput": 0.003
+            "cachedInput": 0.0028000000000000004
           }
         },
         "mistralai/mistral-7b-instruct-v0.3": {
           "usd": {
-            "input": 0.2,
-            "output": 0.2,
+            "input": 0.19999999999999998,
+            "output": 0.19999999999999998,
             "cachedInput": 0.02
           }
         },
         "microsoft/phi-3-mini-128k-instruct": {
           "usd": {
-            "input": 0.1,
-            "output": 0.1,
+            "input": 0.09999999999999999,
+            "output": 0.09999999999999999,
             "cachedInput": 0.01
           }
         },
@@ -2281,8 +2286,8 @@
         },
         "meta-llama/llama-guard-2-8b": {
           "usd": {
-            "input": 0.2,
-            "output": 0.2,
+            "input": 0.19999999999999998,
+            "output": 0.19999999999999998,
             "cachedInput": 0.02
           }
         },
@@ -2304,13 +2309,13 @@
           "usd": {
             "input": 6,
             "output": 18,
-            "cachedInput": 0.6
+            "cachedInput": 0.6000000000000001
           }
         },
         "meta-llama/llama-3-70b-instruct": {
           "usd": {
             "input": 0.3,
-            "output": 0.4,
+            "output": 0.39999999999999997,
             "cachedInput": 0.03
           }
         },
@@ -2379,8 +2384,8 @@
         },
         "mistralai/mistral-7b-instruct-v0.2": {
           "usd": {
-            "input": 0.2,
-            "output": 0.2,
+            "input": 0.19999999999999998,
+            "output": 0.19999999999999998,
             "cachedInput": 0.02
           }
         },
@@ -2388,7 +2393,7 @@
           "usd": {
             "input": 0.54,
             "output": 0.54,
-            "cachedInput": 0.054
+            "cachedInput": 0.054000000000000006
           }
         },
         "neversleep/noromaid-20b": {
@@ -2402,7 +2407,7 @@
           "usd": {
             "input": 6,
             "output": 8,
-            "cachedInput": 0.6
+            "cachedInput": 0.6000000000000001
           }
         },
         "openai/gpt-4-1106-preview": {
@@ -2416,33 +2421,33 @@
           "usd": {
             "input": 1.5,
             "output": 2,
-            "cachedInput": 0.15
+            "cachedInput": 0.15000000000000002
           }
         },
         "mistralai/mistral-7b-instruct-v0.1": {
           "usd": {
             "input": 0.11,
             "output": 0.19,
-            "cachedInput": 0.011
+            "cachedInput": 0.011000000000000001
           }
         },
         "openai/gpt-3.5-turbo-16k": {
           "usd": {
             "input": 3,
             "output": 4,
-            "cachedInput": 0.3
+            "cachedInput": 0.30000000000000004
           }
         },
         "mancer/weaver": {
           "usd": {
             "input": 0.75,
             "output": 1,
-            "cachedInput": 0.075
+            "cachedInput": 0.07500000000000001
           }
         },
         "undi95/remm-slerp-l2-13b": {
           "usd": {
-            "input": 0.45,
+            "input": 0.44999999999999996,
             "output": 0.65,
             "cachedInput": 0.045
           }
@@ -2473,6 +2478,20 @@
             "input": 0.5,
             "output": 1.5,
             "cachedInput": 0.05
+          }
+        },
+        "bytedance-seed/seed-1.6-flash": {
+          "usd": {
+            "input": 0.075,
+            "output": 0.3,
+            "cachedInput": 0.0075
+          }
+        },
+        "bytedance-seed/seed-1.6": {
+          "usd": {
+            "input": 0.25,
+            "output": 2,
+            "cachedInput": 0.025
           }
         }
       }
