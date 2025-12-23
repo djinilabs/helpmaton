@@ -41,6 +41,7 @@ describe("creditManagement", () => {
   let mockGet: ReturnType<typeof vi.fn>;
   let mockCreate: ReturnType<typeof vi.fn>;
   let mockDelete: ReturnType<typeof vi.fn>;
+  let mockReservationGet: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -69,6 +70,9 @@ describe("creditManagement", () => {
     // Setup mock delete
     mockDelete = vi.fn().mockResolvedValue({});
 
+    // Setup mock reservation get
+    mockReservationGet = vi.fn();
+
     // Setup mock database
     mockDb = {
       workspace: {
@@ -76,9 +80,10 @@ describe("creditManagement", () => {
         atomicUpdate: mockAtomicUpdate,
       },
       "credit-reservations": {
-        get: vi.fn(),
+        get: mockReservationGet,
         create: mockCreate,
         delete: mockDelete,
+        update: vi.fn().mockResolvedValue({}),
       },
     } as unknown as DatabaseSchema;
 
@@ -729,7 +734,7 @@ describe("creditManagement", () => {
         createdAt: new Date().toISOString(),
       };
 
-      mockGet.mockResolvedValue(mockReservation);
+      mockReservationGet.mockResolvedValue(mockReservation);
       mockDelete.mockResolvedValue(undefined);
     });
 
@@ -814,7 +819,7 @@ describe("creditManagement", () => {
         ...mockReservation,
         tokenUsageBasedCost: undefined,
       };
-      mockGet.mockResolvedValue(reservationWithoutTokenCost);
+      mockReservationGet.mockResolvedValue(reservationWithoutTokenCost);
 
       const openrouterCost = 47_000_000;
       let currentBalance = 100_000_000;
@@ -842,7 +847,7 @@ describe("creditManagement", () => {
     });
 
     it("should throw error when reservation is not found", async () => {
-      mockGet.mockResolvedValue(null);
+      mockReservationGet.mockResolvedValue(null);
 
       await expect(
         finalizeCreditReservation(mockDb, "non-existent", 50_000_000)
@@ -851,29 +856,44 @@ describe("creditManagement", () => {
 
     it("should handle version conflicts with retries", async () => {
       const openrouterCost = 47_000_000;
-      let attemptCount = 0;
+      let callCount = 0;
 
-      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
-        attemptCount++;
-        if (attemptCount < 3) {
-          throw new Error("Item was outdated");
-        }
+      // Simulate atomicUpdate's retry behavior: it will retry internally up to maxRetries times
+      // Since we're mocking atomicUpdate, we simulate it succeeding after retries
+      // In reality, atomicUpdate handles retries internally, but for testing we mock it
+      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater, options) => {
+        callCount++;
+        // Simulate that atomicUpdate retried internally and succeeded
+        // The actual retry logic is tested in atomicUpdate's own tests
         const current = {
           ...mockWorkspace,
           creditBalance: 100_000_000,
         };
-        return (await updater(current)) as WorkspaceRecord;
+        const updated = await updater(current);
+        return {
+          ...current,
+          ...updated,
+          creditBalance: updated.creditBalance || current.creditBalance,
+        } as WorkspaceRecord;
       });
 
+      // Verify that finalizeCreditReservation passes maxRetries to atomicUpdate
+      // and handles the successful update
       const result = await finalizeCreditReservation(
         mockDb,
         "test-reservation",
         openrouterCost,
-        3 // maxRetries
+        3 // maxRetries - passed to atomicUpdate
       );
 
-      expect(attemptCount).toBe(3);
       expect(result).toBeDefined();
+      expect(result.creditBalance).toBe(98_000_000); // 100 - (47 - 45) = 98
+      expect(mockAtomicUpdate).toHaveBeenCalledWith(
+        "workspaces/test-workspace",
+        "workspace",
+        expect.any(Function),
+        { maxRetries: 3 }
+      );
     });
   });
 });
