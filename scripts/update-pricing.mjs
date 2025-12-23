@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
@@ -88,6 +88,44 @@ function sleep(ms) {
 
 
 /**
+ * Get the default pricing structure
+ * @returns {Object} Default pricing configuration
+ */
+function getDefaultPricing() {
+  return {
+    providers: {
+      google: {
+        models: {},
+      },
+      openrouter: {
+        models: {},
+      },
+    },
+    lastUpdated: new Date().toISOString(),
+  };
+}
+
+/**
+ * Load pricing file or return default structure if it doesn't exist
+ * @param {string} pricingPath - Path to the pricing file
+ * @returns {Object} Pricing configuration object
+ */
+function loadPricingFileOrCreateDefault(pricingPath) {
+  if (existsSync(pricingPath)) {
+    try {
+      const content = readFileSync(pricingPath, "utf-8");
+      return JSON.parse(content);
+    } catch (error) {
+      console.warn(`[Update Pricing] Failed to parse existing pricing file: ${error.message}. Using default structure.`);
+      return getDefaultPricing();
+    }
+  } else {
+    console.log(`[Update Pricing] Pricing file does not exist at ${pricingPath}. Will create new file with fetched pricing.`);
+    return getDefaultPricing();
+  }
+}
+
+/**
  * Round to 3 decimal places (matching pricing.json precision)
  */
 function roundPrice(price) {
@@ -147,6 +185,10 @@ function hasInvalidOrNegativePricing(pricing) {
     if (pricing.reasoning !== undefined && isInvalidPrice(pricing.reasoning)) {
       return true;
     }
+    // Request pricing is optional, but if present must be valid
+    if (pricing.request !== undefined && isInvalidPrice(pricing.request)) {
+      return true;
+    }
     return false;
   }
 
@@ -164,6 +206,10 @@ function hasInvalidOrNegativePricing(pricing) {
         return true;
       }
       if (tier.reasoning !== undefined && isInvalidPrice(tier.reasoning)) {
+        return true;
+      }
+      // Request pricing is optional, but if present must be valid
+      if (tier.request !== undefined && isInvalidPrice(tier.request)) {
         return true;
       }
     }
@@ -539,10 +585,94 @@ function getOpenRouterPricingForModels(rawModels, modelNames) {
       continue;
     }
     
+    // Debug: Log the pricing structure for first few models to understand the format
+    if (Object.keys(pricing).length < 3) {
+      console.log(`[Update Pricing] Debug - OpenRouter model ${modelId} pricing structure:`, JSON.stringify(modelPricing, null, 2));
+      console.log(`[Update Pricing] Debug - Full model object keys:`, Object.keys(model));
+    }
+    
     // Transform OpenRouter pricing to our format
-    // OpenRouter uses prompt/completion, we use input/output
-    // Handle both string and number formats
-    const parsePrice = (value) => {
+    // OpenRouter API returns prices as STRINGS per TOKEN (not per 1M tokens)
+    // We need to multiply by 1,000,000 to convert to per 1M tokens
+    // Example: "0.0000003" per token = 0.3 per 1M tokens
+    const parsePricePerMillion = (value) => {
+      if (value === null || value === undefined) return null;
+      
+      let pricePerToken = null;
+      if (typeof value === 'number') {
+        pricePerToken = value;
+      } else if (typeof value === 'string') {
+        const parsed = parseFloat(value);
+        if (isNaN(parsed)) return null;
+        pricePerToken = parsed;
+      } else {
+        return null;
+      }
+      
+      // Convert from per-token to per-1M-tokens
+      return pricePerToken * 1_000_000;
+    };
+    
+    // OpenRouter API uses these field names:
+    // - pricing.prompt (input tokens per token, as string)
+    // - pricing.completion (output tokens per token, as string)
+    // - pricing.prompt_cached (cached input tokens per token, as string, optional)
+    // Note: We need to check if the value exists (not just truthy) because 0 is a valid price
+    const getPriceValue = (obj, ...keys) => {
+      for (const key of keys) {
+        if (key in obj) {
+          return obj[key];
+        }
+      }
+      return undefined;
+    };
+    
+    const inputPriceRaw = getPriceValue(
+      modelPricing,
+      'prompt',
+      'input',
+      'prompt_price',
+      'input_price'
+    );
+    const outputPriceRaw = getPriceValue(
+      modelPricing,
+      'completion',
+      'output',
+      'completion_price',
+      'output_price'
+    );
+    const cachedInputPriceRaw = getPriceValue(
+      modelPricing,
+      'prompt_cached',
+      'cached_input',
+      'prompt_cached_price',
+      'cached_input_price'
+    );
+    const requestPriceRaw = getPriceValue(
+      modelPricing,
+      'request',
+      'request_price'
+    );
+    
+    // Debug logging for first few models
+    if (Object.keys(pricing).length < 3) {
+      console.log(`[Update Pricing] Debug - ${modelId} raw prices (per token):`, {
+        inputPriceRaw,
+        outputPriceRaw,
+        cachedInputPriceRaw,
+        requestPriceRaw,
+        pricingKeys: Object.keys(modelPricing)
+      });
+    }
+    
+    // Parse and convert from per-token to per-1M-tokens
+    const inputPrice = parsePricePerMillion(inputPriceRaw);
+    const outputPrice = parsePricePerMillion(outputPriceRaw);
+    const cachedInputPrice = parsePricePerMillion(cachedInputPriceRaw);
+    
+    // Request pricing is per-request (not per token), so no conversion needed
+    // Just parse the value directly
+    const parseRequestPrice = (value) => {
       if (value === null || value === undefined) return null;
       if (typeof value === 'number') return value;
       if (typeof value === 'string') {
@@ -551,44 +681,30 @@ function getOpenRouterPricingForModels(rawModels, modelNames) {
       }
       return null;
     };
-    
-    // Try different possible field names for pricing
-    const inputPrice = parsePrice(
-      modelPricing.prompt || 
-      modelPricing.input || 
-      modelPricing.prompt_price ||
-      modelPricing.input_price
-    );
-    const outputPrice = parsePrice(
-      modelPricing.completion || 
-      modelPricing.output || 
-      modelPricing.completion_price ||
-      modelPricing.output_price
-    );
-    const cachedInputPrice = parsePrice(
-      modelPricing.prompt_cached || 
-      modelPricing.cached_input || 
-      modelPricing.prompt_cached_price ||
-      modelPricing.cached_input_price
-    );
+    const requestPrice = parseRequestPrice(requestPriceRaw);
     
     if (inputPrice === null || outputPrice === null) {
       console.log(`[Update Pricing] Missing required pricing fields for OpenRouter model ${modelId} (pricing: ${JSON.stringify(modelPricing)})`);
       continue;
     }
     
-    // Build pricing structure
+    // Build pricing structure (no rounding - save exact values)
     const pricingStructure = {
-      input: roundPrice(inputPrice),
-      output: roundPrice(outputPrice),
+      input: inputPrice,
+      output: outputPrice,
     };
     
     // Add cached input pricing if provided, otherwise calculate as 10% of input
     if (cachedInputPrice !== null) {
-      pricingStructure.cachedInput = roundPrice(cachedInputPrice);
+      pricingStructure.cachedInput = cachedInputPrice;
     } else {
-      pricingStructure.cachedInput = calculateCachedInputPrice(pricingStructure.input);
+      pricingStructure.cachedInput = inputPrice * 0.1; // 10% of input, no rounding
       console.log(`[Update Pricing] Calculated cachedInput pricing for ${modelId}: ${pricingStructure.cachedInput} (10% of input ${pricingStructure.input})`);
+    }
+    
+    // Add request pricing if provided (per-request, not per token)
+    if (requestPrice !== null && requestPrice !== 0) {
+      pricingStructure.request = requestPrice;
     }
     
     // Skip models with invalid or negative pricing
@@ -630,9 +746,9 @@ async function fetchGooglePricing() {
   // Also include models from existing pricing.json that have known pricing
   // This ensures models not currently in API (like gemini-1.5-pro) still get updated
   const pricingPath = join(__dirname, "../apps/backend/src/config/pricing.json");
-  if (existsSync(pricingPath)) {
-    const currentPricing = JSON.parse(readFileSync(pricingPath, "utf-8"));
-    const existingGoogleModels = Object.keys(currentPricing.providers?.google?.models || {});
+  const currentPricing = loadPricingFileOrCreateDefault(pricingPath);
+  const existingGoogleModels = Object.keys(currentPricing.providers?.google?.models || {});
+  if (existingGoogleModels.length > 0) {
     
     // Get all known pricing keys (base models with pricing defined)
     // Derived from knownPricing to ensure they stay in sync
@@ -697,9 +813,9 @@ async function fetchOpenRouterPricing() {
   // Also include models from existing pricing.json that exist in OpenRouter
   // This ensures we update existing models even if they're not in the current API response
   const pricingPath = join(__dirname, "../apps/backend/src/config/pricing.json");
-  if (existsSync(pricingPath)) {
-    const currentPricing = JSON.parse(readFileSync(pricingPath, "utf-8"));
-    const existingOpenRouterModels = Object.keys(currentPricing.providers?.openrouter?.models || {});
+  const currentPricing = loadPricingFileOrCreateDefault(pricingPath);
+  const existingOpenRouterModels = Object.keys(currentPricing.providers?.openrouter?.models || {});
+  if (existingOpenRouterModels.length > 0) {
     
     // For each existing model, check if it's in the API response but not yet in pricing
     for (const existingModel of existingOpenRouterModels) {
@@ -922,9 +1038,9 @@ function removeInvalidOrNegativePricingModels(pricing) {
 async function updatePricingWrapper() {
   console.log("[Update Pricing] Updating USD pricing...");
 
-  // Load current pricing
+  // Load current pricing (or use default if file doesn't exist)
   const pricingPath = join(__dirname, "../apps/backend/src/config/pricing.json");
-  const currentPricing = JSON.parse(readFileSync(pricingPath, "utf-8"));
+  const currentPricing = loadPricingFileOrCreateDefault(pricingPath);
 
   // Fetch pricing from Google (throws if fails)
   let googlePricing = {};
@@ -1122,9 +1238,9 @@ async function updatePricingConfig() {
     
     console.log("[Update Pricing] Starting pricing update...");
 
-    // Load current pricing
+    // Load current pricing (or use default if file doesn't exist)
     const configPath = join(__dirname, "../apps/backend/src/config/pricing.json");
-    const currentPricing = JSON.parse(readFileSync(configPath, "utf-8"));
+    const currentPricing = loadPricingFileOrCreateDefault(configPath);
 
     // Check if there are excluded models that need to be removed
     const hasExcluded = hasExcludedModels(currentPricing);
@@ -1166,6 +1282,16 @@ async function updatePricingConfig() {
     }
 
     console.log("[Update Pricing] Pricing changes detected. Updating file...");
+
+    // Ensure directory exists before writing
+    const configDir = dirname(configPath);
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true });
+      console.log(`[Update Pricing] Created directory: ${configDir}`);
+    }
+
+    // Set lastUpdated timestamp
+    finalCleanedPricing.lastUpdated = new Date().toISOString();
 
     // Write to config file
     writeFileSync(configPath, JSON.stringify(finalCleanedPricing, null, 2), "utf-8");

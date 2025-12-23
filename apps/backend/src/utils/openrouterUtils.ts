@@ -31,32 +31,44 @@ export function extractOpenRouterGenerationId(
       return result.raw.id;
     }
     if (result?.raw?.generation_id) {
-      console.log("[extractOpenRouterGenerationId] Found in result.raw.generation_id");
+      console.log(
+        "[extractOpenRouterGenerationId] Found in result.raw.generation_id"
+      );
       return result.raw.generation_id;
     }
     if (result?.experimental_providerMetadata?.generationId) {
-      console.log("[extractOpenRouterGenerationId] Found in experimental_providerMetadata.generationId");
+      console.log(
+        "[extractOpenRouterGenerationId] Found in experimental_providerMetadata.generationId"
+      );
       return result.experimental_providerMetadata.generationId;
     }
     if (result?.experimental_providerMetadata?.id) {
-      console.log("[extractOpenRouterGenerationId] Found in experimental_providerMetadata.id");
+      console.log(
+        "[extractOpenRouterGenerationId] Found in experimental_providerMetadata.id"
+      );
       return result.experimental_providerMetadata.id;
     }
     // Check response headers if available
     if (result?.response?.headers) {
       const headers = result.response.headers;
       if (headers["x-openrouter-generation-id"]) {
-        console.log("[extractOpenRouterGenerationId] Found in response.headers['x-openrouter-generation-id']");
+        console.log(
+          "[extractOpenRouterGenerationId] Found in response.headers['x-openrouter-generation-id']"
+        );
         return headers["x-openrouter-generation-id"];
       }
       if (headers["openrouter-generation-id"]) {
-        console.log("[extractOpenRouterGenerationId] Found in response.headers['openrouter-generation-id']");
+        console.log(
+          "[extractOpenRouterGenerationId] Found in response.headers['openrouter-generation-id']"
+        );
         return headers["openrouter-generation-id"];
       }
     }
     // Check usage metadata
     if (result?.usage?.generationId) {
-      console.log("[extractOpenRouterGenerationId] Found in result.usage.generationId");
+      console.log(
+        "[extractOpenRouterGenerationId] Found in result.usage.generationId"
+      );
       return result.usage.generationId;
     }
     // Check if result has a direct id property
@@ -81,4 +93,3 @@ export function extractOpenRouterGenerationId(
 
   return undefined;
 }
-
