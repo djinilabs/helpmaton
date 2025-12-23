@@ -422,7 +422,8 @@ export function calculateTokenCost(
   }
 
   // Sum all costs (all already in millionths, so simple addition)
-  const baseCost = inputCost + cachedInputCost + outputCost + reasoningCost + requestCost;
+  const baseCost =
+    inputCost + cachedInputCost + outputCost + reasoningCost + requestCost;
   let totalCost = baseCost;
 
   // Apply 5.5% markup for OpenRouter to account for credit purchase fee
