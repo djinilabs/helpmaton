@@ -136,19 +136,25 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
         <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">Type</div>
+              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
+                Type
+              </div>
               <div className="inline-block rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50">
                 {conversationDetail.conversationType}
               </div>
             </div>
             <div>
-              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">Messages</div>
+              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
+                Messages
+              </div>
               <div className="text-neutral-900 dark:text-neutral-50">
                 {conversationDetail.messageCount}
               </div>
             </div>
             <div>
-              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">Started</div>
+              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
+                Started
+              </div>
               <div className="text-xs text-neutral-600 dark:text-neutral-300">
                 {formatDate(conversationDetail.startedAt)}
               </div>
@@ -294,18 +300,17 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                 {provisionalCostUsd !== null &&
                                   finalCostUsd === null && (
                                     <div className="rounded bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800 opacity-70 dark:bg-yellow-900 dark:text-yellow-200">
-                                      {formatCurrency(provisionalCostUsd, "usd", 4)} (est.)
+                                      {formatCurrency(
+                                        provisionalCostUsd,
+                                        "usd",
+                                        4
+                                      )}{" "}
+                                      (provisional)
                                     </div>
                                   )}
                                 {finalCostUsd !== null && (
                                   <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 opacity-70 dark:bg-green-900 dark:text-green-200">
                                     {formatCurrency(finalCostUsd, "usd", 4)}
-                                    {provisionalCostUsd !== null &&
-                                      provisionalCostUsd !== finalCostUsd && (
-                                        <span className="ml-1 text-yellow-700 dark:text-yellow-300">
-                                          (was {formatCurrency(provisionalCostUsd, "usd", 4)})
-                                        </span>
-                                      )}
                                   </div>
                                 )}
                               </div>
@@ -321,11 +326,8 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                     remarkPlugins={[remarkGfm]}
                                     components={{
                                       code: (props) => {
-                                        const {
-                                          className,
-                                          children,
-                                          ...rest
-                                        } = props;
+                                        const { className, children, ...rest } =
+                                          props;
                                         const isInline =
                                           !className ||
                                           !className.includes("language-");

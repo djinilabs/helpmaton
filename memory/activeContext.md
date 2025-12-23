@@ -2,7 +2,21 @@
 
 ## Current Status
 
-**Status**: Message Final Cost Tracking with OpenRouter Generation IDs - Completed ✅
+**Status**: Cost Display Rounding Fix - Completed ✅
+
+Fixed cost display in the UI to always round up (never down) to ensure costs are never understated. Updated `formatCurrency()` function to use `Math.ceil()` instead of `toFixed()` which could round down.
+
+**Changes Made**:
+- Modified `formatCurrency()` in `apps/frontend/src/utils/currency.ts` to always round up using `Math.ceil()`
+- Applied to all cost displays across the UI (conversation costs, usage stats, credit balance, etc.)
+- Ensures users always see accurate costs that are never rounded down
+
+**Files Modified**:
+- `apps/frontend/src/utils/currency.ts` - Updated `formatCurrency()` to use `Math.ceil()` for rounding up
+
+**Verification**: Type checking and linting passed successfully
+
+**Previous Status**: Message Final Cost Tracking with OpenRouter Generation IDs - Completed ✅
 
 Implemented tracking of OpenRouter generation IDs on assistant messages and automatic updates with final verified costs (including 5.5% markup) when the cost verification queue processes the OpenRouter API response. This ensures conversation records reflect the actual final cost from OpenRouter rather than just estimated costs.
 

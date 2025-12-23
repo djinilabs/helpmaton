@@ -131,7 +131,9 @@ export const AgentChat: FC<AgentChatProps> = ({
       >
         {error && (
           <div className="mb-4 rounded-xl border-2 border-error-300 bg-error-100 p-5 dark:border-error-800 dark:bg-error-900">
-            <div className="text-base font-bold text-error-900 dark:text-error-50">Error</div>
+            <div className="text-base font-bold text-error-900 dark:text-error-50">
+              Error
+            </div>
             <div className="mt-2 text-sm font-medium text-error-800 dark:text-error-100">
               {error.message}
             </div>
@@ -708,18 +710,17 @@ export const AgentChat: FC<AgentChatProps> = ({
                                 {provisionalCostUsd !== null &&
                                   finalCostUsd === null && (
                                     <div className="rounded bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800 opacity-70 dark:bg-yellow-900 dark:text-yellow-200">
-                                      {formatCurrency(provisionalCostUsd, "usd", 4)} (est.)
+                                      {formatCurrency(
+                                        provisionalCostUsd,
+                                        "usd",
+                                        4
+                                      )}{" "}
+                                      (provisional)
                                     </div>
                                   )}
                                 {finalCostUsd !== null && (
                                   <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 opacity-70 dark:bg-green-900 dark:text-green-200">
                                     {formatCurrency(finalCostUsd, "usd", 4)}
-                                    {provisionalCostUsd !== null &&
-                                      provisionalCostUsd !== finalCostUsd && (
-                                        <span className="ml-1 text-yellow-700 dark:text-yellow-300">
-                                          (was {formatCurrency(provisionalCostUsd, "usd", 4)})
-                                        </span>
-                                      )}
                                   </div>
                                 )}
                               </div>

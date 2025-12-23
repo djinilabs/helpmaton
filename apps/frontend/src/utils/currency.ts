@@ -26,6 +26,7 @@ const CURRENCY_SYMBOLS: Record<Currency, string> = {
 
 /**
  * Format a currency value (in millionths) for display
+ * Always rounds up (never down) to ensure costs are never understated
  * 
  * @param millionths - Amount in millionths
  * @param currency - Currency code
@@ -39,6 +40,9 @@ export function formatCurrency(
 ): string {
   const symbol = CURRENCY_SYMBOLS[currency];
   const amount = fromMillionths(millionths);
-  return `${symbol}${amount.toFixed(decimals)}`;
+  // Round up to ensure costs are never rounded down
+  const multiplier = Math.pow(10, decimals);
+  const roundedAmount = Math.ceil(amount * multiplier) / multiplier;
+  return `${symbol}${roundedAmount.toFixed(decimals)}`;
 }
 
