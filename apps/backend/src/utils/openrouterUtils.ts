@@ -7,8 +7,14 @@ export function extractOpenRouterGenerationId(
   result: any
 ): string | undefined {
   try {
-    // Log the result structure for debugging
-    console.log("[extractOpenRouterGenerationId] Checking result structure:", {
+    // Log the full result structure for debugging
+    console.log(
+      "[extractOpenRouterGenerationId] Full result structure:",
+      JSON.stringify(result, null, 2)
+    );
+
+    // Log summary of result structure for quick reference
+    console.log("[extractOpenRouterGenerationId] Result structure summary:", {
       hasRaw: !!result?.raw,
       hasExperimentalProviderMetadata: !!result?.experimental_providerMetadata,
       hasResponse: !!result?.response,
@@ -79,7 +85,7 @@ export function extractOpenRouterGenerationId(
 
     console.warn(
       "[extractOpenRouterGenerationId] Generation ID not found in any expected location. Full result structure:",
-      JSON.stringify(result, null, 2).substring(0, 1000)
+      JSON.stringify(result, null, 2)
     );
   } catch (error) {
     console.warn(

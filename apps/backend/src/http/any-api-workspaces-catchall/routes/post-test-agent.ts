@@ -619,6 +619,11 @@ export const registerPostTestAgent = (app: express.Application) => {
       // Extract token usage from streamText result (after stream is consumed and usage is awaited)
       const tokenUsage = extractTokenUsage({ ...result, usage });
 
+      // Log full result before extraction for debugging
+      console.log("[Agent Test Handler] Full result structure before generation ID extraction:", {
+        result: JSON.stringify({ ...result, usage }, null, 2),
+      });
+
       // Extract OpenRouter generation ID for cost verification
       const openrouterGenerationId = extractOpenRouterGenerationId({
         ...result,

@@ -215,6 +215,11 @@ export const handler = adaptHttpHandler(
         // Extract token usage
         tokenUsage = extractTokenUsage(result);
 
+        // Log full result before extraction for debugging
+        console.log("[Webhook Handler] Full result structure before generation ID extraction:", {
+          result: JSON.stringify(result, null, 2),
+        });
+
         // Extract OpenRouter generation ID for cost verification
         openrouterGenerationId = extractOpenRouterGenerationId(result);
 

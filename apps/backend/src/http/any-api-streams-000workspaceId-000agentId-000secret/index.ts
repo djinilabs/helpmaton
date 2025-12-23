@@ -455,17 +455,17 @@ async function validateCreditsAndReserveBeforeLLM(
       })
     : undefined;
 
-      const reservation = await validateCreditsAndLimitsAndReserve(
-        db,
-        workspaceId,
-        agentId,
-        "openrouter", // provider
-        finalModelName,
-        modelMessages,
-        agent.systemPrompt,
-        toolDefinitions,
-        usesByok
-      );
+  const reservation = await validateCreditsAndLimitsAndReserve(
+    db,
+    workspaceId,
+    agentId,
+    "openrouter", // provider
+    finalModelName,
+    modelMessages,
+    agent.systemPrompt,
+    toolDefinitions,
+    usesByok
+  );
 
   if (reservation) {
     console.log("[Stream Handler] Credits reserved:", {
@@ -654,6 +654,16 @@ async function adjustCreditsAfterStream(
     return;
   }
 
+  // Log full result before extraction for debugging
+  if (streamResult) {
+    console.log(
+      "[Stream Handler] Full streamResult structure before generation ID extraction:",
+      {
+        streamResult: JSON.stringify(streamResult, null, 2),
+      }
+    );
+  }
+
   // Extract OpenRouter generation ID for cost verification
   const openrouterGenerationId = streamResult
     ? extractOpenRouterGenerationId(streamResult)
@@ -678,7 +688,9 @@ async function adjustCreditsAfterStream(
     usesByok,
     openrouterGenerationId
   );
-  console.log("[Stream Handler] Step 2: Credit reservation adjusted successfully");
+  console.log(
+    "[Stream Handler] Step 2: Credit reservation adjusted successfully"
+  );
 
   // Enqueue cost verification (Step 3) if we have a generation ID
   if (openrouterGenerationId && conversationId) {
@@ -693,13 +705,10 @@ async function adjustCreditsAfterStream(
       console.log("[Stream Handler] Step 3: Cost verification enqueued");
     } catch (error) {
       // Log error but don't fail the request
-      console.error(
-        "[Stream Handler] Error enqueueing cost verification:",
-        {
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-        }
-      );
+      console.error("[Stream Handler] Error enqueueing cost verification:", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
     }
   } else if (!openrouterGenerationId) {
     console.warn(
@@ -858,6 +867,16 @@ async function logConversation(
       assistantContent.push({ type: "text", text: finalResponseText });
     }
 
+    // Log full result before extraction for debugging
+    if (streamResult) {
+      console.log(
+        "[Stream Handler] Full streamResult structure before generation ID extraction (message creation):",
+        {
+          streamResult: JSON.stringify(streamResult, null, 2),
+        }
+      );
+    }
+
     // Extract OpenRouter generation ID for cost verification
     const openrouterGenerationId = streamResult
       ? extractOpenRouterGenerationId(streamResult)
@@ -952,7 +971,6 @@ async function logConversation(
         },
       });
     });
-
   } catch (error) {
     // Log error but don't fail the request
     console.error("[Stream Handler] Error preparing conversation log:", {
