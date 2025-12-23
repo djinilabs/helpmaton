@@ -64,6 +64,7 @@ function isExcludedModel(modelName) {
 function validateRequiredApiKeys() {
   const requiredKeys = [
     { name: "GEMINI_API_KEY", env: process.env.GEMINI_API_KEY },
+    { name: "OPENROUTER_API_KEY", env: process.env.OPENROUTER_API_KEY },
   ];
 
   const missingKeys = requiredKeys.filter(({ env }) => !env);
@@ -169,6 +170,86 @@ async function getGoogleModels() {
   }
 
   return filteredModels;
+}
+
+/**
+ * Get OpenRouter models list from API
+ * Throws error if API key is missing or API call fails
+ */
+async function getOpenRouterModels() {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY not set, cannot fetch OpenRouter models");
+  }
+
+  const url = "https://openrouter.ai/api/v1/models";
+  const response = await fetch(url, {
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    // Get response body for more details
+    let responseBody = "";
+    let responseData = null;
+    try {
+      responseBody = await response.text();
+      try {
+        responseData = JSON.parse(responseBody);
+      } catch {
+        // Not JSON, keep as text
+      }
+    } catch (e) {
+      // Couldn't read body
+    }
+
+    const errorDetails = {
+      status: response.status,
+      statusText: response.statusText,
+      url: url,
+      headers: Object.fromEntries(response.headers.entries()),
+      body: responseData || responseBody,
+    };
+
+    console.error("[Update Pricing] OpenRouter API error details:", JSON.stringify(errorDetails, null, 2));
+    
+    throw new Error(
+      `Failed to fetch OpenRouter models: HTTP ${response.status}: ${response.statusText}. ` +
+      `Response: ${responseData ? JSON.stringify(responseData) : responseBody.substring(0, 500)}`
+    );
+  }
+
+  const data = await response.json();
+  
+  // OpenRouter API returns an array of models
+  const models = data.data || [];
+  
+  if (models.length === 0) {
+    throw new Error("No models found in OpenRouter API response");
+  }
+
+  // Extract model IDs (they use format like "google/gemini-2.5-flash")
+  const modelNames = models.map(model => model.id).filter(Boolean);
+  
+  if (modelNames.length === 0) {
+    throw new Error("No valid model IDs found in OpenRouter API response");
+  }
+
+  // Filter out excluded models
+  const filteredModels = modelNames.filter(modelName => !isExcludedModel(modelName));
+  
+  if (filteredModels.length === 0) {
+    throw new Error("No valid models found after filtering excluded models");
+  }
+  
+  const excludedCount = modelNames.length - filteredModels.length;
+  if (excludedCount > 0) {
+    console.log(`[Update Pricing] Excluded ${excludedCount} OpenRouter model(s) from pricing update`);
+  }
+
+  return { models: filteredModels, rawModels: models };
 }
 
 /**
@@ -333,6 +414,106 @@ function getGooglePricingForModels(models) {
 }
 
 /**
+ * Transform OpenRouter API response to pricing.json format
+ * OpenRouter API returns pricing in different formats, we need to normalize it
+ * @param {Array} rawModels - Raw model objects from OpenRouter API
+ * @param {Array} modelNames - Filtered model names to process
+ * @returns {Object} Pricing object with model names as keys
+ */
+function getOpenRouterPricingForModels(rawModels, modelNames) {
+  const pricing = {};
+  
+  // Create a map of model ID to model object for quick lookup
+  const modelMap = new Map();
+  for (const model of rawModels) {
+    if (model.id) {
+      modelMap.set(model.id, model);
+    }
+  }
+  
+  for (const modelId of modelNames) {
+    // Skip excluded models
+    if (isExcludedModel(modelId)) {
+      console.log(`[Update Pricing] Skipping excluded OpenRouter model ${modelId} in pricing lookup`);
+      continue;
+    }
+    
+    const model = modelMap.get(modelId);
+    if (!model) {
+      console.log(`[Update Pricing] Model ${modelId} not found in OpenRouter API response`);
+      continue;
+    }
+    
+    // OpenRouter pricing structure: pricing.prompt and pricing.completion (per 1M tokens)
+    // Some models may have pricing.prompt_cached for cached tokens
+    // Pricing values can be strings or numbers
+    const modelPricing = model.pricing;
+    if (!modelPricing) {
+      console.log(`[Update Pricing] No pricing information for OpenRouter model ${modelId}`);
+      continue;
+    }
+    
+    // Transform OpenRouter pricing to our format
+    // OpenRouter uses prompt/completion, we use input/output
+    // Handle both string and number formats
+    const parsePrice = (value) => {
+      if (value === null || value === undefined) return null;
+      if (typeof value === 'number') return value;
+      if (typeof value === 'string') {
+        const parsed = parseFloat(value);
+        return isNaN(parsed) ? null : parsed;
+      }
+      return null;
+    };
+    
+    // Try different possible field names for pricing
+    const inputPrice = parsePrice(
+      modelPricing.prompt || 
+      modelPricing.input || 
+      modelPricing.prompt_price ||
+      modelPricing.input_price
+    );
+    const outputPrice = parsePrice(
+      modelPricing.completion || 
+      modelPricing.output || 
+      modelPricing.completion_price ||
+      modelPricing.output_price
+    );
+    const cachedInputPrice = parsePrice(
+      modelPricing.prompt_cached || 
+      modelPricing.cached_input || 
+      modelPricing.prompt_cached_price ||
+      modelPricing.cached_input_price
+    );
+    
+    if (inputPrice === null || outputPrice === null) {
+      console.log(`[Update Pricing] Missing required pricing fields for OpenRouter model ${modelId} (pricing: ${JSON.stringify(modelPricing)})`);
+      continue;
+    }
+    
+    // Build pricing structure
+    const pricingStructure = {
+      input: roundPrice(inputPrice),
+      output: roundPrice(outputPrice),
+    };
+    
+    // Add cached input pricing if provided, otherwise calculate as 10% of input
+    if (cachedInputPrice !== null) {
+      pricingStructure.cachedInput = roundPrice(cachedInputPrice);
+    } else {
+      pricingStructure.cachedInput = calculateCachedInputPrice(pricingStructure.input);
+      console.log(`[Update Pricing] Calculated cachedInput pricing for ${modelId}: ${pricingStructure.cachedInput} (10% of input ${pricingStructure.input})`);
+    }
+    
+    // Check for tiered pricing (OpenRouter may provide this in the future)
+    // For now, we use flat pricing structure
+    pricing[modelId] = pricingStructure;
+  }
+  
+  return pricing;
+}
+
+/**
  * Fetch Google pricing from API and known pricing structure
  * Returns pricing object with model names as keys
  * Also includes models from existing pricing.json that have known pricing
@@ -401,14 +582,83 @@ async function fetchGooglePricing() {
 }
 
 /**
+ * Fetch OpenRouter pricing from API
+ * Returns pricing object with model names as keys
+ * Also includes models from existing pricing.json that exist in OpenRouter
+ * Throws error if fetching fails or no pricing found
+ */
+async function fetchOpenRouterPricing() {
+  console.log("[Update Pricing] Fetching OpenRouter models and pricing...");
+  
+  // Get list of available models from API (throws if fails)
+  const { models, rawModels } = await getOpenRouterModels();
+  
+  if (models.length === 0) {
+    throw new Error("No OpenRouter models returned from API");
+  }
+
+  console.log(`[Update Pricing] Found ${models.length} OpenRouter models: ${models.slice(0, 5).join(", ")}${models.length > 5 ? "..." : ""}`);
+  
+  // Get pricing for available models
+  const pricing = getOpenRouterPricingForModels(rawModels, models);
+  
+  // Also include models from existing pricing.json that exist in OpenRouter
+  // This ensures we update existing models even if they're not in the current API response
+  const pricingPath = join(__dirname, "../apps/backend/src/config/pricing.json");
+  if (existsSync(pricingPath)) {
+    const currentPricing = JSON.parse(readFileSync(pricingPath, "utf-8"));
+    const existingOpenRouterModels = Object.keys(currentPricing.providers?.openrouter?.models || {});
+    
+    // For each existing model, check if it's in the API response but not yet in pricing
+    for (const existingModel of existingOpenRouterModels) {
+      // Skip excluded models
+      if (isExcludedModel(existingModel)) {
+        continue;
+      }
+      
+      // Only add if it's not already in pricing (from API models)
+      if (!pricing[existingModel]) {
+        // Check if it exists in the raw models from API
+        const existsInApi = rawModels.some(m => m.id === existingModel);
+        
+        if (existsInApi) {
+          // Get pricing for this model from API
+          const modelPricing = getOpenRouterPricingForModels(rawModels, [existingModel]);
+          if (modelPricing[existingModel]) {
+            pricing[existingModel] = modelPricing[existingModel];
+            console.log(`[Update Pricing] Added pricing for existing OpenRouter model ${existingModel} from API`);
+          }
+        }
+      }
+    }
+  }
+  
+  if (Object.keys(pricing).length === 0) {
+    throw new Error(`No pricing found for any of the ${models.length} OpenRouter models`);
+  }
+  
+  console.log(`[Update Pricing] OpenRouter pricing fetched: ${Object.keys(pricing).length} models`);
+  return pricing;
+}
+
+/**
  * Merge fetched pricing into existing pricing structure
  * Supports both flat and tiered pricing structures
  */
 function mergePricingIntoConfig(currentPricing, fetchedPricing) {
   const updatedPricing = JSON.parse(JSON.stringify(currentPricing));
 
+  // Ensure providers object exists
+  if (!updatedPricing.providers) {
+    updatedPricing.providers = {};
+  }
+
   // Merge Google pricing
-  if (fetchedPricing.google && updatedPricing.providers.google) {
+  if (fetchedPricing.google) {
+    if (!updatedPricing.providers.google) {
+      updatedPricing.providers.google = { models: {} };
+    }
+    
     for (const [modelName, pricing] of Object.entries(fetchedPricing.google)) {
       // Skip excluded models
       if (isExcludedModel(modelName)) {
@@ -435,6 +685,42 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
           usd: validPricing,
         };
         console.log(`[Update Pricing] Added new Google model ${modelName} with pricing`);
+      }
+    }
+  }
+
+  // Merge OpenRouter pricing
+  if (fetchedPricing.openrouter) {
+    if (!updatedPricing.providers.openrouter) {
+      updatedPricing.providers.openrouter = { models: {} };
+    }
+    
+    for (const [modelName, pricing] of Object.entries(fetchedPricing.openrouter)) {
+      // Skip excluded models
+      if (isExcludedModel(modelName)) {
+        console.log(`[Update Pricing] Skipping excluded OpenRouter model ${modelName} in merge`);
+        continue;
+      }
+      
+      // Ensure pricing structure is valid
+      const validPricing = {
+        ...pricing,
+        // Ensure we have either flat pricing or tiered pricing
+        ...(pricing.tiers === undefined && pricing.input === undefined && pricing.output === undefined
+          ? { input: 0, output: 0 } // Default fallback
+          : {}),
+      };
+
+      if (updatedPricing.providers.openrouter.models[modelName]) {
+        // Update existing model pricing (USD only)
+        updatedPricing.providers.openrouter.models[modelName].usd = validPricing;
+        console.log(`[Update Pricing] Updated OpenRouter model ${modelName} pricing`);
+      } else {
+        // Add new model with USD pricing only
+        updatedPricing.providers.openrouter.models[modelName] = {
+          usd: validPricing,
+        };
+        console.log(`[Update Pricing] Added new OpenRouter model ${modelName} with pricing`);
       }
     }
   }
@@ -493,10 +779,31 @@ async function updatePricingWrapper() {
   const currentPricing = JSON.parse(readFileSync(pricingPath, "utf-8"));
 
   // Fetch pricing from Google (throws if fails)
-  const googlePricing = await fetchGooglePricing();
+  let googlePricing = {};
+  try {
+    googlePricing = await fetchGooglePricing();
+  } catch (error) {
+    console.error("[Update Pricing] Failed to fetch Google pricing:", error.message);
+    // Continue with OpenRouter pricing even if Google fails
+  }
+
+  // Fetch pricing from OpenRouter (throws if fails)
+  let openRouterPricing = {};
+  try {
+    openRouterPricing = await fetchOpenRouterPricing();
+  } catch (error) {
+    console.error("[Update Pricing] Failed to fetch OpenRouter pricing:", error.message);
+    // Continue with Google pricing even if OpenRouter fails
+  }
+
+  // If both providers failed, throw error
+  if (Object.keys(googlePricing).length === 0 && Object.keys(openRouterPricing).length === 0) {
+    throw new Error("Failed to fetch pricing from both Google and OpenRouter");
+  }
 
   const fetchedPricing = {
     google: googlePricing,
+    openrouter: openRouterPricing,
   };
 
   // Merge fetched pricing into current pricing (only updates USD prices)
@@ -678,13 +985,22 @@ async function updatePricingConfig() {
     const newPricing = await updatePricingWrapper();
 
     // Log model counts for debugging
-    const oldModelCount = Object.keys(currentPricing.providers?.google?.models || {}).length;
-    const newModelCount = Object.keys(newPricing.providers?.google?.models || {}).length;
-    const modelsWereRemoved = oldModelCount > newModelCount;
+    const oldGoogleModelCount = Object.keys(currentPricing.providers?.google?.models || {}).length;
+    const newGoogleModelCount = Object.keys(newPricing.providers?.google?.models || {}).length;
+    const googleModelsWereRemoved = oldGoogleModelCount > newGoogleModelCount;
     
-    console.log(`[Update Pricing] Model count: ${oldModelCount} -> ${newModelCount}`);
-    if (modelsWereRemoved) {
-      console.log(`[Update Pricing] ${oldModelCount - newModelCount} model(s) were removed.`);
+    const oldOpenRouterModelCount = Object.keys(currentPricing.providers?.openrouter?.models || {}).length;
+    const newOpenRouterModelCount = Object.keys(newPricing.providers?.openrouter?.models || {}).length;
+    const openRouterModelsWereRemoved = oldOpenRouterModelCount > newOpenRouterModelCount;
+    
+    console.log(`[Update Pricing] Google model count: ${oldGoogleModelCount} -> ${newGoogleModelCount}`);
+    if (googleModelsWereRemoved) {
+      console.log(`[Update Pricing] ${oldGoogleModelCount - newGoogleModelCount} Google model(s) were removed.`);
+    }
+    
+    console.log(`[Update Pricing] OpenRouter model count: ${oldOpenRouterModelCount} -> ${newOpenRouterModelCount}`);
+    if (openRouterModelsWereRemoved) {
+      console.log(`[Update Pricing] ${oldOpenRouterModelCount - newOpenRouterModelCount} OpenRouter model(s) were removed.`);
     }
 
     // Check if pricing actually changed using deep equality (ignoring lastUpdated)
@@ -703,7 +1019,8 @@ async function updatePricingConfig() {
     console.log("[Update Pricing] Pricing file updated:", {
       lastUpdated: newPricing.lastUpdated,
       providerCount: Object.keys(newPricing.providers || {}).length,
-      models: Object.keys(newPricing.providers?.google?.models || {}).length,
+      googleModels: Object.keys(newPricing.providers?.google?.models || {}).length,
+      openRouterModels: Object.keys(newPricing.providers?.openrouter?.models || {}).length,
     });
 
     // Commit and push changes

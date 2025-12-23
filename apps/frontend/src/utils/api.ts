@@ -1420,11 +1420,11 @@ export async function getAgentMemory(
 }
 
 export interface AvailableModels {
-  google: {
+  google?: {
     models: string[];
     defaultModel: string;
   };
-  openrouter?: {
+  openrouter: {
     models: string[];
     defaultModel: string;
   };

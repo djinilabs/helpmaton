@@ -218,8 +218,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     () => agent?.clientTools || []
   );
 
-  // Model state - provider is always "google", only modelName can be changed
-  const provider: Provider = "google";
+  // Model state - provider is always "openrouter", only modelName can be changed
+  const provider: Provider = "openrouter";
   const [modelName, setModelName] = useState<string | null>(() => {
     return agent?.modelName || null;
   });

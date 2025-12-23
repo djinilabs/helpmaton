@@ -2,7 +2,69 @@
 
 ## Current Status
 
-**Status**: Tailwind CSS Linting Rules Implementation - Completed ✅
+**Status**: OpenRouter Integration with 3-Step Pricing and BYOK Support - Completed ✅
+
+Successfully integrated OpenRouter as the primary LLM provider while maintaining support for Google and other providers. Implemented a 3-step pricing verification process and full BYOK (Bring Your Own Key) support for OpenRouter.
+
+**Key Features Implemented**:
+
+1. **OpenRouter Integration**:
+   - Added `@openrouter/ai-sdk-provider` package
+   - Extended Provider type to include `"openrouter"` in both backend and frontend
+   - Implemented OpenRouter model factory with auto-selection support (using `"auto"` model name)
+   - Updated all LLM call sites (test, stream, webhook, agent delegation) to use OpenRouter by default
+   - Added OpenRouter models to pricing configuration including "auto" selection
+   - Updated `/api/models` endpoint to include OpenRouter provider and models
+
+2. **3-Step Pricing Process**:
+   - **Step 1**: Estimate cost and reserve credits from workspace balance
+   - **Step 2**: Calculate actual cost based on token usage and adjust balance
+   - **Step 3**: Background job queries OpenRouter API for actual cost and makes final adjustment
+   - Created SQS FIFO queue (`openrouter-cost-verification-queue`) for background cost verification
+   - Extended credit-reservations schema with OpenRouter-specific fields (generationId, provider, modelName, tokenUsageBasedCost, openrouterCost)
+   - All costs use `Math.ceil()` for rounding to ensure we never undercharge
+
+3. **5.5% OpenRouter Markup**:
+   - Applied 5.5% markup to all OpenRouter costs to account for credit purchase fee
+   - Markup applied in `calculateTokenCost()` for steps 1 and 2
+   - Markup applied in cost verification queue for step 3
+   - Ensures accurate billing that covers OpenRouter's fees
+
+4. **BYOK (Bring Your Own Key) Support**:
+   - OpenRouter BYOK keys can be stored and retrieved (code supports it)
+   - When workspace has OpenRouter API key, it's used automatically and credit deduction is skipped
+   - Provider-specific keys (Google, OpenAI, Anthropic) can be stored for direct provider access
+   - Note: API endpoints currently only accept `google`, `openai`, `anthropic` - OpenRouter BYOK key storage would require adding `"openrouter"` to `VALID_PROVIDERS`
+
+5. **Cost Rounding**:
+   - All cost calculations use `Math.ceil()` instead of `Math.round()` to ensure we never undercharge
+   - Applied consistently across all pricing calculations (token costs, OpenRouter API costs)
+
+**Files Modified**:
+
+- `apps/backend/package.json` - Added `@openrouter/ai-sdk-provider` dependency
+- `apps/backend/src/http/utils/modelFactory.ts` - Added OpenRouter support with auto-selection
+- `apps/backend/src/http/utils/agentUtils.ts` - Updated to support OpenRouter provider
+- `apps/backend/src/tables/schema.ts` - Extended credit-reservations schema with OpenRouter fields
+- `apps/backend/src/utils/creditManagement.ts` - Added `finalizeCreditReservation()` and updated `adjustCreditReservation()` for 3-step pricing
+- `apps/backend/src/utils/pricing.ts` - Added 5.5% markup for OpenRouter, all rounding uses `Math.ceil()`
+- `apps/backend/src/utils/openrouterUtils.ts` - New utility for extracting generation IDs and sending cost verification messages
+- `apps/backend/src/queues/openrouter-cost-verification-queue/index.ts` - New queue processor for step 3 cost verification
+- `apps/backend/app.arc` - Added `openrouter-cost-verification-queue` SQS FIFO queue
+- `apps/backend/src/config/pricing.json` - Added OpenRouter provider and models including "auto"
+- `apps/backend/src/http/get-api-models/index.ts` - Updated to include OpenRouter provider
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-test-agent.ts` - Updated to extract OpenRouter generation IDs
+- `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Updated to extract OpenRouter generation IDs
+- `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Updated to extract OpenRouter generation IDs
+- `apps/frontend/src/utils/modelConfig.ts` - Added OpenRouter provider support
+- `apps/frontend/src/utils/api.ts` - Extended `AvailableModels` interface to include OpenRouter
+- `apps/backend/src/utils/__tests__/openrouterUtils.test.ts` - New tests for generation ID extraction
+- `apps/backend/src/utils/__tests__/creditManagement.test.ts` - Added tests for `finalizeCreditReservation()`
+- `apps/backend/ENV.md` - Added `OPENROUTER_API_KEY` documentation
+
+**Verification**: All tests passing (1735 tests), type checking and linting passed successfully
+
+**Previous Status**: Tailwind CSS Linting Rules Implementation - Completed ✅
 
 Added comprehensive Tailwind CSS linting rules to enforce code quality and consistency across the frontend codebase.
 

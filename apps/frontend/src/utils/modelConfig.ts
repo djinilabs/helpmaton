@@ -27,9 +27,9 @@ export async function fetchAvailableModels(): Promise<AvailableModels> {
   // Validate cached models structure - if it doesn't have required providers, clear cache
   if (cachedModels) {
     if (
-      !cachedModels.google ||
-      !cachedModels.google.models ||
-      !Array.isArray(cachedModels.google.models)
+      !cachedModels.openrouter ||
+      !cachedModels.openrouter.models ||
+      !Array.isArray(cachedModels.openrouter.models)
     ) {
       console.warn(
         "[modelConfig] Cached models structure invalid, clearing cache"
@@ -48,11 +48,11 @@ export async function fetchAvailableModels(): Promise<AvailableModels> {
   // Create promise and assign immediately to prevent race conditions
   modelsPromise = getAvailableModels()
     .then((models) => {
-      // Validate the response structure
+      // Validate the response structure - now requires OpenRouter
       if (
-        !models.google ||
-        !models.google.models ||
-        !Array.isArray(models.google.models)
+        !models.openrouter ||
+        !models.openrouter.models ||
+        !Array.isArray(models.openrouter.models)
       ) {
         console.error(
           "[modelConfig] Invalid models response structure:",
@@ -60,7 +60,7 @@ export async function fetchAvailableModels(): Promise<AvailableModels> {
         );
         throw new Error("Invalid models response structure");
       }
-      // OpenRouter is optional, so we don't validate it here
+      // Google is optional (for backward compatibility), so we don't validate it here
       cachedModels = models;
       return models;
     })
@@ -126,7 +126,7 @@ export async function getDefaultModelForProvider(
 }
 
 /**
- * Get all provider configs (Google and OpenRouter)
+ * Get all provider configs (OpenRouter, and Google if available)
  */
 export async function getProviderConfigs(): Promise<ModelConfig[]> {
   const availableModels = await fetchAvailableModels();

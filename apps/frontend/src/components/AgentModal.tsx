@@ -233,7 +233,7 @@ export const AgentModal: FC<AgentModalProps> = ({
   const [isPromptGeneratorOpen, setIsPromptGeneratorOpen] = useState(false);
 
   // Model fetching state
-  const provider: Provider = "google";
+  const provider: Provider = "openrouter";
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [defaultModel, setDefaultModel] = useState<string>("");
   const [isLoadingModels, setIsLoadingModels] = useState(true);

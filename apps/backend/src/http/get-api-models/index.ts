@@ -10,12 +10,12 @@ import { getDefaultModel } from "../utils/modelFactory";
  * /api/models:
  *   get:
  *     summary: Get available models
- *     description: Returns a list of available AI models and their default model for each provider
+ *     description: Returns a list of available OpenRouter AI models and their default model
  *     tags:
  *       - Usage
  *     responses:
  *       200:
- *         description: Available models
+ *         description: Available OpenRouter models
  *         content:
  *           application/json:
  *             schema:
@@ -27,27 +27,26 @@ export const handler = adaptHttpHandler(
   handlingErrors(async (): Promise<APIGatewayProxyResultV2> => {
     const pricingConfig = loadPricingConfig();
 
-    // Extract available models from pricing config (Google and OpenRouter)
+    // Extract available models from pricing config (OpenRouter only)
     const availableModels: Record<
       string,
       { models: string[]; defaultModel: string }
     > = {};
 
-    // Include both Google and OpenRouter providers
-    const providers: Array<"google" | "openrouter"> = ["google", "openrouter"];
-    for (const provider of providers) {
-      const providerPricing = pricingConfig.providers[provider];
-      if (providerPricing) {
-        const models = Object.keys(providerPricing.models);
-        if (models.length > 0) {
-          // Use shared utility function to get default model
-          const defaultModel = getDefaultModel(provider);
+    // Only include OpenRouter provider
+    const provider: "openrouter" = "openrouter";
+    const providerPricing = pricingConfig.providers[provider];
+    if (providerPricing) {
+      // Get all models from pricing config - includes all models regardless of pricing values
+      const models = Object.keys(providerPricing.models).sort();
+      if (models.length > 0) {
+        // Use shared utility function to get default model
+        const defaultModel = getDefaultModel(provider);
 
-          availableModels[provider] = {
-            models,
-            defaultModel,
-          };
-        }
+        availableModels[provider] = {
+          models,
+          defaultModel,
+        };
       }
     }
 
