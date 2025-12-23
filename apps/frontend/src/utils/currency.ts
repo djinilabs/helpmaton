@@ -27,11 +27,12 @@ const CURRENCY_SYMBOLS: Record<Currency, string> = {
 /**
  * Format a currency value (in millionths) for display
  * Always rounds up (never down) to ensure costs are never understated
+ * Removes trailing zeros for cleaner display
  *
  * @param millionths - Amount in millionths
  * @param currency - Currency code
  * @param decimals - Number of decimal places (default: 2)
- * @returns Formatted currency string (e.g., "$1.50")
+ * @returns Formatted currency string (e.g., "$1.5" instead of "$1.5000000000")
  */
 export function formatCurrency(
   millionths: number,
@@ -43,5 +44,6 @@ export function formatCurrency(
   // Round up to ensure costs are never rounded down
   const multiplier = Math.pow(10, decimals);
   const roundedAmount = Math.ceil(amount * multiplier) / multiplier;
-  return `${symbol}${roundedAmount.toFixed(decimals)}`;
+  // Format with specified decimals, then remove trailing zeros and optional decimal point
+  return `${symbol}${roundedAmount.toFixed(decimals).replace(/\.?0+$/, "")}`;
 }

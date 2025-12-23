@@ -306,31 +306,31 @@ export function generateCostReport(
   );
   lines.push("");
   lines.push("Cost Breakdown:");
-  // Convert from millionths to currency units for display
+  // Convert from millionths to currency units for display, remove trailing zeros
   lines.push(
     `  Input Cost:           $${fromMillionths(
       breakdown.costs.inputCost
-    ).toFixed(10)}`
+    ).toFixed(10).replace(/\.?0+$/, "")}`
   );
   lines.push(
     `  Cached Input Cost:    $${fromMillionths(
       breakdown.costs.cachedInputCost
-    ).toFixed(10)}`
+    ).toFixed(10).replace(/\.?0+$/, "")}`
   );
   lines.push(
     `  Output Cost:          $${fromMillionths(
       breakdown.costs.outputCost
-    ).toFixed(10)}`
+    ).toFixed(10).replace(/\.?0+$/, "")}`
   );
   lines.push(
     `  Reasoning Cost:       $${fromMillionths(
       breakdown.costs.reasoningCost
-    ).toFixed(10)}`
+    ).toFixed(10).replace(/\.?0+$/, "")}`
   );
   lines.push(
     `  Total Cost:           $${fromMillionths(
       breakdown.costs.totalCost
-    ).toFixed(10)}`
+    ).toFixed(10).replace(/\.?0+$/, "")}`
   );
 
   if (expectedCost !== undefined) {
@@ -344,12 +344,12 @@ export function generateCostReport(
       expectedCostDisplay > 0
         ? (differenceDisplay / expectedCostDisplay) * 100
         : 0;
-    lines.push(`  Calculated Cost:     $${calculatedCostDisplay.toFixed(10)}`);
-    lines.push(`  Expected Cost:       $${expectedCostDisplay.toFixed(10)}`);
+    lines.push(`  Calculated Cost:     $${calculatedCostDisplay.toFixed(10).replace(/\.?0+$/, "")}`);
+    lines.push(`  Expected Cost:       $${expectedCostDisplay.toFixed(10).replace(/\.?0+$/, "")}`);
     lines.push(
       `  Difference:          $${differenceDisplay.toFixed(
         10
-      )} (${percentageDifference.toFixed(2)}%)`
+      ).replace(/\.?0+$/, "")} (${percentageDifference.toFixed(2)}%)`
     );
   }
 
