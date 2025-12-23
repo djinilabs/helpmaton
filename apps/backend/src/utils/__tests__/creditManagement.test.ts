@@ -1109,9 +1109,9 @@ describe("creditManagement", () => {
       const { enqueueCostVerification } = await import("../creditManagement");
 
       await enqueueCostVerification(
-        "res-1",
         "gen-12345",
         "workspace-1",
+        "res-1",
         "conv-1",
         "agent-1"
       );
@@ -1131,7 +1131,7 @@ describe("creditManagement", () => {
     it("should enqueue cost verification without conversation context (backward compatibility)", async () => {
       const { enqueueCostVerification } = await import("../creditManagement");
 
-      await enqueueCostVerification("res-1", "gen-12345", "workspace-1");
+      await enqueueCostVerification("gen-12345", "workspace-1", "res-1");
 
       expect(mockQueue.publish).toHaveBeenCalledWith({
         name: "openrouter-cost-verification-queue",
@@ -1156,7 +1156,7 @@ describe("creditManagement", () => {
 
       // Should not throw - errors are logged but not propagated
       await expect(
-        enqueueCostVerification("res-1", "gen-12345", "workspace-1")
+        enqueueCostVerification("gen-12345", "workspace-1", "res-1")
       ).resolves.not.toThrow();
     });
   });

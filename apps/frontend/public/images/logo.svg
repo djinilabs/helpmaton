@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <polygon points="40,180 160,180 170,140 170,60 150,30 50,30 30,60 30,140" fill="#C7A317" stroke="#005F6B" stroke-width="2"/>
+  
+  <circle cx="25" cy="140" r="15" fill="#C7A317" stroke="#005F6B" stroke-width="2"/>
+  <circle cx="175" cy="140" r="15" fill="#C7A317" stroke="#005F6B" stroke-width="2"/>
+  <circle cx="25" cy="140" r="8" fill="none" stroke="#005F6B" stroke-width="3" stroke-dasharray="4 4"/>
+  <circle cx="175" cy="140" r="8" fill="none" stroke="#005F6B" stroke-width="3" stroke-dasharray="4 4"/>
+
+  <polyline points="50,30 50,50 70,50 70,30" fill="none" stroke="#005F6B" stroke-width="3"/>
+  <polyline points="150,30 150,50 130,50 130,30" fill="none" stroke="#005F6B" stroke-width="3"/>
+  <polygon points="85,30 115,30 115,45 100,60 85,45" fill="#005F6B"/>
+
+  <path d="M 55,85 L 145,85 L 140,105 L 60,105 Z" fill="#FF7F00" stroke="#005F6B" stroke-width="2"/>
+  
+  <polygon points="85,105 115,105 110,135 90,135" fill="#C7A317" stroke="#005F6B" stroke-width="2"/>
+  <polyline points="95,105 95,135" stroke="#005F6B" stroke-width="2"/>
+  <polyline points="105,105 105,135" stroke="#005F6B" stroke-width="2"/>
+
+  <rect x="75" y="145" width="50" height="25" fill="#005F6B"/>
+  <path d="M 75,155 L 85,155 L 85,165 L 95,165 L 95,155 L 105,155 L 105,165 L 115,165 L 115,155 L 125,155" stroke="#FF7F00" stroke-width="3" fill="none"/>
+</svg>

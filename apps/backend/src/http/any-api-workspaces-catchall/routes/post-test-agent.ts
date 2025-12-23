@@ -629,6 +629,8 @@ export const registerPostTestAgent = (app: express.Application) => {
         ...result,
         usage,
       });
+      // TODO: Use openrouterCost from providerMetadata when available instead of calculating
+      // const openrouterCost = extractOpenRouterCost({ ...result, usage });
 
       // Log token usage for debugging
       console.log("[Agent Test Handler] Extracted token usage:", {
@@ -834,23 +836,23 @@ export const registerPostTestAgent = (app: express.Application) => {
         );
 
         // Enqueue cost verification (Step 3) if we have a generation ID
-        // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
-        if (
-          isCreditDeductionEnabled() &&
-          openrouterGenerationId &&
-          reservationId &&
-          reservationId !== "byok"
-        ) {
+        // Always enqueue when we have a generation ID, regardless of reservationId or BYOK status
+        if (openrouterGenerationId) {
           try {
             await enqueueCostVerification(
-              reservationId,
               openrouterGenerationId,
               workspaceId,
+              reservationId && reservationId !== "byok" ? reservationId : undefined,
               conversationId,
               agentId
             );
             console.log(
-              "[Agent Test Handler] Step 3: Cost verification enqueued"
+              "[Agent Test Handler] Step 3: Cost verification enqueued",
+              {
+                openrouterGenerationId,
+                reservationId: reservationId && reservationId !== "byok" ? reservationId : undefined,
+                hasReservation: !!(reservationId && reservationId !== "byok"),
+              }
             );
           } catch (error) {
             // Log error but don't fail the request
@@ -863,30 +865,9 @@ export const registerPostTestAgent = (app: express.Application) => {
             );
           }
         } else {
-          if (!isCreditDeductionEnabled()) {
-            console.log(
-              "[Agent Test Handler] Credit deduction disabled via feature flag, skipping cost verification:",
-              {
-                workspaceId,
-                agentId,
-                reservationId,
-                openrouterGenerationId,
-              }
-            );
-          } else if (!openrouterGenerationId) {
-            console.warn(
-              "[Agent Test Handler] No OpenRouter generation ID found, skipping cost verification"
-            );
-          } else if (!reservationId || reservationId === "byok") {
-            console.log(
-              "[Agent Test Handler] No reservation (BYOK), skipping cost verification:",
-              {
-                workspaceId,
-                agentId,
-                reservationId,
-              }
-            );
-          }
+          console.warn(
+            "[Agent Test Handler] No OpenRouter generation ID found, skipping cost verification"
+          );
         }
       } catch (error) {
         // Log error but don't fail the request

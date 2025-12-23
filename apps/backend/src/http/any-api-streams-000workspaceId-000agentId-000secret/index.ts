@@ -668,6 +668,8 @@ async function adjustCreditsAfterStream(
   const openrouterGenerationId = streamResult
     ? extractOpenRouterGenerationId(streamResult)
     : undefined;
+  // TODO: Use openrouterCost from providerMetadata when available instead of calculating
+  // const openrouterCost = streamResult ? extractOpenRouterCost(streamResult) : undefined;
 
   console.log("[Stream Handler] Step 2: Adjusting credit reservation:", {
     workspaceId,
@@ -693,16 +695,22 @@ async function adjustCreditsAfterStream(
   );
 
   // Enqueue cost verification (Step 3) if we have a generation ID
+  // Always enqueue when we have a generation ID, regardless of reservationId or BYOK status
   if (openrouterGenerationId && conversationId) {
     try {
       await enqueueCostVerification(
-        reservationId,
         openrouterGenerationId,
         workspaceId,
+        reservationId && reservationId !== "byok" ? reservationId : undefined,
         conversationId,
         agentId
       );
-      console.log("[Stream Handler] Step 3: Cost verification enqueued");
+      console.log("[Stream Handler] Step 3: Cost verification enqueued", {
+        openrouterGenerationId,
+        reservationId:
+          reservationId && reservationId !== "byok" ? reservationId : undefined,
+        hasReservation: !!(reservationId && reservationId !== "byok"),
+      });
     } catch (error) {
       // Log error but don't fail the request
       console.error("[Stream Handler] Error enqueueing cost verification:", {
@@ -713,6 +721,10 @@ async function adjustCreditsAfterStream(
   } else if (!openrouterGenerationId) {
     console.warn(
       "[Stream Handler] No OpenRouter generation ID found, skipping cost verification"
+    );
+  } else if (!conversationId) {
+    console.warn(
+      "[Stream Handler] No conversation ID, skipping cost verification"
     );
   }
 }
@@ -881,6 +893,8 @@ async function logConversation(
     const openrouterGenerationId = streamResult
       ? extractOpenRouterGenerationId(streamResult)
       : undefined;
+    // TODO: Use openrouterCost from providerMetadata when available instead of calculating
+    // const openrouterCost = streamResult ? extractOpenRouterCost(streamResult) : undefined;
 
     // Create assistant message with token usage, modelName, and provider (same as test endpoint)
     const assistantMessage: UIMessage = {

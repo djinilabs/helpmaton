@@ -10,11 +10,13 @@ import { calculateTokenCost } from "./pricing";
 
 /**
  * Send cost verification message to queue for OpenRouter cost lookup
+ * reservationId is optional - if not provided, cost verification will still run
+ * but won't finalize a credit reservation (e.g., for BYOK cases)
  */
 export async function enqueueCostVerification(
-  reservationId: string,
   openrouterGenerationId: string,
   workspaceId: string,
+  reservationId?: string,
   conversationId?: string,
   agentId?: string
 ): Promise<void> {
@@ -23,7 +25,7 @@ export async function enqueueCostVerification(
     const queueName = "openrouter-cost-verification-queue";
 
     const message = {
-      reservationId,
+      ...(reservationId && { reservationId }),
       openrouterGenerationId,
       workspaceId,
       ...(conversationId && { conversationId }),

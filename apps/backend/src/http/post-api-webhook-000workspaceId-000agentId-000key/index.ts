@@ -222,6 +222,8 @@ export const handler = adaptHttpHandler(
 
         // Extract OpenRouter generation ID for cost verification
         openrouterGenerationId = extractOpenRouterGenerationId(result);
+        // TODO: Use openrouterCost from providerMetadata when available instead of calculating
+        // const openrouterCost = extractOpenRouterCost(result);
 
         console.log("[Webhook Handler] Token usage extracted:", {
           tokenUsage,
@@ -712,24 +714,23 @@ export const handler = adaptHttpHandler(
           });
 
           // Enqueue cost verification (Step 3) if we have a generation ID
-          // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
-          // openrouterGenerationId was extracted earlier in the handler
-          if (
-            isCreditDeductionEnabled() &&
-            openrouterGenerationId &&
-            reservationId &&
-            reservationId !== "byok"
-          ) {
+          // Always enqueue when we have a generation ID, regardless of reservationId or BYOK status
+          if (openrouterGenerationId) {
             try {
               await enqueueCostVerification(
-                reservationId,
                 openrouterGenerationId,
                 workspaceId,
+                reservationId && reservationId !== "byok" ? reservationId : undefined,
                 conversationId,
                 agentId
               );
               console.log(
-                "[Webhook Handler] Step 3: Cost verification enqueued"
+                "[Webhook Handler] Step 3: Cost verification enqueued",
+                {
+                  openrouterGenerationId,
+                  reservationId: reservationId && reservationId !== "byok" ? reservationId : undefined,
+                  hasReservation: !!(reservationId && reservationId !== "byok"),
+                }
               );
             } catch (error) {
               // Log error but don't fail the request
@@ -742,30 +743,9 @@ export const handler = adaptHttpHandler(
               );
             }
           } else {
-            if (!isCreditDeductionEnabled()) {
-              console.log(
-                "[Webhook Handler] Credit deduction disabled via feature flag, skipping cost verification:",
-                {
-                  workspaceId,
-                  agentId,
-                  reservationId,
-                  openrouterGenerationId,
-                }
-              );
-            } else if (!openrouterGenerationId) {
-              console.warn(
-                "[Webhook Handler] No OpenRouter generation ID found, skipping cost verification"
-              );
-            } else if (!reservationId || reservationId === "byok") {
-              console.log(
-                "[Webhook Handler] No reservation (BYOK), skipping cost verification:",
-                {
-                  workspaceId,
-                  agentId,
-                  reservationId,
-                }
-              );
-            }
+            console.warn(
+              "[Webhook Handler] No OpenRouter generation ID found, skipping cost verification"
+            );
           }
         } else {
           console.log(

@@ -12,7 +12,7 @@ import { calculateConversationCosts } from "../../utils/tokenAccounting";
  * Message schema for cost verification queue
  */
 const CostVerificationMessageSchema = z.object({
-  reservationId: z.string(),
+  reservationId: z.string().optional(), // Optional - not required for BYOK cases or when just verifying cost
   openrouterGenerationId: z.string(),
   workspaceId: z.string(),
   conversationId: z.string().optional(), // Conversation ID for updating message (optional for backward compatibility)
@@ -138,24 +138,33 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
 
   if (openrouterCost === null) {
     console.warn(
-      "[Cost Verification] Could not fetch cost from OpenRouter, skipping finalization:",
+      "[Cost Verification] Could not fetch cost from OpenRouter, skipping:",
       { reservationId, openrouterGenerationId, workspaceId }
     );
     // Don't throw error - just log and skip
-    // The reservation will expire via TTL
+    // The reservation will expire via TTL if it exists
     return;
   }
 
-  // Finalize credit reservation with OpenRouter cost
   const db = await database();
-  await finalizeCreditReservation(db, reservationId, openrouterCost, 3);
 
-  console.log("[Cost Verification] Successfully finalized credit reservation:", {
-    reservationId,
-    openrouterGenerationId,
-    workspaceId,
-    openrouterCost,
-  });
+  // Finalize credit reservation with OpenRouter cost (only if reservationId is provided)
+  if (reservationId) {
+    await finalizeCreditReservation(db, reservationId, openrouterCost, 3);
+    console.log("[Cost Verification] Successfully finalized credit reservation:", {
+      reservationId,
+      openrouterGenerationId,
+      workspaceId,
+      openrouterCost,
+    });
+  } else {
+    console.log("[Cost Verification] Cost verified (no reservation to finalize):", {
+      openrouterGenerationId,
+      workspaceId,
+      openrouterCost,
+      reason: "No reservationId provided (likely BYOK or cost verification only)",
+    });
+  }
 
   // Update message with final cost if conversation context is available
   if (conversationId && agentId) {
