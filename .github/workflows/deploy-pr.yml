@@ -110,7 +110,7 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
           DISCORD_TRIAL_CREDIT_CHANNEL_ID: ${{ secrets.DISCORD_TRIAL_CREDIT_CHANNEL_ID }}
           ENABLE_CREDIT_VALIDATION: "false"
-          ENABLE_CREDIT_DEDUCTION: "false"
+          ENABLE_CREDIT_DEDUCTION: "true"
           ENABLE_SPENDING_LIMIT_CHECKS: "false"
           DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
           DISCORD_CS_USERS: ${{ secrets.DISCORD_CS_USERS }}
@@ -231,7 +231,7 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
           DISCORD_TRIAL_CREDIT_CHANNEL_ID: ${{ secrets.DISCORD_TRIAL_CREDIT_CHANNEL_ID }}
           ENABLE_CREDIT_VALIDATION: "false"
-          ENABLE_CREDIT_DEDUCTION: "false"
+          ENABLE_CREDIT_DEDUCTION: "true"
           ENABLE_SPENDING_LIMIT_CHECKS: "false"
           DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
           DISCORD_CS_USERS: ${{ secrets.DISCORD_CS_USERS }}
