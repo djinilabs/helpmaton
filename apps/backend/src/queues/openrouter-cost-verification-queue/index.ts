@@ -45,10 +45,11 @@ async function fetchOpenRouterCost(
 
     if (!response.ok) {
       if (response.status === 404) {
-        console.warn(
-          "[Cost Verification] Generation not found in OpenRouter:",
-          { generationId, status: response.status }
-        );
+        console.log("[Cost Verification] Generation not found in OpenRouter:", {
+          generationId,
+          status: response.status,
+          body: await response.text(),
+        });
         return null;
       }
       throw new Error(
@@ -81,20 +82,17 @@ async function fetchOpenRouterCost(
       return costInMillionths;
     }
 
-    console.warn(
-      "[Cost Verification] No cost field in OpenRouter response:",
-      { generationId, data }
-    );
+    console.warn("[Cost Verification] No cost field in OpenRouter response:", {
+      generationId,
+      data,
+    });
     return null;
   } catch (error) {
-    console.error(
-      "[Cost Verification] Error fetching cost from OpenRouter:",
-      {
-        generationId,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      }
-    );
+    console.error("[Cost Verification] Error fetching cost from OpenRouter:", {
+      generationId,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     throw error;
   }
 }
@@ -111,9 +109,7 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
       const path = issue.path.join(".");
       return `${path}: ${issue.message}`;
     });
-    throw new Error(
-      `Invalid cost verification message: ${errors.join(", ")}`
-    );
+    throw new Error(`Invalid cost verification message: ${errors.join(", ")}`);
   }
 
   const message: CostVerificationMessage = validationResult.data;
@@ -151,19 +147,26 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
   // Finalize credit reservation with OpenRouter cost (only if reservationId is provided)
   if (reservationId) {
     await finalizeCreditReservation(db, reservationId, openrouterCost, 3);
-    console.log("[Cost Verification] Successfully finalized credit reservation:", {
-      reservationId,
-      openrouterGenerationId,
-      workspaceId,
-      openrouterCost,
-    });
+    console.log(
+      "[Cost Verification] Successfully finalized credit reservation:",
+      {
+        reservationId,
+        openrouterGenerationId,
+        workspaceId,
+        openrouterCost,
+      }
+    );
   } else {
-    console.log("[Cost Verification] Cost verified (no reservation to finalize):", {
-      openrouterGenerationId,
-      workspaceId,
-      openrouterCost,
-      reason: "No reservationId provided (likely BYOK or cost verification only)",
-    });
+    console.log(
+      "[Cost Verification] Cost verified (no reservation to finalize):",
+      {
+        openrouterGenerationId,
+        workspaceId,
+        openrouterCost,
+        reason:
+          "No reservationId provided (likely BYOK or cost verification only)",
+      }
+    );
   }
 
   // Update message with final cost if conversation context is available
@@ -244,7 +247,10 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
           for (const msg of updatedMessages) {
             if (msg.role === "assistant") {
               // Prefer finalCostUsd if available, otherwise calculate from tokenUsage
-              if ("finalCostUsd" in msg && typeof msg.finalCostUsd === "number") {
+              if (
+                "finalCostUsd" in msg &&
+                typeof msg.finalCostUsd === "number"
+              ) {
                 totalCostUsd += msg.finalCostUsd;
               } else if (
                 "tokenUsage" in msg &&
@@ -359,4 +365,3 @@ export const handler = handlingSQSErrors(
     return failedMessageIds;
   }
 );
-

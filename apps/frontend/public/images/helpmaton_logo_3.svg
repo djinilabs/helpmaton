@@ -1,0 +1,11 @@
+<svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+  <g stroke="black" stroke-width="24" stroke-linejoin="miter" stroke-linecap="square">
+    <polygon points="100,80 400,80 450,250 380,450 120,450 50,250" fill="#FF8C00"/>
+    <polygon points="120,250 380,250 350,420 150,420" fill="#708090"/>
+    <polygon points="150,180 230,180 230,220 150,200" fill="#ADD8E6"/>
+    <polygon points="350,180 270,180 270,220 350,200" fill="#ADD8E6"/>
+    <line x1="250" y1="280" x2="250" y2="410" />
+    <line x1="200" y1="280" x2="200" y2="410" />
+    <line x1="300" y1="280" x2="300" y2="410" />
+  </g>
+</svg>

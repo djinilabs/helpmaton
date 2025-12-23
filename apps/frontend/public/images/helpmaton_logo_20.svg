@@ -1,0 +1,9 @@
+<svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+  <g stroke="black" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="250" cy="250" r="180" fill="#00CED1"/>
+    <circle cx="250" cy="250" r="120" fill="none" stroke="#FFD700" stroke-width="25"/>
+    <circle cx="250" cy="250" r="100" fill="#333333"/>
+    <circle cx="210" cy="240" r="30" fill="#FFFF00"/>
+    <circle cx="290" cy="240" r="30" fill="#FFFF00"/>
+  </g>
+</svg>
