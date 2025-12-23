@@ -8,6 +8,7 @@ const {
   mockCheckSpendingLimits,
   mockEstimateTokenCost,
   mockIsCreditValidationEnabled,
+  mockIsCreditDeductionEnabled,
   mockIsSpendingLimitChecksEnabled,
 } = vi.hoisted(() => {
   return {
@@ -16,6 +17,7 @@ const {
     mockCheckSpendingLimits: vi.fn(),
     mockEstimateTokenCost: vi.fn(),
     mockIsCreditValidationEnabled: vi.fn(),
+    mockIsCreditDeductionEnabled: vi.fn(),
     mockIsSpendingLimitChecksEnabled: vi.fn(),
   };
 });
@@ -43,6 +45,7 @@ vi.mock("../tokenEstimation", () => ({
 // Mock feature flags
 vi.mock("../featureFlags", () => ({
   isCreditValidationEnabled: mockIsCreditValidationEnabled,
+  isCreditDeductionEnabled: mockIsCreditDeductionEnabled,
   isSpendingLimitChecksEnabled: mockIsSpendingLimitChecksEnabled,
 }));
 
@@ -115,6 +118,7 @@ describe("creditValidation", () => {
 
     // Default feature flag values
     mockIsCreditValidationEnabled.mockReturnValue(true);
+    mockIsCreditDeductionEnabled.mockReturnValue(true);
     mockIsSpendingLimitChecksEnabled.mockReturnValue(true);
 
     // Default mocks (all values in millionths)
@@ -220,6 +224,7 @@ describe("creditValidation", () => {
 
     it("should skip credit validation when feature flag is disabled", async () => {
       mockIsCreditValidationEnabled.mockReturnValue(false);
+      mockIsCreditDeductionEnabled.mockReturnValue(false); // Disable deduction to get null result
       mockIsSpendingLimitChecksEnabled.mockReturnValue(true);
 
       const result = await validateCreditsAndLimitsAndReserve(
@@ -239,8 +244,33 @@ describe("creditValidation", () => {
       expect(mockCheckSpendingLimits).toHaveBeenCalled();
     });
 
+    it("should create reservation when validation disabled but deduction enabled", async () => {
+      mockIsCreditValidationEnabled.mockReturnValue(false);
+      mockIsCreditDeductionEnabled.mockReturnValue(true); // Deduction enabled
+      mockIsSpendingLimitChecksEnabled.mockReturnValue(true);
+
+      const result = await validateCreditsAndLimitsAndReserve(
+        mockDb,
+        "test-workspace",
+        "test-agent",
+        "google",
+        "gemini-2.5-flash",
+        messages,
+        "System prompt",
+        [],
+        false
+      );
+
+      // Should still create reservation even though validation is disabled
+      expect(result).not.toBeNull();
+      expect(result?.reservationId).toBe("test-reservation");
+      expect(mockReserveCredits).toHaveBeenCalled();
+      expect(mockCheckSpendingLimits).toHaveBeenCalled();
+    });
+
     it("should skip all checks when both feature flags are disabled", async () => {
       mockIsCreditValidationEnabled.mockReturnValue(false);
+      mockIsCreditDeductionEnabled.mockReturnValue(false);
       mockIsSpendingLimitChecksEnabled.mockReturnValue(false);
 
       const result = await validateCreditsAndLimitsAndReserve(

@@ -10,6 +10,7 @@ import type { CreditReservation } from "./creditManagement";
 import { reserveCredits } from "./creditManagement";
 import {
   isCreditValidationEnabled,
+  isCreditDeductionEnabled,
   isSpendingLimitChecksEnabled,
 } from "./featureFlags";
 import { checkSpendingLimits } from "./spendingLimits";
@@ -184,9 +185,11 @@ export async function validateCreditsAndLimitsAndReserve(
   }
 
   // Check if credit validation is disabled via feature flag
-  if (!isCreditValidationEnabled()) {
+  // If disabled, skip credit balance check but still check spending limits
+  const creditValidationEnabled = isCreditValidationEnabled();
+  if (!creditValidationEnabled) {
     console.log(
-      "[validateCreditsAndLimitsAndReserve] Credit validation disabled via feature flag, skipping validation",
+      "[validateCreditsAndLimitsAndReserve] Credit validation disabled via feature flag, skipping credit balance check",
       { workspaceId, agentId }
     );
     // Still check spending limits if enabled
@@ -233,6 +236,18 @@ export async function validateCreditsAndLimitsAndReserve(
     toolDefinitions
   );
 
+  // Check credit balance (only if validation is enabled)
+  if (creditValidationEnabled) {
+    if (workspace.creditBalance < estimatedCost) {
+      throw new InsufficientCreditsError(
+        workspaceId,
+        estimatedCost,
+        workspace.creditBalance,
+        "usd"
+      );
+    }
+  }
+
   // Check all spending limits (only if checks are enabled)
   if (spendingLimitsEnabled) {
     const limitCheck = await checkSpendingLimits(
@@ -247,8 +262,9 @@ export async function validateCreditsAndLimitsAndReserve(
     }
   }
 
-  // Reserve credits atomically (only if validation is enabled)
-  if (isCreditValidationEnabled()) {
+  // Reserve credits atomically (only if deduction is enabled)
+  // ENABLE_CREDIT_DEDUCTION controls whether we actually charge the workspace
+  if (isCreditDeductionEnabled()) {
     const reservation = await reserveCredits(
       db,
       workspaceId,
@@ -259,6 +275,10 @@ export async function validateCreditsAndLimitsAndReserve(
     return reservation;
   }
 
-  // If validation is disabled, return null (no reservation)
+  // If deduction is disabled, return null (no reservation, no charge)
+  console.log(
+    "[validateCreditsAndLimitsAndReserve] Credit deduction disabled via feature flag, skipping reservation creation",
+    { workspaceId, agentId, estimatedCost }
+  );
   return null;
 }

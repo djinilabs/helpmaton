@@ -476,6 +476,17 @@ async function validateCreditsAndReserveBeforeLLM(
     return reservation.reservationId;
   }
 
+  // Log that no reservation was created (reason should be in validateCreditsAndLimitsAndReserve logs above)
+  console.log(
+    "[Stream Handler] No credit reservation created (see validateCreditsAndLimitsAndReserve logs above for reason):",
+    {
+      workspaceId,
+      agentId,
+      usesByok,
+      note: "This is expected if BYOK is used or credit validation is disabled. Cost verification will still run but won't finalize a reservation.",
+    }
+  );
+
   return undefined;
 }
 

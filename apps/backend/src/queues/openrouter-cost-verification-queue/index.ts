@@ -130,11 +130,15 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
   } = message;
 
   console.log("[Cost Verification] Processing cost verification:", {
-    reservationId,
+    reservationId: reservationId || undefined, // Explicitly show undefined instead of omitting
     openrouterGenerationId,
     workspaceId,
     conversationId,
     agentId,
+    hasReservation: !!reservationId,
+    note: reservationId
+      ? "Will finalize credit reservation with OpenRouter cost"
+      : "No reservation to finalize (likely BYOK or credit validation disabled)",
   });
 
   // Fetch cost from OpenRouter API

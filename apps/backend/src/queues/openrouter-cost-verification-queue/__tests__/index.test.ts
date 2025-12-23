@@ -402,6 +402,7 @@ describe("openrouter-cost-verification-queue", () => {
         ok: false,
         status: 404,
         statusText: "Not Found",
+        text: async () => "Not found",
       });
 
       const record: SQSRecord = {
