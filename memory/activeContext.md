@@ -2,7 +2,49 @@
 
 ## Current Status
 
-**Status**: OpenRouter Integration with 3-Step Pricing and BYOK Support - Completed ✅
+**Status**: Message Final Cost Tracking with OpenRouter Generation IDs - Completed ✅
+
+Implemented tracking of OpenRouter generation IDs on assistant messages and automatic updates with final verified costs (including 5.5% markup) when the cost verification queue processes the OpenRouter API response. This ensures conversation records reflect the actual final cost from OpenRouter rather than just estimated costs.
+
+**Key Features Implemented**:
+
+1. **Generation ID Tracking**:
+   - Extended `UIMessage` type to include `openrouterGenerationId` and `finalCostUsd` fields
+   - Store generation ID on assistant messages when creating/updating conversations
+   - Generation IDs are extracted from OpenRouter API responses and stored on messages
+
+2. **Cost Verification Queue Enhancement**:
+   - Extended queue message schema to include optional `conversationId` and `agentId` for message updates
+   - Queue processor finds messages by generation ID and updates them with `finalCostUsd`
+   - Updates conversation-level `costUsd` to reflect final verified costs
+   - Backward compatible (optional fields, graceful handling of missing data)
+
+3. **Cost Calculation Preference**:
+   - `conversationLogger` now prefers `finalCostUsd` from messages when calculating total conversation cost
+   - Falls back to calculated cost from `tokenUsage` when `finalCostUsd` not available
+   - Supports mixing messages with and without final costs
+
+4. **Comprehensive Test Coverage**:
+   - 9 tests for queue processor (message updates, error handling, backward compatibility)
+   - 4 tests for conversationLogger cost calculation with finalCostUsd
+   - 3 tests for enqueueCostVerification with conversation context
+
+**Files Modified**:
+
+- `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types.ts` - Extended UIMessage type with openrouterGenerationId and finalCostUsd
+- `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Store generationId on messages, pass conversation context
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-test-agent.ts` - Store generationId on messages, pass conversation context
+- `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Store generationId on messages, pass conversation context
+- `apps/backend/src/utils/creditManagement.ts` - Extended enqueueCostVerification to accept conversationId and agentId
+- `apps/backend/src/queues/openrouter-cost-verification-queue/index.ts` - Updated schema, find and update messages with finalCostUsd
+- `apps/backend/src/utils/conversationLogger.ts` - Prefer finalCostUsd when calculating total cost
+- `apps/backend/src/queues/openrouter-cost-verification-queue/__tests__/index.test.ts` - New comprehensive test suite (9 tests)
+- `apps/backend/src/utils/__tests__/conversationLogger.test.ts` - Added 4 tests for finalCostUsd preference
+- `apps/backend/src/utils/__tests__/creditManagement.test.ts` - Added 3 tests for enqueueCostVerification
+
+**Verification**: All tests passing, type checking and linting passed successfully
+
+**Previous Status**: OpenRouter Integration with 3-Step Pricing and BYOK Support - Completed ✅
 
 Successfully integrated OpenRouter as the primary LLM provider while maintaining support for Google and other providers. Implemented a 3-step pricing verification process and full BYOK (Bring Your Own Key) support for OpenRouter.
 
