@@ -725,14 +725,14 @@ export const AgentChat: FC<AgentChatProps> = ({
                                       {formatCurrency(
                                         provisionalCostUsd,
                                         "usd",
-                                        4
+                                        10
                                       )}{" "}
                                       (provisional)
                                     </div>
                                   )}
                                 {finalCostUsd !== null && (
                                   <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 opacity-70 dark:bg-green-900 dark:text-green-200">
-                                    {formatCurrency(finalCostUsd, "usd", 4)}
+                                    {formatCurrency(finalCostUsd, "usd", 10)}
                                   </div>
                                 )}
                               </div>

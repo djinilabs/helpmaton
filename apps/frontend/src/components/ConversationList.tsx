@@ -172,7 +172,7 @@ export const ConversationList: FC<ConversationListProps> = ({
                           Cost
                         </div>
                         <div className="text-xs text-neutral-600 dark:text-neutral-300">
-                          {formatCurrency(conversation.costUsd, "usd", 4)}
+                          {formatCurrency(conversation.costUsd, "usd", 10)}
                         </div>
                       </>
                     )}

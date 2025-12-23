@@ -310,27 +310,27 @@ export function generateCostReport(
   lines.push(
     `  Input Cost:           $${fromMillionths(
       breakdown.costs.inputCost
-    ).toFixed(6)}`
+    ).toFixed(10)}`
   );
   lines.push(
     `  Cached Input Cost:    $${fromMillionths(
       breakdown.costs.cachedInputCost
-    ).toFixed(6)}`
+    ).toFixed(10)}`
   );
   lines.push(
     `  Output Cost:          $${fromMillionths(
       breakdown.costs.outputCost
-    ).toFixed(6)}`
+    ).toFixed(10)}`
   );
   lines.push(
     `  Reasoning Cost:       $${fromMillionths(
       breakdown.costs.reasoningCost
-    ).toFixed(6)}`
+    ).toFixed(10)}`
   );
   lines.push(
     `  Total Cost:           $${fromMillionths(
       breakdown.costs.totalCost
-    ).toFixed(6)}`
+    ).toFixed(10)}`
   );
 
   if (expectedCost !== undefined) {
@@ -344,11 +344,11 @@ export function generateCostReport(
       expectedCostDisplay > 0
         ? (differenceDisplay / expectedCostDisplay) * 100
         : 0;
-    lines.push(`  Calculated Cost:     $${calculatedCostDisplay.toFixed(6)}`);
-    lines.push(`  Expected Cost:       $${expectedCostDisplay.toFixed(6)}`);
+    lines.push(`  Calculated Cost:     $${calculatedCostDisplay.toFixed(10)}`);
+    lines.push(`  Expected Cost:       $${expectedCostDisplay.toFixed(10)}`);
     lines.push(
       `  Difference:          $${differenceDisplay.toFixed(
-        6
+        10
       )} (${percentageDifference.toFixed(2)}%)`
     );
   }

@@ -12,6 +12,7 @@ import {
 } from "../utils/modelConfig";
 
 import { AvatarSelector } from "./AvatarSelector";
+import { ModelPricesDialog } from "./ModelPricesDialog";
 import { PromptGeneratorDialog } from "./PromptGeneratorDialog";
 import { QueryPanel } from "./QueryPanel";
 import { ToolsHelpDialog } from "./ToolsHelpDialog";
@@ -45,6 +46,7 @@ const AgentModalContent: FC<{
   isPending: boolean;
   onHelpOpen: () => void;
   onPromptGeneratorOpen: () => void;
+  onModelPricesOpen: () => void;
 }> = ({
   workspaceId,
   isEditing,
@@ -67,6 +69,7 @@ const AgentModalContent: FC<{
   isPending,
   onHelpOpen,
   onPromptGeneratorOpen,
+  onModelPricesOpen,
 }) => {
   const { data: channels } = useChannels(workspaceId);
 
@@ -127,12 +130,21 @@ const AgentModalContent: FC<{
         </p>
       </div>
       <div>
-        <label
-          htmlFor="model"
-          className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-        >
-          Model
-        </label>
+        <div className="mb-2 flex items-center justify-between">
+          <label
+            htmlFor="model"
+            className="block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+          >
+            Model
+          </label>
+          <button
+            type="button"
+            onClick={onModelPricesOpen}
+            className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+          >
+            💰 Model prices
+          </button>
+        </div>
         <select
           id="model"
           disabled={isLoadingModels}
@@ -267,6 +279,7 @@ export const AgentModal: FC<AgentModalProps> = ({
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isPromptGeneratorOpen, setIsPromptGeneratorOpen] = useState(false);
   const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = useState(false);
+  const [isModelPricesOpen, setIsModelPricesOpen] = useState(false);
 
   // Model fetching state
   const provider: Provider = "openrouter";
@@ -413,6 +426,7 @@ export const AgentModal: FC<AgentModalProps> = ({
             isPending={isPending}
             onHelpOpen={() => setIsHelpOpen(true)}
             onPromptGeneratorOpen={() => setIsPromptGeneratorOpen(true)}
+            onModelPricesOpen={() => setIsModelPricesOpen(true)}
           />
         </QueryPanel>
         <ToolsHelpDialog
@@ -436,6 +450,10 @@ export const AgentModal: FC<AgentModalProps> = ({
           onClose={() => setIsAvatarSelectorOpen(false)}
           onSelect={setAvatar}
           currentAvatar={avatar}
+        />
+        <ModelPricesDialog
+          isOpen={isModelPricesOpen}
+          onClose={() => setIsModelPricesOpen(false)}
         />
       </div>
     </div>

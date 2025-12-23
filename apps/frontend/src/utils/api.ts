@@ -1439,6 +1439,33 @@ export async function getAvailableModels(): Promise<AvailableModels> {
   return response.json();
 }
 
+export interface PricingTier {
+  threshold?: number;
+  input: number;
+  output: number;
+  reasoning?: number;
+  cachedInput?: number;
+  request?: number;
+}
+
+export interface ModelPricing {
+  input?: number;
+  output?: number;
+  reasoning?: number;
+  cachedInput?: number;
+  request?: number;
+  tiers?: PricingTier[];
+}
+
+export interface ModelPricingResponse {
+  openrouter: Record<string, ModelPricing>;
+}
+
+export async function getModelPricing(): Promise<ModelPricingResponse> {
+  const response = await apiFetch("/api/pricing");
+  return response.json();
+}
+
 export async function getUserUsage(
   options: UsageOptions = {}
 ): Promise<UserUsageResponse> {

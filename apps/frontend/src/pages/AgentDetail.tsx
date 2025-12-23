@@ -83,6 +83,11 @@ const ToolsHelpDialog = lazy(() =>
     default: module.ToolsHelpDialog,
   }))
 );
+const ModelPricesDialog = lazy(() =>
+  import("../components/ModelPricesDialog").then((module) => ({
+    default: module.ModelPricesDialog,
+  }))
+);
 
 // Lazy load ReactMarkdown - heavy dependency
 // Create a wrapper component that loads both ReactMarkdown and remarkGfm
@@ -174,6 +179,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     useState(false);
   const [allowedOrigins, setAllowedOrigins] = useState<string>("");
   const [isStreamTestModalOpen, setIsStreamTestModalOpen] = useState(false);
+  const [isModelPricesOpen, setIsModelPricesOpen] = useState(false);
   const [selectedConversation, setSelectedConversation] =
     useState<Conversation | null>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
@@ -837,47 +843,56 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   <span className="text-sm dark:text-neutral-300">Google</span>
                 </div>
                 <div>
-                  <span className="text-sm font-semibold dark:text-neutral-300">Model: </span>
-                  <span className="text-sm dark:text-neutral-300">
-                    {isEditing ? (
-                      <>
-                        <select
-                          disabled={isLoadingModels}
-                          value={
-                            isLoadingModels ? "" : modelName || defaultModel
-                          }
-                          onChange={(e) => {
-                            const selectedModel = e.target.value;
-                            setModelName(
-                              selectedModel === defaultModel
-                                ? null
-                                : selectedModel
-                            );
-                          }}
-                          className="ml-2 rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-                        >
-                          {isLoadingModels ? (
-                            <option value="">Loading...</option>
-                          ) : availableModels.length === 0 ? (
-                            <option value="">No models available</option>
-                          ) : (
-                            availableModels.map((model) => (
-                              <option key={model} value={model}>
-                                {model}
-                              </option>
-                            ))
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold dark:text-neutral-300">Model: </span>
+                    <span className="text-sm dark:text-neutral-300">
+                      {isEditing ? (
+                        <>
+                          <select
+                            disabled={isLoadingModels}
+                            value={
+                              isLoadingModels ? "" : modelName || defaultModel
+                            }
+                            onChange={(e) => {
+                              const selectedModel = e.target.value;
+                              setModelName(
+                                selectedModel === defaultModel
+                                  ? null
+                                  : selectedModel
+                              );
+                            }}
+                            className="ml-2 rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                          >
+                            {isLoadingModels ? (
+                              <option value="">Loading...</option>
+                            ) : availableModels.length === 0 ? (
+                              <option value="">No models available</option>
+                            ) : (
+                              availableModels.map((model) => (
+                                <option key={model} value={model}>
+                                  {model}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                          {modelLoadError && (
+                            <span className="ml-2 text-xs text-red-600 dark:text-red-400">
+                              {modelLoadError}
+                            </span>
                           )}
-                        </select>
-                        {modelLoadError && (
-                          <span className="ml-2 text-xs text-red-600 dark:text-red-400">
-                            {modelLoadError}
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      agent.modelName || defaultModel
-                    )}
-                  </span>
+                        </>
+                      ) : (
+                        agent.modelName || defaultModel
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsModelPricesOpen(true)}
+                      className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                    >
+                      💰 Model prices
+                    </button>
+                  </div>
                 </div>
                 {isEditing && (
                   <button
@@ -2174,6 +2189,15 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               onClose={() => setIsHelpOpen(false)}
               workspaceId={workspaceId}
               agent={agent}
+            />
+          </Suspense>
+        )}
+
+        {isModelPricesOpen && (
+          <Suspense fallback={<LoadingScreen />}>
+            <ModelPricesDialog
+              isOpen={isModelPricesOpen}
+              onClose={() => setIsModelPricesOpen(false)}
             />
           </Suspense>
         )}

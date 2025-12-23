@@ -42,7 +42,7 @@ export const TrialUsageBar: FC<TrialUsageBarProps> = ({
         Trial Credit Usage
       </h3>
       <p className="mb-4 text-sm text-neutral-600">
-        You have been granted {formatCurrency(trialStatus.initialCreditAmount, currency, 2)} in trial
+        You have been granted {formatCurrency(trialStatus.initialCreditAmount, currency, 10)} in trial
         credits.
       </p>
       <div className="mb-2">

@@ -237,12 +237,12 @@ async function handleCreditCommand(
 
     return discordResponse(
       `✅ Successfully credited **${amountDisplay.toFixed(
-        6
+        10
       )} ${updated.currency.toUpperCase()}** to workspace \`${workspaceId}\`\n` +
         `📊 Balance: **${balanceDisplay.toFixed(
-          6
+          10
         )} ${updated.currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(
-          6
+          10
         )})${trialInfo}`
     );
   } catch (error) {
@@ -295,12 +295,12 @@ async function handleDebitCommand(
 
     return discordResponse(
       `✅ Successfully debited **${amountDisplay.toFixed(
-        6
+        10
       )} ${result.currency.toUpperCase()}** from workspace \`${workspaceId}\`\n` +
         `📊 Balance: **${newBalanceDisplay.toFixed(
-          6
+          10
         )} ${result.currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(
-          6
+          10
         )})`
     );
   } catch (error) {
