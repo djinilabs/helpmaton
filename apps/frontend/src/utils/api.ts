@@ -1424,6 +1424,10 @@ export interface AvailableModels {
     models: string[];
     defaultModel: string;
   };
+  openrouter?: {
+    models: string[];
+    defaultModel: string;
+  };
 }
 
 export async function getAvailableModels(): Promise<AvailableModels> {

@@ -48,13 +48,13 @@ import {
   enqueueCostVerification,
   refundReservation,
 } from "../../utils/creditManagement";
-import { extractOpenRouterGenerationId } from "../../utils/openrouterUtils";
 import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation";
 import { isCreditDeductionEnabled } from "../../utils/featureFlags";
 import {
   transformLambdaUrlToHttpV2Event,
   type LambdaUrlEvent,
 } from "../../utils/httpEventAdapter";
+import { extractOpenRouterGenerationId } from "../../utils/openrouterUtils";
 import { flushPostHog } from "../../utils/posthog";
 import {
   checkDailyRequestLimit,

@@ -407,7 +407,19 @@ export function calculateTokenCost(
   );
 
   // Sum all costs (all already in millionths, so simple addition)
-  const totalCost = inputCost + cachedInputCost + outputCost + reasoningCost;
+  const baseCost = inputCost + cachedInputCost + outputCost + reasoningCost;
+  let totalCost = baseCost;
+
+  // Apply 5.5% markup for OpenRouter to account for credit purchase fee
+  // OpenRouter charges 5.5% fee when adding credits to account
+  if (provider === "openrouter") {
+    // Multiply by 1.055 and round up (ceiling) to ensure we cover the fee
+    totalCost = Math.ceil(baseCost * 1.055);
+    console.log("[calculateTokenCost] Applied 5.5% OpenRouter markup:", {
+      baseCost,
+      totalCostWithMarkup: totalCost,
+    });
+  }
 
   console.log("[calculateTokenCost] Calculated:", {
     provider,

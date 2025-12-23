@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { badRequest } from "@hapi/boom";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 
 import { getDefined } from "../../utils";
 import { getPostHogClient } from "../../utils/posthog";
@@ -175,11 +175,10 @@ export async function createModel(
         apiKey,
       });
 
-      // For auto-selection, use openrouter() without model parameter
+      // For auto-selection, use "auto" as the model name
       // For specific models, use openrouter.chat('provider/model-name')
-      const model = isAutoSelection
-        ? openrouter()
-        : openrouter.chat(finalModelName);
+      const modelNameToUse = isAutoSelection ? "auto" : finalModelName;
+      const model = openrouter.chat(modelNameToUse);
 
       // Wrap with PostHog tracking if available
       const phClient = getPostHogClient();

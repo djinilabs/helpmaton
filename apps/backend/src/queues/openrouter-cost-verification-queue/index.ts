@@ -62,11 +62,17 @@ async function fetchOpenRouterCost(
 
     // OpenRouter returns cost in USD, convert to millionths
     if (data.cost !== undefined) {
-      const costInMillionths = Math.round(data.cost * 1_000_000);
+      // Always use Math.ceil to round up, ensuring we never undercharge
+      const baseCostInMillionths = Math.ceil(data.cost * 1_000_000);
+      // Apply 5.5% markup to account for OpenRouter's credit purchase fee
+      // OpenRouter charges 5.5% fee when adding credits to account
+      const costInMillionths = Math.ceil(baseCostInMillionths * 1.055);
       console.log("[Cost Verification] Fetched cost from OpenRouter:", {
         generationId,
         cost: data.cost,
-        costInMillionths,
+        baseCostInMillionths,
+        costInMillionthsWithMarkup: costInMillionths,
+        markup: "5.5%",
       });
       return costInMillionths;
     }

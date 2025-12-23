@@ -645,16 +645,7 @@ export async function finalizeCreditReservation(
       "[finalizeCreditReservation] Reservation not found, assuming already processed:",
       { reservationId }
     );
-    // Reservation might have been cleaned up, just return workspace
-    const workspacePk = `workspaces/${reservation?.workspaceId || "unknown"}`;
-    try {
-      const workspace = await db.workspace.get(workspacePk, "workspace");
-      if (workspace) {
-        return workspace;
-      }
-    } catch {
-      // Workspace not found, throw error
-    }
+    // Reservation might have been cleaned up, throw error
     throw new Error(`Reservation ${reservationId} not found`);
   }
 
