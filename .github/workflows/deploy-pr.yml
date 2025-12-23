@@ -46,61 +46,6 @@ jobs:
           echo "PR_NUMBER=${PR_NUMBER}" >> $GITHUB_ENV
           echo "PR number: ${PR_NUMBER}"
 
-      - name: Wait for Tests workflow to complete
-        id: check-tests
-        uses: actions/github-script@v8
-        with:
-          script: |
-            const maxAttempts = 60; // 60 attempts
-            const waitTime = 10000; // 10 seconds between attempts = max 10 minutes wait
-            const headSha = context.payload.pull_request?.head?.sha || context.sha;
-
-            console.log(`Waiting for Tests workflow to complete for commit: ${headSha}`);
-
-            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-              const { data: runs } = await github.rest.actions.listWorkflowRuns({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: 'test.yml',
-                head_sha: headSha,
-                per_page: 1,
-              });
-
-              if (runs.workflow_runs.length === 0) {
-                if (attempt === 1) {
-                  console.log(`No Tests workflow run found yet. Waiting... (attempt ${attempt}/${maxAttempts})`);
-                  await new Promise(resolve => setTimeout(resolve, waitTime));
-                  continue;
-                } else {
-                  core.setFailed('No Tests workflow run found for this commit after waiting. Please ensure tests are running.');
-                  return;
-                }
-              }
-
-              const testRun = runs.workflow_runs[0];
-              console.log(`Tests workflow status: ${testRun.status}, conclusion: ${testRun.conclusion || 'pending'} (attempt ${attempt}/${maxAttempts})`);
-
-              if (testRun.status === 'completed') {
-                if (testRun.conclusion === 'success') {
-                  console.log(`✅ Tests workflow passed (run ID: ${testRun.id})`);
-                  core.setOutput('tests_passed', 'true');
-                  return;
-                } else {
-                  core.setFailed(`Tests workflow did not pass (conclusion: ${testRun.conclusion}). Deployment cancelled.`);
-                  return;
-                }
-              }
-
-              // Still running, wait and retry
-              if (attempt < maxAttempts) {
-                console.log(`Tests workflow still running. Waiting ${waitTime/1000} seconds before next check...`);
-                await new Promise(resolve => setTimeout(resolve, waitTime));
-              }
-            }
-
-            // If we get here, we've exhausted all attempts
-            core.setFailed('Tests workflow did not complete within the maximum wait time (10 minutes).');
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
@@ -204,6 +149,61 @@ jobs:
           LAMBDA_IMAGE_TAG: ${{ github.sha }}
         run: |
           bash scripts/build-and-push-lambda-images.sh
+
+      - name: Wait for Tests workflow to complete
+        id: check-tests
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const maxAttempts = 60; // 60 attempts
+            const waitTime = 10000; // 10 seconds between attempts = max 10 minutes wait
+            const headSha = context.payload.pull_request?.head?.sha || context.sha;
+
+            console.log(`Waiting for Tests workflow to complete for commit: ${headSha}`);
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              const { data: runs } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'test.yml',
+                head_sha: headSha,
+                per_page: 1,
+              });
+
+              if (runs.workflow_runs.length === 0) {
+                if (attempt === 1) {
+                  console.log(`No Tests workflow run found yet. Waiting... (attempt ${attempt}/${maxAttempts})`);
+                  await new Promise(resolve => setTimeout(resolve, waitTime));
+                  continue;
+                } else {
+                  core.setFailed('No Tests workflow run found for this commit after waiting. Please ensure tests are running.');
+                  return;
+                }
+              }
+
+              const testRun = runs.workflow_runs[0];
+              console.log(`Tests workflow status: ${testRun.status}, conclusion: ${testRun.conclusion || 'pending'} (attempt ${attempt}/${maxAttempts})`);
+
+              if (testRun.status === 'completed') {
+                if (testRun.conclusion === 'success') {
+                  console.log(`✅ Tests workflow passed (run ID: ${testRun.id})`);
+                  core.setOutput('tests_passed', 'true');
+                  return;
+                } else {
+                  core.setFailed(`Tests workflow did not pass (conclusion: ${testRun.conclusion}). Deployment cancelled.`);
+                  return;
+                }
+              }
+
+              // Still running, wait and retry
+              if (attempt < maxAttempts) {
+                console.log(`Tests workflow still running. Waiting ${waitTime/1000} seconds before next check...`);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+              }
+            }
+
+            // If we get here, we've exhausted all attempts
+            core.setFailed('Tests workflow did not complete within the maximum wait time (10 minutes).');
 
       - name: Deploy PR
         env:

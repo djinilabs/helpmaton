@@ -94,6 +94,85 @@ function roundPrice(price) {
   return Math.round(price * 1000) / 1000;
 }
 
+/**
+ * Check if a price value is invalid (negative, undefined, null, NaN, or non-number)
+ * @param {*} value - Price value to check
+ * @returns {boolean} True if price is invalid
+ */
+function isInvalidPrice(value) {
+  // Check for undefined or null
+  if (value === undefined || value === null) {
+    return true;
+  }
+  
+  // Check if it's a number
+  if (typeof value !== 'number') {
+    return true;
+  }
+  
+  // Check for NaN
+  if (isNaN(value)) {
+    return true;
+  }
+  
+  // Check for negative
+  if (value < 0) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Check if pricing structure contains any invalid or negative prices
+ * Supports both flat pricing and tiered pricing
+ * @param {Object} pricing - Pricing structure (flat or tiered)
+ * @returns {boolean} True if any price is invalid or negative
+ */
+function hasInvalidOrNegativePricing(pricing) {
+  if (!pricing || typeof pricing !== 'object') {
+    return false;
+  }
+
+  // Handle flat pricing
+  if (pricing.input !== undefined || pricing.output !== undefined) {
+    // Check if input or output are invalid (required fields)
+    if (isInvalidPrice(pricing.input) || isInvalidPrice(pricing.output)) {
+      return true;
+    }
+    // Check optional fields if they exist
+    if (pricing.cachedInput !== undefined && isInvalidPrice(pricing.cachedInput)) {
+      return true;
+    }
+    if (pricing.reasoning !== undefined && isInvalidPrice(pricing.reasoning)) {
+      return true;
+    }
+    return false;
+  }
+
+  // Handle tiered pricing
+  if (pricing.tiers && Array.isArray(pricing.tiers)) {
+    for (const tier of pricing.tiers) {
+      if (!tier || typeof tier !== 'object') continue;
+      
+      // In tiered pricing, input and output are required
+      if (isInvalidPrice(tier.input) || isInvalidPrice(tier.output)) {
+        return true;
+      }
+      // Check optional fields if they exist
+      if (tier.cachedInput !== undefined && isInvalidPrice(tier.cachedInput)) {
+        return true;
+      }
+      if (tier.reasoning !== undefined && isInvalidPrice(tier.reasoning)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  return false;
+}
+
 
 /**
  * Get Google models list from API
@@ -406,6 +485,13 @@ function getGooglePricingForModels(models) {
       const pricingCopy = JSON.parse(JSON.stringify(modelPricing));
       // Ensure cached input pricing is present
       ensureCachedInputPricing(pricingCopy);
+      
+      // Skip models with invalid or negative pricing
+      if (hasInvalidOrNegativePricing(pricingCopy)) {
+        console.log(`[Update Pricing] Skipping Google model ${modelId} due to invalid or negative pricing`);
+        continue;
+      }
+      
       pricing[modelId] = pricingCopy;
     }
   }
@@ -503,6 +589,12 @@ function getOpenRouterPricingForModels(rawModels, modelNames) {
     } else {
       pricingStructure.cachedInput = calculateCachedInputPrice(pricingStructure.input);
       console.log(`[Update Pricing] Calculated cachedInput pricing for ${modelId}: ${pricingStructure.cachedInput} (10% of input ${pricingStructure.input})`);
+    }
+    
+    // Skip models with invalid or negative pricing
+    if (hasInvalidOrNegativePricing(pricingStructure)) {
+      console.log(`[Update Pricing] Skipping OpenRouter model ${modelId} due to invalid or negative pricing`);
+      continue;
     }
     
     // Check for tiered pricing (OpenRouter may provide this in the future)
@@ -666,6 +758,12 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
         continue;
       }
       
+      // Skip models with invalid or negative pricing
+      if (hasInvalidOrNegativePricing(pricing)) {
+        console.log(`[Update Pricing] Skipping Google model ${modelName} in merge due to invalid or negative pricing`);
+        continue;
+      }
+      
       // Ensure pricing structure is valid
       const validPricing = {
         ...pricing,
@@ -699,6 +797,12 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
       // Skip excluded models
       if (isExcludedModel(modelName)) {
         console.log(`[Update Pricing] Skipping excluded OpenRouter model ${modelName} in merge`);
+        continue;
+      }
+      
+      // Skip models with invalid or negative pricing
+      if (hasInvalidOrNegativePricing(pricing)) {
+        console.log(`[Update Pricing] Skipping OpenRouter model ${modelName} in merge due to invalid or negative pricing`);
         continue;
       }
       
@@ -768,6 +872,50 @@ function removeExcludedModels(pricing) {
 }
 
 /**
+ * Remove models with invalid or negative pricing from pricing configuration
+ * @param {Object} pricing - Pricing configuration object
+ * @returns {Object} Updated pricing configuration with invalid/negative pricing models removed
+ */
+function removeInvalidOrNegativePricingModels(pricing) {
+  const updatedPricing = JSON.parse(JSON.stringify(pricing));
+  
+  // Iterate through all providers
+  for (const providerName in updatedPricing.providers) {
+    const provider = updatedPricing.providers[providerName];
+    if (!provider.models) continue;
+    
+    // Collect models with invalid or negative pricing to remove
+    const modelsToRemove = [];
+    const allModels = Object.keys(provider.models);
+    console.log(`[Update Pricing] Checking ${allModels.length} models in ${providerName} for invalid or negative pricing...`);
+    
+    for (const modelName in provider.models) {
+      const model = provider.models[modelName];
+      if (!model || typeof model !== 'object') continue;
+      
+      const usdPricing = model.usd;
+      
+      if (usdPricing && hasInvalidOrNegativePricing(usdPricing)) {
+        modelsToRemove.push(modelName);
+        console.log(`[Update Pricing] Model ${providerName}/${modelName} has invalid or negative pricing and will be removed:`, JSON.stringify(usdPricing));
+      }
+    }
+    
+    // Remove models with invalid or negative pricing
+    if (modelsToRemove.length > 0) {
+      for (const modelName of modelsToRemove) {
+        delete provider.models[modelName];
+        console.log(`[Update Pricing] Removed model ${providerName}/${modelName} with invalid or negative pricing from pricing config`);
+      }
+    } else {
+      console.log(`[Update Pricing] No models with invalid or negative pricing found in ${providerName}`);
+    }
+  }
+  
+  return updatedPricing;
+}
+
+/**
  * Update pricing configuration with USD prices only
  * No exchange rate conversion - only USD pricing is maintained
  */
@@ -810,7 +958,10 @@ async function updatePricingWrapper() {
   const pricingWithFetched = mergePricingIntoConfig(currentPricing, fetchedPricing);
 
   // Remove any excluded models that exist in the pricing configuration
-  const finalPricing = removeExcludedModels(pricingWithFetched);
+  const pricingWithoutExcluded = removeExcludedModels(pricingWithFetched);
+
+  // Remove any models with invalid or negative pricing
+  const finalPricing = removeInvalidOrNegativePricingModels(pricingWithoutExcluded);
 
   return finalPricing;
 }
@@ -1003,8 +1154,11 @@ async function updatePricingConfig() {
       console.log(`[Update Pricing] ${oldOpenRouterModelCount - newOpenRouterModelCount} OpenRouter model(s) were removed.`);
     }
 
+    // Final cleanup: Remove any models with invalid or negative pricing (safety check)
+    const finalCleanedPricing = removeInvalidOrNegativePricingModels(newPricing);
+    
     // Check if pricing actually changed using deep equality (ignoring lastUpdated)
-    const pricingHasChanged = pricingChanged(currentPricing, newPricing);
+    const pricingHasChanged = pricingChanged(currentPricing, finalCleanedPricing);
     
     if (!pricingHasChanged) {
       console.log("[Update Pricing] No pricing changes detected (deep equality check). Exiting.");
@@ -1014,13 +1168,13 @@ async function updatePricingConfig() {
     console.log("[Update Pricing] Pricing changes detected. Updating file...");
 
     // Write to config file
-    writeFileSync(configPath, JSON.stringify(newPricing, null, 2), "utf-8");
+    writeFileSync(configPath, JSON.stringify(finalCleanedPricing, null, 2), "utf-8");
 
     console.log("[Update Pricing] Pricing file updated:", {
-      lastUpdated: newPricing.lastUpdated,
-      providerCount: Object.keys(newPricing.providers || {}).length,
-      googleModels: Object.keys(newPricing.providers?.google?.models || {}).length,
-      openRouterModels: Object.keys(newPricing.providers?.openrouter?.models || {}).length,
+      lastUpdated: finalCleanedPricing.lastUpdated,
+      providerCount: Object.keys(finalCleanedPricing.providers || {}).length,
+      googleModels: Object.keys(finalCleanedPricing.providers?.google?.models || {}).length,
+      openRouterModels: Object.keys(finalCleanedPricing.providers?.openrouter?.models || {}).length,
     });
 
     // Commit and push changes
