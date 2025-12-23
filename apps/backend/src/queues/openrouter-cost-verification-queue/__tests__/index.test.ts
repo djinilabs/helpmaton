@@ -114,11 +114,15 @@ describe("openrouter-cost-verification-queue", () => {
 
   describe("processCostVerification", () => {
     it("should fetch cost from OpenRouter API and update message with finalCostUsd", async () => {
-      // Mock OpenRouter API response
+      // Mock OpenRouter API response (nested structure)
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          cost: 0.001, // $0.001 USD
+          data: {
+            data: {
+              total_cost: 0.001, // $0.001 USD
+            },
+          },
         }),
       });
 
@@ -191,11 +195,15 @@ describe("openrouter-cost-verification-queue", () => {
     });
 
     it("should apply 5.5% markup to OpenRouter cost", async () => {
-      // Mock OpenRouter API response with cost 0.01 USD
+      // Mock OpenRouter API response with cost 0.01 USD (nested structure)
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          cost: 0.01, // $0.01 USD
+          data: {
+            data: {
+              total_cost: 0.01, // $0.01 USD
+            },
+          },
         }),
       });
 
@@ -239,7 +247,11 @@ describe("openrouter-cost-verification-queue", () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          cost: 0.001,
+          data: {
+            data: {
+              total_cost: 0.001,
+            },
+          },
         }),
       });
 
@@ -293,7 +305,11 @@ describe("openrouter-cost-verification-queue", () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          cost: 0.001,
+          data: {
+            data: {
+              total_cost: 0.001,
+            },
+          },
         }),
       });
 
@@ -341,7 +357,11 @@ describe("openrouter-cost-verification-queue", () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          cost: 0.001,
+          data: {
+            data: {
+              total_cost: 0.001,
+            },
+          },
         }),
       });
 
@@ -492,7 +512,11 @@ describe("openrouter-cost-verification-queue", () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          cost: 0.001, // Will become 1055 millionths with markup
+          data: {
+            data: {
+              total_cost: 0.001, // Will become 1055 millionths with markup
+            },
+          },
         }),
       });
 
@@ -526,6 +550,47 @@ describe("openrouter-cost-verification-queue", () => {
       const updated = await updaterCall(conversationWithMultipleMessages);
 
       expect(updated.costUsd).toBe(3055); // 2000 + 1055
+    });
+
+    it("should handle backward compatibility with old API format (top-level cost)", async () => {
+      // Mock OpenRouter API response with old format (top-level cost)
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          cost: 0.002, // Old format: top-level cost
+        }),
+      });
+
+      const record: SQSRecord = {
+        messageId: "msg-1",
+        receiptHandle: "receipt-1",
+        body: JSON.stringify({
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-12345",
+          workspaceId: "workspace-1",
+        }),
+        attributes: {
+          ApproximateReceiveCount: "1",
+          SentTimestamp: "1234567890000",
+          SenderId: "test-sender",
+          ApproximateFirstReceiveTimestamp: "1234567890000",
+        },
+        messageAttributes: {},
+        md5OfBody: "",
+        eventSource: "aws:sqs",
+        eventSourceARN: "",
+        awsRegion: "",
+      };
+
+      await handler({ Records: [record] });
+
+      // Verify finalizeCreditReservation was called with correct cost (0.002 * 1_000_000 * 1.055 = 2110 millionths)
+      expect(mockFinalizeCreditReservation).toHaveBeenCalledWith(
+        mockDb,
+        "res-1",
+        2110, // Math.ceil(0.002 * 1_000_000 * 1.055) = 2110
+        3
+      );
     });
 
     it("should handle invalid message schema", async () => {

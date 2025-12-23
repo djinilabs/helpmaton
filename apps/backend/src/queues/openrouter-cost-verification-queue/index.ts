@@ -58,23 +58,31 @@ async function fetchOpenRouterCost(
     }
 
     const data = (await response.json()) as {
-      cost?: number;
-      usage?: {
-        prompt_tokens?: number;
-        completion_tokens?: number;
+      data?: {
+        data?: {
+          total_cost?: number;
+        };
       };
+      cost?: number; // Fallback for older API format
     };
 
+    // OpenRouter API returns cost nested in data.data.total_cost
+    // Try nested structure first, then fallback to top-level cost
+    const cost =
+      data.data?.data?.total_cost !== undefined
+        ? data.data.data.total_cost
+        : data.cost;
+
     // OpenRouter returns cost in USD, convert to millionths
-    if (data.cost !== undefined) {
+    if (cost !== undefined) {
       // Always use Math.ceil to round up, ensuring we never undercharge
-      const baseCostInMillionths = Math.ceil(data.cost * 1_000_000);
+      const baseCostInMillionths = Math.ceil(cost * 1_000_000);
       // Apply 5.5% markup to account for OpenRouter's credit purchase fee
       // OpenRouter charges 5.5% fee when adding credits to account
       const costInMillionths = Math.ceil(baseCostInMillionths * 1.055);
       console.log("[Cost Verification] Fetched cost from OpenRouter:", {
         generationId,
-        cost: data.cost,
+        cost,
         baseCostInMillionths,
         costInMillionthsWithMarkup: costInMillionths,
         markup: "5.5%",

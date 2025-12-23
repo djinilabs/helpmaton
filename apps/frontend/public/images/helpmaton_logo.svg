@@ -1,14 +1,9 @@
 <svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
-  <g stroke="black" stroke-width="18" stroke-linejoin="round" stroke-linecap="round">
-    
-    <polygon points="150,60 350,60 430,160 430,340 320,450 180,450 70,340 70,160" fill="#2A52BE"/>
-    
-    <polygon points="220,30 280,30 280,90 220,90" fill="#2A52BE"/>
-
-    <polygon points="150,180 350,180 330,400 170,400" fill="#D3D3D3"/>
-
-    <polygon points="170,210 240,210 240,260 170,240" fill="#FFD700"/>
-    <polygon points="330,210 260,210 260,260 330,240" fill="#FFD700"/>
-
-    <line x1="250" y1="280" x2="250" y2="380" /> <line x1="190" y1="310" x2="310" y2="310" /> <line x1="200" y1="350" x2="300" y2="350" /> </g>
+  <g stroke="black" stroke-width="20" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M100,100 L400,100 L420,300 L350,450 L150,450 L80,300 Z" fill="#778899"/>
+    <rect x="130" y="180" width="240" height="150" rx="20" fill="#D3D3D3"/>
+    <circle cx="180" cy="250" r="30" fill="#FFFF00"/>
+    <circle cx="320" cy="250" r="30" fill="#FFFF00"/>
+    <polygon points="200,330 300,330 280,480 250,500 220,480" fill="#4682B4"/>
+  </g>
 </svg>
