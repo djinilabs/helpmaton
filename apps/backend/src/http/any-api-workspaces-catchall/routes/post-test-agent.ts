@@ -829,7 +829,9 @@ export const registerPostTestAgent = (app: express.Application) => {
         );
 
         // Enqueue cost verification (Step 3) if we have a generation ID
+        // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
         if (
+          isCreditDeductionEnabled() &&
           openrouterGenerationId &&
           reservationId &&
           reservationId !== "byok"
@@ -855,10 +857,31 @@ export const registerPostTestAgent = (app: express.Application) => {
               }
             );
           }
-        } else if (!openrouterGenerationId) {
-          console.warn(
-            "[Agent Test Handler] No OpenRouter generation ID found, skipping cost verification"
-          );
+        } else {
+          if (!isCreditDeductionEnabled()) {
+            console.log(
+              "[Agent Test Handler] Credit deduction disabled via feature flag, skipping cost verification:",
+              {
+                workspaceId,
+                agentId,
+                reservationId,
+                openrouterGenerationId,
+              }
+            );
+          } else if (!openrouterGenerationId) {
+            console.warn(
+              "[Agent Test Handler] No OpenRouter generation ID found, skipping cost verification"
+            );
+          } else if (!reservationId || reservationId === "byok") {
+            console.log(
+              "[Agent Test Handler] No reservation (BYOK), skipping cost verification:",
+              {
+                workspaceId,
+                agentId,
+                reservationId,
+              }
+            );
+          }
         }
       } catch (error) {
         // Log error but don't fail the request

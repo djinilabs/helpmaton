@@ -707,8 +707,10 @@ export const handler = adaptHttpHandler(
           });
 
           // Enqueue cost verification (Step 3) if we have a generation ID
+          // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
           // openrouterGenerationId was extracted earlier in the handler
           if (
+            isCreditDeductionEnabled() &&
             openrouterGenerationId &&
             reservationId &&
             reservationId !== "byok"
@@ -734,10 +736,31 @@ export const handler = adaptHttpHandler(
                 }
               );
             }
-          } else if (!openrouterGenerationId) {
-            console.warn(
-              "[Webhook Handler] No OpenRouter generation ID found, skipping cost verification"
-            );
+          } else {
+            if (!isCreditDeductionEnabled()) {
+              console.log(
+                "[Webhook Handler] Credit deduction disabled via feature flag, skipping cost verification:",
+                {
+                  workspaceId,
+                  agentId,
+                  reservationId,
+                  openrouterGenerationId,
+                }
+              );
+            } else if (!openrouterGenerationId) {
+              console.warn(
+                "[Webhook Handler] No OpenRouter generation ID found, skipping cost verification"
+              );
+            } else if (!reservationId || reservationId === "byok") {
+              console.log(
+                "[Webhook Handler] No reservation (BYOK), skipping cost verification:",
+                {
+                  workspaceId,
+                  agentId,
+                  reservationId,
+                }
+              );
+            }
           }
         } else {
           console.log(
