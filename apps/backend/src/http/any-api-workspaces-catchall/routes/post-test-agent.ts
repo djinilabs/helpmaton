@@ -17,9 +17,11 @@ import {
 } from "../../../utils/creditErrors";
 import {
   adjustCreditReservation,
+  enqueueCostVerification,
   refundReservation,
 } from "../../../utils/creditManagement";
 import { validateCreditsAndLimitsAndReserve } from "../../../utils/creditValidation";
+import { extractOpenRouterGenerationId } from "../../../utils/openrouterUtils";
 import { isCreditDeductionEnabled } from "../../../utils/featureFlags";
 import {
   checkDailyRequestLimit,
@@ -258,7 +260,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           db,
           workspaceId,
           agentId,
-          "google", // provider
+          "openrouter", // provider
           finalModelName,
           modelMessages,
           agent.systemPrompt,
@@ -617,14 +619,21 @@ export const registerPostTestAgent = (app: express.Application) => {
       // Extract token usage from streamText result (after stream is consumed and usage is awaited)
       const tokenUsage = extractTokenUsage({ ...result, usage });
 
+      // Extract OpenRouter generation ID for cost verification
+      const openrouterGenerationId = extractOpenRouterGenerationId({
+        ...result,
+        usage,
+      });
+
       // Log token usage for debugging
       console.log("[Agent Test Handler] Extracted token usage:", {
         tokenUsage,
         usage,
         hasUsage: !!usage,
+        openrouterGenerationId,
       });
 
-      // Adjust credit reservation based on actual cost
+      // Adjust credit reservation based on actual cost (Step 2)
       // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
       if (
         isCreditDeductionEnabled() &&
@@ -634,26 +643,44 @@ export const registerPostTestAgent = (app: express.Application) => {
         (tokenUsage.promptTokens > 0 || tokenUsage.completionTokens > 0)
       ) {
         try {
-          console.log("[Agent Test Handler] Adjusting credit reservation:", {
+          console.log("[Agent Test Handler] Step 2: Adjusting credit reservation:", {
             workspaceId,
             reservationId,
-            provider: "google",
+            provider: "openrouter",
             modelName: finalModelName,
             tokenUsage,
+            openrouterGenerationId,
           });
           await adjustCreditReservation(
             db,
             reservationId,
             workspaceId,
-            "google", // provider
+            "openrouter", // provider
             finalModelName,
             tokenUsage,
             3, // maxRetries
-            usesByok
+            usesByok,
+            openrouterGenerationId
           );
           console.log(
-            "[Agent Test Handler] Credit reservation adjusted successfully"
+            "[Agent Test Handler] Step 2: Credit reservation adjusted successfully"
           );
+
+          // Enqueue cost verification (Step 3) if we have a generation ID
+          if (openrouterGenerationId) {
+            await enqueueCostVerification(
+              reservationId,
+              openrouterGenerationId,
+              workspaceId
+            );
+            console.log(
+              "[Agent Test Handler] Step 3: Cost verification enqueued"
+            );
+          } else {
+            console.warn(
+              "[Agent Test Handler] No OpenRouter generation ID found, skipping cost verification"
+            );
+          }
         } catch (error) {
           // Log error but don't fail the request
           console.error(

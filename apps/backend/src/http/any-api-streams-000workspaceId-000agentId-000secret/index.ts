@@ -45,8 +45,10 @@ import {
 } from "../../utils/creditErrors";
 import {
   adjustCreditReservation,
+  enqueueCostVerification,
   refundReservation,
 } from "../../utils/creditManagement";
+import { extractOpenRouterGenerationId } from "../../utils/openrouterUtils";
 import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation";
 import { isCreditDeductionEnabled } from "../../utils/featureFlags";
 import {
@@ -453,17 +455,17 @@ async function validateCreditsAndReserveBeforeLLM(
       })
     : undefined;
 
-  const reservation = await validateCreditsAndLimitsAndReserve(
-    db,
-    workspaceId,
-    agentId,
-    "google", // provider
-    finalModelName,
-    modelMessages,
-    agent.systemPrompt,
-    toolDefinitions,
-    usesByok
-  );
+      const reservation = await validateCreditsAndLimitsAndReserve(
+        db,
+        workspaceId,
+        agentId,
+        "openrouter", // provider
+        finalModelName,
+        modelMessages,
+        agent.systemPrompt,
+        toolDefinitions,
+        usesByok
+      );
 
   if (reservation) {
     console.log("[Stream Handler] Credits reserved:", {
@@ -617,7 +619,8 @@ async function adjustCreditsAfterStream(
   reservationId: string | undefined,
   finalModelName: string,
   tokenUsage: ReturnType<typeof extractTokenUsage>,
-  usesByok: boolean
+  usesByok: boolean,
+  streamResult?: Awaited<ReturnType<typeof streamText>>
 ): Promise<void> {
   // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
   if (
@@ -650,24 +653,45 @@ async function adjustCreditsAfterStream(
     return;
   }
 
-  console.log("[Stream Handler] Adjusting credit reservation:", {
+  // Extract OpenRouter generation ID for cost verification
+  const openrouterGenerationId = streamResult
+    ? extractOpenRouterGenerationId(streamResult)
+    : undefined;
+
+  console.log("[Stream Handler] Step 2: Adjusting credit reservation:", {
     workspaceId,
     reservationId,
-    provider: "google",
+    provider: "openrouter",
     modelName: finalModelName,
     tokenUsage,
+    openrouterGenerationId,
   });
   await adjustCreditReservation(
     db,
     reservationId,
     workspaceId,
-    "google", // provider
+    "openrouter", // provider
     finalModelName,
     tokenUsage,
     3, // maxRetries
-    usesByok
+    usesByok,
+    openrouterGenerationId
   );
-  console.log("[Stream Handler] Credit reservation adjusted successfully");
+  console.log("[Stream Handler] Step 2: Credit reservation adjusted successfully");
+
+  // Enqueue cost verification (Step 3) if we have a generation ID
+  if (openrouterGenerationId) {
+    await enqueueCostVerification(
+      reservationId,
+      openrouterGenerationId,
+      workspaceId
+    );
+    console.log("[Stream Handler] Step 3: Cost verification enqueued");
+  } else {
+    console.warn(
+      "[Stream Handler] No OpenRouter generation ID found, skipping cost verification"
+    );
+  }
 }
 
 /**
@@ -1441,7 +1465,8 @@ const internalHandler = async (
         context.reservationId,
         context.finalModelName,
         tokenUsage,
-        context.usesByok
+        context.usesByok,
+        streamResult
       );
     } catch (error) {
       // Log error but don't fail the request

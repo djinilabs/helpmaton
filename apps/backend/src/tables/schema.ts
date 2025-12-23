@@ -200,6 +200,12 @@ export const tableSchemas = {
     currency: z.enum(["usd"]), // workspace currency
     expires: z.number(), // TTL timestamp (15 minutes from creation)
     expiresHour: z.number(), // Hour bucket for GSI (expires truncated to hour)
+    // OpenRouter cost verification fields
+    openrouterGenerationId: z.string().optional(), // OpenRouter generation ID for cost lookup
+    provider: z.string().optional(), // Provider used (for tracking)
+    modelName: z.string().optional(), // Model used (for tracking)
+    tokenUsageBasedCost: z.number().int().optional(), // Cost calculated from token usage (step 2) in millionths
+    openrouterCost: z.number().int().optional(), // Cost from OpenRouter API (step 3) in millionths
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),

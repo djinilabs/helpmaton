@@ -27,25 +27,27 @@ export const handler = adaptHttpHandler(
   handlingErrors(async (): Promise<APIGatewayProxyResultV2> => {
     const pricingConfig = loadPricingConfig();
 
-    // Extract available models from pricing config (Google only)
+    // Extract available models from pricing config (Google and OpenRouter)
     const availableModels: Record<
       string,
       { models: string[]; defaultModel: string }
     > = {};
 
-    // Only include Google provider
-    const provider = "google";
-    const providerPricing = pricingConfig.providers[provider];
-    if (providerPricing) {
-      const models = Object.keys(providerPricing.models);
-      if (models.length > 0) {
-        // Use shared utility function to get default model
-        const defaultModel = getDefaultModel(provider);
+    // Include both Google and OpenRouter providers
+    const providers: Array<"google" | "openrouter"> = ["google", "openrouter"];
+    for (const provider of providers) {
+      const providerPricing = pricingConfig.providers[provider];
+      if (providerPricing) {
+        const models = Object.keys(providerPricing.models);
+        if (models.length > 0) {
+          // Use shared utility function to get default model
+          const defaultModel = getDefaultModel(provider);
 
-        availableModels[provider] = {
-          models,
-          defaultModel,
-        };
+          availableModels[provider] = {
+            models,
+            defaultModel,
+          };
+        }
       }
     }
 

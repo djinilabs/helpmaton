@@ -56,6 +56,56 @@
           }
         }
       }
+    },
+    "openrouter": {
+      "models": {
+        "google/gemini-2.5-flash": {
+          "usd": {
+            "input": 0.075,
+            "output": 0.3,
+            "cachedInput": 0.0075
+          }
+        },
+        "google/gemini-2.5-pro": {
+          "usd": {
+            "tiers": [
+              {
+                "threshold": 200000,
+                "input": 1.25,
+                "output": 10,
+                "cachedInput": 0.125
+              },
+              {
+                "input": 2.5,
+                "output": 15,
+                "cachedInput": 0.25
+              }
+            ]
+          }
+        },
+        "anthropic/claude-3.5-sonnet": {
+          "usd": {
+            "input": 3,
+            "output": 15,
+            "cachedInput": 0.3
+          }
+        },
+        "anthropic/claude-3-opus": {
+          "usd": {
+            "input": 15,
+            "output": 75,
+            "cachedInput": 1.5
+          }
+        },
+        "auto": {
+          "_comment": "Average pricing for auto-selection (OpenRouter chooses model)",
+          "usd": {
+            "input": 2,
+            "output": 10,
+            "cachedInput": 0.2
+          }
+        }
+      }
     }
   },
   "lastUpdated": "2025-12-16T08:52:33.602Z"

@@ -255,6 +255,9 @@ agent-temporal-grain-queue
   fifo true
   visibilityTimeout 60
   messageRetentionPeriod 1209600
+openrouter-cost-verification-queue
+  visibilityTimeout 60
+  messageRetentionPeriod 604800
 
 @api-throttling
 free

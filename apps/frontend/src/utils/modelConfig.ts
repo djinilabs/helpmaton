@@ -1,7 +1,7 @@
 import type { AvailableModels } from "./api";
 import { getAvailableModels } from "./api";
 
-export type Provider = "google";
+export type Provider = "google" | "openrouter";
 
 export interface ModelConfig {
   provider: Provider;
@@ -12,6 +12,7 @@ export interface ModelConfig {
 
 const PROVIDER_DISPLAY_NAMES: Record<Provider, string> = {
   google: "Google",
+  openrouter: "OpenRouter",
 };
 
 // Cache for available models
@@ -23,7 +24,7 @@ let modelsPromise: Promise<AvailableModels> | null = null;
  * Uses caching to avoid multiple requests
  */
 export async function fetchAvailableModels(): Promise<AvailableModels> {
-  // Validate cached models structure - if it doesn't have google, clear cache
+  // Validate cached models structure - if it doesn't have required providers, clear cache
   if (cachedModels) {
     if (
       !cachedModels.google ||
@@ -59,6 +60,7 @@ export async function fetchAvailableModels(): Promise<AvailableModels> {
         );
         throw new Error("Invalid models response structure");
       }
+      // OpenRouter is optional, so we don't validate it here
       cachedModels = models;
       return models;
     })
@@ -124,11 +126,11 @@ export async function getDefaultModelForProvider(
 }
 
 /**
- * Get all provider configs (Google only)
+ * Get all provider configs (Google and OpenRouter)
  */
 export async function getProviderConfigs(): Promise<ModelConfig[]> {
   const availableModels = await fetchAvailableModels();
-  const providers: Provider[] = ["google"];
+  const providers: Provider[] = ["google", "openrouter"];
 
   return providers
     .map((provider) => {

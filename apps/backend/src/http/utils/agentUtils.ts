@@ -1,11 +1,9 @@
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { resourceGone } from "@hapi/boom";
 import type { ModelMessage } from "ai";
 import { generateText, tool, stepCountIs } from "ai";
 import { z } from "zod";
 
 import { database } from "../../tables";
-import { getDefined } from "../../utils";
 import { extractTokenUsage } from "../../utils/conversationLogger";
 import {
   adjustCreditReservation,
@@ -15,12 +13,12 @@ import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation
 import { searchDocuments } from "../../utils/documentSearch";
 import { isCreditDeductionEnabled } from "../../utils/featureFlags";
 import { sendNotification } from "../../utils/notifications";
-import { getPostHogClient } from "../../utils/posthog";
 
 import { createMcpServerTools } from "./mcpUtils";
+import { createModel } from "./modelFactory";
 import type { Provider } from "./modelFactory";
 
-export const MODEL_NAME = "gemini-2.5-flash";
+export const MODEL_NAME = "google/gemini-2.5-flash";
 
 export interface WorkspaceAndAgent {
   workspace: {
@@ -102,7 +100,7 @@ export async function getWorkspaceApiKey(
 }
 
 /**
- * Create a Google Generative AI model instance
+ * Create an AI model instance (OpenRouter by default, Google for backward compatibility)
  */
 export async function createAgentModel(
   referer: string = "http://localhost:3000/api/webhook",
@@ -111,54 +109,14 @@ export async function createAgentModel(
   workspaceId?: string,
   agentId?: string,
   usesByok?: boolean,
-  userId?: string
+  userId?: string,
+  provider: Provider = "openrouter"
 ) {
-  const keyToUse =
-    apiKey ||
-    getDefined(process.env.GEMINI_API_KEY, "GEMINI_API_KEY is not set");
-  const google = createGoogleGenerativeAI({
-    apiKey: keyToUse,
-    headers: {
-      Referer: referer,
-      "Content-Type": "text/event-stream",
-    },
-  });
-
   // Use provided modelName or fall back to default MODEL_NAME
   const finalModelName = modelName || MODEL_NAME;
-  const model = google(finalModelName);
 
-  // Wrap with PostHog tracking if available
-  const phClient = getPostHogClient();
-  if (phClient) {
-    // Dynamically import withTracing to avoid loading Anthropic SDK wrappers
-    // when we're not using them (lazy loading)
-    const { withTracing } = await import("@posthog/ai");
-    // Prefix distinct ID to distinguish between user, workspace, and system
-    let distinctId: string;
-    if (userId) {
-      distinctId = `user/${userId}`;
-    } else if (workspaceId) {
-      distinctId = `workspace/${workspaceId}`;
-    } else {
-      distinctId = "system";
-    }
-    return withTracing(model, phClient, {
-      posthogDistinctId: distinctId,
-      posthogProperties: {
-        provider: "google",
-        modelName: finalModelName,
-        workspaceId: workspaceId || undefined,
-        agentId: agentId || undefined,
-        userId: userId || undefined,
-        referer,
-        usesByok: usesByok || false,
-      },
-      posthogGroups: workspaceId ? { workspace: workspaceId } : undefined,
-    });
-  }
-
-  return model;
+  // Use createModel from modelFactory which handles OpenRouter and Google
+  return createModel(provider, finalModelName, workspaceId, referer, userId);
 }
 
 /**
@@ -671,8 +629,8 @@ async function callAgentInternal(
     return `Error: Target agent ${targetAgentId} does not belong to this workspace.`;
   }
 
-  // Get workspace API key if it exists (only for Google provider since createAgentModel only supports Google)
-  const agentProvider = "google"; // createAgentModel only supports Google
+  // Get workspace API key if it exists (OpenRouter provider)
+  const agentProvider: Provider = "openrouter";
   const workspaceApiKey = await getWorkspaceApiKey(workspaceId, agentProvider);
   const usesByok = workspaceApiKey !== null;
 
@@ -689,7 +647,9 @@ async function callAgentInternal(
     modelName,
     workspaceId,
     targetAgentId,
-    usesByok
+    usesByok,
+    undefined, // userId
+    agentProvider
   );
 
   // Extract agentId from targetAgent.pk (format: "agents/{workspaceId}/{agentId}")
@@ -813,8 +773,8 @@ async function callAgentInternal(
       db,
       workspaceId,
       targetAgentId,
-      "google", // provider
-      MODEL_NAME,
+      agentProvider, // provider
+      modelName || MODEL_NAME,
       modelMessages,
       targetAgent.systemPrompt,
       toolDefinitions,
@@ -873,8 +833,8 @@ async function callAgentInternal(
           db,
           reservationId,
           workspaceId,
-          "google", // provider
-          MODEL_NAME,
+          agentProvider, // provider
+          modelName || MODEL_NAME,
           tokenUsage,
           3, // maxRetries
           false // usesByok - delegated calls use workspace API key if available
@@ -984,8 +944,8 @@ async function callAgentInternal(
               db,
               reservationId,
               workspaceId,
-              "google",
-              MODEL_NAME,
+              agentProvider,
+              modelName || MODEL_NAME,
               errorTokenUsage,
               3,
               false

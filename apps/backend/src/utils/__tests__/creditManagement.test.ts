@@ -29,6 +29,7 @@ import type { TokenUsage } from "../conversationLogger";
 import { InsufficientCreditsError } from "../creditErrors";
 import {
   adjustCreditReservation,
+  finalizeCreditReservation,
   refundReservation,
   reserveCredits,
 } from "../creditManagement";
@@ -705,6 +706,174 @@ describe("creditManagement", () => {
 
       // Verify final balance is correct
       expect(currentBalance).toBe(10_000_000);
+    });
+  });
+
+  describe("finalizeCreditReservation", () => {
+    let mockReservation: CreditReservationRecord;
+
+    beforeEach(() => {
+      mockReservation = {
+        pk: "credit-reservations/test-reservation",
+        workspaceId: "test-workspace",
+        reservedAmount: 50_000_000, // 50.0 USD in millionths
+        estimatedCost: 50_000_000,
+        currency: "usd",
+        expires: Math.floor(Date.now() / 1000) + 900, // 15 minutes from now
+        expiresHour: Math.floor(Date.now() / 3600) * 3600,
+        tokenUsageBasedCost: 45_000_000, // 45.0 USD (step 2 cost)
+        openrouterGenerationId: "gen-12345",
+        provider: "openrouter",
+        modelName: "google/gemini-2.5-flash",
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      mockGet.mockResolvedValue(mockReservation);
+      mockDelete.mockResolvedValue(undefined);
+    });
+
+    it("should make final adjustment when OpenRouter cost differs from token usage cost", async () => {
+      const openrouterCost = 47_000_000; // 47.0 USD (higher than token usage cost)
+      let currentBalance = 100_000_000; // 100.0 USD
+
+      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
+        const current = {
+          ...mockWorkspace,
+          creditBalance: currentBalance,
+        };
+        const result = await updater(current);
+        currentBalance = (result as { creditBalance: number }).creditBalance;
+        return result as WorkspaceRecord;
+      });
+
+      const result = await finalizeCreditReservation(
+        mockDb,
+        "test-reservation",
+        openrouterCost
+      );
+
+      // Difference: 47_000_000 - 45_000_000 = 2_000_000
+      // New balance: 100_000_000 - 2_000_000 = 98_000_000
+      expect(result.creditBalance).toBe(98_000_000);
+      expect(mockDelete).toHaveBeenCalledWith("credit-reservations/test-reservation");
+    });
+
+    it("should refund difference when OpenRouter cost is less than token usage cost", async () => {
+      const openrouterCost = 43_000_000; // 43.0 USD (lower than token usage cost)
+      let currentBalance = 100_000_000; // 100.0 USD
+
+      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
+        const current = {
+          ...mockWorkspace,
+          creditBalance: currentBalance,
+        };
+        const result = await updater(current);
+        currentBalance = (result as { creditBalance: number }).creditBalance;
+        return result as WorkspaceRecord;
+      });
+
+      const result = await finalizeCreditReservation(
+        mockDb,
+        "test-reservation",
+        openrouterCost
+      );
+
+      // Difference: 43_000_000 - 45_000_000 = -2_000_000 (refund)
+      // New balance: 100_000_000 - (-2_000_000) = 102_000_000
+      expect(result.creditBalance).toBe(102_000_000);
+    });
+
+    it("should handle exact match (no adjustment needed)", async () => {
+      const openrouterCost = 45_000_000; // Same as token usage cost
+      let currentBalance = 100_000_000;
+
+      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
+        const current = {
+          ...mockWorkspace,
+          creditBalance: currentBalance,
+        };
+        const result = await updater(current);
+        currentBalance = (result as { creditBalance: number }).creditBalance;
+        return result as WorkspaceRecord;
+      });
+
+      const result = await finalizeCreditReservation(
+        mockDb,
+        "test-reservation",
+        openrouterCost
+      );
+
+      // Difference: 45_000_000 - 45_000_000 = 0
+      // New balance: 100_000_000 - 0 = 100_000_000
+      expect(result.creditBalance).toBe(100_000_000);
+    });
+
+    it("should handle missing token usage cost by using OpenRouter cost directly", async () => {
+      const reservationWithoutTokenCost = {
+        ...mockReservation,
+        tokenUsageBasedCost: undefined,
+      };
+      mockGet.mockResolvedValue(reservationWithoutTokenCost);
+
+      const openrouterCost = 47_000_000;
+      let currentBalance = 100_000_000;
+
+      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
+        const current = {
+          ...mockWorkspace,
+          creditBalance: currentBalance,
+        };
+        const result = await updater(current);
+        currentBalance = (result as { creditBalance: number }).creditBalance;
+        return result as WorkspaceRecord;
+      });
+
+      const result = await finalizeCreditReservation(
+        mockDb,
+        "test-reservation",
+        openrouterCost
+      );
+
+      // Should adjust based on OpenRouter cost vs reserved amount
+      // Difference: 47_000_000 - 50_000_000 = -3_000_000 (refund)
+      // New balance: 100_000_000 - (-3_000_000) = 103_000_000
+      expect(result.creditBalance).toBe(103_000_000);
+    });
+
+    it("should throw error when reservation is not found", async () => {
+      mockGet.mockResolvedValue(null);
+
+      await expect(
+        finalizeCreditReservation(mockDb, "non-existent", 50_000_000)
+      ).rejects.toThrow("Reservation non-existent not found");
+    });
+
+    it("should handle version conflicts with retries", async () => {
+      const openrouterCost = 47_000_000;
+      let attemptCount = 0;
+
+      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
+        attemptCount++;
+        if (attemptCount < 3) {
+          throw new Error("Item was outdated");
+        }
+        const current = {
+          ...mockWorkspace,
+          creditBalance: 100_000_000,
+        };
+        return (await updater(current)) as WorkspaceRecord;
+      });
+
+      const result = await finalizeCreditReservation(
+        mockDb,
+        "test-reservation",
+        openrouterCost,
+        3 // maxRetries
+      );
+
+      expect(attemptCount).toBe(3);
+      expect(result).toBeDefined();
     });
   });
 });

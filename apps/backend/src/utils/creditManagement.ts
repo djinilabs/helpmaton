@@ -1,10 +1,60 @@
 import { randomUUID } from "crypto";
 
+import { queues } from "@architect/functions";
+
 import type { DatabaseSchema, WorkspaceRecord } from "../tables/schema";
 
 import type { TokenUsage } from "./conversationLogger";
 import { CreditDeductionError, InsufficientCreditsError } from "./creditErrors";
 import { calculateTokenCost } from "./pricing";
+
+/**
+ * Send cost verification message to queue for OpenRouter cost lookup
+ */
+export async function enqueueCostVerification(
+  reservationId: string,
+  openrouterGenerationId: string,
+  workspaceId: string
+): Promise<void> {
+  try {
+    const queue = queues;
+    const queueName = "openrouter-cost-verification-queue";
+
+    const message = {
+      reservationId,
+      openrouterGenerationId,
+      workspaceId,
+    };
+
+    console.log("[enqueueCostVerification] Sending cost verification message:", {
+      queueName,
+      message,
+    });
+
+    await queue.publish({
+      name: queueName,
+      payload: message,
+    });
+
+    console.log("[enqueueCostVerification] Successfully enqueued cost verification:", {
+      reservationId,
+      openrouterGenerationId,
+    });
+  } catch (error) {
+    // Log error but don't fail the request
+    console.error(
+      "[enqueueCostVerification] Failed to enqueue cost verification:",
+      {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        reservationId,
+        openrouterGenerationId,
+        workspaceId,
+      }
+    );
+    // Don't throw - cost verification is best-effort
+  }
+}
 
 /**
  * Calculate TTL timestamp (15 minutes from now in seconds)
@@ -196,8 +246,9 @@ export async function reserveCredits(
 }
 
 /**
- * Adjust credit reservation based on actual cost
+ * Adjust credit reservation based on actual cost (Step 2 of 3-step pricing)
  * Refunds difference if actual < reserved, or deducts additional if actual > reserved
+ * Stores token usage-based cost and OpenRouter generation ID for final verification
  *
  * @param db - Database instance
  * @param reservationId - Reservation ID
@@ -207,6 +258,7 @@ export async function reserveCredits(
  * @param tokenUsage - Token usage from API response
  * @param maxRetries - Maximum number of retries (default: 3)
  * @param usesByok - Whether request was made with user key (BYOK)
+ * @param openrouterGenerationId - OpenRouter generation ID for cost verification (optional)
  * @returns Updated workspace record
  */
 export async function adjustCreditReservation(
@@ -217,7 +269,8 @@ export async function adjustCreditReservation(
   modelName: string,
   tokenUsage: TokenUsage,
   maxRetries: number = 3,
-  usesByok?: boolean
+  usesByok?: boolean,
+  openrouterGenerationId?: string
 ): Promise<WorkspaceRecord> {
   // Skip adjustment if request was made with user key (BYOK)
   if (usesByok || reservationId === "byok") {
@@ -253,15 +306,15 @@ export async function adjustCreditReservation(
 
   const workspacePk = `workspaces/${workspaceId}`;
 
-  // Calculate actual cost (always in USD)
-  const actualCost = calculateActualCost(
+  // Calculate actual cost from token usage (always in USD) - Step 2
+  const tokenUsageBasedCost = calculateActualCost(
     provider,
     modelName,
     tokenUsage
   );
 
-  // Calculate difference
-  const difference = actualCost - reservation.reservedAmount;
+  // Calculate difference between token usage cost and reserved amount
+  const difference = tokenUsageBasedCost - reservation.reservedAmount;
 
   try {
     const updated = await db.workspace.atomicUpdate(
@@ -278,11 +331,11 @@ export async function adjustCreditReservation(
         // All values in millionths, so simple subtraction
         const newBalance = current.creditBalance - difference;
 
-        console.log("[adjustCreditReservation] Adjusting credits:", {
+        console.log("[adjustCreditReservation] Step 2: Adjusting credits based on token usage:", {
           workspaceId,
           reservationId,
           reservedAmount: reservation.reservedAmount,
-          actualCost,
+          tokenUsageBasedCost,
           difference,
           oldBalance: current.creditBalance,
           newBalance,
@@ -304,13 +357,30 @@ export async function adjustCreditReservation(
       { maxRetries }
     );
 
-    // Delete reservation record
-    await db["credit-reservations"].delete(reservationPk);
-    console.log("[adjustCreditReservation] Successfully deleted reservation:", {
-      reservationId,
-    });
+    // Update reservation record with token usage cost and OpenRouter generation ID
+    // Don't delete yet - will be deleted in finalizeCreditReservation (step 3)
+    if (openrouterGenerationId || provider === "openrouter") {
+      await db["credit-reservations"].update({
+        pk: reservationPk,
+        tokenUsageBasedCost,
+        openrouterGenerationId: openrouterGenerationId || reservation.openrouterGenerationId,
+        provider: provider || reservation.provider,
+        modelName: modelName || reservation.modelName,
+      });
+      console.log("[adjustCreditReservation] Updated reservation with generation ID for step 3:", {
+        reservationId,
+        openrouterGenerationId: openrouterGenerationId || reservation.openrouterGenerationId,
+        tokenUsageBasedCost,
+      });
+    } else {
+      // For non-OpenRouter providers, delete reservation after step 2 (no step 3 needed)
+      await db["credit-reservations"].delete(reservationPk);
+      console.log("[adjustCreditReservation] Successfully deleted reservation (non-OpenRouter):", {
+        reservationId,
+      });
+    }
 
-    console.log("[adjustCreditReservation] Successfully adjusted credits:", {
+    console.log("[adjustCreditReservation] Step 2 completed successfully:", {
       workspaceId,
       reservationId,
       newBalance: updated.creditBalance,
@@ -542,6 +612,157 @@ export async function debitCredits(
         error.message.toLowerCase().includes("failed to atomically update"))
     ) {
       throw new CreditDeductionError(workspaceId, maxRetries, lastError);
+    }
+
+    // If it's not a version conflict, rethrow immediately
+    throw lastError;
+  }
+}
+
+/**
+ * Finalize credit reservation based on OpenRouter API cost (Step 3 of 3-step pricing)
+ * Makes final adjustment between OpenRouter cost and token usage-based cost
+ * Deletes reservation record after finalization
+ *
+ * @param db - Database instance
+ * @param reservationId - Reservation ID
+ * @param openrouterCost - Cost from OpenRouter API in millionths
+ * @param maxRetries - Maximum number of retries (default: 3)
+ * @returns Updated workspace record
+ */
+export async function finalizeCreditReservation(
+  db: DatabaseSchema,
+  reservationId: string,
+  openrouterCost: number,
+  maxRetries: number = 3
+): Promise<WorkspaceRecord> {
+  // Get reservation to find token usage-based cost
+  const reservationPk = `credit-reservations/${reservationId}`;
+  const reservation = await db["credit-reservations"].get(reservationPk);
+
+  if (!reservation) {
+    console.warn(
+      "[finalizeCreditReservation] Reservation not found, assuming already processed:",
+      { reservationId }
+    );
+    // Reservation might have been cleaned up, just return workspace
+    const workspacePk = `workspaces/${reservation?.workspaceId || "unknown"}`;
+    try {
+      const workspace = await db.workspace.get(workspacePk, "workspace");
+      if (workspace) {
+        return workspace;
+      }
+    } catch {
+      // Workspace not found, throw error
+    }
+    throw new Error(`Reservation ${reservationId} not found`);
+  }
+
+  const workspaceId = reservation.workspaceId;
+  const workspacePk = `workspaces/${workspaceId}`;
+
+  // Get token usage-based cost from reservation (step 2)
+  const tokenUsageBasedCost = reservation.tokenUsageBasedCost;
+  if (tokenUsageBasedCost === undefined) {
+    console.warn(
+      "[finalizeCreditReservation] Token usage-based cost not found, using OpenRouter cost directly:",
+      { reservationId, workspaceId, openrouterCost }
+    );
+    // If token usage cost is missing, just use OpenRouter cost
+    // This shouldn't happen, but handle gracefully
+    const updated = await db.workspace.atomicUpdate(
+      workspacePk,
+      "workspace",
+      async (current) => {
+        if (!current) {
+          throw new Error(`Workspace ${workspaceId} not found`);
+        }
+        // Adjust based on OpenRouter cost vs reserved amount
+        const difference = openrouterCost - reservation.reservedAmount;
+        const newBalance = current.creditBalance - difference;
+        return {
+          pk: workspacePk,
+          sk: "workspace",
+          creditBalance: newBalance,
+        };
+      },
+      { maxRetries }
+    );
+    await db["credit-reservations"].delete(reservationPk);
+    return updated;
+  }
+
+  // Calculate difference between OpenRouter cost and token usage-based cost
+  const difference = openrouterCost - tokenUsageBasedCost;
+
+  try {
+    const updated = await db.workspace.atomicUpdate(
+      workspacePk,
+      "workspace",
+      async (current) => {
+        if (!current) {
+          throw new Error(`Workspace ${workspaceId} not found`);
+        }
+
+        // Adjust balance based on difference between OpenRouter cost and token usage cost
+        // If OpenRouter > token usage, deduct more (difference is positive)
+        // If OpenRouter < token usage, refund difference (difference is negative)
+        // All values in millionths, so simple subtraction
+        const newBalance = current.creditBalance - difference;
+
+        console.log("[finalizeCreditReservation] Step 3: Final adjustment based on OpenRouter cost:", {
+          workspaceId,
+          reservationId,
+          tokenUsageBasedCost,
+          openrouterCost,
+          difference,
+          oldBalance: current.creditBalance,
+          newBalance,
+          currency: current.currency,
+        });
+
+        return {
+          pk: workspacePk,
+          sk: "workspace",
+          creditBalance: newBalance,
+        };
+      },
+      { maxRetries }
+    );
+
+    // Update reservation with OpenRouter cost for tracking, then delete
+    await db["credit-reservations"].update({
+      pk: reservationPk,
+      openrouterCost,
+    });
+
+    // Delete reservation record
+    await db["credit-reservations"].delete(reservationPk);
+    console.log("[finalizeCreditReservation] Successfully deleted reservation:", {
+      reservationId,
+    });
+
+    console.log("[finalizeCreditReservation] Step 3 completed successfully:", {
+      workspaceId,
+      reservationId,
+      newBalance: updated.creditBalance,
+      currency: updated.currency,
+    });
+
+    return updated;
+  } catch (error) {
+    const lastError = error instanceof Error ? error : new Error(String(error));
+
+    // Check if it's a version conflict error
+    if (
+      error instanceof Error &&
+      (error.message.toLowerCase().includes("item was outdated") ||
+        error.message.toLowerCase().includes("conditional request failed") ||
+        error.message.toLowerCase().includes("failed to atomically update"))
+    ) {
+      throw new Error(
+        `Failed to finalize credit reservation after ${maxRetries} retries: ${lastError.message}`
+      );
     }
 
     // If it's not a version conflict, rethrow immediately

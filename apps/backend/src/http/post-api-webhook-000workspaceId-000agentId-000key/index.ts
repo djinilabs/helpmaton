@@ -22,9 +22,11 @@ import {
 } from "../../utils/creditErrors";
 import {
   adjustCreditReservation,
+  enqueueCostVerification,
   refundReservation,
 } from "../../utils/creditManagement";
 import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation";
+import { extractOpenRouterGenerationId } from "../../utils/openrouterUtils";
 import { isCreditDeductionEnabled } from "../../utils/featureFlags";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
@@ -162,7 +164,7 @@ export const handler = adaptHttpHandler(
           db,
           workspaceId,
           agentId,
-          "google", // provider
+          "openrouter", // provider
           finalModelName,
           modelMessages,
           agent.systemPrompt,
@@ -211,15 +213,20 @@ export const handler = adaptHttpHandler(
 
         // Extract token usage
         tokenUsage = extractTokenUsage(result);
+
+        // Extract OpenRouter generation ID for cost verification
+        const openrouterGenerationId = extractOpenRouterGenerationId(result);
+
         console.log("[Webhook Handler] Token usage extracted:", {
           tokenUsage,
           hasTokenUsage: !!tokenUsage,
           promptTokens: tokenUsage?.promptTokens,
           completionTokens: tokenUsage?.completionTokens,
           totalTokens: tokenUsage?.totalTokens,
+          openrouterGenerationId,
         });
 
-        // Adjust credit reservation based on actual cost
+        // Adjust credit reservation based on actual cost (Step 2)
         // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
         if (
           isCreditDeductionEnabled() &&
@@ -229,26 +236,44 @@ export const handler = adaptHttpHandler(
           (tokenUsage.promptTokens > 0 || tokenUsage.completionTokens > 0)
         ) {
           try {
-            console.log("[Webhook Handler] Adjusting credit reservation:", {
+            console.log("[Webhook Handler] Step 2: Adjusting credit reservation:", {
               workspaceId,
               reservationId,
-              provider: "google",
+              provider: "openrouter",
               modelName: finalModelName,
               tokenUsage,
+              openrouterGenerationId,
             });
             await adjustCreditReservation(
               db,
               reservationId,
               workspaceId,
-              "google", // provider
+              "openrouter", // provider
               finalModelName,
               tokenUsage,
               3, // maxRetries
-              usesByok
+              usesByok,
+              openrouterGenerationId
             );
             console.log(
-              "[Webhook Handler] Credit reservation adjusted successfully"
+              "[Webhook Handler] Step 2: Credit reservation adjusted successfully"
             );
+
+            // Enqueue cost verification (Step 3) if we have a generation ID
+            if (openrouterGenerationId) {
+              await enqueueCostVerification(
+                reservationId,
+                openrouterGenerationId,
+                workspaceId
+              );
+              console.log(
+                "[Webhook Handler] Step 3: Cost verification enqueued"
+              );
+            } else {
+              console.warn(
+                "[Webhook Handler] No OpenRouter generation ID found, skipping cost verification"
+              );
+            }
           } catch (error) {
             // Log error but don't fail the request
             console.error(
@@ -628,7 +653,7 @@ export const handler = adaptHttpHandler(
             ? assistantContent
             : responseContent || "",
         modelName: finalModelName,
-        provider: "google",
+        provider: "openrouter",
       };
 
       // DIAGNOSTIC: Log final assistant message structure

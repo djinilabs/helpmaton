@@ -83,6 +83,24 @@ This document describes the environment variables required for the helpmaton bac
   - Used for LLM-based summarization in the stratified memory system
   - Workspace-specific API keys can override this system key (see [Agent Memory System documentation](../docs/agent-memory-system.md))
 
+### `OPENROUTER_API_KEY`
+
+- **Description**: OpenRouter API key for unified LLM provider access
+- **Required**: Yes (for all LLM calls via OpenRouter)
+- **Example**: `sk-or-v1-...`
+- **How to obtain**:
+  1. Go to [OpenRouter Dashboard](https://openrouter.ai/dashboard)
+  2. Sign up or log in to your account
+  3. Navigate to Keys section
+  4. Create a new API key
+  5. Copy the key value
+- **Note**:
+  - Used as the primary provider for all LLM calls (replaces direct provider API keys)
+  - Provides access to multiple AI models from different providers (Anthropic, Google, Meta, Mistral, etc.)
+  - Supports automatic model selection when model is set to "auto"
+  - Workspace-specific OpenRouter API keys can override this system key (BYOK support)
+  - Cost verification is performed in background via OpenRouter API to ensure accurate billing
+
 ### `SENTRY_DSN`
 
 - **Description**: Sentry Data Source Name (DSN) for error tracking and monitoring
