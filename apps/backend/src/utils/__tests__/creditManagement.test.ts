@@ -2,10 +2,14 @@ import { conflict } from "@hapi/boom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
-const { mockDatabase, mockCalculateTokenCost } = vi.hoisted(() => {
+const { mockDatabase, mockCalculateTokenCost, mockQueue } = vi.hoisted(() => {
+  const publish = vi.fn().mockResolvedValue(undefined);
   return {
     mockDatabase: vi.fn(),
     mockCalculateTokenCost: vi.fn(),
+    mockQueue: {
+      publish,
+    },
   };
 });
 
@@ -17,6 +21,11 @@ vi.mock("../../tables/database", () => ({
 // Mock pricing
 vi.mock("../pricing", () => ({
   calculateTokenCost: mockCalculateTokenCost,
+}));
+
+// Mock @architect/functions queues
+vi.mock("@architect/functions", () => ({
+  queues: mockQueue,
 }));
 
 // Import after mocks are set up
@@ -892,6 +901,68 @@ describe("creditManagement", () => {
         expect.any(Function),
         { maxRetries: 3 }
       );
+    });
+  });
+
+  describe("enqueueCostVerification", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockQueue.publish.mockResolvedValue(undefined);
+    });
+
+    it("should enqueue cost verification with conversation context", async () => {
+      const { enqueueCostVerification } = await import("../creditManagement");
+
+      await enqueueCostVerification(
+        "res-1",
+        "gen-12345",
+        "workspace-1",
+        "conv-1",
+        "agent-1"
+      );
+
+      expect(mockQueue.publish).toHaveBeenCalledWith({
+        name: "openrouter-cost-verification-queue",
+        payload: {
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-12345",
+          workspaceId: "workspace-1",
+          conversationId: "conv-1",
+          agentId: "agent-1",
+        },
+      });
+    });
+
+    it("should enqueue cost verification without conversation context (backward compatibility)", async () => {
+      const { enqueueCostVerification } = await import("../creditManagement");
+
+      await enqueueCostVerification("res-1", "gen-12345", "workspace-1");
+
+      expect(mockQueue.publish).toHaveBeenCalledWith({
+        name: "openrouter-cost-verification-queue",
+        payload: {
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-12345",
+          workspaceId: "workspace-1",
+          // conversationId and agentId should not be in payload
+        },
+      });
+
+      const payload = mockQueue.publish.mock.calls[0][0].payload;
+      expect(payload).not.toHaveProperty("conversationId");
+      expect(payload).not.toHaveProperty("agentId");
+    });
+
+    it("should handle queue publish errors gracefully", async () => {
+      const { enqueueCostVerification } = await import("../creditManagement");
+
+      // Mock queues to throw error
+      mockQueue.publish.mockRejectedValueOnce(new Error("Queue error"));
+
+      // Should not throw - errors are logged but not propagated
+      await expect(
+        enqueueCostVerification("res-1", "gen-12345", "workspace-1")
+      ).resolves.not.toThrow();
     });
   });
 });
