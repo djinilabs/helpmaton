@@ -620,7 +620,8 @@ async function adjustCreditsAfterStream(
   finalModelName: string,
   tokenUsage: ReturnType<typeof extractTokenUsage>,
   usesByok: boolean,
-  streamResult?: Awaited<ReturnType<typeof streamText>>
+  streamResult?: Awaited<ReturnType<typeof streamText>>,
+  conversationId?: string
 ): Promise<void> {
   // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
   if (
@@ -680,14 +681,27 @@ async function adjustCreditsAfterStream(
   console.log("[Stream Handler] Step 2: Credit reservation adjusted successfully");
 
   // Enqueue cost verification (Step 3) if we have a generation ID
-  if (openrouterGenerationId) {
-    await enqueueCostVerification(
-      reservationId,
-      openrouterGenerationId,
-      workspaceId
-    );
-    console.log("[Stream Handler] Step 3: Cost verification enqueued");
-  } else {
+  if (openrouterGenerationId && conversationId) {
+    try {
+      await enqueueCostVerification(
+        reservationId,
+        openrouterGenerationId,
+        workspaceId,
+        conversationId,
+        agentId
+      );
+      console.log("[Stream Handler] Step 3: Cost verification enqueued");
+    } catch (error) {
+      // Log error but don't fail the request
+      console.error(
+        "[Stream Handler] Error enqueueing cost verification:",
+        {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        }
+      );
+    }
+  } else if (!openrouterGenerationId) {
     console.warn(
       "[Stream Handler] No OpenRouter generation ID found, skipping cost verification"
     );
@@ -844,6 +858,11 @@ async function logConversation(
       assistantContent.push({ type: "text", text: finalResponseText });
     }
 
+    // Extract OpenRouter generation ID for cost verification
+    const openrouterGenerationId = streamResult
+      ? extractOpenRouterGenerationId(streamResult)
+      : undefined;
+
     // Create assistant message with token usage, modelName, and provider (same as test endpoint)
     const assistantMessage: UIMessage = {
       role: "assistant",
@@ -851,7 +870,8 @@ async function logConversation(
         assistantContent.length > 0 ? assistantContent : finalResponseText,
       ...(tokenUsage && { tokenUsage }),
       modelName: finalModelName,
-      provider: "google",
+      provider: "openrouter",
+      ...(openrouterGenerationId && { openrouterGenerationId }),
     };
 
     // DIAGNOSTIC: Log assistant message structure
@@ -932,6 +952,7 @@ async function logConversation(
         },
       });
     });
+
   } catch (error) {
     // Log error but don't fail the request
     console.error("[Stream Handler] Error preparing conversation log:", {
@@ -1466,7 +1487,8 @@ const internalHandler = async (
         context.finalModelName,
         tokenUsage,
         context.usesByok,
-        streamResult
+        streamResult,
+        context.conversationId
       );
     } catch (error) {
       // Log error but don't fail the request

@@ -37,6 +37,8 @@ export type UIMessage =
       };
       modelName?: string; // AI model name used for this message (e.g., "gemini-2.0-flash-exp")
       provider?: string; // AI provider name used for this message (e.g., "google")
+      openrouterGenerationId?: string; // OpenRouter generation ID for cost verification
+      finalCostUsd?: number; // Final cost from OpenRouter API (in millionths) after verification
     }
   | {
       role: "system";

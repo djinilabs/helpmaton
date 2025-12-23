@@ -14,7 +14,9 @@ import { calculateTokenCost } from "./pricing";
 export async function enqueueCostVerification(
   reservationId: string,
   openrouterGenerationId: string,
-  workspaceId: string
+  workspaceId: string,
+  conversationId?: string,
+  agentId?: string
 ): Promise<void> {
   try {
     const queue = queues;
@@ -24,6 +26,8 @@ export async function enqueueCostVerification(
       reservationId,
       openrouterGenerationId,
       workspaceId,
+      ...(conversationId && { conversationId }),
+      ...(agentId && { agentId }),
     };
 
     console.log("[enqueueCostVerification] Sending cost verification message:", {

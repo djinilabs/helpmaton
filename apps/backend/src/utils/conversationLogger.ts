@@ -606,18 +606,24 @@ export async function startConversation(
   const toolResults = extractToolResults(filteredMessages);
 
   // Calculate costs from per-message model/provider data
-  // Extract model/provider and tokenUsage from assistant messages
+  // Prefer finalCostUsd (from OpenRouter API verification) if available, otherwise calculate from tokenUsage
   let totalCostUsd = 0;
   for (const message of filteredMessages) {
-    if (message.role === "assistant" && "tokenUsage" in message && message.tokenUsage) {
-      const modelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
-      const provider = "provider" in message && typeof message.provider === "string" ? message.provider : "google";
-      const messageCosts = calculateConversationCosts(
-        provider,
-        modelName,
-        message.tokenUsage
-      );
-      totalCostUsd += messageCosts.usd;
+    if (message.role === "assistant") {
+      // Prefer finalCostUsd if available (from OpenRouter cost verification)
+      if ("finalCostUsd" in message && typeof message.finalCostUsd === "number") {
+        totalCostUsd += message.finalCostUsd;
+      } else if ("tokenUsage" in message && message.tokenUsage) {
+        // Fall back to calculating from tokenUsage
+        const modelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
+        const provider = "provider" in message && typeof message.provider === "string" ? message.provider : "google";
+        const messageCosts = calculateConversationCosts(
+          provider,
+          modelName,
+          message.tokenUsage
+        );
+        totalCostUsd += messageCosts.usd;
+      }
     }
   }
 
@@ -772,17 +778,24 @@ export async function updateConversation(
       );
 
       // Calculate costs from per-message model/provider data
+      // Prefer finalCostUsd (from OpenRouter API verification) if available, otherwise calculate from tokenUsage
       let totalCostUsd = 0;
       for (const message of filteredAllMessages) {
-        if (message.role === "assistant" && "tokenUsage" in message && message.tokenUsage) {
-          const msgModelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
-          const msgProvider = "provider" in message && typeof message.provider === "string" ? message.provider : "google";
-          const messageCosts = calculateConversationCosts(
-            msgProvider,
-            msgModelName,
-            message.tokenUsage
-          );
-          totalCostUsd += messageCosts.usd;
+        if (message.role === "assistant") {
+          // Prefer finalCostUsd if available (from OpenRouter cost verification)
+          if ("finalCostUsd" in message && typeof message.finalCostUsd === "number") {
+            totalCostUsd += message.finalCostUsd;
+          } else if ("tokenUsage" in message && message.tokenUsage) {
+            // Fall back to calculating from tokenUsage
+            const msgModelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
+            const msgProvider = "provider" in message && typeof message.provider === "string" ? message.provider : "google";
+            const messageCosts = calculateConversationCosts(
+              msgProvider,
+              msgModelName,
+              message.tokenUsage
+            );
+            totalCostUsd += messageCosts.usd;
+          }
         }
       }
 

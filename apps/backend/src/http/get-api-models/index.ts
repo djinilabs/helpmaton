@@ -34,7 +34,7 @@ export const handler = adaptHttpHandler(
     > = {};
 
     // Only include OpenRouter provider
-    const provider: "openrouter" = "openrouter";
+    const provider = "openrouter" as const;
     const providerPricing = pricingConfig.providers[provider];
     if (providerPricing) {
       // Get all models from pricing config - includes all models regardless of pricing values

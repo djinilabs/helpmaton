@@ -666,21 +666,8 @@ export const registerPostTestAgent = (app: express.Application) => {
             "[Agent Test Handler] Step 2: Credit reservation adjusted successfully"
           );
 
-          // Enqueue cost verification (Step 3) if we have a generation ID
-          if (openrouterGenerationId) {
-            await enqueueCostVerification(
-              reservationId,
-              openrouterGenerationId,
-              workspaceId
-            );
-            console.log(
-              "[Agent Test Handler] Step 3: Cost verification enqueued"
-            );
-          } else {
-            console.warn(
-              "[Agent Test Handler] No OpenRouter generation ID found, skipping cost verification"
-            );
-          }
+          // Enqueue cost verification (Step 3) will be done after conversation is updated
+          // to ensure we have the conversationId
         } catch (error) {
           // Log error but don't fail the request
           console.error(
@@ -804,7 +791,8 @@ export const registerPostTestAgent = (app: express.Application) => {
         content: assistantContent.length > 0 ? assistantContent : responseText,
         ...(tokenUsage && { tokenUsage }),
         modelName: finalModelName,
-        provider: "google",
+        provider: "openrouter",
+        ...(openrouterGenerationId && { openrouterGenerationId }),
       };
 
       // Combine user messages and assistant message for logging
@@ -839,6 +827,39 @@ export const registerPostTestAgent = (app: express.Application) => {
           validMessages,
           tokenUsage
         );
+
+        // Enqueue cost verification (Step 3) if we have a generation ID
+        if (
+          openrouterGenerationId &&
+          reservationId &&
+          reservationId !== "byok"
+        ) {
+          try {
+            await enqueueCostVerification(
+              reservationId,
+              openrouterGenerationId,
+              workspaceId,
+              conversationId,
+              agentId
+            );
+            console.log(
+              "[Agent Test Handler] Step 3: Cost verification enqueued"
+            );
+          } catch (error) {
+            // Log error but don't fail the request
+            console.error(
+              "[Agent Test Handler] Error enqueueing cost verification:",
+              {
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+              }
+            );
+          }
+        } else if (!openrouterGenerationId) {
+          console.warn(
+            "[Agent Test Handler] No OpenRouter generation ID found, skipping cost verification"
+          );
+        }
       } catch (error) {
         // Log error but don't fail the request
         console.error("[Agent Test Handler] Error logging conversation:", {

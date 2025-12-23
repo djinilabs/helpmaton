@@ -1,10 +1,12 @@
 import type { SQSEvent, SQSRecord } from "aws-lambda";
 import { z } from "zod";
 
+import type { UIMessage } from "../../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 import { database } from "../../tables";
 import { getDefined } from "../../utils";
 import { finalizeCreditReservation } from "../../utils/creditManagement";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
+import { calculateConversationCosts } from "../../utils/tokenAccounting";
 
 /**
  * Message schema for cost verification queue
@@ -13,6 +15,8 @@ const CostVerificationMessageSchema = z.object({
   reservationId: z.string(),
   openrouterGenerationId: z.string(),
   workspaceId: z.string(),
+  conversationId: z.string().optional(), // Conversation ID for updating message (optional for backward compatibility)
+  agentId: z.string().optional(), // Agent ID for updating message (optional for backward compatibility)
 });
 
 type CostVerificationMessage = z.infer<typeof CostVerificationMessageSchema>;
@@ -113,12 +117,20 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
   }
 
   const message: CostVerificationMessage = validationResult.data;
-  const { reservationId, openrouterGenerationId, workspaceId } = message;
+  const {
+    reservationId,
+    openrouterGenerationId,
+    workspaceId,
+    conversationId,
+    agentId,
+  } = message;
 
   console.log("[Cost Verification] Processing cost verification:", {
     reservationId,
     openrouterGenerationId,
     workspaceId,
+    conversationId,
+    agentId,
   });
 
   // Fetch cost from OpenRouter API
@@ -144,6 +156,143 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
     workspaceId,
     openrouterCost,
   });
+
+  // Update message with final cost if conversation context is available
+  if (conversationId && agentId) {
+    try {
+      const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
+
+      // Check if conversation exists before attempting update
+      const existing = await db["agent-conversations"].get(pk);
+      if (!existing) {
+        console.warn(
+          "[Cost Verification] Conversation not found, skipping message update:",
+          { conversationId, agentId, workspaceId }
+        );
+        return;
+      }
+
+      await db["agent-conversations"].atomicUpdate(
+        pk,
+        undefined,
+        async (current) => {
+          if (!current) {
+            // This shouldn't happen since we checked above, but handle it gracefully
+            console.warn(
+              "[Cost Verification] Conversation disappeared during update:",
+              { conversationId, agentId, workspaceId }
+            );
+            // Return a minimal valid object to satisfy type requirements
+            // This will cause the update to fail gracefully
+            return {
+              pk,
+              workspaceId,
+              agentId,
+              conversationId,
+              conversationType: "webhook" as const,
+              messages: [],
+              startedAt: new Date().toISOString(),
+              lastMessageAt: new Date().toISOString(),
+              expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+            };
+          }
+
+          const messages = (current.messages || []) as UIMessage[];
+          let messageUpdated = false;
+
+          // Find and update the message with matching generation ID
+          const updatedMessages = messages.map((msg) => {
+            if (
+              msg.role === "assistant" &&
+              "openrouterGenerationId" in msg &&
+              msg.openrouterGenerationId === openrouterGenerationId
+            ) {
+              messageUpdated = true;
+              return {
+                ...msg,
+                finalCostUsd: openrouterCost,
+              };
+            }
+            return msg;
+          });
+
+          if (!messageUpdated) {
+            console.warn(
+              "[Cost Verification] Message with generation ID not found in conversation:",
+              {
+                conversationId,
+                agentId,
+                workspaceId,
+                openrouterGenerationId,
+                messageCount: messages.length,
+              }
+            );
+            return current;
+          }
+
+          // Recalculate conversation cost using finalCostUsd from messages
+          let totalCostUsd = 0;
+          for (const msg of updatedMessages) {
+            if (msg.role === "assistant") {
+              // Prefer finalCostUsd if available, otherwise calculate from tokenUsage
+              if ("finalCostUsd" in msg && typeof msg.finalCostUsd === "number") {
+                totalCostUsd += msg.finalCostUsd;
+              } else if (
+                "tokenUsage" in msg &&
+                msg.tokenUsage &&
+                "modelName" in msg &&
+                typeof msg.modelName === "string" &&
+                "provider" in msg &&
+                typeof msg.provider === "string"
+              ) {
+                const messageCosts = calculateConversationCosts(
+                  msg.provider,
+                  msg.modelName,
+                  msg.tokenUsage
+                );
+                totalCostUsd += messageCosts.usd;
+              }
+            }
+          }
+
+          console.log("[Cost Verification] Updated message with final cost:", {
+            conversationId,
+            agentId,
+            workspaceId,
+            openrouterGenerationId,
+            finalCostUsd: openrouterCost,
+            totalCostUsd,
+          });
+
+          return {
+            ...current,
+            messages: updatedMessages as unknown[],
+            costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
+          };
+        }
+      );
+    } catch (error) {
+      // Log error but don't fail the cost verification
+      // The credit reservation has already been finalized
+      console.error(
+        "[Cost Verification] Error updating message with final cost:",
+        {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          conversationId,
+          agentId,
+          workspaceId,
+          openrouterGenerationId,
+          openrouterCost,
+        }
+      );
+    }
+  } else {
+    console.log(
+      "[Cost Verification] Conversation context not available, skipping message update:",
+      { conversationId, agentId }
+    );
+  }
 }
 
 /**

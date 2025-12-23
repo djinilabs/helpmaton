@@ -856,13 +856,11 @@ describe("creditManagement", () => {
 
     it("should handle version conflicts with retries", async () => {
       const openrouterCost = 47_000_000;
-      let callCount = 0;
 
       // Simulate atomicUpdate's retry behavior: it will retry internally up to maxRetries times
       // Since we're mocking atomicUpdate, we simulate it succeeding after retries
       // In reality, atomicUpdate handles retries internally, but for testing we mock it
-      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater, options) => {
-        callCount++;
+      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
         // Simulate that atomicUpdate retried internally and succeeded
         // The actual retry logic is tested in atomicUpdate's own tests
         const current = {

@@ -148,6 +148,7 @@ export const handler = adaptHttpHandler(
       let llmCallAttempted = false;
       let result: Awaited<ReturnType<typeof generateText>> | undefined;
       let tokenUsage: ReturnType<typeof extractTokenUsage> | undefined;
+      let openrouterGenerationId: string | undefined;
 
       try {
         // Convert tools object to array format for estimation
@@ -215,7 +216,7 @@ export const handler = adaptHttpHandler(
         tokenUsage = extractTokenUsage(result);
 
         // Extract OpenRouter generation ID for cost verification
-        const openrouterGenerationId = extractOpenRouterGenerationId(result);
+        openrouterGenerationId = extractOpenRouterGenerationId(result);
 
         console.log("[Webhook Handler] Token usage extracted:", {
           tokenUsage,
@@ -259,21 +260,8 @@ export const handler = adaptHttpHandler(
               "[Webhook Handler] Step 2: Credit reservation adjusted successfully"
             );
 
-            // Enqueue cost verification (Step 3) if we have a generation ID
-            if (openrouterGenerationId) {
-              await enqueueCostVerification(
-                reservationId,
-                openrouterGenerationId,
-                workspaceId
-              );
-              console.log(
-                "[Webhook Handler] Step 3: Cost verification enqueued"
-              );
-            } else {
-              console.warn(
-                "[Webhook Handler] No OpenRouter generation ID found, skipping cost verification"
-              );
-            }
+            // Enqueue cost verification (Step 3) will be done after conversation is created
+            // to get the conversationId
           } catch (error) {
             // Log error but don't fail the request
             console.error(
@@ -654,6 +642,7 @@ export const handler = adaptHttpHandler(
             : responseContent || "",
         modelName: finalModelName,
         provider: "openrouter",
+        ...(openrouterGenerationId && { openrouterGenerationId }),
       };
 
       // DIAGNOSTIC: Log final assistant message structure
@@ -708,7 +697,7 @@ export const handler = adaptHttpHandler(
             }
           );
 
-          await startConversation(db, {
+          const conversationId = await startConversation(db, {
             workspaceId,
             agentId,
             conversationType: "webhook",
@@ -716,6 +705,40 @@ export const handler = adaptHttpHandler(
             tokenUsage,
             usesByok,
           });
+
+          // Enqueue cost verification (Step 3) if we have a generation ID
+          // openrouterGenerationId was extracted earlier in the handler
+          if (
+            openrouterGenerationId &&
+            reservationId &&
+            reservationId !== "byok"
+          ) {
+            try {
+              await enqueueCostVerification(
+                reservationId,
+                openrouterGenerationId,
+                workspaceId,
+                conversationId,
+                agentId
+              );
+              console.log(
+                "[Webhook Handler] Step 3: Cost verification enqueued"
+              );
+            } catch (error) {
+              // Log error but don't fail the request
+              console.error(
+                "[Webhook Handler] Error enqueueing cost verification:",
+                {
+                  error: error instanceof Error ? error.message : String(error),
+                  stack: error instanceof Error ? error.stack : undefined,
+                }
+              );
+            }
+          } else if (!openrouterGenerationId) {
+            console.warn(
+              "[Webhook Handler] No OpenRouter generation ID found, skipping cost verification"
+            );
+          }
         } else {
           console.log(
             "[Webhook Handler] Skipping conversation logging - all messages are empty"
