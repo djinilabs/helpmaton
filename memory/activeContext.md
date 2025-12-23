@@ -2,7 +2,125 @@
 
 ## Current Status
 
-**Status**: Tailwind CSS Linting Rules Implementation - Completed ✅
+**Status**: Cost Display Rounding Fix - Completed ✅
+
+Fixed cost display in the UI to always round up (never down) to ensure costs are never understated. Updated `formatCurrency()` function to use `Math.ceil()` instead of `toFixed()` which could round down.
+
+**Changes Made**:
+- Modified `formatCurrency()` in `apps/frontend/src/utils/currency.ts` to always round up using `Math.ceil()`
+- Applied to all cost displays across the UI (conversation costs, usage stats, credit balance, etc.)
+- Ensures users always see accurate costs that are never rounded down
+
+**Files Modified**:
+- `apps/frontend/src/utils/currency.ts` - Updated `formatCurrency()` to use `Math.ceil()` for rounding up
+
+**Verification**: Type checking and linting passed successfully
+
+**Previous Status**: Message Final Cost Tracking with OpenRouter Generation IDs - Completed ✅
+
+Implemented tracking of OpenRouter generation IDs on assistant messages and automatic updates with final verified costs (including 5.5% markup) when the cost verification queue processes the OpenRouter API response. This ensures conversation records reflect the actual final cost from OpenRouter rather than just estimated costs.
+
+**Key Features Implemented**:
+
+1. **Generation ID Tracking**:
+   - Extended `UIMessage` type to include `openrouterGenerationId` and `finalCostUsd` fields
+   - Store generation ID on assistant messages when creating/updating conversations
+   - Generation IDs are extracted from OpenRouter API responses and stored on messages
+
+2. **Cost Verification Queue Enhancement**:
+   - Extended queue message schema to include optional `conversationId` and `agentId` for message updates
+   - Queue processor finds messages by generation ID and updates them with `finalCostUsd`
+   - Updates conversation-level `costUsd` to reflect final verified costs
+   - Backward compatible (optional fields, graceful handling of missing data)
+
+3. **Cost Calculation Preference**:
+   - `conversationLogger` now prefers `finalCostUsd` from messages when calculating total conversation cost
+   - Falls back to calculated cost from `tokenUsage` when `finalCostUsd` not available
+   - Supports mixing messages with and without final costs
+
+4. **Comprehensive Test Coverage**:
+   - 9 tests for queue processor (message updates, error handling, backward compatibility)
+   - 4 tests for conversationLogger cost calculation with finalCostUsd
+   - 3 tests for enqueueCostVerification with conversation context
+
+**Files Modified**:
+
+- `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types.ts` - Extended UIMessage type with openrouterGenerationId and finalCostUsd
+- `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Store generationId on messages, pass conversation context
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-test-agent.ts` - Store generationId on messages, pass conversation context
+- `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Store generationId on messages, pass conversation context
+- `apps/backend/src/utils/creditManagement.ts` - Extended enqueueCostVerification to accept conversationId and agentId
+- `apps/backend/src/queues/openrouter-cost-verification-queue/index.ts` - Updated schema, find and update messages with finalCostUsd
+- `apps/backend/src/utils/conversationLogger.ts` - Prefer finalCostUsd when calculating total cost
+- `apps/backend/src/queues/openrouter-cost-verification-queue/__tests__/index.test.ts` - New comprehensive test suite (9 tests)
+- `apps/backend/src/utils/__tests__/conversationLogger.test.ts` - Added 4 tests for finalCostUsd preference
+- `apps/backend/src/utils/__tests__/creditManagement.test.ts` - Added 3 tests for enqueueCostVerification
+
+**Verification**: All tests passing, type checking and linting passed successfully
+
+**Previous Status**: OpenRouter Integration with 3-Step Pricing and BYOK Support - Completed ✅
+
+Successfully integrated OpenRouter as the primary LLM provider while maintaining support for Google and other providers. Implemented a 3-step pricing verification process and full BYOK (Bring Your Own Key) support for OpenRouter.
+
+**Key Features Implemented**:
+
+1. **OpenRouter Integration**:
+   - Added `@openrouter/ai-sdk-provider` package
+   - Extended Provider type to include `"openrouter"` in both backend and frontend
+   - Implemented OpenRouter model factory with auto-selection support (using `"auto"` model name)
+   - Updated all LLM call sites (test, stream, webhook, agent delegation) to use OpenRouter by default
+   - Added OpenRouter models to pricing configuration including "auto" selection
+   - Updated `/api/models` endpoint to include OpenRouter provider and models
+
+2. **3-Step Pricing Process**:
+   - **Step 1**: Estimate cost and reserve credits from workspace balance
+   - **Step 2**: Calculate actual cost based on token usage and adjust balance
+   - **Step 3**: Background job queries OpenRouter API for actual cost and makes final adjustment
+   - Created SQS FIFO queue (`openrouter-cost-verification-queue`) for background cost verification
+   - Extended credit-reservations schema with OpenRouter-specific fields (generationId, provider, modelName, tokenUsageBasedCost, openrouterCost)
+   - All costs use `Math.ceil()` for rounding to ensure we never undercharge
+
+3. **5.5% OpenRouter Markup**:
+   - Applied 5.5% markup to all OpenRouter costs to account for credit purchase fee
+   - Markup applied in `calculateTokenCost()` for steps 1 and 2
+   - Markup applied in cost verification queue for step 3
+   - Ensures accurate billing that covers OpenRouter's fees
+
+4. **BYOK (Bring Your Own Key) Support**:
+   - OpenRouter BYOK keys can be stored and retrieved (code supports it)
+   - When workspace has OpenRouter API key, it's used automatically and credit deduction is skipped
+   - Provider-specific keys (Google, OpenAI, Anthropic) can be stored for direct provider access
+   - Note: API endpoints currently only accept `google`, `openai`, `anthropic` - OpenRouter BYOK key storage would require adding `"openrouter"` to `VALID_PROVIDERS`
+
+5. **Cost Rounding**:
+   - All cost calculations use `Math.ceil()` instead of `Math.round()` to ensure we never undercharge
+   - Applied consistently across all pricing calculations (token costs, OpenRouter API costs)
+
+**Files Modified**:
+
+- `apps/backend/package.json` - Added `@openrouter/ai-sdk-provider` dependency
+- `apps/backend/src/http/utils/modelFactory.ts` - Added OpenRouter support with auto-selection
+- `apps/backend/src/http/utils/agentUtils.ts` - Updated to support OpenRouter provider
+- `apps/backend/src/tables/schema.ts` - Extended credit-reservations schema with OpenRouter fields
+- `apps/backend/src/utils/creditManagement.ts` - Added `finalizeCreditReservation()` and updated `adjustCreditReservation()` for 3-step pricing
+- `apps/backend/src/utils/pricing.ts` - Added 5.5% markup for OpenRouter, all rounding uses `Math.ceil()`
+- `apps/backend/src/utils/openrouterUtils.ts` - New utility for extracting generation IDs and sending cost verification messages
+- `apps/backend/src/queues/openrouter-cost-verification-queue/index.ts` - New queue processor for step 3 cost verification
+- `apps/backend/app.arc` - Added `openrouter-cost-verification-queue` SQS FIFO queue
+- `apps/backend/src/config/pricing.json` - Added OpenRouter provider and models including "auto"
+- `apps/backend/src/http/get-api-models/index.ts` - Updated to include OpenRouter provider
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-test-agent.ts` - Updated to extract OpenRouter generation IDs
+- `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Updated to extract OpenRouter generation IDs
+- `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Updated to extract OpenRouter generation IDs
+- `apps/frontend/src/utils/modelConfig.ts` - Added OpenRouter provider support
+- `apps/frontend/src/utils/api.ts` - Extended `AvailableModels` interface to include OpenRouter
+- `apps/backend/src/utils/__tests__/openrouterUtils.test.ts` - New tests for generation ID extraction
+- `apps/backend/src/utils/__tests__/creditManagement.test.ts` - Added tests for `finalizeCreditReservation()`
+- `apps/backend/ENV.md` - Added `OPENROUTER_API_KEY` documentation
+
+**Verification**: All tests passing (1735 tests), type checking and linting passed successfully
+
+**Previous Status**: Tailwind CSS Linting Rules Implementation - Completed ✅
 
 Added comprehensive Tailwind CSS linting rules to enforce code quality and consistency across the frontend codebase.
 

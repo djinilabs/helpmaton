@@ -39,7 +39,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
         </div>
         <div className="bg-gradient-primary/10 rounded-xl border border-primary-300 p-5 dark:border-primary-700 dark:bg-primary-950/50">
           <div className="mb-2 text-sm font-semibold text-primary-700 dark:text-primary-300">Total Cost</div>
-          <div className="text-3xl font-bold text-primary-900 dark:text-primary-100">{formatCurrency(stats.cost, currency, 4)}</div>
+          <div className="text-3xl font-bold text-primary-900 dark:text-primary-100">{formatCurrency(stats.cost, currency, 10)}</div>
         </div>
       </div>
 
@@ -59,7 +59,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
                       {formatNumber(model.totalTokens)} tokens
                     </div>
                     <div className="font-bold text-neutral-900 dark:text-neutral-50">
-                      {formatCurrency(model.cost, currency, 4)}
+                      {formatCurrency(model.cost, currency, 10)}
                     </div>
                   </div>
                 </div>
@@ -85,7 +85,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
                       {formatNumber(provider.totalTokens)} tokens
                     </div>
                     <div className="font-bold text-neutral-900 dark:text-neutral-50">
-                      {formatCurrency(provider.cost, currency, 4)}
+                      {formatCurrency(provider.cost, currency, 10)}
                     </div>
                   </div>
                 </div>
@@ -101,7 +101,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
           <div className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900">
             <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">BYOK</div>
             <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
-              {formatCurrency(stats.byByok.byok.cost, currency, 4)}
+              {formatCurrency(stats.byByok.byok.cost, currency, 10)}
             </div>
             <div className="mt-1 text-xs text-neutral-600 dark:text-neutral-300">
               {formatNumber(stats.byByok.byok.totalTokens)} tokens
@@ -110,7 +110,7 @@ export const UsageStats: FC<UsageStatsProps> = ({
           <div className="bg-gradient-primary/10 rounded-xl border border-primary-300 p-5 dark:border-primary-700 dark:bg-primary-950/50">
             <div className="mb-2 text-sm font-semibold text-primary-700 dark:text-primary-300">Platform</div>
             <div className="text-2xl font-bold text-primary-900 dark:text-primary-100">
-              {formatCurrency(stats.byByok.platform.cost, currency, 4)}
+              {formatCurrency(stats.byByok.platform.cost, currency, 10)}
             </div>
             <div className="mt-1 text-xs text-primary-700 dark:text-primary-300">
               {formatNumber(stats.byByok.platform.totalTokens)} tokens

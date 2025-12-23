@@ -7,6 +7,7 @@ import {
   getMessageKey,
   findNewMessages,
   updateConversation,
+  startConversation,
   type TokenUsage,
 } from "../conversationLogger";
 
@@ -947,6 +948,268 @@ describe("conversationLogger", () => {
           { role: "assistant", content: "Hi there" },
         ]
       );
+    });
+  });
+
+  describe("cost calculation with finalCostUsd", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let mockDb: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let mockWriteToWorkingMemory: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let mockCalculateConversationCosts: any;
+
+    beforeEach(async () => {
+      // Mock calculateConversationCosts
+      const tokenAccountingModule = await import("../tokenAccounting");
+      mockCalculateConversationCosts = vi.fn().mockReturnValue({ usd: 1000 });
+      vi.spyOn(tokenAccountingModule, "calculateConversationCosts").mockImplementation(
+        mockCalculateConversationCosts
+      );
+
+      // Mock the database
+      mockDb = {
+        "agent-conversations": {
+          create: vi.fn().mockResolvedValue(undefined),
+          atomicUpdate: vi.fn(async (pk, sk, callback) => {
+            const result = await callback(null);
+            return result;
+          }),
+        },
+      };
+
+      // Mock writeToWorkingMemory
+      const memoryWriteModule = await import("../memory/writeMemory");
+      mockWriteToWorkingMemory = vi.fn().mockResolvedValue(undefined);
+      vi.spyOn(memoryWriteModule, "writeToWorkingMemory").mockImplementation(
+        mockWriteToWorkingMemory
+      );
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("should prefer finalCostUsd over calculated cost when creating conversation", async () => {
+      const messages: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        {
+          role: "assistant",
+          content: "Hi there",
+          modelName: "openrouter/auto",
+          provider: "openrouter",
+          openrouterGenerationId: "gen-12345",
+          finalCostUsd: 2000, // Final cost from OpenRouter API (in millionths)
+          tokenUsage: {
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+          },
+        },
+      ];
+
+      await startConversation(mockDb, {
+        workspaceId: "workspace1",
+        agentId: "agent1",
+        conversationType: "test",
+        messages,
+      });
+
+      // Should use finalCostUsd (2000) instead of calculating from tokenUsage
+      expect(mockCalculateConversationCosts).not.toHaveBeenCalled();
+      expect(mockDb["agent-conversations"].create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          costUsd: 2000,
+        })
+      );
+    });
+
+    it("should calculate cost from tokenUsage when finalCostUsd not available", async () => {
+      const messages: UIMessage[] = [
+        { role: "user", content: "Hello" },
+        {
+          role: "assistant",
+          content: "Hi there",
+          modelName: "openrouter/auto",
+          provider: "openrouter",
+          tokenUsage: {
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+          },
+          // No finalCostUsd
+        },
+      ];
+
+      await startConversation(mockDb, {
+        workspaceId: "workspace1",
+        agentId: "agent1",
+        conversationType: "test",
+        messages,
+      });
+
+      // Should calculate from tokenUsage
+      expect(mockCalculateConversationCosts).toHaveBeenCalledWith(
+        "openrouter",
+        "openrouter/auto",
+        expect.objectContaining({
+          promptTokens: 100,
+          completionTokens: 50,
+        })
+      );
+      expect(mockDb["agent-conversations"].create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          costUsd: 1000, // From mockCalculateConversationCosts
+        })
+      );
+    });
+
+    it("should sum finalCostUsd from multiple messages when updating conversation", async () => {
+      // Existing conversation with one message that has finalCostUsd
+      mockDb["agent-conversations"].atomicUpdate = vi.fn(
+        async (pk, sk, callback) => {
+          const existingConversation = {
+            pk,
+            workspaceId: "workspace1",
+            agentId: "agent1",
+            conversationId: "conv1",
+            conversationType: "test" as const,
+            messages: [
+              {
+                role: "assistant",
+                content: "First response",
+                finalCostUsd: 1500,
+              },
+            ] as UIMessage[],
+            startedAt: new Date().toISOString(),
+            expires: Date.now() + 1000000,
+          };
+          const result = await callback(existingConversation);
+          return result;
+        }
+      );
+
+      const messages: UIMessage[] = [
+        {
+          role: "assistant",
+          content: "First response",
+          finalCostUsd: 1500,
+        },
+        {
+          role: "assistant",
+          content: "Second response",
+          finalCostUsd: 2000,
+        },
+      ];
+
+      await updateConversation(
+        mockDb,
+        "workspace1",
+        "agent1",
+        "conv1",
+        messages
+      );
+
+      // Verify atomicUpdate was called and cost is sum of both finalCostUsd
+      expect(mockDb["agent-conversations"].atomicUpdate).toHaveBeenCalled();
+      const updateCall = mockDb["agent-conversations"].atomicUpdate.mock
+        .calls[0][2];
+      const updated = await updateCall({
+        pk: "conversations/workspace1/agent1/conv1",
+        workspaceId: "workspace1",
+        agentId: "agent1",
+        conversationId: "conv1",
+        conversationType: "test" as const,
+        messages: [
+          {
+            role: "assistant",
+            content: "First response",
+            finalCostUsd: 1500,
+          },
+        ] as UIMessage[],
+        startedAt: new Date().toISOString(),
+        expires: Date.now() + 1000000,
+      });
+
+      expect(updated.costUsd).toBe(3500); // 1500 + 2000
+      // Should not call calculateConversationCosts since both messages have finalCostUsd
+      expect(mockCalculateConversationCosts).not.toHaveBeenCalled();
+    });
+
+    it("should mix finalCostUsd and calculated costs when updating conversation", async () => {
+      mockDb["agent-conversations"].atomicUpdate = vi.fn(
+        async (pk, sk, callback) => {
+          const existingConversation = {
+            pk,
+            workspaceId: "workspace1",
+            agentId: "agent1",
+            conversationId: "conv1",
+            conversationType: "test" as const,
+            messages: [] as UIMessage[],
+            startedAt: new Date().toISOString(),
+            expires: Date.now() + 1000000,
+          };
+          const result = await callback(existingConversation);
+          return result;
+        }
+      );
+
+      const messages: UIMessage[] = [
+        {
+          role: "assistant",
+          content: "First response",
+          modelName: "openrouter/auto",
+          provider: "openrouter",
+          finalCostUsd: 2000, // Has finalCostUsd
+        },
+        {
+          role: "assistant",
+          content: "Second response",
+          modelName: "openrouter/auto",
+          provider: "openrouter",
+          tokenUsage: {
+            promptTokens: 100,
+            completionTokens: 50,
+            totalTokens: 150,
+          },
+          // No finalCostUsd - should calculate
+        },
+      ];
+
+      await updateConversation(
+        mockDb,
+        "workspace1",
+        "agent1",
+        "conv1",
+        messages
+      );
+
+      // Should calculate cost for second message only
+      expect(mockCalculateConversationCosts).toHaveBeenCalledTimes(1);
+      expect(mockCalculateConversationCosts).toHaveBeenCalledWith(
+        "openrouter",
+        "openrouter/auto",
+        expect.objectContaining({
+          promptTokens: 100,
+          completionTokens: 50,
+        })
+      );
+
+      const updateCall = mockDb["agent-conversations"].atomicUpdate.mock
+        .calls[0][2];
+      const updated = await updateCall({
+        pk: "conversations/workspace1/agent1/conv1",
+        workspaceId: "workspace1",
+        agentId: "agent1",
+        conversationId: "conv1",
+        conversationType: "test" as const,
+        messages: [] as UIMessage[],
+        startedAt: new Date().toISOString(),
+        expires: Date.now() + 1000000,
+      });
+
+      // Total should be 2000 (finalCostUsd) + 1000 (calculated) = 3000
+      expect(updated.costUsd).toBe(3000);
     });
   });
 });

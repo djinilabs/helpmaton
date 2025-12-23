@@ -11,6 +11,8 @@ import {
   type Provider,
 } from "../utils/modelConfig";
 
+import { AvatarSelector } from "./AvatarSelector";
+import { ModelPricesDialog } from "./ModelPricesDialog";
 import { PromptGeneratorDialog } from "./PromptGeneratorDialog";
 import { QueryPanel } from "./QueryPanel";
 import { ToolsHelpDialog } from "./ToolsHelpDialog";
@@ -29,6 +31,7 @@ const AgentModalContent: FC<{
   systemPrompt: string;
   notificationChannelId: string | null;
   modelName: string | null;
+  avatar: string | null;
   availableModels: string[];
   defaultModel: string;
   isLoadingModels: boolean;
@@ -37,11 +40,13 @@ const AgentModalContent: FC<{
   onSystemPromptChange: (prompt: string) => void;
   onNotificationChannelChange: (id: string | null) => void;
   onModelNameChange: (modelName: string | null) => void;
+  onAvatarSelectorOpen: () => void;
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
   isPending: boolean;
   onHelpOpen: () => void;
   onPromptGeneratorOpen: () => void;
+  onModelPricesOpen: () => void;
 }> = ({
   workspaceId,
   isEditing,
@@ -49,6 +54,7 @@ const AgentModalContent: FC<{
   systemPrompt,
   notificationChannelId,
   modelName,
+  avatar,
   availableModels,
   defaultModel,
   isLoadingModels,
@@ -57,11 +63,13 @@ const AgentModalContent: FC<{
   onSystemPromptChange,
   onNotificationChannelChange,
   onModelNameChange,
+  onAvatarSelectorOpen,
   onSubmit,
   onClose,
   isPending,
   onHelpOpen,
   onPromptGeneratorOpen,
+  onModelPricesOpen,
 }) => {
   const { data: channels } = useChannels(workspaceId);
 
@@ -122,12 +130,21 @@ const AgentModalContent: FC<{
         </p>
       </div>
       <div>
-        <label
-          htmlFor="model"
-          className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-        >
-          Model
-        </label>
+        <div className="mb-2 flex items-center justify-between">
+          <label
+            htmlFor="model"
+            className="block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+          >
+            Model
+          </label>
+          <button
+            type="button"
+            onClick={onModelPricesOpen}
+            className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+          >
+            💰 Model prices
+          </button>
+        </div>
         <select
           id="model"
           disabled={isLoadingModels}
@@ -158,6 +175,33 @@ const AgentModalContent: FC<{
         {modelLoadError && (
           <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">{modelLoadError}</p>
         )}
+      </div>
+      <div>
+        <label
+          htmlFor="avatar"
+          className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+        >
+          Avatar
+        </label>
+        <div className="flex items-center gap-4">
+          {avatar && (
+            <img
+              src={avatar}
+              alt="Agent avatar"
+              className="size-16 rounded-lg border-2 border-neutral-300 object-contain dark:border-neutral-700"
+            />
+          )}
+          <button
+            type="button"
+            onClick={onAvatarSelectorOpen}
+            className="rounded-lg border-2 border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+          >
+            {avatar ? "Change Avatar" : "Select Avatar"}
+          </button>
+        </div>
+        <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+          Choose an avatar image for this agent. If not selected, a random avatar will be assigned.
+        </p>
       </div>
       <div>
         <label
@@ -229,11 +273,16 @@ export const AgentModal: FC<AgentModalProps> = ({
   const [modelName, setModelName] = useState<string | null>(
     agent?.modelName || null
   );
+  const [avatar, setAvatar] = useState<string | null>(
+    agent?.avatar || null
+  );
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isPromptGeneratorOpen, setIsPromptGeneratorOpen] = useState(false);
+  const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = useState(false);
+  const [isModelPricesOpen, setIsModelPricesOpen] = useState(false);
 
   // Model fetching state
-  const provider: Provider = "google";
+  const provider: Provider = "openrouter";
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [defaultModel, setDefaultModel] = useState<string>("");
   const [isLoadingModels, setIsLoadingModels] = useState(true);
@@ -285,11 +334,13 @@ export const AgentModal: FC<AgentModalProps> = ({
         setSystemPrompt(agent.systemPrompt);
         setNotificationChannelId(agent.notificationChannelId || null);
         setModelName(agent.modelName || null);
+        setAvatar(agent.avatar || null);
       } else {
         setName("");
         setSystemPrompt("");
         setNotificationChannelId(null);
         setModelName(null);
+        setAvatar(null);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -300,6 +351,7 @@ export const AgentModal: FC<AgentModalProps> = ({
     setSystemPrompt("");
     setNotificationChannelId(null);
     setModelName(null);
+    setAvatar(null);
     onClose();
   };
 
@@ -316,6 +368,7 @@ export const AgentModal: FC<AgentModalProps> = ({
           systemPrompt: systemPrompt.trim(),
           notificationChannelId: notificationChannelId || null,
           modelName: modelName || null,
+          avatar: avatar || null,
         });
       } else {
         await createAgent.mutateAsync({
@@ -323,6 +376,7 @@ export const AgentModal: FC<AgentModalProps> = ({
           systemPrompt: systemPrompt.trim(),
           notificationChannelId: notificationChannelId || null,
           modelName: modelName || null,
+          avatar: avatar || null,
         });
       }
       handleClose();
@@ -357,6 +411,7 @@ export const AgentModal: FC<AgentModalProps> = ({
             systemPrompt={systemPrompt}
             notificationChannelId={notificationChannelId}
             modelName={modelName}
+            avatar={avatar}
             availableModels={availableModels}
             defaultModel={defaultModel}
             isLoadingModels={isLoadingModels}
@@ -365,11 +420,13 @@ export const AgentModal: FC<AgentModalProps> = ({
             onSystemPromptChange={setSystemPrompt}
             onNotificationChannelChange={setNotificationChannelId}
             onModelNameChange={setModelName}
+            onAvatarSelectorOpen={() => setIsAvatarSelectorOpen(true)}
             onSubmit={handleSubmit}
             onClose={handleClose}
             isPending={isPending}
             onHelpOpen={() => setIsHelpOpen(true)}
             onPromptGeneratorOpen={() => setIsPromptGeneratorOpen(true)}
+            onModelPricesOpen={() => setIsModelPricesOpen(true)}
           />
         </QueryPanel>
         <ToolsHelpDialog
@@ -387,6 +444,16 @@ export const AgentModal: FC<AgentModalProps> = ({
             setSystemPrompt(prompt);
             setIsPromptGeneratorOpen(false);
           }}
+        />
+        <AvatarSelector
+          isOpen={isAvatarSelectorOpen}
+          onClose={() => setIsAvatarSelectorOpen(false)}
+          onSelect={setAvatar}
+          currentAvatar={avatar}
+        />
+        <ModelPricesDialog
+          isOpen={isModelPricesOpen}
+          onClose={() => setIsModelPricesOpen(false)}
         />
       </div>
     </div>

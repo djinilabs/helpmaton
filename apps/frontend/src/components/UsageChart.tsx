@@ -106,7 +106,7 @@ export const UsageChart: FC<UsageChartProps> = ({
                     className="text-xs font-medium"
                     fill={valueTextColor}
                   >
-                    {formatCurrency(day.cost, currency, 2)}
+                    {formatCurrency(day.cost, currency, 10)}
                   </text>
                 )}
               </g>
@@ -122,7 +122,7 @@ export const UsageChart: FC<UsageChartProps> = ({
               className="text-xs font-bold"
               fill={axisLabelColor}
             >
-              {formatCurrency(maxCost * ratio, currency, 2)}
+              {formatCurrency(maxCost * ratio, currency, 10)}
             </text>
           ))}
         </svg>

@@ -91,6 +91,7 @@ export interface Agent {
   maxToolRoundtrips?: number;
   provider?: string;
   modelName?: string;
+  avatar?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -101,6 +102,7 @@ export interface CreateAgentInput {
   notificationChannelId?: string | null;
   modelName?: string | null;
   clientTools?: ClientTool[];
+  avatar?: string | null;
 }
 
 export interface UpdateAgentInput {
@@ -122,6 +124,7 @@ export interface UpdateAgentInput {
   maxToolRoundtrips?: number | null;
   provider?: string;
   modelName?: string | null;
+  avatar?: string | null;
 }
 
 export interface AgentKey {
@@ -754,6 +757,7 @@ export interface Conversation {
     completionTokens: number;
     totalTokens: number;
   } | null;
+  costUsd?: number;
 }
 
 export interface ConversationDetail extends Conversation {
@@ -1420,7 +1424,11 @@ export async function getAgentMemory(
 }
 
 export interface AvailableModels {
-  google: {
+  google?: {
+    models: string[];
+    defaultModel: string;
+  };
+  openrouter: {
     models: string[];
     defaultModel: string;
   };
@@ -1428,6 +1436,33 @@ export interface AvailableModels {
 
 export async function getAvailableModels(): Promise<AvailableModels> {
   const response = await apiFetch("/api/models");
+  return response.json();
+}
+
+export interface PricingTier {
+  threshold?: number;
+  input: number;
+  output: number;
+  reasoning?: number;
+  cachedInput?: number;
+  request?: number;
+}
+
+export interface ModelPricing {
+  input?: number;
+  output?: number;
+  reasoning?: number;
+  cachedInput?: number;
+  request?: number;
+  tiers?: PricingTier[];
+}
+
+export interface ModelPricingResponse {
+  openrouter: Record<string, ModelPricing>;
+}
+
+export async function getModelPricing(): Promise<ModelPricingResponse> {
+  const response = await apiFetch("/api/pricing");
   return response.json();
 }
 

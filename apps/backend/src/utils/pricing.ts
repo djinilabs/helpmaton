@@ -12,6 +12,7 @@ export interface PricingTier {
   output: number; // Price per 1M output tokens
   reasoning?: number; // Price per 1M reasoning tokens (optional)
   cachedInput?: number; // Price per 1M cached input tokens (optional, typically ~10% of input)
+  request?: number; // Price per request (optional, fixed cost per API call)
 }
 
 /**
@@ -24,6 +25,7 @@ export interface CurrencyPricing {
   output?: number;
   reasoning?: number;
   cachedInput?: number; // Price per 1M cached input tokens (optional, typically ~10% of input)
+  request?: number; // Price per request (optional, fixed cost per API call)
   // Tiered pricing (new)
   tiers?: PricingTier[];
 }
@@ -406,8 +408,34 @@ export function calculateTokenCost(
     currencyPricing
   );
 
+  // Calculate request cost (fixed cost per request, if applicable)
+  // Request pricing is in USD, convert to millionths
+  let requestCost = 0;
+  if (currencyPricing.request !== undefined && currencyPricing.request > 0) {
+    // Request pricing is per request, not per token
+    // Convert from USD to millionths and round up to ensure we never undercharge
+    requestCost = Math.ceil(currencyPricing.request * 1_000_000);
+    console.log("[calculateTokenCost] Request cost:", {
+      requestPrice: currencyPricing.request,
+      requestCostInMillionths: requestCost,
+    });
+  }
+
   // Sum all costs (all already in millionths, so simple addition)
-  const totalCost = inputCost + cachedInputCost + outputCost + reasoningCost;
+  const baseCost =
+    inputCost + cachedInputCost + outputCost + reasoningCost + requestCost;
+  let totalCost = baseCost;
+
+  // Apply 5.5% markup for OpenRouter to account for credit purchase fee
+  // OpenRouter charges 5.5% fee when adding credits to account
+  if (provider === "openrouter") {
+    // Multiply by 1.055 and round up (ceiling) to ensure we cover the fee
+    totalCost = Math.ceil(baseCost * 1.055);
+    console.log("[calculateTokenCost] Applied 5.5% OpenRouter markup:", {
+      baseCost,
+      totalCostWithMarkup: totalCost,
+    });
+  }
 
   console.log("[calculateTokenCost] Calculated:", {
     provider,
@@ -420,12 +448,14 @@ export function calculateTokenCost(
     cachedInputCost,
     outputCost,
     reasoningCost,
+    requestCost,
     totalCost,
     breakdown: {
       inputCost,
       cachedInputCost,
       outputCost,
       reasoningCost,
+      requestCost,
       totalCost,
     },
   });

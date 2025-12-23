@@ -103,7 +103,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
             className="absolute inset-0 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
             style={{ animationDuration: "1s" }}
           ></div>
-          <div className="absolute inset-2 flex items-center justify-center">
+          <div className="absolute inset-2 flex items-center justify-center bg-transparent">
             <img
               src="/images/helpmaton_logo.svg"
               alt="Helpmaton Logo"
@@ -131,16 +131,13 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
             style={{ animationDuration: "2s" }}
           ></div>
 
-          {/* Subtle glow effect */}
-          <div className="bg-gradient-primary/10 absolute inset-0 rounded-full blur-xl"></div>
-
           {/* Logo */}
           <div className="absolute inset-4 flex items-center justify-center">
             <div className="relative">
               <img
                 src="/images/helpmaton_logo.svg"
                 alt="Helpmaton Logo"
-                className="size-full opacity-90 drop-shadow-sm"
+                className="size-full opacity-90"
               />
             </div>
           </div>

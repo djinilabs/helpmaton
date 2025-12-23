@@ -14,22 +14,12 @@ export const Header: FC = () => {
             to="/"
             className="group flex items-center gap-3 transition-all duration-200 hover:opacity-80"
           >
-            <div className="relative overflow-hidden">
+            <div className="relative">
               <img
                 src="/images/helpmaton_logo.svg"
                 alt="Helmaton Logo"
                 className="relative z-10 size-11 transition-transform duration-200 group-hover:scale-105"
               />
-              <div
-                className="manga-shine-overlay pointer-events-none absolute inset-0 z-20"
-                style={{
-                  background:
-                    "radial-gradient(circle at center, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 15%, transparent 30%), linear-gradient(45deg, transparent 25%, rgba(255, 255, 255, 0.3) 45%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0.3) 55%, transparent 75%)",
-                  width: "200%",
-                  height: "200%",
-                }}
-              ></div>
-              <div className="absolute inset-0 rounded-full bg-gradient-primary opacity-0 blur-xl transition-opacity duration-200 group-hover:opacity-10"></div>
             </div>
             <span className="text-2xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
               Helpmaton

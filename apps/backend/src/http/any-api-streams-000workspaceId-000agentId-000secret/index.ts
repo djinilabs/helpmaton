@@ -45,6 +45,7 @@ import {
 } from "../../utils/creditErrors";
 import {
   adjustCreditReservation,
+  enqueueCostVerification,
   refundReservation,
 } from "../../utils/creditManagement";
 import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation";
@@ -53,6 +54,10 @@ import {
   transformLambdaUrlToHttpV2Event,
   type LambdaUrlEvent,
 } from "../../utils/httpEventAdapter";
+import {
+  extractOpenRouterCost,
+  extractOpenRouterGenerationId,
+} from "../../utils/openrouterUtils";
 import { flushPostHog } from "../../utils/posthog";
 import {
   checkDailyRequestLimit,
@@ -72,6 +77,7 @@ import {
   checkFreePlanExpiration,
   getWorkspaceSubscription,
 } from "../../utils/subscriptionUtils";
+import { calculateConversationCosts } from "../../utils/tokenAccounting";
 import {
   logToolDefinitions,
   setupAgentAndTools,
@@ -457,7 +463,7 @@ async function validateCreditsAndReserveBeforeLLM(
     db,
     workspaceId,
     agentId,
-    "google", // provider
+    "openrouter", // provider
     finalModelName,
     modelMessages,
     agent.systemPrompt,
@@ -473,6 +479,17 @@ async function validateCreditsAndReserveBeforeLLM(
     });
     return reservation.reservationId;
   }
+
+  // Log that no reservation was created (reason should be in validateCreditsAndLimitsAndReserve logs above)
+  console.log(
+    "[Stream Handler] No credit reservation created (see validateCreditsAndLimitsAndReserve logs above for reason):",
+    {
+      workspaceId,
+      agentId,
+      usesByok,
+      note: "This is expected if BYOK is used or credit validation is disabled. Cost verification will still run but won't finalize a reservation.",
+    }
+  );
 
   return undefined;
 }
@@ -617,7 +634,9 @@ async function adjustCreditsAfterStream(
   reservationId: string | undefined,
   finalModelName: string,
   tokenUsage: ReturnType<typeof extractTokenUsage>,
-  usesByok: boolean
+  usesByok: boolean,
+  streamResult?: Awaited<ReturnType<typeof streamText>>,
+  conversationId?: string
 ): Promise<void> {
   // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
   if (
@@ -650,24 +669,79 @@ async function adjustCreditsAfterStream(
     return;
   }
 
-  console.log("[Stream Handler] Adjusting credit reservation:", {
+  // Log full result before extraction for debugging
+  if (streamResult) {
+    console.log(
+      "[Stream Handler] Full streamResult structure before generation ID extraction:",
+      {
+        streamResult: JSON.stringify(streamResult, null, 2),
+      }
+    );
+  }
+
+  // Extract OpenRouter generation ID for cost verification
+  const openrouterGenerationId = streamResult
+    ? extractOpenRouterGenerationId(streamResult)
+    : undefined;
+  // TODO: Use openrouterCost from providerMetadata when available instead of calculating
+  // const openrouterCost = streamResult ? extractOpenRouterCost(streamResult) : undefined;
+
+  console.log("[Stream Handler] Step 2: Adjusting credit reservation:", {
     workspaceId,
     reservationId,
-    provider: "google",
+    provider: "openrouter",
     modelName: finalModelName,
     tokenUsage,
+    openrouterGenerationId,
   });
   await adjustCreditReservation(
     db,
     reservationId,
     workspaceId,
-    "google", // provider
+    "openrouter", // provider
     finalModelName,
     tokenUsage,
     3, // maxRetries
-    usesByok
+    usesByok,
+    openrouterGenerationId
   );
-  console.log("[Stream Handler] Credit reservation adjusted successfully");
+  console.log(
+    "[Stream Handler] Step 2: Credit reservation adjusted successfully"
+  );
+
+  // Enqueue cost verification (Step 3) if we have a generation ID
+  // Always enqueue when we have a generation ID, regardless of reservationId or BYOK status
+  if (openrouterGenerationId && conversationId) {
+    try {
+      await enqueueCostVerification(
+        openrouterGenerationId,
+        workspaceId,
+        reservationId && reservationId !== "byok" ? reservationId : undefined,
+        conversationId,
+        agentId
+      );
+      console.log("[Stream Handler] Step 3: Cost verification enqueued", {
+        openrouterGenerationId,
+        reservationId:
+          reservationId && reservationId !== "byok" ? reservationId : undefined,
+        hasReservation: !!(reservationId && reservationId !== "byok"),
+      });
+    } catch (error) {
+      // Log error but don't fail the request
+      console.error("[Stream Handler] Error enqueueing cost verification:", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+    }
+  } else if (!openrouterGenerationId) {
+    console.warn(
+      "[Stream Handler] No OpenRouter generation ID found, skipping cost verification"
+    );
+  } else if (!conversationId) {
+    console.warn(
+      "[Stream Handler] No conversation ID, skipping cost verification"
+    );
+  }
 }
 
 /**
@@ -820,14 +894,61 @@ async function logConversation(
       assistantContent.push({ type: "text", text: finalResponseText });
     }
 
-    // Create assistant message with token usage, modelName, and provider (same as test endpoint)
+    // Log full result before extraction for debugging
+    if (streamResult) {
+      console.log(
+        "[Stream Handler] Full streamResult structure before generation ID extraction (message creation):",
+        {
+          streamResult: JSON.stringify(streamResult, null, 2),
+        }
+      );
+    }
+
+    // Extract OpenRouter generation ID for cost verification
+    const openrouterGenerationId = streamResult
+      ? extractOpenRouterGenerationId(streamResult)
+      : undefined;
+
+    // Extract cost from LLM response for provisional cost
+    const openrouterCostUsd = streamResult
+      ? extractOpenRouterCost(streamResult)
+      : undefined;
+    let provisionalCostUsd: number | undefined;
+    if (openrouterCostUsd !== undefined && openrouterCostUsd >= 0) {
+      // Convert from USD to millionths with 5.5% markup
+      // Math.ceil ensures we never undercharge
+      provisionalCostUsd = Math.ceil(openrouterCostUsd * 1_000_000 * 1.055);
+      console.log("[Stream Handler] Extracted cost from response:", {
+        openrouterCostUsd,
+        provisionalCostUsd,
+      });
+    } else if (tokenUsage && finalModelName) {
+      // Fallback to calculated cost from tokenUsage if not available in response
+      const calculatedCosts = calculateConversationCosts(
+        "openrouter",
+        finalModelName,
+        tokenUsage
+      );
+      provisionalCostUsd = calculatedCosts.usd;
+      console.log(
+        "[Stream Handler] Cost not in response, using calculated cost:",
+        {
+          provisionalCostUsd,
+          tokenUsage,
+        }
+      );
+    }
+
+    // Create assistant message with token usage, modelName, provider, and costs
     const assistantMessage: UIMessage = {
       role: "assistant",
       content:
         assistantContent.length > 0 ? assistantContent : finalResponseText,
       ...(tokenUsage && { tokenUsage }),
       modelName: finalModelName,
-      provider: "google",
+      provider: "openrouter",
+      ...(openrouterGenerationId && { openrouterGenerationId }),
+      ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
     };
 
     // DIAGNOSTIC: Log assistant message structure
@@ -1441,7 +1562,9 @@ const internalHandler = async (
         context.reservationId,
         context.finalModelName,
         tokenUsage,
-        context.usesByok
+        context.usesByok,
+        streamResult,
+        context.conversationId
       );
     } catch (error) {
       // Log error but don't fail the request

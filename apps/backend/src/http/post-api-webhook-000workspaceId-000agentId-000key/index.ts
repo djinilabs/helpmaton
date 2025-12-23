@@ -22,12 +22,17 @@ import {
 } from "../../utils/creditErrors";
 import {
   adjustCreditReservation,
+  enqueueCostVerification,
   refundReservation,
 } from "../../utils/creditManagement";
 import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation";
 import { isCreditDeductionEnabled } from "../../utils/featureFlags";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import {
+  extractOpenRouterCost,
+  extractOpenRouterGenerationId,
+} from "../../utils/openrouterUtils";
 import {
   checkDailyRequestLimit,
   incrementRequestBucket,
@@ -37,6 +42,7 @@ import {
   checkFreePlanExpiration,
   getWorkspaceSubscription,
 } from "../../utils/subscriptionUtils";
+import { calculateConversationCosts } from "../../utils/tokenAccounting";
 import {
   logToolDefinitions,
   setupAgentAndTools,
@@ -146,6 +152,8 @@ export const handler = adaptHttpHandler(
       let llmCallAttempted = false;
       let result: Awaited<ReturnType<typeof generateText>> | undefined;
       let tokenUsage: ReturnType<typeof extractTokenUsage> | undefined;
+      let openrouterGenerationId: string | undefined;
+      let provisionalCostUsd: number | undefined;
 
       try {
         // Convert tools object to array format for estimation
@@ -162,7 +170,7 @@ export const handler = adaptHttpHandler(
           db,
           workspaceId,
           agentId,
-          "google", // provider
+          "openrouter", // provider
           finalModelName,
           modelMessages,
           agent.systemPrompt,
@@ -211,15 +219,52 @@ export const handler = adaptHttpHandler(
 
         // Extract token usage
         tokenUsage = extractTokenUsage(result);
+
+        // Log full result before extraction for debugging
+        console.log("[Webhook Handler] Full result structure before generation ID extraction:", {
+          result: JSON.stringify(result, null, 2),
+        });
+
+        // Extract OpenRouter generation ID for cost verification
+        openrouterGenerationId = extractOpenRouterGenerationId(result);
+
+        // Extract cost from LLM response for provisional cost
+        const openrouterCostUsd = extractOpenRouterCost(result);
+        if (openrouterCostUsd !== undefined && openrouterCostUsd >= 0) {
+          // Convert from USD to millionths with 5.5% markup
+          // Math.ceil ensures we never undercharge
+          provisionalCostUsd = Math.ceil(openrouterCostUsd * 1_000_000 * 1.055);
+          console.log("[Webhook Handler] Extracted cost from response:", {
+            openrouterCostUsd,
+            provisionalCostUsd,
+          });
+        } else if (tokenUsage && finalModelName) {
+          // Fallback to calculated cost from tokenUsage if not available in response
+          const calculatedCosts = calculateConversationCosts(
+            "openrouter",
+            finalModelName,
+            tokenUsage
+          );
+          provisionalCostUsd = calculatedCosts.usd;
+          console.log(
+            "[Webhook Handler] Cost not in response, using calculated cost:",
+            {
+              provisionalCostUsd,
+              tokenUsage,
+            }
+          );
+        }
+
         console.log("[Webhook Handler] Token usage extracted:", {
           tokenUsage,
           hasTokenUsage: !!tokenUsage,
           promptTokens: tokenUsage?.promptTokens,
           completionTokens: tokenUsage?.completionTokens,
           totalTokens: tokenUsage?.totalTokens,
+          openrouterGenerationId,
         });
 
-        // Adjust credit reservation based on actual cost
+        // Adjust credit reservation based on actual cost (Step 2)
         // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
         if (
           isCreditDeductionEnabled() &&
@@ -229,26 +274,31 @@ export const handler = adaptHttpHandler(
           (tokenUsage.promptTokens > 0 || tokenUsage.completionTokens > 0)
         ) {
           try {
-            console.log("[Webhook Handler] Adjusting credit reservation:", {
+            console.log("[Webhook Handler] Step 2: Adjusting credit reservation:", {
               workspaceId,
               reservationId,
-              provider: "google",
+              provider: "openrouter",
               modelName: finalModelName,
               tokenUsage,
+              openrouterGenerationId,
             });
             await adjustCreditReservation(
               db,
               reservationId,
               workspaceId,
-              "google", // provider
+              "openrouter", // provider
               finalModelName,
               tokenUsage,
               3, // maxRetries
-              usesByok
+              usesByok,
+              openrouterGenerationId
             );
             console.log(
-              "[Webhook Handler] Credit reservation adjusted successfully"
+              "[Webhook Handler] Step 2: Credit reservation adjusted successfully"
             );
+
+            // Enqueue cost verification (Step 3) will be done after conversation is created
+            // to get the conversationId
           } catch (error) {
             // Log error but don't fail the request
             console.error(
@@ -619,7 +669,7 @@ export const handler = adaptHttpHandler(
         }
       );
 
-      // Create assistant message with modelName and provider
+      // Create assistant message with modelName, provider, and costs
       // Ensure content is always an array if we have tool calls/results, even if text is empty
       const assistantMessage: UIMessage = {
         role: "assistant",
@@ -627,8 +677,11 @@ export const handler = adaptHttpHandler(
           assistantContent.length > 0
             ? assistantContent
             : responseContent || "",
+        ...(tokenUsage && { tokenUsage }),
         modelName: finalModelName,
-        provider: "google",
+        provider: "openrouter",
+        ...(openrouterGenerationId && { openrouterGenerationId }),
+        ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
       };
 
       // DIAGNOSTIC: Log final assistant message structure
@@ -683,7 +736,7 @@ export const handler = adaptHttpHandler(
             }
           );
 
-          await startConversation(db, {
+          const conversationId = await startConversation(db, {
             workspaceId,
             agentId,
             conversationType: "webhook",
@@ -691,6 +744,41 @@ export const handler = adaptHttpHandler(
             tokenUsage,
             usesByok,
           });
+
+          // Enqueue cost verification (Step 3) if we have a generation ID
+          // Always enqueue when we have a generation ID, regardless of reservationId or BYOK status
+          if (openrouterGenerationId) {
+            try {
+              await enqueueCostVerification(
+                openrouterGenerationId,
+                workspaceId,
+                reservationId && reservationId !== "byok" ? reservationId : undefined,
+                conversationId,
+                agentId
+              );
+              console.log(
+                "[Webhook Handler] Step 3: Cost verification enqueued",
+                {
+                  openrouterGenerationId,
+                  reservationId: reservationId && reservationId !== "byok" ? reservationId : undefined,
+                  hasReservation: !!(reservationId && reservationId !== "byok"),
+                }
+              );
+            } catch (error) {
+              // Log error but don't fail the request
+              console.error(
+                "[Webhook Handler] Error enqueueing cost verification:",
+                {
+                  error: error instanceof Error ? error.message : String(error),
+                  stack: error instanceof Error ? error.stack : undefined,
+                }
+              );
+            }
+          } else {
+            console.warn(
+              "[Webhook Handler] No OpenRouter generation ID found, skipping cost verification"
+            );
+          }
         } else {
           console.log(
             "[Webhook Handler] Skipping conversation logging - all messages are empty"

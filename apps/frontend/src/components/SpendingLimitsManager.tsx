@@ -302,7 +302,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                         ?.label || limit.timeFrame.toUpperCase()}
                     </div>
                     <div className="mt-1 text-lg text-neutral-700 dark:text-neutral-300">
-                      {formatCurrency(limit.amount, "usd", 2)}
+                      {formatCurrency(limit.amount, "usd", 10)}
                     </div>
                   </div>
                   {canEdit && (

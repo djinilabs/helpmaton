@@ -17,7 +17,7 @@ export const CreditBalance: FC<CreditBalanceProps> = ({
 
   // Format balance for display (convert from millionths to currency units)
   // Always use USD
-  const formattedBalance = formatCurrency(numericBalance, "usd", 4);
+  const formattedBalance = formatCurrency(numericBalance, "usd", 10);
 
   return (
     <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">

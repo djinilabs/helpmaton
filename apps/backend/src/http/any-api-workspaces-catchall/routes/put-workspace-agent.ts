@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { isValidAvatar } from "../../../utils/avatarUtils";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -111,6 +112,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           stopSequences,
           maxToolRoundtrips,
           modelName,
+          avatar,
         } = req.body;
         const db = await database();
         const workspaceResource = req.workspaceResource;
@@ -371,6 +373,18 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           }
         }
 
+        // Validate avatar if provided
+        if (avatar !== undefined && avatar !== null) {
+          if (typeof avatar !== "string") {
+            throw badRequest("avatar must be a string or null");
+          }
+          if (!isValidAvatar(avatar)) {
+            throw badRequest(
+              `Invalid avatar path. Avatar must be one of the available logo paths.`
+            );
+          }
+        }
+
         // Update agent
         // Convert null to undefined for optional fields to match schema
         const updated = await db.agent.update({
@@ -454,6 +468,12 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
                 ? undefined
                 : modelName.trim()
               : agent.modelName,
+          avatar:
+            avatar !== undefined
+              ? avatar === null
+                ? undefined
+                : avatar
+              : agent.avatar,
           updatedBy: req.userRef || "",
           updatedAt: new Date().toISOString(),
         });
@@ -478,6 +498,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           maxToolRoundtrips: updated.maxToolRoundtrips ?? null,
           provider: updated.provider,
           modelName: updated.modelName ?? null,
+          avatar: updated.avatar ?? null,
           createdAt: updated.createdAt,
           updatedAt: updated.updatedAt,
         };

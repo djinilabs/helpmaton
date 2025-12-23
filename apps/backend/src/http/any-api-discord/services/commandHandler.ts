@@ -236,14 +236,8 @@ async function handleCreditCommand(
     const oldBalanceDisplay = fromMillionths(workspace.creditBalance);
 
     return discordResponse(
-      `✅ Successfully credited **${amountDisplay.toFixed(
-        6
-      )} ${updated.currency.toUpperCase()}** to workspace \`${workspaceId}\`\n` +
-        `📊 Balance: **${balanceDisplay.toFixed(
-          6
-        )} ${updated.currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(
-          6
-        )})${trialInfo}`
+      `✅ Successfully credited **${amountDisplay.toFixed(10).replace(/\.?0+$/, "")} ${updated.currency.toUpperCase()}** to workspace \`${workspaceId}\`\n` +
+        `📊 Balance: **${balanceDisplay.toFixed(10).replace(/\.?0+$/, "")} ${updated.currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(10).replace(/\.?0+$/, "")})${trialInfo}`
     );
   } catch (error) {
     console.error("Error crediting workspace:", error);
@@ -294,14 +288,8 @@ async function handleDebitCommand(
     const oldBalanceDisplay = fromMillionths(result.oldBalance);
 
     return discordResponse(
-      `✅ Successfully debited **${amountDisplay.toFixed(
-        6
-      )} ${result.currency.toUpperCase()}** from workspace \`${workspaceId}\`\n` +
-        `📊 Balance: **${newBalanceDisplay.toFixed(
-          6
-        )} ${result.currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(
-          6
-        )})`
+      `✅ Successfully debited **${amountDisplay.toFixed(10).replace(/\.?0+$/, "")} ${result.currency.toUpperCase()}** from workspace \`${workspaceId}\`\n` +
+        `📊 Balance: **${newBalanceDisplay.toFixed(10).replace(/\.?0+$/, "")} ${result.currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(10).replace(/\.?0+$/, "")})`
     );
   } catch (error) {
     console.error("Error debiting workspace:", error);

@@ -176,6 +176,7 @@ jobs:
           MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
           MAILGUN_DOMAIN: "helpmaton.com"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           AWS_CERTIFICATE_ARN: ${{ secrets.AWS_CERTIFICATE_ARN }}
           AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
@@ -242,6 +243,7 @@ jobs:
           MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
           MAILGUN_DOMAIN: "helpmaton.com"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           HELPMATON_CUSTOM_DOMAIN: "app.helpmaton.com"
           AWS_CERTIFICATE_ARN: ${{ secrets.AWS_CERTIFICATE_ARN }}
           AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
@@ -314,6 +316,7 @@ jobs:
             MAILGUN_KEY "${MAILGUN_KEY}"
             BASE_URL "${BASE_URL}"
             GEMINI_API_KEY "${GEMINI_API_KEY}"
+            OPENROUTER_API_KEY "${OPENROUTER_API_KEY}"
             HELPMATON_CUSTOM_DOMAIN "${HELPMATON_CUSTOM_DOMAIN}"
             AWS_CERTIFICATE_ARN "${AWS_CERTIFICATE_ARN}"
             AWS_ZONE_ID "${AWS_ZONE_ID}"

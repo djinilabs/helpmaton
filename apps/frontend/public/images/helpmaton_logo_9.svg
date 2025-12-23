@@ -1,0 +1,6 @@
+<svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+  <g stroke="black" stroke-width="20" stroke-linejoin="miter">
+    <polygon points="250,40 50,150 120,450 250,480 380,450 450,150" fill="#333333"/>
+    <rect x="80" y="200" width="340" height="40" fill="#39FF14"/>
+  </g>
+</svg>

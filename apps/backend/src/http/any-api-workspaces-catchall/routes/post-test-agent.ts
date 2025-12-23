@@ -17,10 +17,15 @@ import {
 } from "../../../utils/creditErrors";
 import {
   adjustCreditReservation,
+  enqueueCostVerification,
   refundReservation,
 } from "../../../utils/creditManagement";
 import { validateCreditsAndLimitsAndReserve } from "../../../utils/creditValidation";
 import { isCreditDeductionEnabled } from "../../../utils/featureFlags";
+import {
+  extractOpenRouterCost,
+  extractOpenRouterGenerationId,
+} from "../../../utils/openrouterUtils";
 import {
   checkDailyRequestLimit,
   incrementRequestBucket,
@@ -30,6 +35,7 @@ import {
   checkFreePlanExpiration,
   getWorkspaceSubscription,
 } from "../../../utils/subscriptionUtils";
+import { calculateConversationCosts } from "../../../utils/tokenAccounting";
 import {
   logToolDefinitions,
   setupAgentAndTools,
@@ -258,7 +264,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           db,
           workspaceId,
           agentId,
-          "google", // provider
+          "openrouter", // provider
           finalModelName,
           modelMessages,
           agent.systemPrompt,
@@ -617,14 +623,54 @@ export const registerPostTestAgent = (app: express.Application) => {
       // Extract token usage from streamText result (after stream is consumed and usage is awaited)
       const tokenUsage = extractTokenUsage({ ...result, usage });
 
+      // Log full result before extraction for debugging
+      console.log("[Agent Test Handler] Full result structure before generation ID extraction:", {
+        result: JSON.stringify({ ...result, usage }, null, 2),
+      });
+
+      // Extract OpenRouter generation ID for cost verification
+      const openrouterGenerationId = extractOpenRouterGenerationId({
+        ...result,
+        usage,
+      });
+
+      // Extract cost from LLM response for provisional cost
+      const openrouterCostUsd = extractOpenRouterCost({ ...result, usage });
+      let provisionalCostUsd: number | undefined;
+      if (openrouterCostUsd !== undefined && openrouterCostUsd >= 0) {
+        // Convert from USD to millionths with 5.5% markup
+        // Math.ceil ensures we never undercharge
+        provisionalCostUsd = Math.ceil(openrouterCostUsd * 1_000_000 * 1.055);
+        console.log("[Agent Test Handler] Extracted cost from response:", {
+          openrouterCostUsd,
+          provisionalCostUsd,
+        });
+      } else if (tokenUsage && finalModelName) {
+        // Fallback to calculated cost from tokenUsage if not available in response
+        const calculatedCosts = calculateConversationCosts(
+          "openrouter",
+          finalModelName,
+          tokenUsage
+        );
+        provisionalCostUsd = calculatedCosts.usd;
+        console.log(
+          "[Agent Test Handler] Cost not in response, using calculated cost:",
+          {
+            provisionalCostUsd,
+            tokenUsage,
+          }
+        );
+      }
+
       // Log token usage for debugging
       console.log("[Agent Test Handler] Extracted token usage:", {
         tokenUsage,
         usage,
         hasUsage: !!usage,
+        openrouterGenerationId,
       });
 
-      // Adjust credit reservation based on actual cost
+      // Adjust credit reservation based on actual cost (Step 2)
       // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
       if (
         isCreditDeductionEnabled() &&
@@ -634,26 +680,31 @@ export const registerPostTestAgent = (app: express.Application) => {
         (tokenUsage.promptTokens > 0 || tokenUsage.completionTokens > 0)
       ) {
         try {
-          console.log("[Agent Test Handler] Adjusting credit reservation:", {
+          console.log("[Agent Test Handler] Step 2: Adjusting credit reservation:", {
             workspaceId,
             reservationId,
-            provider: "google",
+            provider: "openrouter",
             modelName: finalModelName,
             tokenUsage,
+            openrouterGenerationId,
           });
           await adjustCreditReservation(
             db,
             reservationId,
             workspaceId,
-            "google", // provider
+            "openrouter", // provider
             finalModelName,
             tokenUsage,
             3, // maxRetries
-            usesByok
+            usesByok,
+            openrouterGenerationId
           );
           console.log(
-            "[Agent Test Handler] Credit reservation adjusted successfully"
+            "[Agent Test Handler] Step 2: Credit reservation adjusted successfully"
           );
+
+          // Enqueue cost verification (Step 3) will be done after conversation is updated
+          // to ensure we have the conversationId
         } catch (error) {
           // Log error but don't fail the request
           console.error(
@@ -771,13 +822,15 @@ export const registerPostTestAgent = (app: express.Application) => {
         assistantContent.push({ type: "text", text: responseText });
       }
 
-      // Create assistant message with token usage, modelName, and provider
+      // Create assistant message with token usage, modelName, provider, and costs
       const assistantMessage: UIMessage = {
         role: "assistant",
         content: assistantContent.length > 0 ? assistantContent : responseText,
         ...(tokenUsage && { tokenUsage }),
         modelName: finalModelName,
-        provider: "google",
+        provider: "openrouter",
+        ...(openrouterGenerationId && { openrouterGenerationId }),
+        ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
       };
 
       // Combine user messages and assistant message for logging
@@ -812,6 +865,41 @@ export const registerPostTestAgent = (app: express.Application) => {
           validMessages,
           tokenUsage
         );
+
+        // Enqueue cost verification (Step 3) if we have a generation ID
+        // Always enqueue when we have a generation ID, regardless of reservationId or BYOK status
+        if (openrouterGenerationId) {
+          try {
+            await enqueueCostVerification(
+              openrouterGenerationId,
+              workspaceId,
+              reservationId && reservationId !== "byok" ? reservationId : undefined,
+              conversationId,
+              agentId
+            );
+            console.log(
+              "[Agent Test Handler] Step 3: Cost verification enqueued",
+              {
+                openrouterGenerationId,
+                reservationId: reservationId && reservationId !== "byok" ? reservationId : undefined,
+                hasReservation: !!(reservationId && reservationId !== "byok"),
+              }
+            );
+          } catch (error) {
+            // Log error but don't fail the request
+            console.error(
+              "[Agent Test Handler] Error enqueueing cost verification:",
+              {
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
+              }
+            );
+          }
+        } else {
+          console.warn(
+            "[Agent Test Handler] No OpenRouter generation ID found, skipping cost verification"
+          );
+        }
       } catch (error) {
         // Log error but don't fail the request
         console.error("[Agent Test Handler] Error logging conversation:", {

@@ -46,6 +46,111 @@ jobs:
           echo "PR_NUMBER=${PR_NUMBER}" >> $GITHUB_ENV
           echo "PR number: ${PR_NUMBER}"
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+
+      - name: Enable pnpm corepack
+        run: corepack enable
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build backend (for Docker images)
+        env:
+          NODE_ENV: "production"
+          VITE_ENV: "production"
+          ARC_ENV: "staging"
+          NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
+          MAILGUN_DOMAIN: "helpmaton.com"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          AWS_PR_DEPLOY_CERTIFICATE_ARN: ${{ secrets.AWS_PR_DEPLOY_CERTIFICATE_ARN }}
+          AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
+          AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          HELPMATON_S3_BUCKET: ${{ secrets.HELPMATON_PR_ENV_S3_BUCKET }}
+          HELPMATON_S3_ENDPOINT: ${{ secrets.HELPMATON_S3_ENDPOINT }}
+          HELPMATON_S3_ACCESS_KEY_ID: ${{ secrets.HELPMATON_S3_ACCESS_KEY_ID }}
+          HELPMATON_S3_SECRET_ACCESS_KEY: ${{ secrets.HELPMATON_S3_SECRET_ACCESS_KEY }}
+          HELPMATON_S3_REGION: ${{ secrets.HELPMATON_S3_REGION }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
+          CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
+          DISCORD_TRIAL_CREDIT_CHANNEL_ID: ${{ secrets.DISCORD_TRIAL_CREDIT_CHANNEL_ID }}
+          ENABLE_CREDIT_VALIDATION: "false"
+          ENABLE_CREDIT_DEDUCTION: "true"
+          ENABLE_SPENDING_LIMIT_CHECKS: "false"
+          DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
+          DISCORD_CS_USERS: ${{ secrets.DISCORD_CS_USERS }}
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
+          OUTLOOK_CLIENT_SECRET: ${{ secrets.OUTLOOK_CLIENT_SECRET }}
+          LEMON_SQUEEZY_API_KEY: ${{ secrets.LEMON_SQUEEZY_API_KEY }}
+          LEMON_SQUEEZY_WEBHOOK_SECRET: ${{ secrets.LEMON_SQUEEZY_WEBHOOK_SECRET }}
+          LEMON_SQUEEZY_STORE_ID: ${{ secrets.LEMON_SQUEEZY_STORE_ID }}
+          LEMON_SQUEEZY_STARTER_VARIANT_ID: ${{ secrets.LEMON_SQUEEZY_STARTER_VARIANT_ID }}
+          LEMON_SQUEEZY_PRO_VARIANT_ID: ${{ secrets.LEMON_SQUEEZY_PRO_VARIANT_ID }}
+          LEMON_SQUEEZY_CREDIT_VARIANT_ID: ${{ secrets.LEMON_SQUEEZY_CREDIT_VARIANT_ID }}
+          LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL: ${{ secrets.LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL }}
+          LEMON_SQUEEZY_CHECKOUT_CANCEL_URL: ${{ secrets.LEMON_SQUEEZY_CHECKOUT_CANCEL_URL }}
+          HELPMATON_VECTORDB_S3_BUCKET_STAGING: ${{ secrets.HELPMATON_VECTORDB_S3_BUCKET_STAGING }}
+          E2E_OVERRIDE_MAX_USERS: "10"
+        run: |
+          PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
+          # Set URL environment variables using PR_NUMBER (needed for build)
+          export BASE_URL="https://${PR_NUMBER}.helpmaton.com"
+          export HELPMATON_CUSTOM_DOMAIN="${PR_NUMBER}.helpmaton.com"
+          export OAUTH_REDIRECT_BASE_URL="https://${PR_NUMBER}.helpmaton.com"
+          export FRONTEND_URL="https://${PR_NUMBER}.helpmaton.com"
+          export AWS_CERTIFICATE_ARN="${AWS_PR_DEPLOY_CERTIFICATE_ARN}"
+          pnpm build:backend
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+
+      - name: Build and push Lambda container images
+        env:
+          AWS_REGION: eu-west-2
+          LAMBDA_IMAGES_ECR_REPOSITORY: helpmaton-lambda-images
+          LAMBDA_IMAGE_TAG: ${{ github.sha }}
+        run: |
+          bash scripts/build-and-push-lambda-images.sh
+
       - name: Wait for Tests workflow to complete
         id: check-tests
         uses: actions/github-script@v8
@@ -101,110 +206,6 @@ jobs:
             // If we get here, we've exhausted all attempts
             core.setFailed('Tests workflow did not complete within the maximum wait time (10 minutes).');
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-2
-
-      - name: Enable pnpm corepack
-        run: corepack enable
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.26.1
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Use Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build backend (for Docker images)
-        env:
-          NODE_ENV: "production"
-          VITE_ENV: "production"
-          ARC_ENV: "staging"
-          NODE_OPTIONS: "--enable-source-maps --max_old_space_size=32768"
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
-          MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
-          MAILGUN_DOMAIN: "helpmaton.com"
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          AWS_PR_DEPLOY_CERTIFICATE_ARN: ${{ secrets.AWS_PR_DEPLOY_CERTIFICATE_ARN }}
-          AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
-          AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          HELPMATON_S3_BUCKET: ${{ secrets.HELPMATON_PR_ENV_S3_BUCKET }}
-          HELPMATON_S3_ENDPOINT: ${{ secrets.HELPMATON_S3_ENDPOINT }}
-          HELPMATON_S3_ACCESS_KEY_ID: ${{ secrets.HELPMATON_S3_ACCESS_KEY_ID }}
-          HELPMATON_S3_SECRET_ACCESS_KEY: ${{ secrets.HELPMATON_S3_SECRET_ACCESS_KEY }}
-          HELPMATON_S3_REGION: ${{ secrets.HELPMATON_S3_REGION }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
-          CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
-          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
-          DISCORD_TRIAL_CREDIT_CHANNEL_ID: ${{ secrets.DISCORD_TRIAL_CREDIT_CHANNEL_ID }}
-          ENABLE_CREDIT_VALIDATION: "false"
-          ENABLE_CREDIT_DEDUCTION: "false"
-          ENABLE_SPENDING_LIMIT_CHECKS: "false"
-          DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
-          DISCORD_CS_USERS: ${{ secrets.DISCORD_CS_USERS }}
-          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
-          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
-          OUTLOOK_CLIENT_ID: ${{ secrets.OUTLOOK_CLIENT_ID }}
-          OUTLOOK_CLIENT_SECRET: ${{ secrets.OUTLOOK_CLIENT_SECRET }}
-          LEMON_SQUEEZY_API_KEY: ${{ secrets.LEMON_SQUEEZY_API_KEY }}
-          LEMON_SQUEEZY_WEBHOOK_SECRET: ${{ secrets.LEMON_SQUEEZY_WEBHOOK_SECRET }}
-          LEMON_SQUEEZY_STORE_ID: ${{ secrets.LEMON_SQUEEZY_STORE_ID }}
-          LEMON_SQUEEZY_STARTER_VARIANT_ID: ${{ secrets.LEMON_SQUEEZY_STARTER_VARIANT_ID }}
-          LEMON_SQUEEZY_PRO_VARIANT_ID: ${{ secrets.LEMON_SQUEEZY_PRO_VARIANT_ID }}
-          LEMON_SQUEEZY_CREDIT_VARIANT_ID: ${{ secrets.LEMON_SQUEEZY_CREDIT_VARIANT_ID }}
-          LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL: ${{ secrets.LEMON_SQUEEZY_CHECKOUT_SUCCESS_URL }}
-          LEMON_SQUEEZY_CHECKOUT_CANCEL_URL: ${{ secrets.LEMON_SQUEEZY_CHECKOUT_CANCEL_URL }}
-          HELPMATON_VECTORDB_S3_BUCKET_STAGING: ${{ secrets.HELPMATON_VECTORDB_S3_BUCKET_STAGING }}
-          E2E_OVERRIDE_MAX_USERS: "10"
-        run: |
-          PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
-          # Set URL environment variables using PR_NUMBER (needed for build)
-          export BASE_URL="https://${PR_NUMBER}.helpmaton.com"
-          export HELPMATON_CUSTOM_DOMAIN="${PR_NUMBER}.helpmaton.com"
-          export OAUTH_REDIRECT_BASE_URL="https://${PR_NUMBER}.helpmaton.com"
-          export FRONTEND_URL="https://${PR_NUMBER}.helpmaton.com"
-          export AWS_CERTIFICATE_ARN="${AWS_PR_DEPLOY_CERTIFICATE_ARN}"
-          pnpm build:backend
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-          platforms: linux/amd64,linux/arm64
-
-      - name: Build and push Lambda container images
-        env:
-          AWS_REGION: eu-west-2
-          LAMBDA_IMAGES_ECR_REPOSITORY: helpmaton-lambda-images
-          LAMBDA_IMAGE_TAG: ${{ github.sha }}
-        run: |
-          bash scripts/build-and-push-lambda-images.sh
-
       - name: Deploy PR
         env:
           NODE_ENV: "production"
@@ -214,6 +215,7 @@ jobs:
           MAILGUN_KEY: ${{ secrets.MAILGUN_KEY }}
           MAILGUN_DOMAIN: "helpmaton.com"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           AWS_PR_DEPLOY_CERTIFICATE_ARN: ${{ secrets.AWS_PR_DEPLOY_CERTIFICATE_ARN }}
           AWS_CLOUDFRONT_CERTIFICATE_ARN: ${{ secrets.AWS_CLOUDFRONT_CERTIFICATE_ARN }}
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
@@ -229,7 +231,7 @@ jobs:
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
           DISCORD_TRIAL_CREDIT_CHANNEL_ID: ${{ secrets.DISCORD_TRIAL_CREDIT_CHANNEL_ID }}
           ENABLE_CREDIT_VALIDATION: "false"
-          ENABLE_CREDIT_DEDUCTION: "false"
+          ENABLE_CREDIT_DEDUCTION: "true"
           ENABLE_SPENDING_LIMIT_CHECKS: "false"
           DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
           DISCORD_CS_USERS: ${{ secrets.DISCORD_CS_USERS }}
@@ -272,6 +274,7 @@ jobs:
             MAILGUN_KEY "${MAILGUN_KEY}"
             BASE_URL "${BASE_URL}"
             GEMINI_API_KEY "${GEMINI_API_KEY}"
+            OPENROUTER_API_KEY "${OPENROUTER_API_KEY}"
             HELPMATON_CUSTOM_DOMAIN "${HELPMATON_CUSTOM_DOMAIN}"
             OAUTH_REDIRECT_BASE_URL "${OAUTH_REDIRECT_BASE_URL}"
             FRONTEND_URL "${FRONTEND_URL}"

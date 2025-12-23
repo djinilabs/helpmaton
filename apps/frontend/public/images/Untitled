@@ -1,0 +1,9 @@
+<svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+  <g stroke="black" stroke-width="16" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M250,20 L100,100 C50,200 150,350 250,450 C350,350 450,200 400,100 Z" fill="#FFFFFF"/>
+    <path d="M250,20 L180,80 L320,80 Z" fill="#87CEEB"/>
+    <polygon points="150,200 230,180 230,240" fill="#FFFF00"/>
+    <polygon points="350,200 270,180 270,240" fill="#FFFF00"/>
+    <path d="M200,350 L250,380 L300,350 L250,330 Z" fill="#FFFFFF"/>
+  </g>
+</svg>

@@ -29,22 +29,12 @@ const Home: FC = () => {
           <div className="absolute right-0 top-0 size-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-primary opacity-5 blur-3xl"></div>
           <div className="relative z-10">
             <div className="mb-6 flex flex-col items-start gap-6 sm:flex-row sm:items-center">
-              <div className="relative overflow-hidden">
+              <div className="relative">
                 <img
                   src="/images/helpmaton_logo.svg"
                   alt="Helmaton Logo"
                   className="relative z-10 size-20"
                 />
-                <div
-                  className="manga-shine-overlay pointer-events-none absolute inset-0 z-20"
-                  style={{
-                    background:
-                      "radial-gradient(circle at center, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0.4) 15%, transparent 30%), linear-gradient(45deg, transparent 25%, rgba(255, 255, 255, 0.3) 45%, rgba(255, 255, 255, 0.4) 50%, rgba(255, 255, 255, 0.3) 55%, transparent 75%)",
-                    width: "200%",
-                    height: "200%",
-                  }}
-                ></div>
-                <div className="absolute inset-0 rounded-full bg-gradient-primary opacity-20 blur-xl"></div>
               </div>
               <div>
                 <h1 className="mb-3 text-5xl font-black tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-6xl">

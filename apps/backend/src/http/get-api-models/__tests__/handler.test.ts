@@ -20,7 +20,7 @@ vi.mock("../../../utils/pricing", () => ({
   loadPricingConfig: mockLoadPricingConfig,
 }));
 
-vi.mock("../utils/modelFactory", () => ({
+vi.mock("../../utils/modelFactory", () => ({
   getDefaultModel: mockGetDefaultModel,
 }));
 
@@ -35,20 +35,19 @@ describe("get-api-models handler", () => {
     vi.clearAllMocks();
   });
 
-  it("should return available models with default model", async () => {
+  it("should return OpenRouter models with default model", async () => {
     const mockPricingConfig = {
       providers: {
-        google: {
+        openrouter: {
           models: {
-            "gemini-2.5-flash": {
-              usd: { input: 0.075, output: 0.3 },
-              eur: { input: 0.07, output: 0.28 },
-              gbp: { input: 0.06, output: 0.24 },
+            "google/gemini-2.5-flash": {
+              usd: { input: 0.075, output: 0.3, cachedInput: 0.0075 },
             },
-            "gemini-1.5-flash": {
-              usd: { input: 0.075, output: 0.3 },
-              eur: { input: 0.07, output: 0.28 },
-              gbp: { input: 0.06, output: 0.24 },
+            "anthropic/claude-3.5-sonnet": {
+              usd: { input: 3, output: 15, cachedInput: 0.3 },
+            },
+            "auto": {
+              usd: { input: 2, output: 10, cachedInput: 0.2 },
             },
           },
         },
@@ -57,7 +56,7 @@ describe("get-api-models handler", () => {
     };
 
     mockLoadPricingConfig.mockReturnValue(mockPricingConfig);
-    mockGetDefaultModel.mockReturnValue("gemini-2.5-flash");
+    mockGetDefaultModel.mockReturnValue("auto");
 
     const event = createAPIGatewayEventV2({
       routeKey: "GET /api/models",
@@ -75,17 +74,20 @@ describe("get-api-models handler", () => {
       "Content-Type": "application/json",
     });
     const body = JSON.parse(result.body || "{}");
-    expect(body.google).toBeDefined();
-    expect(body.google.models).toHaveLength(2);
-    expect(body.google.models).toContain("gemini-1.5-flash");
-    expect(body.google.models).toContain("gemini-2.5-flash");
-    expect(body.google.defaultModel).toBe("gemini-2.5-flash");
+    expect(body.openrouter).toBeDefined();
+    expect(body.openrouter.models).toHaveLength(3);
+    expect(body.openrouter.models).toContain("anthropic/claude-3.5-sonnet");
+    expect(body.openrouter.models).toContain("auto");
+    expect(body.openrouter.models).toContain("google/gemini-2.5-flash");
+    expect(body.openrouter.defaultModel).toBe("auto");
+    // Verify Google models are not included
+    expect(body.google).toBeUndefined();
 
     // getDefaultModel also calls loadPricingConfig internally, so it may be called multiple times
     expect(mockLoadPricingConfig).toHaveBeenCalled();
   });
 
-  it("should return empty object when no Google provider in pricing config", async () => {
+  it("should return empty object when no OpenRouter provider in pricing config", async () => {
     const mockPricingConfig = {
       providers: {
         openai: {
@@ -122,10 +124,10 @@ describe("get-api-models handler", () => {
     expect(mockGetDefaultModel).not.toHaveBeenCalled();
   });
 
-  it("should return empty object when Google provider has no models", async () => {
+  it("should return empty object when OpenRouter provider has no models", async () => {
     const mockPricingConfig = {
       providers: {
-        google: {
+        openrouter: {
           models: {},
         },
       },
@@ -151,6 +153,70 @@ describe("get-api-models handler", () => {
 
     expect(mockLoadPricingConfig).toHaveBeenCalledTimes(1);
     expect(mockGetDefaultModel).not.toHaveBeenCalled();
+  });
+
+  it("should return OpenRouter models from pricing config", async () => {
+    const mockPricingConfig = {
+      providers: {
+        openrouter: {
+          models: {
+            "google/gemini-2.5-flash": {
+              usd: { input: 0.075, output: 0.3, cachedInput: 0.0075 },
+            },
+            "anthropic/claude-3.5-sonnet": {
+              usd: { input: 3, output: 15, cachedInput: 0.3 },
+            },
+            "auto": {
+              usd: { input: 2, output: 10, cachedInput: 0.2 },
+            },
+            "openai/gpt-4o": {
+              usd: { input: 0, output: 0, cachedInput: 0 },
+            },
+          },
+        },
+      },
+      lastUpdated: "2024-01-01",
+    };
+
+    mockLoadPricingConfig.mockReturnValue(mockPricingConfig);
+    // getDefaultModel will use the mock pricing config and find "google/gemini-2.5-flash" as default
+    // based on the defaultPatterns in modelFactory.ts (first pattern: p === "google/gemini-2.5-flash")
+    mockGetDefaultModel.mockImplementation((provider) => {
+      if (provider === "openrouter") {
+        return "google/gemini-2.5-flash";
+      }
+      return "gemini-2.5-flash";
+    });
+
+    const event = createAPIGatewayEventV2({
+      routeKey: "GET /api/models",
+      rawPath: "/api/models",
+    });
+
+    const result = (await handler(event, mockContext, mockCallback)) as {
+      statusCode: number;
+      headers: Record<string, string>;
+      body: string;
+    };
+
+    expect(result.statusCode).toBe(200);
+    const body = JSON.parse(result.body || "{}");
+    expect(body.openrouter).toBeDefined();
+    expect(body.openrouter.models).toHaveLength(4);
+    // Verify all models from pricing config are included (including those with 0 pricing)
+    expect(body.openrouter.models).toContain("google/gemini-2.5-flash");
+    expect(body.openrouter.models).toContain("anthropic/claude-3.5-sonnet");
+    expect(body.openrouter.models).toContain("auto");
+    expect(body.openrouter.models).toContain("openai/gpt-4o");
+    // getDefaultModel mock returns "google/gemini-2.5-flash" for openrouter
+    expect(body.openrouter.defaultModel).toBe("google/gemini-2.5-flash");
+    // Verify models are sorted alphabetically
+    expect(body.openrouter.models).toEqual([
+      "anthropic/claude-3.5-sonnet",
+      "auto",
+      "google/gemini-2.5-flash",
+      "openai/gpt-4o",
+    ]);
   });
 
   it("should handle errors from loadPricingConfig", async () => {

@@ -107,8 +107,3 @@
     animation: manga-shine 10s ease 0s infinite normal none running;
   }
 }
-
-/* Make logo white in dark mode */
-.dark img[src*="helpmaton_logo"] {
-  filter: brightness(0) invert(1);
-}

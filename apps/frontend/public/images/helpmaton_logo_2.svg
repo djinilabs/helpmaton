@@ -1,0 +1,15 @@
+<svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+  <g stroke="black" stroke-width="20" stroke-linejoin="miter" stroke-linecap="square">
+    
+    <polygon points="50,100 180,220 250,470 320,220 450,100 350,50 150,50" fill="#6A0DAD"/>
+
+    <polygon points="180,220 220,420 280,420 320,220 250,280" fill="#444444"/>
+
+    <polygon points="130,170 370,170 340,240 250,260 160,240" fill="#DC143C"/>
+    
+    <line x1="250" y1="320" x2="250" y2="410" stroke-width="15"/>
+    <line x1="210" y1="340" x2="235" y2="400" stroke-width="15"/>
+    <line x1="290" y1="340" x2="265" y2="400" stroke-width="15"/>
+
+  </g>
+</svg>

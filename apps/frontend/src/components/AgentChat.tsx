@@ -8,6 +8,10 @@ import type { FC } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { useAgent } from "../hooks/useAgents";
+import { getDefaultAvatar } from "../utils/avatarUtils";
+import { formatCurrency } from "../utils/currency";
+
 interface AgentChatProps {
   workspaceId: string;
   agentId: string;
@@ -36,6 +40,7 @@ export const AgentChat: FC<AgentChatProps> = ({
   agentId,
   api,
 }) => {
+  const { data: agent } = useAgent(workspaceId, agentId);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
 
@@ -129,7 +134,9 @@ export const AgentChat: FC<AgentChatProps> = ({
       >
         {error && (
           <div className="mb-4 rounded-xl border-2 border-error-300 bg-error-100 p-5 dark:border-error-800 dark:bg-error-900">
-            <div className="text-base font-bold text-error-900 dark:text-error-50">Error</div>
+            <div className="text-base font-bold text-error-900 dark:text-error-50">
+              Error
+            </div>
             <div className="mt-2 text-sm font-medium text-error-800 dark:text-error-100">
               {error.message}
             </div>
@@ -620,6 +627,20 @@ export const AgentChat: FC<AgentChatProps> = ({
                   ? message.provider
                   : null;
 
+              // Extract provisionalCostUsd and finalCostUsd if available
+              const provisionalCostUsd =
+                message.role === "assistant" &&
+                "provisionalCostUsd" in message &&
+                typeof message.provisionalCostUsd === "number"
+                  ? message.provisionalCostUsd
+                  : null;
+              const finalCostUsd =
+                message.role === "assistant" &&
+                "finalCostUsd" in message &&
+                typeof message.finalCostUsd === "number"
+                  ? message.finalCostUsd
+                  : null;
+
               const formatTokenUsage = (usage: {
                 promptTokens?: number;
                 completionTokens?: number;
@@ -675,8 +696,17 @@ export const AgentChat: FC<AgentChatProps> = ({
                             className={`rounded-xl p-4 ${getRoleStyling()} max-w-[80%]`}
                           >
                             <div className="mb-2 flex items-center justify-between">
-                              <div className="text-xs font-medium opacity-80">
-                                {getRoleLabel()}
+                              <div className="flex items-center gap-2">
+                                {message.role === "assistant" && agent?.avatar && (
+                                  <img
+                                    src={agent.avatar || getDefaultAvatar()}
+                                    alt="Agent avatar"
+                                    className="size-6 rounded object-contain"
+                                  />
+                                )}
+                                <div className="text-xs font-medium opacity-80">
+                                  {getRoleLabel()}
+                                </div>
                               </div>
                               <div className="flex items-center gap-2">
                                 {modelName && provider && (
@@ -687,6 +717,22 @@ export const AgentChat: FC<AgentChatProps> = ({
                                 {tokenUsage && (
                                   <div className="rounded bg-black bg-opacity-10 px-2 py-1 font-mono text-xs opacity-70">
                                     {formatTokenUsage(tokenUsage)}
+                                  </div>
+                                )}
+                                {provisionalCostUsd !== null &&
+                                  finalCostUsd === null && (
+                                    <div className="rounded bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800 opacity-70 dark:bg-yellow-900 dark:text-yellow-200">
+                                      {formatCurrency(
+                                        provisionalCostUsd,
+                                        "usd",
+                                        10
+                                      )}{" "}
+                                      (provisional)
+                                    </div>
+                                  )}
+                                {finalCostUsd !== null && (
+                                  <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 opacity-70 dark:bg-green-900 dark:text-green-200">
+                                    {formatCurrency(finalCostUsd, "usd", 10)}
                                   </div>
                                 )}
                               </div>
@@ -704,8 +750,17 @@ export const AgentChat: FC<AgentChatProps> = ({
                       className={`rounded-xl p-5 ${getRoleStyling()} max-w-[80%]`}
                     >
                       <div className="mb-3 flex items-center justify-between">
-                        <div className="text-sm font-bold opacity-90">
-                          {getRoleLabel()}
+                        <div className="flex items-center gap-2">
+                          {message.role === "assistant" && agent?.avatar && (
+                            <img
+                              src={agent.avatar || getDefaultAvatar()}
+                              alt="Agent avatar"
+                              className="size-6 rounded object-contain"
+                            />
+                          )}
+                          <div className="text-sm font-bold opacity-90">
+                            {getRoleLabel()}
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {modelName && provider && (
@@ -730,8 +785,17 @@ export const AgentChat: FC<AgentChatProps> = ({
             })}
             {isLoading && (
               <div className="max-w-[80%] rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-neutral-900">
-                <div className="mb-2 text-xs font-medium text-neutral-600">
-                  Agent
+                <div className="mb-2 flex items-center gap-2">
+                  {agent?.avatar && (
+                    <img
+                      src={agent.avatar || getDefaultAvatar()}
+                      alt="Agent avatar"
+                      className="size-6 rounded object-contain"
+                    />
+                  )}
+                  <div className="text-xs font-medium text-neutral-600">
+                    Agent
+                  </div>
                 </div>
                 <div className="text-sm text-neutral-600">Thinking...</div>
               </div>

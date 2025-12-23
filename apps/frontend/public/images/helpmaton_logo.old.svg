@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <title>Helmaton Logo</title>
+  <desc>A brutalist minimalist logo for Helmaton, featuring thick black rectangular blocks forming an abstract, whimsical robot head with a helmet-like top structure.</desc>
+  
+  <g fill="#000000">
+    <rect x="20" y="30" width="160" height="40" />
+    
+    <rect x="20" y="80" width="40" height="90" />
+    <rect x="140" y="80" width="40" height="90" />
+    
+    <rect x="75" y="80" width="20" height="50" />
+    <rect x="105" y="80" width="20" height="50" />
+    
+    <rect x="75" y="140" width="50" height="30" />
+  </g>
+</svg>

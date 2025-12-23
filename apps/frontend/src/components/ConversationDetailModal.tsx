@@ -1,9 +1,12 @@
 import { useState } from "react";
 import type { FC } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { useAgentConversation } from "../hooks/useAgentConversations";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import type { Conversation } from "../utils/api";
+import { formatCurrency } from "../utils/currency";
 
 interface ConversationDetailModalProps {
   isOpen: boolean;
@@ -133,19 +136,25 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
         <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div>
-              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">Type</div>
+              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
+                Type
+              </div>
               <div className="inline-block rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50">
                 {conversationDetail.conversationType}
               </div>
             </div>
             <div>
-              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">Messages</div>
+              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
+                Messages
+              </div>
               <div className="text-neutral-900 dark:text-neutral-50">
                 {conversationDetail.messageCount}
               </div>
             </div>
             <div>
-              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">Started</div>
+              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
+                Started
+              </div>
               <div className="text-xs text-neutral-600 dark:text-neutral-300">
                 {formatDate(conversationDetail.startedAt)}
               </div>
@@ -250,6 +259,18 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                           typeof message.provider === "string"
                             ? message.provider
                             : null;
+                        const provisionalCostUsd =
+                          role === "assistant" &&
+                          "provisionalCostUsd" in message &&
+                          typeof message.provisionalCostUsd === "number"
+                            ? message.provisionalCostUsd
+                            : null;
+                        const finalCostUsd =
+                          role === "assistant" &&
+                          "finalCostUsd" in message &&
+                          typeof message.finalCostUsd === "number"
+                            ? message.finalCostUsd
+                            : null;
                         return (
                           <div
                             key={index}
@@ -276,10 +297,70 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                     {tokenUsage}
                                   </div>
                                 )}
+                                {provisionalCostUsd !== null &&
+                                  finalCostUsd === null && (
+                                    <div className="rounded bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800 opacity-70 dark:bg-yellow-900 dark:text-yellow-200">
+                                      {formatCurrency(
+                                        provisionalCostUsd,
+                                        "usd",
+                                        10
+                                      )}{" "}
+                                      (provisional)
+                                    </div>
+                                  )}
+                                {finalCostUsd !== null && (
+                                  <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 opacity-70 dark:bg-green-900 dark:text-green-200">
+                                    {formatCurrency(finalCostUsd, "usd", 10)}
+                                  </div>
+                                )}
                               </div>
                             </div>
-                            <div className="whitespace-pre-wrap text-sm">
-                              {content}
+                            <div className="text-sm">
+                              {role === "user" ? (
+                                <div className="whitespace-pre-wrap">
+                                  {content}
+                                </div>
+                              ) : (
+                                content.trim() && (
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    components={{
+                                      code: (props) => {
+                                        const { className, children, ...rest } =
+                                          props;
+                                        const isInline =
+                                          !className ||
+                                          !className.includes("language-");
+                                        if (isInline) {
+                                          return (
+                                            <code
+                                              className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                              {...rest}
+                                            >
+                                              {children}
+                                            </code>
+                                          );
+                                        }
+                                        return (
+                                          <code
+                                            className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                            {...rest}
+                                          >
+                                            {children}
+                                          </code>
+                                        );
+                                      },
+                                      p: ({ children }) => (
+                                        <p className="mb-2 last:mb-0">
+                                          {children}
+                                        </p>
+                                      ),
+                                    }}
+                                  >
+                                    {content}
+                                  </ReactMarkdown>
+                                )
+                              )}
                             </div>
                           </div>
                         );
