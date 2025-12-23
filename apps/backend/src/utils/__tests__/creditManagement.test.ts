@@ -38,6 +38,7 @@ import type { TokenUsage } from "../conversationLogger";
 import { InsufficientCreditsError } from "../creditErrors";
 import {
   adjustCreditReservation,
+  debitCredits,
   finalizeCreditReservation,
   refundReservation,
   reserveCredits,
@@ -252,6 +253,29 @@ describe("creditManagement", () => {
       // Should be exact (no rounding needed with integers)
       const expectedBalance = mockWorkspace.creditBalance - estimatedCost;
       expect(result.creditBalance).toBe(expectedBalance);
+    });
+
+    it("should handle negative estimated cost by clamping to zero and skipping reservation", async () => {
+      const negativeEstimatedCost = -10_000_000; // -10.0 USD in millionths (invalid)
+
+      const result = await reserveCredits(
+        mockDb,
+        "test-workspace",
+        negativeEstimatedCost
+      );
+
+      // Should return workspace without creating reservation
+      expect(result).toEqual({
+        reservationId: "zero-cost",
+        reservedAmount: 0,
+        workspace: mockWorkspace,
+      });
+      expect(mockAtomicUpdate).not.toHaveBeenCalled();
+      expect(mockCreate).not.toHaveBeenCalled();
+      expect(mockGet).toHaveBeenCalledWith(
+        "workspaces/test-workspace",
+        "workspace"
+      );
     });
   });
 
@@ -495,6 +519,43 @@ describe("creditManagement", () => {
         50,
         25,
         0 // cachedPromptTokens
+      );
+    });
+
+    it("should handle negative token usage cost by clamping to zero", async () => {
+      const tokenUsage: TokenUsage = {
+        promptTokens: 100,
+        completionTokens: 50,
+        totalTokens: 150,
+      };
+
+      // Simulate negative cost from pricing calculation (pricing info may be wrong)
+      mockCalculateTokenCost.mockReturnValue(-5_000_000); // -5.0 USD in millionths (invalid)
+      
+      // Mock atomicUpdate to actually call the updater function
+      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
+        const current = {
+          ...mockWorkspace,
+          creditBalance: 90_000_000, // Balance after initial reservation
+        };
+        const result = await updater(current);
+        return result as WorkspaceRecord;
+      });
+
+      const result = await adjustCreditReservation(
+        mockDb,
+        reservationId,
+        "test-workspace",
+        "google",
+        "gemini-2.5-flash",
+        tokenUsage
+      );
+
+      // Cost should be clamped to 0, so difference = 0 - 10_000_000 = -10_000_000 (refund)
+      // New balance: 90_000_000 - (-10_000_000) = 100_000_000
+      expect(result.creditBalance).toBe(100_000_000);
+      expect(mockDelete).toHaveBeenCalledWith(
+        `credit-reservations/${reservationId}`
       );
     });
   });
@@ -901,6 +962,140 @@ describe("creditManagement", () => {
         expect.any(Function),
         { maxRetries: 3 }
       );
+    });
+
+    it("should handle negative OpenRouter cost by clamping to zero", async () => {
+      const negativeOpenrouterCost = -3_000_000; // -3.0 USD in millionths (invalid)
+      let currentBalance = 100_000_000; // 100.0 USD
+
+      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
+        const current = {
+          ...mockWorkspace,
+          creditBalance: currentBalance,
+        };
+        const result = await updater(current);
+        currentBalance = (result as { creditBalance: number }).creditBalance;
+        return result as WorkspaceRecord;
+      });
+
+      const result = await finalizeCreditReservation(
+        mockDb,
+        "test-reservation",
+        negativeOpenrouterCost
+      );
+
+      // Cost should be clamped to 0, so difference = 0 - 45_000_000 = -45_000_000 (refund)
+      // New balance: 100_000_000 - (-45_000_000) = 145_000_000
+      expect(result.creditBalance).toBe(145_000_000);
+      expect(mockDelete).toHaveBeenCalledWith("credit-reservations/test-reservation");
+    });
+  });
+
+  describe("debitCredits", () => {
+    it("should successfully deduct credits when cost is positive", async () => {
+      const tokenUsage: TokenUsage = {
+        promptTokens: 100,
+        completionTokens: 50,
+        totalTokens: 150,
+      };
+
+      mockCalculateTokenCost.mockReturnValue(5_000_000); // 5.0 USD in millionths
+      
+      // Mock atomicUpdate to actually call the updater function
+      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
+        const current = { ...mockWorkspace };
+        const result = await updater(current);
+        return result as WorkspaceRecord;
+      });
+
+      const result = await debitCredits(
+        mockDb,
+        "test-workspace",
+        "google",
+        "gemini-2.5-flash",
+        tokenUsage
+      );
+
+      expect(result.creditBalance).toBe(95_000_000);
+      expect(mockCalculateTokenCost).toHaveBeenCalledWith(
+        "google",
+        "gemini-2.5-flash",
+        100,
+        50,
+        0, // reasoningTokens
+        0 // cachedPromptTokens
+      );
+    });
+
+    it("should handle negative actual cost by clamping to zero", async () => {
+      const tokenUsage: TokenUsage = {
+        promptTokens: 100,
+        completionTokens: 50,
+        totalTokens: 150,
+      };
+
+      // Simulate negative cost from pricing calculation (pricing info may be wrong)
+      mockCalculateTokenCost.mockReturnValue(-5_000_000); // -5.0 USD in millionths (invalid)
+      const updatedWorkspace = {
+        ...mockWorkspace,
+        creditBalance: 100_000_000, // Should remain unchanged (0 cost deducted)
+      };
+
+      mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
+
+      const result = await debitCredits(
+        mockDb,
+        "test-workspace",
+        "google",
+        "gemini-2.5-flash",
+        tokenUsage
+      );
+
+      // Cost should be clamped to 0, so balance should remain unchanged
+      expect(result.creditBalance).toBe(100_000_000);
+    });
+
+    it("should skip deduction for BYOK requests", async () => {
+      const tokenUsage: TokenUsage = {
+        promptTokens: 100,
+        completionTokens: 50,
+        totalTokens: 150,
+      };
+
+      const result = await debitCredits(
+        mockDb,
+        "test-workspace",
+        "google",
+        "gemini-2.5-flash",
+        tokenUsage,
+        3,
+        true // usesByok
+      );
+
+      expect(result).toEqual(mockWorkspace);
+      expect(mockAtomicUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should throw error when workspace is not found", async () => {
+      const tokenUsage: TokenUsage = {
+        promptTokens: 100,
+        completionTokens: 50,
+        totalTokens: 150,
+      };
+
+      mockGet.mockResolvedValue(undefined);
+
+      await expect(
+        debitCredits(
+          mockDb,
+          "test-workspace",
+          "google",
+          "gemini-2.5-flash",
+          tokenUsage,
+          3,
+          true
+        )
+      ).rejects.toThrow("Workspace test-workspace not found");
     });
   });
 

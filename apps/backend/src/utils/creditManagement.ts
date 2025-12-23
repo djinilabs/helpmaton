@@ -95,6 +95,21 @@ function calculateActualCost(
     tokenUsage.cachedPromptTokens || 0
   );
 
+  // Validate cost is non-negative (pricing info may be wrong)
+  // If negative, log warning and clamp to 0 to prevent incorrect deductions
+  const validatedCost = cost < 0 ? 0 : cost;
+  if (cost < 0) {
+    console.warn("[calculateActualCost] Negative cost detected, clamping to 0:", {
+      provider,
+      modelName,
+      originalCost: cost,
+      promptTokens: tokenUsage.promptTokens || 0,
+      cachedPromptTokens: tokenUsage.cachedPromptTokens || 0,
+      completionTokens: tokenUsage.completionTokens || 0,
+      reasoningTokens: tokenUsage.reasoningTokens || 0,
+    });
+  }
+
   console.log("[calculateActualCost] Cost calculation:", {
     provider,
     modelName,
@@ -102,10 +117,11 @@ function calculateActualCost(
     cachedPromptTokens: tokenUsage.cachedPromptTokens || 0,
     completionTokens: tokenUsage.completionTokens || 0,
     reasoningTokens: tokenUsage.reasoningTokens || 0,
-    cost,
+    cost: validatedCost,
+    originalCost: cost !== validatedCost ? cost : undefined,
   });
 
-  return cost;
+  return validatedCost;
 }
 
 export interface CreditReservation {
@@ -154,6 +170,24 @@ export async function reserveCredits(
   }
 
   const workspacePk = `workspaces/${workspaceId}`;
+
+  // Validate estimated cost is non-negative (pricing info may be wrong)
+  if (estimatedCost < 0) {
+    console.warn("[reserveCredits] Negative estimated cost detected, clamping to 0:", {
+      workspaceId,
+      estimatedCost,
+    });
+    // Return workspace without creating reservation for zero cost
+    const workspace = await db.workspace.get(workspacePk, "workspace");
+    if (!workspace) {
+      throw new Error(`Workspace ${workspaceId} not found`);
+    }
+    return {
+      reservationId: "zero-cost",
+      reservedAmount: 0,
+      workspace,
+    };
+  }
 
   try {
     // Atomically reserve credits by deducting estimated cost
@@ -317,8 +351,21 @@ export async function adjustCreditReservation(
     tokenUsage
   );
 
+  // Validate token usage cost is non-negative (pricing info may be wrong)
+  // calculateActualCost already validates, but double-check for safety
+  if (tokenUsageBasedCost < 0) {
+    console.warn("[adjustCreditReservation] Negative token usage cost detected, clamping to 0:", {
+      workspaceId,
+      reservationId,
+      provider,
+      modelName,
+      tokenUsageBasedCost,
+    });
+  }
+  const validatedTokenUsageCost = tokenUsageBasedCost < 0 ? 0 : tokenUsageBasedCost;
+
   // Calculate difference between token usage cost and reserved amount
-  const difference = tokenUsageBasedCost - reservation.reservedAmount;
+  const difference = validatedTokenUsageCost - reservation.reservedAmount;
 
   try {
     const updated = await db.workspace.atomicUpdate(
@@ -339,7 +386,8 @@ export async function adjustCreditReservation(
           workspaceId,
           reservationId,
           reservedAmount: reservation.reservedAmount,
-          tokenUsageBasedCost,
+          tokenUsageBasedCost: validatedTokenUsageCost,
+          originalTokenUsageCost: tokenUsageBasedCost !== validatedTokenUsageCost ? tokenUsageBasedCost : undefined,
           difference,
           oldBalance: current.creditBalance,
           newBalance,
@@ -366,7 +414,7 @@ export async function adjustCreditReservation(
     if (openrouterGenerationId || provider === "openrouter") {
       await db["credit-reservations"].update({
         pk: reservationPk,
-        tokenUsageBasedCost,
+        tokenUsageBasedCost: validatedTokenUsageCost,
         openrouterGenerationId: openrouterGenerationId || reservation.openrouterGenerationId,
         provider: provider || reservation.provider,
         modelName: modelName || reservation.modelName,
@@ -374,7 +422,7 @@ export async function adjustCreditReservation(
       console.log("[adjustCreditReservation] Updated reservation with generation ID for step 3:", {
         reservationId,
         openrouterGenerationId: openrouterGenerationId || reservation.openrouterGenerationId,
-        tokenUsageBasedCost,
+        tokenUsageBasedCost: validatedTokenUsageCost,
       });
     } else {
       // For non-OpenRouter providers, delete reservation after step 2 (no step 3 needed)
@@ -564,6 +612,18 @@ export async function debitCredits(
           tokenUsage
         );
 
+        // Validate actual cost is non-negative (pricing info may be wrong)
+        // calculateActualCost already validates, but double-check for safety
+        if (actualCost < 0) {
+          console.warn("[debitCredits] Negative actual cost detected, clamping to 0:", {
+            workspaceId,
+            provider,
+            modelName,
+            actualCost,
+          });
+        }
+        const validatedActualCost = actualCost < 0 ? 0 : actualCost;
+
         console.log("[debitCredits] Cost calculation:", {
           workspaceId,
           provider,
@@ -573,17 +633,18 @@ export async function debitCredits(
           completionTokens: tokenUsage.completionTokens || 0,
           reasoningTokens: tokenUsage.reasoningTokens || 0,
           currency: current.currency,
-          actualCost,
+          actualCost: validatedActualCost,
+          originalActualCost: actualCost !== validatedActualCost ? actualCost : undefined,
           oldBalance: current.creditBalance,
         });
 
         // Update credit balance (negative balances are allowed)
         // All values in millionths, so simple subtraction
-        const newBalance = current.creditBalance - actualCost;
+        const newBalance = current.creditBalance - validatedActualCost;
 
         console.log("[debitCredits] Deducting credits:", {
           workspaceId,
-          actualCost,
+          actualCost: validatedActualCost,
           oldBalance: current.creditBalance,
           newBalance,
           currency: current.currency,
@@ -656,12 +717,22 @@ export async function finalizeCreditReservation(
   const workspaceId = reservation.workspaceId;
   const workspacePk = `workspaces/${workspaceId}`;
 
+  // Validate OpenRouter cost is non-negative (pricing info may be wrong)
+  if (openrouterCost < 0) {
+    console.warn("[finalizeCreditReservation] Negative OpenRouter cost detected, clamping to 0:", {
+      reservationId,
+      workspaceId,
+      openrouterCost,
+    });
+  }
+  const validatedOpenrouterCost = openrouterCost < 0 ? 0 : openrouterCost;
+
   // Get token usage-based cost from reservation (step 2)
   const tokenUsageBasedCost = reservation.tokenUsageBasedCost;
   if (tokenUsageBasedCost === undefined) {
     console.warn(
       "[finalizeCreditReservation] Token usage-based cost not found, using OpenRouter cost directly:",
-      { reservationId, workspaceId, openrouterCost }
+      { reservationId, workspaceId, openrouterCost: validatedOpenrouterCost }
     );
     // If token usage cost is missing, just use OpenRouter cost
     // This shouldn't happen, but handle gracefully
@@ -673,7 +744,7 @@ export async function finalizeCreditReservation(
           throw new Error(`Workspace ${workspaceId} not found`);
         }
         // Adjust based on OpenRouter cost vs reserved amount
-        const difference = openrouterCost - reservation.reservedAmount;
+        const difference = validatedOpenrouterCost - reservation.reservedAmount;
         const newBalance = current.creditBalance - difference;
         return {
           pk: workspacePk,
@@ -688,7 +759,7 @@ export async function finalizeCreditReservation(
   }
 
   // Calculate difference between OpenRouter cost and token usage-based cost
-  const difference = openrouterCost - tokenUsageBasedCost;
+  const difference = validatedOpenrouterCost - tokenUsageBasedCost;
 
   try {
     const updated = await db.workspace.atomicUpdate(
@@ -709,7 +780,8 @@ export async function finalizeCreditReservation(
           workspaceId,
           reservationId,
           tokenUsageBasedCost,
-          openrouterCost,
+          openrouterCost: validatedOpenrouterCost,
+          originalOpenrouterCost: openrouterCost !== validatedOpenrouterCost ? openrouterCost : undefined,
           difference,
           oldBalance: current.creditBalance,
           newBalance,
@@ -728,7 +800,7 @@ export async function finalizeCreditReservation(
     // Update reservation with OpenRouter cost for tracking, then delete
     await db["credit-reservations"].update({
       pk: reservationPk,
-      openrouterCost,
+      openrouterCost: validatedOpenrouterCost,
     });
 
     // Delete reservation record
