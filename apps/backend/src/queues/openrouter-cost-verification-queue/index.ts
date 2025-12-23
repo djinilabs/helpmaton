@@ -59,18 +59,16 @@ async function fetchOpenRouterCost(
 
     const data = (await response.json()) as {
       data?: {
-        data?: {
-          total_cost?: number;
-        };
+        total_cost?: number;
       };
       cost?: number; // Fallback for older API format
     };
 
-    // OpenRouter API returns cost nested in data.data.total_cost
+    // OpenRouter API returns cost nested in data.data.total_cost (two levels: data.data.total_cost)
     // Try nested structure first, then fallback to top-level cost
     const cost =
-      data.data?.data?.total_cost !== undefined
-        ? data.data.data.total_cost
+      data.data?.total_cost !== undefined
+        ? data.data.total_cost
         : data.cost;
 
     // OpenRouter returns cost in USD, convert to millionths

@@ -114,14 +114,12 @@ describe("openrouter-cost-verification-queue", () => {
 
   describe("processCostVerification", () => {
     it("should fetch cost from OpenRouter API and update message with finalCostUsd", async () => {
-      // Mock OpenRouter API response (nested structure)
+      // Mock OpenRouter API response (nested structure: data.data.total_cost)
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           data: {
-            data: {
-              total_cost: 0.001, // $0.001 USD
-            },
+            total_cost: 0.001, // $0.001 USD
           },
         }),
       });
@@ -200,9 +198,7 @@ describe("openrouter-cost-verification-queue", () => {
         ok: true,
         json: async () => ({
           data: {
-            data: {
-              total_cost: 0.01, // $0.01 USD
-            },
+            total_cost: 0.01, // $0.01 USD
           },
         }),
       });
@@ -248,9 +244,7 @@ describe("openrouter-cost-verification-queue", () => {
         ok: true,
         json: async () => ({
           data: {
-            data: {
-              total_cost: 0.001,
-            },
+            total_cost: 0.001,
           },
         }),
       });
@@ -306,9 +300,7 @@ describe("openrouter-cost-verification-queue", () => {
         ok: true,
         json: async () => ({
           data: {
-            data: {
-              total_cost: 0.001,
-            },
+            total_cost: 0.001,
           },
         }),
       });
@@ -358,9 +350,7 @@ describe("openrouter-cost-verification-queue", () => {
         ok: true,
         json: async () => ({
           data: {
-            data: {
-              total_cost: 0.001,
-            },
+            total_cost: 0.001,
           },
         }),
       });
@@ -514,9 +504,7 @@ describe("openrouter-cost-verification-queue", () => {
         ok: true,
         json: async () => ({
           data: {
-            data: {
-              total_cost: 0.001, // Will become 1055 millionths with markup
-            },
+            total_cost: 0.001, // Will become 1055 millionths with markup
           },
         }),
       });
