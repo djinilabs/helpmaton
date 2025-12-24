@@ -44,10 +44,9 @@ import {
 import { prepareLLMCall } from "../../http/utils/generationLLMSetup";
 import {
   validateSubscriptionAndLimits,
+  trackSuccessfulRequest,
 } from "../../http/utils/generationRequestTracking";
-import {
-  extractTokenUsageAndCosts,
-} from "../../http/utils/generationTokenExtraction";
+import { extractTokenUsageAndCosts } from "../../http/utils/generationTokenExtraction";
 import { database } from "../../tables";
 import {
   isMessageContentEmpty,
@@ -59,9 +58,7 @@ import {
   transformLambdaUrlToHttpV2Event,
   type LambdaUrlEvent,
 } from "../../utils/httpEventAdapter";
-import {
-  extractOpenRouterGenerationId,
-} from "../../utils/openrouterUtils";
+import { extractOpenRouterGenerationId } from "../../utils/openrouterUtils";
 import { flushPostHog } from "../../utils/posthog";
 import {
   initSentry,
@@ -73,9 +70,7 @@ import {
   getAllowedOrigins,
   validateSecret,
 } from "../../utils/streamServerUtils";
-import {
-  setupAgentAndTools,
-} from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
+import { setupAgentAndTools } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
   convertAiSdkUIMessagesToUIMessages,
   convertTextToUIMessage,
@@ -136,22 +131,32 @@ async function persistConversationError(
     if (context.usesByok) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
       const errorAny = error instanceof Error ? (error as any) : undefined;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
-      const causeAny = error instanceof Error && error.cause instanceof Error ? (error.cause as any) : undefined;
+       
+      const causeAny =
+        error instanceof Error && error.cause instanceof Error
+          ? (error.cause as any)
+          : undefined;
       console.log("[Stream Handler] BYOK error before extraction:", {
-        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        errorType:
+          error instanceof Error ? error.constructor.name : typeof error,
         errorName: error instanceof Error ? error.name : "N/A",
         errorMessage: error instanceof Error ? error.message : String(error),
         hasData: !!errorAny?.data,
         dataError: errorAny?.data?.error,
         dataErrorMessage: errorAny?.data?.error?.message,
         hasCause: error instanceof Error && !!error.cause,
-        causeType: error instanceof Error && error.cause instanceof Error ? error.cause.constructor.name : undefined,
-        causeMessage: error instanceof Error && error.cause instanceof Error ? error.cause.message : undefined,
+        causeType:
+          error instanceof Error && error.cause instanceof Error
+            ? error.cause.constructor.name
+            : undefined,
+        causeMessage:
+          error instanceof Error && error.cause instanceof Error
+            ? error.cause.message
+            : undefined,
         causeData: causeAny?.data?.error?.message,
       });
     }
-    
+
     const errorInfo = buildConversationErrorInfo(error, {
       provider: "openrouter",
       modelName: context.finalModelName,
@@ -160,7 +165,7 @@ async function persistConversationError(
         usesByok: context.usesByok,
       },
     });
-    
+
     // Log extracted error info (especially for BYOK)
     if (context.usesByok) {
       console.log("[Stream Handler] BYOK error after extraction:", {
@@ -184,10 +189,8 @@ async function persistConversationError(
     );
   } catch (logError) {
     console.error("[Stream Handler] Failed to persist conversation error:", {
-      originalError:
-        error instanceof Error ? error.message : String(error),
-      logError:
-        logError instanceof Error ? logError.message : String(logError),
+      originalError: error instanceof Error ? error.message : String(error),
+      logError: logError instanceof Error ? logError.message : String(logError),
       workspaceId: context.workspaceId,
       agentId: context.agentId,
       conversationId: context.conversationId,
@@ -690,18 +693,15 @@ async function adjustCreditsAfterStream(
 
 /**
  * Tracks the successful LLM request
+ * Note: This is a wrapper around the shared utility for backward compatibility
  */
 async function trackRequestUsage(
   subscriptionId: string | undefined,
   workspaceId: string,
   agentId: string
 ): Promise<void> {
-  if (!subscriptionId) {
-    return;
-  }
-
   // Track successful request using shared utility
-  await trackRequestUsage(subscriptionId, workspaceId, agentId);
+  await trackSuccessfulRequest(subscriptionId, workspaceId, agentId, "stream");
 }
 
 /**
@@ -819,8 +819,15 @@ async function logConversation(
     }
 
     // Extract token usage, generation ID, and costs
-    const { openrouterGenerationId, provisionalCostUsd: extractedProvisionalCostUsd } =
-      extractTokenUsageAndCosts(streamResult, undefined, finalModelName, "stream");
+    const {
+      openrouterGenerationId,
+      provisionalCostUsd: extractedProvisionalCostUsd,
+    } = extractTokenUsageAndCosts(
+      streamResult,
+      undefined,
+      finalModelName,
+      "stream"
+    );
     const provisionalCostUsd = extractedProvisionalCostUsd;
 
     // Create assistant message with token usage, modelName, provider, and costs
@@ -1288,7 +1295,7 @@ const internalHandler = async (
     // These might throw NoOutputGeneratedError if there was an error during streaming
     let responseText: string;
     let usage: unknown;
-    
+
     try {
       [responseText, usage] = await Promise.all([
         Promise.resolve(streamResult.text).then((t) => t || ""),
