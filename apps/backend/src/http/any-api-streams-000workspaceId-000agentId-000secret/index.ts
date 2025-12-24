@@ -586,6 +586,7 @@ async function streamAIResponse(
 
   const decoder = new TextDecoder();
   let textBuffer = ""; // Buffer for extracting text deltas (for logging/tracking only)
+  let streamCompletedSuccessfully = false; // Track if stream completed without error
 
   try {
     while (true) {
@@ -631,18 +632,38 @@ async function streamAIResponse(
       const remainingBytes = new TextEncoder().encode(textBuffer);
       await writeChunkToStream(responseStream, remainingBytes);
     }
+
+    // Mark as successfully completed before ending stream
+    streamCompletedSuccessfully = true;
+
+    // End the stream after all chunks are written successfully
+    console.log("[Stream Handler] All chunks written, ending stream");
+    responseStream.end();
   } catch (streamError) {
     // Release the reader lock before re-throwing
     reader.releaseLock();
+    // Don't end the stream here - let the outer error handler do it
     // Re-throw to let outer handler catch it (which has access to usesByok and responseStream)
     throw streamError;
   } finally {
     reader.releaseLock();
+    // Only end stream here if it completed successfully but wasn't ended above
+    // (This is a safety net for edge cases)
+    if (streamCompletedSuccessfully) {
+      try {
+        // Check if stream is still writable before ending
+        // If it's already ended, this will throw, which we'll catch and ignore
+        responseStream.end();
+      } catch (endError) {
+        // Stream might already be ended, ignore
+        console.warn("[Stream Handler] Stream already ended (expected in normal flow):", {
+          error: endError instanceof Error ? endError.message : String(endError),
+        });
+      }
+    }
+    // If streamCompletedSuccessfully is false, there was an error - don't end stream here
+    // Let the error handler do it
   }
-
-  // End the stream after all chunks are written
-  console.log("[Stream Handler] All chunks written, ending stream");
-  responseStream.end();
 
   return streamResult;
 }
@@ -973,32 +994,45 @@ async function writeErrorResponse(
 
   try {
     // Write error body directly to the original stream
+    // Check if stream is writable before writing
     await writeChunkToStream(responseStream, errorChunk);
 
-    // End the stream
-    responseStream.end();
-    console.log("[Stream Handler] Error response written and stream ended");
+    // End the stream only if it's not already ended
+    try {
+      responseStream.end();
+      console.log("[Stream Handler] Error response written and stream ended");
+    } catch (endError) {
+      // Stream might already be ended, log but don't throw
+      console.warn("[Stream Handler] Stream already ended when trying to end after error:", {
+        error: endError instanceof Error ? endError.message : String(endError),
+        originalError: errorMessage,
+      });
+    }
   } catch (writeError) {
-    // If we can't write to the stream, just log the error
-    console.error("[Stream Handler] Error writing error response:", {
-      error:
+    // If we can't write to the stream (e.g., already ended), just log the error
+    // Don't throw - the original error is more important
+    console.error("[Stream Handler] Error writing error response (stream may already be ended):", {
+      writeError:
         writeError instanceof Error ? writeError.message : String(writeError),
-      stack: writeError instanceof Error ? writeError.stack : undefined,
       writeErrorType: writeError?.constructor?.name,
+      originalError: errorMessage,
+      isStreamWriteAfterEnd: writeError instanceof Error && writeError.message.includes("write after end"),
     });
-    // Try to end the stream even if write failed
+    // Try to end the stream even if write failed, but don't throw if it fails
     try {
       responseStream.end();
     } catch (endError) {
-      console.error(
-        "[Stream Handler] Error ending stream after write failure:",
+      // Stream already ended or in error state - this is expected, just log
+      console.warn(
+        "[Stream Handler] Stream already ended when trying to end after write failure:",
         {
-          error:
+          endError:
             endError instanceof Error ? endError.message : String(endError),
+          originalError: errorMessage,
         }
       );
     }
-    throw writeError;
+    // Don't re-throw writeError - we want the original error to be logged, not the stream error
   }
 }
 
@@ -1239,13 +1273,10 @@ const internalHandler = async (
       // Check if this is a BYOK authentication error FIRST
       if (isByokAuthenticationError(error, context.usesByok)) {
         await persistConversationError(context, errorToLog);
-        const errorChunk = `data: ${JSON.stringify({
-          type: "error",
-          error:
-            "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
-        })}\n\n`;
-        await writeChunkToStream(responseStream, errorChunk);
-        responseStream.end();
+        // Use writeErrorResponse which handles stream state properly
+        await writeErrorResponse(responseStream, new Error(
+          "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions."
+        ));
         return;
       }
 
@@ -1264,12 +1295,8 @@ const internalHandler = async (
           "body" in response
         ) {
           const body = JSON.parse((response as { body: string }).body);
-          const errorChunk = `data: ${JSON.stringify({
-            type: "error",
-            error: body.error,
-          })}\n\n`;
-          await writeChunkToStream(responseStream, errorChunk);
-          responseStream.end();
+          // Use writeErrorResponse which handles stream state properly
+          await writeErrorResponse(responseStream, new Error(body.error));
           return;
         }
       }
@@ -1317,13 +1344,10 @@ const internalHandler = async (
       if (isByokAuthenticationError(resultError, context.usesByok)) {
         const errorToLog = normalizeByokError(resultError);
         await persistConversationError(context, errorToLog);
-        const errorChunk = `data: ${JSON.stringify({
-          type: "error",
-          error:
-            "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
-        })}\n\n`;
-        await writeChunkToStream(responseStream, errorChunk);
-        responseStream.end();
+        // Use writeErrorResponse which handles stream state properly
+        await writeErrorResponse(responseStream, new Error(
+          "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions."
+        ));
         return;
       }
       // For non-authentication errors when accessing result properties, still log the conversation
