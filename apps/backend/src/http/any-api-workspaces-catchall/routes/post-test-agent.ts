@@ -22,6 +22,7 @@ import {
 } from "../../../utils/creditManagement";
 import { validateCreditsAndLimitsAndReserve } from "../../../utils/creditValidation";
 import { isCreditDeductionEnabled } from "../../../utils/featureFlags";
+import { isAuthenticationError } from "../../../utils/handlingErrors";
 import {
   extractOpenRouterCost,
   extractOpenRouterGenerationId,
@@ -310,6 +311,56 @@ export const registerPostTestAgent = (app: express.Application) => {
         // Note: streamText() itself doesn't throw, but errors can occur when consuming the stream
         llmCallAttempted = true;
       } catch (error) {
+        // Comprehensive error logging for debugging
+        console.error("[Agent Test Handler] Error caught:", {
+          workspaceId,
+          agentId,
+          usesByok,
+          errorType: error instanceof Error ? error.constructor.name : typeof error,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+          errorKeys: error && typeof error === "object" ? Object.keys(error) : [],
+          errorStringified: error && typeof error === "object" 
+            ? JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+            : String(error),
+          isAuthenticationError: isAuthenticationError(error),
+          errorStatus: error && typeof error === "object" && "statusCode" in error 
+            ? (error as { statusCode?: number }).statusCode 
+            : error && typeof error === "object" && "status" in error
+            ? (error as { status?: number }).status
+            : undefined,
+          errorCause: error instanceof Error && error.cause 
+            ? (error.cause instanceof Error ? error.cause.message : String(error.cause))
+            : undefined,
+        });
+
+        // Check if this is a BYOK authentication error FIRST
+        // This should be checked before credit errors since BYOK doesn't use credits
+        // NoOutputGeneratedError often indicates an authentication error when using BYOK
+        const isNoOutputError = error instanceof Error && 
+          error.constructor.name === "NoOutputGeneratedError" &&
+          error.message.includes("No output generated");
+        
+        if (usesByok && (isAuthenticationError(error) || isNoOutputError)) {
+          console.log(
+            "[Agent Test Handler] BYOK authentication error detected:",
+            {
+              workspaceId,
+              agentId,
+              error: error instanceof Error ? error.message : String(error),
+              errorType: error instanceof Error ? error.constructor.name : typeof error,
+              errorStringified: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+              isNoOutputError,
+            }
+          );
+
+          // Return specific error message for BYOK authentication issues
+          return res.status(400).json({
+            error:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          });
+        }
+
         // Handle errors based on when they occurred
         if (error instanceof InsufficientCreditsError) {
           // Send email notification (non-blocking)
@@ -503,7 +554,31 @@ export const registerPostTestAgent = (app: express.Application) => {
       }
 
       // Get the UI message stream response from streamText result
-      const streamResponse = result.toUIMessageStreamResponse();
+      // This might throw NoOutputGeneratedError if there was an error during streaming
+      let streamResponse: Response;
+      try {
+        streamResponse = result.toUIMessageStreamResponse();
+      } catch (streamError) {
+        // Check if this is a BYOK authentication error
+        if (usesByok && isAuthenticationError(streamError)) {
+          console.log(
+            "[Agent Test Handler] BYOK authentication error detected when getting stream response:",
+            {
+              workspaceId,
+              agentId,
+              error: streamError instanceof Error ? streamError.message : String(streamError),
+              errorType: streamError instanceof Error ? streamError.constructor.name : typeof streamError,
+              errorStringified: JSON.stringify(streamError, Object.getOwnPropertyNames(streamError)),
+            }
+          );
+
+          return res.status(400).json({
+            error:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          });
+        }
+        throw streamError;
+      }
 
       // Buffer the stream as it's generated
       const chunks: Uint8Array[] = [];
@@ -520,6 +595,32 @@ export const registerPostTestAgent = (app: express.Application) => {
             chunks.push(value);
           }
         }
+      } catch (streamError) {
+        // Release the reader lock before handling the error
+        reader.releaseLock();
+        
+        // Check if this is a BYOK authentication error
+        if (usesByok && isAuthenticationError(streamError)) {
+          console.log(
+            "[Agent Test Handler] BYOK authentication error detected during stream consumption:",
+            {
+              workspaceId,
+              agentId,
+              error: streamError instanceof Error ? streamError.message : String(streamError),
+              errorType: streamError instanceof Error ? streamError.constructor.name : typeof streamError,
+              errorStringified: JSON.stringify(streamError, Object.getOwnPropertyNames(streamError)),
+            }
+          );
+
+          // Return specific error message for BYOK authentication issues
+          return res.status(400).json({
+            error:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          });
+        }
+        
+        // Re-throw other stream errors
+        throw streamError;
       } finally {
         reader.releaseLock();
       }
@@ -612,13 +713,41 @@ export const registerPostTestAgent = (app: express.Application) => {
 
       // Extract text, tool calls, tool results, and usage from streamText result
       // streamText result properties are promises that need to be awaited
-      const [responseText, toolCallsFromResult, toolResultsFromResult, usage] =
-        await Promise.all([
-          Promise.resolve(result.text).then((t) => t || ""),
-          Promise.resolve(result.toolCalls).then((tc) => tc || []),
-          Promise.resolve(result.toolResults).then((tr) => tr || []),
-          Promise.resolve(result.usage),
-        ]);
+      // These might throw NoOutputGeneratedError if there was an error during streaming
+      let responseText: string;
+      let toolCallsFromResult: unknown[];
+      let toolResultsFromResult: unknown[];
+      let usage: unknown;
+      
+      try {
+        [responseText, toolCallsFromResult, toolResultsFromResult, usage] =
+          await Promise.all([
+            Promise.resolve(result.text).then((t) => t || ""),
+            Promise.resolve(result.toolCalls).then((tc) => tc || []),
+            Promise.resolve(result.toolResults).then((tr) => tr || []),
+            Promise.resolve(result.usage),
+          ]);
+      } catch (resultError) {
+        // Check if this is a BYOK authentication error
+        if (usesByok && isAuthenticationError(resultError)) {
+          console.log(
+            "[Agent Test Handler] BYOK authentication error detected when accessing result properties:",
+            {
+              workspaceId,
+              agentId,
+              error: resultError instanceof Error ? resultError.message : String(resultError),
+              errorType: resultError instanceof Error ? resultError.constructor.name : typeof resultError,
+              errorStringified: JSON.stringify(resultError, Object.getOwnPropertyNames(resultError)),
+            }
+          );
+
+          return res.status(400).json({
+            error:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          });
+        }
+        throw resultError;
+      }
 
       // Extract token usage from streamText result (after stream is consumed and usage is awaited)
       const tokenUsage = extractTokenUsage({ ...result, usage });

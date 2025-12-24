@@ -126,8 +126,8 @@ export async function setupAgentAndTools(
 ): Promise<AgentSetup> {
   const { agent } = await validateWorkspaceAndAgent(workspaceId, agentId);
 
-  // Fetch workspace API key if it exists (only for Google provider since createAgentModel only supports Google)
-  const agentProvider = "google"; // createAgentModel only supports Google
+  // Fetch workspace API key if it exists (only OpenRouter is supported for BYOK)
+  const agentProvider = "openrouter"; // Only OpenRouter is supported for BYOK
   const workspaceApiKey = await getWorkspaceApiKey(workspaceId, agentProvider);
   const usesByok = workspaceApiKey !== null;
 
@@ -142,7 +142,8 @@ export async function setupAgentAndTools(
     workspaceId,
     agentId,
     usesByok,
-    options?.userId
+    options?.userId,
+    agentProvider // Pass provider to createAgentModel
   );
 
   // Extract agentId from agent.pk (format: "agents/{workspaceId}/{agentId}")

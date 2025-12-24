@@ -50,6 +50,7 @@ import {
 } from "../../utils/creditManagement";
 import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation";
 import { isCreditDeductionEnabled } from "../../utils/featureFlags";
+import { isAuthenticationError } from "../../utils/handlingErrors";
 import {
   transformLambdaUrlToHttpV2Event,
   type LambdaUrlEvent,
@@ -1316,6 +1317,54 @@ const internalHandler = async (
       llmCallAttempted = true;
       console.log("[Stream Handler] AI stream completed");
     } catch (error) {
+      // Comprehensive error logging for debugging
+      console.error("[Stream Handler] Error caught:", {
+        workspaceId: context.workspaceId,
+        agentId: context.agentId,
+        usesByok: context.usesByok,
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+        errorKeys: error && typeof error === "object" ? Object.keys(error) : [],
+        errorStringified: error && typeof error === "object" 
+          ? JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+          : String(error),
+        isAuthenticationError: isAuthenticationError(error),
+        errorStatus: error && typeof error === "object" && "statusCode" in error 
+          ? (error as { statusCode?: number }).statusCode 
+          : error && typeof error === "object" && "status" in error
+          ? (error as { status?: number }).status
+          : undefined,
+        errorCause: error instanceof Error && error.cause 
+          ? (error.cause instanceof Error ? error.cause.message : String(error.cause))
+          : undefined,
+      });
+
+      // Check if this is a BYOK authentication error FIRST
+      // This should be checked before credit errors since BYOK doesn't use credits
+      if (context.usesByok && isAuthenticationError(error)) {
+        console.log(
+          "[Stream Handler] BYOK authentication error detected:",
+          {
+            workspaceId: context.workspaceId,
+            agentId: context.agentId,
+            error: error instanceof Error ? error.message : String(error),
+            errorType: error instanceof Error ? error.constructor.name : typeof error,
+            errorStringified: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+          }
+        );
+
+        // Write specific error message for BYOK authentication issues
+        const errorChunk = `data: ${JSON.stringify({
+          type: "error",
+          error:
+            "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+        })}\n\n`;
+        await writeChunkToStream(responseStream, errorChunk);
+        responseStream.end();
+        return;
+      }
+
       // Handle errors based on when they occurred
       if (error instanceof InsufficientCreditsError) {
         // Send email notification (non-blocking)

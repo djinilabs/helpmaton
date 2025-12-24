@@ -27,7 +27,10 @@ import {
 } from "../../utils/creditManagement";
 import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation";
 import { isCreditDeductionEnabled } from "../../utils/featureFlags";
-import { handlingErrors } from "../../utils/handlingErrors";
+import {
+  handlingErrors,
+  isAuthenticationError,
+} from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
 import {
   extractOpenRouterCost,
@@ -371,6 +374,31 @@ export const handler = adaptHttpHandler(
           }
         }
       } catch (error) {
+        // Check if this is a BYOK authentication error FIRST
+        // This should be checked before credit errors since BYOK doesn't use credits
+        if (usesByok && isAuthenticationError(error)) {
+          console.log(
+            "[Webhook Handler] BYOK authentication error detected:",
+            {
+              workspaceId,
+              agentId,
+              error: error instanceof Error ? error.message : String(error),
+              errorType: error instanceof Error ? error.constructor.name : typeof error,
+              errorStringified: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+            }
+          );
+
+          // Return specific error message for BYOK authentication issues
+          return {
+            statusCode: 400,
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8",
+            },
+            body:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          };
+        }
+
         // Handle errors based on when they occurred
         if (error instanceof InsufficientCreditsError) {
           // Send email notification (non-blocking)
