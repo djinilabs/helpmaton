@@ -374,9 +374,37 @@ export const handler = adaptHttpHandler(
           }
         }
       } catch (error) {
+        // Comprehensive error logging for debugging
+        console.error("[Webhook Handler] Error caught:", {
+          workspaceId,
+          agentId,
+          usesByok,
+          errorType: error instanceof Error ? error.constructor.name : typeof error,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+          errorKeys: error && typeof error === "object" ? Object.keys(error) : [],
+          errorStringified: error && typeof error === "object" 
+            ? JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+            : String(error),
+          isAuthenticationError: isAuthenticationError(error),
+          errorStatus: error && typeof error === "object" && "statusCode" in error 
+            ? (error as { statusCode?: number }).statusCode 
+            : error && typeof error === "object" && "status" in error
+            ? (error as { status?: number }).status
+            : undefined,
+          errorCause: error instanceof Error && error.cause 
+            ? (error.cause instanceof Error ? error.cause.message : String(error.cause))
+            : undefined,
+        });
+
         // Check if this is a BYOK authentication error FIRST
         // This should be checked before credit errors since BYOK doesn't use credits
-        if (usesByok && isAuthenticationError(error)) {
+        // NoOutputGeneratedError often indicates an authentication error when using BYOK
+        const isNoOutputError = error instanceof Error && 
+          error.constructor.name === "NoOutputGeneratedError" &&
+          error.message.includes("No output generated");
+        
+        if (usesByok && (isAuthenticationError(error) || isNoOutputError)) {
           console.log(
             "[Webhook Handler] BYOK authentication error detected:",
             {
@@ -385,6 +413,7 @@ export const handler = adaptHttpHandler(
               error: error instanceof Error ? error.message : String(error),
               errorType: error instanceof Error ? error.constructor.name : typeof error,
               errorStringified: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+              isNoOutputError,
             }
           );
 
@@ -591,11 +620,68 @@ export const handler = adaptHttpHandler(
       }
 
       // Process simple non-streaming response (no tool continuation)
-      const responseContent = await processSimpleNonStreamingResponse(result);
+      // This might throw NoOutputGeneratedError if there was an error during generation
+      let responseContent: string;
+      try {
+        responseContent = await processSimpleNonStreamingResponse(result);
+      } catch (resultError) {
+        // Check if this is a BYOK authentication error
+        if (usesByok && isAuthenticationError(resultError)) {
+          console.log(
+            "[Webhook Handler] BYOK authentication error detected when processing response:",
+            {
+              workspaceId,
+              agentId,
+              error: resultError instanceof Error ? resultError.message : String(resultError),
+              errorType: resultError instanceof Error ? resultError.constructor.name : typeof resultError,
+              errorStringified: JSON.stringify(resultError, Object.getOwnPropertyNames(resultError)),
+            }
+          );
+
+          return {
+            statusCode: 400,
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8",
+            },
+            body:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          };
+        }
+        throw resultError;
+      }
 
       // Extract tool calls and results from generateText result
-      let toolCallsFromResult = result.toolCalls || [];
-      const toolResultsFromResult = result.toolResults || [];
+      // These might throw NoOutputGeneratedError if there was an error during generation
+      let toolCallsFromResult: unknown[];
+      let toolResultsFromResult: unknown[];
+      try {
+        toolCallsFromResult = result.toolCalls || [];
+        toolResultsFromResult = result.toolResults || [];
+      } catch (resultError) {
+        // Check if this is a BYOK authentication error
+        if (usesByok && isAuthenticationError(resultError)) {
+          console.log(
+            "[Webhook Handler] BYOK authentication error detected when accessing result properties:",
+            {
+              workspaceId,
+              agentId,
+              error: resultError instanceof Error ? resultError.message : String(resultError),
+              errorType: resultError instanceof Error ? resultError.constructor.name : typeof resultError,
+              errorStringified: JSON.stringify(resultError, Object.getOwnPropertyNames(resultError)),
+            }
+          );
+
+          return {
+            statusCode: 400,
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8",
+            },
+            body:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          };
+        }
+        throw resultError;
+      }
 
       // FIX: If tool calls are missing but tool results exist, reconstruct tool calls from results
       // This can happen when tools execute synchronously and the AI SDK doesn't populate toolCalls

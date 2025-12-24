@@ -556,7 +556,9 @@ async function streamAIResponse(
   });
 
   // Get the UI message stream response from streamText result
+  // This might throw NoOutputGeneratedError if there was an error during streaming
   // This returns SSE format (Server-Sent Events) that useChat expects
+  // Errors will be caught by the outer handler which has access to usesByok
   const streamResponse = streamResult.toUIMessageStreamResponse();
 
   // Read from the stream and write chunks to responseStream immediately as they arrive
@@ -613,6 +615,11 @@ async function streamAIResponse(
       const remainingBytes = new TextEncoder().encode(textBuffer);
       await writeChunkToStream(responseStream, remainingBytes);
     }
+  } catch (streamError) {
+    // Release the reader lock before re-throwing
+    reader.releaseLock();
+    // Re-throw to let outer handler catch it (which has access to usesByok and responseStream)
+    throw streamError;
   } finally {
     reader.releaseLock();
   }
@@ -1342,7 +1349,12 @@ const internalHandler = async (
 
       // Check if this is a BYOK authentication error FIRST
       // This should be checked before credit errors since BYOK doesn't use credits
-      if (context.usesByok && isAuthenticationError(error)) {
+      // NoOutputGeneratedError often indicates an authentication error when using BYOK
+      const isNoOutputError = error instanceof Error && 
+        error.constructor.name === "NoOutputGeneratedError" &&
+        error.message.includes("No output generated");
+      
+      if (context.usesByok && (isAuthenticationError(error) || isNoOutputError)) {
         console.log(
           "[Stream Handler] BYOK authentication error detected:",
           {
@@ -1351,6 +1363,7 @@ const internalHandler = async (
             error: error instanceof Error ? error.message : String(error),
             errorType: error instanceof Error ? error.constructor.name : typeof error,
             errorStringified: JSON.stringify(error, Object.getOwnPropertyNames(error)),
+            isNoOutputError,
           }
         );
 
@@ -1576,10 +1589,41 @@ const internalHandler = async (
     // streamText result properties are promises that need to be awaited
     // (same as test endpoint)
     // streamResult.text includes the complete final response including continuation responses after tool execution
-    const [responseText, usage] = await Promise.all([
-      Promise.resolve(streamResult.text).then((t) => t || ""),
-      Promise.resolve(streamResult.usage),
-    ]);
+    // These might throw NoOutputGeneratedError if there was an error during streaming
+    let responseText: string;
+    let usage: unknown;
+    
+    try {
+      [responseText, usage] = await Promise.all([
+        Promise.resolve(streamResult.text).then((t) => t || ""),
+        Promise.resolve(streamResult.usage),
+      ]);
+    } catch (resultError) {
+      // Check if this is a BYOK authentication error
+      if (context.usesByok && isAuthenticationError(resultError)) {
+        console.log(
+          "[Stream Handler] BYOK authentication error detected when accessing result properties:",
+          {
+            workspaceId: context.workspaceId,
+            agentId: context.agentId,
+            error: resultError instanceof Error ? resultError.message : String(resultError),
+            errorType: resultError instanceof Error ? resultError.constructor.name : typeof resultError,
+            errorStringified: JSON.stringify(resultError, Object.getOwnPropertyNames(resultError)),
+          }
+        );
+
+        // Write specific error message for BYOK authentication issues
+        const errorChunk = `data: ${JSON.stringify({
+          type: "error",
+          error:
+            "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+        })}\n\n`;
+        await writeChunkToStream(responseStream, errorChunk);
+        responseStream.end();
+        return;
+      }
+      throw resultError;
+    }
 
     // Use responseText (complete final text) instead of fullStreamedText
     // responseText includes continuation responses after tool execution
