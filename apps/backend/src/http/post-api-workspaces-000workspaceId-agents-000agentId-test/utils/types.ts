@@ -9,6 +9,7 @@ export type ToolCallContent = {
   toolCallId: string;
   toolName: string;
   args: unknown;
+  toolCallStartedAt?: string; // ISO timestamp when tool call started
 };
 
 export type ToolResultContent = {
@@ -16,6 +17,7 @@ export type ToolResultContent = {
   toolCallId: string;
   toolName: string;
   result: unknown;
+  toolExecutionTimeMs?: number; // Duration in milliseconds
 };
 
 export type UIMessage =
@@ -41,6 +43,7 @@ export type UIMessage =
       openrouterGenerationId?: string; // OpenRouter generation ID for cost verification
       provisionalCostUsd?: number; // Provisional cost extracted from LLM response (in millionths)
       finalCostUsd?: number; // Final cost from OpenRouter API (in millionths) after verification
+      generationTimeMs?: number; // Time in milliseconds for LLM generation call
       awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
     }
   | {

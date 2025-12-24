@@ -48,14 +48,25 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
           if (typeof item === "string") return item;
           if (typeof item === "object" && item !== null) {
             if ("type" in item && item.type === "tool-call") {
+              const toolCall = item as {
+                toolName?: string;
+                toolCallStartedAt?: string;
+              };
               return `[Tool Call: ${
-                (item as { toolName?: string }).toolName || "unknown"
+                toolCall.toolName || "unknown"
               }]`;
             }
             if ("type" in item && item.type === "tool-result") {
-              return `[Tool Result: ${
-                (item as { toolName?: string }).toolName || "unknown"
-              }]`;
+              const toolResult = item as {
+                toolName?: string;
+                toolExecutionTimeMs?: number;
+              };
+              const toolName = toolResult.toolName || "unknown";
+              const execTime =
+                toolResult.toolExecutionTimeMs !== undefined
+                  ? ` (${(toolResult.toolExecutionTimeMs / 1000).toFixed(2)}s)`
+                  : "";
+              return `[Tool Result: ${toolName}${execTime}]`;
             }
             if ("text" in item && typeof item.text === "string") {
               return item.text;
@@ -204,6 +215,16 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                 </div>
               </div>
             )}
+            {conversationDetail.totalGenerationTimeMs !== undefined && (
+              <div>
+                <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
+                  Total Generation Time
+                </div>
+                <div className="text-neutral-900 dark:text-neutral-50">
+                  {(conversationDetail.totalGenerationTimeMs / 1000).toFixed(2)}s
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -329,6 +350,12 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                           typeof message.awsRequestId === "string"
                             ? message.awsRequestId
                             : null;
+                        const generationTimeMs =
+                          role === "assistant" &&
+                          "generationTimeMs" in message &&
+                          typeof message.generationTimeMs === "number"
+                            ? message.generationTimeMs
+                            : null;
                         return (
                           <div
                             key={index}
@@ -369,6 +396,11 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                 {finalCostUsd !== null && (
                                   <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 opacity-70 dark:bg-green-900 dark:text-green-200">
                                     {formatCurrency(finalCostUsd, "usd", 10)}
+                                  </div>
+                                )}
+                                {generationTimeMs !== null && (
+                                  <div className="rounded bg-indigo-100 px-2 py-1 text-xs font-medium text-indigo-800 opacity-70 dark:bg-indigo-900 dark:text-indigo-200">
+                                    {(generationTimeMs / 1000).toFixed(2)}s
                                   </div>
                                 )}
                               </div>

@@ -155,6 +155,7 @@ export const registerGetAgentConversations = (app: express.Application) => {
             tokenUsage: c.tokenUsage || null,
             costUsd: c.costUsd,
             hasError: !!c.error,
+            totalGenerationTimeMs: c.totalGenerationTimeMs || undefined,
           };
         });
 

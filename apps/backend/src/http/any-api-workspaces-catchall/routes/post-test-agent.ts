@@ -111,7 +111,8 @@ async function persistConversationError(options: {
       undefined,
       options.usesByok,
       errorInfo,
-      options.awsRequestId
+      options.awsRequestId,
+      "test"
     );
   } catch (logError) {
     console.error("[Agent Test Handler] Failed to persist conversation error:", {
@@ -326,6 +327,7 @@ export const registerPostTestAgent = (app: express.Application) => {
       let reservationId: string | undefined;
       let llmCallAttempted = false;
       let result: Awaited<ReturnType<typeof streamText>> | undefined;
+      let generationStartTime: number | undefined;
 
       try {
         // Validate credits, spending limits, and reserve credits before LLM call
@@ -351,6 +353,8 @@ export const registerPostTestAgent = (app: express.Application) => {
           workspaceId,
           agentId
         );
+        // Track generation time
+        generationStartTime = Date.now();
         result = streamText({
           model: model as unknown as Parameters<typeof streamText>[0]["model"],
           system: agent.systemPrompt,
@@ -849,6 +853,7 @@ export const registerPostTestAgent = (app: express.Application) => {
       let toolCallsFromResult: unknown[];
       let toolResultsFromResult: unknown[];
       let usage: unknown;
+      let generationTimeMs: number | undefined;
       
       try {
         // Try to access result.text first to catch any errors early
@@ -865,6 +870,9 @@ export const registerPostTestAgent = (app: express.Application) => {
         if (rejected && rejected.status === "rejected") {
           throw rejected.reason;
         }
+        
+        // All promises resolved successfully - calculate generation time
+        generationTimeMs = generationStartTime !== undefined ? Date.now() - generationStartTime : undefined;
         
         // All promises resolved successfully
         responseText = results[0].status === "fulfilled" ? results[0].value : "";
@@ -1024,7 +1032,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         assistantContent.push({ type: "text", text: responseText });
       }
 
-      // Create assistant message with token usage, modelName, provider, and costs
+      // Create assistant message with token usage, modelName, provider, costs, and generation time
       const assistantMessage: UIMessage = {
         role: "assistant",
         content: assistantContent.length > 0 ? assistantContent : responseText,
@@ -1033,6 +1041,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         provider: "openrouter",
         ...(openrouterGenerationId && { openrouterGenerationId }),
         ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
+        ...(generationTimeMs !== undefined && { generationTimeMs }),
       };
 
       // Combine user messages and assistant message for logging
@@ -1068,7 +1077,8 @@ export const registerPostTestAgent = (app: express.Application) => {
           tokenUsage,
           usesByok,
           undefined,
-          typeof awsRequestId === "string" ? awsRequestId : undefined
+          typeof awsRequestId === "string" ? awsRequestId : undefined,
+          "test"
         );
 
         // Enqueue cost verification (Step 3) if we have a generation ID

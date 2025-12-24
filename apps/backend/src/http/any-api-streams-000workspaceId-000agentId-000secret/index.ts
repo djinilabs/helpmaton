@@ -185,7 +185,8 @@ async function persistConversationError(
       undefined,
       context.usesByok,
       errorInfo,
-      context.awsRequestId
+      context.awsRequestId,
+      "stream"
     );
   } catch (logError) {
     console.error("[Stream Handler] Failed to persist conversation error:", {
@@ -719,7 +720,8 @@ async function logConversation(
   finalModelName: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- streamText result type is complex
   streamResult: any,
-  awsRequestId?: string
+  awsRequestId?: string,
+  generationTimeMs?: number
 ): Promise<void> {
   if (!tokenUsage) {
     return Promise.resolve();
@@ -830,7 +832,7 @@ async function logConversation(
     );
     const provisionalCostUsd = extractedProvisionalCostUsd;
 
-    // Create assistant message with token usage, modelName, provider, and costs
+    // Create assistant message with token usage, modelName, provider, costs, and generation time
     const assistantMessage: UIMessage = {
       role: "assistant",
       content:
@@ -840,6 +842,7 @@ async function logConversation(
       provider: "openrouter",
       ...(openrouterGenerationId && { openrouterGenerationId }),
       ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
+      ...(generationTimeMs !== undefined && { generationTimeMs }),
     };
 
     // DIAGNOSTIC: Log assistant message structure
@@ -902,7 +905,8 @@ async function logConversation(
       tokenUsage,
       usesByok,
       undefined,
-      awsRequestId
+      awsRequestId,
+      "stream"
     ).catch((error) => {
       // Log error but don't fail the request
       console.error("[Stream Handler] Error logging conversation:", {
@@ -1198,8 +1202,11 @@ const internalHandler = async (
     let llmCallAttempted = false;
     let streamResult: Awaited<ReturnType<typeof streamText>> | undefined;
 
+    let generationStartTime: number | undefined;
+    let generationTimeMs: number | undefined;
     try {
       console.log("[Stream Handler] Starting AI stream...");
+      generationStartTime = Date.now();
       streamResult = await streamAIResponse(
         context.agent,
         context.model,
@@ -1210,6 +1217,10 @@ const internalHandler = async (
           fullStreamedText += textDelta;
         }
       );
+      // Calculate generation time when stream completes
+      if (generationStartTime !== undefined) {
+        generationTimeMs = Date.now() - generationStartTime;
+      }
       // LLM call succeeded - mark as attempted
       llmCallAttempted = true;
       console.log("[Stream Handler] AI stream completed");
@@ -1406,7 +1417,8 @@ const internalHandler = async (
       context.usesByok,
       context.finalModelName,
       streamResult,
-      context.awsRequestId
+      context.awsRequestId,
+      generationTimeMs
     );
   } catch (error) {
     const boomed = boomify(error as Error);

@@ -216,6 +216,7 @@ export const handler = adaptHttpHandler(
       let tokenUsage: TokenUsage | undefined;
       let openrouterGenerationId: string | undefined;
       let provisionalCostUsd: number | undefined;
+      let generationTimeMs: number | undefined;
 
       try {
         // Validate credits, spending limits, and reserve credits before LLM call
@@ -241,6 +242,8 @@ export const handler = adaptHttpHandler(
           workspaceId,
           agentId
         );
+        // Track generation time
+        const generationStartTime = Date.now();
         // LLM call succeeded - mark as attempted
         llmCallAttempted = true;
         result = await generateText({
@@ -252,6 +255,7 @@ export const handler = adaptHttpHandler(
           tools,
           ...generateOptions,
         });
+        generationTimeMs = Date.now() - generationStartTime;
 
         // Extract token usage, generation ID, and costs
         const extractionResult = extractTokenUsageAndCosts(
@@ -565,7 +569,7 @@ export const handler = adaptHttpHandler(
         }
       );
 
-      // Create assistant message with modelName, provider, and costs
+      // Create assistant message with modelName, provider, costs, and generation time
       // Ensure content is always an array if we have tool calls/results, even if text is empty
       const assistantMessage: UIMessage = {
         role: "assistant",
@@ -578,6 +582,7 @@ export const handler = adaptHttpHandler(
         provider: "openrouter",
         ...(openrouterGenerationId && { openrouterGenerationId }),
         ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
+        ...(generationTimeMs !== undefined && { generationTimeMs }),
       };
 
       // DIAGNOSTIC: Log final assistant message structure

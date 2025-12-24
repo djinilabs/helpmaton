@@ -778,6 +778,8 @@ async function callAgentInternal(
       );
       logToolDefinitions(tools, "Agent Delegation", targetAgent);
     }
+    // Track generation time
+    const generationStartTime = Date.now();
     result = await generateText({
       model: model as unknown as Parameters<typeof generateText>[0]["model"],
       system: targetAgent.systemPrompt,
@@ -785,6 +787,7 @@ async function callAgentInternal(
       tools,
       ...generateOptions,
     });
+    const generationTimeMs = Date.now() - generationStartTime;
     // LLM call succeeded - mark as attempted
     llmCallAttempted = true;
 

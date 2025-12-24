@@ -201,6 +201,7 @@ export const tableSchemas = {
       })
       .optional(),
     costUsd: z.number().int().optional(), // cost in USD in millionths
+    totalGenerationTimeMs: z.number().optional(), // sum of all generation times in milliseconds
     awsRequestIds: z.array(z.string()).optional(), // array of AWS Lambda/API Gateway request IDs that added messages to this conversation
     startedAt: z.string().datetime(), // when conversation started
     lastMessageAt: z.string().datetime(), // when last message was added

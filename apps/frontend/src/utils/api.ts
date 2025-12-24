@@ -769,6 +769,7 @@ export interface Conversation {
   costUsd?: number;
   hasError?: boolean;
   error?: ConversationError | null;
+  totalGenerationTimeMs?: number;
 }
 
 export interface ConversationDetail extends Conversation {

@@ -1230,6 +1230,7 @@ export async function startConversation(
   // Calculate costs from per-message model/provider data
   // Prefer finalCostUsd (from OpenRouter API verification) if available, then provisionalCostUsd, then calculate from tokenUsage
   let totalCostUsd = 0;
+  let totalGenerationTimeMs = 0;
   for (const message of messagesWithRequestId) {
     if (message.role === "assistant") {
       // Prefer finalCostUsd if available (from OpenRouter cost verification)
@@ -1252,6 +1253,10 @@ export async function startConversation(
         );
         totalCostUsd += messageCosts.usd;
       }
+      // Sum generation times
+      if ("generationTimeMs" in message && typeof message.generationTimeMs === "number") {
+        totalGenerationTimeMs += message.generationTimeMs;
+      }
     }
   }
 
@@ -1271,6 +1276,7 @@ export async function startConversation(
     usesByok: data.usesByok,
     error: data.error,
     costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
+    totalGenerationTimeMs: totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
     awsRequestIds,
     startedAt: now,
     lastMessageAt: now,
@@ -1322,7 +1328,8 @@ export async function updateConversation(
   additionalTokenUsage?: TokenUsage,
   usesByok?: boolean,
   error?: ConversationErrorInfo,
-  awsRequestId?: string
+  awsRequestId?: string,
+  conversationType?: "test" | "webhook" | "stream"
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
@@ -1358,18 +1365,25 @@ export async function updateConversation(
         const toolCalls = extractToolCalls(messagesWithRequestId);
         const toolResults = extractToolResults(messagesWithRequestId);
         
-        // Calculate costs from per-message model/provider data
+        // Calculate costs and generation times from per-message model/provider data
         let totalCostUsd = 0;
+        let totalGenerationTimeMs = 0;
         for (const message of messagesWithRequestId) {
-          if (message.role === "assistant" && "tokenUsage" in message && message.tokenUsage) {
-            const msgModelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
-            const msgProvider = "provider" in message && typeof message.provider === "string" ? message.provider : "google";
-            const messageCosts = calculateConversationCosts(
-              msgProvider,
-              msgModelName,
-              message.tokenUsage
-            );
-            totalCostUsd += messageCosts.usd;
+          if (message.role === "assistant") {
+            if ("tokenUsage" in message && message.tokenUsage) {
+              const msgModelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
+              const msgProvider = "provider" in message && typeof message.provider === "string" ? message.provider : "google";
+              const messageCosts = calculateConversationCosts(
+                msgProvider,
+                msgModelName,
+                message.tokenUsage
+              );
+              totalCostUsd += messageCosts.usd;
+            }
+            // Sum generation times
+            if ("generationTimeMs" in message && typeof message.generationTimeMs === "number") {
+              totalGenerationTimeMs += message.generationTimeMs;
+            }
           }
         }
 
@@ -1381,7 +1395,7 @@ export async function updateConversation(
           workspaceId,
           agentId,
           conversationId,
-          conversationType: "test" as const, // Default to test if updating non-existent conversation
+          conversationType: (conversationType || "test") as "test" | "webhook" | "stream", // Use provided type or default to test
           messages: messagesWithRequestId as unknown[],
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
@@ -1389,6 +1403,7 @@ export async function updateConversation(
           usesByok: usesByok,
         error,
           costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
+          totalGenerationTimeMs: totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
           awsRequestIds,
           startedAt: now,
           lastMessageAt: now,
@@ -1441,6 +1456,7 @@ export async function updateConversation(
       // Calculate costs from per-message model/provider data
       // Prefer finalCostUsd (from OpenRouter API verification) if available, then provisionalCostUsd, then calculate from tokenUsage
       let totalCostUsd = 0;
+      let totalGenerationTimeMs = 0;
       for (const message of filteredAllMessages) {
         if (message.role === "assistant") {
           // Prefer finalCostUsd if available (from OpenRouter cost verification)
@@ -1462,6 +1478,10 @@ export async function updateConversation(
               message.tokenUsage
             );
             totalCostUsd += messageCosts.usd;
+          }
+          // Sum generation times
+          if ("generationTimeMs" in message && typeof message.generationTimeMs === "number") {
+            totalGenerationTimeMs += message.generationTimeMs;
           }
         }
       }
@@ -1488,6 +1508,7 @@ export async function updateConversation(
         lastMessageAt: now,
         expires: calculateTTL(),
         costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
+        totalGenerationTimeMs: totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
         usesByok: existing.usesByok !== undefined ? existing.usesByok : usesByok,
         error: error ?? (existing as { error?: ConversationErrorInfo }).error,
         startedAt: existing.startedAt,
