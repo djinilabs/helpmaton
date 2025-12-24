@@ -101,6 +101,24 @@ This document describes the environment variables required for the helpmaton bac
   - Workspace-specific OpenRouter API keys can override this system key (BYOK support)
   - Cost verification is performed in background via OpenRouter API to ensure accurate billing
 
+### `TAVILY_API_KEY`
+
+- **Description**: Tavily API key for web search and content extraction functionality
+- **Required**: Yes (for Tavily search and fetch tools)
+- **Example**: `tvly-...`
+- **How to obtain**:
+  1. Go to [Tavily Dashboard](https://tavily.com)
+  2. Sign up or log in to your account
+  3. Navigate to API Keys section
+  4. Create a new API key
+  5. Copy the key value
+- **Note**:
+  - Used for Tavily search and fetch tools available to agents
+  - System-wide API key (not per-workspace)
+  - Tavily API returns usage information (credits consumed) in responses
+  - Pricing: $0.008 per API call (1 credit = 1 call)
+  - See [Tavily Integration documentation](../docs/tavily-integration.md) for more details
+
 ### `SENTRY_DSN`
 
 - **Description**: Sentry Data Source Name (DSN) for error tracking and monitoring

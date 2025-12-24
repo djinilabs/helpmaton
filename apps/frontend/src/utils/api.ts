@@ -78,6 +78,8 @@ export interface Agent {
   enableMemorySearch?: boolean;
   enableSearchDocuments?: boolean;
   enableSendEmail?: boolean;
+  enableTavilySearch?: boolean;
+  enableTavilyFetch?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
   temperature?: number;
@@ -111,6 +113,8 @@ export interface UpdateAgentInput {
   enableMemorySearch?: boolean;
   enableSearchDocuments?: boolean;
   enableSendEmail?: boolean;
+  enableTavilySearch?: boolean;
+  enableTavilyFetch?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
   temperature?: number | null;
@@ -602,12 +606,9 @@ export async function deleteWorkspaceApiKey(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _provider: string = "openrouter"
 ): Promise<void> {
-  await apiFetch(
-    `/api/workspaces/${workspaceId}/api-key?provider=openrouter`,
-    {
-      method: "DELETE",
-    }
-  );
+  await apiFetch(`/api/workspaces/${workspaceId}/api-key?provider=openrouter`, {
+    method: "DELETE",
+  });
 }
 
 export interface TrialStatus {

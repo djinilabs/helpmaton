@@ -647,6 +647,18 @@ async function callAgentInternal(
     );
   }
 
+  // Add Tavily search tool if enabled
+  if (targetAgent.enableTavilySearch === true) {
+    const { createTavilySearchTool } = await import("./tavilyTools");
+    tools.tavily_search = createTavilySearchTool(workspaceId);
+  }
+
+  // Add Tavily fetch tool if enabled
+  if (targetAgent.enableTavilyFetch === true) {
+    const { createTavilyFetchTool } = await import("./tavilyTools");
+    tools.tavily_fetch = createTavilyFetchTool(workspaceId);
+  }
+
   if (targetAgent.notificationChannelId) {
     tools.send_notification = createSendNotificationTool(
       workspaceId,

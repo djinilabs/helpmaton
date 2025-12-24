@@ -185,6 +185,18 @@ export async function setupAgentAndTools(
     }
   }
 
+  // Add Tavily search tool if enabled
+  if (agent.enableTavilySearch === true) {
+    const { createTavilySearchTool } = await import("../../utils/tavilyTools");
+    tools.tavily_search = createTavilySearchTool(workspaceId);
+  }
+
+  // Add Tavily fetch tool if enabled
+  if (agent.enableTavilyFetch === true) {
+    const { createTavilyFetchTool } = await import("../../utils/tavilyTools");
+    tools.tavily_fetch = createTavilyFetchTool(workspaceId);
+  }
+
   // Add delegation tools if agent has delegatable agents configured
   if (
     agent.delegatableAgentIds &&

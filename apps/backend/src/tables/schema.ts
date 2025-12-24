@@ -91,6 +91,8 @@ export const tableSchemas = {
     enableMemorySearch: z.boolean().optional(), // enable memory search tool for this agent (default: false)
     enableSearchDocuments: z.boolean().optional(), // enable document search tool for this agent (default: false)
     enableSendEmail: z.boolean().optional(), // enable email sending tool for this agent (default: false, requires workspace email connection)
+    enableTavilySearch: z.boolean().optional(), // enable Tavily search tool for this agent (default: false)
+    enableTavilyFetch: z.boolean().optional(), // enable Tavily fetch tool for this agent (default: false)
     spendingLimits: z
       .array(
         z.object({
@@ -325,6 +327,15 @@ export const tableSchemas = {
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),
+  "tavily-call-buckets": TableBaseSchema.extend({
+    pk: z.string(), // bucket ID (e.g., "tavily-call-buckets/{workspaceId}/{hourTimestamp}")
+    workspaceId: z.string(), // workspace ID for GSI queries
+    hourTimestamp: z.string().datetime(), // ISO timestamp truncated to hour (YYYY-MM-DDTHH:00:00.000Z)
+    count: z.number().default(0), // call count for this hour
+    expires: z.number(), // TTL timestamp (25 hours from bucket hour)
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
   "workspace-invite": TableBaseSchema.extend({
     pk: z.string(), // workspace-invite ID (e.g., "workspace-invites/{workspaceId}/{inviteId}")
     sk: z.string(), // sort key (fixed value "invite")
@@ -397,6 +408,7 @@ export type TableName =
   | "trial-credit-requests"
   | "subscription"
   | "llm-request-buckets"
+  | "tavily-call-buckets"
   | "workspace-invite"
   | "agent-stream-servers"
   | "user-api-key"
@@ -434,6 +446,9 @@ export type TrialCreditRequestRecord = z.infer<
 export type SubscriptionRecord = z.infer<(typeof tableSchemas)["subscription"]>;
 export type LLMRequestBucketRecord = z.infer<
   (typeof tableSchemas)["llm-request-buckets"]
+>;
+export type TavilyCallBucketRecord = z.infer<
+  (typeof tableSchemas)["tavily-call-buckets"]
 >;
 export type WorkspaceInviteRecord = z.infer<
   (typeof tableSchemas)["workspace-invite"]
@@ -549,6 +564,7 @@ export type DatabaseSchema = {
   "trial-credit-requests": TableAPI<"trial-credit-requests">;
   subscription: TableAPI<"subscription">;
   "llm-request-buckets": TableAPI<"llm-request-buckets">;
+  "tavily-call-buckets": TableAPI<"tavily-call-buckets">;
   "workspace-invite": TableAPI<"workspace-invite">;
   "agent-stream-servers": TableAPI<"agent-stream-servers">;
   "user-api-key": TableAPI<"user-api-key">;

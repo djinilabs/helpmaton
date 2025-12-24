@@ -220,6 +220,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     () => agent?.enableSendEmail ?? false
   );
 
+  // Use agent prop directly for enableTavilySearch, with local state for editing
+  const [enableTavilySearch, setEnableTavilySearch] = useState<boolean>(
+    () => agent?.enableTavilySearch ?? false
+  );
+
+  // Use agent prop directly for enableTavilyFetch, with local state for editing
+  const [enableTavilyFetch, setEnableTavilyFetch] = useState<boolean>(
+    () => agent?.enableTavilyFetch ?? false
+  );
+
   // Use agent prop directly for clientTools, with local state for editing
   const [clientTools, setClientTools] = useState<ClientTool[]>(
     () => agent?.clientTools || []
@@ -422,6 +432,34 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       setEnableSendEmail(currentValue);
     }
   }, [agent?.id, agent?.enableSendEmail]);
+
+  // Synchronize enableTavilySearch state with agent prop using useEffect
+  const prevEnableTavilySearchRef = useRef<boolean | undefined>(
+    agent?.enableTavilySearch
+  );
+  useEffect(() => {
+    if (!agent || agent.id !== prevAgentIdRef.current) return;
+    const prevValue = prevEnableTavilySearchRef.current ?? false;
+    const currentValue = agent?.enableTavilySearch ?? false;
+    if (prevValue !== currentValue) {
+      prevEnableTavilySearchRef.current = currentValue;
+      setEnableTavilySearch(currentValue);
+    }
+  }, [agent?.id, agent?.enableTavilySearch]);
+
+  // Synchronize enableTavilyFetch state with agent prop using useEffect
+  const prevEnableTavilyFetchRef = useRef<boolean | undefined>(
+    agent?.enableTavilyFetch
+  );
+  useEffect(() => {
+    if (!agent || agent.id !== prevAgentIdRef.current) return;
+    const prevValue = prevEnableTavilyFetchRef.current ?? false;
+    const currentValue = agent?.enableTavilyFetch ?? false;
+    if (prevValue !== currentValue) {
+      prevEnableTavilyFetchRef.current = currentValue;
+      setEnableTavilyFetch(currentValue);
+    }
+  }, [agent?.id, agent?.enableTavilyFetch]);
 
   // Synchronize clientTools state with agent prop using useEffect
   useEffect(() => {
@@ -687,6 +725,44 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       // Error is handled by toast in the hook
       // Reset ref on error so useEffect can sync properly
       prevEnableSendEmailRef.current = agent?.enableSendEmail;
+    }
+  };
+
+  const handleSaveTavilySearch = async () => {
+    try {
+      const valueToSave = enableTavilySearch;
+      // Update ref immediately to prevent useEffect from overwriting our changes
+      prevEnableTavilySearchRef.current = valueToSave;
+      const updated = await updateAgent.mutateAsync({
+        enableTavilySearch: valueToSave,
+      });
+      // Sync local state with updated agent data
+      const savedValue = updated.enableTavilySearch ?? false;
+      prevEnableTavilySearchRef.current = savedValue;
+      setEnableTavilySearch(savedValue);
+    } catch {
+      // Error is handled by toast in the hook
+      // Reset ref on error so useEffect can sync properly
+      prevEnableTavilySearchRef.current = agent?.enableTavilySearch;
+    }
+  };
+
+  const handleSaveTavilyFetch = async () => {
+    try {
+      const valueToSave = enableTavilyFetch;
+      // Update ref immediately to prevent useEffect from overwriting our changes
+      prevEnableTavilyFetchRef.current = valueToSave;
+      const updated = await updateAgent.mutateAsync({
+        enableTavilyFetch: valueToSave,
+      });
+      // Sync local state with updated agent data
+      const savedValue = updated.enableTavilyFetch ?? false;
+      prevEnableTavilyFetchRef.current = savedValue;
+      setEnableTavilyFetch(savedValue);
+    } catch {
+      // Error is handled by toast in the hook
+      // Reset ref on error so useEffect can sync properly
+      prevEnableTavilyFetchRef.current = agent?.enableTavilyFetch;
     }
   };
 
@@ -1661,6 +1737,101 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     {updateAgent.isPending
                       ? "Saving..."
                       : "Save Email Tool Setting"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
+          {/* Tavily Search Tool Section */}
+          {canEdit && (
+            <AccordionSection
+              id="tavily-search"
+              title="TAVILY SEARCH TOOL"
+              isExpanded={expandedSection === "tavily-search"}
+              onToggle={() => toggleSection("tavily-search")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "tavily-search"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Enable the Tavily search tool to allow this agent to search
+                    the web for current information. Free tier: 10 calls/day.
+                    Paid tiers: 10 free calls/day, then $0.008 per call.
+                  </p>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={enableTavilySearch}
+                      onChange={(e) =>
+                        setEnableTavilySearch(e.target.checked)
+                      }
+                      className="mt-1 rounded border-2 border-neutral-300"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">Enable Tavily Search</div>
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                        Allow this agent to use the tavily_search tool to search
+                        the web for current information
+                      </div>
+                    </div>
+                  </label>
+                  <button
+                    onClick={handleSaveTavilySearch}
+                    disabled={updateAgent.isPending}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Tavily Search Setting"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
+          {/* Tavily Fetch Tool Section */}
+          {canEdit && (
+            <AccordionSection
+              id="tavily-fetch"
+              title="TAVILY FETCH TOOL"
+              isExpanded={expandedSection === "tavily-fetch"}
+              onToggle={() => toggleSection("tavily-fetch")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "tavily-fetch"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Enable the Tavily fetch tool to allow this agent to extract
+                    and summarize content from web pages. Free tier: 10
+                    calls/day. Paid tiers: 10 free calls/day, then $0.008 per
+                    call.
+                  </p>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={enableTavilyFetch}
+                      onChange={(e) => setEnableTavilyFetch(e.target.checked)}
+                      className="mt-1 rounded border-2 border-neutral-300"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">Enable Tavily Fetch</div>
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                        Allow this agent to use the tavily_fetch tool to extract
+                        and summarize content from web pages
+                      </div>
+                    </div>
+                  </label>
+                  <button
+                    onClick={handleSaveTavilyFetch}
+                    disabled={updateAgent.isPending}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Tavily Fetch Setting"}
                   </button>
                 </div>
               </LazyAccordionContent>

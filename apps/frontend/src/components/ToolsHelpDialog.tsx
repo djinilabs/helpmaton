@@ -32,6 +32,8 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
   const hasMemorySearch = agent?.enableMemorySearch === true;
   const hasSearchDocuments = agent?.enableSearchDocuments === true;
   const hasSendEmail = agent?.enableSendEmail === true && hasEmailConnection;
+  const hasTavilySearch = agent?.enableTavilySearch === true;
+  const hasTavilyFetch = agent?.enableTavilyFetch === true;
   const enabledMcpServerIds = agent?.enabledMcpServerIds || [];
   const enabledMcpServers =
     mcpServersData?.servers.filter((server) =>
@@ -214,6 +216,49 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
           required: true,
           description:
             "The message or query to send to the delegated agent. This should be the specific task or question you want the other agent to handle.",
+        },
+      ],
+    },
+    {
+      name: "tavily_search",
+      description:
+        "Search the web using Tavily search API. This tool allows you to find current information, news, articles, and other web content. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources.",
+      alwaysAvailable: false,
+      condition: hasTavilySearch
+        ? "Available (Tavily search enabled)"
+        : "Not available (Tavily search not enabled)",
+      parameters: [
+        {
+          name: "query",
+          type: "string",
+          required: true,
+          description:
+            "The search query. This MUST be a non-empty string containing what you want to search for. Example: 'latest news about AI' or 'Python tutorial for beginners'",
+        },
+        {
+          name: "max_results",
+          type: "number",
+          required: false,
+          description:
+            "Maximum number of search results to return (1-10, default: 5). Use a smaller number for focused searches, larger for comprehensive research.",
+        },
+      ],
+    },
+    {
+      name: "tavily_fetch",
+      description:
+        "Extract and summarize content from a web page URL using Tavily extract API. This tool allows you to get the main content, title, and metadata from any web page. Use this when you need to read and understand the content of a specific webpage.",
+      alwaysAvailable: false,
+      condition: hasTavilyFetch
+        ? "Available (Tavily fetch enabled)"
+        : "Not available (Tavily fetch not enabled)",
+      parameters: [
+        {
+          name: "url",
+          type: "string (URL)",
+          required: true,
+          description:
+            "The URL to extract content from. This MUST be a valid URL starting with http:// or https://. Example: 'https://example.com/article'",
         },
       ],
     },
