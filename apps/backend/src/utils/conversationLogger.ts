@@ -49,6 +49,7 @@ export function calculateTTL(): number {
 
 /**
  * Build a serializable error payload for conversation records
+ * Extracts detailed error information including wrapped errors and cause chains
  */
 export function buildConversationErrorInfo(
   error: unknown,
@@ -59,7 +60,123 @@ export function buildConversationErrorInfo(
     metadata?: Record<string, unknown>;
   }
 ): ConversationErrorInfo {
-  const message = error instanceof Error ? error.message : String(error);
+  // Extract the most specific error message possible
+  let message = error instanceof Error ? error.message : String(error);
+  let specificError: Error | undefined = error instanceof Error ? error : undefined;
+  
+  // Helper to extract error message from nested error structures
+  const extractErrorMessage = (err: unknown): string | undefined => {
+    if (!err || typeof err !== "object") return undefined;
+    
+    const errObj = err as Record<string, unknown>;
+    
+    // Check data.error.message (common in AI SDK errors)
+    if (errObj.data && typeof errObj.data === "object" && errObj.data !== null) {
+      const data = errObj.data as Record<string, unknown>;
+      if (data.error) {
+        if (typeof data.error === "object" && data.error !== null) {
+          const errorField = data.error as Record<string, unknown>;
+          if (typeof errorField.message === "string" && errorField.message.length > 0) {
+            return errorField.message;
+          }
+        } else if (typeof data.error === "string" && data.error.length > 0) {
+          return data.error;
+        }
+      }
+      if (typeof data.message === "string" && data.message.length > 0) {
+        return data.message;
+      }
+    }
+    
+    // Check response.data (common in fetch/HTTP errors)
+    if (errObj.response && typeof errObj.response === "object" && errObj.response !== null) {
+      const response = errObj.response as Record<string, unknown>;
+      if (response.data && typeof response.data === "object" && response.data !== null) {
+        const responseData = response.data as Record<string, unknown>;
+        if (responseData.error) {
+          if (typeof responseData.error === "object" && responseData.error !== null) {
+            const errorField = responseData.error as Record<string, unknown>;
+            if (typeof errorField.message === "string" && errorField.message.length > 0) {
+              return errorField.message;
+            }
+          } else if (typeof responseData.error === "string" && responseData.error.length > 0) {
+            return responseData.error;
+          }
+        }
+        if (typeof responseData.message === "string" && responseData.message.length > 0) {
+          return responseData.message;
+        }
+      }
+    }
+    
+    // Check body (common in HTTP errors)
+    if (typeof errObj.body === "string" && errObj.body.length > 0) {
+      try {
+        const body = JSON.parse(errObj.body) as Record<string, unknown>;
+        if (typeof body.error === "string" && body.error.length > 0) {
+          return body.error;
+        }
+        if (typeof body.message === "string" && body.message.length > 0) {
+          return body.message;
+        }
+      } catch {
+        // Not JSON, might be plain text error
+        if (errObj.body.length < 500) {
+          return errObj.body;
+        }
+      }
+    }
+    
+    return undefined;
+  };
+  
+  // Traverse error.cause chain to find the most specific error
+  if (error instanceof Error && error.cause) {
+    let currentCause: unknown = error.cause;
+    let depth = 0;
+    const maxDepth = 10; // Prevent infinite loops
+    
+    while (currentCause && depth < maxDepth) {
+      if (currentCause instanceof Error) {
+        const causeMessage = currentCause.message;
+        // Prefer more specific error messages (longer, more descriptive)
+        // Also prefer errors that aren't generic wrappers
+        if (
+          causeMessage &&
+          causeMessage.length > message.length &&
+          !causeMessage.includes("No output generated") &&
+          !causeMessage.includes("Check the stream for errors")
+        ) {
+          message = causeMessage;
+          specificError = currentCause;
+        }
+        // Check for status codes in the cause
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const anyCause = currentCause as any;
+        if (typeof anyCause.statusCode === "number" || typeof anyCause.status === "number") {
+          specificError = currentCause;
+        }
+        currentCause = currentCause.cause;
+      } else {
+        break;
+      }
+      depth++;
+    }
+  }
+  
+  // Extract error message from nested error structures (data, response, body)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nestedMessage = extractErrorMessage(error) || extractErrorMessage((error as any)?.cause);
+  if (nestedMessage && nestedMessage.length > 0) {
+    // Prefer nested messages if they're more specific
+    if (
+      nestedMessage.length > message.length ||
+      (!message.includes(nestedMessage) && !nestedMessage.includes("No output generated"))
+    ) {
+      message = nestedMessage;
+    }
+  }
+
   const base: ConversationErrorInfo = {
     message,
     occurredAt: new Date().toISOString(),
@@ -69,24 +186,96 @@ export function buildConversationErrorInfo(
     metadata: options?.metadata,
   };
 
-  if (error instanceof Error) {
-    base.name = error.name;
-    base.stack = error.stack;
+  // Use the most specific error found, or fall back to original
+  const errorToInspect = specificError || (error instanceof Error ? error : undefined);
+
+  if (errorToInspect) {
+    base.name = errorToInspect.name;
+    base.stack = errorToInspect.stack;
+    
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
-    const anyError = error as any;
+    const anyError = errorToInspect as any;
+    
+    // Extract error code
     if (typeof anyError.code === "string") {
       base.code = anyError.code;
     }
+    
+    // Extract status code (check multiple possible locations)
     const statusCode =
       typeof anyError.statusCode === "number"
         ? anyError.statusCode
         : typeof anyError.status === "number"
           ? anyError.status
-          : undefined;
+          : typeof anyError.response?.status === "number"
+            ? anyError.response.status
+            : typeof anyError.response?.statusCode === "number"
+              ? anyError.response.statusCode
+              : undefined;
     if (statusCode !== undefined) {
       base.statusCode = statusCode;
     }
+    
+    // Extract API error details if available (check multiple locations)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const checkResponseData = (data: any): void => {
+      if (!data || typeof data !== "object") return;
+      
+      const responseData = data as Record<string, unknown>;
+      
+      // Try to extract error message from API response
+      let apiErrorMessage: string | undefined;
+      if (responseData.error) {
+        if (typeof responseData.error === "object" && responseData.error !== null) {
+          const errorObj = responseData.error as Record<string, unknown>;
+          apiErrorMessage = 
+            (typeof errorObj.message === "string" ? errorObj.message : undefined) ||
+            (typeof errorObj.error === "string" ? errorObj.error : undefined);
+          
+          // Extract error code from API response
+          if (!base.code && errorObj.code) {
+            base.code = String(errorObj.code);
+          }
+        } else if (typeof responseData.error === "string") {
+          apiErrorMessage = responseData.error;
+        }
+      }
+      
+      if (!apiErrorMessage && typeof responseData.message === "string") {
+        apiErrorMessage = responseData.message;
+      }
+      
+      if (apiErrorMessage && apiErrorMessage.length > 0) {
+        // Use the API error message if it's more specific than the current message
+        // or if current message is generic
+        const isGenericMessage = 
+          message.includes("No output generated") ||
+          message.includes("Check the stream for errors") ||
+          message.length < 30;
+        
+        if (isGenericMessage || (!message.includes(apiErrorMessage) && apiErrorMessage.length > message.length)) {
+          message = apiErrorMessage;
+        } else if (!message.includes(apiErrorMessage)) {
+          // Append if not already included
+          message = `${message} (API: ${apiErrorMessage})`;
+        }
+      }
+    };
+    
+    // Check response.data
+    if (anyError.response?.data) {
+      checkResponseData(anyError.response.data);
+    }
+    
+    // Check data directly (AI SDK errors)
+    if (anyError.data) {
+      checkResponseData(anyError.data);
+    }
+    
+    // Update message with the most specific one found
+    base.message = message;
   } else if (error && typeof error === "object") {
+    // Handle non-Error objects
     const maybeStatus =
       "statusCode" in error && typeof (error as { statusCode?: unknown }).statusCode === "number"
         ? (error as { statusCode: number }).statusCode
