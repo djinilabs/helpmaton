@@ -147,7 +147,7 @@ export const tableSchemas = {
     sk: z.string(), // sort key (fixed value "key")
     workspaceId: z.string(), // workspace ID for GSI queries
     key: z.string(), // the actual API key value
-    provider: z.enum(["google", "openai", "anthropic"]).default("google"), // provider name
+    provider: z.enum(["openrouter"]).default("openrouter"), // provider name (only OpenRouter is supported for BYOK)
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),

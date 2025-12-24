@@ -863,7 +863,8 @@ export const registerPostTestAgent = (app: express.Application) => {
           agentId,
           conversationId,
           validMessages,
-          tokenUsage
+          tokenUsage,
+          usesByok
         );
 
         // Enqueue cost verification (Step 3) if we have a generation ID

@@ -1008,7 +1008,8 @@ async function logConversation(
       agentId,
       conversationId,
       validMessages,
-      tokenUsage
+      tokenUsage,
+      usesByok
     ).catch((error) => {
       // Log error but don't fail the request
       console.error("[Stream Handler] Error logging conversation:", {

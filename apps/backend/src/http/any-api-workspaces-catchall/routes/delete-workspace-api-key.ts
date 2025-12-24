@@ -31,10 +31,10 @@ import {
  *       - name: provider
  *         in: query
  *         required: true
- *         description: LLM provider name
+ *         description: LLM provider name (only openrouter is supported for BYOK)
  *         schema:
  *           type: string
- *           enum: [google, openai, anthropic]
+ *           enum: [openrouter]
  *     responses:
  *       204:
  *         description: API key deleted successfully
@@ -76,7 +76,7 @@ export const registerDeleteWorkspaceApiKey = (app: express.Application) => {
         const pk = `workspace-api-keys/${workspaceId}/${provider}`;
         const sk = "key";
 
-        // Delete key in new format
+        // Delete key
         // Only catch "not found" errors, let other errors propagate
         try {
           await db["workspace-api-key"].delete(pk, sk);
@@ -86,22 +86,7 @@ export const registerDeleteWorkspaceApiKey = (app: express.Application) => {
           if (!isNotFoundError(error)) {
             throw error;
           }
-          // Key doesn't exist in new format, continue to check old format
-        }
-
-        // Backward compatibility: also delete old format key for Google provider
-        if (provider === "google") {
-          const oldPk = `workspace-api-keys/${workspaceId}`;
-          try {
-            await db["workspace-api-key"].delete(oldPk, sk);
-          } catch (error) {
-            // Check if it's a "not found" error - if so, continue
-            // Otherwise, re-throw the error
-            if (!isNotFoundError(error)) {
-              throw error;
-            }
-            // Old key doesn't exist, that's fine
-          }
+          // Key doesn't exist, that's fine
         }
 
         res.status(204).send();

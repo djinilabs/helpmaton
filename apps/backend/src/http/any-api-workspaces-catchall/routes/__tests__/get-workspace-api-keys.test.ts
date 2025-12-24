@@ -76,7 +76,7 @@ describe("GET /api/workspaces/:workspaceId/api-keys", () => {
         }
 
         // Return status for all supported providers
-        const supportedProviders = ["google", "openai", "anthropic"];
+        const supportedProviders = ["openrouter"];
         const keys = supportedProviders.map((provider) => ({
           provider,
           hasKey: providersWithKeys.has(provider),

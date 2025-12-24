@@ -27,10 +27,10 @@ import { isValidProvider, VALID_PROVIDERS } from "./workspaceApiKeyUtils";
  *       - name: provider
  *         in: query
  *         required: true
- *         description: LLM provider name
+ *         description: LLM provider name (only openrouter is supported for BYOK)
  *         schema:
  *           type: string
- *           enum: [google, openai, anthropic]
+ *           enum: [openrouter]
  *     responses:
  *       200:
  *         description: API key status
@@ -84,17 +84,7 @@ export const registerGetWorkspaceApiKey = (app: express.Application) => {
         try {
           workspaceKey = await db["workspace-api-key"].get(pk, sk);
         } catch {
-          // Key doesn't exist in new format
-        }
-
-        // Backward compatibility: check old format for Google provider only
-        if (!workspaceKey && provider === "google") {
-          const oldPk = `workspace-api-keys/${workspaceId}`;
-          try {
-            workspaceKey = await db["workspace-api-key"].get(oldPk, sk);
-          } catch {
-            // Old key doesn't exist either
-          }
+          // Key doesn't exist
         }
 
         res.json({ hasKey: !!workspaceKey });

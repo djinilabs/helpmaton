@@ -11,11 +11,8 @@ export interface Workspace {
   creditBalance?: number; // millionths (integer)
   currency?: Currency;
   spendingLimits?: SpendingLimit[];
-  hasGoogleApiKey?: boolean; // Keep for backward compatibility
   apiKeys?: {
-    google: boolean;
-    openai: boolean;
-    anthropic: boolean;
+    openrouter?: boolean;
   };
   createdAt: string;
   updatedAt?: string;
@@ -573,22 +570,22 @@ export async function deleteWorkspace(id: string): Promise<void> {
 export async function setWorkspaceApiKey(
   workspaceId: string,
   key: string | null,
-  provider: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _provider: string = "openrouter"
 ): Promise<void> {
   await apiFetch(`/api/workspaces/${workspaceId}/api-key`, {
     method: "PUT",
-    body: JSON.stringify({ key, provider }),
+    body: JSON.stringify({ key, provider: "openrouter" }),
   });
 }
 
 export async function getWorkspaceApiKeyStatus(
   workspaceId: string,
-  provider: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _provider: string = "openrouter"
 ): Promise<{ hasKey: boolean }> {
   const response = await apiFetch(
-    `/api/workspaces/${workspaceId}/api-key?provider=${encodeURIComponent(
-      provider
-    )}`
+    `/api/workspaces/${workspaceId}/api-key?provider=openrouter`
   );
   return response.json();
 }
@@ -602,12 +599,11 @@ export async function getWorkspaceApiKeys(
 
 export async function deleteWorkspaceApiKey(
   workspaceId: string,
-  provider: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _provider: string = "openrouter"
 ): Promise<void> {
   await apiFetch(
-    `/api/workspaces/${workspaceId}/api-key?provider=${encodeURIComponent(
-      provider
-    )}`,
+    `/api/workspaces/${workspaceId}/api-key?provider=openrouter`,
     {
       method: "DELETE",
     }

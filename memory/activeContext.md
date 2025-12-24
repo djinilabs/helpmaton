@@ -2,7 +2,44 @@
 
 ## Current Status
 
-**Status**: OpenRouter Cost Verification and Credit Validation Logic Fixes - Completed ✅
+**Status**: BYOK OpenRouter Only Strategy - Completed ✅
+
+Changed BYOK (Bring Your Own Key) strategy to only allow OpenRouter keys. When a workspace has an OpenRouter key configured:
+- Only OpenRouter keys are supported for BYOK (no more Google/OpenAI/Anthropic keys)
+- Spending rate limits are checked BEFORE the call (to prevent exceeding limits)
+- Costs are calculated/extracted AFTER the call
+- Costs are applied to spending rate limits (via token-usage-aggregates)
+- Costs are NOT deducted from workspace credits
+
+**Changes Made**:
+- Updated frontend UI to only show OpenRouter key input (removed provider selection dropdown)
+- Updated frontend API utilities to hardcode "openrouter" provider
+- Changed backend VALID_PROVIDERS to only include "openrouter"
+- Updated all workspace API key endpoints to only accept "openrouter" provider
+- Updated getWorkspaceApiKey() to only check for OpenRouter keys
+- Updated validateCreditsAndLimits() to check spending limits for BYOK (skip credit check only)
+- Updated updateConversation() to accept and store usesByok flag
+- Updated documentation to reflect OpenRouter-only BYOK strategy
+
+**Files Modified**:
+- `apps/frontend/src/pages/WorkspaceDetail.tsx` - Removed provider selection, only OpenRouter input
+- `apps/frontend/src/utils/api.ts` - Hardcoded "openrouter" provider in API calls
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/workspaceApiKeyUtils.ts` - VALID_PROVIDERS = ["openrouter"]
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/put-workspace-api-key.ts` - Only accept openrouter
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/delete-workspace-api-key.ts` - Only accept openrouter
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-api-key.ts` - Only check openrouter
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-api-keys.ts` - Only return openrouter
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-by-id.ts` - Only check openrouter
+- `apps/backend/src/http/utils/agentUtils.ts` - Only check for OpenRouter keys
+- `apps/backend/src/utils/creditValidation.ts` - Check spending limits for BYOK (skip credit check)
+- `apps/backend/src/utils/conversationLogger.ts` - Accept usesByok parameter in updateConversation
+- `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Pass usesByok to updateConversation
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-test-agent.ts` - Pass usesByok to updateConversation
+- `docs/credit-system.md` - Updated BYOK documentation
+
+**Verification**: All changes implemented, ready for testing
+
+**Previous Status**: OpenRouter Cost Verification and Credit Validation Logic Fixes - Completed ✅
 
 Fixed two critical issues in the cost verification and credit management system:
 

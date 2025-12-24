@@ -4,8 +4,9 @@
 
 /**
  * Supported LLM providers for workspace API keys
+ * Only OpenRouter is supported for BYOK (Bring Your Own Key)
  */
-export const VALID_PROVIDERS = ["google", "openai", "anthropic"] as const;
+export const VALID_PROVIDERS = ["openrouter"] as const;
 
 export type Provider = (typeof VALID_PROVIDERS)[number];
 

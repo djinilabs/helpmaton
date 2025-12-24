@@ -135,7 +135,7 @@ All tables are configured with `encrypt true` in `app.arc`, meaning DynamoDB enc
 - `maxOutputTokens` (Number, positive, optional): Maximum output tokens
 - `stopSequences` (Array of strings, optional): Stop sequences
 - `maxToolRoundtrips` (Number, positive, optional): Max tool roundtrips (default: 5)
-- `provider` (Enum: "google" | "openai" | "anthropic", default: "google"): LLM provider
+- `provider` (Enum: "google" | "openai" | "anthropic" | "openrouter", default: "openrouter"): LLM provider (OpenRouter is default, others supported for agent configuration)
 - `modelName` (String, optional): Model name (e.g., "gemini-2.5-flash")
 - `clientTools` (Array, optional): User-defined client-side tools
   - `name`: Tool name (must be valid JavaScript identifier)
@@ -186,7 +186,7 @@ All tables are configured with `encrypt true` in `app.arc`, meaning DynamoDB enc
 
 - `workspaceId` (String): Workspace ID for GSI queries
 - `key` (String): The actual API key value (encrypted at rest)
-- `provider` (Enum: "google" | "openai" | "anthropic", default: "google"): LLM provider name
+- `provider` (Enum: "openrouter", default: "openrouter"): LLM provider name (only OpenRouter is supported for BYOK)
 
 **Global Secondary Indexes**:
 

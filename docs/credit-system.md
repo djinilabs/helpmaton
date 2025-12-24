@@ -276,34 +276,37 @@ Failed limits include:
 
 ## BYOK (Bring Your Own Key)
 
-When a workspace has a `workspace-api-key` configured, requests can use the workspace's own LLM API key instead of Helpmaton's key.
+When a workspace has an OpenRouter API key configured, requests can use the workspace's own OpenRouter API key instead of Helpmaton's key. Only OpenRouter keys are supported for BYOK.
 
 ### How It Works
 
-1. **Workspace API Key**: Stored in `workspace-api-key` table, encrypted at rest
-2. **Request Detection**: Handler checks if workspace has API key configured
-3. **Key Usage**: If present, use workspace key for LLM API calls
-4. **Credit Skipping**: Skip credit reservation and adjustment
+1. **Workspace API Key**: Stored in `workspace-api-key` table, encrypted at rest (only OpenRouter keys are supported)
+2. **Request Detection**: Handler checks if workspace has OpenRouter API key configured
+3. **Key Usage**: If present, use workspace's OpenRouter key for LLM API calls
+4. **Credit Skipping**: Skip credit reservation and adjustment (no deduction from workspace credits)
+5. **Spending Limits**: Spending rate limits are still checked and applied (costs are tracked in aggregates)
+6. **Cost Tracking**: Costs are calculated and stored in conversation records and aggregates for spending limit enforcement
 
 ### Benefits
 
-- Workspaces can use their own LLM API keys
-- Direct billing from LLM provider
+- Workspaces can use their own OpenRouter API keys
+- Direct billing from OpenRouter
 - No credit balance required
-- Token usage still tracked for analytics
+- Spending rate limits still enforced
+- Token usage and costs tracked for analytics and limit enforcement
 
 ### Implementation
 
 ```typescript
-// Check if workspace has API key
+// Check if workspace has OpenRouter API key
 const workspaceApiKey = await db["workspace-api-key"].get(
-  `workspace-api-keys/${workspaceId}`,
+  `workspace-api-keys/${workspaceId}/openrouter`,
   "key"
 );
 
 const usesByok = !!workspaceApiKey;
 
-// Skip credit reservation if BYOK
+// Skip credit reservation if BYOK, but still check spending limits
 if (usesByok) {
   return {
     reservationId: "byok",

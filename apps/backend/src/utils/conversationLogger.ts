@@ -692,7 +692,8 @@ export async function updateConversation(
   agentId: string,
   conversationId: string,
   newMessages: UIMessage[],
-  additionalTokenUsage?: TokenUsage
+  additionalTokenUsage?: TokenUsage,
+  usesByok?: boolean
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
@@ -745,7 +746,7 @@ export async function updateConversation(
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
           tokenUsage: additionalTokenUsage,
-          usesByok: undefined,
+          usesByok: usesByok,
           costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
           startedAt: now,
           lastMessageAt: now,
@@ -825,7 +826,7 @@ export async function updateConversation(
         lastMessageAt: now,
         expires: calculateTTL(),
         costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
-        usesByok: existing.usesByok,
+        usesByok: existing.usesByok !== undefined ? existing.usesByok : usesByok,
         startedAt: existing.startedAt,
       };
     }

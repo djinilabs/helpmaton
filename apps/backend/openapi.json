@@ -340,6 +340,14 @@
             "type": "boolean",
             "description": "Enable the memory search tool for this agent"
           },
+          "enableSearchDocuments": {
+            "type": "boolean",
+            "description": "Enable the document search tool for this agent"
+          },
+          "enableSendEmail": {
+            "type": "boolean",
+            "description": "Enable the email sending tool for this agent (requires workspace email connection)"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -432,6 +440,14 @@
           "enableMemorySearch": {
             "type": "boolean",
             "description": "Enable the memory search tool for this agent"
+          },
+          "enableSearchDocuments": {
+            "type": "boolean",
+            "description": "Enable the document search tool for this agent"
+          },
+          "enableSendEmail": {
+            "type": "boolean",
+            "description": "Enable the email sending tool for this agent (requires workspace email connection)"
           }
         }
       },
@@ -475,6 +491,14 @@
           "enableMemorySearch": {
             "type": "boolean",
             "description": "Enable the memory search tool for this agent"
+          },
+          "enableSearchDocuments": {
+            "type": "boolean",
+            "description": "Enable the document search tool for this agent"
+          },
+          "enableSendEmail": {
+            "type": "boolean",
+            "description": "Enable the email sending tool for this agent (requires workspace email connection)"
           }
         }
       },
@@ -856,7 +880,7 @@
                   "properties": {
                     "accessToken": {
                       "type": "string",
-                      "description": "New JWT access token (1 hour expiry)"
+                      "description": "New JWT access token (24 hours expiry)"
                     },
                     "refreshToken": {
                       "type": "string",
@@ -901,7 +925,7 @@
                   "properties": {
                     "accessToken": {
                       "type": "string",
-                      "description": "JWT access token (1 hour expiry)"
+                      "description": "JWT access token (24 hours expiry)"
                     },
                     "refreshToken": {
                       "type": "string",
@@ -1086,9 +1110,15 @@
                     {
                       "type": "object",
                       "properties": {
-                        "hasGoogleApiKey": {
-                          "type": "boolean",
-                          "description": "Whether workspace has a Google API key configured"
+                        "apiKeys": {
+                          "type": "object",
+                          "description": "API key status for supported providers (only OpenRouter is supported for BYOK)",
+                          "properties": {
+                            "openrouter": {
+                              "type": "boolean",
+                              "description": "Whether workspace has an OpenRouter API key configured"
+                            }
+                          }
                         }
                       }
                     }
@@ -2093,16 +2123,14 @@
                 "properties": {
                   "key": {
                     "type": "string",
-                    "description": "API key for the specified provider. Pass empty string to delete."
+                    "description": "OpenRouter API key. Pass empty string to delete."
                   },
                   "provider": {
                     "type": "string",
                     "enum": [
-                      "google",
-                      "openai",
-                      "anthropic"
+                      "openrouter"
                     ],
-                    "description": "LLM provider name"
+                    "description": "LLM provider name (only openrouter is supported for BYOK)"
                   }
                 }
               }
@@ -2167,13 +2195,11 @@
             "name": "provider",
             "in": "query",
             "required": true,
-            "description": "LLM provider name",
+            "description": "LLM provider name (only openrouter is supported for BYOK)",
             "schema": {
               "type": "string",
               "enum": [
-                "google",
-                "openai",
-                "anthropic"
+                "openrouter"
               ]
             }
           }
@@ -2234,13 +2260,11 @@
             "name": "provider",
             "in": "query",
             "required": true,
-            "description": "LLM provider name",
+            "description": "LLM provider name (only openrouter is supported for BYOK)",
             "schema": {
               "type": "string",
               "enum": [
-                "google",
-                "openai",
-                "anthropic"
+                "openrouter"
               ]
             }
           }
@@ -4614,6 +4638,11 @@
                       "$ref": "#/components/schemas/ClientTool"
                     },
                     "description": "Client-side tools"
+                  },
+                  "avatar": {
+                    "type": "string",
+                    "nullable": true,
+                    "description": "Avatar image path (e.g., \"/images/helpmaton_logo_10.svg\"). If not provided, a random avatar will be assigned."
                   }
                 }
               }
@@ -4649,6 +4678,10 @@
                       "items": {
                         "$ref": "#/components/schemas/ClientTool"
                       }
+                    },
+                    "avatar": {
+                      "type": "string",
+                      "nullable": true
                     },
                     "createdAt": {
                       "type": "string",
@@ -6543,11 +6576,9 @@
                           "provider": {
                             "type": "string",
                             "enum": [
-                              "google",
-                              "openai",
-                              "anthropic"
+                              "openrouter"
                             ],
-                            "description": "LLM provider name"
+                            "description": "LLM provider name (only openrouter is supported for BYOK)"
                           },
                           "hasKey": {
                             "type": "boolean",
@@ -7160,14 +7191,6 @@
                           "tokenUsage": {
                             "type": "object",
                             "nullable": true
-                          },
-                          "modelName": {
-                            "type": "string",
-                            "nullable": true
-                          },
-                          "provider": {
-                            "type": "string",
-                            "nullable": true
                           }
                         }
                       }
@@ -7282,14 +7305,6 @@
                     },
                     "tokenUsage": {
                       "type": "object",
-                      "nullable": true
-                    },
-                    "modelName": {
-                      "type": "string",
-                      "nullable": true
-                    },
-                    "provider": {
-                      "type": "string",
                       "nullable": true
                     },
                     "startedAt": {
@@ -7520,16 +7535,66 @@
         }
       }
     },
-    "/api/models": {
+    "/api/pricing": {
       "get": {
-        "summary": "Get available models",
-        "description": "Returns a list of available AI models and their default model for each provider",
+        "summary": "Get OpenRouter model pricing",
+        "description": "Returns pricing information for all available OpenRouter AI models",
         "tags": [
           "Usage"
         ],
         "responses": {
           "200": {
-            "description": "Available models",
+            "description": "OpenRouter model pricing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "openrouter": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "type": "number",
+                            "description": "Price per 1M input tokens (USD)"
+                          },
+                          "output": {
+                            "type": "number",
+                            "description": "Price per 1M output tokens (USD)"
+                          },
+                          "cachedInput": {
+                            "type": "number",
+                            "description": "Price per 1M cached input tokens (USD, optional)"
+                          },
+                          "tiers": {
+                            "type": "array",
+                            "description": "Tiered pricing structure (optional)"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "summary": "Get available models",
+        "description": "Returns a list of available OpenRouter AI models and their default model",
+        "tags": [
+          "Usage"
+        ],
+        "responses": {
+          "200": {
+            "description": "Available OpenRouter models",
             "content": {
               "application/json": {
                 "schema": {
