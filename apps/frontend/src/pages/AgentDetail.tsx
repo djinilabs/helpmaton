@@ -2014,14 +2014,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
                 >
                   <div className="mb-4">
-                    <label className="mb-2 block text-sm font-semibold">
+                    <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
                       Key Name (optional)
                     </label>
                     <input
                       type="text"
                       value={newKeyName}
                       onChange={(e) => setNewKeyName(e.target.value)}
-                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500"
+                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-50"
                       placeholder="e.g., Production Key"
                     />
                   </div>
@@ -2288,11 +2288,11 @@ const KeyItem: FC<KeyItemProps> = ({
   };
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700">
+    <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800">
       <div className="mb-2 flex items-start justify-between">
         <div className="flex-1">
           <div className="mb-2 flex items-center gap-2">
-            <h3 className="text-lg font-semibold">
+            <h3 className="text-lg font-semibold dark:text-neutral-50">
               {keyData.name || `Key ${keyData.id.slice(0, 8)}`}
             </h3>
             {keyData.name && (
@@ -2305,11 +2305,11 @@ const KeyItem: FC<KeyItemProps> = ({
             Created: {new Date(keyData.createdAt).toLocaleString()}
           </p>
           <div className="mb-2">
-            <p className="mb-1 text-xs font-semibold">Webhook URL:</p>
+            <p className="mb-1 text-xs font-semibold dark:text-neutral-300">Webhook URL:</p>
             <div className="flex items-center gap-2">
               <code
                 onClick={handleCopyUrl}
-                className="flex-1 cursor-pointer select-all break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800"
+                className="flex-1 cursor-pointer select-all break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
                 title="Click to copy"
               >
                 {webhookUrl}
@@ -2323,14 +2323,14 @@ const KeyItem: FC<KeyItemProps> = ({
             </div>
           </div>
           <div>
-            <p className="mb-1 text-xs font-semibold">Key Value:</p>
+            <p className="mb-1 text-xs font-semibold dark:text-neutral-300">Key Value:</p>
             {keyData.key ? (
-              <code className="block break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-neutral-800">
+              <code className="block break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                 {keyData.key}
               </code>
             ) : (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs">
-                <p className="mb-1 font-semibold">Key Value Not Available</p>
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs dark:border-amber-800 dark:bg-amber-900">
+                <p className="mb-1 font-semibold dark:text-amber-200">Key Value Not Available</p>
                 <p className="opacity-75 dark:text-neutral-300">
                   For security, key values are only shown once when created. If
                   you need the key value again, please create a new key.

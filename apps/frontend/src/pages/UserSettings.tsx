@@ -108,7 +108,7 @@ const UserSettings: FC = () => {
               Helpmaton API
             </Link>
             . Use these keys with the{" "}
-            <code className="rounded bg-neutral-100 px-2 py-1 font-mono text-sm">
+            <code className="rounded bg-neutral-100 px-2 py-1 font-mono text-sm dark:bg-neutral-800 dark:text-neutral-50">
               Authorization: Bearer &lt;key&gt;
             </code>{" "}
             header.
