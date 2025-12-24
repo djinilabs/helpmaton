@@ -84,7 +84,7 @@ describe("GET /api/workspaces/:workspaceId/api-key", () => {
 
     const workspaceId = "workspace-123";
 
-    const provider = "google";
+    const provider = "openrouter";
     const mockApiKey = {
       pk: `workspace-api-keys/${workspaceId}/${provider}`,
       sk: "key",
@@ -123,7 +123,7 @@ describe("GET /api/workspaces/:workspaceId/api-key", () => {
     mockDatabase.mockResolvedValue(mockDb);
 
     const workspaceId = "workspace-123";
-    const provider = "google";
+    const provider = "openrouter";
 
     const mockApiKeyGet = vi.fn().mockRejectedValue(new Error("Not found"));
     mockDb["workspace-api-key"].get = mockApiKeyGet;
@@ -161,7 +161,7 @@ describe("GET /api/workspaces/:workspaceId/api-key", () => {
         workspaceId: "workspace-123",
       },
       query: {
-        provider: "google",
+        provider: "openrouter",
       },
     });
     const res = createMockResponse();

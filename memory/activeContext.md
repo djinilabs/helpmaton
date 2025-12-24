@@ -2,52 +2,29 @@
 
 ## Current Status
 
-**Status**: BYOK OpenRouter Only Strategy with Enhanced Error Handling - Completed ✅
-
-Changed BYOK (Bring Your Own Key) strategy to only allow OpenRouter keys. When a workspace has an OpenRouter key configured:
-- Only OpenRouter keys are supported for BYOK (no more Google/OpenAI/Anthropic keys)
-- Spending rate limits are checked BEFORE the call (to prevent exceeding limits)
-- Costs are calculated/extracted AFTER the call
-- Costs are applied to spending rate limits (via token-usage-aggregates)
-- Costs are NOT deducted from workspace credits
-- Credit balance validation is skipped for BYOK requests (no InsufficientCreditsError)
-- Authentication errors from invalid API keys are properly detected and return user-friendly error messages
+**Status**: Conversation Error Logging & UI Signals - Completed ✅
 
 **Changes Made**:
-- Updated frontend UI to only show OpenRouter key input (removed provider selection dropdown)
-- Updated frontend API utilities to hardcode "openrouter" provider
-- Changed backend VALID_PROVIDERS to only include "openrouter"
-- Updated all workspace API key endpoints to only accept "openrouter" provider
-- Updated getWorkspaceApiKey() to only check for OpenRouter keys
-- Updated validateCreditsAndLimits() to check spending limits for BYOK (skip credit check only)
-- Updated updateConversation() to accept and store usesByok flag
-- Updated documentation to reflect OpenRouter-only BYOK strategy
-- **Fixed BYOK detection**: Changed `agentSetup.ts` to check for OpenRouter keys instead of Google keys
-- **Enhanced authentication error detection**: Improved `isAuthenticationError()` to handle wrapped AI SDK errors, check error.cause chains, and detect "No cookie auth credentials" messages
-- **Added comprehensive error handling**: Wrapped stream response creation, stream consumption, and result property access in try-catch blocks to catch authentication errors at multiple points
-- **Added NoOutputGeneratedError handling**: When `usesByok` is true and `NoOutputGeneratedError` occurs, treat it as a potential authentication error (AI SDK wraps auth errors)
-- **Improved error messages**: Return specific "configuration issue with OpenRouter API key" message instead of generic 500 errors
+- Added conversation-level error schema (message, stack, provider/model, endpoint, metadata) and serialization helpers.
+- Persist LLM/provider errors for stream/test/webhook endpoints even when calls fail; conversations now store errors alongside messages.
+- API responses expose error details and error flags; conversation list shows error badge, detail view shows full message/stack and metadata.
+- Updated Conversation types to include `hasError`, `error`, and stream conversation type.
+- Added unit tests for error persistence; typecheck and lint pass.
 
 **Files Modified**:
-- `apps/frontend/src/pages/WorkspaceDetail.tsx` - Removed provider selection, only OpenRouter input
-- `apps/frontend/src/utils/api.ts` - Hardcoded "openrouter" provider in API calls
-- `apps/backend/src/http/any-api-workspaces-catchall/routes/workspaceApiKeyUtils.ts` - VALID_PROVIDERS = ["openrouter"]
-- `apps/backend/src/http/any-api-workspaces-catchall/routes/put-workspace-api-key.ts` - Only accept openrouter
-- `apps/backend/src/http/any-api-workspaces-catchall/routes/delete-workspace-api-key.ts` - Only accept openrouter
-- `apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-api-key.ts` - Only check openrouter
-- `apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-api-keys.ts` - Only return openrouter
-- `apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-by-id.ts` - Only check openrouter
-- `apps/backend/src/http/utils/agentUtils.ts` - Only check for OpenRouter keys
-- `apps/backend/src/utils/creditValidation.ts` - Check spending limits for BYOK (skip credit check)
-- `apps/backend/src/utils/conversationLogger.ts` - Accept usesByok parameter in updateConversation
-- `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Pass usesByok to updateConversation, added comprehensive error handling
-- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-test-agent.ts` - Pass usesByok to updateConversation, added comprehensive error handling at multiple points
-- `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Added BYOK authentication error handling
-- `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup.ts` - Fixed to check for OpenRouter keys instead of Google keys
-- `apps/backend/src/utils/handlingErrors.ts` - Enhanced `isAuthenticationError()` to detect wrapped errors, check error.cause chains, and handle AI SDK error structures
-- `docs/credit-system.md` - Updated BYOK documentation
+- `apps/backend/src/utils/conversationLogger.ts` - Added error info builder, error persistence in start/update.
+- `apps/backend/src/tables/schema.ts` - Added `error` field to `agent-conversations` schema.
+- `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Persist errors on stream failures.
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-test-agent.ts` - Persist errors on test endpoint failures.
+- `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Persist errors on webhook failures.
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/get-agent-conversations.ts` - Include `hasError` flag.
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/get-agent-conversation.ts` - Return error details.
+- `apps/frontend/src/utils/api.ts` - Conversation types include error info/stream type.
+- `apps/frontend/src/components/ConversationList.tsx` - Error badge in list.
+- `apps/frontend/src/components/ConversationDetailModal.tsx` - Show error message/stack in detail.
+- `apps/backend/src/utils/__tests__/conversationLogger.test.ts` - Added error persistence tests.
 
-**Verification**: All changes implemented, ready for testing
+**Verification**: `pnpm typecheck`, `pnpm lint`
 
 **Previous Status**: OpenRouter Cost Verification and Credit Validation Logic Fixes - Completed ✅
 

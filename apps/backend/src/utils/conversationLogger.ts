@@ -14,6 +14,19 @@ export interface TokenUsage {
   cachedPromptTokens?: number; // Cached prompt tokens (if prompt caching is used)
 }
 
+export interface ConversationErrorInfo {
+  message: string;
+  name?: string;
+  stack?: string;
+  code?: string;
+  statusCode?: number;
+  provider?: string;
+  modelName?: string;
+  endpoint?: string;
+  occurredAt?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface ConversationLogData {
   workspaceId: string;
   agentId: string;
@@ -24,6 +37,7 @@ export interface ConversationLogData {
   toolResults?: unknown[];
   tokenUsage?: TokenUsage;
   usesByok?: boolean;
+  error?: ConversationErrorInfo;
 }
 
 /**
@@ -31,6 +45,60 @@ export interface ConversationLogData {
  */
 export function calculateTTL(): number {
   return Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
+}
+
+/**
+ * Build a serializable error payload for conversation records
+ */
+export function buildConversationErrorInfo(
+  error: unknown,
+  options?: {
+    provider?: string;
+    modelName?: string;
+    endpoint?: string;
+    metadata?: Record<string, unknown>;
+  }
+): ConversationErrorInfo {
+  const message = error instanceof Error ? error.message : String(error);
+  const base: ConversationErrorInfo = {
+    message,
+    occurredAt: new Date().toISOString(),
+    provider: options?.provider,
+    modelName: options?.modelName,
+    endpoint: options?.endpoint,
+    metadata: options?.metadata,
+  };
+
+  if (error instanceof Error) {
+    base.name = error.name;
+    base.stack = error.stack;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+    const anyError = error as any;
+    if (typeof anyError.code === "string") {
+      base.code = anyError.code;
+    }
+    const statusCode =
+      typeof anyError.statusCode === "number"
+        ? anyError.statusCode
+        : typeof anyError.status === "number"
+          ? anyError.status
+          : undefined;
+    if (statusCode !== undefined) {
+      base.statusCode = statusCode;
+    }
+  } else if (error && typeof error === "object") {
+    const maybeStatus =
+      "statusCode" in error && typeof (error as { statusCode?: unknown }).statusCode === "number"
+        ? (error as { statusCode: number }).statusCode
+        : "status" in error && typeof (error as { status?: unknown }).status === "number"
+          ? (error as { status: number }).status
+          : undefined;
+    if (maybeStatus !== undefined) {
+      base.statusCode = maybeStatus;
+    }
+  }
+
+  return base;
 }
 
 /**
@@ -644,6 +712,7 @@ export async function startConversation(
     toolResults: toolResults.length > 0 ? toolResults : undefined,
     tokenUsage: data.tokenUsage,
     usesByok: data.usesByok,
+    error: data.error,
     costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
     startedAt: now,
     lastMessageAt: now,
@@ -693,7 +762,8 @@ export async function updateConversation(
   conversationId: string,
   newMessages: UIMessage[],
   additionalTokenUsage?: TokenUsage,
-  usesByok?: boolean
+  usesByok?: boolean,
+  error?: ConversationErrorInfo
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
@@ -747,6 +817,7 @@ export async function updateConversation(
           toolResults: toolResults.length > 0 ? toolResults : undefined,
           tokenUsage: additionalTokenUsage,
           usesByok: usesByok,
+        error,
           costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
           startedAt: now,
           lastMessageAt: now,
@@ -827,6 +898,7 @@ export async function updateConversation(
         expires: calculateTTL(),
         costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
         usesByok: existing.usesByok !== undefined ? existing.usesByok : usesByok,
+        error: error ?? (existing as { error?: ConversationErrorInfo }).error,
         startedAt: existing.startedAt,
       };
     }

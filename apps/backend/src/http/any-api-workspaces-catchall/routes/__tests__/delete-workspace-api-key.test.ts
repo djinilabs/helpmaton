@@ -82,7 +82,7 @@ describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
     mockDatabase.mockResolvedValue(mockDb);
 
     const workspaceId = "workspace-123";
-    const provider = "google";
+    const provider = "openrouter";
 
     const mockApiKeyDelete = vi.fn().mockResolvedValue(undefined);
     mockDb["workspace-api-key"].delete = mockApiKeyDelete;
@@ -120,7 +120,7 @@ describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
         workspaceId: "workspace-123",
       },
       query: {
-        provider: "google",
+        provider: "openrouter",
       },
     });
     const res = createMockResponse();
@@ -146,7 +146,7 @@ describe("DELETE /api/workspaces/:workspaceId/api-key", () => {
     mockDatabase.mockResolvedValue(mockDb);
 
     const workspaceId = "workspace-123";
-    const provider = "google";
+    const provider = "openrouter";
     const error = new Error("Database error");
 
     const mockApiKeyDelete = vi.fn().mockRejectedValue(error);

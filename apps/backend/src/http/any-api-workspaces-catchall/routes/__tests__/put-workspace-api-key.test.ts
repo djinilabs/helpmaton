@@ -84,7 +84,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     const workspaceId = "workspace-123";
     const userId = "user-456";
     const apiKey = "test-api-key-123";
-    const provider = "google";
+    const provider = "openrouter";
 
     const mockApiKeyGet = vi.fn().mockResolvedValue(null);
     mockDb["workspace-api-key"].get = mockApiKeyGet;
@@ -139,7 +139,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     const userId = "user-456";
     const oldApiKey = "old-api-key";
     const newApiKey = "new-api-key";
-    const provider = "openai";
+    const provider = "openrouter";
 
     const existingKey = {
       pk: `workspace-api-keys/${workspaceId}/${provider}`,
@@ -237,7 +237,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
 
     const workspaceId = "workspace-123";
     const userId = "user-456";
-    const provider = "google";
+    const provider = "openrouter";
 
     const mockApiKeyDelete = vi.fn().mockResolvedValue(undefined);
     mockDb["workspace-api-key"].delete = mockApiKeyDelete;
@@ -272,7 +272,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
 
     const workspaceId = "workspace-123";
     const userId = "user-456";
-    const provider = "google";
+    const provider = "openrouter";
 
     const mockApiKeyDelete = vi.fn().mockRejectedValue(new Error("Not found"));
     mockDb["workspace-api-key"].delete = mockApiKeyDelete;
@@ -348,7 +348,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
       },
       body: {
         key: "test-api-key",
-        provider: "google",
+        provider: "openrouter",
       },
     });
     const res = createMockResponse();
@@ -380,7 +380,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
       },
       body: {
         key: "test-api-key",
-        provider: "google",
+        provider: "openrouter",
       },
     });
     const res = createMockResponse();

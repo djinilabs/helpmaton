@@ -159,22 +159,29 @@ export const ConversationList: FC<ConversationListProps> = ({
                       Last: {formatDate(conversation.lastMessageAt)}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="mb-1 text-xs font-medium text-neutral-700 dark:text-neutral-300">
-                      Tokens
-                    </div>
-                    <div className="mb-1 text-xs text-neutral-600 dark:text-neutral-300">
-                      {formatTokenUsage(conversation.tokenUsage)}
+                  <div className="space-y-1 text-right">
+                    {conversation.hasError && (
+                      <div className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-800 dark:bg-red-900 dark:text-red-200">
+                        Error
+                      </div>
+                    )}
+                    <div>
+                      <div className="mb-1 text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                        Tokens
+                      </div>
+                      <div className="mb-1 text-xs text-neutral-600 dark:text-neutral-300">
+                        {formatTokenUsage(conversation.tokenUsage)}
+                      </div>
                     </div>
                     {conversation.costUsd !== undefined && (
-                      <>
+                      <div>
                         <div className="mb-1 text-xs font-medium text-neutral-700 dark:text-neutral-300">
                           Cost
                         </div>
                         <div className="text-xs text-neutral-600 dark:text-neutral-300">
                           {formatCurrency(conversation.costUsd, "usd", 10)}
                         </div>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>

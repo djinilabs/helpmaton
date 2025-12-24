@@ -742,9 +742,22 @@ export async function deleteAgentKey(
   );
 }
 
+export interface ConversationError {
+  message: string;
+  name?: string;
+  stack?: string;
+  code?: string;
+  statusCode?: number;
+  provider?: string;
+  modelName?: string;
+  endpoint?: string;
+  occurredAt?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface Conversation {
   id: string;
-  conversationType: "test" | "webhook";
+  conversationType: "test" | "webhook" | "stream";
   startedAt: string;
   lastMessageAt: string;
   messageCount: number;
@@ -754,6 +767,8 @@ export interface Conversation {
     totalTokens: number;
   } | null;
   costUsd?: number;
+  hasError?: boolean;
+  error?: ConversationError | null;
 }
 
 export interface ConversationDetail extends Conversation {

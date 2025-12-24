@@ -186,6 +186,20 @@ export const tableSchemas = {
     modelName: z.string().optional(), // @deprecated - Use per-message modelName instead. Kept for backward compatibility.
     provider: z.string().optional(), // @deprecated - Use per-message provider instead. Kept for backward compatibility.
     usesByok: z.boolean().optional(), // whether this conversation used BYOK (Bring Your Own Key)
+    error: z
+      .object({
+        message: z.string(),
+        name: z.string().optional(),
+        stack: z.string().optional(),
+        code: z.string().optional(),
+        statusCode: z.number().optional(),
+        provider: z.string().optional(),
+        modelName: z.string().optional(),
+        endpoint: z.string().optional(),
+        occurredAt: z.string().datetime().optional(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
+      })
+      .optional(),
     costUsd: z.number().int().optional(), // cost in USD in millionths
     startedAt: z.string().datetime(), // when conversation started
     lastMessageAt: z.string().datetime(), // when last message was added

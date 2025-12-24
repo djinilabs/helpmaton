@@ -15,6 +15,7 @@ import {
   extractTokenUsage,
   isMessageContentEmpty,
   startConversation,
+  buildConversationErrorInfo,
 } from "../../utils/conversationLogger";
 import {
   InsufficientCreditsError,
@@ -64,6 +65,50 @@ import {
   formatToolResultMessage,
 } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/toolFormatting";
 import type { UIMessage } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
+
+async function persistWebhookConversationError(options: {
+  db: Awaited<ReturnType<typeof database>>;
+  workspaceId: string;
+  agentId: string;
+  uiMessage: UIMessage;
+  usesByok?: boolean;
+  finalModelName?: string;
+  error: unknown;
+}): Promise<void> {
+  try {
+    const messages = [options.uiMessage].filter(
+      (msg) => !isMessageContentEmpty(msg)
+    );
+
+    const errorInfo = buildConversationErrorInfo(options.error, {
+      provider: "openrouter",
+      modelName: options.finalModelName,
+      endpoint: "webhook",
+      metadata: {
+        usesByok: options.usesByok,
+      },
+    });
+
+    await startConversation(options.db, {
+      workspaceId: options.workspaceId,
+      agentId: options.agentId,
+      conversationType: "webhook",
+      messages,
+      usesByok: options.usesByok,
+      error: errorInfo,
+    });
+  } catch (logError) {
+    console.error("[Webhook Handler] Failed to persist conversation error:", {
+      workspaceId: options.workspaceId,
+      agentId: options.agentId,
+      originalError:
+        options.error instanceof Error
+          ? options.error.message
+          : String(options.error),
+      logError: logError instanceof Error ? logError.message : String(logError),
+    });
+  }
+}
 
 export const handler = adaptHttpHandler(
   handlingErrors(
@@ -397,6 +442,16 @@ export const handler = adaptHttpHandler(
             : undefined,
         });
 
+        await persistWebhookConversationError({
+          db,
+          workspaceId,
+          agentId,
+          uiMessage,
+          usesByok,
+          finalModelName,
+          error,
+        });
+
         // Check if this is a BYOK authentication error FIRST
         // This should be checked before credit errors since BYOK doesn't use credits
         // NoOutputGeneratedError often indicates an authentication error when using BYOK
@@ -647,6 +702,15 @@ export const handler = adaptHttpHandler(
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           };
         }
+        await persistWebhookConversationError({
+          db,
+          workspaceId,
+          agentId,
+          uiMessage,
+          usesByok,
+          finalModelName,
+          error: resultError,
+        });
         throw resultError;
       }
 
@@ -680,6 +744,15 @@ export const handler = adaptHttpHandler(
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           };
         }
+        await persistWebhookConversationError({
+          db,
+          workspaceId,
+          agentId,
+          uiMessage,
+          usesByok,
+          finalModelName,
+          error: resultError,
+        });
         throw resultError;
       }
 

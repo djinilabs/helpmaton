@@ -38,6 +38,7 @@ import {
   extractTokenUsage,
   isMessageContentEmpty,
   updateConversation,
+  buildConversationErrorInfo,
 } from "../../utils/conversationLogger";
 import {
   InsufficientCreditsError,
@@ -129,6 +130,45 @@ interface StreamRequestContext {
   usesByok: boolean;
   reservationId: string | undefined;
   finalModelName: string;
+}
+
+async function persistConversationError(
+  context: StreamRequestContext | undefined,
+  error: unknown
+): Promise<void> {
+  if (!context) return;
+
+  try {
+    const errorInfo = buildConversationErrorInfo(error, {
+      provider: "openrouter",
+      modelName: context.finalModelName,
+      endpoint: "stream",
+      metadata: {
+        usesByok: context.usesByok,
+      },
+    });
+
+    await updateConversation(
+      context.db,
+      context.workspaceId,
+      context.agentId,
+      context.conversationId,
+      context.convertedMessages ?? [],
+      undefined,
+      context.usesByok,
+      errorInfo
+    );
+  } catch (logError) {
+    console.error("[Stream Handler] Failed to persist conversation error:", {
+      originalError:
+        error instanceof Error ? error.message : String(error),
+      logError:
+        logError instanceof Error ? logError.message : String(logError),
+      workspaceId: context.workspaceId,
+      agentId: context.agentId,
+      conversationId: context.conversationId,
+    });
+  }
 }
 
 const DEFAULT_CONTENT_TYPE = "text/event-stream; charset=utf-8";
@@ -1246,6 +1286,7 @@ const internalHandler = async (
     throw notAcceptable("Invalid path parameters");
   }
   let allowedOrigins: string[] | null = null;
+  let context: StreamRequestContext | undefined;
 
   // Fetch allowed origins from database based on stream server configuration
   allowedOrigins = await getAllowedOrigins(
@@ -1286,7 +1327,7 @@ const internalHandler = async (
       method: event.requestContext?.http?.method,
     });
 
-    const context = await buildRequestContext(event, pathParams);
+    context = await buildRequestContext(event, pathParams);
 
     // Set status code and headers directly
     // Validate secret
@@ -1373,6 +1414,7 @@ const internalHandler = async (
           error:
             "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
         })}\n\n`;
+        await persistConversationError(context, error);
         await writeChunkToStream(responseStream, errorChunk);
         responseStream.end();
         return;
@@ -1400,6 +1442,7 @@ const internalHandler = async (
           error:
             "Request could not be completed due to service limits. Please contact your workspace administrator.",
         })}\n\n`;
+        await persistConversationError(context, error);
         await writeChunkToStream(responseStream, errorChunk);
         responseStream.end();
         return;
@@ -1723,6 +1766,7 @@ const internalHandler = async (
       console.error("[Stream Handler] Client error:", boomed);
     }
 
+    await persistConversationError(context, error);
     try {
       await writeErrorResponse(responseStream, error);
       responseStream.end();

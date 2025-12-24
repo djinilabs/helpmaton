@@ -207,6 +207,59 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
           </div>
         </div>
 
+        {/* Error Details */}
+        {conversationDetail.error && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm font-semibold text-red-800 dark:text-red-100">
+                Provider Error
+              </div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-red-700 dark:text-red-200">
+                {conversationDetail.error.endpoint || "conversation"}
+              </div>
+            </div>
+            <div className="space-y-2 text-xs text-red-900 dark:text-red-100">
+              <div>
+                <span className="font-semibold">Message: </span>
+                <span className="break-words">{conversationDetail.error.message}</span>
+              </div>
+              {conversationDetail.error.name && (
+                <div>
+                  <span className="font-semibold">Name: </span>
+                  {conversationDetail.error.name}
+                </div>
+              )}
+              {conversationDetail.error.code && (
+                <div>
+                  <span className="font-semibold">Code: </span>
+                  {conversationDetail.error.code}
+                </div>
+              )}
+              {conversationDetail.error.statusCode !== undefined && (
+                <div>
+                  <span className="font-semibold">Status: </span>
+                  {conversationDetail.error.statusCode}
+                </div>
+              )}
+              {(conversationDetail.error.provider || conversationDetail.error.modelName) && (
+                <div>
+                  <span className="font-semibold">Provider/Model: </span>
+                  {conversationDetail.error.provider || "unknown"}
+                  {conversationDetail.error.modelName ? ` / ${conversationDetail.error.modelName}` : ""}
+                </div>
+              )}
+              {conversationDetail.error.stack && (
+                <div>
+                  <div className="font-semibold">Stack Trace</div>
+                  <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-black bg-opacity-5 p-3 font-mono text-[11px] text-red-900 dark:bg-white dark:bg-opacity-10 dark:text-red-100">
+                    {conversationDetail.error.stack}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Toggle Raw JSON */}
         <div className="mb-4">
           <button

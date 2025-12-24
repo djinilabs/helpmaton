@@ -154,6 +154,7 @@ export const registerGetAgentConversations = (app: express.Application) => {
             messageCount: Array.isArray(c.messages) ? c.messages.length : 0,
             tokenUsage: c.tokenUsage || null,
             costUsd: c.costUsd,
+            hasError: !!c.error,
           };
         });
 

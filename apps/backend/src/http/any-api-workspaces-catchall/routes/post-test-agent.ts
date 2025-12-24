@@ -10,6 +10,7 @@ import {
   extractTokenUsage,
   isMessageContentEmpty,
   updateConversation,
+  buildConversationErrorInfo,
 } from "../../../utils/conversationLogger";
 import {
   InsufficientCreditsError,
@@ -50,6 +51,54 @@ import type { UIMessage } from "../../post-api-workspaces-000workspaceId-agents-
 import { MODEL_NAME, buildGenerateTextOptions } from "../../utils/agentUtils";
 import { extractUserId } from "../../utils/session";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
+
+async function persistConversationError(options: {
+  db: Awaited<ReturnType<typeof database>>;
+  workspaceId: string;
+  agentId: string;
+  conversationId: string;
+  messages: UIMessage[];
+  usesByok?: boolean;
+  finalModelName?: string;
+  error: unknown;
+}): Promise<void> {
+  try {
+    const filteredMessages = options.messages.filter(
+      (msg) => !isMessageContentEmpty(msg)
+    );
+
+    const errorInfo = buildConversationErrorInfo(options.error, {
+      provider: "openrouter",
+      modelName: options.finalModelName,
+      endpoint: "test",
+      metadata: {
+        usesByok: options.usesByok,
+      },
+    });
+
+    await updateConversation(
+      options.db,
+      options.workspaceId,
+      options.agentId,
+      options.conversationId,
+      filteredMessages,
+      undefined,
+      options.usesByok,
+      errorInfo
+    );
+  } catch (logError) {
+    console.error("[Agent Test Handler] Failed to persist conversation error:", {
+      workspaceId: options.workspaceId,
+      agentId: options.agentId,
+      conversationId: options.conversationId,
+      originalError:
+        options.error instanceof Error
+          ? options.error.message
+          : String(options.error),
+      logError: logError instanceof Error ? logError.message : String(logError),
+    });
+  }
+}
 
 /**
  * @openapi
@@ -235,6 +284,20 @@ export const registerPostTestAgent = (app: express.Application) => {
         throw error;
       }
 
+      // Convert messages to UIMessage format for logging and error persistence
+      let convertedMessages: UIMessage[] = [];
+      try {
+        convertedMessages = convertAiSdkUIMessagesToUIMessages(
+          messages as Array<Omit<import("ai").UIMessage, "id">>
+        );
+      } catch (error) {
+        console.error("[Agent Test Handler] Error converting messages to UIMessage:", {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        throw error;
+      }
+
       // Derive the model name from the agent's modelName if set, otherwise use default
       const finalModelName =
         typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
@@ -332,6 +395,17 @@ export const registerPostTestAgent = (app: express.Application) => {
           errorCause: error instanceof Error && error.cause 
             ? (error.cause instanceof Error ? error.cause.message : String(error.cause))
             : undefined,
+        });
+
+        await persistConversationError({
+          db,
+          workspaceId,
+          agentId,
+          conversationId,
+          messages: convertedMessages,
+          usesByok,
+          finalModelName,
+          error,
         });
 
         // Check if this is a BYOK authentication error FIRST
@@ -746,6 +820,16 @@ export const registerPostTestAgent = (app: express.Application) => {
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           });
         }
+        await persistConversationError({
+          db,
+          workspaceId,
+          agentId,
+          conversationId,
+          messages: convertedMessages,
+          usesByok,
+          finalModelName,
+          error: resultError,
+        });
         throw resultError;
       }
 
@@ -905,9 +989,6 @@ export const registerPostTestAgent = (app: express.Application) => {
           }
         }
       }
-
-      // Convert messages from ai-sdk format (with 'parts') to our format (with 'content')
-      const convertedMessages = convertAiSdkUIMessagesToUIMessages(messages);
 
       // Format tool calls and results as UI messages
       const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);

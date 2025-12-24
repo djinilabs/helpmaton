@@ -63,21 +63,9 @@ describe("GET /api/workspaces/:workspaceId/api-keys", () => {
           }
         }
 
-        // Also check for old format key (Google only) for backward compatibility
-        const oldPk = `workspace-api-keys/${workspaceId}`;
-        const sk = "key";
-        try {
-          const oldKey = await db["workspace-api-key"].get(oldPk, sk);
-          if (oldKey) {
-            providersWithKeys.add("google");
-          }
-        } catch {
-          // Old key doesn't exist
-        }
-
         // Return status for all supported providers
-        const supportedProviders = ["openrouter"];
-        const keys = supportedProviders.map((provider) => ({
+        const { VALID_PROVIDERS } = await import("../workspaceApiKeyUtils");
+        const keys = VALID_PROVIDERS.map((provider) => ({
           provider,
           hasKey: providersWithKeys.has(provider),
         }));
@@ -100,16 +88,10 @@ describe("GET /api/workspaces/:workspaceId/api-keys", () => {
     const mockQuery = vi.fn().mockResolvedValue({
       items: [
         {
-          pk: `workspace-api-keys/${workspaceId}/google`,
+          pk: `workspace-api-keys/${workspaceId}/openrouter`,
           sk: "key",
           workspaceId,
-          provider: "google",
-        },
-        {
-          pk: `workspace-api-keys/${workspaceId}/openai`,
-          sk: "key",
-          workspaceId,
-          provider: "openai",
+          provider: "openrouter",
         },
       ],
     });
@@ -138,9 +120,7 @@ describe("GET /api/workspaces/:workspaceId/api-keys", () => {
     });
     expect(res.json).toHaveBeenCalledWith({
       keys: [
-        { provider: "google", hasKey: true },
-        { provider: "openai", hasKey: true },
-        { provider: "anthropic", hasKey: false },
+        { provider: "openrouter", hasKey: true },
       ],
     });
   });
@@ -172,9 +152,7 @@ describe("GET /api/workspaces/:workspaceId/api-keys", () => {
 
     expect(res.json).toHaveBeenCalledWith({
       keys: [
-        { provider: "google", hasKey: false },
-        { provider: "openai", hasKey: false },
-        { provider: "anthropic", hasKey: false },
+        { provider: "openrouter", hasKey: false },
       ],
     });
   });
@@ -209,15 +187,11 @@ describe("GET /api/workspaces/:workspaceId/api-keys", () => {
 
     await callRouteHandler(req, res, next);
 
-    expect(mockGet).toHaveBeenCalledWith(
-      `workspace-api-keys/${workspaceId}`,
-      "key"
-    );
+    // Old format keys are no longer checked - only openrouter is supported
+    expect(mockGet).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith({
       keys: [
-        { provider: "google", hasKey: true },
-        { provider: "openai", hasKey: false },
-        { provider: "anthropic", hasKey: false },
+        { provider: "openrouter", hasKey: false },
       ],
     });
   });
