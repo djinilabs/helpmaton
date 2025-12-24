@@ -8,7 +8,7 @@ import type { DatabaseSchema } from "../tables/schema";
 import type { CreditReservation } from "./creditManagement";
 import { reserveCredits } from "./creditManagement";
 
-// Tavily pricing: $0.008 per API call = 8,000 millionths (1 credit = 1 call)
+// Tavily pricing: $0.008 per API call = 8,000 millionths (1 Tavily API call = $0.008)
 const TAVILY_COST_PER_CALL_MILLIONTHS = 8_000; // $0.008 = 8,000 millionths
 
 /**
@@ -122,11 +122,10 @@ export async function adjustTavilyCreditReservation(
       { maxRetries }
     );
 
-    // Update reservation with actual cost
-    await db["credit-reservations"].update({
-      ...reservation,
-      // Store actual cost for reference (we don't have a specific field for Tavily, but we can use existing fields)
-      // For now, just update the reservation to mark it as adjusted
+    // Delete reservation after adjustment (Tavily doesn't need step 3 like OpenRouter)
+    await db["credit-reservations"].delete(reservationPk);
+    console.log("[adjustTavilyCreditReservation] Successfully deleted reservation:", {
+      reservationId,
     });
 
     console.log("[adjustTavilyCreditReservation] Successfully adjusted credits:", {

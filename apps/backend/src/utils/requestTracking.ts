@@ -326,7 +326,7 @@ Visit your subscription settings to upgrade.`;
 
 /**
  * Atomically increment the current hour's Tavily call bucket
- * Uses atomicUpdate API with automatic retry on version conflicts
+ * Delegates automatic retry on version conflicts to the atomicUpdate API
  * @param workspaceId - Workspace ID
  * @param maxRetries - Maximum number of retries (default: 3)
  * @returns Updated bucket record

@@ -61,7 +61,7 @@ See [Environment Variables](../apps/backend/ENV.md) for configuration details.
 
 ### Credit Reservation Flow
 
-1. **Reservation**: Credits are reserved before the API call (estimate: 1 credit = $0.008)
+1. **Reservation**: Credits are reserved before the API call (estimate: 1 Tavily API call ≈ 8,000 millionths = $0.008)
 2. **API Call**: Tavily API is called and returns usage information
 3. **Adjustment**: Credits are adjusted based on actual usage from API response
    - If actual usage < estimate: Difference is refunded

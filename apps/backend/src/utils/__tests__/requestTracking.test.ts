@@ -7,6 +7,7 @@ const {
   mockGetUserEmailById,
   mockGetPlanLimits,
   mockSendEmail,
+  mockGetWorkspaceSubscription,
 } = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
@@ -14,6 +15,7 @@ const {
     mockGetUserEmailById: vi.fn(),
     mockGetPlanLimits: vi.fn(),
     mockSendEmail: vi.fn(),
+    mockGetWorkspaceSubscription: vi.fn(),
   };
 });
 
@@ -26,6 +28,7 @@ vi.mock("../../tables/database", () => ({
 vi.mock("../subscriptionUtils", () => ({
   getSubscriptionById: mockGetSubscriptionById,
   getUserEmailById: mockGetUserEmailById,
+  getWorkspaceSubscription: mockGetWorkspaceSubscription,
 }));
 
 // Mock subscription plans
@@ -39,13 +42,19 @@ vi.mock("../../send-email", () => ({
 }));
 
 // Import after mocks are set up
-import type { LLMRequestBucketRecord } from "../../tables/schema";
+import type {
+  LLMRequestBucketRecord,
+  TavilyCallBucketRecord,
+} from "../../tables/schema";
 import {
   getCurrentHourTimestamp,
   getLast24HourTimestamps,
   incrementRequestBucket,
   getRequestCountLast24Hours,
   checkDailyRequestLimit,
+  incrementTavilyCallBucket,
+  getTavilyCallCountLast24Hours,
+  checkTavilyDailyLimit,
 } from "../requestTracking";
 
 describe("requestTracking", () => {
@@ -684,6 +693,350 @@ describe("requestTracking", () => {
 
       await expect(checkDailyRequestLimit(subscriptionId)).rejects.toThrow(
         "Subscription sub-123 not found"
+      );
+    });
+  });
+
+  describe("incrementTavilyCallBucket", () => {
+    const mockDb = {
+      "tavily-call-buckets": {
+        atomicUpdate: vi.fn(),
+      },
+    };
+
+    beforeEach(() => {
+      mockDatabase.mockResolvedValue(mockDb);
+    });
+
+    it("should create new bucket if it doesn't exist", async () => {
+      const workspaceId = "workspace-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const createdBucket: TavilyCallBucketRecord = {
+        pk: `tavily-call-buckets/${workspaceId}/2024-01-15T14:00:00.000Z`,
+        workspaceId,
+        hourTimestamp: "2024-01-15T14:00:00.000Z",
+        count: 1,
+        expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockDb["tavily-call-buckets"].atomicUpdate.mockImplementation(
+        async (pk, sk, updater) => {
+          await updater(undefined);
+          return createdBucket;
+        }
+      );
+
+      const result = await incrementTavilyCallBucket(workspaceId);
+
+      expect(
+        mockDb["tavily-call-buckets"].atomicUpdate
+      ).toHaveBeenCalledWith(
+        `tavily-call-buckets/${workspaceId}/2024-01-15T14:00:00.000Z`,
+        undefined,
+        expect.any(Function),
+        { maxRetries: 3 }
+      );
+      expect(result.count).toBe(1);
+    });
+
+    it("should increment existing bucket", async () => {
+      const workspaceId = "workspace-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const existingBucket: TavilyCallBucketRecord = {
+        pk: `tavily-call-buckets/${workspaceId}/2024-01-15T14:00:00.000Z`,
+        workspaceId,
+        hourTimestamp: "2024-01-15T14:00:00.000Z",
+        count: 5,
+        expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      const updatedBucket = { ...existingBucket, count: 6 };
+
+      mockDb["tavily-call-buckets"].atomicUpdate.mockImplementation(
+        async (pk, sk, updater) => {
+          await updater(existingBucket);
+          return updatedBucket;
+        }
+      );
+
+      const result = await incrementTavilyCallBucket(workspaceId);
+
+      expect(
+        mockDb["tavily-call-buckets"].atomicUpdate
+      ).toHaveBeenCalledWith(
+        existingBucket.pk,
+        undefined,
+        expect.any(Function),
+        { maxRetries: 3 }
+      );
+      expect(result.count).toBe(6);
+    });
+
+    it("should throw error if table doesn't exist", async () => {
+      const workspaceId = "workspace-123";
+      const mockDbWithoutTable = {} as typeof mockDb;
+
+      mockDatabase.mockResolvedValue(mockDbWithoutTable);
+
+      await expect(incrementTavilyCallBucket(workspaceId)).rejects.toThrow(
+        "tavily-call-buckets table not found"
+      );
+    });
+  });
+
+  describe("getTavilyCallCountLast24Hours", () => {
+    const mockDb = {
+      "tavily-call-buckets": {
+        query: vi.fn(),
+      },
+    };
+
+    beforeEach(() => {
+      mockDatabase.mockResolvedValue(mockDb);
+    });
+
+    it("should sum counts from all buckets", async () => {
+      const workspaceId = "workspace-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const buckets: TavilyCallBucketRecord[] = [
+        {
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T14:00:00.000Z`,
+          workspaceId,
+          hourTimestamp: "2024-01-15T14:00:00.000Z",
+          count: 10,
+          expires: 0,
+          version: 1,
+          createdAt: now.toISOString(),
+        },
+        {
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T13:00:00.000Z`,
+          workspaceId,
+          hourTimestamp: "2024-01-15T13:00:00.000Z",
+          count: 5,
+          expires: 0,
+          version: 1,
+          createdAt: now.toISOString(),
+        },
+        {
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T12:00:00.000Z`,
+          workspaceId,
+          hourTimestamp: "2024-01-15T12:00:00.000Z",
+          count: 8,
+          expires: 0,
+          version: 1,
+          createdAt: now.toISOString(),
+        },
+      ];
+
+      mockDb["tavily-call-buckets"].query.mockResolvedValue({
+        items: buckets,
+      });
+
+      const result = await getTavilyCallCountLast24Hours(workspaceId);
+
+      expect(result).toBe(23); // 10 + 5 + 8
+      expect(mockDb["tavily-call-buckets"].query).toHaveBeenCalledWith({
+        IndexName: "byWorkspaceIdAndHour",
+        KeyConditionExpression:
+          "workspaceId = :workspaceId AND hourTimestamp BETWEEN :oldest AND :newest",
+        ExpressionAttributeValues: {
+          ":workspaceId": workspaceId,
+          ":oldest": expect.any(String),
+          ":newest": expect.any(String),
+        },
+      });
+    });
+
+    it("should return 0 if no buckets found", async () => {
+      const workspaceId = "workspace-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      mockDb["tavily-call-buckets"].query.mockResolvedValue({
+        items: [],
+      });
+
+      const result = await getTavilyCallCountLast24Hours(workspaceId);
+
+      expect(result).toBe(0);
+    });
+
+    it("should handle buckets with missing count field", async () => {
+      const workspaceId = "workspace-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const buckets = [
+        {
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T14:00:00.000Z`,
+          workspaceId,
+          hourTimestamp: "2024-01-15T14:00:00.000Z",
+          count: 10,
+        },
+        {
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T13:00:00.000Z`,
+          workspaceId,
+          hourTimestamp: "2024-01-15T13:00:00.000Z",
+          // Missing count field
+        },
+      ];
+
+      mockDb["tavily-call-buckets"].query.mockResolvedValue({
+        items: buckets,
+      });
+
+      const result = await getTavilyCallCountLast24Hours(workspaceId);
+
+      expect(result).toBe(10); // Only counts the bucket with count field
+    });
+  });
+
+  describe("checkTavilyDailyLimit", () => {
+    beforeEach(() => {
+      mockGetWorkspaceSubscription.mockClear();
+    });
+
+    it("should allow free tier within limit", async () => {
+      const workspaceId = "workspace-123";
+      const mockDb = {
+        "tavily-call-buckets": {
+          query: vi.fn().mockResolvedValue({ items: [] }),
+        },
+      };
+
+      mockDatabase.mockResolvedValue(mockDb);
+      mockGetWorkspaceSubscription.mockResolvedValue(undefined); // No subscription = free tier
+
+      const result = await checkTavilyDailyLimit(workspaceId);
+
+      expect(result).toEqual({ withinFreeLimit: true, callCount: 0 });
+    });
+
+    it("should throw error for free tier exceeding limit", async () => {
+      const workspaceId = "workspace-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const buckets: TavilyCallBucketRecord[] = Array.from(
+        { length: 10 },
+        (_, i) => ({
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${14 - i}:00:00.000Z`,
+          workspaceId,
+          hourTimestamp: `2024-01-15T${14 - i}:00:00.000Z`,
+          count: 1,
+          expires: 0,
+          version: 1,
+          createdAt: now.toISOString(),
+        })
+      );
+
+      const mockDb = {
+        "tavily-call-buckets": {
+          query: vi.fn().mockResolvedValue({ items: buckets }),
+        },
+      };
+
+      mockDatabase.mockResolvedValue(mockDb);
+      mockGetWorkspaceSubscription.mockResolvedValue(undefined); // Free tier
+
+      await expect(checkTavilyDailyLimit(workspaceId)).rejects.toThrow(
+        "Daily Tavily API call limit exceeded"
+      );
+    });
+
+    it("should allow paid tier within free limit", async () => {
+      const workspaceId = "workspace-123";
+      const mockDb = {
+        "tavily-call-buckets": {
+          query: vi.fn().mockResolvedValue({ items: [] }),
+        },
+      };
+
+      mockDatabase.mockResolvedValue(mockDb);
+      mockGetWorkspaceSubscription.mockResolvedValue({
+        plan: "starter",
+      } as any);
+
+      const result = await checkTavilyDailyLimit(workspaceId);
+
+      expect(result).toEqual({ withinFreeLimit: true, callCount: 0 });
+    });
+
+    it("should allow paid tier exceeding free limit (requires credits)", async () => {
+      const workspaceId = "workspace-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const buckets: TavilyCallBucketRecord[] = Array.from(
+        { length: 15 },
+        (_, i) => ({
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${14 - i}:00:00.000Z`,
+          workspaceId,
+          hourTimestamp: `2024-01-15T${14 - i}:00:00.000Z`,
+          count: 1,
+          expires: 0,
+          version: 1,
+          createdAt: now.toISOString(),
+        })
+      );
+
+      const mockDb = {
+        "tavily-call-buckets": {
+          query: vi.fn().mockResolvedValue({ items: buckets }),
+        },
+      };
+
+      mockDatabase.mockResolvedValue(mockDb);
+      mockGetWorkspaceSubscription.mockResolvedValue({
+        plan: "pro",
+      } as any);
+
+      const result = await checkTavilyDailyLimit(workspaceId);
+
+      expect(result).toEqual({ withinFreeLimit: false, callCount: 15 });
+    });
+
+    it("should treat free plan as free tier", async () => {
+      const workspaceId = "workspace-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const buckets: TavilyCallBucketRecord[] = Array.from(
+        { length: 10 },
+        (_, i) => ({
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${14 - i}:00:00.000Z`,
+          workspaceId,
+          hourTimestamp: `2024-01-15T${14 - i}:00:00.000Z`,
+          count: 1,
+          expires: 0,
+          version: 1,
+          createdAt: now.toISOString(),
+        })
+      );
+
+      const mockDb = {
+        "tavily-call-buckets": {
+          query: vi.fn().mockResolvedValue({ items: buckets }),
+        },
+      };
+
+      mockDatabase.mockResolvedValue(mockDb);
+      mockGetWorkspaceSubscription.mockResolvedValue({
+        plan: "free",
+      } as any);
+
+      await expect(checkTavilyDailyLimit(workspaceId)).rejects.toThrow(
+        "Daily Tavily API call limit exceeded"
       );
     });
   });

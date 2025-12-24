@@ -73,18 +73,30 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
       return;
     }
 
+    let settled = false;
     const timeout = setTimeout(() => {
-      if (signal?.aborted) {
-        reject(new Error("Operation aborted"));
-      } else {
-        resolve();
+      if (settled) {
+        return;
       }
+      settled = true;
+      if (signal) {
+        signal.removeEventListener("abort", onAbort);
+      }
+      resolve();
     }, ms);
 
-    signal?.addEventListener("abort", () => {
+    const onAbort = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
       clearTimeout(timeout);
       reject(new Error("Operation aborted"));
-    });
+    };
+
+    if (signal) {
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
   });
 }
 

@@ -117,10 +117,21 @@ export function createTavilySearchTool(workspaceId: string) {
         // Extract usage from API response
         const actualCreditsUsed = extractCreditsUsed(searchResponse);
 
-        // Track the call
-        await incrementTavilyCallBucket(workspaceId);
+        // Track the call (after successful API call - we only track successful calls)
+        // If tracking fails, log error but don't fail the tool call since API succeeded
+        try {
+          await incrementTavilyCallBucket(workspaceId);
+        } catch (trackingError) {
+          console.error("[tavily_search] Failed to track Tavily API call usage", {
+            workspaceId,
+            reservationId,
+            error: trackingError,
+          });
+          // Continue execution - tracking failure is a logging issue, not a correctness issue
+        }
 
         // Adjust credits if we reserved them
+        // Note: reservationId is only set for paid tiers that exceeded free limit and reserved credits
         if (reservationId && reservationId !== "byok" && reservationId !== "zero-cost") {
           await adjustTavilyCreditReservation(
             db,
@@ -278,10 +289,21 @@ export function createTavilyFetchTool(workspaceId: string) {
         // Extract usage from API response
         const actualCreditsUsed = extractCreditsUsed(extractResponse);
 
-        // Track the call
-        await incrementTavilyCallBucket(workspaceId);
+        // Track the call (after successful API call - we only track successful calls)
+        // If tracking fails, log error but don't fail the tool call since API succeeded
+        try {
+          await incrementTavilyCallBucket(workspaceId);
+        } catch (trackingError) {
+          console.error("[tavily_fetch] Failed to track Tavily API call usage", {
+            workspaceId,
+            reservationId,
+            error: trackingError,
+          });
+          // Continue execution - tracking failure is a logging issue, not a correctness issue
+        }
 
         // Adjust credits if we reserved them
+        // Note: reservationId is only set for paid tiers that exceeded free limit and reserved credits
         if (reservationId && reservationId !== "byok" && reservationId !== "zero-cost") {
           await adjustTavilyCreditReservation(
             db,
