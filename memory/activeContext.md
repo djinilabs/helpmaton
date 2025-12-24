@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Status**: BYOK OpenRouter Only Strategy - Completed ✅
+**Status**: BYOK OpenRouter Only Strategy with Enhanced Error Handling - Completed ✅
 
 Changed BYOK (Bring Your Own Key) strategy to only allow OpenRouter keys. When a workspace has an OpenRouter key configured:
 - Only OpenRouter keys are supported for BYOK (no more Google/OpenAI/Anthropic keys)
@@ -10,6 +10,8 @@ Changed BYOK (Bring Your Own Key) strategy to only allow OpenRouter keys. When a
 - Costs are calculated/extracted AFTER the call
 - Costs are applied to spending rate limits (via token-usage-aggregates)
 - Costs are NOT deducted from workspace credits
+- Credit balance validation is skipped for BYOK requests (no InsufficientCreditsError)
+- Authentication errors from invalid API keys are properly detected and return user-friendly error messages
 
 **Changes Made**:
 - Updated frontend UI to only show OpenRouter key input (removed provider selection dropdown)
@@ -20,6 +22,11 @@ Changed BYOK (Bring Your Own Key) strategy to only allow OpenRouter keys. When a
 - Updated validateCreditsAndLimits() to check spending limits for BYOK (skip credit check only)
 - Updated updateConversation() to accept and store usesByok flag
 - Updated documentation to reflect OpenRouter-only BYOK strategy
+- **Fixed BYOK detection**: Changed `agentSetup.ts` to check for OpenRouter keys instead of Google keys
+- **Enhanced authentication error detection**: Improved `isAuthenticationError()` to handle wrapped AI SDK errors, check error.cause chains, and detect "No cookie auth credentials" messages
+- **Added comprehensive error handling**: Wrapped stream response creation, stream consumption, and result property access in try-catch blocks to catch authentication errors at multiple points
+- **Added NoOutputGeneratedError handling**: When `usesByok` is true and `NoOutputGeneratedError` occurs, treat it as a potential authentication error (AI SDK wraps auth errors)
+- **Improved error messages**: Return specific "configuration issue with OpenRouter API key" message instead of generic 500 errors
 
 **Files Modified**:
 - `apps/frontend/src/pages/WorkspaceDetail.tsx` - Removed provider selection, only OpenRouter input
@@ -33,8 +40,11 @@ Changed BYOK (Bring Your Own Key) strategy to only allow OpenRouter keys. When a
 - `apps/backend/src/http/utils/agentUtils.ts` - Only check for OpenRouter keys
 - `apps/backend/src/utils/creditValidation.ts` - Check spending limits for BYOK (skip credit check)
 - `apps/backend/src/utils/conversationLogger.ts` - Accept usesByok parameter in updateConversation
-- `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Pass usesByok to updateConversation
-- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-test-agent.ts` - Pass usesByok to updateConversation
+- `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Pass usesByok to updateConversation, added comprehensive error handling
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-test-agent.ts` - Pass usesByok to updateConversation, added comprehensive error handling at multiple points
+- `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Added BYOK authentication error handling
+- `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup.ts` - Fixed to check for OpenRouter keys instead of Google keys
+- `apps/backend/src/utils/handlingErrors.ts` - Enhanced `isAuthenticationError()` to detect wrapped errors, check error.cause chains, and handle AI SDK error structures
 - `docs/credit-system.md` - Updated BYOK documentation
 
 **Verification**: All changes implemented, ready for testing
