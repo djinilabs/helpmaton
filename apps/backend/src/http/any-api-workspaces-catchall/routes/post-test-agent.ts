@@ -61,6 +61,7 @@ async function persistConversationError(options: {
   usesByok?: boolean;
   finalModelName?: string;
   error: unknown;
+  awsRequestId?: string;
 }): Promise<void> {
   try {
     const filteredMessages = options.messages.filter(
@@ -114,7 +115,8 @@ async function persistConversationError(options: {
       filteredMessages,
       undefined,
       options.usesByok,
-      errorInfo
+      errorInfo,
+      options.awsRequestId
     );
   } catch (logError) {
     console.error("[Agent Test Handler] Failed to persist conversation error:", {
@@ -249,6 +251,13 @@ export const registerPostTestAgent = (app: express.Application) => {
       if (!conversationId || typeof conversationId !== "string") {
         throw badRequest("X-Conversation-Id header is required");
       }
+
+      // Extract AWS request ID from headers (API Gateway includes it in x-amzn-requestid)
+      const awsRequestId =
+        req.headers["x-amzn-requestid"] ||
+        req.headers["X-Amzn-Requestid"] ||
+        req.headers["x-request-id"] ||
+        req.headers["X-Request-Id"];
 
       // Check if free plan has expired (block agent execution if expired)
       await checkFreePlanExpiration(workspaceId);
@@ -466,6 +475,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           usesByok,
           finalModelName,
           error: errorToLog,
+          awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
         });
 
         // Check if this is a BYOK authentication error FIRST
@@ -779,6 +789,7 @@ export const registerPostTestAgent = (app: express.Application) => {
                               usesByok,
                               finalModelName,
                               error: streamError,
+                              awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
                             });
                             
                             return res.status(400).json({
@@ -883,16 +894,17 @@ export const registerPostTestAgent = (app: express.Application) => {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (streamError as any).statusCode = parsed.code || 401;
                     
-                    await persistConversationError({
-                      db,
-                      workspaceId,
-                      agentId,
-                      conversationId,
-                      messages: convertedMessages,
-                      usesByok,
-                      finalModelName,
-                      error: streamError,
-                    });
+          await persistConversationError({
+            db,
+            workspaceId,
+            agentId,
+            conversationId,
+            messages: convertedMessages,
+            usesByok,
+            finalModelName,
+            error: streamError,
+            awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
+          });
                     
                     return res.status(400).json({
                       error:
@@ -1090,6 +1102,7 @@ export const registerPostTestAgent = (app: express.Application) => {
             usesByok,
             finalModelName,
             error: foundError, // This is the original AI_APICallError
+            awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
           });
           
           return res.status(400).json({
@@ -1196,6 +1209,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           usesByok,
           finalModelName,
           error: resultError,
+          awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
         });
         throw resultError;
       }
@@ -1441,7 +1455,9 @@ export const registerPostTestAgent = (app: express.Application) => {
           conversationId,
           validMessages,
           tokenUsage,
-          usesByok
+          usesByok,
+          undefined,
+          typeof awsRequestId === "string" ? awsRequestId : undefined
         );
 
         // Enqueue cost verification (Step 3) if we have a generation ID

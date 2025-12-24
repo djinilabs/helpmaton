@@ -22,6 +22,7 @@ export type UIMessage =
   | {
       role: "user";
       content: string | Array<{ type: "text"; text: string }>;
+      awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
     }
   | {
       role: "assistant";
@@ -40,14 +41,17 @@ export type UIMessage =
       openrouterGenerationId?: string; // OpenRouter generation ID for cost verification
       provisionalCostUsd?: number; // Provisional cost extracted from LLM response (in millionths)
       finalCostUsd?: number; // Final cost from OpenRouter API (in millionths) after verification
+      awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
     }
   | {
       role: "system";
       content: string;
+      awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
     }
   | {
       role: "tool";
       content: string | Array<ToolResultContent>;
+      awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
     };
 
 export interface RequestParams {

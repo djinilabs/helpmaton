@@ -775,6 +775,7 @@ export interface ConversationDetail extends Conversation {
   messages: unknown[];
   toolCalls: unknown[];
   toolResults: unknown[];
+  awsRequestIds?: string[];
 }
 
 export interface ListConversationsResponse {

@@ -74,6 +74,7 @@ async function persistWebhookConversationError(options: {
   usesByok?: boolean;
   finalModelName?: string;
   error: unknown;
+  awsRequestId?: string;
 }): Promise<void> {
   try {
     const messages = [options.uiMessage].filter(
@@ -126,6 +127,7 @@ async function persistWebhookConversationError(options: {
       messages,
       usesByok: options.usesByok,
       error: errorInfo,
+      awsRequestId: options.awsRequestId,
     });
   } catch (logError) {
     console.error("[Webhook Handler] Failed to persist conversation error:", {
@@ -143,6 +145,9 @@ async function persistWebhookConversationError(options: {
 export const handler = adaptHttpHandler(
   handlingErrors(
     async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+      // Extract request ID for logging
+      const awsRequestId = event.requestContext?.requestId;
+
       // Validate request
       const { workspaceId, agentId, key, bodyText } =
         validateWebhookRequest(event);
@@ -512,6 +517,7 @@ export const handler = adaptHttpHandler(
           usesByok,
           finalModelName,
           error: errorToLog,
+          awsRequestId,
         });
 
         // Check if this is a BYOK authentication error FIRST
@@ -814,6 +820,7 @@ export const handler = adaptHttpHandler(
           usesByok,
           finalModelName,
           error: resultError,
+          awsRequestId,
         });
         throw resultError;
       }
@@ -898,6 +905,7 @@ export const handler = adaptHttpHandler(
           usesByok,
           finalModelName,
           error: resultError,
+          awsRequestId,
         });
         throw resultError;
       }
@@ -1076,6 +1084,7 @@ export const handler = adaptHttpHandler(
             messages: messagesToLog,
             tokenUsage,
             usesByok,
+            awsRequestId,
           });
 
           // Enqueue cost verification (Step 3) if we have a generation ID

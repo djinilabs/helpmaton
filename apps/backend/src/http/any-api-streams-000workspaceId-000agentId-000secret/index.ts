@@ -130,6 +130,7 @@ interface StreamRequestContext {
   usesByok: boolean;
   reservationId: string | undefined;
   finalModelName: string;
+  awsRequestId?: string;
 }
 
 async function persistConversationError(
@@ -186,7 +187,8 @@ async function persistConversationError(
       context.convertedMessages ?? [],
       undefined,
       context.usesByok,
-      errorInfo
+      errorInfo,
+      context.awsRequestId
     );
   } catch (logError) {
     console.error("[Stream Handler] Failed to persist conversation error:", {
@@ -873,7 +875,8 @@ async function logConversation(
   usesByok: boolean,
   finalModelName: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- streamText result type is complex
-  streamResult: any
+  streamResult: any,
+  awsRequestId?: string
 ): Promise<void> {
   if (!tokenUsage) {
     return Promise.resolve();
@@ -1087,7 +1090,9 @@ async function logConversation(
       conversationId,
       validMessages,
       tokenUsage,
-      usesByok
+      usesByok,
+      undefined,
+      awsRequestId
     ).catch((error) => {
       // Log error but don't fail the request
       console.error("[Stream Handler] Error logging conversation:", {
@@ -1281,6 +1286,9 @@ async function buildRequestContext(
     usesByok
   );
 
+  // Extract request ID from Lambda Function URL event
+  const awsRequestId = event.requestContext?.requestId;
+
   return {
     workspaceId,
     agentId,
@@ -1299,6 +1307,7 @@ async function buildRequestContext(
     usesByok,
     reservationId,
     finalModelName,
+    awsRequestId,
   };
 }
 
@@ -1843,7 +1852,8 @@ const internalHandler = async (
       tokenUsage,
       context.usesByok,
       context.finalModelName,
-      streamResult
+      streamResult,
+      context.awsRequestId
     );
   } catch (error) {
     const boomed = boomify(error as Error);

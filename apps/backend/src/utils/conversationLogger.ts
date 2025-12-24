@@ -38,6 +38,7 @@ export interface ConversationLogData {
   tokenUsage?: TokenUsage;
   usesByok?: boolean;
   error?: ConversationErrorInfo;
+  awsRequestId?: string; // AWS Lambda/API Gateway request ID for this message addition
 }
 
 /**
@@ -1215,13 +1216,21 @@ export async function startConversation(
     (msg) => !isMessageContentEmpty(msg)
   );
 
-  const toolCalls = extractToolCalls(filteredMessages);
-  const toolResults = extractToolResults(filteredMessages);
+  // Add request ID to each message if provided
+  const messagesWithRequestId = data.awsRequestId
+    ? filteredMessages.map((msg) => ({
+        ...msg,
+        awsRequestId: data.awsRequestId,
+      }))
+    : filteredMessages;
+
+  const toolCalls = extractToolCalls(messagesWithRequestId);
+  const toolResults = extractToolResults(messagesWithRequestId);
 
   // Calculate costs from per-message model/provider data
   // Prefer finalCostUsd (from OpenRouter API verification) if available, then provisionalCostUsd, then calculate from tokenUsage
   let totalCostUsd = 0;
-  for (const message of filteredMessages) {
+  for (const message of messagesWithRequestId) {
     if (message.role === "assistant") {
       // Prefer finalCostUsd if available (from OpenRouter cost verification)
       if ("finalCostUsd" in message && typeof message.finalCostUsd === "number") {
@@ -1246,19 +1255,23 @@ export async function startConversation(
     }
   }
 
+  // Initialize awsRequestIds array if awsRequestId is provided
+  const awsRequestIds = data.awsRequestId ? [data.awsRequestId] : undefined;
+
   await db["agent-conversations"].create({
     pk,
     workspaceId: data.workspaceId,
     agentId: data.agentId,
     conversationId,
     conversationType: data.conversationType,
-    messages: filteredMessages as unknown[],
+    messages: messagesWithRequestId as unknown[],
     toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     toolResults: toolResults.length > 0 ? toolResults : undefined,
     tokenUsage: data.tokenUsage,
     usesByok: data.usesByok,
     error: data.error,
     costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
+    awsRequestIds,
     startedAt: now,
     lastMessageAt: now,
     expires: calculateTTL(),
@@ -1277,7 +1290,7 @@ export async function startConversation(
       data.agentId,
       data.workspaceId,
       conversationId,
-      filteredMessages
+      messagesWithRequestId
     );
   } catch (error) {
     // Log error but don't throw - memory writes should not block conversation logging
@@ -1308,7 +1321,8 @@ export async function updateConversation(
   newMessages: UIMessage[],
   additionalTokenUsage?: TokenUsage,
   usesByok?: boolean,
-  error?: ConversationErrorInfo
+  error?: ConversationErrorInfo,
+  awsRequestId?: string
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
@@ -1316,6 +1330,14 @@ export async function updateConversation(
   const filteredNewMessages = newMessages.filter(
     (msg) => !isMessageContentEmpty(msg)
   );
+
+  // Add request ID to each new message if provided
+  const messagesWithRequestId = awsRequestId
+    ? filteredNewMessages.map((msg) => ({
+        ...msg,
+        awsRequestId,
+      }))
+    : filteredNewMessages;
 
   // Track truly new messages (not duplicates) to send to queue
   // This will be set inside atomicUpdate callback
@@ -1331,14 +1353,14 @@ export async function updateConversation(
       if (!existing) {
         // If conversation doesn't exist, create it
         // All filtered messages are new in this case
-        trulyNewMessages = filteredNewMessages;
+        trulyNewMessages = messagesWithRequestId;
 
-        const toolCalls = extractToolCalls(filteredNewMessages);
-        const toolResults = extractToolResults(filteredNewMessages);
+        const toolCalls = extractToolCalls(messagesWithRequestId);
+        const toolResults = extractToolResults(messagesWithRequestId);
         
         // Calculate costs from per-message model/provider data
         let totalCostUsd = 0;
-        for (const message of filteredNewMessages) {
+        for (const message of messagesWithRequestId) {
           if (message.role === "assistant" && "tokenUsage" in message && message.tokenUsage) {
             const msgModelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
             const msgProvider = "provider" in message && typeof message.provider === "string" ? message.provider : "google";
@@ -1351,19 +1373,23 @@ export async function updateConversation(
           }
         }
 
+        // Initialize awsRequestIds array if awsRequestId is provided
+        const awsRequestIds = awsRequestId ? [awsRequestId] : undefined;
+
         return {
           pk,
           workspaceId,
           agentId,
           conversationId,
           conversationType: "test" as const, // Default to test if updating non-existent conversation
-          messages: filteredNewMessages as unknown[],
+          messages: messagesWithRequestId as unknown[],
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
           tokenUsage: additionalTokenUsage,
           usesByok: usesByok,
         error,
           costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
+          awsRequestIds,
           startedAt: now,
           lastMessageAt: now,
           expires: calculateTTL(),
@@ -1374,14 +1400,26 @@ export async function updateConversation(
       const existingMessages = (existing.messages || []) as UIMessage[];
 
       // Identify truly new messages (not in existing conversation)
-      // This comparison is based on role and content only (ignores metadata like tokenUsage)
-      trulyNewMessages = findNewMessages(existingMessages, filteredNewMessages);
+      // This comparison is based on role and content only (ignores metadata like tokenUsage, awsRequestId)
+      // We compare against filteredNewMessages (without request ID) to find new ones
+      const trulyNewWithoutRequestId = findNewMessages(
+        existingMessages,
+        filteredNewMessages
+      );
+      // Add request ID to truly new messages
+      trulyNewMessages = awsRequestId
+        ? trulyNewWithoutRequestId.map((msg) => ({
+            ...msg,
+            awsRequestId,
+          }))
+        : trulyNewWithoutRequestId;
 
       // Merge messages for DB storage, deduplicating based on role and content
       // This prevents duplicate messages when the client sends the full conversation history
+      // New messages should have request IDs, existing ones keep their original request IDs (if any)
       const allMessages = deduplicateMessages(
         existingMessages,
-        filteredNewMessages
+        messagesWithRequestId
       );
 
       // Filter out any empty messages that might have been in existing messages
@@ -1428,6 +1466,14 @@ export async function updateConversation(
         }
       }
 
+      // Update awsRequestIds array - append new request ID if provided
+      const existingRequestIds = (existing as { awsRequestIds?: string[] }).awsRequestIds || [];
+      const updatedRequestIds = awsRequestId
+        ? [...existingRequestIds, awsRequestId]
+        : existingRequestIds.length > 0
+          ? existingRequestIds
+          : undefined;
+
       // Update conversation, preserving existing fields
       return {
         pk,
@@ -1445,6 +1491,7 @@ export async function updateConversation(
         usesByok: existing.usesByok !== undefined ? existing.usesByok : usesByok,
         error: error ?? (existing as { error?: ConversationErrorInfo }).error,
         startedAt: existing.startedAt,
+        awsRequestIds: updatedRequestIds,
       };
     }
   );

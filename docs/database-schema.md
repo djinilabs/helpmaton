@@ -272,6 +272,7 @@ All tables are configured with `encrypt true` in `app.arc`, meaning DynamoDB enc
 - `provider` (String, optional): AI provider name
 - `usesByok` (Boolean, optional): Whether conversation used BYOK
 - `costUsd` (Number, optional): Cost in USD
+- `awsRequestIds` (Array of Strings, optional): Array of AWS Lambda/API Gateway request IDs that added messages to this conversation. Each request ID represents a Lambda invocation that contributed messages. Useful for filtering CloudWatch logs when troubleshooting customer issues.
 - `startedAt` (String, ISO datetime): When conversation started
 - `lastMessageAt` (String, ISO datetime): When last message was added
 - `expires` (Number): TTL timestamp

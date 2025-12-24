@@ -324,6 +324,11 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                           typeof message.finalCostUsd === "number"
                             ? message.finalCostUsd
                             : null;
+                        const awsRequestId =
+                          "awsRequestId" in message &&
+                          typeof message.awsRequestId === "string"
+                            ? message.awsRequestId
+                            : null;
                         return (
                           <div
                             key={index}
@@ -368,6 +373,21 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                 )}
                               </div>
                             </div>
+                            {awsRequestId && (
+                              <div className="mb-2 flex items-center gap-1">
+                                <span className="text-xs font-medium opacity-60 dark:opacity-70">
+                                  Request ID:
+                                </span>
+                                <span
+                                  className="rounded bg-purple-100 px-1.5 py-0.5 font-mono text-xs text-purple-800 opacity-80 dark:bg-purple-900 dark:text-purple-200"
+                                  title={`AWS Request ID: ${awsRequestId}`}
+                                >
+                                  {awsRequestId.length > 20
+                                    ? `${awsRequestId.substring(0, 20)}...`
+                                    : awsRequestId}
+                                </span>
+                              </div>
+                            )}
                             <div className="text-sm">
                               {role === "user" ? (
                                 <div className="whitespace-pre-wrap">
