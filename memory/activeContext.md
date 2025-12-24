@@ -2,7 +2,97 @@
 
 ## Current Status
 
-**Status**: Conversation Error Logging & UI Signals - Completed ✅
+**Status**: Tavily Integration with Comprehensive Test Coverage - Completed ✅
+
+**Changes Made**:
+- Integrated Tavily API as both search and fetch tools for agents
+- Implemented daily API call limits (10 calls/day for free tier, 10 free + pay-as-you-go for paid tiers)
+- Added credit-based billing system ($0.008 per API call = 8,000 millionths)
+- Created comprehensive unit tests for all new functions (59 tests total)
+- Addressed all PR review comments with code improvements
+- Fixed frontend state synchronization issues for Tavily toggle states
+
+**Key Features Implemented**:
+
+1. **Tavily Tools**:
+   - `tavily_search`: Web search tool for finding current information, news, articles
+   - `tavily_fetch`: Content extraction tool for extracting and summarizing web page content
+   - Both tools require agent-level configuration to enable
+
+2. **Daily Limits & Billing**:
+   - Free tier: 10 calls per 24 hours (hard limit, requests blocked when exceeded)
+   - Paid tiers: 10 free calls/day, then $0.008 per call (requires workspace credits)
+   - Rolling 24-hour window tracking using hourly buckets in DynamoDB
+   - Credit reservation and adjustment based on actual API usage
+
+3. **Request Tracking**:
+   - `tavily-call-buckets` DynamoDB table with GSI for efficient queries
+   - Hourly bucket tracking with 25-hour TTL for 24-hour window coverage
+   - Functions: `incrementTavilyCallBucket()`, `getTavilyCallCountLast24Hours()`, `checkTavilyDailyLimit()`
+
+4. **Credit Management**:
+   - `calculateTavilyCost()`: Cost calculation (8,000 millionths per call)
+   - `reserveTavilyCredits()`: Credit reservation before API calls
+   - `adjustTavilyCreditReservation()`: Adjustment based on actual usage from API response
+   - `refundTavilyCredits()`: Automatic refund on API errors
+
+5. **Error Handling**:
+   - Network errors retried with exponential backoff (max 3 retries)
+   - Automatic credit refunds on API failures
+   - Tracking failures logged but don't fail tool execution
+   - Proper error messages returned to agents
+
+6. **Frontend Integration**:
+   - Toggle switches in agent detail page for enabling/disabling tools
+   - Tool information in Tools Help Dialog
+   - Fixed state synchronization issues when navigating between agents
+
+**Files Created**:
+- `apps/backend/src/utils/tavily.ts` - Tavily API client with retry logic
+- `apps/backend/src/utils/tavilyCredits.ts` - Credit management utilities
+- `apps/backend/src/http/utils/tavilyTools.ts` - Tool creation functions
+- `apps/backend/src/utils/__tests__/tavily.test.ts` - API client tests (11 tests)
+- `apps/backend/src/utils/__tests__/tavilyCredits.test.ts` - Credit management tests (15 tests)
+- `apps/backend/src/http/utils/__tests__/tavilyTools.test.ts` - Tool creation tests (14 tests)
+- `docs/tavily-integration.md` - Comprehensive documentation
+
+**Files Modified**:
+- `esbuild-config.cjs` - Added `TAVILY_API_KEY` to environment variable injection
+- `apps/backend/app.arc` - Added `tavily-call-buckets` table and GSI
+- `apps/backend/src/config/pricing.json` - Added Tavily pricing ($0.008 per request)
+- `apps/backend/src/tables/schema.ts` - Added Tavily fields to agent schema and tavily-call-buckets table schema
+- `apps/backend/src/utils/requestTracking.ts` - Added Tavily call tracking functions
+- `apps/backend/src/utils/__tests__/requestTracking.test.ts` - Added Tavily tracking tests (19 tests)
+- `apps/backend/src/http/utils/agentUtils.ts` - Added Tavily tools to agent delegation
+- `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup.ts` - Added Tavily tools to test agent setup
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-agent.ts` - Include Tavily flags in response
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/put-workspace-agent.ts` - Handle Tavily flag updates
+- `apps/backend/ENV.md` - Documented `TAVILY_API_KEY` environment variable
+- `apps/frontend/src/utils/api.ts` - Added Tavily flags to Agent and UpdateAgentInput interfaces
+- `apps/frontend/src/pages/AgentDetail.tsx` - Added UI toggles and state management (fixed sync issues)
+- `apps/frontend/src/components/ToolsHelpDialog.tsx` - Added Tavily tools to help dialog
+- `docs/agent-configuration.md` - Added Tavily tools section
+
+**PR Review Comments Addressed**:
+1. Fixed comment about atomicUpdate retry handling (clarified delegation)
+2. Fixed terminology confusion (credit vs Tavily API call) in comments and docs
+3. Fixed sleep function abort signal race condition in tavily.ts
+4. Removed no-op reservation update, now deletes reservation after adjustment
+5. Added error handling for tracking failures (logged but don't fail tool execution)
+6. Added clarifying comments about logic flow in tavilyTools.ts
+7. Fixed frontend state synchronization issues (removed inconsistent early return checks)
+
+**Test Coverage**:
+- 59 total tests across 3 test files
+- 11 tests for Tavily API client (search, extract, error handling, retries)
+- 15 tests for credit management (reservation, adjustment, refund, edge cases)
+- 14 tests for tool creation (success paths, error handling, credit flows)
+- 19 tests for request tracking (bucket creation, counting, limit checking)
+- All tests passing, typecheck and lint clean
+
+**Verification**: `pnpm typecheck`, `pnpm lint`, `pnpm test` - All passing ✅
+
+**Previous Status**: Conversation Error Logging & UI Signals - Completed ✅
 
 **Changes Made**:
 - Added conversation-level error schema (message, stack, provider/model, endpoint, metadata) and serialization helpers.
