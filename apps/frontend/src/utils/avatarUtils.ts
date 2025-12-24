@@ -36,3 +36,4 @@ export function getDefaultAvatar(): string {
 export function isValidAvatar(avatar: string): boolean {
   return AVAILABLE_AVATARS.includes(avatar);
 }
+

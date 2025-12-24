@@ -2,7 +2,41 @@
 
 ## Current Status
 
-**Status**: Cost Display Rounding Fix - Completed ✅
+**Status**: OpenRouter Cost Verification and Credit Validation Logic Fixes - Completed ✅
+
+Fixed two critical issues in the cost verification and credit management system:
+
+1. **OpenRouter API Response Structure Fix**:
+   - Fixed cost extraction from OpenRouter API response - was checking `data.data.data.total_cost` (three levels) but actual structure is `data.data.total_cost` (two levels)
+   - Updated type definitions and cost extraction logic to match actual API response structure
+   - Updated all test mocks to use correct two-level structure
+   - Cost verification queue now correctly extracts `total_cost` from OpenRouter responses
+
+2. **Credit Validation vs Deduction Logic Separation**:
+   - Fixed incorrect logic where `ENABLE_CREDIT_VALIDATION` was controlling both validation checks AND reservation creation
+   - Separated concerns: `ENABLE_CREDIT_VALIDATION` now only controls credit balance validation (checking if credits are sufficient)
+   - `ENABLE_CREDIT_DEDUCTION` now controls whether reservations are created and costs are charged
+   - Updated `validateCreditsAndLimitsAndReserve()` to check `isCreditDeductionEnabled()` for reservation creation
+   - Added comprehensive logging to clarify why reservations might not be created
+   - Updated tests to reflect new behavior and added test for validation disabled but deduction enabled scenario
+
+**Changes Made**:
+- Fixed OpenRouter response parsing in `apps/backend/src/queues/openrouter-cost-verification-queue/index.ts`
+- Updated credit validation logic in `apps/backend/src/utils/creditValidation.ts` to separate validation from deduction
+- Added `isCreditDeductionEnabled` import and usage
+- Updated all test mocks and added new test cases
+- Improved logging in cost verification queue and stream handler
+
+**Files Modified**:
+- `apps/backend/src/queues/openrouter-cost-verification-queue/index.ts` - Fixed response structure parsing, improved logging
+- `apps/backend/src/utils/creditValidation.ts` - Separated validation from deduction logic
+- `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Added logging for missing reservations
+- `apps/backend/src/queues/openrouter-cost-verification-queue/__tests__/index.test.ts` - Updated test mocks and added new test
+- `apps/backend/src/utils/__tests__/creditValidation.test.ts` - Added `isCreditDeductionEnabled` mock, updated tests
+
+**Verification**: All tests passing (25 tests), type checking and linting passed successfully
+
+**Previous Status**: Cost Display Rounding Fix - Completed ✅
 
 Fixed cost display in the UI to always round up (never down) to ensure costs are never understated. Updated `formatCurrency()` function to use `Math.ceil()` instead of `toFixed()` which could round down.
 
