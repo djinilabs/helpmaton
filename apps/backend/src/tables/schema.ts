@@ -147,7 +147,7 @@ export const tableSchemas = {
     sk: z.string(), // sort key (fixed value "key")
     workspaceId: z.string(), // workspace ID for GSI queries
     key: z.string(), // the actual API key value
-    provider: z.enum(["google", "openai", "anthropic"]).default("google"), // provider name
+    provider: z.enum(["openrouter"]).default("openrouter"), // provider name (only OpenRouter is supported for BYOK)
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),
@@ -186,7 +186,23 @@ export const tableSchemas = {
     modelName: z.string().optional(), // @deprecated - Use per-message modelName instead. Kept for backward compatibility.
     provider: z.string().optional(), // @deprecated - Use per-message provider instead. Kept for backward compatibility.
     usesByok: z.boolean().optional(), // whether this conversation used BYOK (Bring Your Own Key)
+    error: z
+      .object({
+        message: z.string(),
+        name: z.string().optional(),
+        stack: z.string().optional(),
+        code: z.string().optional(),
+        statusCode: z.number().optional(),
+        provider: z.string().optional(),
+        modelName: z.string().optional(),
+        endpoint: z.string().optional(),
+        occurredAt: z.string().datetime().optional(),
+        metadata: z.record(z.string(), z.unknown()).optional(),
+      })
+      .optional(),
     costUsd: z.number().int().optional(), // cost in USD in millionths
+    totalGenerationTimeMs: z.number().optional(), // sum of all generation times in milliseconds
+    awsRequestIds: z.array(z.string()).optional(), // array of AWS Lambda/API Gateway request IDs that added messages to this conversation
     startedAt: z.string().datetime(), // when conversation started
     lastMessageAt: z.string().datetime(), // when last message was added
     expires: z.number(), // TTL timestamp

@@ -72,14 +72,30 @@ describe("GET /api/workspaces/:workspaceId", () => {
           userRef
         );
 
-        // Check if workspace has API key
+        // Check API key status for OpenRouter
         const workspaceId = workspace.pk.replace("workspaces/", "");
-        const workspaceKeyPk = `workspace-api-keys/${workspaceId}`;
-        const workspaceKeySk = "key";
-        const workspaceKey = await db["workspace-api-key"].get(
-          workspaceKeyPk,
-          workspaceKeySk
-        );
+
+        // Query all API keys for this workspace using GSI
+        const result = await db["workspace-api-key"].query({
+          IndexName: "byWorkspaceId",
+          KeyConditionExpression: "workspaceId = :workspaceId",
+          ExpressionAttributeValues: {
+            ":workspaceId": workspaceId,
+          },
+        });
+
+        // Extract providers from the keys
+        const providersWithKeys = new Set<string>();
+        for (const item of result.items || []) {
+          if (item.provider) {
+            providersWithKeys.add(item.provider);
+          }
+        }
+
+        // Build API keys object (only OpenRouter is supported for BYOK)
+        const apiKeys: Record<string, boolean> = {
+          openrouter: providersWithKeys.has("openrouter"),
+        };
 
         res.json({
           id: workspaceId,
@@ -89,7 +105,7 @@ describe("GET /api/workspaces/:workspaceId", () => {
           creditBalance: workspace.creditBalance ?? 0,
           currency: workspace.currency ?? "usd",
           spendingLimits: workspace.spendingLimits ?? [],
-          hasGoogleApiKey: !!workspaceKey,
+          apiKeys,
           createdAt: workspace.createdAt,
         });
       } catch (error) {
@@ -116,16 +132,20 @@ describe("GET /api/workspaces/:workspaceId", () => {
     };
 
     const mockWorkspaceKey = {
-      pk: "workspace-api-keys/workspace-123",
+      pk: "workspace-api-keys/workspace-123/openrouter",
       sk: "key",
       key: "api-key-value",
+      provider: "openrouter",
+      workspaceId: "workspace-123",
     };
 
     const mockWorkspaceGet = vi.fn().mockResolvedValue(mockWorkspace);
     mockDb.workspace.get = mockWorkspaceGet;
 
-    const mockWorkspaceKeyGet = vi.fn().mockResolvedValue(mockWorkspaceKey);
-    mockDb["workspace-api-key"].get = mockWorkspaceKeyGet;
+    const mockWorkspaceKeyQuery = vi.fn().mockResolvedValue({
+      items: [mockWorkspaceKey],
+    });
+    mockDb["workspace-api-key"].query = mockWorkspaceKeyQuery;
 
     mockGetUserAuthorizationLevelForResource.mockResolvedValue("admin");
 
@@ -149,10 +169,13 @@ describe("GET /api/workspaces/:workspaceId", () => {
       "workspaces/workspace-123",
       "users/user-123"
     );
-    expect(mockWorkspaceKeyGet).toHaveBeenCalledWith(
-      "workspace-api-keys/workspace-123",
-      "key"
-    );
+    expect(mockWorkspaceKeyQuery).toHaveBeenCalledWith({
+      IndexName: "byWorkspaceId",
+      KeyConditionExpression: "workspaceId = :workspaceId",
+      ExpressionAttributeValues: {
+        ":workspaceId": "workspace-123",
+      },
+    });
     expect(res.json).toHaveBeenCalledWith({
       id: "workspace-123",
       name: "Test Workspace",
@@ -161,12 +184,12 @@ describe("GET /api/workspaces/:workspaceId", () => {
       creditBalance: 100.5,
       currency: "usd",
       spendingLimits: [{ timeFrame: "daily", amount: 1000 }],
-      hasGoogleApiKey: true,
+      apiKeys: { openrouter: true },
       createdAt: "2024-01-01T00:00:00Z",
     });
   });
 
-  it("should return hasGoogleApiKey as false when API key does not exist", async () => {
+  it("should return apiKeys.openrouter as false when API key does not exist", async () => {
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
 
@@ -209,7 +232,7 @@ describe("GET /api/workspaces/:workspaceId", () => {
       creditBalance: 0,
       currency: "eur",
       spendingLimits: [],
-      hasGoogleApiKey: false,
+      apiKeys: { openrouter: false },
       createdAt: "2024-01-01T00:00:00Z",
     });
   });
@@ -315,8 +338,10 @@ describe("GET /api/workspaces/:workspaceId", () => {
     const mockWorkspaceGet = vi.fn().mockResolvedValue(mockWorkspace);
     mockDb.workspace.get = mockWorkspaceGet;
 
-    const mockWorkspaceKeyGet = vi.fn().mockResolvedValue(null);
-    mockDb["workspace-api-key"].get = mockWorkspaceKeyGet;
+    const mockWorkspaceKeyQuery = vi.fn().mockResolvedValue({
+      items: [],
+    });
+    mockDb["workspace-api-key"].query = mockWorkspaceKeyQuery;
 
     mockGetUserAuthorizationLevelForResource.mockResolvedValue(null);
 
@@ -355,8 +380,10 @@ describe("GET /api/workspaces/:workspaceId", () => {
     const mockWorkspaceGet = vi.fn().mockResolvedValue(mockWorkspace);
     mockDb.workspace.get = mockWorkspaceGet;
 
-    const mockWorkspaceKeyGet = vi.fn().mockResolvedValue(null);
-    mockDb["workspace-api-key"].get = mockWorkspaceKeyGet;
+    const mockWorkspaceKeyQuery = vi.fn().mockResolvedValue({
+      items: [],
+    });
+    mockDb["workspace-api-key"].query = mockWorkspaceKeyQuery;
 
     mockGetUserAuthorizationLevelForResource.mockResolvedValue("owner");
 
@@ -380,7 +407,7 @@ describe("GET /api/workspaces/:workspaceId", () => {
       creditBalance: 0,
       currency: "usd",
       spendingLimits: [],
-      hasGoogleApiKey: false,
+      apiKeys: { openrouter: false },
       createdAt: "2024-01-01T00:00:00Z",
     });
   });

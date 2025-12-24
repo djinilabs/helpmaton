@@ -61,13 +61,14 @@ export async function validateCreditsAndLimits(
   toolDefinitions?: unknown[],
   usesByok?: boolean
 ): Promise<void> {
-  // Skip validation if request was made with user key (BYOK)
-  if (usesByok) {
+  // For BYOK requests, skip credit balance check but still check spending limits
+  const isByok = usesByok === true;
+  
+  if (isByok) {
     console.log(
-      "[validateCreditsAndLimits] Request made with user key (BYOK), skipping credit validation",
+      "[validateCreditsAndLimits] Request made with user key (BYOK), skipping credit balance check but will check spending limits",
       { workspaceId, agentId }
     );
-    return;
   }
 
   // Check if credit validation is disabled via feature flag
@@ -120,8 +121,8 @@ export async function validateCreditsAndLimits(
     toolDefinitions
   );
 
-  // Check credit balance (only if validation is enabled)
-  if (isCreditValidationEnabled()) {
+  // Check credit balance (only if validation is enabled and NOT BYOK)
+  if (!isByok && isCreditValidationEnabled()) {
     if (workspace.creditBalance < estimatedCost) {
       throw new InsufficientCreditsError(
         workspaceId,
@@ -133,6 +134,7 @@ export async function validateCreditsAndLimits(
   }
 
   // Check all spending limits (only if checks are enabled)
+  // This applies to both regular requests and BYOK requests
   if (spendingLimitsEnabled) {
     const limitCheck = await checkSpendingLimits(
       db,
@@ -175,13 +177,14 @@ export async function validateCreditsAndLimitsAndReserve(
   toolDefinitions?: unknown[],
   usesByok?: boolean
 ): Promise<CreditReservation | null> {
-  // Skip validation if request was made with user key (BYOK)
-  if (usesByok) {
+  // For BYOK requests, skip credit reservation but still check spending limits
+  const isByok = usesByok === true;
+  
+  if (isByok) {
     console.log(
-      "[validateCreditsAndLimitsAndReserve] Request made with user key (BYOK), skipping credit validation",
+      "[validateCreditsAndLimitsAndReserve] Request made with user key (BYOK), skipping credit reservation but will check spending limits",
       { workspaceId, agentId }
     );
-    return null;
   }
 
   // Check if credit validation is disabled via feature flag
@@ -236,8 +239,8 @@ export async function validateCreditsAndLimitsAndReserve(
     toolDefinitions
   );
 
-  // Check credit balance (only if validation is enabled)
-  if (creditValidationEnabled) {
+  // Check credit balance (only if validation is enabled and NOT BYOK)
+  if (!isByok && creditValidationEnabled) {
     if (workspace.creditBalance < estimatedCost) {
       throw new InsufficientCreditsError(
         workspaceId,
@@ -249,6 +252,7 @@ export async function validateCreditsAndLimitsAndReserve(
   }
 
   // Check all spending limits (only if checks are enabled)
+  // This applies to both regular requests and BYOK requests
   if (spendingLimitsEnabled) {
     const limitCheck = await checkSpendingLimits(
       db,
@@ -262,9 +266,9 @@ export async function validateCreditsAndLimitsAndReserve(
     }
   }
 
-  // Reserve credits atomically (only if deduction is enabled)
+  // Reserve credits atomically (only if deduction is enabled and NOT BYOK)
   // ENABLE_CREDIT_DEDUCTION controls whether we actually charge the workspace
-  if (isCreditDeductionEnabled()) {
+  if (!isByok && isCreditDeductionEnabled()) {
     const reservation = await reserveCredits(
       db,
       workspaceId,
@@ -275,10 +279,17 @@ export async function validateCreditsAndLimitsAndReserve(
     return reservation;
   }
 
-  // If deduction is disabled, return null (no reservation, no charge)
-  console.log(
-    "[validateCreditsAndLimitsAndReserve] Credit deduction disabled via feature flag, skipping reservation creation",
-    { workspaceId, agentId, estimatedCost }
-  );
+  // If BYOK or deduction is disabled, return null (no reservation, no charge)
+  if (isByok) {
+    console.log(
+      "[validateCreditsAndLimitsAndReserve] BYOK request - no credit reservation created, but spending limits were checked",
+      { workspaceId, agentId, estimatedCost }
+    );
+  } else {
+    console.log(
+      "[validateCreditsAndLimitsAndReserve] Credit deduction disabled via feature flag, skipping reservation creation",
+      { workspaceId, agentId, estimatedCost }
+    );
+  }
   return null;
 }

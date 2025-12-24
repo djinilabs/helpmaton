@@ -12,6 +12,7 @@ export function formatToolCallMessage(
     toolCallId: string;
     toolName: string;
     args: unknown;
+    toolCallStartedAt?: string;
   }>;
 } {
   const toolCallInput = toolCall.args || toolCall.input || {};
@@ -23,6 +24,7 @@ export function formatToolCallMessage(
         toolCallId: toolCall.toolCallId,
         toolName: toolCall.toolName,
         args: toolCallInput,
+        ...(toolCall.toolCallStartedAt && { toolCallStartedAt: toolCall.toolCallStartedAt }),
       },
     ],
   };
@@ -65,6 +67,7 @@ export function formatToolResultMessage(
         toolCallId: toolResult.toolCallId,
         toolName: toolResult.toolName,
         result: outputValue,
+        ...(toolResult.toolExecutionTimeMs !== undefined && { toolExecutionTimeMs: toolResult.toolExecutionTimeMs }),
       },
     ],
   };

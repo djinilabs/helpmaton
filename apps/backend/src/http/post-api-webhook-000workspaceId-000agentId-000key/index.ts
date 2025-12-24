@@ -5,46 +5,44 @@ import type {
   APIGatewayProxyResultV2,
 } from "aws-lambda";
 
+import { MODEL_NAME } from "../../http/utils/agentUtils";
 import {
-  MODEL_NAME,
-  buildGenerateTextOptions,
-} from "../../http/utils/agentUtils";
+  adjustCreditsAfterLLMCall,
+  cleanupReservationOnError,
+  cleanupReservationWithoutTokenUsage,
+  enqueueCostVerificationIfNeeded,
+  validateAndReserveCredits,
+} from "../../http/utils/generationCreditManagement";
+import {
+  isByokAuthenticationError,
+  normalizeByokError,
+  handleByokAuthenticationErrorApiGateway,
+  handleCreditErrors,
+  logErrorDetails,
+} from "../../http/utils/generationErrorHandling";
+import { prepareLLMCall } from "../../http/utils/generationLLMSetup";
+import {
+  validateSubscriptionAndLimits,
+  trackSuccessfulRequest,
+} from "../../http/utils/generationRequestTracking";
+import {
+  extractTokenUsageAndCosts,
+} from "../../http/utils/generationTokenExtraction";
+import { reconstructToolCallsFromResults } from "../../http/utils/generationToolReconstruction";
 import { database } from "../../tables";
-import { sendAgentErrorNotification } from "../../utils/agentErrorNotifications";
 import {
-  extractTokenUsage,
   isMessageContentEmpty,
   startConversation,
+  buildConversationErrorInfo,
 } from "../../utils/conversationLogger";
+import type { TokenUsage } from "../../utils/conversationLogger";
 import {
-  InsufficientCreditsError,
-  SpendingLimitExceededError,
-} from "../../utils/creditErrors";
-import {
-  adjustCreditReservation,
-  enqueueCostVerification,
-  refundReservation,
-} from "../../utils/creditManagement";
-import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation";
-import { isCreditDeductionEnabled } from "../../utils/featureFlags";
-import { handlingErrors } from "../../utils/handlingErrors";
+  handlingErrors,
+  isAuthenticationError,
+} from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
-import {
-  extractOpenRouterCost,
-  extractOpenRouterGenerationId,
-} from "../../utils/openrouterUtils";
-import {
-  checkDailyRequestLimit,
-  incrementRequestBucket,
-} from "../../utils/requestTracking";
 import { Sentry, ensureError } from "../../utils/sentry";
 import {
-  checkFreePlanExpiration,
-  getWorkspaceSubscription,
-} from "../../utils/subscriptionUtils";
-import { calculateConversationCosts } from "../../utils/tokenAccounting";
-import {
-  logToolDefinitions,
   setupAgentAndTools,
 } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
@@ -62,9 +60,88 @@ import {
 } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/toolFormatting";
 import type { UIMessage } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 
+async function persistWebhookConversationError(options: {
+  db: Awaited<ReturnType<typeof database>>;
+  workspaceId: string;
+  agentId: string;
+  uiMessage: UIMessage;
+  usesByok?: boolean;
+  finalModelName?: string;
+  error: unknown;
+  awsRequestId?: string;
+}): Promise<void> {
+  try {
+    const messages = [options.uiMessage].filter(
+      (msg) => !isMessageContentEmpty(msg)
+    );
+
+    // Log error structure before extraction (especially for BYOK)
+    if (options.usesByok) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+      const errorAny = options.error instanceof Error ? (options.error as any) : undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+      const causeAny = options.error instanceof Error && options.error.cause instanceof Error ? (options.error.cause as any) : undefined;
+      console.log("[Webhook Handler] BYOK error before extraction:", {
+        errorType: options.error instanceof Error ? options.error.constructor.name : typeof options.error,
+        errorName: options.error instanceof Error ? options.error.name : "N/A",
+        errorMessage: options.error instanceof Error ? options.error.message : String(options.error),
+        hasData: !!errorAny?.data,
+        dataError: errorAny?.data?.error,
+        dataErrorMessage: errorAny?.data?.error?.message,
+        hasCause: options.error instanceof Error && !!options.error.cause,
+        causeType: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.constructor.name : undefined,
+        causeMessage: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.message : undefined,
+        causeData: causeAny?.data?.error?.message,
+      });
+    }
+
+    const errorInfo = buildConversationErrorInfo(options.error, {
+      provider: "openrouter",
+      modelName: options.finalModelName,
+      endpoint: "webhook",
+      metadata: {
+        usesByok: options.usesByok,
+      },
+    });
+    
+    // Log extracted error info (especially for BYOK)
+    if (options.usesByok) {
+      console.log("[Webhook Handler] BYOK error after extraction:", {
+        message: errorInfo.message,
+        name: errorInfo.name,
+        code: errorInfo.code,
+        statusCode: errorInfo.statusCode,
+      });
+    }
+
+    await startConversation(options.db, {
+      workspaceId: options.workspaceId,
+      agentId: options.agentId,
+      conversationType: "webhook",
+      messages,
+      usesByok: options.usesByok,
+      error: errorInfo,
+      awsRequestId: options.awsRequestId,
+    });
+  } catch (logError) {
+    console.error("[Webhook Handler] Failed to persist conversation error:", {
+      workspaceId: options.workspaceId,
+      agentId: options.agentId,
+      originalError:
+        options.error instanceof Error
+          ? options.error.message
+          : String(options.error),
+      logError: logError instanceof Error ? logError.message : String(logError),
+    });
+  }
+}
+
 export const handler = adaptHttpHandler(
   handlingErrors(
     async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+      // Extract request ID for logging
+      const awsRequestId = event.requestContext?.requestId;
+
       // Validate request
       const { workspaceId, agentId, key, bodyText } =
         validateWebhookRequest(event);
@@ -72,26 +149,11 @@ export const handler = adaptHttpHandler(
       // Validate webhook key
       await validateWebhookKey(workspaceId, agentId, key);
 
-      // Check if free plan has expired (block agent execution if expired)
-      await checkFreePlanExpiration(workspaceId);
-
-      // Check daily request limit before LLM call
-      // Note: This is a soft limit - there's a small race condition window where
-      // concurrent requests near the limit could all pass the check before incrementing.
-      // This is acceptable as a user experience limit, not a security boundary.
-      const subscription = await getWorkspaceSubscription(workspaceId);
-      const subscriptionId = subscription
-        ? subscription.pk.replace("subscriptions/", "")
-        : undefined;
-      if (subscriptionId) {
-        console.log("[Webhook Handler] Found subscription:", subscriptionId);
-        await checkDailyRequestLimit(subscriptionId);
-      } else {
-        console.warn(
-          "[Webhook Handler] No subscription found for workspace:",
-          workspaceId
-        );
-      }
+      // Validate subscription and limits
+      const subscriptionId = await validateSubscriptionAndLimits(
+        workspaceId,
+        "webhook"
+      );
 
       // Setup agent, model, and tools with webhook-specific options
       const { agent, model, tools, usesByok } = await setupAgentAndTools(
@@ -151,22 +213,14 @@ export const handler = adaptHttpHandler(
       let reservationId: string | undefined;
       let llmCallAttempted = false;
       let result: Awaited<ReturnType<typeof generateText>> | undefined;
-      let tokenUsage: ReturnType<typeof extractTokenUsage> | undefined;
+      let tokenUsage: TokenUsage | undefined;
       let openrouterGenerationId: string | undefined;
       let provisionalCostUsd: number | undefined;
+      let generationTimeMs: number | undefined;
 
       try {
-        // Convert tools object to array format for estimation
-        // Tools from AI SDK have inputSchema instead of parameters
-        const toolDefinitions = tools
-          ? Object.entries(tools).map(([name, tool]) => ({
-              name,
-              description: tool.description || "",
-              parameters: (tool as { inputSchema?: unknown }).inputSchema || {},
-            }))
-          : undefined;
-
-        const reservation = await validateCreditsAndLimitsAndReserve(
+        // Validate credits, spending limits, and reserve credits before LLM call
+        reservationId = await validateAndReserveCredits(
           db,
           workspaceId,
           agentId,
@@ -174,37 +228,22 @@ export const handler = adaptHttpHandler(
           finalModelName,
           modelMessages,
           agent.systemPrompt,
-          toolDefinitions,
-          usesByok
+          tools,
+          usesByok,
+          "webhook"
         );
 
-        if (reservation) {
-          reservationId = reservation.reservationId;
-          console.log("[Webhook Handler] Credits reserved:", {
-            workspaceId,
-            reservationId,
-            reservedAmount: reservation.reservedAmount,
-          });
-        }
-
-        // Generate AI response (non-streaming)
-        const generateOptions = buildGenerateTextOptions(agent);
-        console.log(
-          "[Webhook Handler] Executing generateText with parameters:",
-          {
-            workspaceId,
-            agentId,
-            model: finalModelName,
-            systemPromptLength: agent.systemPrompt.length,
-            messagesCount: modelMessages.length,
-            toolsCount: tools ? Object.keys(tools).length : 0,
-            ...generateOptions,
-          }
+        // Prepare LLM call (logging and generate options)
+        const generateOptions = prepareLLMCall(
+          agent,
+          tools,
+          modelMessages,
+          "webhook",
+          workspaceId,
+          agentId
         );
-        // Log tool definitions before LLM call
-        if (tools) {
-          logToolDefinitions(tools, "Webhook Handler", agent);
-        }
+        // Track generation time
+        const generationStartTime = Date.now();
         // LLM call succeeded - mark as attempted
         llmCallAttempted = true;
         result = await generateText({
@@ -216,297 +255,101 @@ export const handler = adaptHttpHandler(
           tools,
           ...generateOptions,
         });
+        generationTimeMs = Date.now() - generationStartTime;
 
-        // Extract token usage
-        tokenUsage = extractTokenUsage(result);
-
-        // Log full result before extraction for debugging
-        console.log("[Webhook Handler] Full result structure before generation ID extraction:", {
-          result: JSON.stringify(result, null, 2),
-        });
-
-        // Extract OpenRouter generation ID for cost verification
-        openrouterGenerationId = extractOpenRouterGenerationId(result);
-
-        // Extract cost from LLM response for provisional cost
-        const openrouterCostUsd = extractOpenRouterCost(result);
-        if (openrouterCostUsd !== undefined && openrouterCostUsd >= 0) {
-          // Convert from USD to millionths with 5.5% markup
-          // Math.ceil ensures we never undercharge
-          provisionalCostUsd = Math.ceil(openrouterCostUsd * 1_000_000 * 1.055);
-          console.log("[Webhook Handler] Extracted cost from response:", {
-            openrouterCostUsd,
-            provisionalCostUsd,
-          });
-        } else if (tokenUsage && finalModelName) {
-          // Fallback to calculated cost from tokenUsage if not available in response
-          const calculatedCosts = calculateConversationCosts(
-            "openrouter",
-            finalModelName,
-            tokenUsage
-          );
-          provisionalCostUsd = calculatedCosts.usd;
-          console.log(
-            "[Webhook Handler] Cost not in response, using calculated cost:",
-            {
-              provisionalCostUsd,
-              tokenUsage,
-            }
-          );
-        }
-
-        console.log("[Webhook Handler] Token usage extracted:", {
-          tokenUsage,
-          hasTokenUsage: !!tokenUsage,
-          promptTokens: tokenUsage?.promptTokens,
-          completionTokens: tokenUsage?.completionTokens,
-          totalTokens: tokenUsage?.totalTokens,
-          openrouterGenerationId,
-        });
+        // Extract token usage, generation ID, and costs
+        const extractionResult = extractTokenUsageAndCosts(
+          result,
+          undefined,
+          finalModelName,
+          "webhook"
+        );
+        tokenUsage = extractionResult.tokenUsage;
+        openrouterGenerationId = extractionResult.openrouterGenerationId;
+        provisionalCostUsd = extractionResult.provisionalCostUsd;
 
         // Adjust credit reservation based on actual cost (Step 2)
-        // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
+        await adjustCreditsAfterLLMCall(
+          db,
+          workspaceId,
+          agentId,
+          reservationId,
+          "openrouter",
+          finalModelName,
+          tokenUsage,
+          usesByok,
+          openrouterGenerationId,
+          "webhook"
+        );
+
+        // Handle case where no token usage is available
         if (
-          isCreditDeductionEnabled() &&
           reservationId &&
           reservationId !== "byok" &&
-          tokenUsage &&
-          (tokenUsage.promptTokens > 0 || tokenUsage.completionTokens > 0)
+          (!tokenUsage ||
+            (tokenUsage.promptTokens === 0 &&
+              tokenUsage.completionTokens === 0))
         ) {
-          try {
-            console.log("[Webhook Handler] Step 2: Adjusting credit reservation:", {
-              workspaceId,
-              reservationId,
-              provider: "openrouter",
-              modelName: finalModelName,
-              tokenUsage,
-              openrouterGenerationId,
-            });
-            await adjustCreditReservation(
-              db,
-              reservationId,
-              workspaceId,
-              "openrouter", // provider
-              finalModelName,
-              tokenUsage,
-              3, // maxRetries
-              usesByok,
-              openrouterGenerationId
-            );
-            console.log(
-              "[Webhook Handler] Step 2: Credit reservation adjusted successfully"
-            );
-
-            // Enqueue cost verification (Step 3) will be done after conversation is created
-            // to get the conversationId
-          } catch (error) {
-            // Log error but don't fail the request
-            console.error(
-              "[Webhook Handler] Error adjusting credit reservation:",
-              {
-                error: error instanceof Error ? error.message : String(error),
-                stack: error instanceof Error ? error.stack : undefined,
-                workspaceId,
-                agentId,
-                reservationId,
-                tokenUsage,
-              }
-            );
-            // Report to Sentry
-            Sentry.captureException(ensureError(error), {
-              tags: {
-                endpoint: "webhook",
-                operation: "credit_adjustment",
-              },
-              extra: {
-                workspaceId,
-                agentId,
-                reservationId,
-                tokenUsage,
-              },
-            });
-          }
-        } else {
-          if (!isCreditDeductionEnabled()) {
-            console.log(
-              "[Webhook Handler] Credit deduction disabled via feature flag, skipping adjustment:",
-              {
-                workspaceId,
-                agentId,
-                reservationId,
-                tokenUsage,
-              }
-            );
-          } else if (!reservationId || reservationId === "byok") {
-            console.log(
-              "[Webhook Handler] No reservation (BYOK), skipping adjustment:",
-              {
-                workspaceId,
-                agentId,
-                reservationId,
-              }
-            );
-          } else {
-            // No token usage after successful call - keep estimated cost (delete reservation)
-            // This keeps the estimated cost deducted, which is correct since we can't determine actual cost
-            console.warn(
-              "[Webhook Handler] No token usage available after successful call, keeping estimated cost:",
-              {
-                tokenUsage,
-                workspaceId,
-                agentId,
-                reservationId,
-              }
-            );
-            // Delete reservation without refund (estimated cost remains deducted)
-            try {
-              const reservationPk = `credit-reservations/${reservationId}`;
-              await db["credit-reservations"].delete(reservationPk);
-            } catch (deleteError) {
-              console.warn(
-                "[Webhook Handler] Error deleting reservation:",
-                deleteError
-              );
-            }
-          }
+          await cleanupReservationWithoutTokenUsage(
+            db,
+            reservationId,
+            workspaceId,
+            agentId,
+            "webhook"
+          );
         }
       } catch (error) {
-        // Handle errors based on when they occurred
-        if (error instanceof InsufficientCreditsError) {
-          // Send email notification (non-blocking)
-          try {
-            await sendAgentErrorNotification(workspaceId, "credit", error);
-          } catch (emailError) {
-            console.error(
-              "[Webhook Handler] Failed to send error notification:",
-              emailError
-            );
-          }
+        // Comprehensive error logging for debugging
+        logErrorDetails(error, {
+          workspaceId,
+          agentId,
+          usesByok,
+          endpoint: "webhook",
+        });
 
-          // Return sanitized error
-          return {
-            statusCode: 402,
-            headers: {
-              "Content-Type": "text/plain; charset=utf-8",
-            },
-            body: "Request could not be completed due to service limits. Please contact your workspace administrator.",
-          };
+        // Normalize BYOK error if needed
+        const errorToLog = normalizeByokError(error);
+
+        await persistWebhookConversationError({
+          db,
+          workspaceId,
+          agentId,
+          uiMessage,
+          usesByok,
+          finalModelName,
+          error: errorToLog,
+          awsRequestId,
+        });
+
+        // Check if this is a BYOK authentication error FIRST
+        if (isByokAuthenticationError(error, usesByok)) {
+          return handleByokAuthenticationErrorApiGateway("webhook");
         }
-        if (error instanceof SpendingLimitExceededError) {
-          // Send email notification (non-blocking)
-          try {
-            await sendAgentErrorNotification(
-              workspaceId,
-              "spendingLimit",
-              error
-            );
-          } catch (emailError) {
-            console.error(
-              "[Webhook Handler] Failed to send error notification:",
-              emailError
-            );
-          }
 
-          // Return sanitized error
-          return {
-            statusCode: 402,
-            headers: {
-              "Content-Type": "text/plain; charset=utf-8",
-            },
-            body: "Request could not be completed due to service limits. Please contact your workspace administrator.",
-          };
+        // Handle credit errors
+        const creditErrorResult = await handleCreditErrors(
+          error,
+          workspaceId,
+          "webhook"
+        );
+        if (creditErrorResult.handled && creditErrorResult.response) {
+          return creditErrorResult.response as APIGatewayProxyResultV2;
         }
 
         // Error after reservation but before or during LLM call
         if (reservationId && reservationId !== "byok") {
-          if (!llmCallAttempted) {
-            // Error before LLM call - refund reservation
-            try {
-              console.log(
-                "[Webhook Handler] Error before LLM call, refunding reservation:",
-                {
-                  workspaceId,
-                  reservationId,
-                  error: error instanceof Error ? error.message : String(error),
-                }
-              );
-              await refundReservation(db, reservationId);
-            } catch (refundError) {
-              // Log but don't fail - refund is best effort
-              console.error("[Webhook Handler] Error refunding reservation:", {
-                reservationId,
-                error:
-                  refundError instanceof Error
-                    ? refundError.message
-                    : String(refundError),
-              });
-            }
-          } else {
-            // Error after LLM call - try to get token usage from error if available
-            // If model error without token usage, assume reserved credits were consumed
-            let errorTokenUsage:
-              | ReturnType<typeof extractTokenUsage>
-              | undefined;
-            try {
-              // Try to extract token usage from error if it has a result property
-              if (
-                error &&
-                typeof error === "object" &&
-                "result" in error &&
-                error.result
-              ) {
-                errorTokenUsage = extractTokenUsage(error.result);
-              }
-            } catch {
-              // Ignore extraction errors
-            }
-
-            if (
-              isCreditDeductionEnabled() &&
-              errorTokenUsage &&
-              (errorTokenUsage.promptTokens > 0 ||
-                errorTokenUsage.completionTokens > 0)
-            ) {
-              // We have token usage - adjust reservation
-              try {
-                await adjustCreditReservation(
-                  db,
-                  reservationId,
-                  workspaceId,
-                  "google",
-                  finalModelName,
-                  errorTokenUsage,
-                  3,
-                  usesByok
-                );
-              } catch (adjustError) {
-                console.error(
-                  "[Webhook Handler] Error adjusting reservation after error:",
-                  adjustError
-                );
-              }
-            } else {
-              // No token usage available - assume reserved credits were consumed
-              console.warn(
-                "[Webhook Handler] Model error without token usage, assuming reserved credits consumed:",
-                {
-                  workspaceId,
-                  reservationId,
-                  error: error instanceof Error ? error.message : String(error),
-                }
-              );
-              // Delete reservation without refund
-              try {
-                const reservationPk = `credit-reservations/${reservationId}`;
-                await db["credit-reservations"].delete(reservationPk);
-              } catch (deleteError) {
-                console.warn(
-                  "[Webhook Handler] Error deleting reservation:",
-                  deleteError
-                );
-              }
-            }
-          }
+          await cleanupReservationOnError(
+            db,
+            reservationId,
+            workspaceId,
+            agentId,
+            "openrouter",
+            finalModelName,
+            error,
+            llmCallAttempted,
+            usesByok,
+            "webhook"
+          );
         }
 
         // Re-throw error to be handled by error wrapper
@@ -518,79 +361,136 @@ export const handler = adaptHttpHandler(
         throw new Error("LLM call succeeded but result is undefined");
       }
 
-      // Track successful LLM request (increment bucket)
-      if (subscriptionId) {
-        try {
-          console.log(
-            "[Webhook Handler] Incrementing request bucket for subscription:",
-            subscriptionId
-          );
-          await incrementRequestBucket(subscriptionId);
-          console.log(
-            "[Webhook Handler] Successfully incremented request bucket:",
-            subscriptionId
-          );
-        } catch (error) {
-          // Log error but don't fail the request
-          console.error(
-            "[Webhook Handler] Error incrementing request bucket:",
-            {
-              error: error instanceof Error ? error.message : String(error),
-              stack: error instanceof Error ? error.stack : undefined,
-              workspaceId,
-              agentId,
-              subscriptionId,
-            }
-          );
-          // Report to Sentry
-          Sentry.captureException(ensureError(error), {
-            tags: {
-              endpoint: "webhook",
-              operation: "request_tracking",
-            },
-            extra: {
-              workspaceId,
-              agentId,
-              subscriptionId,
-            },
-          });
-        }
-      } else {
-        console.warn(
-          "[Webhook Handler] Skipping request bucket increment - no subscription ID:",
-          { workspaceId, agentId }
-        );
-      }
+      // Track successful LLM request
+      await trackSuccessfulRequest(subscriptionId, workspaceId, agentId, "webhook");
 
       // Process simple non-streaming response (no tool continuation)
-      const responseContent = await processSimpleNonStreamingResponse(result);
+      // This might throw NoOutputGeneratedError if there was an error during generation
+      let responseContent: string;
+      try {
+        responseContent = await processSimpleNonStreamingResponse(result);
+      } catch (resultError) {
+        // Check if this is a BYOK authentication error
+        if (usesByok && isAuthenticationError(resultError)) {
+          console.log(
+            "[Webhook Handler] BYOK authentication error detected when processing response:",
+            {
+              workspaceId,
+              agentId,
+              error: resultError instanceof Error ? resultError.message : String(resultError),
+              errorType: resultError instanceof Error ? resultError.constructor.name : typeof resultError,
+              errorStringified: JSON.stringify(resultError, Object.getOwnPropertyNames(resultError)),
+            }
+          );
+
+          // For BYOK, when we get a NoOutputGeneratedError, it's almost always because
+          // the original AI_APICallError was thrown but not preserved.
+          // We need to manually construct the original error with the proper structure.
+          let errorToLog = resultError;
+          
+          // If it's a NoOutputGeneratedError, construct the original AI_APICallError
+          if (
+            resultError instanceof Error &&
+            (resultError.constructor.name === "NoOutputGeneratedError" ||
+             resultError.name === "AI_NoOutputGeneratedError" ||
+             resultError.message.includes("No output generated"))
+          ) {
+            console.log("[Webhook Handler] Constructing original AI_APICallError from NoOutputGeneratedError");
+            // Create a synthetic AI_APICallError with the proper structure
+            const originalError = new Error("No cookie auth credentials found");
+            originalError.name = "AI_APICallError";
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const errorAny = originalError as any;
+            errorAny.statusCode = 401;
+            errorAny.data = {
+              error: {
+                code: 401,
+                message: "No cookie auth credentials found",
+                type: null,
+                param: null,
+              },
+            };
+            errorAny.responseBody = '{"error":{"message":"No cookie auth credentials found","code":401}}';
+            errorToLog = originalError;
+          }
+
+          // Log conversation with error before returning
+          await persistWebhookConversationError({
+            db,
+            workspaceId,
+            agentId,
+            uiMessage,
+            usesByok,
+            finalModelName,
+            error: errorToLog,
+          });
+
+          return {
+            statusCode: 400,
+            headers: {
+              "Content-Type": "text/plain; charset=utf-8",
+            },
+            body:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          };
+        }
+        await persistWebhookConversationError({
+          db,
+          workspaceId,
+          agentId,
+          uiMessage,
+          usesByok,
+          finalModelName,
+          error: resultError,
+          awsRequestId,
+        });
+        throw resultError;
+      }
 
       // Extract tool calls and results from generateText result
-      let toolCallsFromResult = result.toolCalls || [];
-      const toolResultsFromResult = result.toolResults || [];
+      // These might throw NoOutputGeneratedError if there was an error during generation
+      let toolCallsFromResult: unknown[];
+      let toolResultsFromResult: unknown[];
+      try {
+        toolCallsFromResult = result.toolCalls || [];
+        toolResultsFromResult = result.toolResults || [];
+      } catch (resultError) {
+        // Check if this is a BYOK authentication error
+        if (isByokAuthenticationError(resultError, usesByok)) {
+          const errorToLog = normalizeByokError(resultError);
+          await persistWebhookConversationError({
+            db,
+            workspaceId,
+            agentId,
+            uiMessage,
+            usesByok,
+            finalModelName,
+            error: errorToLog,
+          });
+          return handleByokAuthenticationErrorApiGateway("webhook");
+        }
+        await persistWebhookConversationError({
+          db,
+          workspaceId,
+          agentId,
+          uiMessage,
+          usesByok,
+          finalModelName,
+          error: resultError,
+          awsRequestId,
+        });
+        throw resultError;
+      }
 
       // FIX: If tool calls are missing but tool results exist, reconstruct tool calls from results
-      // This can happen when tools execute synchronously and the AI SDK doesn't populate toolCalls
       if (
         toolCallsFromResult.length === 0 &&
         toolResultsFromResult.length > 0
       ) {
-        console.log(
-          "[Webhook Handler] Tool calls missing but tool results exist, reconstructing tool calls from results"
-        );
-        // Reconstruct tool calls from tool results - cast to any since we're creating a compatible structure
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
-        toolCallsFromResult = toolResultsFromResult.map((toolResult: any) => ({
-          toolCallId:
-            toolResult.toolCallId ||
-            `call-${Math.random().toString(36).substring(7)}`,
-          toolName: toolResult.toolName || "unknown",
-          args: toolResult.args || toolResult.input || {},
-        })) as unknown as typeof toolCallsFromResult;
-        console.log(
-          "[Webhook Handler] Reconstructed tool calls:",
-          toolCallsFromResult
-        );
+        toolCallsFromResult = reconstructToolCallsFromResults(
+          toolResultsFromResult,
+          "Webhook Handler"
+        ) as unknown as typeof toolCallsFromResult;
       }
 
       // DIAGNOSTIC: Log tool calls and results extracted from result
@@ -669,7 +569,7 @@ export const handler = adaptHttpHandler(
         }
       );
 
-      // Create assistant message with modelName, provider, and costs
+      // Create assistant message with modelName, provider, costs, and generation time
       // Ensure content is always an array if we have tool calls/results, even if text is empty
       const assistantMessage: UIMessage = {
         role: "assistant",
@@ -682,6 +582,7 @@ export const handler = adaptHttpHandler(
         provider: "openrouter",
         ...(openrouterGenerationId && { openrouterGenerationId }),
         ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
+        ...(generationTimeMs !== undefined && { generationTimeMs }),
       };
 
       // DIAGNOSTIC: Log final assistant message structure
@@ -743,42 +644,18 @@ export const handler = adaptHttpHandler(
             messages: messagesToLog,
             tokenUsage,
             usesByok,
+            awsRequestId,
           });
 
           // Enqueue cost verification (Step 3) if we have a generation ID
-          // Always enqueue when we have a generation ID, regardless of reservationId or BYOK status
-          if (openrouterGenerationId) {
-            try {
-              await enqueueCostVerification(
-                openrouterGenerationId,
-                workspaceId,
-                reservationId && reservationId !== "byok" ? reservationId : undefined,
-                conversationId,
-                agentId
-              );
-              console.log(
-                "[Webhook Handler] Step 3: Cost verification enqueued",
-                {
-                  openrouterGenerationId,
-                  reservationId: reservationId && reservationId !== "byok" ? reservationId : undefined,
-                  hasReservation: !!(reservationId && reservationId !== "byok"),
-                }
-              );
-            } catch (error) {
-              // Log error but don't fail the request
-              console.error(
-                "[Webhook Handler] Error enqueueing cost verification:",
-                {
-                  error: error instanceof Error ? error.message : String(error),
-                  stack: error instanceof Error ? error.stack : undefined,
-                }
-              );
-            }
-          } else {
-            console.warn(
-              "[Webhook Handler] No OpenRouter generation ID found, skipping cost verification"
-            );
-          }
+          await enqueueCostVerificationIfNeeded(
+            openrouterGenerationId,
+            workspaceId,
+            reservationId,
+            conversationId,
+            agentId,
+            "webhook"
+          );
         } else {
           console.log(
             "[Webhook Handler] Skipping conversation logging - all messages are empty"

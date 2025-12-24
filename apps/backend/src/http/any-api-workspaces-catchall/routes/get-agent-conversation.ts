@@ -127,6 +127,9 @@ export const registerGetAgentConversation = (app: express.Application) => {
         tokenUsage: conversation.tokenUsage || null,
         startedAt: conversation.startedAt,
         lastMessageAt: conversation.lastMessageAt,
+        error: conversation.error || null,
+        awsRequestIds: conversation.awsRequestIds || undefined,
+        totalGenerationTimeMs: conversation.totalGenerationTimeMs || undefined,
       });
     })
   );

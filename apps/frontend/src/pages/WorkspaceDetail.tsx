@@ -104,35 +104,20 @@ const PERMISSION_LEVELS = {
 interface WorkspaceApiKeyManagerProps {
   workspaceId: string;
   apiKeys?: {
-    google: boolean;
-    openai: boolean;
-    anthropic: boolean;
+    openrouter?: boolean;
   };
-  hasGoogleApiKey?: boolean; // For backward compatibility
 }
 
 const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
   workspaceId,
   apiKeys,
-  hasGoogleApiKey,
 }) => {
-  const [selectedProvider, setSelectedProvider] = useState<
-    "google" | "openai" | "anthropic"
-  >("google");
   const [apiKey, setApiKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
 
-  // Determine if current provider has a key
-  const hasKey = apiKeys
-    ? apiKeys[selectedProvider]
-    : selectedProvider === "google" && (hasGoogleApiKey || false);
-
-  const providerDisplayNames: Record<string, string> = {
-    google: "Google AI",
-    openai: "OpenAI",
-    anthropic: "Anthropic",
-  };
+  // Check if OpenRouter key exists
+  const hasKey = apiKeys?.openrouter || false;
 
   const handleSave = async () => {
     if (!apiKey.trim()) {
@@ -140,7 +125,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
     }
     setIsSaving(true);
     try {
-      await setWorkspaceApiKey(workspaceId, apiKey.trim(), selectedProvider);
+      await setWorkspaceApiKey(workspaceId, apiKey.trim(), "openrouter");
       setApiKey("");
       window.location.reload(); // Reload to update hasKey status
     } catch (error) {
@@ -157,7 +142,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
     }
     setIsClearing(true);
     try {
-      await deleteWorkspaceApiKey(workspaceId, selectedProvider);
+      await deleteWorkspaceApiKey(workspaceId, "openrouter");
       window.location.reload(); // Reload to update hasKey status
     } catch (error) {
       console.error("Error clearing API key:", error);
@@ -173,15 +158,16 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
         <p className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-50">Help:</p>
         <ul className="list-inside list-disc space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
           <li>
-            Select the LLM provider for which you want to configure an API key
+            Configure your OpenRouter API key to use your own key for LLM requests
           </li>
           <li>
             By default, if you add no key, we will use workspace credits (if
             any)
           </li>
           <li>
-            When you add a key, you are responsible for the billing and
-            correctness of the key
+            When you add an OpenRouter key, you are responsible for the billing and
+            correctness of the key. Costs will be applied to your spending rate limits
+            but will not be deducted from workspace credits.
           </li>
         </ul>
       </div>
@@ -189,12 +175,11 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
       {hasKey && (
         <div className="rounded-xl border border-accent-200 bg-accent-50/50 p-5 dark:border-accent-800 dark:bg-accent-950/50">
           <p className="text-sm font-semibold text-accent-800 dark:text-accent-300">
-            API Key is Configured
+            OpenRouter API Key is Configured
           </p>
           <p className="mt-1.5 text-xs text-accent-700 dark:text-accent-400">
-            A {providerDisplayNames[selectedProvider]} API key is currently set
-            for this workspace. Requests will use your key and workspace credits
-            will not be deducted.
+            An OpenRouter API key is currently set for this workspace. Requests will use your key,
+            costs will be applied to spending rate limits, and workspace credits will not be deducted.
           </p>
         </div>
       )}
@@ -202,28 +187,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
       <div className="space-y-3">
         <div>
           <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-            LLM Provider
-          </label>
-          <select
-            value={selectedProvider}
-            onChange={(e) => {
-              setSelectedProvider(
-                e.target.value as "google" | "openai" | "anthropic"
-              );
-              setApiKey("");
-            }}
-            className="w-full rounded-xl border border-neutral-300 bg-white p-3 text-sm text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-            disabled={isSaving || isClearing}
-          >
-            <option value="google">Google AI</option>
-            {/* OpenAI and Anthropic options are available but not yet fully supported in the UI */}
-            {/* <option value="openai">OpenAI</option> */}
-            {/* <option value="anthropic">Anthropic</option> */}
-          </select>
-        </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-            {providerDisplayNames[selectedProvider]} API Key
+            OpenRouter API Key
           </label>
           <input
             type="password"
@@ -232,7 +196,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
             placeholder={
               hasKey
                 ? "Enter new key to replace existing"
-                : `Enter your ${providerDisplayNames[selectedProvider]} API key`
+                : "Enter your OpenRouter API key"
             }
             className="w-full rounded-xl border border-neutral-300 bg-white p-3 font-mono text-sm text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
             disabled={isSaving || isClearing}
@@ -679,7 +643,6 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                 <WorkspaceApiKeyManager
                   workspaceId={id!}
                   apiKeys={workspace.apiKeys}
-                  hasGoogleApiKey={workspace.hasGoogleApiKey}
                 />
               </LazyAccordionContent>
             </AccordionSection>

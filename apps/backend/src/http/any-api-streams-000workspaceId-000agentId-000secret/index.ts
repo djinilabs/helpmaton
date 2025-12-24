@@ -28,41 +28,38 @@ interface HttpResponseStream {
   end(callback?: (error?: Error) => void): void;
 }
 
+import { MODEL_NAME } from "../../http/utils/agentUtils";
 import {
-  MODEL_NAME,
-  buildGenerateTextOptions,
-} from "../../http/utils/agentUtils";
+  adjustCreditsAfterLLMCall,
+  cleanupReservationOnError,
+  enqueueCostVerificationIfNeeded,
+  validateAndReserveCredits,
+} from "../../http/utils/generationCreditManagement";
+import {
+  isByokAuthenticationError,
+  normalizeByokError,
+  logErrorDetails,
+  handleCreditErrors,
+} from "../../http/utils/generationErrorHandling";
+import { prepareLLMCall } from "../../http/utils/generationLLMSetup";
+import {
+  validateSubscriptionAndLimits,
+  trackSuccessfulRequest,
+} from "../../http/utils/generationRequestTracking";
+import { extractTokenUsageAndCosts } from "../../http/utils/generationTokenExtraction";
 import { database } from "../../tables";
-import { sendAgentErrorNotification } from "../../utils/agentErrorNotifications";
 import {
-  extractTokenUsage,
   isMessageContentEmpty,
   updateConversation,
+  buildConversationErrorInfo,
 } from "../../utils/conversationLogger";
-import {
-  InsufficientCreditsError,
-  SpendingLimitExceededError,
-} from "../../utils/creditErrors";
-import {
-  adjustCreditReservation,
-  enqueueCostVerification,
-  refundReservation,
-} from "../../utils/creditManagement";
-import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation";
-import { isCreditDeductionEnabled } from "../../utils/featureFlags";
+import type { TokenUsage } from "../../utils/conversationLogger";
 import {
   transformLambdaUrlToHttpV2Event,
   type LambdaUrlEvent,
 } from "../../utils/httpEventAdapter";
-import {
-  extractOpenRouterCost,
-  extractOpenRouterGenerationId,
-} from "../../utils/openrouterUtils";
+import { extractOpenRouterGenerationId } from "../../utils/openrouterUtils";
 import { flushPostHog } from "../../utils/posthog";
-import {
-  checkDailyRequestLimit,
-  incrementRequestBucket,
-} from "../../utils/requestTracking";
 import {
   initSentry,
   Sentry,
@@ -73,15 +70,7 @@ import {
   getAllowedOrigins,
   validateSecret,
 } from "../../utils/streamServerUtils";
-import {
-  checkFreePlanExpiration,
-  getWorkspaceSubscription,
-} from "../../utils/subscriptionUtils";
-import { calculateConversationCosts } from "../../utils/tokenAccounting";
-import {
-  logToolDefinitions,
-  setupAgentAndTools,
-} from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
+import { setupAgentAndTools } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
   convertAiSdkUIMessagesToUIMessages,
   convertTextToUIMessage,
@@ -128,6 +117,86 @@ interface StreamRequestContext {
   usesByok: boolean;
   reservationId: string | undefined;
   finalModelName: string;
+  awsRequestId?: string;
+}
+
+async function persistConversationError(
+  context: StreamRequestContext | undefined,
+  error: unknown
+): Promise<void> {
+  if (!context) return;
+
+  try {
+    // Log error structure before extraction (especially for BYOK)
+    if (context.usesByok) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+      const errorAny = error instanceof Error ? (error as any) : undefined;
+       
+      const causeAny =
+        error instanceof Error && error.cause instanceof Error
+          ? (error.cause as any)
+          : undefined;
+      console.log("[Stream Handler] BYOK error before extraction:", {
+        errorType:
+          error instanceof Error ? error.constructor.name : typeof error,
+        errorName: error instanceof Error ? error.name : "N/A",
+        errorMessage: error instanceof Error ? error.message : String(error),
+        hasData: !!errorAny?.data,
+        dataError: errorAny?.data?.error,
+        dataErrorMessage: errorAny?.data?.error?.message,
+        hasCause: error instanceof Error && !!error.cause,
+        causeType:
+          error instanceof Error && error.cause instanceof Error
+            ? error.cause.constructor.name
+            : undefined,
+        causeMessage:
+          error instanceof Error && error.cause instanceof Error
+            ? error.cause.message
+            : undefined,
+        causeData: causeAny?.data?.error?.message,
+      });
+    }
+
+    const errorInfo = buildConversationErrorInfo(error, {
+      provider: "openrouter",
+      modelName: context.finalModelName,
+      endpoint: "stream",
+      metadata: {
+        usesByok: context.usesByok,
+      },
+    });
+
+    // Log extracted error info (especially for BYOK)
+    if (context.usesByok) {
+      console.log("[Stream Handler] BYOK error after extraction:", {
+        message: errorInfo.message,
+        name: errorInfo.name,
+        code: errorInfo.code,
+        statusCode: errorInfo.statusCode,
+      });
+    }
+
+    await updateConversation(
+      context.db,
+      context.workspaceId,
+      context.agentId,
+      context.conversationId,
+      context.convertedMessages ?? [],
+      undefined,
+      context.usesByok,
+      errorInfo,
+      context.awsRequestId,
+      "stream"
+    );
+  } catch (logError) {
+    console.error("[Stream Handler] Failed to persist conversation error:", {
+      originalError: error instanceof Error ? error.message : String(error),
+      logError: logError instanceof Error ? logError.message : String(logError),
+      workspaceId: context.workspaceId,
+      agentId: context.agentId,
+      conversationId: context.conversationId,
+    });
+  }
 }
 
 const DEFAULT_CONTENT_TYPE = "text/event-stream; charset=utf-8";
@@ -226,22 +295,12 @@ async function validateRequestSecret(
 
 /**
  * Validates subscription and plan limits
+ * Note: This is a wrapper around the shared utility for backward compatibility
  */
-async function validateSubscriptionAndLimits(
+async function validateSubscriptionAndLimitsStream(
   workspaceId: string
 ): Promise<string | undefined> {
-  await checkFreePlanExpiration(workspaceId);
-
-  const subscription = await getWorkspaceSubscription(workspaceId);
-  const subscriptionId = subscription
-    ? subscription.pk.replace("subscriptions/", "")
-    : undefined;
-
-  if (subscriptionId) {
-    await checkDailyRequestLimit(subscriptionId);
-  }
-
-  return subscriptionId;
+  return await validateSubscriptionAndLimits(workspaceId, "stream");
 }
 
 /**
@@ -445,21 +504,7 @@ async function validateCreditsAndReserveBeforeLLM(
   const finalModelName =
     typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
 
-  const toolDefinitions = tools
-    ? Object.entries(tools).map(([name, tool]) => {
-        const typedTool = tool as {
-          description?: string;
-          inputSchema?: unknown;
-        };
-        return {
-          name,
-          description: typedTool.description || "",
-          parameters: typedTool.inputSchema || {},
-        };
-      })
-    : undefined;
-
-  const reservation = await validateCreditsAndLimitsAndReserve(
+  return await validateAndReserveCredits(
     db,
     workspaceId,
     agentId,
@@ -467,31 +512,10 @@ async function validateCreditsAndReserveBeforeLLM(
     finalModelName,
     modelMessages,
     agent.systemPrompt,
-    toolDefinitions,
-    usesByok
+    tools,
+    usesByok,
+    "stream"
   );
-
-  if (reservation) {
-    console.log("[Stream Handler] Credits reserved:", {
-      workspaceId,
-      reservationId: reservation.reservationId,
-      reservedAmount: reservation.reservedAmount,
-    });
-    return reservation.reservationId;
-  }
-
-  // Log that no reservation was created (reason should be in validateCreditsAndLimitsAndReserve logs above)
-  console.log(
-    "[Stream Handler] No credit reservation created (see validateCreditsAndLimitsAndReserve logs above for reason):",
-    {
-      workspaceId,
-      agentId,
-      usesByok,
-      note: "This is expected if BYOK is used or credit validation is disabled. Cost verification will still run but won't finalize a reservation.",
-    }
-  );
-
-  return undefined;
 }
 
 /**
@@ -529,22 +553,15 @@ async function streamAIResponse(
   responseStream: HttpResponseStream,
   onTextChunk: (text: string) => void
 ): Promise<Awaited<ReturnType<typeof streamText>>> {
-  const generateOptions = buildGenerateTextOptions(agent);
-  const finalModelName =
-    typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
-  console.log("[Stream Handler] Executing streamText with parameters:", {
-    workspaceId: "stream",
-    agentId: "stream",
-    model: finalModelName,
-    systemPromptLength: agent.systemPrompt.length,
-    messagesCount: modelMessages.length,
-    toolsCount: tools ? Object.keys(tools).length : 0,
-    ...generateOptions,
-  });
-  // Log tool definitions before LLM call
-  if (tools) {
-    logToolDefinitions(tools, "Stream Handler", agent);
-  }
+  // Prepare LLM call (logging and generate options)
+  const generateOptions = prepareLLMCall(
+    agent,
+    tools,
+    modelMessages,
+    "stream",
+    "stream",
+    "stream"
+  );
 
   const streamResult = streamText({
     model: model as unknown as Parameters<typeof streamText>[0]["model"],
@@ -555,7 +572,9 @@ async function streamAIResponse(
   });
 
   // Get the UI message stream response from streamText result
+  // This might throw NoOutputGeneratedError if there was an error during streaming
   // This returns SSE format (Server-Sent Events) that useChat expects
+  // Errors will be caught by the outer handler which has access to usesByok
   const streamResponse = streamResult.toUIMessageStreamResponse();
 
   // Read from the stream and write chunks to responseStream immediately as they arrive
@@ -567,6 +586,7 @@ async function streamAIResponse(
 
   const decoder = new TextDecoder();
   let textBuffer = ""; // Buffer for extracting text deltas (for logging/tracking only)
+  let streamCompletedSuccessfully = false; // Track if stream completed without error
 
   try {
     while (true) {
@@ -612,13 +632,38 @@ async function streamAIResponse(
       const remainingBytes = new TextEncoder().encode(textBuffer);
       await writeChunkToStream(responseStream, remainingBytes);
     }
+
+    // Mark as successfully completed before ending stream
+    streamCompletedSuccessfully = true;
+
+    // End the stream after all chunks are written successfully
+    console.log("[Stream Handler] All chunks written, ending stream");
+    responseStream.end();
+  } catch (streamError) {
+    // Release the reader lock before re-throwing
+    reader.releaseLock();
+    // Don't end the stream here - let the outer error handler do it
+    // Re-throw to let outer handler catch it (which has access to usesByok and responseStream)
+    throw streamError;
   } finally {
     reader.releaseLock();
+    // Only end stream here if it completed successfully but wasn't ended above
+    // (This is a safety net for edge cases)
+    if (streamCompletedSuccessfully) {
+      try {
+        // Check if stream is still writable before ending
+        // If it's already ended, this will throw, which we'll catch and ignore
+        responseStream.end();
+      } catch (endError) {
+        // Stream might already be ended, ignore
+        console.warn("[Stream Handler] Stream already ended (expected in normal flow):", {
+          error: endError instanceof Error ? endError.message : String(endError),
+        });
+      }
+    }
+    // If streamCompletedSuccessfully is false, there was an error - don't end stream here
+    // Let the error handler do it
   }
-
-  // End the stream after all chunks are written
-  console.log("[Stream Handler] All chunks written, ending stream");
-  responseStream.end();
 
   return streamResult;
 }
@@ -633,152 +678,52 @@ async function adjustCreditsAfterStream(
   agentId: string,
   reservationId: string | undefined,
   finalModelName: string,
-  tokenUsage: ReturnType<typeof extractTokenUsage>,
+  tokenUsage: TokenUsage | undefined,
   usesByok: boolean,
   streamResult?: Awaited<ReturnType<typeof streamText>>,
   conversationId?: string
 ): Promise<void> {
-  // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
-  if (
-    !isCreditDeductionEnabled() ||
-    !reservationId ||
-    reservationId === "byok" ||
-    !tokenUsage ||
-    (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0)
-  ) {
-    if (!isCreditDeductionEnabled()) {
-      console.log(
-        "[Stream Handler] Credit deduction disabled via feature flag, skipping adjustment:",
-        {
-          workspaceId,
-          agentId,
-          reservationId,
-          tokenUsage,
-        }
-      );
-    } else if (!reservationId || reservationId === "byok") {
-      console.log(
-        "[Stream Handler] No reservation (BYOK), skipping adjustment:",
-        {
-          workspaceId,
-          agentId,
-          reservationId,
-        }
-      );
-    }
-    return;
-  }
-
-  // Log full result before extraction for debugging
-  if (streamResult) {
-    console.log(
-      "[Stream Handler] Full streamResult structure before generation ID extraction:",
-      {
-        streamResult: JSON.stringify(streamResult, null, 2),
-      }
-    );
-  }
-
   // Extract OpenRouter generation ID for cost verification
   const openrouterGenerationId = streamResult
     ? extractOpenRouterGenerationId(streamResult)
     : undefined;
-  // TODO: Use openrouterCost from providerMetadata when available instead of calculating
-  // const openrouterCost = streamResult ? extractOpenRouterCost(streamResult) : undefined;
 
-  console.log("[Stream Handler] Step 2: Adjusting credit reservation:", {
-    workspaceId,
-    reservationId,
-    provider: "openrouter",
-    modelName: finalModelName,
-    tokenUsage,
-    openrouterGenerationId,
-  });
-  await adjustCreditReservation(
+  // Adjust credits using shared utility
+  await adjustCreditsAfterLLMCall(
     db,
-    reservationId,
     workspaceId,
-    "openrouter", // provider
+    agentId,
+    reservationId,
+    "openrouter",
     finalModelName,
     tokenUsage,
-    3, // maxRetries
     usesByok,
-    openrouterGenerationId
-  );
-  console.log(
-    "[Stream Handler] Step 2: Credit reservation adjusted successfully"
+    openrouterGenerationId,
+    "stream"
   );
 
   // Enqueue cost verification (Step 3) if we have a generation ID
-  // Always enqueue when we have a generation ID, regardless of reservationId or BYOK status
-  if (openrouterGenerationId && conversationId) {
-    try {
-      await enqueueCostVerification(
-        openrouterGenerationId,
-        workspaceId,
-        reservationId && reservationId !== "byok" ? reservationId : undefined,
-        conversationId,
-        agentId
-      );
-      console.log("[Stream Handler] Step 3: Cost verification enqueued", {
-        openrouterGenerationId,
-        reservationId:
-          reservationId && reservationId !== "byok" ? reservationId : undefined,
-        hasReservation: !!(reservationId && reservationId !== "byok"),
-      });
-    } catch (error) {
-      // Log error but don't fail the request
-      console.error("[Stream Handler] Error enqueueing cost verification:", {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-    }
-  } else if (!openrouterGenerationId) {
-    console.warn(
-      "[Stream Handler] No OpenRouter generation ID found, skipping cost verification"
-    );
-  } else if (!conversationId) {
-    console.warn(
-      "[Stream Handler] No conversation ID, skipping cost verification"
-    );
-  }
+  await enqueueCostVerificationIfNeeded(
+    openrouterGenerationId,
+    workspaceId,
+    reservationId,
+    conversationId,
+    agentId,
+    "stream"
+  );
 }
 
 /**
  * Tracks the successful LLM request
+ * Note: This is a wrapper around the shared utility for backward compatibility
  */
 async function trackRequestUsage(
   subscriptionId: string | undefined,
   workspaceId: string,
   agentId: string
 ): Promise<void> {
-  if (!subscriptionId) {
-    return;
-  }
-
-  try {
-    await incrementRequestBucket(subscriptionId);
-  } catch (error) {
-    // Log error but don't fail the request
-    console.error("[Stream Handler] Error incrementing request bucket:", {
-      error: error instanceof Error ? error.message : String(error),
-      workspaceId,
-      agentId,
-      subscriptionId,
-    });
-    // Report to Sentry
-    Sentry.captureException(ensureError(error), {
-      tags: {
-        endpoint: "stream",
-        operation: "request_tracking",
-      },
-      extra: {
-        workspaceId,
-        agentId,
-        subscriptionId,
-      },
-    });
-  }
+  // Track successful request using shared utility
+  await trackSuccessfulRequest(subscriptionId, workspaceId, agentId, "stream");
 }
 
 /**
@@ -791,11 +736,13 @@ async function logConversation(
   conversationId: string,
   convertedMessages: UIMessage[],
   finalResponseText: string,
-  tokenUsage: ReturnType<typeof extractTokenUsage>,
+  tokenUsage: TokenUsage | undefined,
   usesByok: boolean,
   finalModelName: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- streamText result type is complex
-  streamResult: any
+  streamResult: any,
+  awsRequestId?: string,
+  generationTimeMs?: number
 ): Promise<void> {
   if (!tokenUsage) {
     return Promise.resolve();
@@ -894,52 +841,19 @@ async function logConversation(
       assistantContent.push({ type: "text", text: finalResponseText });
     }
 
-    // Log full result before extraction for debugging
-    if (streamResult) {
-      console.log(
-        "[Stream Handler] Full streamResult structure before generation ID extraction (message creation):",
-        {
-          streamResult: JSON.stringify(streamResult, null, 2),
-        }
-      );
-    }
+    // Extract token usage, generation ID, and costs
+    const {
+      openrouterGenerationId,
+      provisionalCostUsd: extractedProvisionalCostUsd,
+    } = extractTokenUsageAndCosts(
+      streamResult,
+      undefined,
+      finalModelName,
+      "stream"
+    );
+    const provisionalCostUsd = extractedProvisionalCostUsd;
 
-    // Extract OpenRouter generation ID for cost verification
-    const openrouterGenerationId = streamResult
-      ? extractOpenRouterGenerationId(streamResult)
-      : undefined;
-
-    // Extract cost from LLM response for provisional cost
-    const openrouterCostUsd = streamResult
-      ? extractOpenRouterCost(streamResult)
-      : undefined;
-    let provisionalCostUsd: number | undefined;
-    if (openrouterCostUsd !== undefined && openrouterCostUsd >= 0) {
-      // Convert from USD to millionths with 5.5% markup
-      // Math.ceil ensures we never undercharge
-      provisionalCostUsd = Math.ceil(openrouterCostUsd * 1_000_000 * 1.055);
-      console.log("[Stream Handler] Extracted cost from response:", {
-        openrouterCostUsd,
-        provisionalCostUsd,
-      });
-    } else if (tokenUsage && finalModelName) {
-      // Fallback to calculated cost from tokenUsage if not available in response
-      const calculatedCosts = calculateConversationCosts(
-        "openrouter",
-        finalModelName,
-        tokenUsage
-      );
-      provisionalCostUsd = calculatedCosts.usd;
-      console.log(
-        "[Stream Handler] Cost not in response, using calculated cost:",
-        {
-          provisionalCostUsd,
-          tokenUsage,
-        }
-      );
-    }
-
-    // Create assistant message with token usage, modelName, provider, and costs
+    // Create assistant message with token usage, modelName, provider, costs, and generation time
     const assistantMessage: UIMessage = {
       role: "assistant",
       content:
@@ -949,6 +863,7 @@ async function logConversation(
       provider: "openrouter",
       ...(openrouterGenerationId && { openrouterGenerationId }),
       ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
+      ...(generationTimeMs !== undefined && { generationTimeMs }),
     };
 
     // DIAGNOSTIC: Log assistant message structure
@@ -1008,7 +923,11 @@ async function logConversation(
       agentId,
       conversationId,
       validMessages,
-      tokenUsage
+      tokenUsage,
+      usesByok,
+      undefined,
+      awsRequestId,
+      "stream"
     ).catch((error) => {
       // Log error but don't fail the request
       console.error("[Stream Handler] Error logging conversation:", {
@@ -1075,32 +994,45 @@ async function writeErrorResponse(
 
   try {
     // Write error body directly to the original stream
+    // Check if stream is writable before writing
     await writeChunkToStream(responseStream, errorChunk);
 
-    // End the stream
-    responseStream.end();
-    console.log("[Stream Handler] Error response written and stream ended");
+    // End the stream only if it's not already ended
+    try {
+      responseStream.end();
+      console.log("[Stream Handler] Error response written and stream ended");
+    } catch (endError) {
+      // Stream might already be ended, log but don't throw
+      console.warn("[Stream Handler] Stream already ended when trying to end after error:", {
+        error: endError instanceof Error ? endError.message : String(endError),
+        originalError: errorMessage,
+      });
+    }
   } catch (writeError) {
-    // If we can't write to the stream, just log the error
-    console.error("[Stream Handler] Error writing error response:", {
-      error:
+    // If we can't write to the stream (e.g., already ended), just log the error
+    // Don't throw - the original error is more important
+    console.error("[Stream Handler] Error writing error response (stream may already be ended):", {
+      writeError:
         writeError instanceof Error ? writeError.message : String(writeError),
-      stack: writeError instanceof Error ? writeError.stack : undefined,
       writeErrorType: writeError?.constructor?.name,
+      originalError: errorMessage,
+      isStreamWriteAfterEnd: writeError instanceof Error && writeError.message.includes("write after end"),
     });
-    // Try to end the stream even if write failed
+    // Try to end the stream even if write failed, but don't throw if it fails
     try {
       responseStream.end();
     } catch (endError) {
-      console.error(
-        "[Stream Handler] Error ending stream after write failure:",
+      // Stream already ended or in error state - this is expected, just log
+      console.warn(
+        "[Stream Handler] Stream already ended when trying to end after write failure:",
         {
-          error:
+          endError:
             endError instanceof Error ? endError.message : String(endError),
+          originalError: errorMessage,
         }
       );
     }
-    throw writeError;
+    // Don't re-throw writeError - we want the original error to be logged, not the stream error
   }
 }
 
@@ -1125,7 +1057,7 @@ async function buildRequestContext(
   const origin = event.headers["origin"] || event.headers["Origin"];
 
   // Validate subscription and limits
-  const subscriptionId = await validateSubscriptionAndLimits(workspaceId);
+  const subscriptionId = await validateSubscriptionAndLimitsStream(workspaceId);
 
   // Setup database connection
   const db = await database();
@@ -1202,6 +1134,9 @@ async function buildRequestContext(
     usesByok
   );
 
+  // Extract request ID from Lambda Function URL event
+  const awsRequestId = event.requestContext?.requestId;
+
   return {
     workspaceId,
     agentId,
@@ -1220,6 +1155,7 @@ async function buildRequestContext(
     usesByok,
     reservationId,
     finalModelName,
+    awsRequestId,
   };
 }
 
@@ -1237,6 +1173,7 @@ const internalHandler = async (
     throw notAcceptable("Invalid path parameters");
   }
   let allowedOrigins: string[] | null = null;
+  let context: StreamRequestContext | undefined;
 
   // Fetch allowed origins from database based on stream server configuration
   allowedOrigins = await getAllowedOrigins(
@@ -1277,7 +1214,7 @@ const internalHandler = async (
       method: event.requestContext?.http?.method,
     });
 
-    const context = await buildRequestContext(event, pathParams);
+    context = await buildRequestContext(event, pathParams);
 
     // Set status code and headers directly
     // Validate secret
@@ -1299,8 +1236,11 @@ const internalHandler = async (
     let llmCallAttempted = false;
     let streamResult: Awaited<ReturnType<typeof streamText>> | undefined;
 
+    let generationStartTime: number | undefined;
+    let generationTimeMs: number | undefined;
     try {
       console.log("[Stream Handler] Starting AI stream...");
+      generationStartTime = Date.now();
       streamResult = await streamAIResponse(
         context.agent,
         context.model,
@@ -1311,206 +1251,70 @@ const internalHandler = async (
           fullStreamedText += textDelta;
         }
       );
+      // Calculate generation time when stream completes
+      if (generationStartTime !== undefined) {
+        generationTimeMs = Date.now() - generationStartTime;
+      }
       // LLM call succeeded - mark as attempted
       llmCallAttempted = true;
       console.log("[Stream Handler] AI stream completed");
     } catch (error) {
-      // Handle errors based on when they occurred
-      if (error instanceof InsufficientCreditsError) {
-        // Send email notification (non-blocking)
-        try {
-          await sendAgentErrorNotification(
-            context.workspaceId,
-            "credit",
-            error
-          );
-        } catch (emailError) {
-          console.error(
-            "[Stream Handler] Failed to send error notification:",
-            emailError
-          );
-        }
+      // Comprehensive error logging for debugging
+      logErrorDetails(error, {
+        workspaceId: context.workspaceId,
+        agentId: context.agentId,
+        usesByok: context.usesByok,
+        endpoint: "stream",
+      });
 
-        // Write sanitized error in SSE format
-        const errorChunk = `data: ${JSON.stringify({
-          type: "error",
-          error:
-            "Request could not be completed due to service limits. Please contact your workspace administrator.",
-        })}\n\n`;
-        await writeChunkToStream(responseStream, errorChunk);
-        responseStream.end();
+      // Normalize BYOK error if needed
+      const errorToLog = normalizeByokError(error);
+
+      // Check if this is a BYOK authentication error FIRST
+      if (isByokAuthenticationError(error, context.usesByok)) {
+        await persistConversationError(context, errorToLog);
+        // Use writeErrorResponse which handles stream state properly
+        await writeErrorResponse(responseStream, new Error(
+          "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions."
+        ));
         return;
       }
-      if (error instanceof SpendingLimitExceededError) {
-        // Send email notification (non-blocking)
-        try {
-          await sendAgentErrorNotification(
-            context.workspaceId,
-            "spendingLimit",
-            error
-          );
-        } catch (emailError) {
-          console.error(
-            "[Stream Handler] Failed to send error notification:",
-            emailError
-          );
-        }
 
-        // Write sanitized error in SSE format
-        const errorChunk = `data: ${JSON.stringify({
-          type: "error",
-          error:
-            "Request could not be completed due to service limits. Please contact your workspace administrator.",
-        })}\n\n`;
-        await writeChunkToStream(responseStream, errorChunk);
-        responseStream.end();
-        return;
+      // Handle credit errors (for streaming, we write SSE format)
+      const creditErrorResult = await handleCreditErrors(
+        error,
+        context.workspaceId,
+        "stream"
+      );
+      if (creditErrorResult.handled && creditErrorResult.response) {
+        await persistConversationError(context, error);
+        const response = creditErrorResult.response;
+        if (
+          typeof response === "object" &&
+          response !== null &&
+          "body" in response
+        ) {
+          const body = JSON.parse((response as { body: string }).body);
+          // Use writeErrorResponse which handles stream state properly
+          await writeErrorResponse(responseStream, new Error(body.error));
+          return;
+        }
       }
 
       // Error after reservation but before or during LLM call
       if (context.reservationId && context.reservationId !== "byok") {
-        if (!llmCallAttempted) {
-          // Error before LLM call - refund reservation
-          try {
-            console.log(
-              "[Stream Handler] Error before LLM call, refunding reservation:",
-              {
-                workspaceId: context.workspaceId,
-                reservationId: context.reservationId,
-                error: error instanceof Error ? error.message : String(error),
-              }
-            );
-            await refundReservation(context.db, context.reservationId);
-          } catch (refundError) {
-            // Log but don't fail - refund is best effort
-            console.error("[Stream Handler] Error refunding reservation:", {
-              reservationId: context.reservationId,
-              error:
-                refundError instanceof Error
-                  ? refundError.message
-                  : String(refundError),
-            });
-          }
-        } else {
-          // Error after LLM call - try to get token usage from error if available
-          let errorTokenUsage: ReturnType<typeof extractTokenUsage> | undefined;
-          try {
-            if (
-              error &&
-              typeof error === "object" &&
-              "result" in error &&
-              error.result
-            ) {
-              errorTokenUsage = extractTokenUsage(error.result);
-            }
-          } catch {
-            // Ignore extraction errors
-          }
-
-          if (
-            isCreditDeductionEnabled() &&
-            errorTokenUsage &&
-            (errorTokenUsage.promptTokens > 0 ||
-              errorTokenUsage.completionTokens > 0)
-          ) {
-            // We have token usage - adjust reservation
-            // Best effort cleanup - don't mask original error
-            try {
-              await adjustCreditReservation(
-                context.db,
-                context.reservationId,
-                context.workspaceId,
-                "google",
-                context.finalModelName,
-                errorTokenUsage,
-                3,
-                context.usesByok
-              );
-            } catch (cleanupError) {
-              // Log cleanup failure but don't mask original error
-              console.error(
-                "[Stream Handler] Error adjusting reservation during error cleanup:",
-                {
-                  reservationId: context.reservationId,
-                  workspaceId: context.workspaceId,
-                  originalError:
-                    error instanceof Error ? error.message : String(error),
-                  cleanupError:
-                    cleanupError instanceof Error
-                      ? cleanupError.message
-                      : String(cleanupError),
-                }
-              );
-              // Report cleanup failure to Sentry but continue to re-throw original error
-              Sentry.captureException(
-                cleanupError instanceof Error
-                  ? cleanupError
-                  : new Error(String(cleanupError)),
-                {
-                  tags: {
-                    context: "error_cleanup",
-                    operation: "adjustCreditReservation",
-                  },
-                  extra: {
-                    reservationId: context.reservationId,
-                    workspaceId: context.workspaceId,
-                    originalError:
-                      error instanceof Error ? error.message : String(error),
-                  },
-                }
-              );
-            }
-          } else {
-            // No token usage available - assume reserved credits were consumed
-            console.warn(
-              "[Stream Handler] Model error without token usage, assuming reserved credits consumed:",
-              {
-                workspaceId: context.workspaceId,
-                reservationId: context.reservationId,
-                error: error instanceof Error ? error.message : String(error),
-              }
-            );
-            // Delete reservation without refund
-            // Best effort cleanup - don't mask original error
-            try {
-              const reservationPk = `credit-reservations/${context.reservationId}`;
-              await context.db["credit-reservations"].delete(reservationPk);
-            } catch (cleanupError) {
-              // Log cleanup failure but don't mask original error
-              console.error(
-                "[Stream Handler] Error deleting reservation during error cleanup:",
-                {
-                  reservationId: context.reservationId,
-                  workspaceId: context.workspaceId,
-                  originalError:
-                    error instanceof Error ? error.message : String(error),
-                  cleanupError:
-                    cleanupError instanceof Error
-                      ? cleanupError.message
-                      : String(cleanupError),
-                }
-              );
-              // Report cleanup failure to Sentry but continue to re-throw original error
-              Sentry.captureException(
-                cleanupError instanceof Error
-                  ? cleanupError
-                  : new Error(String(cleanupError)),
-                {
-                  tags: {
-                    context: "error_cleanup",
-                    operation: "deleteReservation",
-                  },
-                  extra: {
-                    reservationId: context.reservationId,
-                    workspaceId: context.workspaceId,
-                    originalError:
-                      error instanceof Error ? error.message : String(error),
-                  },
-                }
-              );
-            }
-          }
-        }
+        await cleanupReservationOnError(
+          context.db,
+          context.reservationId,
+          context.workspaceId,
+          context.agentId,
+          "openrouter",
+          context.finalModelName,
+          error,
+          llmCallAttempted,
+          context.usesByok,
+          "stream"
+        );
       }
 
       // Re-throw error to be handled by error handler
@@ -1526,10 +1330,30 @@ const internalHandler = async (
     // streamText result properties are promises that need to be awaited
     // (same as test endpoint)
     // streamResult.text includes the complete final response including continuation responses after tool execution
-    const [responseText, usage] = await Promise.all([
-      Promise.resolve(streamResult.text).then((t) => t || ""),
-      Promise.resolve(streamResult.usage),
-    ]);
+    // These might throw NoOutputGeneratedError if there was an error during streaming
+    let responseText: string;
+    let usage: unknown;
+
+    try {
+      [responseText, usage] = await Promise.all([
+        Promise.resolve(streamResult.text).then((t) => t || ""),
+        Promise.resolve(streamResult.usage),
+      ]);
+    } catch (resultError) {
+      // Check if this is a BYOK authentication error
+      if (isByokAuthenticationError(resultError, context.usesByok)) {
+        const errorToLog = normalizeByokError(resultError);
+        await persistConversationError(context, errorToLog);
+        // Use writeErrorResponse which handles stream state properly
+        await writeErrorResponse(responseStream, new Error(
+          "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions."
+        ));
+        return;
+      }
+      // For non-authentication errors when accessing result properties, still log the conversation
+      await persistConversationError(context, resultError);
+      throw resultError;
+    }
 
     // Use responseText (complete final text) instead of fullStreamedText
     // responseText includes continuation responses after tool execution
@@ -1543,7 +1367,13 @@ const internalHandler = async (
       responseTextPreview: responseText?.substring(0, 100),
     });
 
-    const tokenUsage = extractTokenUsage({ ...streamResult, usage });
+    // Extract token usage, generation ID, and costs
+    const { tokenUsage } = extractTokenUsageAndCosts(
+      streamResult,
+      usage,
+      context.finalModelName,
+      "stream"
+    );
 
     // DIAGNOSTIC: Log token usage extraction
     console.log("[Stream Handler] Extracted token usage:", {
@@ -1610,7 +1440,9 @@ const internalHandler = async (
       tokenUsage,
       context.usesByok,
       context.finalModelName,
-      streamResult
+      streamResult,
+      context.awsRequestId,
+      generationTimeMs
     );
   } catch (error) {
     const boomed = boomify(error as Error);
@@ -1629,6 +1461,11 @@ const internalHandler = async (
       console.error("[Stream Handler] Client error:", boomed);
     }
 
+    // Normalize BYOK error if needed
+    const errorToLog = context ? normalizeByokError(error) : error;
+    if (context) {
+      await persistConversationError(context, errorToLog);
+    }
     try {
       await writeErrorResponse(responseStream, error);
       responseStream.end();

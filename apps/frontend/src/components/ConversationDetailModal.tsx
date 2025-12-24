@@ -48,14 +48,25 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
           if (typeof item === "string") return item;
           if (typeof item === "object" && item !== null) {
             if ("type" in item && item.type === "tool-call") {
+              const toolCall = item as {
+                toolName?: string;
+                toolCallStartedAt?: string;
+              };
               return `[Tool Call: ${
-                (item as { toolName?: string }).toolName || "unknown"
+                toolCall.toolName || "unknown"
               }]`;
             }
             if ("type" in item && item.type === "tool-result") {
-              return `[Tool Result: ${
-                (item as { toolName?: string }).toolName || "unknown"
-              }]`;
+              const toolResult = item as {
+                toolName?: string;
+                toolExecutionTimeMs?: number;
+              };
+              const toolName = toolResult.toolName || "unknown";
+              const execTime =
+                toolResult.toolExecutionTimeMs !== undefined
+                  ? ` (${(toolResult.toolExecutionTimeMs / 1000).toFixed(2)}s)`
+                  : "";
+              return `[Tool Result: ${toolName}${execTime}]`;
             }
             if ("text" in item && typeof item.text === "string") {
               return item.text;
@@ -204,8 +215,71 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                 </div>
               </div>
             )}
+            {conversationDetail.totalGenerationTimeMs !== undefined && (
+              <div>
+                <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
+                  Total Generation Time
+                </div>
+                <div className="text-neutral-900 dark:text-neutral-50">
+                  {(conversationDetail.totalGenerationTimeMs / 1000).toFixed(2)}s
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Error Details */}
+        {conversationDetail.error && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm font-semibold text-red-800 dark:text-red-100">
+                Provider Error
+              </div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-red-700 dark:text-red-200">
+                {conversationDetail.error.endpoint || "conversation"}
+              </div>
+            </div>
+            <div className="space-y-2 text-xs text-red-900 dark:text-red-100">
+              <div>
+                <span className="font-semibold">Message: </span>
+                <span className="break-words">{conversationDetail.error.message}</span>
+              </div>
+              {conversationDetail.error.name && (
+                <div>
+                  <span className="font-semibold">Name: </span>
+                  {conversationDetail.error.name}
+                </div>
+              )}
+              {conversationDetail.error.code && (
+                <div>
+                  <span className="font-semibold">Code: </span>
+                  {conversationDetail.error.code}
+                </div>
+              )}
+              {conversationDetail.error.statusCode !== undefined && (
+                <div>
+                  <span className="font-semibold">Status: </span>
+                  {conversationDetail.error.statusCode}
+                </div>
+              )}
+              {(conversationDetail.error.provider || conversationDetail.error.modelName) && (
+                <div>
+                  <span className="font-semibold">Provider/Model: </span>
+                  {conversationDetail.error.provider || "unknown"}
+                  {conversationDetail.error.modelName ? ` / ${conversationDetail.error.modelName}` : ""}
+                </div>
+              )}
+              {conversationDetail.error.stack && (
+                <div>
+                  <div className="font-semibold">Stack Trace</div>
+                  <pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap rounded-md bg-black bg-opacity-5 p-3 font-mono text-[11px] text-red-900 dark:bg-white dark:bg-opacity-10 dark:text-red-100">
+                    {conversationDetail.error.stack}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Toggle Raw JSON */}
         <div className="mb-4">
@@ -271,6 +345,17 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                           typeof message.finalCostUsd === "number"
                             ? message.finalCostUsd
                             : null;
+                        const awsRequestId =
+                          "awsRequestId" in message &&
+                          typeof message.awsRequestId === "string"
+                            ? message.awsRequestId
+                            : null;
+                        const generationTimeMs =
+                          role === "assistant" &&
+                          "generationTimeMs" in message &&
+                          typeof message.generationTimeMs === "number"
+                            ? message.generationTimeMs
+                            : null;
                         return (
                           <div
                             key={index}
@@ -313,8 +398,28 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                     {formatCurrency(finalCostUsd, "usd", 10)}
                                   </div>
                                 )}
+                                {generationTimeMs !== null && (
+                                  <div className="rounded bg-indigo-100 px-2 py-1 text-xs font-medium text-indigo-800 opacity-70 dark:bg-indigo-900 dark:text-indigo-200">
+                                    {(generationTimeMs / 1000).toFixed(2)}s
+                                  </div>
+                                )}
                               </div>
                             </div>
+                            {awsRequestId && (
+                              <div className="mb-2 flex items-center gap-1">
+                                <span className="text-xs font-medium opacity-60 dark:opacity-70">
+                                  Request ID:
+                                </span>
+                                <span
+                                  className="rounded bg-purple-100 px-1.5 py-0.5 font-mono text-xs text-purple-800 opacity-80 dark:bg-purple-900 dark:text-purple-200"
+                                  title={`AWS Request ID: ${awsRequestId}`}
+                                >
+                                  {awsRequestId.length > 20
+                                    ? `${awsRequestId.substring(0, 20)}...`
+                                    : awsRequestId}
+                                </span>
+                              </div>
+                            )}
                             <div className="text-sm">
                               {role === "user" ? (
                                 <div className="whitespace-pre-wrap">

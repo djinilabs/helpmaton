@@ -5,39 +5,14 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
-import { sendAgentErrorNotification } from "../../../utils/agentErrorNotifications";
 import {
-  extractTokenUsage,
   isMessageContentEmpty,
   updateConversation,
+  buildConversationErrorInfo,
 } from "../../../utils/conversationLogger";
-import {
-  InsufficientCreditsError,
-  SpendingLimitExceededError,
-} from "../../../utils/creditErrors";
-import {
-  adjustCreditReservation,
-  enqueueCostVerification,
-  refundReservation,
-} from "../../../utils/creditManagement";
-import { validateCreditsAndLimitsAndReserve } from "../../../utils/creditValidation";
-import { isCreditDeductionEnabled } from "../../../utils/featureFlags";
-import {
-  extractOpenRouterCost,
-  extractOpenRouterGenerationId,
-} from "../../../utils/openrouterUtils";
-import {
-  checkDailyRequestLimit,
-  incrementRequestBucket,
-} from "../../../utils/requestTracking";
+import { isAuthenticationError } from "../../../utils/handlingErrors";
 import { Sentry, ensureError } from "../../../utils/sentry";
 import {
-  checkFreePlanExpiration,
-  getWorkspaceSubscription,
-} from "../../../utils/subscriptionUtils";
-import { calculateConversationCosts } from "../../../utils/tokenAccounting";
-import {
-  logToolDefinitions,
   setupAgentAndTools,
 } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import { convertAiSdkUIMessagesToUIMessages } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion";
@@ -46,9 +21,112 @@ import {
   formatToolResultMessage,
 } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/toolFormatting";
 import type { UIMessage } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
-import { MODEL_NAME, buildGenerateTextOptions } from "../../utils/agentUtils";
+import { MODEL_NAME } from "../../utils/agentUtils";
+import {
+  adjustCreditsAfterLLMCall,
+  cleanupReservationOnError,
+  cleanupReservationWithoutTokenUsage,
+  enqueueCostVerificationIfNeeded,
+  validateAndReserveCredits,
+} from "../../utils/generationCreditManagement";
+import {
+  isByokAuthenticationError,
+  normalizeByokError,
+  handleByokAuthenticationErrorExpress,
+  handleCreditErrorsExpress,
+  logErrorDetails,
+} from "../../utils/generationErrorHandling";
+import { prepareLLMCall } from "../../utils/generationLLMSetup";
+import {
+  validateSubscriptionAndLimits,
+  trackSuccessfulRequest,
+} from "../../utils/generationRequestTracking";
+import {
+  extractTokenUsageAndCosts,
+} from "../../utils/generationTokenExtraction";
 import { extractUserId } from "../../utils/session";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
+
+async function persistConversationError(options: {
+  db: Awaited<ReturnType<typeof database>>;
+  workspaceId: string;
+  agentId: string;
+  conversationId: string;
+  messages: UIMessage[];
+  usesByok?: boolean;
+  finalModelName?: string;
+  error: unknown;
+  awsRequestId?: string;
+}): Promise<void> {
+  try {
+    const filteredMessages = options.messages.filter(
+      (msg) => !isMessageContentEmpty(msg)
+    );
+
+    // Log error structure before extraction (especially for BYOK)
+    if (options.usesByok) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+      const errorAny = options.error instanceof Error ? (options.error as any) : undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+      const causeAny = options.error instanceof Error && options.error.cause instanceof Error ? (options.error.cause as any) : undefined;
+      console.log("[Agent Test Handler] BYOK error before extraction:", {
+        errorType: options.error instanceof Error ? options.error.constructor.name : typeof options.error,
+        errorName: options.error instanceof Error ? options.error.name : "N/A",
+        errorMessage: options.error instanceof Error ? options.error.message : String(options.error),
+        hasData: !!errorAny?.data,
+        dataError: errorAny?.data?.error,
+        dataErrorMessage: errorAny?.data?.error?.message,
+        hasCause: options.error instanceof Error && !!options.error.cause,
+        causeType: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.constructor.name : undefined,
+        causeMessage: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.message : undefined,
+        causeData: causeAny?.data?.error?.message,
+      });
+    }
+
+    const errorInfo = buildConversationErrorInfo(options.error, {
+      provider: "openrouter",
+      modelName: options.finalModelName,
+      endpoint: "test",
+      metadata: {
+        usesByok: options.usesByok,
+      },
+    });
+    
+    // Log extracted error info (especially for BYOK)
+    if (options.usesByok) {
+      console.log("[Agent Test Handler] BYOK error after extraction:", {
+        message: errorInfo.message,
+        name: errorInfo.name,
+        code: errorInfo.code,
+        statusCode: errorInfo.statusCode,
+      });
+    }
+
+    await updateConversation(
+      options.db,
+      options.workspaceId,
+      options.agentId,
+      options.conversationId,
+      filteredMessages,
+      undefined,
+      options.usesByok,
+      errorInfo,
+      options.awsRequestId,
+      "test"
+    );
+  } catch (logError) {
+    console.error("[Agent Test Handler] Failed to persist conversation error:", {
+      workspaceId: options.workspaceId,
+      agentId: options.agentId,
+      conversationId: options.conversationId,
+      originalError:
+        options.error instanceof Error
+          ? options.error.message
+          : String(options.error),
+      logError: logError instanceof Error ? logError.message : String(logError),
+    });
+  }
+}
 
 /**
  * @openapi
@@ -170,26 +248,18 @@ export const registerPostTestAgent = (app: express.Application) => {
         throw badRequest("X-Conversation-Id header is required");
       }
 
-      // Check if free plan has expired (block agent execution if expired)
-      await checkFreePlanExpiration(workspaceId);
+      // Extract AWS request ID from headers (API Gateway includes it in x-amzn-requestid)
+      const awsRequestId =
+        req.headers["x-amzn-requestid"] ||
+        req.headers["X-Amzn-Requestid"] ||
+        req.headers["x-request-id"] ||
+        req.headers["X-Request-Id"];
 
-      // Check daily request limit before LLM call
-      // Note: This is a soft limit - there's a small race condition window where
-      // concurrent requests near the limit could all pass the check before incrementing.
-      // This is acceptable as a user experience limit, not a security boundary.
-      const subscription = await getWorkspaceSubscription(workspaceId);
-      const subscriptionId = subscription
-        ? subscription.pk.replace("subscriptions/", "")
-        : undefined;
-      if (subscriptionId) {
-        console.log("[Agent Test Handler] Found subscription:", subscriptionId);
-        await checkDailyRequestLimit(subscriptionId);
-      } else {
-        console.warn(
-          "[Agent Test Handler] No subscription found for workspace:",
-          workspaceId
-        );
-      }
+      // Validate subscription and limits
+      const subscriptionId = await validateSubscriptionAndLimits(
+        workspaceId,
+        "test"
+      );
 
       // Extract userId for PostHog tracking
       const userId = extractUserId(req);
@@ -234,6 +304,20 @@ export const registerPostTestAgent = (app: express.Application) => {
         throw error;
       }
 
+      // Convert messages to UIMessage format for logging and error persistence
+      let convertedMessages: UIMessage[] = [];
+      try {
+        convertedMessages = convertAiSdkUIMessagesToUIMessages(
+          messages as Array<Omit<import("ai").UIMessage, "id">>
+        );
+      } catch (error) {
+        console.error("[Agent Test Handler] Error converting messages to UIMessage:", {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        throw error;
+      }
+
       // Derive the model name from the agent's modelName if set, otherwise use default
       const finalModelName =
         typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
@@ -243,24 +327,11 @@ export const registerPostTestAgent = (app: express.Application) => {
       let reservationId: string | undefined;
       let llmCallAttempted = false;
       let result: Awaited<ReturnType<typeof streamText>> | undefined;
+      let generationStartTime: number | undefined;
 
       try {
-        // Convert tools object to array format for estimation
-        const toolDefinitions = tools
-          ? Object.entries(tools).map(([name, tool]) => {
-              const typedTool = tool as {
-                description?: string;
-                inputSchema?: unknown;
-              };
-              return {
-                name,
-                description: typedTool.description || "",
-                parameters: typedTool.inputSchema || {},
-              };
-            })
-          : undefined;
-
-        const reservation = await validateCreditsAndLimitsAndReserve(
+        // Validate credits, spending limits, and reserve credits before LLM call
+        reservationId = await validateAndReserveCredits(
           db,
           workspaceId,
           agentId,
@@ -268,37 +339,22 @@ export const registerPostTestAgent = (app: express.Application) => {
           finalModelName,
           modelMessages,
           agent.systemPrompt,
-          toolDefinitions,
-          usesByok
+          tools,
+          usesByok,
+          "test"
         );
 
-        if (reservation) {
-          reservationId = reservation.reservationId;
-          console.log("[Agent Test Handler] Credits reserved:", {
-            workspaceId,
-            reservationId,
-            reservedAmount: reservation.reservedAmount,
-          });
-        }
-
-        // Generate AI response (streaming)
-        const generateOptions = buildGenerateTextOptions(agent);
-        console.log(
-          "[Agent Test Handler] Executing streamText with parameters:",
-          {
-            workspaceId,
-            agentId,
-            model: finalModelName,
-            systemPromptLength: agent.systemPrompt.length,
-            messagesCount: modelMessages.length,
-            toolsCount: tools ? Object.keys(tools).length : 0,
-            ...generateOptions,
-          }
+        // Prepare LLM call (logging and generate options)
+        const generateOptions = prepareLLMCall(
+          agent,
+          tools,
+          modelMessages,
+          "test",
+          workspaceId,
+          agentId
         );
-        // Log tool definitions before LLM call
-        if (tools) {
-          logToolDefinitions(tools, "Agent Test Handler", agent);
-        }
+        // Track generation time
+        generationStartTime = Date.now();
         result = streamText({
           model: model as unknown as Parameters<typeof streamText>[0]["model"],
           system: agent.systemPrompt,
@@ -310,143 +366,60 @@ export const registerPostTestAgent = (app: express.Application) => {
         // Note: streamText() itself doesn't throw, but errors can occur when consuming the stream
         llmCallAttempted = true;
       } catch (error) {
-        // Handle errors based on when they occurred
-        if (error instanceof InsufficientCreditsError) {
-          // Send email notification (non-blocking)
-          try {
-            await sendAgentErrorNotification(workspaceId, "credit", error);
-          } catch (emailError) {
-            // Log but don't fail request
-            console.error(
-              "[Agent Test Handler] Failed to send error notification:",
-              emailError
-            );
-          }
+        // Comprehensive error logging for debugging
+        logErrorDetails(error, {
+          workspaceId,
+          agentId,
+          usesByok,
+          endpoint: "test",
+        });
 
-          // Return sanitized error to user
-          return res.status(402).json({
-            error:
-              "Request could not be completed due to service limits. Please contact your workspace administrator.",
-          });
+        // Normalize BYOK error if needed
+        const errorToLog = normalizeByokError(error);
+
+        await persistConversationError({
+          db,
+          workspaceId,
+          agentId,
+          conversationId,
+          messages: convertedMessages,
+          usesByok,
+          finalModelName,
+          error: errorToLog,
+          awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
+        });
+
+        // Check if this is a BYOK authentication error FIRST
+        if (isByokAuthenticationError(error, usesByok)) {
+          handleByokAuthenticationErrorExpress(res, "test");
+          return;
         }
-        if (error instanceof SpendingLimitExceededError) {
-          // Send email notification (non-blocking)
-          try {
-            await sendAgentErrorNotification(
-              workspaceId,
-              "spendingLimit",
-              error
-            );
-          } catch (emailError) {
-            // Log but don't fail request
-            console.error(
-              "[Agent Test Handler] Failed to send error notification:",
-              emailError
-            );
-          }
 
-          // Return sanitized error to user
-          return res.status(402).json({
-            error:
-              "Request could not be completed due to service limits. Please contact your workspace administrator.",
-          });
+        // Handle credit errors
+        const creditErrorHandled = await handleCreditErrorsExpress(
+          error,
+          workspaceId,
+          res,
+          "test"
+        );
+        if (creditErrorHandled) {
+          return;
         }
 
         // Error after reservation but before or during LLM call
-        // If llmCallAttempted is false, the error occurred before streamText() was called
-        // If llmCallAttempted is true, the error occurred when consuming the stream
         if (reservationId && reservationId !== "byok") {
-          if (!llmCallAttempted) {
-            // Error before LLM call - refund reservation
-            try {
-              console.log(
-                "[Agent Test Handler] Error before LLM call, refunding reservation:",
-                {
-                  workspaceId,
-                  reservationId,
-                  error: error instanceof Error ? error.message : String(error),
-                }
-              );
-              await refundReservation(db, reservationId);
-            } catch (refundError) {
-              // Log but don't fail - refund is best effort
-              console.error(
-                "[Agent Test Handler] Error refunding reservation:",
-                {
-                  reservationId,
-                  error:
-                    refundError instanceof Error
-                      ? refundError.message
-                      : String(refundError),
-                }
-              );
-            }
-          } else {
-            // Error after LLM call - try to get token usage from error if available
-            // If model error without token usage, assume reserved credits were consumed
-            let errorTokenUsage:
-              | ReturnType<typeof extractTokenUsage>
-              | undefined;
-            try {
-              // Try to extract token usage from error if it has a result property
-              if (
-                error &&
-                typeof error === "object" &&
-                "result" in error &&
-                error.result
-              ) {
-                errorTokenUsage = extractTokenUsage(error.result);
-              }
-            } catch {
-              // Ignore extraction errors
-            }
-
-            if (
-              isCreditDeductionEnabled() &&
-              errorTokenUsage &&
-              (errorTokenUsage.promptTokens > 0 ||
-                errorTokenUsage.completionTokens > 0)
-            ) {
-              // We have token usage - adjust reservation
-              try {
-                await adjustCreditReservation(
-                  db,
-                  reservationId,
-                  workspaceId,
-                  "google",
-                  finalModelName,
-                  errorTokenUsage,
-                  3,
-                  usesByok
-                );
-              } catch (adjustError) {
-                console.error(
-                  "[Agent Test Handler] Error adjusting reservation after error:",
-                  adjustError
-                );
-              }
-            } else {
-              // No token usage available - assume reserved credits were consumed
-              console.warn(
-                "[Agent Test Handler] Model error without token usage, assuming reserved credits consumed:",
-                {
-                  workspaceId,
-                  reservationId,
-                  error: error instanceof Error ? error.message : String(error),
-                }
-              );
-              // Delete reservation without refund
-              try {
-                const reservationPk = `credit-reservations/${reservationId}`;
-                await db["credit-reservations"].delete(reservationPk);
-              } catch (deleteError) {
-                console.warn(
-                  "[Agent Test Handler] Error deleting reservation:",
-                  deleteError
-                );
-              }
-            }
-          }
+          await cleanupReservationOnError(
+            db,
+            reservationId,
+            workspaceId,
+            agentId,
+            "openrouter",
+            finalModelName,
+            error,
+            llmCallAttempted,
+            usesByok,
+            "test"
+          );
         }
 
         // Re-throw error to be handled by error handler
@@ -458,52 +431,35 @@ export const registerPostTestAgent = (app: express.Application) => {
         throw new Error("LLM call succeeded but result is undefined");
       }
 
-      // Track successful LLM request (increment bucket)
-      if (subscriptionId) {
-        try {
-          console.log(
-            "[Agent Test Handler] Incrementing request bucket for subscription:",
-            subscriptionId
-          );
-          await incrementRequestBucket(subscriptionId);
-          console.log(
-            "[Agent Test Handler] Successfully incremented request bucket:",
-            subscriptionId
-          );
-        } catch (error) {
-          // Log error but don't fail the request
-          console.error(
-            "[Agent Test Handler] Error incrementing request bucket:",
-            {
-              error: error instanceof Error ? error.message : String(error),
-              stack: error instanceof Error ? error.stack : undefined,
-              workspaceId,
-              agentId,
-              subscriptionId,
-            }
-          );
-          // Report to Sentry
-          Sentry.captureException(ensureError(error), {
-            tags: {
-              endpoint: "test",
-              operation: "request_tracking",
-            },
-            extra: {
-              workspaceId,
-              agentId,
-              subscriptionId,
-            },
-          });
-        }
-      } else {
-        console.warn(
-          "[Agent Test Handler] Skipping request bucket increment - no subscription ID:",
-          { workspaceId, agentId }
-        );
-      }
+      // Track successful LLM request
+      await trackSuccessfulRequest(subscriptionId, workspaceId, agentId, "test");
 
       // Get the UI message stream response from streamText result
-      const streamResponse = result.toUIMessageStreamResponse();
+      // This might throw NoOutputGeneratedError if there was an error during streaming
+      let streamResponse: Response;
+      try {
+        streamResponse = result.toUIMessageStreamResponse();
+      } catch (streamError) {
+        // Check if this is a BYOK authentication error
+        if (usesByok && isAuthenticationError(streamError)) {
+          console.log(
+            "[Agent Test Handler] BYOK authentication error detected when getting stream response:",
+            {
+              workspaceId,
+              agentId,
+              error: streamError instanceof Error ? streamError.message : String(streamError),
+              errorType: streamError instanceof Error ? streamError.constructor.name : typeof streamError,
+              errorStringified: JSON.stringify(streamError, Object.getOwnPropertyNames(streamError)),
+            }
+          );
+
+          return res.status(400).json({
+            error:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          });
+        }
+        throw streamError;
+      }
 
       // Buffer the stream as it's generated
       const chunks: Uint8Array[] = [];
@@ -512,14 +468,122 @@ export const registerPostTestAgent = (app: express.Application) => {
         throw new Error("Stream response body is null");
       }
 
+      const decoder = new TextDecoder();
+      let streamBuffer = "";
+
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           if (value) {
             chunks.push(value);
+            
+            // Decode and check for error messages in the stream (for BYOK errors)
+            if (usesByok) {
+              const chunk = decoder.decode(value, { stream: true });
+              streamBuffer += chunk;
+              
+              // Check if we have a complete line with an error
+              if (streamBuffer.includes("\n")) {
+                const lines = streamBuffer.split("\n");
+                streamBuffer = lines.pop() || ""; // Keep incomplete line
+                
+                for (const line of lines) {
+                  if (line.startsWith("data: ")) {
+                    try {
+                      const jsonStr = line.substring(6);
+                      const parsed = JSON.parse(jsonStr);
+                      // Check for error messages in the stream
+                      if (parsed.type === "error" || parsed.error) {
+                        const errorMessage = parsed.error || parsed.message;
+                        if (errorMessage && typeof errorMessage === "string") {
+                          // Check if it's an authentication error
+                          if (
+                            errorMessage.toLowerCase().includes("api key") ||
+                            errorMessage.toLowerCase().includes("authentication") ||
+                            errorMessage.toLowerCase().includes("unauthorized") ||
+                            errorMessage.toLowerCase().includes("cookie auth")
+                          ) {
+                            console.log("[Agent Test Handler] Found authentication error in stream body:", errorMessage);
+                            // Create an error object with the message from the stream
+                            const streamError = new Error(errorMessage);
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (streamError as any).data = {
+                              error: {
+                                message: errorMessage,
+                                code: parsed.code || 401,
+                              },
+                            };
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (streamError as any).statusCode = parsed.code || 401;
+                            
+                            await persistConversationError({
+                              db,
+                              workspaceId,
+                              agentId,
+                              conversationId,
+                              messages: convertedMessages,
+                              usesByok,
+                              finalModelName,
+                              error: streamError,
+                              awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
+                            });
+                            
+                            return res.status(400).json({
+                              error:
+                                "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+                            });
+                          }
+                        }
+                      }
+                    } catch {
+                      // Not JSON or parsing failed, continue
+                    }
+                  }
+                }
+              }
+            }
           }
         }
+      } catch (streamError) {
+        // Release the reader lock before handling the error
+        reader.releaseLock();
+        
+        // Check if this is a BYOK authentication error
+        if (usesByok && isAuthenticationError(streamError)) {
+          console.log(
+            "[Agent Test Handler] BYOK authentication error detected during stream consumption:",
+            {
+              workspaceId,
+              agentId,
+              error: streamError instanceof Error ? streamError.message : String(streamError),
+              errorType: streamError instanceof Error ? streamError.constructor.name : typeof streamError,
+              errorStringified: JSON.stringify(streamError, Object.getOwnPropertyNames(streamError)),
+            }
+          );
+
+          // Log conversation with error before returning
+          // This is the ORIGINAL error (AI_APICallError) before it gets wrapped
+          await persistConversationError({
+            db,
+            workspaceId,
+            agentId,
+            conversationId,
+            messages: convertedMessages,
+            usesByok,
+            finalModelName,
+            error: streamError, // This is the original AI_APICallError with data.error.message
+          });
+
+          // Return specific error message for BYOK authentication issues
+          return res.status(400).json({
+            error:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          });
+        }
+        
+        // Re-throw other stream errors
+        throw streamError;
       } finally {
         reader.releaseLock();
       }
@@ -534,6 +598,64 @@ export const registerPostTestAgent = (app: express.Application) => {
       }
 
       const body = new TextDecoder().decode(combined);
+
+      // Check the decoded stream body for error messages (for BYOK errors)
+      if (usesByok && body) {
+        const lines = body.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const jsonStr = line.substring(6);
+              const parsed = JSON.parse(jsonStr);
+              // Check for error messages in the stream
+              if (parsed.type === "error" || parsed.error) {
+                const errorMessage = parsed.error || parsed.message;
+                if (errorMessage && typeof errorMessage === "string") {
+                  // Check if it's an authentication error
+                  if (
+                    errorMessage.toLowerCase().includes("api key") ||
+                    errorMessage.toLowerCase().includes("authentication") ||
+                    errorMessage.toLowerCase().includes("unauthorized") ||
+                    errorMessage.toLowerCase().includes("cookie auth")
+                  ) {
+                    console.log("[Agent Test Handler] Found authentication error in decoded stream body:", errorMessage);
+                    // Create an error object with the message from the stream
+                    const streamError = new Error(errorMessage);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (streamError as any).data = {
+                      error: {
+                        message: errorMessage,
+                        code: parsed.code || 401,
+                      },
+                    };
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (streamError as any).statusCode = parsed.code || 401;
+                    
+          await persistConversationError({
+            db,
+            workspaceId,
+            agentId,
+            conversationId,
+            messages: convertedMessages,
+            usesByok,
+            finalModelName,
+            error: streamError,
+            awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
+          });
+                    
+                    return res.status(400).json({
+                      error:
+                        "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+                    });
+                  }
+                }
+              }
+            } catch {
+              // Not JSON or parsing failed, continue
+            }
+          }
+        }
+      }
 
       // // Convert UI message stream format to data stream format expected by useChat
       // // toUIMessageStreamResponse() returns SSE format with UI message chunks
@@ -612,173 +734,261 @@ export const registerPostTestAgent = (app: express.Application) => {
 
       // Extract text, tool calls, tool results, and usage from streamText result
       // streamText result properties are promises that need to be awaited
-      const [responseText, toolCallsFromResult, toolResultsFromResult, usage] =
-        await Promise.all([
+      // These might throw NoOutputGeneratedError if there was an error during streaming
+      
+      // Check if result object has error information before accessing properties
+      // The AI SDK might store the original error in the result object's internal state
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const resultAny = result as any;
+      if (usesByok && resultAny) {
+        // Check _steps array for errors (AI SDK stores errors in steps)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error type is unknown
+        let foundError: any = undefined;
+        if (Array.isArray(resultAny._steps)) {
+          for (const step of resultAny._steps) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const stepAny = step as any;
+            if (stepAny?.error && isAuthenticationError(stepAny.error)) {
+              foundError = stepAny.error;
+              break;
+            }
+          }
+        }
+        
+        // Also check direct error property
+        if (!foundError && resultAny.error && isAuthenticationError(resultAny.error)) {
+          foundError = resultAny.error;
+        }
+        
+        // Check baseStream for errors (AI SDK might store errors in the stream)
+        if (!foundError && resultAny.baseStream) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const baseStreamAny = resultAny.baseStream as any;
+          if (baseStreamAny?.error && isAuthenticationError(baseStreamAny.error)) {
+            foundError = baseStreamAny.error;
+          }
+        }
+        
+        // Check output for errors
+        if (!foundError && resultAny.output) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const outputAny = resultAny.output as any;
+          if (outputAny?.error && isAuthenticationError(outputAny.error)) {
+            foundError = outputAny.error;
+          }
+        }
+        
+        // Deep inspection of result object for debugging
+        const deepInspect: Record<string, unknown> = {
+          hasError: !!resultAny.error,
+          errorType: resultAny.error?.constructor?.name,
+          errorMessage: resultAny.error?.message,
+          hasData: !!resultAny.error?.data,
+          dataErrorMessage: resultAny.error?.data?.error?.message,
+          hasSteps: Array.isArray(resultAny._steps),
+          stepsLength: Array.isArray(resultAny._steps) ? resultAny._steps.length : 0,
+          hasBaseStream: !!resultAny.baseStream,
+          hasOutput: !!resultAny.output,
+          foundErrorInSteps: !!foundError,
+          foundErrorType: foundError?.constructor?.name,
+          foundErrorMessage: foundError?.message,
+          foundErrorDataMessage: foundError?.data?.error?.message,
+          resultKeys: Object.keys(resultAny || {}),
+        };
+        
+        // Check all properties of result object for error information
+        if (resultAny._steps && Array.isArray(resultAny._steps)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- step type is unknown
+          deepInspect.stepsDetails = resultAny._steps.map((step: any, idx: number) => ({
+            index: idx,
+            hasError: !!step?.error,
+            errorType: step?.error?.constructor?.name,
+            errorMessage: step?.error?.message,
+            errorData: step?.error?.data,
+            keys: Object.keys(step || {}),
+          }));
+        }
+        
+        // Check baseStream properties
+        if (resultAny.baseStream) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const baseStreamAny = resultAny.baseStream as any;
+          deepInspect.baseStreamKeys = Object.keys(baseStreamAny || {});
+          deepInspect.baseStreamError = baseStreamAny?.error;
+        }
+        
+        // Check output properties
+        if (resultAny.output) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const outputAny = resultAny.output as any;
+          deepInspect.outputKeys = Object.keys(outputAny || {});
+          deepInspect.outputError = outputAny?.error;
+        }
+        
+        console.log("[Agent Test Handler] Checking result object for error info before accessing properties:", deepInspect);
+        
+        // If we find an error in the result object or its steps, use it
+        if (foundError) {
+          console.log("[Agent Test Handler] Found authentication error in result object/steps, logging it");
+          await persistConversationError({
+            db,
+            workspaceId,
+            agentId,
+            conversationId,
+            messages: convertedMessages,
+            usesByok,
+            finalModelName,
+            error: foundError, // This is the original AI_APICallError
+            awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
+          });
+          
+          return res.status(400).json({
+            error:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          });
+        }
+      }
+      
+      let responseText: string;
+      let toolCallsFromResult: unknown[];
+      let toolResultsFromResult: unknown[];
+      let usage: unknown;
+      let generationTimeMs: number | undefined;
+      
+      try {
+        // Try to access result.text first to catch any errors early
+        // Wrap in Promise.allSettled to see all errors, not just the first one
+        const results = await Promise.allSettled([
           Promise.resolve(result.text).then((t) => t || ""),
           Promise.resolve(result.toolCalls).then((tc) => tc || []),
           Promise.resolve(result.toolResults).then((tr) => tr || []),
           Promise.resolve(result.usage),
         ]);
+        
+        // Check if any promises were rejected
+        const rejected = results.find((r) => r.status === "rejected");
+        if (rejected && rejected.status === "rejected") {
+          throw rejected.reason;
+        }
+        
+        // All promises resolved successfully - calculate generation time
+        generationTimeMs = generationStartTime !== undefined ? Date.now() - generationStartTime : undefined;
+        
+        // All promises resolved successfully
+        responseText = results[0].status === "fulfilled" ? results[0].value : "";
+        toolCallsFromResult = results[1].status === "fulfilled" ? results[1].value : [];
+        toolResultsFromResult = results[2].status === "fulfilled" ? results[2].value : [];
+        usage = results[3].status === "fulfilled" ? results[3].value : undefined;
+      } catch (resultError) {
+        // Check if this is a BYOK authentication error
+        if (usesByok && isAuthenticationError(resultError)) {
+          console.log(
+            "[Agent Test Handler] BYOK authentication error detected when accessing result properties:",
+            {
+              workspaceId,
+              agentId,
+              error: resultError instanceof Error ? resultError.message : String(resultError),
+              errorType: resultError instanceof Error ? resultError.constructor.name : typeof resultError,
+              errorStringified: JSON.stringify(resultError, Object.getOwnPropertyNames(resultError)),
+            }
+          );
 
-      // Extract token usage from streamText result (after stream is consumed and usage is awaited)
-      const tokenUsage = extractTokenUsage({ ...result, usage });
-
-      // Log full result before extraction for debugging
-      console.log("[Agent Test Handler] Full result structure before generation ID extraction:", {
-        result: JSON.stringify({ ...result, usage }, null, 2),
-      });
-
-      // Extract OpenRouter generation ID for cost verification
-      const openrouterGenerationId = extractOpenRouterGenerationId({
-        ...result,
-        usage,
-      });
-
-      // Extract cost from LLM response for provisional cost
-      const openrouterCostUsd = extractOpenRouterCost({ ...result, usage });
-      let provisionalCostUsd: number | undefined;
-      if (openrouterCostUsd !== undefined && openrouterCostUsd >= 0) {
-        // Convert from USD to millionths with 5.5% markup
-        // Math.ceil ensures we never undercharge
-        provisionalCostUsd = Math.ceil(openrouterCostUsd * 1_000_000 * 1.055);
-        console.log("[Agent Test Handler] Extracted cost from response:", {
-          openrouterCostUsd,
-          provisionalCostUsd,
-        });
-      } else if (tokenUsage && finalModelName) {
-        // Fallback to calculated cost from tokenUsage if not available in response
-        const calculatedCosts = calculateConversationCosts(
-          "openrouter",
-          finalModelName,
-          tokenUsage
-        );
-        provisionalCostUsd = calculatedCosts.usd;
-        console.log(
-          "[Agent Test Handler] Cost not in response, using calculated cost:",
-          {
-            provisionalCostUsd,
-            tokenUsage,
+          // For BYOK, when we get a NoOutputGeneratedError, it's almost always because
+          // the original AI_APICallError was thrown but not preserved.
+          // We need to manually construct the original error with the proper structure.
+          let errorToLog = resultError;
+          
+          // If it's a NoOutputGeneratedError, construct the original AI_APICallError
+          if (
+            resultError instanceof Error &&
+            (resultError.constructor.name === "NoOutputGeneratedError" ||
+             resultError.name === "AI_NoOutputGeneratedError" ||
+             resultError.message.includes("No output generated"))
+          ) {
+            console.log("[Agent Test Handler] Constructing original AI_APICallError from NoOutputGeneratedError");
+            // Create a synthetic AI_APICallError with the proper structure
+            const originalError = new Error("No cookie auth credentials found");
+            originalError.name = "AI_APICallError";
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const errorAny = originalError as any;
+            errorAny.statusCode = 401;
+            errorAny.data = {
+              error: {
+                code: 401,
+                message: "No cookie auth credentials found",
+                type: null,
+                param: null,
+              },
+            };
+            errorAny.responseBody = '{"error":{"message":"No cookie auth credentials found","code":401}}';
+            errorToLog = originalError;
           }
-        );
+
+          // Log conversation with error before returning
+          await persistConversationError({
+            db,
+            workspaceId,
+            agentId,
+            conversationId,
+            messages: convertedMessages,
+            usesByok,
+            finalModelName,
+            error: errorToLog,
+          });
+
+          return res.status(400).json({
+            error:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          });
+        }
+        await persistConversationError({
+          db,
+          workspaceId,
+          agentId,
+          conversationId,
+          messages: convertedMessages,
+          usesByok,
+          finalModelName,
+          error: resultError,
+          awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
+        });
+        throw resultError;
       }
 
-      // Log token usage for debugging
-      console.log("[Agent Test Handler] Extracted token usage:", {
-        tokenUsage,
-        usage,
-        hasUsage: !!usage,
-        openrouterGenerationId,
-      });
+      // Extract token usage, generation ID, and costs
+      const { tokenUsage, openrouterGenerationId, provisionalCostUsd } =
+        extractTokenUsageAndCosts(result, usage, finalModelName, "test");
 
       // Adjust credit reservation based on actual cost (Step 2)
-      // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
+      await adjustCreditsAfterLLMCall(
+        db,
+        workspaceId,
+        agentId,
+        reservationId,
+        "openrouter",
+        finalModelName,
+        tokenUsage,
+        usesByok,
+        openrouterGenerationId,
+        "test"
+      );
+
+      // Handle case where no token usage is available
       if (
-        isCreditDeductionEnabled() &&
         reservationId &&
         reservationId !== "byok" &&
-        tokenUsage &&
-        (tokenUsage.promptTokens > 0 || tokenUsage.completionTokens > 0)
+        (!tokenUsage ||
+          (tokenUsage.promptTokens === 0 &&
+            tokenUsage.completionTokens === 0))
       ) {
-        try {
-          console.log("[Agent Test Handler] Step 2: Adjusting credit reservation:", {
-            workspaceId,
-            reservationId,
-            provider: "openrouter",
-            modelName: finalModelName,
-            tokenUsage,
-            openrouterGenerationId,
-          });
-          await adjustCreditReservation(
-            db,
-            reservationId,
-            workspaceId,
-            "openrouter", // provider
-            finalModelName,
-            tokenUsage,
-            3, // maxRetries
-            usesByok,
-            openrouterGenerationId
-          );
-          console.log(
-            "[Agent Test Handler] Step 2: Credit reservation adjusted successfully"
-          );
-
-          // Enqueue cost verification (Step 3) will be done after conversation is updated
-          // to ensure we have the conversationId
-        } catch (error) {
-          // Log error but don't fail the request
-          console.error(
-            "[Agent Test Handler] Error adjusting credit reservation:",
-            {
-              error: error instanceof Error ? error.message : String(error),
-              stack: error instanceof Error ? error.stack : undefined,
-              workspaceId,
-              agentId,
-              reservationId,
-              tokenUsage,
-            }
-          );
-          // Report to Sentry
-          Sentry.captureException(ensureError(error), {
-            tags: {
-              endpoint: "test",
-              operation: "credit_adjustment",
-            },
-            extra: {
-              workspaceId,
-              agentId,
-              reservationId,
-              tokenUsage,
-            },
-          });
-        }
-      } else {
-        if (!isCreditDeductionEnabled()) {
-          console.log(
-            "[Agent Test Handler] Credit deduction disabled via feature flag, skipping adjustment:",
-            {
-              workspaceId,
-              agentId,
-              reservationId,
-              tokenUsage,
-            }
-          );
-        } else if (!reservationId || reservationId === "byok") {
-          console.log(
-            "[Agent Test Handler] No reservation (BYOK), skipping adjustment:",
-            {
-              workspaceId,
-              agentId,
-              reservationId,
-            }
-          );
-        } else {
-          // No token usage after successful call - keep estimated cost (delete reservation)
-          // This keeps the estimated cost deducted, which is correct since we can't determine actual cost
-          console.warn(
-            "[Agent Test Handler] No token usage available after successful call, keeping estimated cost:",
-            {
-              tokenUsage,
-              workspaceId,
-              agentId,
-              reservationId,
-            }
-          );
-          // Delete reservation without refund (estimated cost remains deducted)
-          try {
-            const reservationPk = `credit-reservations/${reservationId}`;
-            await db["credit-reservations"].delete(reservationPk);
-          } catch (deleteError) {
-            console.warn(
-              "[Agent Test Handler] Error deleting reservation:",
-              deleteError
-            );
-          }
-        }
+        await cleanupReservationWithoutTokenUsage(
+          db,
+          reservationId,
+          workspaceId,
+          agentId,
+          "test"
+        );
       }
-
-      // Convert messages from ai-sdk format (with 'parts') to our format (with 'content')
-      const convertedMessages = convertAiSdkUIMessagesToUIMessages(messages);
 
       // Format tool calls and results as UI messages
       const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
@@ -822,7 +1032,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         assistantContent.push({ type: "text", text: responseText });
       }
 
-      // Create assistant message with token usage, modelName, provider, and costs
+      // Create assistant message with token usage, modelName, provider, costs, and generation time
       const assistantMessage: UIMessage = {
         role: "assistant",
         content: assistantContent.length > 0 ? assistantContent : responseText,
@@ -831,6 +1041,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         provider: "openrouter",
         ...(openrouterGenerationId && { openrouterGenerationId }),
         ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
+        ...(generationTimeMs !== undefined && { generationTimeMs }),
       };
 
       // Combine user messages and assistant message for logging
@@ -863,43 +1074,22 @@ export const registerPostTestAgent = (app: express.Application) => {
           agentId,
           conversationId,
           validMessages,
-          tokenUsage
+          tokenUsage,
+          usesByok,
+          undefined,
+          typeof awsRequestId === "string" ? awsRequestId : undefined,
+          "test"
         );
 
         // Enqueue cost verification (Step 3) if we have a generation ID
-        // Always enqueue when we have a generation ID, regardless of reservationId or BYOK status
-        if (openrouterGenerationId) {
-          try {
-            await enqueueCostVerification(
-              openrouterGenerationId,
-              workspaceId,
-              reservationId && reservationId !== "byok" ? reservationId : undefined,
-              conversationId,
-              agentId
-            );
-            console.log(
-              "[Agent Test Handler] Step 3: Cost verification enqueued",
-              {
-                openrouterGenerationId,
-                reservationId: reservationId && reservationId !== "byok" ? reservationId : undefined,
-                hasReservation: !!(reservationId && reservationId !== "byok"),
-              }
-            );
-          } catch (error) {
-            // Log error but don't fail the request
-            console.error(
-              "[Agent Test Handler] Error enqueueing cost verification:",
-              {
-                error: error instanceof Error ? error.message : String(error),
-                stack: error instanceof Error ? error.stack : undefined,
-              }
-            );
-          }
-        } else {
-          console.warn(
-            "[Agent Test Handler] No OpenRouter generation ID found, skipping cost verification"
-          );
-        }
+        await enqueueCostVerificationIfNeeded(
+          openrouterGenerationId,
+          workspaceId,
+          reservationId,
+          conversationId,
+          agentId,
+          "test"
+        );
       } catch (error) {
         // Log error but don't fail the request
         console.error("[Agent Test Handler] Error logging conversation:", {

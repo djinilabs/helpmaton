@@ -2,7 +2,31 @@
 
 ## Current Status
 
-**Status**: OpenRouter Cost Verification and Credit Validation Logic Fixes - Completed ✅
+**Status**: Conversation Error Logging & UI Signals - Completed ✅
+
+**Changes Made**:
+- Added conversation-level error schema (message, stack, provider/model, endpoint, metadata) and serialization helpers.
+- Persist LLM/provider errors for stream/test/webhook endpoints even when calls fail; conversations now store errors alongside messages.
+- API responses expose error details and error flags; conversation list shows error badge, detail view shows full message/stack and metadata.
+- Updated Conversation types to include `hasError`, `error`, and stream conversation type.
+- Added unit tests for error persistence; typecheck and lint pass.
+
+**Files Modified**:
+- `apps/backend/src/utils/conversationLogger.ts` - Added error info builder, error persistence in start/update.
+- `apps/backend/src/tables/schema.ts` - Added `error` field to `agent-conversations` schema.
+- `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Persist errors on stream failures.
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-test-agent.ts` - Persist errors on test endpoint failures.
+- `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Persist errors on webhook failures.
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/get-agent-conversations.ts` - Include `hasError` flag.
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/get-agent-conversation.ts` - Return error details.
+- `apps/frontend/src/utils/api.ts` - Conversation types include error info/stream type.
+- `apps/frontend/src/components/ConversationList.tsx` - Error badge in list.
+- `apps/frontend/src/components/ConversationDetailModal.tsx` - Show error message/stack in detail.
+- `apps/backend/src/utils/__tests__/conversationLogger.test.ts` - Added error persistence tests.
+
+**Verification**: `pnpm typecheck`, `pnpm lint`
+
+**Previous Status**: OpenRouter Cost Verification and Credit Validation Logic Fixes - Completed ✅
 
 Fixed two critical issues in the cost verification and credit management system:
 

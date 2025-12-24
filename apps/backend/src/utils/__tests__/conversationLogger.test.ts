@@ -1212,4 +1212,85 @@ describe("conversationLogger", () => {
       expect(updated.costUsd).toBe(3000);
     });
   });
+
+  describe("error persistence", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let mockDb: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let mockWriteToWorkingMemory: any;
+
+    beforeEach(async () => {
+      mockDb = {
+        "agent-conversations": {
+          create: vi.fn().mockResolvedValue(undefined),
+          atomicUpdate: vi.fn(async (_pk: string, _sk: unknown, callback: (existing: unknown) => unknown) => {
+            return callback(null);
+          }),
+        },
+      };
+
+      const memoryWriteModule = await import("../memory/writeMemory");
+      mockWriteToWorkingMemory = vi.fn().mockResolvedValue(undefined);
+      vi.spyOn(memoryWriteModule, "writeToWorkingMemory").mockImplementation(
+        mockWriteToWorkingMemory
+      );
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("stores error details when starting a conversation", async () => {
+      await startConversation(mockDb, {
+        workspaceId: "workspace-error",
+        agentId: "agent-error",
+        conversationType: "test",
+        messages: [{ role: "user", content: "hello" }],
+        error: {
+          message: "LLM failure",
+          stack: "stack-trace",
+          provider: "openrouter",
+        },
+      });
+
+      expect(mockDb["agent-conversations"].create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({
+            message: "LLM failure",
+            stack: "stack-trace",
+            provider: "openrouter",
+          }),
+        })
+      );
+    });
+
+    it("stores error details when updating a conversation", async () => {
+      await updateConversation(
+        mockDb,
+        "workspace-error",
+        "agent-error",
+        "conv-error",
+        [{ role: "user", content: "hello" }],
+        undefined,
+        undefined,
+        {
+          message: "provider timeout",
+          stack: "timeout-stack",
+          statusCode: 504,
+        }
+      );
+
+      expect(mockDb["agent-conversations"].atomicUpdate).toHaveBeenCalled();
+      const atomicCallback =
+        mockDb["agent-conversations"].atomicUpdate.mock.calls[0][2];
+      const updated = await atomicCallback(null);
+      expect(updated.error).toEqual(
+        expect.objectContaining({
+          message: "provider timeout",
+          stack: "timeout-stack",
+          statusCode: 504,
+        })
+      );
+    });
+  });
 });

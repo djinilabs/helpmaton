@@ -33,9 +33,13 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *                 - $ref: '#/components/schemas/Workspace'
  *                 - type: object
  *                   properties:
- *                     hasGoogleApiKey:
- *                       type: boolean
- *                       description: Whether workspace has a Google API key configured
+ *                     apiKeys:
+ *                       type: object
+ *                       description: API key status for supported providers (only OpenRouter is supported for BYOK)
+ *                       properties:
+ *                         openrouter:
+ *                           type: boolean
+ *                           description: Whether workspace has an OpenRouter API key configured
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       401:
@@ -82,9 +86,8 @@ export const registerGetWorkspaceById = (app: express.Application) => {
           userRef
         );
 
-        // Check API key status for all providers
+        // Check API key status for OpenRouter
         const workspaceId = workspace.pk.replace("workspaces/", "");
-        const sk = "key";
 
         // Query all API keys for this workspace using GSI
         const result = await db["workspace-api-key"].query({
@@ -103,22 +106,9 @@ export const registerGetWorkspaceById = (app: express.Application) => {
           }
         }
 
-        // Also check for old format key (Google only) for backward compatibility
-        const oldPk = `workspace-api-keys/${workspaceId}`;
-        try {
-          const oldKey = await db["workspace-api-key"].get(oldPk, sk);
-          if (oldKey) {
-            providersWithKeys.add("google");
-          }
-        } catch {
-          // Old key doesn't exist
-        }
-
-        // Build API keys object
+        // Build API keys object (only OpenRouter is supported for BYOK)
         const apiKeys: Record<string, boolean> = {
-          google: providersWithKeys.has("google"),
-          openai: providersWithKeys.has("openai"),
-          anthropic: providersWithKeys.has("anthropic"),
+          openrouter: providersWithKeys.has("openrouter"),
         };
 
         res.json({
@@ -129,8 +119,7 @@ export const registerGetWorkspaceById = (app: express.Application) => {
           creditBalance: workspace.creditBalance ?? 0,
           currency: workspace.currency ?? "usd",
           spendingLimits: workspace.spendingLimits ?? [],
-          hasGoogleApiKey: apiKeys.google, // Keep for backward compatibility
-          apiKeys, // New field with all providers
+          apiKeys, // Only OpenRouter is supported for BYOK
           createdAt: workspace.createdAt,
         });
       } catch (error) {
