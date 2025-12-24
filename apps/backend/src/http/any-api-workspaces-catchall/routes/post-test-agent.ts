@@ -815,6 +815,18 @@ export const registerPostTestAgent = (app: express.Application) => {
             }
           );
 
+          // Log conversation with error before returning
+          await persistConversationError({
+            db,
+            workspaceId,
+            agentId,
+            conversationId,
+            messages: convertedMessages,
+            usesByok,
+            finalModelName,
+            error: resultError,
+          });
+
           return res.status(400).json({
             error:
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",

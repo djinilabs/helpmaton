@@ -693,6 +693,17 @@ export const handler = adaptHttpHandler(
             }
           );
 
+          // Log conversation with error before returning
+          await persistWebhookConversationError({
+            db,
+            workspaceId,
+            agentId,
+            uiMessage,
+            usesByok,
+            finalModelName,
+            error: resultError,
+          });
+
           return {
             statusCode: 400,
             headers: {
@@ -734,6 +745,17 @@ export const handler = adaptHttpHandler(
               errorStringified: JSON.stringify(resultError, Object.getOwnPropertyNames(resultError)),
             }
           );
+
+          // Log conversation with error before returning
+          await persistWebhookConversationError({
+            db,
+            workspaceId,
+            agentId,
+            uiMessage,
+            usesByok,
+            finalModelName,
+            error: resultError,
+          });
 
           return {
             statusCode: 400,

@@ -1655,6 +1655,9 @@ const internalHandler = async (
           }
         );
 
+        // Log conversation with error before returning
+        await persistConversationError(context, resultError);
+
         // Write specific error message for BYOK authentication issues
         const errorChunk = `data: ${JSON.stringify({
           type: "error",
@@ -1665,6 +1668,8 @@ const internalHandler = async (
         responseStream.end();
         return;
       }
+      // For non-authentication errors when accessing result properties, still log the conversation
+      await persistConversationError(context, resultError);
       throw resultError;
     }
 
