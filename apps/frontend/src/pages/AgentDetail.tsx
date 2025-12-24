@@ -2207,14 +2207,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           streamUrlData?.url &&
           streamServerConfig.secret && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-              <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border border-neutral-200 bg-white p-6 shadow-xl dark:border-neutral-700">
+              <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border border-neutral-200 bg-white p-6 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
                 <div className="mb-4 flex items-center justify-between border-b border-neutral-200 pb-4 dark:border-neutral-700">
-                  <h2 className="text-2xl font-semibold text-neutral-900">
+                  <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
                     Test Stream Server
                   </h2>
                   <button
                     onClick={() => setIsStreamTestModalOpen(false)}
-                    className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:bg-neutral-800"
+                    className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-800"
                   >
                     Close
                   </button>
