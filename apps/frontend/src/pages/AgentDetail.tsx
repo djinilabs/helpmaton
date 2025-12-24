@@ -438,10 +438,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     agent?.enableTavilySearch
   );
   useEffect(() => {
-    if (!agent || agent.id !== prevAgentIdRef.current) return;
-    const prevValue = prevEnableTavilySearchRef.current ?? false;
     const currentValue = agent?.enableTavilySearch ?? false;
-    if (prevValue !== currentValue) {
+    const prevValue = prevEnableTavilySearchRef.current ?? false;
+    if (currentValue !== prevValue) {
       prevEnableTavilySearchRef.current = currentValue;
       setEnableTavilySearch(currentValue);
     }
@@ -452,10 +451,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     agent?.enableTavilyFetch
   );
   useEffect(() => {
-    if (!agent || agent.id !== prevAgentIdRef.current) return;
-    const prevValue = prevEnableTavilyFetchRef.current ?? false;
     const currentValue = agent?.enableTavilyFetch ?? false;
-    if (prevValue !== currentValue) {
+    const prevValue = prevEnableTavilyFetchRef.current ?? false;
+    if (currentValue !== prevValue) {
       prevEnableTavilyFetchRef.current = currentValue;
       setEnableTavilyFetch(currentValue);
     }
@@ -905,7 +903,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 alt={`${agent.name} avatar`}
                 className="size-16 rounded-lg border-2 border-neutral-300 object-contain dark:border-neutral-700"
               />
-              <h1 className="text-4xl font-bold dark:text-neutral-50">{agent.name}</h1>
+              <h1 className="text-4xl font-bold dark:text-neutral-50">
+                {agent.name}
+              </h1>
             </div>
             <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
               Created: {new Date(agent.createdAt).toLocaleString()}
@@ -915,12 +915,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             <div className="mb-4">
               <div className="flex items-center gap-4">
                 <div>
-                  <span className="text-sm font-semibold dark:text-neutral-300">Provider: </span>
+                  <span className="text-sm font-semibold dark:text-neutral-300">
+                    Provider:{" "}
+                  </span>
                   <span className="text-sm dark:text-neutral-300">Google</span>
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold dark:text-neutral-300">Model: </span>
+                    <span className="text-sm font-semibold dark:text-neutral-300">
+                      Model:{" "}
+                    </span>
                     <span className="text-sm dark:text-neutral-300">
                       {isEditing ? (
                         <>
@@ -997,7 +1001,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             </div>
             <div className="mt-4">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-semibold dark:text-neutral-300">System Prompt:</p>
+                <p className="text-sm font-semibold dark:text-neutral-300">
+                  System Prompt:
+                </p>
                 <button
                   type="button"
                   onClick={() => setIsHelpOpen(true)}
@@ -1116,7 +1122,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         ),
                         // Strong/Bold
                         strong: ({ children }) => (
-                          <strong className="font-bold dark:text-neutral-50">{children}</strong>
+                          <strong className="font-bold dark:text-neutral-50">
+                            {children}
+                          </strong>
                         ),
                         // Emphasis/Italic
                         em: ({ children }) => (
@@ -1650,8 +1658,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable the document search tool to allow this agent to search
-                    workspace documents using semantic vector search.
+                    Enable the document search tool to allow this agent to
+                    search workspace documents using semantic vector search.
                   </p>
                   <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
                     <input
@@ -1764,9 +1772,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <input
                       type="checkbox"
                       checked={enableTavilySearch}
-                      onChange={(e) =>
-                        setEnableTavilySearch(e.target.checked)
-                      }
+                      onChange={(e) => setEnableTavilySearch(e.target.checked)}
                       className="mt-1 rounded border-2 border-neutral-300"
                     />
                     <div className="flex-1">
@@ -1951,14 +1957,18 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         useChat hook
                       </a>{" "}
                       from{" "}
-                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">@ai-sdk/react</code>{" "}
+                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">
+                        @ai-sdk/react
+                      </code>{" "}
                       - it handles SSE parsing automatically
                     </li>
                     <li>
                       <strong>Other frameworks:</strong> Parse SSE format by
                       reading lines starting with{" "}
-                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">data: </code>, then
-                      parse the JSON object
+                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">
+                        data:{" "}
+                      </code>
+                      , then parse the JSON object
                     </li>
                   </ul>
                   <p className="mb-0">
@@ -2219,7 +2229,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               )}
 
               {keys.length === 0 ? (
-                <p className="text-sm opacity-75 dark:text-neutral-300">No keys created yet.</p>
+                <p className="text-sm opacity-75 dark:text-neutral-300">
+                  No keys created yet.
+                </p>
               ) : (
                 <div className="space-y-4">
                   {keys.map((key) => {
@@ -2476,7 +2488,9 @@ const KeyItem: FC<KeyItemProps> = ({
             Created: {new Date(keyData.createdAt).toLocaleString()}
           </p>
           <div className="mb-2">
-            <p className="mb-1 text-xs font-semibold dark:text-neutral-300">Webhook URL:</p>
+            <p className="mb-1 text-xs font-semibold dark:text-neutral-300">
+              Webhook URL:
+            </p>
             <div className="flex items-center gap-2">
               <code
                 onClick={handleCopyUrl}
@@ -2494,14 +2508,18 @@ const KeyItem: FC<KeyItemProps> = ({
             </div>
           </div>
           <div>
-            <p className="mb-1 text-xs font-semibold dark:text-neutral-300">Key Value:</p>
+            <p className="mb-1 text-xs font-semibold dark:text-neutral-300">
+              Key Value:
+            </p>
             {keyData.key ? (
               <code className="block break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                 {keyData.key}
               </code>
             ) : (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs dark:border-amber-800 dark:bg-amber-900">
-                <p className="mb-1 font-semibold dark:text-amber-200">Key Value Not Available</p>
+                <p className="mb-1 font-semibold dark:text-amber-200">
+                  Key Value Not Available
+                </p>
                 <p className="opacity-75 dark:text-neutral-300">
                   For security, key values are only shown once when created. If
                   you need the key value again, please create a new key.
@@ -2628,7 +2646,9 @@ const AgentDetail: FC = () => {
       fallback={(error, resetError) => (
         <div className="flex min-h-screen items-center justify-center bg-white p-8 dark:bg-neutral-950">
           <div className="w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
-            <h1 className="mb-4 text-4xl font-semibold dark:text-neutral-50">Error</h1>
+            <h1 className="mb-4 text-4xl font-semibold dark:text-neutral-50">
+              Error
+            </h1>
             <p className="mb-4 text-xl font-semibold text-red-600 dark:text-red-400">
               {error.message || "Failed to load agent"}
             </p>
