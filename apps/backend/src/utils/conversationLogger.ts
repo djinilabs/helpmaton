@@ -60,120 +60,337 @@ export function buildConversationErrorInfo(
     metadata?: Record<string, unknown>;
   }
 ): ConversationErrorInfo {
+  // Log initial error for debugging
+  console.log("[buildConversationErrorInfo] Starting error extraction:", {
+    errorType: error instanceof Error ? error.constructor.name : typeof error,
+    errorName: error instanceof Error ? error.name : "N/A",
+    errorMessage: error instanceof Error ? error.message : String(error),
+    hasCause: error instanceof Error && !!error.cause,
+    causeType: error instanceof Error && error.cause instanceof Error ? error.cause.constructor.name : undefined,
+    causeMessage: error instanceof Error && error.cause instanceof Error ? error.cause.message : undefined,
+  });
+
+  // Check if this is a NoOutputGeneratedError or similar wrapper
+  const isGenericWrapper = (err: Error): boolean => {
+    const name = err.name.toLowerCase();
+    const msg = err.message.toLowerCase();
+    return (
+      name.includes("nooutputgeneratederror") ||
+      name.includes("no_output_generated_error") ||
+      msg.includes("no output generated") ||
+      msg.includes("check the stream for errors")
+    );
+  };
+
   // Extract the most specific error message possible
   let message = error instanceof Error ? error.message : String(error);
   let specificError: Error | undefined = error instanceof Error ? error : undefined;
   
-  // Helper to extract error message from nested error structures
-  const extractErrorMessage = (err: unknown): string | undefined => {
+  console.log("[buildConversationErrorInfo] Initial message:", message);
+  
+  // Comprehensive error extraction - check all possible locations for the real error message
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const extractFromError = (err: any): string | undefined => {
     if (!err || typeof err !== "object") return undefined;
     
-    const errObj = err as Record<string, unknown>;
-    
-    // Check data.error.message (common in AI SDK errors)
-    if (errObj.data && typeof errObj.data === "object" && errObj.data !== null) {
-      const data = errObj.data as Record<string, unknown>;
-      if (data.error) {
-        if (typeof data.error === "object" && data.error !== null) {
-          const errorField = data.error as Record<string, unknown>;
-          if (typeof errorField.message === "string" && errorField.message.length > 0) {
-            return errorField.message;
-          }
-        } else if (typeof data.error === "string" && data.error.length > 0) {
-          return data.error;
-        }
-      }
-      if (typeof data.message === "string" && data.message.length > 0) {
-        return data.message;
-      }
+    // 1. Check data.error.message (AI SDK errors - most common location)
+    // This is the PRIMARY source for AI_APICallError and similar errors
+    if (err.data?.error?.message && typeof err.data.error.message === "string" && err.data.error.message.length > 0) {
+      return err.data.error.message;
     }
     
-    // Check response.data (common in fetch/HTTP errors)
-    if (errObj.response && typeof errObj.response === "object" && errObj.response !== null) {
-      const response = errObj.response as Record<string, unknown>;
-      if (response.data && typeof response.data === "object" && response.data !== null) {
-        const responseData = response.data as Record<string, unknown>;
-        if (responseData.error) {
-          if (typeof responseData.error === "object" && responseData.error !== null) {
-            const errorField = responseData.error as Record<string, unknown>;
-            if (typeof errorField.message === "string" && errorField.message.length > 0) {
-              return errorField.message;
-            }
-          } else if (typeof responseData.error === "string" && responseData.error.length > 0) {
-            return responseData.error;
-          }
-        }
-        if (typeof responseData.message === "string" && responseData.message.length > 0) {
-          return responseData.message;
-        }
-      }
-    }
-    
-    // Check body (common in HTTP errors)
-    if (typeof errObj.body === "string" && errObj.body.length > 0) {
+    // 2. Check responseBody (parsed JSON)
+    if (err.responseBody && typeof err.responseBody === "string") {
       try {
-        const body = JSON.parse(errObj.body) as Record<string, unknown>;
-        if (typeof body.error === "string" && body.error.length > 0) {
-          return body.error;
+        const body = JSON.parse(err.responseBody) as Record<string, unknown>;
+        if (body.error) {
+          if (typeof body.error === "object" && body.error !== null) {
+            const errorObj = body.error as Record<string, unknown>;
+            if (typeof errorObj.message === "string" && errorObj.message.length > 0) {
+              return errorObj.message;
+            }
+          } else if (typeof body.error === "string" && body.error.length > 0) {
+            return body.error;
+          }
         }
         if (typeof body.message === "string" && body.message.length > 0) {
           return body.message;
         }
       } catch {
-        // Not JSON, might be plain text error
-        if (errObj.body.length < 500) {
-          return errObj.body;
-        }
+        // Not JSON, ignore
       }
+    }
+    
+    // 3. Check response.data.error.message (HTTP errors)
+    if (err.response?.data?.error?.message && typeof err.response.data.error.message === "string" && err.response.data.error.message.length > 0) {
+      return err.response.data.error.message;
+    }
+    
+    // 4. Check data.message directly
+    if (err.data?.message && typeof err.data.message === "string" && err.data.message.length > 0) {
+      return err.data.message;
     }
     
     return undefined;
   };
   
-  // Traverse error.cause chain to find the most specific error
-  if (error instanceof Error && error.cause) {
-    let currentCause: unknown = error.cause;
-    let depth = 0;
-    const maxDepth = 10; // Prevent infinite loops
+  // CRITICAL: Check if this is a wrapper error first
+  // If it is, the real error with data.error.message is likely in error.cause
+  const isWrapper = error instanceof Error && isGenericWrapper(error);
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const errorAny = error instanceof Error ? (error as any) : undefined;
+  
+  // Log error structure
+  console.log("[buildConversationErrorInfo] Error structure check:", {
+    isWrapper,
+    hasData: !!errorAny?.data,
+    hasDataError: !!errorAny?.data?.error,
+    hasDataErrorMessage: !!errorAny?.data?.error?.message,
+    dataErrorMessage: errorAny?.data?.error?.message,
+    hasResponseBody: !!errorAny?.responseBody,
+    responseBody: errorAny?.responseBody ? (typeof errorAny.responseBody === "string" ? errorAny.responseBody.substring(0, 200) : String(errorAny.responseBody).substring(0, 200)) : undefined,
+    statusCode: errorAny?.statusCode,
+    hasCause: error instanceof Error && !!error.cause,
+  });
+  
+  // If it's a wrapper, check the cause's data.error.message FIRST (this is where the real error is)
+  if (isWrapper && error instanceof Error && error.cause) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const causeAny = error.cause instanceof Error ? (error.cause as any) : undefined;
+    console.log("[buildConversationErrorInfo] Wrapper detected - checking cause's data.error.message:", {
+      causeType: error.cause instanceof Error ? error.cause.constructor.name : typeof error.cause,
+      hasCauseData: !!causeAny?.data,
+      hasCauseDataError: !!causeAny?.data?.error,
+      hasCauseDataErrorMessage: !!causeAny?.data?.error?.message,
+      causeDataErrorMessage: causeAny?.data?.error?.message,
+    });
     
-    while (currentCause && depth < maxDepth) {
-      if (currentCause instanceof Error) {
-        const causeMessage = currentCause.message;
-        // Prefer more specific error messages (longer, more descriptive)
-        // Also prefer errors that aren't generic wrappers
-        if (
-          causeMessage &&
-          causeMessage.length > message.length &&
-          !causeMessage.includes("No output generated") &&
-          !causeMessage.includes("Check the stream for errors")
-        ) {
-          message = causeMessage;
-          specificError = currentCause;
-        }
-        // Check for status codes in the cause
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const anyCause = currentCause as any;
-        if (typeof anyCause.statusCode === "number" || typeof anyCause.status === "number") {
-          specificError = currentCause;
-        }
-        currentCause = currentCause.cause;
-      } else {
-        break;
+    if (causeAny?.data?.error?.message && typeof causeAny.data.error.message === "string" && causeAny.data.error.message.length > 0) {
+      // Found it! Use the cause's data.error.message
+      message = causeAny.data.error.message;
+      specificError = error.cause instanceof Error ? error.cause : undefined;
+      console.log("[buildConversationErrorInfo] Found message from cause's data.error.message:", message);
+    } else {
+      // Check cause's responseBody
+      const causeResponseBodyMsg = extractFromError(error.cause);
+      if (causeResponseBodyMsg) {
+        message = causeResponseBodyMsg;
+        specificError = error.cause instanceof Error ? error.cause : undefined;
+        console.log("[buildConversationErrorInfo] Found message from cause's responseBody:", message);
       }
-      depth++;
     }
   }
   
-  // Extract error message from nested error structures (data, response, body)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const nestedMessage = extractErrorMessage(error) || extractErrorMessage((error as any)?.cause);
-  if (nestedMessage && nestedMessage.length > 0) {
-    // Prefer nested messages if they're more specific
-    if (
-      nestedMessage.length > message.length ||
-      (!message.includes(nestedMessage) && !nestedMessage.includes("No output generated"))
-    ) {
-      message = nestedMessage;
+  // If we still don't have a good message, check the original error's data.error.message
+  if (!message || message.includes("No output generated") || message.includes("Check the stream")) {
+    if (errorAny?.data?.error?.message && typeof errorAny.data.error.message === "string" && errorAny.data.error.message.length > 0) {
+      // This is the real API error - use it immediately
+      message = errorAny.data.error.message;
+      console.log("[buildConversationErrorInfo] Found message from original error's data.error.message:", message);
+    } else {
+      // Fall back to comprehensive extraction
+      const extractedMessage = extractFromError(error);
+      if (extractedMessage) {
+        message = extractedMessage;
+        console.log("[buildConversationErrorInfo] Found message from extractFromError:", message);
+      } else {
+        console.log("[buildConversationErrorInfo] No message found in data.error.message or extractFromError, using:", message);
+      }
+    }
+  }
+  
+  // Also check error.cause if it exists (but don't override if we already have a good message from data)
+  // NOTE: For wrappers, we already checked the cause above, so skip if we have a good message
+  if (error instanceof Error && error.cause && (!isWrapper || message.includes("No output generated") || message.includes("Check the stream"))) {
+    console.log("[buildConversationErrorInfo] Checking error.cause:", {
+      causeType: error.cause instanceof Error ? error.cause.constructor.name : typeof error.cause,
+      causeMessage: error.cause instanceof Error ? error.cause.message : String(error.cause),
+    });
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const causeAny = error.cause instanceof Error ? (error.cause as any) : undefined;
+    console.log("[buildConversationErrorInfo] Cause structure:", {
+      hasData: !!causeAny?.data,
+      hasDataError: !!causeAny?.data?.error,
+      hasDataErrorMessage: !!causeAny?.data?.error?.message,
+      dataErrorMessage: causeAny?.data?.error?.message,
+    });
+    
+    // Prioritize cause's data.error.message directly (same as we do for wrappers)
+    let causeMessage: string | undefined;
+    if (causeAny?.data?.error?.message && typeof causeAny.data.error.message === "string" && causeAny.data.error.message.length > 0) {
+      causeMessage = causeAny.data.error.message;
+      console.log("[buildConversationErrorInfo] Found cause message from data.error.message:", causeMessage);
+    } else {
+      causeMessage = extractFromError(error.cause);
+      if (causeMessage) {
+        console.log("[buildConversationErrorInfo] Found cause message from extractFromError:", causeMessage);
+      }
+    }
+    
+    // Only use cause message if:
+    // 1. We don't have a message yet, OR
+    // 2. The cause message is from data.error.message (more specific) and is longer
+    if (causeMessage) {
+      // If current message is generic or short, prefer cause message
+      const isCurrentMessageGeneric = 
+        message.includes("No output generated") ||
+        message.includes("Check the stream") ||
+        message.length < 30;
+      
+      if (isCurrentMessageGeneric || (causeMessage.length > message.length && !message.includes(causeMessage))) {
+        console.log("[buildConversationErrorInfo] Using cause message (was generic or cause is better)");
+        message = causeMessage;
+        if (error.cause instanceof Error) {
+          specificError = error.cause;
+        }
+      } else {
+        console.log("[buildConversationErrorInfo] Keeping current message (not generic and better than cause)");
+      }
+    } else {
+      console.log("[buildConversationErrorInfo] No message found in cause");
+    }
+  }
+  
+  // If this is a generic wrapper error, aggressively look for the real cause
+  // NOTE: We already checked the cause's data.error.message above, so this section
+  // only runs if we didn't find a good message there
+  if (error instanceof Error && isGenericWrapper(error)) {
+    console.log("[buildConversationErrorInfo] Detected generic wrapper error:", {
+      errorName: error.name,
+      errorMessage: error.message,
+      currentExtractedMessage: message,
+    });
+    
+    // Check if we already have a good message from the cause's data.error.message (checked above)
+    const hasGoodMessage = 
+      message &&
+      !message.includes("No output generated") &&
+      !message.includes("Check the stream") &&
+      message.length > 30;
+    
+    console.log("[buildConversationErrorInfo] Wrapper handling - hasGoodMessage:", hasGoodMessage);
+    
+    // If we already have a good message from the cause, skip further cause checking
+    // Otherwise, continue checking the cause chain for other error sources
+    if (!hasGoodMessage && error.cause) {
+      console.log("[buildConversationErrorInfo] Wrapper: Checking cause (no good message yet)");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const causeAny = error.cause instanceof Error ? (error.cause as any) : undefined;
+      console.log("[buildConversationErrorInfo] Wrapper cause structure:", {
+        hasData: !!causeAny?.data,
+        hasDataError: !!causeAny?.data?.error,
+        hasDataErrorMessage: !!causeAny?.data?.error?.message,
+        dataErrorMessage: causeAny?.data?.error?.message,
+      });
+      
+      const causeMsg = extractFromError(error.cause);
+      if (causeMsg && causeMsg.length > 0) {
+        console.log("[buildConversationErrorInfo] Wrapper: Found cause message:", causeMsg);
+        message = causeMsg;
+        if (error.cause instanceof Error) {
+          specificError = error.cause;
+        }
+      } else if (error.cause instanceof Error) {
+        console.log("[buildConversationErrorInfo] Wrapper: Using cause.message:", error.cause.message);
+        message = error.cause.message;
+        specificError = error.cause;
+      }
+      
+      // Continue traversing the cause chain to find the most specific error
+      if (error.cause instanceof Error && !hasGoodMessage) {
+        let currentCause: unknown = error.cause.cause;
+        let depth = 0;
+        const maxDepth = 10;
+        
+        while (currentCause && depth < maxDepth) {
+          const causeMsg = extractFromError(currentCause);
+          if (causeMsg && causeMsg.length > message.length && !isGenericWrapper({ name: "", message: causeMsg } as Error)) {
+            message = causeMsg;
+            if (currentCause instanceof Error) {
+              specificError = currentCause;
+            }
+          } else if (currentCause instanceof Error) {
+            const causeMessage = currentCause.message;
+            if (causeMessage && causeMessage.length > message.length && !isGenericWrapper(currentCause)) {
+              message = causeMessage;
+              specificError = currentCause;
+            }
+          }
+          
+          if (currentCause instanceof Error) {
+            currentCause = currentCause.cause;
+          } else {
+            break;
+          }
+          depth++;
+        }
+      }
+    }
+    
+    // If we still have a generic message, check all properties of the error object
+    if (!hasGoodMessage && isGenericWrapper({ name: "", message } as Error)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorAny = error as any;
+      // Check for common error property names
+      const errorProps = ['error', 'err', 'originalError', 'underlyingError', 'rootCause'];
+      for (const prop of errorProps) {
+        if (errorAny[prop]) {
+          const propMsg = extractFromError(errorAny[prop]);
+          if (propMsg && propMsg.length > 0 && !isGenericWrapper({ name: "", message: propMsg } as Error)) {
+            message = propMsg;
+            if (errorAny[prop] instanceof Error) {
+              specificError = errorAny[prop];
+            }
+            break;
+          }
+        }
+      }
+    }
+  } else {
+    // For non-wrapper errors, still traverse cause chain but less aggressively
+    if (error instanceof Error && error.cause) {
+      let currentCause: unknown = error.cause;
+      let depth = 0;
+      const maxDepth = 10;
+      
+      while (currentCause && depth < maxDepth) {
+        if (currentCause instanceof Error) {
+          const causeMessage = currentCause.message;
+          // Prefer more specific error messages (longer, more descriptive)
+          if (
+            causeMessage &&
+            causeMessage.length > message.length &&
+            !isGenericWrapper(currentCause)
+          ) {
+            message = causeMessage;
+            specificError = currentCause;
+          }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const anyCause = currentCause as any;
+          if (typeof anyCause.statusCode === "number" || typeof anyCause.status === "number") {
+            specificError = currentCause;
+          }
+          currentCause = currentCause.cause;
+        } else {
+          break;
+        }
+        depth++;
+      }
+    }
+    
+    // Extract error message from nested error structures (data, responseBody, etc.)
+    // We already called extractFromError at the beginning, but check again in case we missed something
+    const nestedMessage = extractFromError(error) || (error instanceof Error && error.cause ? extractFromError(error.cause) : undefined);
+    if (nestedMessage && nestedMessage.length > 0) {
+      // Prefer nested messages if they're more specific
+      if (
+        nestedMessage.length > message.length ||
+        (!message.includes(nestedMessage) && !nestedMessage.includes("No output generated"))
+      ) {
+        message = nestedMessage;
+      }
     }
   }
 
@@ -190,31 +407,105 @@ export function buildConversationErrorInfo(
   const errorToInspect = specificError || (error instanceof Error ? error : undefined);
 
   if (errorToInspect) {
+    // Use the specific error's name and stack (not the wrapper's)
     base.name = errorToInspect.name;
     base.stack = errorToInspect.stack;
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
     const anyError = errorToInspect as any;
     
-    // Extract error code
-    if (typeof anyError.code === "string") {
-      base.code = anyError.code;
-    }
+    // Also check the original error for properties that might not be on the cause
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const originalError = error instanceof Error ? (error as any) : undefined;
     
-    // Extract status code (check multiple possible locations)
-    const statusCode =
-      typeof anyError.statusCode === "number"
-        ? anyError.statusCode
-        : typeof anyError.status === "number"
-          ? anyError.status
-          : typeof anyError.response?.status === "number"
-            ? anyError.response.status
-            : typeof anyError.response?.statusCode === "number"
-              ? anyError.response.statusCode
-              : undefined;
-    if (statusCode !== undefined) {
-      base.statusCode = statusCode;
-    }
+    // Helper to extract code from error object
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+    const extractCode = (err: any): string | undefined => {
+      if (!err || typeof err !== "object") return undefined;
+      
+      // Check data.error.code (AI SDK errors)
+      if (err.data?.error?.code !== undefined && err.data.error.code !== null) {
+        return String(err.data.error.code);
+      }
+      
+      // Check code directly
+      if (typeof err.code === "string") {
+        return err.code;
+      } else if (typeof err.code === "number") {
+        return String(err.code);
+      }
+      
+      // Check responseBody for code
+      if (err.responseBody && typeof err.responseBody === "string") {
+        try {
+          const body = JSON.parse(err.responseBody) as Record<string, unknown>;
+          if (body.error && typeof body.error === "object" && body.error !== null) {
+            const errorObj = body.error as Record<string, unknown>;
+            if (errorObj.code !== undefined && errorObj.code !== null) {
+              return String(errorObj.code);
+            }
+          }
+        } catch {
+          // Not JSON, ignore
+        }
+      }
+      
+      return undefined;
+    };
+    
+    // Extract error code (check multiple locations)
+    base.code = extractCode(anyError) || extractCode(originalError) || undefined;
+    
+    // Helper to extract status code from error object
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+    const extractStatusCode = (err: any): number | undefined => {
+      if (!err || typeof err !== "object") return undefined;
+      
+      // Check statusCode directly (most common)
+      if (typeof err.statusCode === "number") {
+        return err.statusCode;
+      }
+      
+      // Check status
+      if (typeof err.status === "number") {
+        return err.status;
+      }
+      
+      // Check data.error.code (sometimes status is in code)
+      if (err.data?.error?.code && typeof err.data.error.code === "number" && err.data.error.code >= 400 && err.data.error.code < 600) {
+        return err.data.error.code;
+      }
+      
+      // Check response.status
+      if (err.response && typeof err.response.status === "number") {
+        return err.response.status;
+      }
+      
+      // Check response.statusCode
+      if (err.response && typeof err.response.statusCode === "number") {
+        return err.response.statusCode;
+      }
+      
+      // Check responseBody for status code
+      if (err.responseBody && typeof err.responseBody === "string") {
+        try {
+          const body = JSON.parse(err.responseBody) as Record<string, unknown>;
+          if (body.error && typeof body.error === "object" && body.error !== null) {
+            const errorObj = body.error as Record<string, unknown>;
+            if (typeof errorObj.code === "number" && errorObj.code >= 400 && errorObj.code < 600) {
+              return errorObj.code;
+            }
+          }
+        } catch {
+          // Not JSON, ignore
+        }
+      }
+      
+      return undefined;
+    };
+    
+    // Extract status code (check both specific error and original)
+    base.statusCode = extractStatusCode(anyError) || extractStatusCode(originalError) || undefined;
     
     // Extract API error details if available (check multiple locations)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -262,14 +553,24 @@ export function buildConversationErrorInfo(
       }
     };
     
-    // Check response.data
+    // Check response.data in the specific error
     if (anyError.response?.data) {
       checkResponseData(anyError.response.data);
     }
     
-    // Check data directly (AI SDK errors)
+    // Check data directly in the specific error (AI SDK errors)
     if (anyError.data) {
       checkResponseData(anyError.data);
+    }
+    
+    // Also check the original error object for nested data (wrapper might have the data)
+    if (originalError && error instanceof Error && error !== errorToInspect) {
+      if (originalError.response?.data) {
+        checkResponseData(originalError.response.data);
+      }
+      if (originalError.data) {
+        checkResponseData(originalError.data);
+      }
     }
     
     // Update message with the most specific one found
@@ -287,7 +588,62 @@ export function buildConversationErrorInfo(
     }
   }
 
-  return base;
+  // Remove undefined/null values to avoid DynamoDB errors
+  const cleanErrorInfo: ConversationErrorInfo = {
+    message: base.message,
+  };
+  
+  if (base.name !== undefined && base.name !== null) {
+    cleanErrorInfo.name = base.name;
+  }
+  if (base.stack !== undefined && base.stack !== null) {
+    cleanErrorInfo.stack = base.stack;
+  }
+  if (base.code !== undefined && base.code !== null) {
+    cleanErrorInfo.code = base.code;
+  }
+  if (base.statusCode !== undefined && base.statusCode !== null) {
+    cleanErrorInfo.statusCode = base.statusCode;
+  }
+  if (base.provider !== undefined && base.provider !== null) {
+    cleanErrorInfo.provider = base.provider;
+  }
+  if (base.modelName !== undefined && base.modelName !== null) {
+    cleanErrorInfo.modelName = base.modelName;
+  }
+  if (base.endpoint !== undefined && base.endpoint !== null) {
+    cleanErrorInfo.endpoint = base.endpoint;
+  }
+  if (base.occurredAt !== undefined && base.occurredAt !== null) {
+    cleanErrorInfo.occurredAt = base.occurredAt;
+  }
+  if (base.metadata !== undefined && base.metadata !== null && Object.keys(base.metadata).length > 0) {
+    // Clean metadata object - remove undefined/null values
+    const cleanMetadata: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(base.metadata)) {
+      if (value !== undefined && value !== null) {
+        cleanMetadata[key] = value;
+      }
+    }
+    if (Object.keys(cleanMetadata).length > 0) {
+      cleanErrorInfo.metadata = cleanMetadata;
+    }
+  }
+
+  // Log final result
+  console.log("[buildConversationErrorInfo] Final error info:", {
+    message: cleanErrorInfo.message,
+    name: cleanErrorInfo.name,
+    code: cleanErrorInfo.code,
+    statusCode: cleanErrorInfo.statusCode,
+    provider: cleanErrorInfo.provider,
+    modelName: cleanErrorInfo.modelName,
+    endpoint: cleanErrorInfo.endpoint,
+    hasStack: !!cleanErrorInfo.stack,
+    stackLength: cleanErrorInfo.stack?.length,
+  });
+
+  return cleanErrorInfo;
 }
 
 /**

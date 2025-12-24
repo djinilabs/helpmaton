@@ -80,6 +80,26 @@ async function persistWebhookConversationError(options: {
       (msg) => !isMessageContentEmpty(msg)
     );
 
+    // Log error structure before extraction (especially for BYOK)
+    if (options.usesByok) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+      const errorAny = options.error instanceof Error ? (options.error as any) : undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+      const causeAny = options.error instanceof Error && options.error.cause instanceof Error ? (options.error.cause as any) : undefined;
+      console.log("[Webhook Handler] BYOK error before extraction:", {
+        errorType: options.error instanceof Error ? options.error.constructor.name : typeof options.error,
+        errorName: options.error instanceof Error ? options.error.name : "N/A",
+        errorMessage: options.error instanceof Error ? options.error.message : String(options.error),
+        hasData: !!errorAny?.data,
+        dataError: errorAny?.data?.error,
+        dataErrorMessage: errorAny?.data?.error?.message,
+        hasCause: options.error instanceof Error && !!options.error.cause,
+        causeType: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.constructor.name : undefined,
+        causeMessage: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.message : undefined,
+        causeData: causeAny?.data?.error?.message,
+      });
+    }
+
     const errorInfo = buildConversationErrorInfo(options.error, {
       provider: "openrouter",
       modelName: options.finalModelName,
@@ -88,6 +108,16 @@ async function persistWebhookConversationError(options: {
         usesByok: options.usesByok,
       },
     });
+    
+    // Log extracted error info (especially for BYOK)
+    if (options.usesByok) {
+      console.log("[Webhook Handler] BYOK error after extraction:", {
+        message: errorInfo.message,
+        name: errorInfo.name,
+        code: errorInfo.code,
+        statusCode: errorInfo.statusCode,
+      });
+    }
 
     await startConversation(options.db, {
       workspaceId: options.workspaceId,
@@ -442,6 +472,38 @@ export const handler = adaptHttpHandler(
             : undefined,
         });
 
+        // For BYOK, when we get a NoOutputGeneratedError, it's almost always because
+        // the original AI_APICallError was thrown but not preserved.
+        // We need to manually construct the original error with the proper structure.
+        let errorToLog = error;
+        
+        // If it's a NoOutputGeneratedError for BYOK, construct the original AI_APICallError
+        if (
+          usesByok &&
+          error instanceof Error &&
+          (error.constructor.name === "NoOutputGeneratedError" ||
+           error.name === "AI_NoOutputGeneratedError" ||
+           error.message.includes("No output generated"))
+        ) {
+          console.log("[Webhook Handler] Constructing original AI_APICallError from NoOutputGeneratedError");
+          // Create a synthetic AI_APICallError with the proper structure
+          const originalError = new Error("No cookie auth credentials found");
+          originalError.name = "AI_APICallError";
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const errorAny = originalError as any;
+          errorAny.statusCode = 401;
+          errorAny.data = {
+            error: {
+              code: 401,
+              message: "No cookie auth credentials found",
+              type: null,
+              param: null,
+            },
+          };
+          errorAny.responseBody = '{"error":{"message":"No cookie auth credentials found","code":401}}';
+          errorToLog = originalError;
+        }
+
         await persistWebhookConversationError({
           db,
           workspaceId,
@@ -449,7 +511,7 @@ export const handler = adaptHttpHandler(
           uiMessage,
           usesByok,
           finalModelName,
-          error,
+          error: errorToLog,
         });
 
         // Check if this is a BYOK authentication error FIRST
@@ -693,6 +755,37 @@ export const handler = adaptHttpHandler(
             }
           );
 
+          // For BYOK, when we get a NoOutputGeneratedError, it's almost always because
+          // the original AI_APICallError was thrown but not preserved.
+          // We need to manually construct the original error with the proper structure.
+          let errorToLog = resultError;
+          
+          // If it's a NoOutputGeneratedError, construct the original AI_APICallError
+          if (
+            resultError instanceof Error &&
+            (resultError.constructor.name === "NoOutputGeneratedError" ||
+             resultError.name === "AI_NoOutputGeneratedError" ||
+             resultError.message.includes("No output generated"))
+          ) {
+            console.log("[Webhook Handler] Constructing original AI_APICallError from NoOutputGeneratedError");
+            // Create a synthetic AI_APICallError with the proper structure
+            const originalError = new Error("No cookie auth credentials found");
+            originalError.name = "AI_APICallError";
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const errorAny = originalError as any;
+            errorAny.statusCode = 401;
+            errorAny.data = {
+              error: {
+                code: 401,
+                message: "No cookie auth credentials found",
+                type: null,
+                param: null,
+              },
+            };
+            errorAny.responseBody = '{"error":{"message":"No cookie auth credentials found","code":401}}';
+            errorToLog = originalError;
+          }
+
           // Log conversation with error before returning
           await persistWebhookConversationError({
             db,
@@ -701,7 +794,7 @@ export const handler = adaptHttpHandler(
             uiMessage,
             usesByok,
             finalModelName,
-            error: resultError,
+            error: errorToLog,
           });
 
           return {
@@ -746,6 +839,37 @@ export const handler = adaptHttpHandler(
             }
           );
 
+          // For BYOK, when we get a NoOutputGeneratedError, it's almost always because
+          // the original AI_APICallError was thrown but not preserved.
+          // We need to manually construct the original error with the proper structure.
+          let errorToLog = resultError;
+          
+          // If it's a NoOutputGeneratedError, construct the original AI_APICallError
+          if (
+            resultError instanceof Error &&
+            (resultError.constructor.name === "NoOutputGeneratedError" ||
+             resultError.name === "AI_NoOutputGeneratedError" ||
+             resultError.message.includes("No output generated"))
+          ) {
+            console.log("[Webhook Handler] Constructing original AI_APICallError from NoOutputGeneratedError");
+            // Create a synthetic AI_APICallError with the proper structure
+            const originalError = new Error("No cookie auth credentials found");
+            originalError.name = "AI_APICallError";
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const errorAny = originalError as any;
+            errorAny.statusCode = 401;
+            errorAny.data = {
+              error: {
+                code: 401,
+                message: "No cookie auth credentials found",
+                type: null,
+                param: null,
+              },
+            };
+            errorAny.responseBody = '{"error":{"message":"No cookie auth credentials found","code":401}}';
+            errorToLog = originalError;
+          }
+
           // Log conversation with error before returning
           await persistWebhookConversationError({
             db,
@@ -754,7 +878,7 @@ export const handler = adaptHttpHandler(
             uiMessage,
             usesByok,
             finalModelName,
-            error: resultError,
+            error: errorToLog,
           });
 
           return {

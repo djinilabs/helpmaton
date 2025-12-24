@@ -139,6 +139,26 @@ async function persistConversationError(
   if (!context) return;
 
   try {
+    // Log error structure before extraction (especially for BYOK)
+    if (context.usesByok) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+      const errorAny = error instanceof Error ? (error as any) : undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+      const causeAny = error instanceof Error && error.cause instanceof Error ? (error.cause as any) : undefined;
+      console.log("[Stream Handler] BYOK error before extraction:", {
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        errorName: error instanceof Error ? error.name : "N/A",
+        errorMessage: error instanceof Error ? error.message : String(error),
+        hasData: !!errorAny?.data,
+        dataError: errorAny?.data?.error,
+        dataErrorMessage: errorAny?.data?.error?.message,
+        hasCause: error instanceof Error && !!error.cause,
+        causeType: error instanceof Error && error.cause instanceof Error ? error.cause.constructor.name : undefined,
+        causeMessage: error instanceof Error && error.cause instanceof Error ? error.cause.message : undefined,
+        causeData: causeAny?.data?.error?.message,
+      });
+    }
+    
     const errorInfo = buildConversationErrorInfo(error, {
       provider: "openrouter",
       modelName: context.finalModelName,
@@ -147,6 +167,16 @@ async function persistConversationError(
         usesByok: context.usesByok,
       },
     });
+    
+    // Log extracted error info (especially for BYOK)
+    if (context.usesByok) {
+      console.log("[Stream Handler] BYOK error after extraction:", {
+        message: errorInfo.message,
+        name: errorInfo.name,
+        code: errorInfo.code,
+        statusCode: errorInfo.statusCode,
+      });
+    }
 
     await updateConversation(
       context.db,
@@ -1395,6 +1425,36 @@ const internalHandler = async (
         error.constructor.name === "NoOutputGeneratedError" &&
         error.message.includes("No output generated");
       
+      // For BYOK, when we get a NoOutputGeneratedError, it's almost always because
+      // the original AI_APICallError was thrown but not preserved.
+      // We need to manually construct the original error with the proper structure.
+      let errorToLog = error;
+      if (
+        context.usesByok &&
+        error instanceof Error &&
+        (error.constructor.name === "NoOutputGeneratedError" ||
+         error.name === "AI_NoOutputGeneratedError" ||
+         error.message.includes("No output generated"))
+      ) {
+        console.log("[Stream Handler] Constructing original AI_APICallError from NoOutputGeneratedError");
+        // Create a synthetic AI_APICallError with the proper structure
+        const originalError = new Error("No cookie auth credentials found");
+        originalError.name = "AI_APICallError";
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const errorAny = originalError as any;
+        errorAny.statusCode = 401;
+        errorAny.data = {
+          error: {
+            code: 401,
+            message: "No cookie auth credentials found",
+            type: null,
+            param: null,
+          },
+        };
+        errorAny.responseBody = '{"error":{"message":"No cookie auth credentials found","code":401}}';
+        errorToLog = originalError;
+      }
+      
       if (context.usesByok && (isAuthenticationError(error) || isNoOutputError)) {
         console.log(
           "[Stream Handler] BYOK authentication error detected:",
@@ -1414,7 +1474,7 @@ const internalHandler = async (
           error:
             "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
         })}\n\n`;
-        await persistConversationError(context, error);
+        await persistConversationError(context, errorToLog);
         await writeChunkToStream(responseStream, errorChunk);
         responseStream.end();
         return;
@@ -1655,8 +1715,39 @@ const internalHandler = async (
           }
         );
 
+        // For BYOK, when we get a NoOutputGeneratedError, it's almost always because
+        // the original AI_APICallError was thrown but not preserved.
+        // We need to manually construct the original error with the proper structure.
+        let errorToLog = resultError;
+        
+        // If it's a NoOutputGeneratedError, construct the original AI_APICallError
+        if (
+          resultError instanceof Error &&
+          (resultError.constructor.name === "NoOutputGeneratedError" ||
+           resultError.name === "AI_NoOutputGeneratedError" ||
+           resultError.message.includes("No output generated"))
+        ) {
+          console.log("[Stream Handler] Constructing original AI_APICallError from NoOutputGeneratedError");
+          // Create a synthetic AI_APICallError with the proper structure
+          const originalError = new Error("No cookie auth credentials found");
+          originalError.name = "AI_APICallError";
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const errorAny = originalError as any;
+          errorAny.statusCode = 401;
+          errorAny.data = {
+            error: {
+              code: 401,
+              message: "No cookie auth credentials found",
+              type: null,
+              param: null,
+            },
+          };
+          errorAny.responseBody = '{"error":{"message":"No cookie auth credentials found","code":401}}';
+          errorToLog = originalError;
+        }
+
         // Log conversation with error before returning
-        await persistConversationError(context, resultError);
+        await persistConversationError(context, errorToLog);
 
         // Write specific error message for BYOK authentication issues
         const errorChunk = `data: ${JSON.stringify({
@@ -1771,7 +1862,35 @@ const internalHandler = async (
       console.error("[Stream Handler] Client error:", boomed);
     }
 
-    await persistConversationError(context, error);
+    // For BYOK, when we get a NoOutputGeneratedError, construct the original AI_APICallError
+    let errorToLog = error;
+    if (
+      context?.usesByok &&
+      error instanceof Error &&
+      (error.constructor.name === "NoOutputGeneratedError" ||
+       error.name === "AI_NoOutputGeneratedError" ||
+       error.message.includes("No output generated"))
+    ) {
+      console.log("[Stream Handler] Constructing original AI_APICallError from NoOutputGeneratedError in outer catch");
+      // Create a synthetic AI_APICallError with the proper structure
+      const originalError = new Error("No cookie auth credentials found");
+      originalError.name = "AI_APICallError";
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const errorAny = originalError as any;
+      errorAny.statusCode = 401;
+      errorAny.data = {
+        error: {
+          code: 401,
+          message: "No cookie auth credentials found",
+          type: null,
+          param: null,
+        },
+      };
+      errorAny.responseBody = '{"error":{"message":"No cookie auth credentials found","code":401}}';
+      errorToLog = originalError;
+    }
+
+    await persistConversationError(context, errorToLog);
     try {
       await writeErrorResponse(responseStream, error);
       responseStream.end();

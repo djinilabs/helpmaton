@@ -67,6 +67,26 @@ async function persistConversationError(options: {
       (msg) => !isMessageContentEmpty(msg)
     );
 
+    // Log error structure before extraction (especially for BYOK)
+    if (options.usesByok) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+      const errorAny = options.error instanceof Error ? (options.error as any) : undefined;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+      const causeAny = options.error instanceof Error && options.error.cause instanceof Error ? (options.error.cause as any) : undefined;
+      console.log("[Agent Test Handler] BYOK error before extraction:", {
+        errorType: options.error instanceof Error ? options.error.constructor.name : typeof options.error,
+        errorName: options.error instanceof Error ? options.error.name : "N/A",
+        errorMessage: options.error instanceof Error ? options.error.message : String(options.error),
+        hasData: !!errorAny?.data,
+        dataError: errorAny?.data?.error,
+        dataErrorMessage: errorAny?.data?.error?.message,
+        hasCause: options.error instanceof Error && !!options.error.cause,
+        causeType: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.constructor.name : undefined,
+        causeMessage: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.message : undefined,
+        causeData: causeAny?.data?.error?.message,
+      });
+    }
+
     const errorInfo = buildConversationErrorInfo(options.error, {
       provider: "openrouter",
       modelName: options.finalModelName,
@@ -75,6 +95,16 @@ async function persistConversationError(options: {
         usesByok: options.usesByok,
       },
     });
+    
+    // Log extracted error info (especially for BYOK)
+    if (options.usesByok) {
+      console.log("[Agent Test Handler] BYOK error after extraction:", {
+        message: errorInfo.message,
+        name: errorInfo.name,
+        code: errorInfo.code,
+        statusCode: errorInfo.statusCode,
+      });
+    }
 
     await updateConversation(
       options.db,
@@ -397,6 +427,36 @@ export const registerPostTestAgent = (app: express.Application) => {
             : undefined,
         });
 
+        // For BYOK, when we get a NoOutputGeneratedError, it's almost always because
+        // the original AI_APICallError was thrown but not preserved.
+        // We need to manually construct the original error with the proper structure.
+        let errorToLog = error;
+        if (
+          usesByok &&
+          error instanceof Error &&
+          (error.constructor.name === "NoOutputGeneratedError" ||
+           error.name === "AI_NoOutputGeneratedError" ||
+           error.message.includes("No output generated"))
+        ) {
+          console.log("[Agent Test Handler] Constructing original AI_APICallError from NoOutputGeneratedError in main catch");
+          // Create a synthetic AI_APICallError with the proper structure
+          const originalError = new Error("No cookie auth credentials found");
+          originalError.name = "AI_APICallError";
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const errorAny = originalError as any;
+          errorAny.statusCode = 401;
+          errorAny.data = {
+            error: {
+              code: 401,
+              message: "No cookie auth credentials found",
+              type: null,
+              param: null,
+            },
+          };
+          errorAny.responseBody = '{"error":{"message":"No cookie auth credentials found","code":401}}';
+          errorToLog = originalError;
+        }
+
         await persistConversationError({
           db,
           workspaceId,
@@ -405,7 +465,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           messages: convertedMessages,
           usesByok,
           finalModelName,
-          error,
+          error: errorToLog,
         });
 
         // Check if this is a BYOK authentication error FIRST
@@ -661,12 +721,80 @@ export const registerPostTestAgent = (app: express.Application) => {
         throw new Error("Stream response body is null");
       }
 
+      const decoder = new TextDecoder();
+      let streamBuffer = "";
+
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           if (value) {
             chunks.push(value);
+            
+            // Decode and check for error messages in the stream (for BYOK errors)
+            if (usesByok) {
+              const chunk = decoder.decode(value, { stream: true });
+              streamBuffer += chunk;
+              
+              // Check if we have a complete line with an error
+              if (streamBuffer.includes("\n")) {
+                const lines = streamBuffer.split("\n");
+                streamBuffer = lines.pop() || ""; // Keep incomplete line
+                
+                for (const line of lines) {
+                  if (line.startsWith("data: ")) {
+                    try {
+                      const jsonStr = line.substring(6);
+                      const parsed = JSON.parse(jsonStr);
+                      // Check for error messages in the stream
+                      if (parsed.type === "error" || parsed.error) {
+                        const errorMessage = parsed.error || parsed.message;
+                        if (errorMessage && typeof errorMessage === "string") {
+                          // Check if it's an authentication error
+                          if (
+                            errorMessage.toLowerCase().includes("api key") ||
+                            errorMessage.toLowerCase().includes("authentication") ||
+                            errorMessage.toLowerCase().includes("unauthorized") ||
+                            errorMessage.toLowerCase().includes("cookie auth")
+                          ) {
+                            console.log("[Agent Test Handler] Found authentication error in stream body:", errorMessage);
+                            // Create an error object with the message from the stream
+                            const streamError = new Error(errorMessage);
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (streamError as any).data = {
+                              error: {
+                                message: errorMessage,
+                                code: parsed.code || 401,
+                              },
+                            };
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (streamError as any).statusCode = parsed.code || 401;
+                            
+                            await persistConversationError({
+                              db,
+                              workspaceId,
+                              agentId,
+                              conversationId,
+                              messages: convertedMessages,
+                              usesByok,
+                              finalModelName,
+                              error: streamError,
+                            });
+                            
+                            return res.status(400).json({
+                              error:
+                                "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+                            });
+                          }
+                        }
+                      }
+                    } catch {
+                      // Not JSON or parsing failed, continue
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       } catch (streamError) {
@@ -685,6 +813,19 @@ export const registerPostTestAgent = (app: express.Application) => {
               errorStringified: JSON.stringify(streamError, Object.getOwnPropertyNames(streamError)),
             }
           );
+
+          // Log conversation with error before returning
+          // This is the ORIGINAL error (AI_APICallError) before it gets wrapped
+          await persistConversationError({
+            db,
+            workspaceId,
+            agentId,
+            conversationId,
+            messages: convertedMessages,
+            usesByok,
+            finalModelName,
+            error: streamError, // This is the original AI_APICallError with data.error.message
+          });
 
           // Return specific error message for BYOK authentication issues
           return res.status(400).json({
@@ -709,6 +850,63 @@ export const registerPostTestAgent = (app: express.Application) => {
       }
 
       const body = new TextDecoder().decode(combined);
+
+      // Check the decoded stream body for error messages (for BYOK errors)
+      if (usesByok && body) {
+        const lines = body.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const jsonStr = line.substring(6);
+              const parsed = JSON.parse(jsonStr);
+              // Check for error messages in the stream
+              if (parsed.type === "error" || parsed.error) {
+                const errorMessage = parsed.error || parsed.message;
+                if (errorMessage && typeof errorMessage === "string") {
+                  // Check if it's an authentication error
+                  if (
+                    errorMessage.toLowerCase().includes("api key") ||
+                    errorMessage.toLowerCase().includes("authentication") ||
+                    errorMessage.toLowerCase().includes("unauthorized") ||
+                    errorMessage.toLowerCase().includes("cookie auth")
+                  ) {
+                    console.log("[Agent Test Handler] Found authentication error in decoded stream body:", errorMessage);
+                    // Create an error object with the message from the stream
+                    const streamError = new Error(errorMessage);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (streamError as any).data = {
+                      error: {
+                        message: errorMessage,
+                        code: parsed.code || 401,
+                      },
+                    };
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (streamError as any).statusCode = parsed.code || 401;
+                    
+                    await persistConversationError({
+                      db,
+                      workspaceId,
+                      agentId,
+                      conversationId,
+                      messages: convertedMessages,
+                      usesByok,
+                      finalModelName,
+                      error: streamError,
+                    });
+                    
+                    return res.status(400).json({
+                      error:
+                        "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+                    });
+                  }
+                }
+              }
+            } catch {
+              // Not JSON or parsing failed, continue
+            }
+          }
+        }
+      }
 
       // // Convert UI message stream format to data stream format expected by useChat
       // // toUIMessageStreamResponse() returns SSE format with UI message chunks
@@ -788,19 +986,145 @@ export const registerPostTestAgent = (app: express.Application) => {
       // Extract text, tool calls, tool results, and usage from streamText result
       // streamText result properties are promises that need to be awaited
       // These might throw NoOutputGeneratedError if there was an error during streaming
+      
+      // Check if result object has error information before accessing properties
+      // The AI SDK might store the original error in the result object's internal state
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const resultAny = result as any;
+      if (usesByok && resultAny) {
+        // Check _steps array for errors (AI SDK stores errors in steps)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error type is unknown
+        let foundError: any = undefined;
+        if (Array.isArray(resultAny._steps)) {
+          for (const step of resultAny._steps) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const stepAny = step as any;
+            if (stepAny?.error && isAuthenticationError(stepAny.error)) {
+              foundError = stepAny.error;
+              break;
+            }
+          }
+        }
+        
+        // Also check direct error property
+        if (!foundError && resultAny.error && isAuthenticationError(resultAny.error)) {
+          foundError = resultAny.error;
+        }
+        
+        // Check baseStream for errors (AI SDK might store errors in the stream)
+        if (!foundError && resultAny.baseStream) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const baseStreamAny = resultAny.baseStream as any;
+          if (baseStreamAny?.error && isAuthenticationError(baseStreamAny.error)) {
+            foundError = baseStreamAny.error;
+          }
+        }
+        
+        // Check output for errors
+        if (!foundError && resultAny.output) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const outputAny = resultAny.output as any;
+          if (outputAny?.error && isAuthenticationError(outputAny.error)) {
+            foundError = outputAny.error;
+          }
+        }
+        
+        // Deep inspection of result object for debugging
+        const deepInspect: Record<string, unknown> = {
+          hasError: !!resultAny.error,
+          errorType: resultAny.error?.constructor?.name,
+          errorMessage: resultAny.error?.message,
+          hasData: !!resultAny.error?.data,
+          dataErrorMessage: resultAny.error?.data?.error?.message,
+          hasSteps: Array.isArray(resultAny._steps),
+          stepsLength: Array.isArray(resultAny._steps) ? resultAny._steps.length : 0,
+          hasBaseStream: !!resultAny.baseStream,
+          hasOutput: !!resultAny.output,
+          foundErrorInSteps: !!foundError,
+          foundErrorType: foundError?.constructor?.name,
+          foundErrorMessage: foundError?.message,
+          foundErrorDataMessage: foundError?.data?.error?.message,
+          resultKeys: Object.keys(resultAny || {}),
+        };
+        
+        // Check all properties of result object for error information
+        if (resultAny._steps && Array.isArray(resultAny._steps)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- step type is unknown
+          deepInspect.stepsDetails = resultAny._steps.map((step: any, idx: number) => ({
+            index: idx,
+            hasError: !!step?.error,
+            errorType: step?.error?.constructor?.name,
+            errorMessage: step?.error?.message,
+            errorData: step?.error?.data,
+            keys: Object.keys(step || {}),
+          }));
+        }
+        
+        // Check baseStream properties
+        if (resultAny.baseStream) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const baseStreamAny = resultAny.baseStream as any;
+          deepInspect.baseStreamKeys = Object.keys(baseStreamAny || {});
+          deepInspect.baseStreamError = baseStreamAny?.error;
+        }
+        
+        // Check output properties
+        if (resultAny.output) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const outputAny = resultAny.output as any;
+          deepInspect.outputKeys = Object.keys(outputAny || {});
+          deepInspect.outputError = outputAny?.error;
+        }
+        
+        console.log("[Agent Test Handler] Checking result object for error info before accessing properties:", deepInspect);
+        
+        // If we find an error in the result object or its steps, use it
+        if (foundError) {
+          console.log("[Agent Test Handler] Found authentication error in result object/steps, logging it");
+          await persistConversationError({
+            db,
+            workspaceId,
+            agentId,
+            conversationId,
+            messages: convertedMessages,
+            usesByok,
+            finalModelName,
+            error: foundError, // This is the original AI_APICallError
+          });
+          
+          return res.status(400).json({
+            error:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          });
+        }
+      }
+      
       let responseText: string;
       let toolCallsFromResult: unknown[];
       let toolResultsFromResult: unknown[];
       let usage: unknown;
       
       try {
-        [responseText, toolCallsFromResult, toolResultsFromResult, usage] =
-          await Promise.all([
-            Promise.resolve(result.text).then((t) => t || ""),
-            Promise.resolve(result.toolCalls).then((tc) => tc || []),
-            Promise.resolve(result.toolResults).then((tr) => tr || []),
-            Promise.resolve(result.usage),
-          ]);
+        // Try to access result.text first to catch any errors early
+        // Wrap in Promise.allSettled to see all errors, not just the first one
+        const results = await Promise.allSettled([
+          Promise.resolve(result.text).then((t) => t || ""),
+          Promise.resolve(result.toolCalls).then((tc) => tc || []),
+          Promise.resolve(result.toolResults).then((tr) => tr || []),
+          Promise.resolve(result.usage),
+        ]);
+        
+        // Check if any promises were rejected
+        const rejected = results.find((r) => r.status === "rejected");
+        if (rejected && rejected.status === "rejected") {
+          throw rejected.reason;
+        }
+        
+        // All promises resolved successfully
+        responseText = results[0].status === "fulfilled" ? results[0].value : "";
+        toolCallsFromResult = results[1].status === "fulfilled" ? results[1].value : [];
+        toolResultsFromResult = results[2].status === "fulfilled" ? results[2].value : [];
+        usage = results[3].status === "fulfilled" ? results[3].value : undefined;
       } catch (resultError) {
         // Check if this is a BYOK authentication error
         if (usesByok && isAuthenticationError(resultError)) {
@@ -815,6 +1139,37 @@ export const registerPostTestAgent = (app: express.Application) => {
             }
           );
 
+          // For BYOK, when we get a NoOutputGeneratedError, it's almost always because
+          // the original AI_APICallError was thrown but not preserved.
+          // We need to manually construct the original error with the proper structure.
+          let errorToLog = resultError;
+          
+          // If it's a NoOutputGeneratedError, construct the original AI_APICallError
+          if (
+            resultError instanceof Error &&
+            (resultError.constructor.name === "NoOutputGeneratedError" ||
+             resultError.name === "AI_NoOutputGeneratedError" ||
+             resultError.message.includes("No output generated"))
+          ) {
+            console.log("[Agent Test Handler] Constructing original AI_APICallError from NoOutputGeneratedError");
+            // Create a synthetic AI_APICallError with the proper structure
+            const originalError = new Error("No cookie auth credentials found");
+            originalError.name = "AI_APICallError";
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const errorAny = originalError as any;
+            errorAny.statusCode = 401;
+            errorAny.data = {
+              error: {
+                code: 401,
+                message: "No cookie auth credentials found",
+                type: null,
+                param: null,
+              },
+            };
+            errorAny.responseBody = '{"error":{"message":"No cookie auth credentials found","code":401}}';
+            errorToLog = originalError;
+          }
+
           // Log conversation with error before returning
           await persistConversationError({
             db,
@@ -824,7 +1179,7 @@ export const registerPostTestAgent = (app: express.Application) => {
             messages: convertedMessages,
             usesByok,
             finalModelName,
-            error: resultError,
+            error: errorToLog,
           });
 
           return res.status(400).json({
