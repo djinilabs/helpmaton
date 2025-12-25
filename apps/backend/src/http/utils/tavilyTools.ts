@@ -50,7 +50,7 @@ export function createTavilySearchTool(workspaceId: string) {
   type SearchArgs = z.infer<typeof searchParamsSchema>;
 
   const description =
-    "Search the web using Tavily search API. This tool allows you to find current information, news, articles, and other web content. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. The search results include titles, URLs, content snippets, and relevance scores.";
+    "Search the web using Tavily search API. This tool allows you to find current information, news, articles, and other web content. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. CRITICAL REQUIREMENTS: (1) You MUST provide the 'query' parameter - it is REQUIRED and cannot be empty. (2) The 'query' parameter must be a non-empty string containing what you want to search for. (3) The 'max_results' parameter is optional (defaults to 5 if not provided). (4) When the user asks you to search for something, IMMEDIATELY call this tool with the required 'query' parameter. Example: If user says 'search for latest AI news', call tavily_search with {query: 'latest AI news'}. Example: If user wants 10 results, call tavily_search with {query: 'Python tutorials', max_results: 10}. The search results include titles, URLs, content snippets, and relevance scores.";
 
   return tool({
     description,
@@ -59,8 +59,18 @@ export function createTavilySearchTool(workspaceId: string) {
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute: async (args: any) => {
+      // Validate required parameters
+      if (!args || typeof args !== "object") {
+        return "Error: tavily_search requires a 'query' parameter. Please provide a search query string.";
+      }
+
       const typedArgs = args as SearchArgs;
       const { query, max_results } = typedArgs;
+
+      // Validate query parameter
+      if (!query || typeof query !== "string" || query.trim().length === 0) {
+        return "Error: tavily_search requires a non-empty 'query' parameter. Please provide a search query string. Example: {query: 'latest news about AI'}";
+      }
 
       // Log tool call
       console.log("[Tool Call] tavily_search", {
@@ -224,7 +234,7 @@ export function createTavilyFetchTool(workspaceId: string) {
   type FetchArgs = z.infer<typeof fetchParamsSchema>;
 
   const description =
-    "Extract and summarize content from a web page URL using Tavily extract API. This tool allows you to get the main content, title, and metadata from any web page. Use this when you need to read and understand the content of a specific webpage. The tool extracts the main text content, title, and optionally images from the page.";
+    "Extract and summarize content from a web page URL using Tavily extract API. This tool allows you to get the main content, title, and metadata from any web page. Use this when you need to read and understand the content of a specific webpage. CRITICAL REQUIREMENTS: (1) You MUST provide the 'url' parameter - it is REQUIRED and cannot be empty. (2) The 'url' parameter must be a valid URL starting with http:// or https://. (3) When the user asks you to fetch or read content from a URL, IMMEDIATELY call this tool with the required 'url' parameter. Example: If user says 'fetch content from https://example.com/article', call tavily_fetch with {url: 'https://example.com/article'}. Example: If user provides a URL, call tavily_fetch with {url: 'https://news.example.com/story'}. The tool extracts the main text content, title, and optionally images from the page.";
 
   return tool({
     description,
@@ -233,8 +243,25 @@ export function createTavilyFetchTool(workspaceId: string) {
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute: async (args: any) => {
+      // Validate required parameters
+      if (!args || typeof args !== "object") {
+        return "Error: tavily_fetch requires a 'url' parameter. Please provide a valid URL string.";
+      }
+
       const typedArgs = args as FetchArgs;
       const { url } = typedArgs;
+
+      // Validate url parameter
+      if (!url || typeof url !== "string" || url.trim().length === 0) {
+        return "Error: tavily_fetch requires a non-empty 'url' parameter. Please provide a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
+      }
+
+      // Basic URL validation
+      try {
+        new URL(url);
+      } catch {
+        return "Error: tavily_fetch requires a valid URL. The 'url' parameter must be a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
+      }
 
       // Log tool call
       console.log("[Tool Call] tavily_fetch", {
