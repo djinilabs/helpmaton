@@ -1186,11 +1186,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           </div>
         </div>
 
-        <SectionGroup title="Testing & Interactions">
+        <SectionGroup title="🧪 Testing & Interactions">
           {/* Chat Test Section */}
           <AccordionSection
             id="test"
-            title="TEST AGENT"
+            title="💬 TEST AGENT"
             isExpanded={expandedSection === "test"}
             onToggle={() => toggleSection("test")}
           >
@@ -1202,7 +1202,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {/* Recent Conversations Section */}
           <AccordionSection
             id="conversations"
-            title="RECENT CONVERSATIONS"
+            title="💭 RECENT CONVERSATIONS"
             isExpanded={expandedSection === "conversations"}
             onToggle={() => toggleSection("conversations")}
           >
@@ -1220,7 +1220,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {/* Memory Records Section */}
           <AccordionSection
             id="memory"
-            title="MEMORY RECORDS"
+            title="🧠 MEMORY RECORDS"
             isExpanded={expandedSection === "memory"}
             onToggle={() => toggleSection("memory")}
           >
@@ -1230,12 +1230,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           </AccordionSection>
         </SectionGroup>
 
-        <SectionGroup title="Configuration">
+        <SectionGroup title="⚙️ Configuration">
           {/* Delegation Section */}
           {canEdit && (
             <AccordionSection
               id="delegation"
-              title="DELEGATION"
+              title="🤝 DELEGATION"
               isExpanded={expandedSection === "delegation"}
               onToggle={() => toggleSection("delegation")}
             >
@@ -1313,7 +1313,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="advanced"
-              title="ADVANCED"
+              title="🔧 ADVANCED"
               isExpanded={expandedSection === "advanced"}
               onToggle={() => toggleSection("advanced")}
             >
@@ -1525,12 +1525,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           )}
         </SectionGroup>
 
-        <SectionGroup title="Integration">
+        <SectionGroup title="🔌 Integration">
           {/* MCP Servers Section */}
           {canEdit && (
             <AccordionSection
               id="mcp-servers"
-              title="MCP SERVERS"
+              title="🔌 MCP SERVERS"
               isExpanded={expandedSection === "mcp-servers"}
               onToggle={() => toggleSection("mcp-servers")}
             >
@@ -1590,7 +1590,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="memory-search"
-              title="MEMORY SEARCH TOOL"
+              title="🔍 MEMORY SEARCH TOOL"
               isExpanded={expandedSection === "memory-search"}
               onToggle={() => toggleSection("memory-search")}
             >
@@ -1649,7 +1649,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="document-search"
-              title="DOCUMENT SEARCH TOOL"
+              title="📄 DOCUMENT SEARCH TOOL"
               isExpanded={expandedSection === "document-search"}
               onToggle={() => toggleSection("document-search")}
             >
@@ -1696,7 +1696,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="email-tool"
-              title="EMAIL TOOL"
+              title="📧 EMAIL TOOL"
               isExpanded={expandedSection === "email-tool"}
               onToggle={() => toggleSection("email-tool")}
             >
@@ -1755,7 +1755,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="tavily-search"
-              title="TAVILY SEARCH TOOL"
+              title="🌐 TAVILY SEARCH TOOL"
               isExpanded={expandedSection === "tavily-search"}
               onToggle={() => toggleSection("tavily-search")}
             >
@@ -1801,7 +1801,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="tavily-fetch"
-              title="TAVILY FETCH TOOL"
+              title="🔗 TAVILY FETCH TOOL"
               isExpanded={expandedSection === "tavily-fetch"}
               onToggle={() => toggleSection("tavily-fetch")}
             >
@@ -1848,7 +1848,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="client-tools"
-              title="CLIENT-SIDE TOOLS"
+              title="💻 CLIENT-SIDE TOOLS"
               isExpanded={expandedSection === "client-tools"}
               onToggle={() => toggleSection("client-tools")}
             >
@@ -1878,12 +1878,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           )}
         </SectionGroup>
 
-        <SectionGroup title="Servers">
+        <SectionGroup title="🖥️ Servers">
           {/* Stream Server Section */}
           {canEdit && (
             <AccordionSection
               id="stream-server"
-              title="STREAM SERVER"
+              title="📡 STREAM SERVER"
               isExpanded={expandedSection === "stream-server"}
               onToggle={() => toggleSection("stream-server")}
             >
@@ -2167,7 +2167,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {/* Webhooks Management Section */}
           <AccordionSection
             id="keys"
-            title="WEBHOOKS"
+            title="🪝 WEBHOOKS"
             isExpanded={expandedSection === "keys"}
             onToggle={() => toggleSection("keys")}
           >
@@ -2257,12 +2257,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           </AccordionSection>
         </SectionGroup>
 
-        <SectionGroup title="Billing & Usage">
+        <SectionGroup title="💰 Billing & Usage">
           {/* Spending Limits Section */}
           {canEdit && (
             <AccordionSection
               id="spending-limits"
-              title="SPENDING LIMITS"
+              title="💳 SPENDING LIMITS"
               isExpanded={expandedSection === "spending-limits"}
               onToggle={() => toggleSection("spending-limits")}
             >
@@ -2282,7 +2282,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {/* Usage Section */}
           <AccordionSection
             id="usage"
-            title="AGENT USAGE"
+            title="📊 AGENT USAGE"
             isExpanded={expandedSection === "usage"}
             onToggle={() => toggleSection("usage")}
           >
@@ -2295,7 +2295,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
         {canEdit && (
           <AccordionSection
             id="danger"
-            title="DANGER ZONE"
+            title="⚠️ DANGER ZONE"
             isExpanded={expandedSection === "danger"}
             onToggle={() => toggleSection("danger")}
           >

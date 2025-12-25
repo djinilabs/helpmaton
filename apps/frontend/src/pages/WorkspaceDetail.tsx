@@ -495,10 +495,10 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           />
         )}
 
-        <SectionGroup title="Resources">
+        <SectionGroup title="📦 Resources">
           <AccordionSection
             id="agents"
-            title="Agents"
+            title="🤖 Agents"
             isExpanded={expandedSection === "agents"}
             onToggle={() => toggleSection("agents")}
           >
@@ -515,7 +515,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
           <AccordionSection
             id="documents"
-            title="Documents"
+            title="📄 Documents"
             isExpanded={expandedSection === "documents"}
             onToggle={() => toggleSection("documents")}
           >
@@ -542,10 +542,10 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           </AccordionSection>
         </SectionGroup>
 
-        <SectionGroup title="Communications">
+        <SectionGroup title="💬 Communications">
           <AccordionSection
             id="channels"
-            title="Channels"
+            title="📢 Channels"
             isExpanded={expandedSection === "channels"}
             onToggle={() => toggleSection("channels")}
           >
@@ -565,7 +565,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
           <AccordionSection
             id="email-connection"
-            title="Email Connection"
+            title="📧 Email Connection"
             isExpanded={expandedSection === "email-connection"}
             onToggle={() => toggleSection("email-connection")}
           >
@@ -579,10 +579,10 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           </AccordionSection>
         </SectionGroup>
 
-        <SectionGroup title="Billing & Usage">
+        <SectionGroup title="💰 Billing & Usage">
           <AccordionSection
             id="credits"
-            title="Credit Balance"
+            title="💳 Credit Balance"
             isExpanded={expandedSection === "credits"}
             onToggle={() => toggleSection("credits")}
           >
@@ -603,7 +603,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="spending-limits"
-              title="Spending Limits"
+              title="💸 Spending Limits"
               isExpanded={expandedSection === "spending-limits"}
               onToggle={() => toggleSection("spending-limits")}
             >
@@ -621,7 +621,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
           <AccordionSection
             id="usage"
-            title="Workspace Usage"
+            title="📊 Workspace Usage"
             isExpanded={expandedSection === "usage"}
             onToggle={() => toggleSection("usage")}
           >
@@ -631,11 +631,11 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           </AccordionSection>
         </SectionGroup>
 
-        <SectionGroup title="Configuration">
+        <SectionGroup title="⚙️ Configuration">
           {canEdit && (
             <AccordionSection
               id="api-key"
-              title="API Key"
+              title="🔑 API Key"
               isExpanded={expandedSection === "api-key"}
               onToggle={() => toggleSection("api-key")}
             >
@@ -651,7 +651,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="mcp-servers"
-              title="MCP Servers"
+              title="🔌 MCP Servers"
               isExpanded={expandedSection === "mcp-servers"}
               onToggle={() => toggleSection("mcp-servers")}
             >
@@ -666,7 +666,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
         <AccordionSection
           id="team"
-          title="Team"
+          title="👥 Team"
           isExpanded={expandedSection === "team"}
           onToggle={() => toggleSection("team")}
         >
@@ -716,7 +716,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
         {canDelete && (
           <AccordionSection
             id="danger"
-            title="Danger Zone"
+            title="⚠️ Danger Zone"
             isExpanded={expandedSection === "danger"}
             onToggle={() => toggleSection("danger")}
           >
