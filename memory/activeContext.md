@@ -2,7 +2,21 @@
 
 ## Current Status
 
-**Status**: Tavily Integration with Comprehensive Test Coverage - Completed ✅
+**Status**: Tavily Extract API Fix - Completed ✅
+
+**Latest Fix**: Fixed Tavily extract API request format to use `urls` (array) instead of `url` (singular). The Tavily API requires `urls` as an array parameter, even for a single URL. Updated request body and response handling to support array responses.
+
+**Changes Made**:
+- Updated `tavilyExtract()` function in `apps/backend/src/utils/tavily.ts` to send `urls: [url]` instead of `url: url`
+- Added response handling to support both array and single object responses (extracts first element if array)
+- Updated tests to verify new request format and added test case for array response handling
+- All tests passing, typecheck and lint clean
+
+**Files Modified**:
+- `apps/backend/src/utils/tavily.ts` - Fixed request body to use `urls` array, added array response handling
+- `apps/backend/src/utils/__tests__/tavily.test.ts` - Updated tests to verify `urls` parameter and added array response test
+
+**Previous Status**: Tavily Integration with Comprehensive Test Coverage - Completed ✅
 
 **Changes Made**:
 - Integrated Tavily API as both search and fetch tools for agents

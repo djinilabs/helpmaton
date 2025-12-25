@@ -279,7 +279,7 @@ export async function tavilyExtract(
 
   const requestBody = {
     api_key: apiKey,
-    url,
+    urls: [url],
     include_images: options?.include_images ?? false,
     include_raw_content: options?.include_raw_content ?? false,
   };
@@ -351,7 +351,14 @@ export async function tavilyExtract(
         );
       }
 
-      const result = (await response.json()) as TavilyExtractResponse;
+      const jsonResult = await response.json();
+      
+      // Tavily API returns an array when urls is provided as an array
+      // Extract the first result if it's an array, otherwise use the result directly
+      const result = Array.isArray(jsonResult) 
+        ? (jsonResult[0] as TavilyExtractResponse)
+        : (jsonResult as TavilyExtractResponse);
+      
       return result;
     } catch (error) {
       // If error message includes "Tavily extract API error", it's a non-retryable API error - throw immediately

@@ -176,6 +176,8 @@ describe("tavily", () => {
       const result = await tavilyExtract("https://example.com");
 
       expect(result).toEqual(mockResponse);
+      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(callBody.urls).toEqual(["https://example.com"]);
       expect(mockFetch).toHaveBeenCalledWith(
         "https://api.tavily.com/extract",
         expect.objectContaining({
@@ -183,7 +185,6 @@ describe("tavily", () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: expect.stringContaining("https://example.com"),
         })
       );
     });
@@ -210,6 +211,34 @@ describe("tavily", () => {
       await expect(tavilyExtract("https://example.com")).rejects.toThrow(
         "Tavily extract API error"
       );
+    });
+
+    it("should handle array response from API", async () => {
+      // Tavily API returns an array when urls is provided as an array
+      const mockArrayResponse: TavilyExtractResponse[] = [
+        {
+          url: "https://example.com",
+          title: "Example Page",
+          content: "Example content",
+          usage: {
+            credits_used: 1,
+          },
+        },
+      ];
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => mockArrayResponse,
+        text: async () => JSON.stringify(mockArrayResponse),
+        headers: new Headers(),
+      } as Response);
+
+      const result = await tavilyExtract("https://example.com");
+
+      expect(result).toEqual(mockArrayResponse[0]);
+      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+      expect(callBody.urls).toEqual(["https://example.com"]);
     });
   });
 
