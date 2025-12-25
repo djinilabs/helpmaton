@@ -55,10 +55,12 @@ export function wrapToolExecuteWithTiming<T extends unknown[]>(
 /**
  * Gets timing data for a tool call/result
  */
-export function getToolTiming(toolCallId: string): {
-  startedAt?: string;
-  executionTimeMs?: number;
-} | undefined {
+export function getToolTiming(toolCallId: string):
+  | {
+      startedAt?: string;
+      executionTimeMs?: number;
+    }
+  | undefined {
   return toolTimingMap.get(toolCallId);
 }
 
@@ -75,4 +77,3 @@ export function clearToolTiming(toolCallId: string): void {
 export function clearAllToolTiming(): void {
   toolTimingMap.clear();
 }
-

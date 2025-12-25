@@ -25,9 +25,7 @@ import {
   validateSubscriptionAndLimits,
   trackSuccessfulRequest,
 } from "../../http/utils/generationRequestTracking";
-import {
-  extractTokenUsageAndCosts,
-} from "../../http/utils/generationTokenExtraction";
+import { extractTokenUsageAndCosts } from "../../http/utils/generationTokenExtraction";
 import { reconstructToolCallsFromResults } from "../../http/utils/generationToolReconstruction";
 import { database } from "../../tables";
 import {
@@ -42,9 +40,7 @@ import {
 } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
 import { Sentry, ensureError } from "../../utils/sentry";
-import {
-  setupAgentAndTools,
-} from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
+import { setupAgentAndTools } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
   convertTextToUIMessage,
   convertUIMessagesToModelMessages,
@@ -78,19 +74,35 @@ async function persistWebhookConversationError(options: {
     // Log error structure before extraction (especially for BYOK)
     if (options.usesByok) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
-      const errorAny = options.error instanceof Error ? (options.error as any) : undefined;
+      const errorAny =
+        options.error instanceof Error ? (options.error as any) : undefined;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
-      const causeAny = options.error instanceof Error && options.error.cause instanceof Error ? (options.error.cause as any) : undefined;
+      const causeAny =
+        options.error instanceof Error && options.error.cause instanceof Error
+          ? (options.error.cause as any)
+          : undefined;
       console.log("[Webhook Handler] BYOK error before extraction:", {
-        errorType: options.error instanceof Error ? options.error.constructor.name : typeof options.error,
+        errorType:
+          options.error instanceof Error
+            ? options.error.constructor.name
+            : typeof options.error,
         errorName: options.error instanceof Error ? options.error.name : "N/A",
-        errorMessage: options.error instanceof Error ? options.error.message : String(options.error),
+        errorMessage:
+          options.error instanceof Error
+            ? options.error.message
+            : String(options.error),
         hasData: !!errorAny?.data,
         dataError: errorAny?.data?.error,
         dataErrorMessage: errorAny?.data?.error?.message,
         hasCause: options.error instanceof Error && !!options.error.cause,
-        causeType: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.constructor.name : undefined,
-        causeMessage: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.message : undefined,
+        causeType:
+          options.error instanceof Error && options.error.cause instanceof Error
+            ? options.error.cause.constructor.name
+            : undefined,
+        causeMessage:
+          options.error instanceof Error && options.error.cause instanceof Error
+            ? options.error.cause.message
+            : undefined,
         causeData: causeAny?.data?.error?.message,
       });
     }
@@ -103,7 +115,7 @@ async function persistWebhookConversationError(options: {
         usesByok: options.usesByok,
       },
     });
-    
+
     // Log extracted error info (especially for BYOK)
     if (options.usesByok) {
       console.log("[Webhook Handler] BYOK error after extraction:", {
@@ -362,7 +374,12 @@ export const handler = adaptHttpHandler(
       }
 
       // Track successful LLM request
-      await trackSuccessfulRequest(subscriptionId, workspaceId, agentId, "webhook");
+      await trackSuccessfulRequest(
+        subscriptionId,
+        workspaceId,
+        agentId,
+        "webhook"
+      );
 
       // Process simple non-streaming response (no tool continuation)
       // This might throw NoOutputGeneratedError if there was an error during generation
@@ -377,9 +394,18 @@ export const handler = adaptHttpHandler(
             {
               workspaceId,
               agentId,
-              error: resultError instanceof Error ? resultError.message : String(resultError),
-              errorType: resultError instanceof Error ? resultError.constructor.name : typeof resultError,
-              errorStringified: JSON.stringify(resultError, Object.getOwnPropertyNames(resultError)),
+              error:
+                resultError instanceof Error
+                  ? resultError.message
+                  : String(resultError),
+              errorType:
+                resultError instanceof Error
+                  ? resultError.constructor.name
+                  : typeof resultError,
+              errorStringified: JSON.stringify(
+                resultError,
+                Object.getOwnPropertyNames(resultError)
+              ),
             }
           );
 
@@ -387,15 +413,17 @@ export const handler = adaptHttpHandler(
           // the original AI_APICallError was thrown but not preserved.
           // We need to manually construct the original error with the proper structure.
           let errorToLog = resultError;
-          
+
           // If it's a NoOutputGeneratedError, construct the original AI_APICallError
           if (
             resultError instanceof Error &&
             (resultError.constructor.name === "NoOutputGeneratedError" ||
-             resultError.name === "AI_NoOutputGeneratedError" ||
-             resultError.message.includes("No output generated"))
+              resultError.name === "AI_NoOutputGeneratedError" ||
+              resultError.message.includes("No output generated"))
           ) {
-            console.log("[Webhook Handler] Constructing original AI_APICallError from NoOutputGeneratedError");
+            console.log(
+              "[Webhook Handler] Constructing original AI_APICallError from NoOutputGeneratedError"
+            );
             // Create a synthetic AI_APICallError with the proper structure
             const originalError = new Error("No cookie auth credentials found");
             originalError.name = "AI_APICallError";
@@ -410,7 +438,8 @@ export const handler = adaptHttpHandler(
                 param: null,
               },
             };
-            errorAny.responseBody = '{"error":{"message":"No cookie auth credentials found","code":401}}';
+            errorAny.responseBody =
+              '{"error":{"message":"No cookie auth credentials found","code":401}}';
             errorToLog = originalError;
           }
 
@@ -430,8 +459,7 @@ export const handler = adaptHttpHandler(
             headers: {
               "Content-Type": "text/plain; charset=utf-8",
             },
-            body:
-              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+            body: "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           };
         }
         await persistWebhookConversationError({

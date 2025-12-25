@@ -324,9 +324,51 @@ export const AgentChat: FC<AgentChatProps> = ({
                               <div className="mb-1 font-medium text-green-700 dark:text-green-300">
                                 Output:
                               </div>
-                              <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
-                                {JSON.stringify(toolPart.output, null, 2)}
-                              </pre>
+                              {typeof toolPart.output === "string" ? (
+                                <div className="rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    components={{
+                                      code: (props) => {
+                                        const { className, children, ...rest } =
+                                          props;
+                                        const isInline =
+                                          !className ||
+                                          !className.includes("language-");
+                                        if (isInline) {
+                                          return (
+                                            <code
+                                              className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                              {...rest}
+                                            >
+                                              {children}
+                                            </code>
+                                          );
+                                        }
+                                        return (
+                                          <code
+                                            className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                            {...rest}
+                                          >
+                                            {children}
+                                          </code>
+                                        );
+                                      },
+                                      p: ({ children }) => (
+                                        <p className="mb-2 last:mb-0">
+                                          {children}
+                                        </p>
+                                      ),
+                                    }}
+                                  >
+                                    {toolPart.output}
+                                  </ReactMarkdown>
+                                </div>
+                              ) : (
+                                <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
+                                  {JSON.stringify(toolPart.output, null, 2)}
+                                </pre>
+                              )}
                             </div>
                           )}
                           {hasError && (
@@ -407,9 +449,51 @@ export const AgentChat: FC<AgentChatProps> = ({
                               <div className="mb-1 font-medium text-green-700 dark:text-green-300">
                                 Output:
                               </div>
-                              <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
-                                {JSON.stringify(toolPart.output, null, 2)}
-                              </pre>
+                              {typeof toolPart.output === "string" ? (
+                                <div className="rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    components={{
+                                      code: (props) => {
+                                        const { className, children, ...rest } =
+                                          props;
+                                        const isInline =
+                                          !className ||
+                                          !className.includes("language-");
+                                        if (isInline) {
+                                          return (
+                                            <code
+                                              className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                              {...rest}
+                                            >
+                                              {children}
+                                            </code>
+                                          );
+                                        }
+                                        return (
+                                          <code
+                                            className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                            {...rest}
+                                          >
+                                            {children}
+                                          </code>
+                                        );
+                                      },
+                                      p: ({ children }) => (
+                                        <p className="mb-2 last:mb-0">
+                                          {children}
+                                        </p>
+                                      ),
+                                    }}
+                                  >
+                                    {toolPart.output}
+                                  </ReactMarkdown>
+                                </div>
+                              ) : (
+                                <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
+                                  {JSON.stringify(toolPart.output, null, 2)}
+                                </pre>
+                              )}
                             </div>
                           )}
                           {hasError && (

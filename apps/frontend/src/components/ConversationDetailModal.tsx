@@ -52,9 +52,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                 toolName?: string;
                 toolCallStartedAt?: string;
               };
-              return `[Tool Call: ${
-                toolCall.toolName || "unknown"
-              }]`;
+              return `[Tool Call: ${toolCall.toolName || "unknown"}]`;
             }
             if ("type" in item && item.type === "tool-result") {
               const toolResult = item as {
@@ -221,7 +219,8 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                   Total Generation Time
                 </div>
                 <div className="text-neutral-900 dark:text-neutral-50">
-                  {(conversationDetail.totalGenerationTimeMs / 1000).toFixed(2)}s
+                  {(conversationDetail.totalGenerationTimeMs / 1000).toFixed(2)}
+                  s
                 </div>
               </div>
             )}
@@ -242,7 +241,9 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
             <div className="space-y-2 text-xs text-red-900 dark:text-red-100">
               <div>
                 <span className="font-semibold">Message: </span>
-                <span className="break-words">{conversationDetail.error.message}</span>
+                <span className="break-words">
+                  {conversationDetail.error.message}
+                </span>
               </div>
               {conversationDetail.error.name && (
                 <div>
@@ -262,11 +263,14 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                   {conversationDetail.error.statusCode}
                 </div>
               )}
-              {(conversationDetail.error.provider || conversationDetail.error.modelName) && (
+              {(conversationDetail.error.provider ||
+                conversationDetail.error.modelName) && (
                 <div>
                   <span className="font-semibold">Provider/Model: </span>
                   {conversationDetail.error.provider || "unknown"}
-                  {conversationDetail.error.modelName ? ` / ${conversationDetail.error.modelName}` : ""}
+                  {conversationDetail.error.modelName
+                    ? ` / ${conversationDetail.error.modelName}`
+                    : ""}
                 </div>
               )}
               {conversationDetail.error.stack && (
@@ -509,16 +513,73 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                   </h3>
                   <div className="space-y-2">
                     {conversationDetail.toolResults.map(
-                      (toolResult: unknown, index: number) => (
-                        <div
-                          key={index}
-                          className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
-                        >
-                          <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs text-neutral-900 dark:text-neutral-50">
-                            {JSON.stringify(toolResult, null, 2)}
-                          </pre>
-                        </div>
-                      )
+                      (toolResult: unknown, index: number) => {
+                        // Extract result value - could be direct string or nested in object
+                        let resultValue: unknown = toolResult;
+                        if (
+                          typeof toolResult === "object" &&
+                          toolResult !== null &&
+                          "result" in toolResult
+                        ) {
+                          resultValue = (toolResult as { result: unknown })
+                            .result;
+                        }
+
+                        const isStringResult = typeof resultValue === "string";
+
+                        return (
+                          <div
+                            key={index}
+                            className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
+                          >
+                            {isStringResult ? (
+                              <div className="text-xs text-neutral-900 dark:text-neutral-50">
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm]}
+                                  components={{
+                                    code: (props) => {
+                                      const { className, children, ...rest } =
+                                        props;
+                                      const isInline =
+                                        !className ||
+                                        !className.includes("language-");
+                                      if (isInline) {
+                                        return (
+                                          <code
+                                            className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                            {...rest}
+                                          >
+                                            {children}
+                                          </code>
+                                        );
+                                      }
+                                      return (
+                                        <code
+                                          className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                          {...rest}
+                                        >
+                                          {children}
+                                        </code>
+                                      );
+                                    },
+                                    p: ({ children }) => (
+                                      <p className="mb-2 last:mb-0">
+                                        {children}
+                                      </p>
+                                    ),
+                                  }}
+                                >
+                                  {resultValue as string}
+                                </ReactMarkdown>
+                              </div>
+                            ) : (
+                              <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs text-neutral-900 dark:text-neutral-50">
+                                {JSON.stringify(toolResult, null, 2)}
+                              </pre>
+                            )}
+                          </div>
+                        );
+                      }
                     )}
                   </div>
                 </div>
