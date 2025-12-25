@@ -353,11 +353,31 @@ export async function tavilyExtract(
 
       const jsonResult = await response.json();
       
+      // Log the raw response to debug structure
+      console.log("[tavilyExtract] Raw API response:", {
+        isArray: Array.isArray(jsonResult),
+        type: typeof jsonResult,
+        keys: Array.isArray(jsonResult) ? undefined : Object.keys(jsonResult || {}),
+        firstElementKeys: Array.isArray(jsonResult) && jsonResult[0] ? Object.keys(jsonResult[0]) : undefined,
+        sample: Array.isArray(jsonResult) ? jsonResult[0] : jsonResult,
+      });
+      
       // Tavily API returns an array when urls is provided as an array
       // Extract the first result if it's an array, otherwise use the result directly
       const result = Array.isArray(jsonResult) 
         ? (jsonResult[0] as TavilyExtractResponse)
         : (jsonResult as TavilyExtractResponse);
+      
+      // Log the extracted result structure
+      console.log("[tavilyExtract] Extracted result:", {
+        url: result?.url,
+        title: result?.title,
+        hasContent: !!result?.content,
+        contentLength: result?.content?.length,
+        hasImages: !!result?.images,
+        imagesCount: result?.images?.length,
+        keys: Object.keys(result || {}),
+      });
       
       return result;
     } catch (error) {

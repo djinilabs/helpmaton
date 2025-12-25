@@ -1,4 +1,7 @@
-import { extractTokenUsage, type TokenUsage } from "../../utils/conversationLogger";
+import {
+  extractTokenUsage,
+  type TokenUsage,
+} from "../../utils/conversationLogger";
 import {
   extractOpenRouterCost,
   extractOpenRouterGenerationId,
@@ -28,14 +31,6 @@ export function extractTokenUsageAndCosts(
 ): TokenAndCostExtraction {
   // Extract token usage from result
   const tokenUsage = extractTokenUsage({ ...result, usage });
-
-  // Log full result before extraction for debugging
-  console.log(
-    `[${endpoint} Handler] Full result structure before generation ID extraction:`,
-    {
-      result: JSON.stringify({ ...result, usage }, null, 2),
-    }
-  );
 
   // Extract OpenRouter generation ID for cost verification
   const openrouterGenerationId = extractOpenRouterGenerationId({
@@ -112,4 +107,3 @@ export function calculateProvisionalCost(
 
   return undefined;
 }
-
