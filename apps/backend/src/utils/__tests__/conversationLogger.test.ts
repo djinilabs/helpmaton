@@ -922,6 +922,27 @@ describe("conversationLogger", () => {
     });
 
     it("should keep all messages including empty ones before queuing", async () => {
+      let storedRecord: unknown = null;
+      
+      // Mock atomicUpdate to capture what gets stored
+      mockDb["agent-conversations"].atomicUpdate = vi.fn(
+        async (pk, sk, callback) => {
+          const existingConversation = {
+            pk,
+            workspaceId: "workspace1",
+            agentId: "agent1",
+            conversationId: "conv1",
+            conversationType: "test" as const,
+            messages: [],
+            startedAt: new Date().toISOString(),
+            expires: Date.now() + 1000000,
+          };
+          const result = await callback(existingConversation);
+          storedRecord = result;
+          return result;
+        }
+      );
+
       const messages: UIMessage[] = [
         { role: "user", content: "Hello" },
         { role: "assistant", content: "" }, // Empty message
@@ -938,20 +959,38 @@ describe("conversationLogger", () => {
       );
 
       expect(mockWriteToWorkingMemory).toHaveBeenCalledTimes(1);
-      // Should keep all messages including empty ones (empty messages are not filtered)
-      // expandMessagesWithToolCalls only expands assistant messages with array content,
-      // so string content messages (including empty ones) are passed through as-is
-      const callArgs = mockWriteToWorkingMemory.mock.calls[0];
-      expect(callArgs[0]).toBe("agent1");
-      expect(callArgs[1]).toBe("workspace1");
-      expect(callArgs[2]).toBe("conv1");
-      const sentMessages = callArgs[3] as UIMessage[];
-      // Verify all 4 messages are included (empty messages are not filtered)
-      expect(sentMessages.length).toBeGreaterThanOrEqual(4);
-      expect(sentMessages.some((m) => m.role === "user" && m.content === "Hello")).toBe(true);
-      expect(sentMessages.some((m) => m.role === "assistant" && m.content === "")).toBe(true);
-      expect(sentMessages.some((m) => m.role === "user" && m.content === "   ")).toBe(true);
-      expect(sentMessages.some((m) => m.role === "assistant" && m.content === "Hi there")).toBe(true);
+      
+      // Verify the database record contains all messages (including empty ones)
+      expect(storedRecord).not.toBeNull();
+      const record = storedRecord as { messages: UIMessage[] };
+      const storedMessages = record.messages;
+      
+      // All 4 original messages should be in the stored messages (after expansion)
+      // expandMessagesWithToolCalls passes through string content messages as-is
+      expect(storedMessages.length).toBeGreaterThanOrEqual(4);
+      
+      // Find the original messages in the stored messages (they might be expanded)
+      const hasHello = storedMessages.some((m: UIMessage) => 
+        m.role === "user" && (m.content === "Hello" || (Array.isArray(m.content) && m.content.some((item: unknown) => 
+          typeof item === "object" && item !== null && "type" in item && item.type === "text" && "text" in item && item.text === "Hello"
+        )))
+      );
+      const hasEmpty = storedMessages.some((m: UIMessage) => 
+        m.role === "assistant" && m.content === ""
+      );
+      const hasWhitespace = storedMessages.some((m: UIMessage) => 
+        m.role === "user" && m.content === "   "
+      );
+      const hasHiThere = storedMessages.some((m: UIMessage) => 
+        m.role === "assistant" && (m.content === "Hi there" || (Array.isArray(m.content) && m.content.some((item: unknown) => 
+          typeof item === "object" && item !== null && "type" in item && item.type === "text" && "text" in item && item.text === "Hi there"
+        )))
+      );
+      
+      expect(hasHello).toBe(true);
+      expect(hasEmpty).toBe(true); // Empty message should be preserved
+      expect(hasWhitespace).toBe(true); // Whitespace-only message should be preserved
+      expect(hasHiThere).toBe(true);
     });
   });
 
