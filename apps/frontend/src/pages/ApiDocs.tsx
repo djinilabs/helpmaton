@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
 import { ApiReferenceReact } from "@scalar/api-reference-react";
+import { useEffect, useRef } from "react";
 import "@scalar/api-reference-react/style.css";
 // import { useSession } from "next-auth/react";
 
