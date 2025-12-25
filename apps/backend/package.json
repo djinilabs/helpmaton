@@ -23,7 +23,7 @@
     "@lancedb/lancedb": "^0.23.0",
     "@sentry/node": "^10.0.0",
     "@vendia/serverless-express": "^4.12.6",
-    "ai": "^5.0.0",
+    "ai": "^6.0.0",
     "aws-sdk": "^2.1692.0",
     "chalk": "^5.0.0",
     "express": "^5.0.0",
