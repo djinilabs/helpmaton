@@ -73,10 +73,10 @@ async function persistWebhookConversationError(options: {
 
     // Log error structure before extraction (especially for BYOK)
     if (options.usesByok) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+       
       const errorAny =
         options.error instanceof Error ? (options.error as any) : undefined;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
+       
       const causeAny =
         options.error instanceof Error && options.error.cause instanceof Error
           ? (options.error.cause as any)

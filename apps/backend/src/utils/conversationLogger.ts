@@ -707,7 +707,23 @@ export function extractToolCalls(messages: UIMessage[]): unknown[] {
           item.type === "tool-call"
         ) {
           console.log("[extractToolCalls] Found tool call:", item);
-          toolCalls.push(item);
+          // Validate tool call has required fields
+          if (
+            "toolCallId" in item &&
+            "toolName" in item &&
+            typeof (item as { toolCallId?: unknown }).toolCallId === "string" &&
+            typeof (item as { toolName?: unknown }).toolName === "string"
+          ) {
+            toolCalls.push(item);
+          } else {
+            console.warn("[extractToolCalls] Tool call missing required fields:", {
+              hasToolCallId: "toolCallId" in item,
+              hasToolName: "toolName" in item,
+              toolCallIdType: "toolCallId" in item ? typeof (item as { toolCallId?: unknown }).toolCallId : "missing",
+              toolNameType: "toolName" in item ? typeof (item as { toolName?: unknown }).toolName : "missing",
+              item,
+            });
+          }
         }
       }
     } else {
@@ -958,6 +974,149 @@ function deduplicateMessages(
 }
 
 /**
+ * Expand messages to include separate tool call and tool result messages
+ * This ensures tool calls appear as separate messages in the conversation history
+ * while keeping them embedded in assistant message content for LLM compatibility
+ */
+export function expandMessagesWithToolCalls(
+  messages: UIMessage[],
+  awsRequestId?: string
+): UIMessage[] {
+  const expandedMessages: UIMessage[] = [];
+
+  for (const message of messages) {
+    if (message.role === "assistant" && Array.isArray(message.content)) {
+      // Extract tool calls and tool results from this assistant message
+      const toolCallsInMessage: Array<{
+        type: "tool-call";
+        toolCallId: string;
+        toolName: string;
+        args: unknown;
+        toolCallStartedAt?: string;
+      }> = [];
+      const toolResultsInMessage: Array<{
+        type: "tool-result";
+        toolCallId: string;
+        toolName: string;
+        result: unknown;
+        toolExecutionTimeMs?: number;
+      }> = [];
+      const textParts: Array<{ type: "text"; text: string }> = [];
+
+      // Separate content into tool calls, tool results, and text
+      for (const item of message.content) {
+        if (
+          typeof item === "object" &&
+          item !== null &&
+          "type" in item
+        ) {
+          if (item.type === "tool-call") {
+            const toolCall = item as {
+              type: "tool-call";
+              toolCallId?: string;
+              toolName?: string;
+              args?: unknown;
+              toolCallStartedAt?: string;
+            };
+            if (
+              toolCall.toolCallId &&
+              toolCall.toolName &&
+              typeof toolCall.toolCallId === "string" &&
+              typeof toolCall.toolName === "string"
+            ) {
+              toolCallsInMessage.push({
+                type: "tool-call",
+                toolCallId: toolCall.toolCallId,
+                toolName: toolCall.toolName,
+                args: toolCall.args || {},
+                ...(toolCall.toolCallStartedAt && {
+                  toolCallStartedAt: toolCall.toolCallStartedAt,
+                }),
+              });
+            }
+          } else if (item.type === "tool-result") {
+            const toolResult = item as {
+              type: "tool-result";
+              toolCallId?: string;
+              toolName?: string;
+              result?: unknown;
+              toolExecutionTimeMs?: number;
+            };
+            if (
+              toolResult.toolCallId &&
+              toolResult.toolName &&
+              typeof toolResult.toolCallId === "string" &&
+              typeof toolResult.toolName === "string"
+            ) {
+              toolResultsInMessage.push({
+                type: "tool-result",
+                toolCallId: toolResult.toolCallId,
+                toolName: toolResult.toolName,
+                result: toolResult.result,
+                ...(toolResult.toolExecutionTimeMs !== undefined && {
+                  toolExecutionTimeMs: toolResult.toolExecutionTimeMs,
+                }),
+              });
+            }
+          } else if (item.type === "text" && "text" in item) {
+            const textItem = item as { text?: unknown };
+            if (typeof textItem.text === "string") {
+              textParts.push({ type: "text", text: textItem.text });
+            }
+          }
+        }
+      }
+
+      // If we have tool calls or tool results, create separate messages for them
+      // BUT also keep the original assistant message for LLM compatibility
+      if (toolCallsInMessage.length > 0 || toolResultsInMessage.length > 0) {
+        // Add tool call messages (as separate assistant messages with just tool calls)
+        for (const toolCall of toolCallsInMessage) {
+          expandedMessages.push({
+            role: "assistant",
+            content: [toolCall],
+            ...(awsRequestId && { awsRequestId }),
+          });
+        }
+
+        // Add tool result messages (as tool role messages)
+        for (const toolResult of toolResultsInMessage) {
+          expandedMessages.push({
+            role: "tool",
+            content: [toolResult],
+            ...(awsRequestId && { awsRequestId }),
+          });
+        }
+
+        // Also keep the original assistant message with all content (for LLM compatibility)
+        // This ensures the conversation can be replayed correctly for the LLM
+        expandedMessages.push(
+          awsRequestId ? { ...message, awsRequestId } : message
+        );
+      } else {
+        // No tool calls/results, add message as-is
+        expandedMessages.push(
+          awsRequestId ? { ...message, awsRequestId } : message
+        );
+      }
+    } else {
+      // Not an assistant message with array content, add as-is
+      expandedMessages.push(
+        awsRequestId ? { ...message, awsRequestId } : message
+      );
+    }
+  }
+
+  console.log("[expandMessagesWithToolCalls] Expanded messages:", {
+    originalCount: messages.length,
+    expandedCount: expandedMessages.length,
+    expansion: expandedMessages.length - messages.length,
+  });
+
+  return expandedMessages;
+}
+
+/**
  * Extract tool results from messages
  */
 export function extractToolResults(messages: UIMessage[]): unknown[] {
@@ -981,7 +1140,23 @@ export function extractToolResults(messages: UIMessage[]): unknown[] {
             "[extractToolResults] Found tool result in assistant message:",
             item
           );
-          toolResults.push(item);
+          // Validate tool result has required fields
+          if (
+            "toolCallId" in item &&
+            "toolName" in item &&
+            typeof (item as { toolCallId?: unknown }).toolCallId === "string" &&
+            typeof (item as { toolName?: unknown }).toolName === "string"
+          ) {
+            toolResults.push(item);
+          } else {
+            console.warn("[extractToolResults] Tool result missing required fields:", {
+              hasToolCallId: "toolCallId" in item,
+              hasToolName: "toolName" in item,
+              toolCallIdType: "toolCallId" in item ? typeof (item as { toolCallId?: unknown }).toolCallId : "missing",
+              toolNameType: "toolName" in item ? typeof (item as { toolName?: unknown }).toolName : "missing",
+              item,
+            });
+          }
         }
       }
     } else if (message.role === "tool" && Array.isArray(message.content)) {
@@ -996,7 +1171,23 @@ export function extractToolResults(messages: UIMessage[]): unknown[] {
             "[extractToolResults] Found tool result in tool message:",
             item
           );
-          toolResults.push(item);
+          // Validate tool result has required fields
+          if (
+            "toolCallId" in item &&
+            "toolName" in item &&
+            typeof (item as { toolCallId?: unknown }).toolCallId === "string" &&
+            typeof (item as { toolName?: unknown }).toolName === "string"
+          ) {
+            toolResults.push(item);
+          } else {
+            console.warn("[extractToolResults] Tool result missing required fields (tool message):", {
+              hasToolCallId: "toolCallId" in item,
+              hasToolName: "toolName" in item,
+              toolCallIdType: "toolCallId" in item ? typeof (item as { toolCallId?: unknown }).toolCallId : "missing",
+              toolNameType: "toolName" in item ? typeof (item as { toolName?: unknown }).toolName : "missing",
+              item,
+            });
+          }
         }
       }
     }
@@ -1216,22 +1407,41 @@ export async function startConversation(
     (msg) => !isMessageContentEmpty(msg)
   );
 
-  // Add request ID to each message if provided
-  const messagesWithRequestId = data.awsRequestId
+  // Expand messages to include separate tool call and tool result messages
+  // This ensures tool calls appear as separate messages in conversation history
+  const expandedMessages = expandMessagesWithToolCalls(
+    filteredMessages,
+    data.awsRequestId
+  );
+
+  // Extract tool calls and results from original messages (before expansion)
+  // for storage in toolCalls/toolResults fields
+  const messagesForExtraction = data.awsRequestId
     ? filteredMessages.map((msg) => ({
         ...msg,
         awsRequestId: data.awsRequestId,
       }))
     : filteredMessages;
 
-  const toolCalls = extractToolCalls(messagesWithRequestId);
-  const toolResults = extractToolResults(messagesWithRequestId);
+  const toolCalls = extractToolCalls(messagesForExtraction);
+  const toolResults = extractToolResults(messagesForExtraction);
+
+  // DIAGNOSTIC: Log extracted tool calls and results before storage
+  console.log("[startConversation] Extracted tool calls and results:", {
+    toolCallsCount: toolCalls.length,
+    toolResultsCount: toolResults.length,
+    toolCalls: toolCalls,
+    toolResults: toolResults,
+    willStoreToolCalls: toolCalls.length > 0,
+    willStoreToolResults: toolResults.length > 0,
+  });
 
   // Calculate costs from per-message model/provider data
   // Prefer finalCostUsd (from OpenRouter API verification) if available, then provisionalCostUsd, then calculate from tokenUsage
+  // Use original messages (before expansion) for cost calculation
   let totalCostUsd = 0;
   let totalGenerationTimeMs = 0;
-  for (const message of messagesWithRequestId) {
+  for (const message of messagesForExtraction) {
     if (message.role === "assistant") {
       // Prefer finalCostUsd if available (from OpenRouter cost verification)
       if ("finalCostUsd" in message && typeof message.finalCostUsd === "number") {
@@ -1263,13 +1473,13 @@ export async function startConversation(
   // Initialize awsRequestIds array if awsRequestId is provided
   const awsRequestIds = data.awsRequestId ? [data.awsRequestId] : undefined;
 
-  await db["agent-conversations"].create({
+  const conversationRecord = {
     pk,
     workspaceId: data.workspaceId,
     agentId: data.agentId,
     conversationId,
     conversationType: data.conversationType,
-    messages: messagesWithRequestId as unknown[],
+    messages: expandedMessages as unknown[],
     toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
     toolResults: toolResults.length > 0 ? toolResults : undefined,
     tokenUsage: data.tokenUsage,
@@ -1281,7 +1491,20 @@ export async function startConversation(
     startedAt: now,
     lastMessageAt: now,
     expires: calculateTTL(),
+  };
+
+  // DIAGNOSTIC: Log what's being stored
+  console.log("[startConversation] Storing conversation record:", {
+    conversationId,
+    toolCallsCount: toolCalls.length,
+    toolResultsCount: toolResults.length,
+    hasToolCalls: !!conversationRecord.toolCalls,
+    hasToolResults: !!conversationRecord.toolResults,
+    toolCalls: conversationRecord.toolCalls,
+    toolResults: conversationRecord.toolResults,
   });
+
+  await db["agent-conversations"].create(conversationRecord);
 
   // Write to working memory - await to ensure it completes before Lambda finishes
   // This prevents Lambda from freezing the execution context before SQS message is sent
@@ -1292,11 +1515,11 @@ export async function startConversation(
     `[Conversation Logger] Parameter values being passed - agentId: "${data.agentId}", workspaceId: "${data.workspaceId}", conversationId: "${conversationId}"`
   );
   try {
-    await writeToWorkingMemory(
+      await writeToWorkingMemory(
       data.agentId,
       data.workspaceId,
       conversationId,
-      messagesWithRequestId
+      expandedMessages
     );
   } catch (error) {
     // Log error but don't throw - memory writes should not block conversation logging
@@ -1359,11 +1582,26 @@ export async function updateConversation(
 
       if (!existing) {
         // If conversation doesn't exist, create it
-        // All filtered messages are new in this case
-        trulyNewMessages = messagesWithRequestId;
+        // Expand messages to include separate tool call and tool result messages
+        const expandedMessages = expandMessagesWithToolCalls(
+          filteredNewMessages,
+          awsRequestId
+        );
+        trulyNewMessages = expandedMessages;
 
+        // Extract tool calls and results from original messages (before expansion)
         const toolCalls = extractToolCalls(messagesWithRequestId);
         const toolResults = extractToolResults(messagesWithRequestId);
+
+        // DIAGNOSTIC: Log extracted tool calls and results before storage (create path)
+        console.log("[updateConversation] Extracted tool calls and results (create path):", {
+          toolCallsCount: toolCalls.length,
+          toolResultsCount: toolResults.length,
+          toolCalls: toolCalls,
+          toolResults: toolResults,
+          willStoreToolCalls: toolCalls.length > 0,
+          willStoreToolResults: toolResults.length > 0,
+        });
         
         // Calculate costs and generation times from per-message model/provider data
         let totalCostUsd = 0;
@@ -1390,18 +1628,18 @@ export async function updateConversation(
         // Initialize awsRequestIds array if awsRequestId is provided
         const awsRequestIds = awsRequestId ? [awsRequestId] : undefined;
 
-        return {
+        const conversationRecord = {
           pk,
           workspaceId,
           agentId,
           conversationId,
           conversationType: (conversationType || "test") as "test" | "webhook" | "stream", // Use provided type or default to test
-          messages: messagesWithRequestId as unknown[],
+          messages: expandedMessages as unknown[],
           toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
           tokenUsage: additionalTokenUsage,
           usesByok: usesByok,
-        error,
+          error,
           costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
           totalGenerationTimeMs: totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
           awsRequestIds,
@@ -1409,6 +1647,19 @@ export async function updateConversation(
           lastMessageAt: now,
           expires: calculateTTL(),
         };
+
+        // DIAGNOSTIC: Log what's being stored (create path)
+        console.log("[updateConversation] Storing conversation record (create path):", {
+          conversationId,
+          toolCallsCount: toolCalls.length,
+          toolResultsCount: toolResults.length,
+          hasToolCalls: !!conversationRecord.toolCalls,
+          hasToolResults: !!conversationRecord.toolResults,
+          toolCalls: conversationRecord.toolCalls,
+          toolResults: conversationRecord.toolResults,
+        });
+
+        return conversationRecord;
       }
 
       // Get existing messages from database
@@ -1421,13 +1672,13 @@ export async function updateConversation(
         existingMessages,
         filteredNewMessages
       );
-      // Add request ID to truly new messages
-      trulyNewMessages = awsRequestId
-        ? trulyNewWithoutRequestId.map((msg) => ({
-            ...msg,
-            awsRequestId,
-          }))
-        : trulyNewWithoutRequestId;
+      // Expand truly new messages to include separate tool call and tool result messages
+      // This ensures tool calls appear as separate messages in conversation history
+      const expandedTrulyNewMessages = expandMessagesWithToolCalls(
+        trulyNewWithoutRequestId,
+        awsRequestId
+      );
+      trulyNewMessages = expandedTrulyNewMessages;
 
       // Merge messages for DB storage, deduplicating based on role and content
       // This prevents duplicate messages when the client sends the full conversation history
@@ -1442,9 +1693,29 @@ export async function updateConversation(
         (msg) => !isMessageContentEmpty(msg)
       );
 
-      // Extract all tool calls and results from merged messages
+      // Extract all tool calls and results from merged messages (before expansion)
+      // for storage in toolCalls/toolResults fields
       const toolCalls = extractToolCalls(filteredAllMessages);
       const toolResults = extractToolResults(filteredAllMessages);
+
+      // Expand messages to include separate tool call and tool result messages
+      // This ensures tool calls appear as separate messages in conversation history
+      // Expand after deduplication to avoid expanding duplicates
+      const expandedAllMessages = expandMessagesWithToolCalls(
+        filteredAllMessages,
+        awsRequestId
+      );
+
+      // DIAGNOSTIC: Log extracted tool calls and results before storage (update path)
+      console.log("[updateConversation] Extracted tool calls and results (update path):", {
+        toolCallsCount: toolCalls.length,
+        toolResultsCount: toolResults.length,
+        toolCalls: toolCalls,
+        toolResults: toolResults,
+        willStoreToolCalls: toolCalls.length > 0,
+        willStoreToolResults: toolResults.length > 0,
+        filteredAllMessagesCount: filteredAllMessages.length,
+      });
 
       // Aggregate token usage
       const existingTokenUsage = existing.tokenUsage as TokenUsage | undefined;
@@ -1495,13 +1766,13 @@ export async function updateConversation(
           : undefined;
 
       // Update conversation, preserving existing fields
-      return {
+      const conversationRecord = {
         pk,
         workspaceId: existing.workspaceId,
         agentId: existing.agentId,
         conversationId: existing.conversationId,
         conversationType: existing.conversationType,
-        messages: filteredAllMessages as unknown[],
+        messages: expandedAllMessages as unknown[],
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
         toolResults: toolResults.length > 0 ? toolResults : undefined,
         tokenUsage: aggregatedTokenUsage,
@@ -1514,6 +1785,25 @@ export async function updateConversation(
         startedAt: existing.startedAt,
         awsRequestIds: updatedRequestIds,
       };
+
+      // DIAGNOSTIC: Log what's being stored (update path)
+      console.log("[updateConversation] Storing conversation record (update path):", {
+        conversationId: existing.conversationId,
+        toolCallsCount: toolCalls.length,
+        toolResultsCount: toolResults.length,
+        hasToolCalls: !!conversationRecord.toolCalls,
+        hasToolResults: !!conversationRecord.toolResults,
+        toolCalls: conversationRecord.toolCalls,
+        toolResults: conversationRecord.toolResults,
+        existingToolCallsCount: Array.isArray((existing as { toolCalls?: unknown[] }).toolCalls)
+          ? (existing as { toolCalls: unknown[] }).toolCalls.length
+          : 0,
+        existingToolResultsCount: Array.isArray((existing as { toolResults?: unknown[] }).toolResults)
+          ? (existing as { toolResults: unknown[] }).toolResults.length
+          : 0,
+      });
+
+      return conversationRecord;
     }
   );
 
