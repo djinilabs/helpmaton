@@ -261,9 +261,7 @@ All tables are configured with `encrypt true` in `app.arc`, meaning DynamoDB enc
 - `agentId` (String): Agent ID for GSI queries
 - `conversationId` (String): Unique conversation ID (UUID)
 - `conversationType` (Enum: "test" | "webhook" | "stream"): Type of conversation
-- `messages` (Array): Array of all messages in the conversation
-- `toolCalls` (Array, optional): Array of all tool calls
-- `toolResults` (Array, optional): Array of all tool results
+- `messages` (Array): Array of all messages in the conversation (tool calls and results are included as messages)
 - `tokenUsage` (Object, optional): Aggregated token usage
   - `promptTokens`: Number
   - `completionTokens`: Number

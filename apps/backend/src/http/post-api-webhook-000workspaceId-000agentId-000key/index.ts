@@ -73,10 +73,9 @@ async function persistWebhookConversationError(options: {
 
     // Log error structure before extraction (especially for BYOK)
     if (options.usesByok) {
-       
       const errorAny =
         options.error instanceof Error ? (options.error as any) : undefined;
-       
+
       const causeAny =
         options.error instanceof Error && options.error.cause instanceof Error
           ? (options.error.cause as any)
@@ -646,49 +645,40 @@ export const handler = adaptHttpHandler(
       // Each webhook call creates a new conversation
       // tokenUsage already extracted above for credit deduction
       try {
-        // Filter out empty messages before logging
-        const messagesToLog = [uiMessage, assistantMessage].filter(
-          (msg) => !isMessageContentEmpty(msg)
+        // Keep all messages (including empty ones) - do not filter
+        const messagesToLog = [uiMessage, assistantMessage];
+
+        // DIAGNOSTIC: Log messages being passed to startConversation
+        console.log(
+          "[Webhook Handler] Messages being passed to startConversation:",
+          {
+            messagesCount: messagesToLog.length,
+            messages: messagesToLog,
+            assistantMessageRole: assistantMessage.role,
+            assistantMessageContentType: typeof assistantMessage.content,
+            assistantMessageIsArray: Array.isArray(assistantMessage.content),
+          }
         );
 
-        // Only log if we have at least one non-empty message
-        if (messagesToLog.length > 0) {
-          // DIAGNOSTIC: Log messages being passed to startConversation
-          console.log(
-            "[Webhook Handler] Messages being passed to startConversation:",
-            {
-              messagesCount: messagesToLog.length,
-              messages: messagesToLog,
-              assistantMessageRole: assistantMessage.role,
-              assistantMessageContentType: typeof assistantMessage.content,
-              assistantMessageIsArray: Array.isArray(assistantMessage.content),
-            }
-          );
+        const conversationId = await startConversation(db, {
+          workspaceId,
+          agentId,
+          conversationType: "webhook",
+          messages: messagesToLog,
+          tokenUsage,
+          usesByok,
+          awsRequestId,
+        });
 
-          const conversationId = await startConversation(db, {
-            workspaceId,
-            agentId,
-            conversationType: "webhook",
-            messages: messagesToLog,
-            tokenUsage,
-            usesByok,
-            awsRequestId,
-          });
-
-          // Enqueue cost verification (Step 3) if we have a generation ID
-          await enqueueCostVerificationIfNeeded(
-            openrouterGenerationId,
-            workspaceId,
-            reservationId,
-            conversationId,
-            agentId,
-            "webhook"
-          );
-        } else {
-          console.log(
-            "[Webhook Handler] Skipping conversation logging - all messages are empty"
-          );
-        }
+        // Enqueue cost verification (Step 3) if we have a generation ID
+        await enqueueCostVerificationIfNeeded(
+          openrouterGenerationId,
+          workspaceId,
+          reservationId,
+          conversationId,
+          agentId,
+          "webhook"
+        );
       } catch (error) {
         // Log error but don't fail the request
         console.error("[Webhook Handler] Error logging conversation:", {

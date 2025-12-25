@@ -66,8 +66,6 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/conversations/:conver
         id: conversationId,
         conversationType: conversation.conversationType,
         messages: conversation.messages || [],
-        toolCalls: conversation.toolCalls || [],
-        toolResults: conversation.toolResults || [],
         tokenUsage: conversation.tokenUsage || null,
         modelName: conversation.modelName || null,
         provider: conversation.provider || null,
@@ -103,8 +101,6 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/conversations/:conver
         { id: "msg-1", content: "Hello" },
         { id: "msg-2", content: "World" },
       ],
-      toolCalls: [{ id: "tool-1", name: "test_tool" }],
-      toolResults: [{ id: "result-1", output: "test output" }],
       tokenUsage: { inputTokens: 100, outputTokens: 50 },
       modelName: "gpt-4",
       provider: "openai",
@@ -144,8 +140,6 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/conversations/:conver
         { id: "msg-1", content: "Hello" },
         { id: "msg-2", content: "World" },
       ],
-      toolCalls: [{ id: "tool-1", name: "test_tool" }],
-      toolResults: [{ id: "result-1", output: "test output" }],
       tokenUsage: { inputTokens: 100, outputTokens: 50 },
       modelName: "gpt-4",
       provider: "openai",
@@ -176,7 +170,7 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/conversations/:conver
       conversationType: "chat",
       startedAt: "2024-01-01T00:00:00Z",
       lastMessageAt: "2024-01-02T00:00:00Z",
-      // messages, toolCalls, toolResults, tokenUsage, modelName, provider are missing
+      // messages, tokenUsage, modelName, provider are missing
     };
 
     const mockAgentGet = vi.fn().mockResolvedValue(mockAgent);
@@ -201,8 +195,6 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/conversations/:conver
       id: conversationId,
       conversationType: "chat",
       messages: [],
-      toolCalls: [],
-      toolResults: [],
       tokenUsage: null,
       modelName: null,
       provider: null,

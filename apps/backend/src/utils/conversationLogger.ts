@@ -33,8 +33,6 @@ export interface ConversationLogData {
   conversationId: string;
   conversationType: "test" | "webhook" | "stream";
   messages: UIMessage[];
-  toolCalls?: unknown[];
-  toolResults?: unknown[];
   tokenUsage?: TokenUsage;
   usesByok?: boolean;
   error?: ConversationErrorInfo;
@@ -67,8 +65,14 @@ export function buildConversationErrorInfo(
     errorName: error instanceof Error ? error.name : "N/A",
     errorMessage: error instanceof Error ? error.message : String(error),
     hasCause: error instanceof Error && !!error.cause,
-    causeType: error instanceof Error && error.cause instanceof Error ? error.cause.constructor.name : undefined,
-    causeMessage: error instanceof Error && error.cause instanceof Error ? error.cause.message : undefined,
+    causeType:
+      error instanceof Error && error.cause instanceof Error
+        ? error.cause.constructor.name
+        : undefined,
+    causeMessage:
+      error instanceof Error && error.cause instanceof Error
+        ? error.cause.message
+        : undefined,
   });
 
   // Check if this is a NoOutputGeneratedError or similar wrapper
@@ -85,21 +89,26 @@ export function buildConversationErrorInfo(
 
   // Extract the most specific error message possible
   let message = error instanceof Error ? error.message : String(error);
-  let specificError: Error | undefined = error instanceof Error ? error : undefined;
-  
+  let specificError: Error | undefined =
+    error instanceof Error ? error : undefined;
+
   console.log("[buildConversationErrorInfo] Initial message:", message);
-  
+
   // Comprehensive error extraction - check all possible locations for the real error message
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const extractFromError = (err: any): string | undefined => {
     if (!err || typeof err !== "object") return undefined;
-    
+
     // 1. Check data.error.message (AI SDK errors - most common location)
     // This is the PRIMARY source for AI_APICallError and similar errors
-    if (err.data?.error?.message && typeof err.data.error.message === "string" && err.data.error.message.length > 0) {
+    if (
+      err.data?.error?.message &&
+      typeof err.data.error.message === "string" &&
+      err.data.error.message.length > 0
+    ) {
       return err.data.error.message;
     }
-    
+
     // 2. Check responseBody (parsed JSON)
     if (err.responseBody && typeof err.responseBody === "string") {
       try {
@@ -107,7 +116,10 @@ export function buildConversationErrorInfo(
         if (body.error) {
           if (typeof body.error === "object" && body.error !== null) {
             const errorObj = body.error as Record<string, unknown>;
-            if (typeof errorObj.message === "string" && errorObj.message.length > 0) {
+            if (
+              typeof errorObj.message === "string" &&
+              errorObj.message.length > 0
+            ) {
               return errorObj.message;
             }
           } else if (typeof body.error === "string" && body.error.length > 0) {
@@ -121,27 +133,35 @@ export function buildConversationErrorInfo(
         // Not JSON, ignore
       }
     }
-    
+
     // 3. Check response.data.error.message (HTTP errors)
-    if (err.response?.data?.error?.message && typeof err.response.data.error.message === "string" && err.response.data.error.message.length > 0) {
+    if (
+      err.response?.data?.error?.message &&
+      typeof err.response.data.error.message === "string" &&
+      err.response.data.error.message.length > 0
+    ) {
       return err.response.data.error.message;
     }
-    
+
     // 4. Check data.message directly
-    if (err.data?.message && typeof err.data.message === "string" && err.data.message.length > 0) {
+    if (
+      err.data?.message &&
+      typeof err.data.message === "string" &&
+      err.data.message.length > 0
+    ) {
       return err.data.message;
     }
-    
+
     return undefined;
   };
-  
+
   // CRITICAL: Check if this is a wrapper error first
   // If it is, the real error with data.error.message is likely in error.cause
   const isWrapper = error instanceof Error && isGenericWrapper(error);
-  
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const errorAny = error instanceof Error ? (error as any) : undefined;
-  
+
   // Log error structure
   console.log("[buildConversationErrorInfo] Error structure check:", {
     isWrapper,
@@ -150,176 +170,268 @@ export function buildConversationErrorInfo(
     hasDataErrorMessage: !!errorAny?.data?.error?.message,
     dataErrorMessage: errorAny?.data?.error?.message,
     hasResponseBody: !!errorAny?.responseBody,
-    responseBody: errorAny?.responseBody ? (typeof errorAny.responseBody === "string" ? errorAny.responseBody.substring(0, 200) : String(errorAny.responseBody).substring(0, 200)) : undefined,
+    responseBody: errorAny?.responseBody
+      ? typeof errorAny.responseBody === "string"
+        ? errorAny.responseBody.substring(0, 200)
+        : String(errorAny.responseBody).substring(0, 200)
+      : undefined,
     statusCode: errorAny?.statusCode,
     hasCause: error instanceof Error && !!error.cause,
   });
-  
+
   // If it's a wrapper, check the cause's data.error.message FIRST (this is where the real error is)
   if (isWrapper && error instanceof Error && error.cause) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const causeAny = error.cause instanceof Error ? (error.cause as any) : undefined;
-    console.log("[buildConversationErrorInfo] Wrapper detected - checking cause's data.error.message:", {
-      causeType: error.cause instanceof Error ? error.cause.constructor.name : typeof error.cause,
-      hasCauseData: !!causeAny?.data,
-      hasCauseDataError: !!causeAny?.data?.error,
-      hasCauseDataErrorMessage: !!causeAny?.data?.error?.message,
-      causeDataErrorMessage: causeAny?.data?.error?.message,
-    });
-    
-    if (causeAny?.data?.error?.message && typeof causeAny.data.error.message === "string" && causeAny.data.error.message.length > 0) {
+     
+    const causeAny =
+      error.cause instanceof Error ? (error.cause as any) : undefined;
+    console.log(
+      "[buildConversationErrorInfo] Wrapper detected - checking cause's data.error.message:",
+      {
+        causeType:
+          error.cause instanceof Error
+            ? error.cause.constructor.name
+            : typeof error.cause,
+        hasCauseData: !!causeAny?.data,
+        hasCauseDataError: !!causeAny?.data?.error,
+        hasCauseDataErrorMessage: !!causeAny?.data?.error?.message,
+        causeDataErrorMessage: causeAny?.data?.error?.message,
+      }
+    );
+
+    if (
+      causeAny?.data?.error?.message &&
+      typeof causeAny.data.error.message === "string" &&
+      causeAny.data.error.message.length > 0
+    ) {
       // Found it! Use the cause's data.error.message
       message = causeAny.data.error.message;
       specificError = error.cause instanceof Error ? error.cause : undefined;
-      console.log("[buildConversationErrorInfo] Found message from cause's data.error.message:", message);
+      console.log(
+        "[buildConversationErrorInfo] Found message from cause's data.error.message:",
+        message
+      );
     } else {
       // Check cause's responseBody
       const causeResponseBodyMsg = extractFromError(error.cause);
       if (causeResponseBodyMsg) {
         message = causeResponseBodyMsg;
         specificError = error.cause instanceof Error ? error.cause : undefined;
-        console.log("[buildConversationErrorInfo] Found message from cause's responseBody:", message);
+        console.log(
+          "[buildConversationErrorInfo] Found message from cause's responseBody:",
+          message
+        );
       }
     }
   }
-  
+
   // If we still don't have a good message, check the original error's data.error.message
-  if (!message || message.includes("No output generated") || message.includes("Check the stream")) {
-    if (errorAny?.data?.error?.message && typeof errorAny.data.error.message === "string" && errorAny.data.error.message.length > 0) {
+  if (
+    !message ||
+    message.includes("No output generated") ||
+    message.includes("Check the stream")
+  ) {
+    if (
+      errorAny?.data?.error?.message &&
+      typeof errorAny.data.error.message === "string" &&
+      errorAny.data.error.message.length > 0
+    ) {
       // This is the real API error - use it immediately
       message = errorAny.data.error.message;
-      console.log("[buildConversationErrorInfo] Found message from original error's data.error.message:", message);
+      console.log(
+        "[buildConversationErrorInfo] Found message from original error's data.error.message:",
+        message
+      );
     } else {
       // Fall back to comprehensive extraction
       const extractedMessage = extractFromError(error);
       if (extractedMessage) {
         message = extractedMessage;
-        console.log("[buildConversationErrorInfo] Found message from extractFromError:", message);
+        console.log(
+          "[buildConversationErrorInfo] Found message from extractFromError:",
+          message
+        );
       } else {
-        console.log("[buildConversationErrorInfo] No message found in data.error.message or extractFromError, using:", message);
+        console.log(
+          "[buildConversationErrorInfo] No message found in data.error.message or extractFromError, using:",
+          message
+        );
       }
     }
   }
-  
+
   // Also check error.cause if it exists (but don't override if we already have a good message from data)
   // NOTE: For wrappers, we already checked the cause above, so skip if we have a good message
-  if (error instanceof Error && error.cause && (!isWrapper || message.includes("No output generated") || message.includes("Check the stream"))) {
+  if (
+    error instanceof Error &&
+    error.cause &&
+    (!isWrapper ||
+      message.includes("No output generated") ||
+      message.includes("Check the stream"))
+  ) {
     console.log("[buildConversationErrorInfo] Checking error.cause:", {
-      causeType: error.cause instanceof Error ? error.cause.constructor.name : typeof error.cause,
-      causeMessage: error.cause instanceof Error ? error.cause.message : String(error.cause),
+      causeType:
+        error.cause instanceof Error
+          ? error.cause.constructor.name
+          : typeof error.cause,
+      causeMessage:
+        error.cause instanceof Error
+          ? error.cause.message
+          : String(error.cause),
     });
-    
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const causeAny = error.cause instanceof Error ? (error.cause as any) : undefined;
+
+     
+    const causeAny =
+      error.cause instanceof Error ? (error.cause as any) : undefined;
     console.log("[buildConversationErrorInfo] Cause structure:", {
       hasData: !!causeAny?.data,
       hasDataError: !!causeAny?.data?.error,
       hasDataErrorMessage: !!causeAny?.data?.error?.message,
       dataErrorMessage: causeAny?.data?.error?.message,
     });
-    
+
     // Prioritize cause's data.error.message directly (same as we do for wrappers)
     let causeMessage: string | undefined;
-    if (causeAny?.data?.error?.message && typeof causeAny.data.error.message === "string" && causeAny.data.error.message.length > 0) {
+    if (
+      causeAny?.data?.error?.message &&
+      typeof causeAny.data.error.message === "string" &&
+      causeAny.data.error.message.length > 0
+    ) {
       causeMessage = causeAny.data.error.message;
-      console.log("[buildConversationErrorInfo] Found cause message from data.error.message:", causeMessage);
+      console.log(
+        "[buildConversationErrorInfo] Found cause message from data.error.message:",
+        causeMessage
+      );
     } else {
       causeMessage = extractFromError(error.cause);
       if (causeMessage) {
-        console.log("[buildConversationErrorInfo] Found cause message from extractFromError:", causeMessage);
+        console.log(
+          "[buildConversationErrorInfo] Found cause message from extractFromError:",
+          causeMessage
+        );
       }
     }
-    
+
     // Only use cause message if:
     // 1. We don't have a message yet, OR
     // 2. The cause message is from data.error.message (more specific) and is longer
     if (causeMessage) {
       // If current message is generic or short, prefer cause message
-      const isCurrentMessageGeneric = 
+      const isCurrentMessageGeneric =
         message.includes("No output generated") ||
         message.includes("Check the stream") ||
         message.length < 30;
-      
-      if (isCurrentMessageGeneric || (causeMessage.length > message.length && !message.includes(causeMessage))) {
-        console.log("[buildConversationErrorInfo] Using cause message (was generic or cause is better)");
+
+      if (
+        isCurrentMessageGeneric ||
+        (causeMessage.length > message.length &&
+          !message.includes(causeMessage))
+      ) {
+        console.log(
+          "[buildConversationErrorInfo] Using cause message (was generic or cause is better)"
+        );
         message = causeMessage;
         if (error.cause instanceof Error) {
           specificError = error.cause;
         }
       } else {
-        console.log("[buildConversationErrorInfo] Keeping current message (not generic and better than cause)");
+        console.log(
+          "[buildConversationErrorInfo] Keeping current message (not generic and better than cause)"
+        );
       }
     } else {
       console.log("[buildConversationErrorInfo] No message found in cause");
     }
   }
-  
+
   // If this is a generic wrapper error, aggressively look for the real cause
   // NOTE: We already checked the cause's data.error.message above, so this section
   // only runs if we didn't find a good message there
   if (error instanceof Error && isGenericWrapper(error)) {
-    console.log("[buildConversationErrorInfo] Detected generic wrapper error:", {
-      errorName: error.name,
-      errorMessage: error.message,
-      currentExtractedMessage: message,
-    });
-    
+    console.log(
+      "[buildConversationErrorInfo] Detected generic wrapper error:",
+      {
+        errorName: error.name,
+        errorMessage: error.message,
+        currentExtractedMessage: message,
+      }
+    );
+
     // Check if we already have a good message from the cause's data.error.message (checked above)
-    const hasGoodMessage = 
+    const hasGoodMessage =
       message &&
       !message.includes("No output generated") &&
       !message.includes("Check the stream") &&
       message.length > 30;
-    
-    console.log("[buildConversationErrorInfo] Wrapper handling - hasGoodMessage:", hasGoodMessage);
-    
+
+    console.log(
+      "[buildConversationErrorInfo] Wrapper handling - hasGoodMessage:",
+      hasGoodMessage
+    );
+
     // If we already have a good message from the cause, skip further cause checking
     // Otherwise, continue checking the cause chain for other error sources
     if (!hasGoodMessage && error.cause) {
-      console.log("[buildConversationErrorInfo] Wrapper: Checking cause (no good message yet)");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const causeAny = error.cause instanceof Error ? (error.cause as any) : undefined;
+      console.log(
+        "[buildConversationErrorInfo] Wrapper: Checking cause (no good message yet)"
+      );
+       
+      const causeAny =
+        error.cause instanceof Error ? (error.cause as any) : undefined;
       console.log("[buildConversationErrorInfo] Wrapper cause structure:", {
         hasData: !!causeAny?.data,
         hasDataError: !!causeAny?.data?.error,
         hasDataErrorMessage: !!causeAny?.data?.error?.message,
         dataErrorMessage: causeAny?.data?.error?.message,
       });
-      
+
       const causeMsg = extractFromError(error.cause);
       if (causeMsg && causeMsg.length > 0) {
-        console.log("[buildConversationErrorInfo] Wrapper: Found cause message:", causeMsg);
+        console.log(
+          "[buildConversationErrorInfo] Wrapper: Found cause message:",
+          causeMsg
+        );
         message = causeMsg;
         if (error.cause instanceof Error) {
           specificError = error.cause;
         }
       } else if (error.cause instanceof Error) {
-        console.log("[buildConversationErrorInfo] Wrapper: Using cause.message:", error.cause.message);
+        console.log(
+          "[buildConversationErrorInfo] Wrapper: Using cause.message:",
+          error.cause.message
+        );
         message = error.cause.message;
         specificError = error.cause;
       }
-      
+
       // Continue traversing the cause chain to find the most specific error
       if (error.cause instanceof Error && !hasGoodMessage) {
         let currentCause: unknown = error.cause.cause;
         let depth = 0;
         const maxDepth = 10;
-        
+
         while (currentCause && depth < maxDepth) {
           const causeMsg = extractFromError(currentCause);
-          if (causeMsg && causeMsg.length > message.length && !isGenericWrapper({ name: "", message: causeMsg } as Error)) {
+          if (
+            causeMsg &&
+            causeMsg.length > message.length &&
+            !isGenericWrapper({ name: "", message: causeMsg } as Error)
+          ) {
             message = causeMsg;
             if (currentCause instanceof Error) {
               specificError = currentCause;
             }
           } else if (currentCause instanceof Error) {
             const causeMessage = currentCause.message;
-            if (causeMessage && causeMessage.length > message.length && !isGenericWrapper(currentCause)) {
+            if (
+              causeMessage &&
+              causeMessage.length > message.length &&
+              !isGenericWrapper(currentCause)
+            ) {
               message = causeMessage;
               specificError = currentCause;
             }
           }
-          
+
           if (currentCause instanceof Error) {
             currentCause = currentCause.cause;
           } else {
@@ -329,17 +441,27 @@ export function buildConversationErrorInfo(
         }
       }
     }
-    
+
     // If we still have a generic message, check all properties of the error object
     if (!hasGoodMessage && isGenericWrapper({ name: "", message } as Error)) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const errorAny = error as any;
       // Check for common error property names
-      const errorProps = ['error', 'err', 'originalError', 'underlyingError', 'rootCause'];
+      const errorProps = [
+        "error",
+        "err",
+        "originalError",
+        "underlyingError",
+        "rootCause",
+      ];
       for (const prop of errorProps) {
         if (errorAny[prop]) {
           const propMsg = extractFromError(errorAny[prop]);
-          if (propMsg && propMsg.length > 0 && !isGenericWrapper({ name: "", message: propMsg } as Error)) {
+          if (
+            propMsg &&
+            propMsg.length > 0 &&
+            !isGenericWrapper({ name: "", message: propMsg } as Error)
+          ) {
             message = propMsg;
             if (errorAny[prop] instanceof Error) {
               specificError = errorAny[prop];
@@ -355,7 +477,7 @@ export function buildConversationErrorInfo(
       let currentCause: unknown = error.cause;
       let depth = 0;
       const maxDepth = 10;
-      
+
       while (currentCause && depth < maxDepth) {
         if (currentCause instanceof Error) {
           const causeMessage = currentCause.message;
@@ -370,7 +492,10 @@ export function buildConversationErrorInfo(
           }
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const anyCause = currentCause as any;
-          if (typeof anyCause.statusCode === "number" || typeof anyCause.status === "number") {
+          if (
+            typeof anyCause.statusCode === "number" ||
+            typeof anyCause.status === "number"
+          ) {
             specificError = currentCause;
           }
           currentCause = currentCause.cause;
@@ -380,15 +505,20 @@ export function buildConversationErrorInfo(
         depth++;
       }
     }
-    
+
     // Extract error message from nested error structures (data, responseBody, etc.)
     // We already called extractFromError at the beginning, but check again in case we missed something
-    const nestedMessage = extractFromError(error) || (error instanceof Error && error.cause ? extractFromError(error.cause) : undefined);
+    const nestedMessage =
+      extractFromError(error) ||
+      (error instanceof Error && error.cause
+        ? extractFromError(error.cause)
+        : undefined);
     if (nestedMessage && nestedMessage.length > 0) {
       // Prefer nested messages if they're more specific
       if (
         nestedMessage.length > message.length ||
-        (!message.includes(nestedMessage) && !nestedMessage.includes("No output generated"))
+        (!message.includes(nestedMessage) &&
+          !nestedMessage.includes("No output generated"))
       ) {
         message = nestedMessage;
       }
@@ -405,42 +535,47 @@ export function buildConversationErrorInfo(
   };
 
   // Use the most specific error found, or fall back to original
-  const errorToInspect = specificError || (error instanceof Error ? error : undefined);
+  const errorToInspect =
+    specificError || (error instanceof Error ? error : undefined);
 
   if (errorToInspect) {
     // Use the specific error's name and stack (not the wrapper's)
     base.name = errorToInspect.name;
     base.stack = errorToInspect.stack;
-    
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
     const anyError = errorToInspect as any;
-    
+
     // Also check the original error for properties that might not be on the cause
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const originalError = error instanceof Error ? (error as any) : undefined;
-    
+
     // Helper to extract code from error object
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
     const extractCode = (err: any): string | undefined => {
       if (!err || typeof err !== "object") return undefined;
-      
+
       // Check data.error.code (AI SDK errors)
       if (err.data?.error?.code !== undefined && err.data.error.code !== null) {
         return String(err.data.error.code);
       }
-      
+
       // Check code directly
       if (typeof err.code === "string") {
         return err.code;
       } else if (typeof err.code === "number") {
         return String(err.code);
       }
-      
+
       // Check responseBody for code
       if (err.responseBody && typeof err.responseBody === "string") {
         try {
           const body = JSON.parse(err.responseBody) as Record<string, unknown>;
-          if (body.error && typeof body.error === "object" && body.error !== null) {
+          if (
+            body.error &&
+            typeof body.error === "object" &&
+            body.error !== null
+          ) {
             const errorObj = body.error as Record<string, unknown>;
             if (errorObj.code !== undefined && errorObj.code !== null) {
               return String(errorObj.code);
@@ -450,50 +585,64 @@ export function buildConversationErrorInfo(
           // Not JSON, ignore
         }
       }
-      
+
       return undefined;
     };
-    
+
     // Extract error code (check multiple locations)
-    base.code = extractCode(anyError) || extractCode(originalError) || undefined;
-    
+    base.code =
+      extractCode(anyError) || extractCode(originalError) || undefined;
+
     // Helper to extract status code from error object
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
     const extractStatusCode = (err: any): number | undefined => {
       if (!err || typeof err !== "object") return undefined;
-      
+
       // Check statusCode directly (most common)
       if (typeof err.statusCode === "number") {
         return err.statusCode;
       }
-      
+
       // Check status
       if (typeof err.status === "number") {
         return err.status;
       }
-      
+
       // Check data.error.code (sometimes status is in code)
-      if (err.data?.error?.code && typeof err.data.error.code === "number" && err.data.error.code >= 400 && err.data.error.code < 600) {
+      if (
+        err.data?.error?.code &&
+        typeof err.data.error.code === "number" &&
+        err.data.error.code >= 400 &&
+        err.data.error.code < 600
+      ) {
         return err.data.error.code;
       }
-      
+
       // Check response.status
       if (err.response && typeof err.response.status === "number") {
         return err.response.status;
       }
-      
+
       // Check response.statusCode
       if (err.response && typeof err.response.statusCode === "number") {
         return err.response.statusCode;
       }
-      
+
       // Check responseBody for status code
       if (err.responseBody && typeof err.responseBody === "string") {
         try {
           const body = JSON.parse(err.responseBody) as Record<string, unknown>;
-          if (body.error && typeof body.error === "object" && body.error !== null) {
+          if (
+            body.error &&
+            typeof body.error === "object" &&
+            body.error !== null
+          ) {
             const errorObj = body.error as Record<string, unknown>;
-            if (typeof errorObj.code === "number" && errorObj.code >= 400 && errorObj.code < 600) {
+            if (
+              typeof errorObj.code === "number" &&
+              errorObj.code >= 400 &&
+              errorObj.code < 600
+            ) {
               return errorObj.code;
             }
           }
@@ -501,29 +650,37 @@ export function buildConversationErrorInfo(
           // Not JSON, ignore
         }
       }
-      
+
       return undefined;
     };
-    
+
     // Extract status code (check both specific error and original)
-    base.statusCode = extractStatusCode(anyError) || extractStatusCode(originalError) || undefined;
-    
+    base.statusCode =
+      extractStatusCode(anyError) ||
+      extractStatusCode(originalError) ||
+      undefined;
+
     // Extract API error details if available (check multiple locations)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const checkResponseData = (data: any): void => {
       if (!data || typeof data !== "object") return;
-      
+
       const responseData = data as Record<string, unknown>;
-      
+
       // Try to extract error message from API response
       let apiErrorMessage: string | undefined;
       if (responseData.error) {
-        if (typeof responseData.error === "object" && responseData.error !== null) {
+        if (
+          typeof responseData.error === "object" &&
+          responseData.error !== null
+        ) {
           const errorObj = responseData.error as Record<string, unknown>;
-          apiErrorMessage = 
-            (typeof errorObj.message === "string" ? errorObj.message : undefined) ||
+          apiErrorMessage =
+            (typeof errorObj.message === "string"
+              ? errorObj.message
+              : undefined) ||
             (typeof errorObj.error === "string" ? errorObj.error : undefined);
-          
+
           // Extract error code from API response
           if (!base.code && errorObj.code) {
             base.code = String(errorObj.code);
@@ -532,20 +689,24 @@ export function buildConversationErrorInfo(
           apiErrorMessage = responseData.error;
         }
       }
-      
+
       if (!apiErrorMessage && typeof responseData.message === "string") {
         apiErrorMessage = responseData.message;
       }
-      
+
       if (apiErrorMessage && apiErrorMessage.length > 0) {
         // Use the API error message if it's more specific than the current message
         // or if current message is generic
-        const isGenericMessage = 
+        const isGenericMessage =
           message.includes("No output generated") ||
           message.includes("Check the stream for errors") ||
           message.length < 30;
-        
-        if (isGenericMessage || (!message.includes(apiErrorMessage) && apiErrorMessage.length > message.length)) {
+
+        if (
+          isGenericMessage ||
+          (!message.includes(apiErrorMessage) &&
+            apiErrorMessage.length > message.length)
+        ) {
           message = apiErrorMessage;
         } else if (!message.includes(apiErrorMessage)) {
           // Append if not already included
@@ -553,17 +714,17 @@ export function buildConversationErrorInfo(
         }
       }
     };
-    
+
     // Check response.data in the specific error
     if (anyError.response?.data) {
       checkResponseData(anyError.response.data);
     }
-    
+
     // Check data directly in the specific error (AI SDK errors)
     if (anyError.data) {
       checkResponseData(anyError.data);
     }
-    
+
     // Also check the original error object for nested data (wrapper might have the data)
     if (originalError && error instanceof Error && error !== errorToInspect) {
       if (originalError.response?.data) {
@@ -573,17 +734,19 @@ export function buildConversationErrorInfo(
         checkResponseData(originalError.data);
       }
     }
-    
+
     // Update message with the most specific one found
     base.message = message;
   } else if (error && typeof error === "object") {
     // Handle non-Error objects
     const maybeStatus =
-      "statusCode" in error && typeof (error as { statusCode?: unknown }).statusCode === "number"
+      "statusCode" in error &&
+      typeof (error as { statusCode?: unknown }).statusCode === "number"
         ? (error as { statusCode: number }).statusCode
-        : "status" in error && typeof (error as { status?: unknown }).status === "number"
-          ? (error as { status: number }).status
-          : undefined;
+        : "status" in error &&
+          typeof (error as { status?: unknown }).status === "number"
+        ? (error as { status: number }).status
+        : undefined;
     if (maybeStatus !== undefined) {
       base.statusCode = maybeStatus;
     }
@@ -593,7 +756,7 @@ export function buildConversationErrorInfo(
   const cleanErrorInfo: ConversationErrorInfo = {
     message: base.message,
   };
-  
+
   if (base.name !== undefined && base.name !== null) {
     cleanErrorInfo.name = base.name;
   }
@@ -618,7 +781,11 @@ export function buildConversationErrorInfo(
   if (base.occurredAt !== undefined && base.occurredAt !== null) {
     cleanErrorInfo.occurredAt = base.occurredAt;
   }
-  if (base.metadata !== undefined && base.metadata !== null && Object.keys(base.metadata).length > 0) {
+  if (
+    base.metadata !== undefined &&
+    base.metadata !== null &&
+    Object.keys(base.metadata).length > 0
+  ) {
     // Clean metadata object - remove undefined/null values
     const cleanMetadata: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(base.metadata)) {
@@ -716,13 +883,22 @@ export function extractToolCalls(messages: UIMessage[]): unknown[] {
           ) {
             toolCalls.push(item);
           } else {
-            console.warn("[extractToolCalls] Tool call missing required fields:", {
-              hasToolCallId: "toolCallId" in item,
-              hasToolName: "toolName" in item,
-              toolCallIdType: "toolCallId" in item ? typeof (item as { toolCallId?: unknown }).toolCallId : "missing",
-              toolNameType: "toolName" in item ? typeof (item as { toolName?: unknown }).toolName : "missing",
-              item,
-            });
+            console.warn(
+              "[extractToolCalls] Tool call missing required fields:",
+              {
+                hasToolCallId: "toolCallId" in item,
+                hasToolName: "toolName" in item,
+                toolCallIdType:
+                  "toolCallId" in item
+                    ? typeof (item as { toolCallId?: unknown }).toolCallId
+                    : "missing",
+                toolNameType:
+                  "toolName" in item
+                    ? typeof (item as { toolName?: unknown }).toolName
+                    : "missing",
+                item,
+              }
+            );
           }
         }
       }
@@ -1005,11 +1181,7 @@ export function expandMessagesWithToolCalls(
 
       // Separate content into tool calls, tool results, and text
       for (const item of message.content) {
-        if (
-          typeof item === "object" &&
-          item !== null &&
-          "type" in item
-        ) {
+        if (typeof item === "object" && item !== null && "type" in item) {
           if (item.type === "tool-call") {
             const toolCall = item as {
               type: "tool-call";
@@ -1149,13 +1321,22 @@ export function extractToolResults(messages: UIMessage[]): unknown[] {
           ) {
             toolResults.push(item);
           } else {
-            console.warn("[extractToolResults] Tool result missing required fields:", {
-              hasToolCallId: "toolCallId" in item,
-              hasToolName: "toolName" in item,
-              toolCallIdType: "toolCallId" in item ? typeof (item as { toolCallId?: unknown }).toolCallId : "missing",
-              toolNameType: "toolName" in item ? typeof (item as { toolName?: unknown }).toolName : "missing",
-              item,
-            });
+            console.warn(
+              "[extractToolResults] Tool result missing required fields:",
+              {
+                hasToolCallId: "toolCallId" in item,
+                hasToolName: "toolName" in item,
+                toolCallIdType:
+                  "toolCallId" in item
+                    ? typeof (item as { toolCallId?: unknown }).toolCallId
+                    : "missing",
+                toolNameType:
+                  "toolName" in item
+                    ? typeof (item as { toolName?: unknown }).toolName
+                    : "missing",
+                item,
+              }
+            );
           }
         }
       }
@@ -1180,13 +1361,22 @@ export function extractToolResults(messages: UIMessage[]): unknown[] {
           ) {
             toolResults.push(item);
           } else {
-            console.warn("[extractToolResults] Tool result missing required fields (tool message):", {
-              hasToolCallId: "toolCallId" in item,
-              hasToolName: "toolName" in item,
-              toolCallIdType: "toolCallId" in item ? typeof (item as { toolCallId?: unknown }).toolCallId : "missing",
-              toolNameType: "toolName" in item ? typeof (item as { toolName?: unknown }).toolName : "missing",
-              item,
-            });
+            console.warn(
+              "[extractToolResults] Tool result missing required fields (tool message):",
+              {
+                hasToolCallId: "toolCallId" in item,
+                hasToolName: "toolName" in item,
+                toolCallIdType:
+                  "toolCallId" in item
+                    ? typeof (item as { toolCallId?: unknown }).toolCallId
+                    : "missing",
+                toolNameType:
+                  "toolName" in item
+                    ? typeof (item as { toolName?: unknown }).toolName
+                    : "missing",
+                item,
+              }
+            );
           }
         }
       }
@@ -1402,131 +1592,33 @@ export async function startConversation(
   const now = new Date().toISOString();
   const pk = `conversations/${data.workspaceId}/${data.agentId}/${conversationId}`;
 
-  // Filter out empty messages before processing
-  const filteredMessages = data.messages.filter(
-    (msg) => !isMessageContentEmpty(msg)
-  );
-
-  // DIAGNOSTIC: Log messages before processing
-  console.log("[startConversation] Messages received:", {
-    messagesCount: data.messages.length,
-    filteredMessagesCount: filteredMessages.length,
-    messages: filteredMessages.map((msg) => ({
-      role: msg.role,
-      contentType: typeof msg.content,
-      isArray: Array.isArray(msg.content),
-      contentLength: Array.isArray(msg.content) ? msg.content.length : "N/A",
-      hasToolCalls: Array.isArray(msg.content)
-        ? msg.content.some(
-            (item) =>
-              typeof item === "object" &&
-              item !== null &&
-              "type" in item &&
-              item.type === "tool-call"
-          )
-        : false,
-      hasToolResults: Array.isArray(msg.content)
-        ? msg.content.some(
-            (item) =>
-              typeof item === "object" &&
-              item !== null &&
-              "type" in item &&
-              item.type === "tool-result"
-          )
-        : false,
-    })),
-  });
-
-  // Extract tool calls and results from original messages (before expansion)
-  // for storage in toolCalls/toolResults fields
-  const messagesForExtraction = data.awsRequestId
-    ? filteredMessages.map((msg) => ({
+  // Keep all messages (including empty ones) - do not filter
+  // Add request ID to messages if provided
+  const messagesWithRequestId = data.awsRequestId
+    ? data.messages.map((msg) => ({
         ...msg,
         awsRequestId: data.awsRequestId,
       }))
-    : filteredMessages;
+    : data.messages;
 
   // Expand messages to include separate tool call and tool result messages
   // This ensures tool calls appear as separate messages in conversation history
   const expandedMessages = expandMessagesWithToolCalls(
-    filteredMessages,
+    data.messages,
     data.awsRequestId
   );
 
-  // Extract tool calls and results from BOTH original messages (embedded in content)
-  // AND expanded messages (separate messages) to ensure we capture all tool calls
-  const toolCallsFromOriginal = extractToolCalls(messagesForExtraction);
-  const toolResultsFromOriginal = extractToolResults(messagesForExtraction);
-  const toolCallsFromExpanded = extractToolCalls(expandedMessages);
-  const toolResultsFromExpanded = extractToolResults(expandedMessages);
-
-  // Combine tool calls and results from both sources, deduplicating by toolCallId
-  const toolCallsMap = new Map<string, unknown>();
-  for (const toolCall of toolCallsFromOriginal) {
-    if (
-      typeof toolCall === "object" &&
-      toolCall !== null &&
-      "toolCallId" in toolCall &&
-      typeof toolCall.toolCallId === "string"
-    ) {
-      toolCallsMap.set(toolCall.toolCallId, toolCall);
-    }
-  }
-  for (const toolCall of toolCallsFromExpanded) {
-    if (
-      typeof toolCall === "object" &&
-      toolCall !== null &&
-      "toolCallId" in toolCall &&
-      typeof toolCall.toolCallId === "string"
-    ) {
-      toolCallsMap.set(toolCall.toolCallId, toolCall);
-    }
-  }
-
-  const toolResultsMap = new Map<string, unknown>();
-  for (const toolResult of toolResultsFromOriginal) {
-    if (
-      typeof toolResult === "object" &&
-      toolResult !== null &&
-      "toolCallId" in toolResult &&
-      typeof toolResult.toolCallId === "string"
-    ) {
-      toolResultsMap.set(toolResult.toolCallId, toolResult);
-    }
-  }
-  for (const toolResult of toolResultsFromExpanded) {
-    if (
-      typeof toolResult === "object" &&
-      toolResult !== null &&
-      "toolCallId" in toolResult &&
-      typeof toolResult.toolCallId === "string"
-    ) {
-      toolResultsMap.set(toolResult.toolCallId, toolResult);
-    }
-  }
-
-  const toolCalls = Array.from(toolCallsMap.values());
-  const toolResults = Array.from(toolResultsMap.values());
-
-  // DIAGNOSTIC: Log extracted tool calls and results before storage
-  console.log("[startConversation] Extracted tool calls and results:", {
-    toolCallsCount: toolCalls.length,
-    toolResultsCount: toolResults.length,
-    toolCalls: toolCalls,
-    toolResults: toolResults,
-    willStoreToolCalls: toolCalls.length > 0,
-    willStoreToolResults: toolResults.length > 0,
-  });
-
   // Calculate costs from per-message model/provider data
   // Prefer finalCostUsd (from OpenRouter API verification) if available, then provisionalCostUsd, then calculate from tokenUsage
-  // Use original messages (before expansion) for cost calculation
   let totalCostUsd = 0;
   let totalGenerationTimeMs = 0;
-  for (const message of messagesForExtraction) {
+  for (const message of messagesWithRequestId) {
     if (message.role === "assistant") {
       // Prefer finalCostUsd if available (from OpenRouter cost verification)
-      if ("finalCostUsd" in message && typeof message.finalCostUsd === "number") {
+      if (
+        "finalCostUsd" in message &&
+        typeof message.finalCostUsd === "number"
+      ) {
         totalCostUsd += message.finalCostUsd;
       } else if (
         "provisionalCostUsd" in message &&
@@ -1536,8 +1628,14 @@ export async function startConversation(
         totalCostUsd += message.provisionalCostUsd;
       } else if ("tokenUsage" in message && message.tokenUsage) {
         // Fall back to calculating from tokenUsage
-        const modelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
-        const provider = "provider" in message && typeof message.provider === "string" ? message.provider : "google";
+        const modelName =
+          "modelName" in message && typeof message.modelName === "string"
+            ? message.modelName
+            : undefined;
+        const provider =
+          "provider" in message && typeof message.provider === "string"
+            ? message.provider
+            : "google";
         const messageCosts = calculateConversationCosts(
           provider,
           modelName,
@@ -1546,7 +1644,10 @@ export async function startConversation(
         totalCostUsd += messageCosts.usd;
       }
       // Sum generation times
-      if ("generationTimeMs" in message && typeof message.generationTimeMs === "number") {
+      if (
+        "generationTimeMs" in message &&
+        typeof message.generationTimeMs === "number"
+      ) {
         totalGenerationTimeMs += message.generationTimeMs;
       }
     }
@@ -1562,42 +1663,30 @@ export async function startConversation(
     conversationId,
     conversationType: data.conversationType,
     messages: expandedMessages as unknown[],
-    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-    toolResults: toolResults.length > 0 ? toolResults : undefined,
     tokenUsage: data.tokenUsage,
     usesByok: data.usesByok,
     error: data.error,
     costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
-    totalGenerationTimeMs: totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
+    totalGenerationTimeMs:
+      totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
     awsRequestIds,
     startedAt: now,
     lastMessageAt: now,
     expires: calculateTTL(),
   };
 
-  // DIAGNOSTIC: Log what's being stored
-  console.log("[startConversation] Storing conversation record:", {
-    conversationId,
-    toolCallsCount: toolCalls.length,
-    toolResultsCount: toolResults.length,
-    hasToolCalls: !!conversationRecord.toolCalls,
-    hasToolResults: !!conversationRecord.toolResults,
-    toolCalls: conversationRecord.toolCalls,
-    toolResults: conversationRecord.toolResults,
-  });
-
   await db["agent-conversations"].create(conversationRecord);
 
   // Write to working memory - await to ensure it completes before Lambda finishes
   // This prevents Lambda from freezing the execution context before SQS message is sent
   console.log(
-    `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${data.agentId}, workspace ${data.workspaceId}, ${filteredMessages.length} filtered messages`
+    `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${data.agentId}, workspace ${data.workspaceId}, ${data.messages.length} messages`
   );
   console.log(
     `[Conversation Logger] Parameter values being passed - agentId: "${data.agentId}", workspaceId: "${data.workspaceId}", conversationId: "${conversationId}"`
   );
   try {
-      await writeToWorkingMemory(
+    await writeToWorkingMemory(
       data.agentId,
       data.workspaceId,
       conversationId,
@@ -1638,18 +1727,14 @@ export async function updateConversation(
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
-  // Filter new messages before processing
-  const filteredNewMessages = newMessages.filter(
-    (msg) => !isMessageContentEmpty(msg)
-  );
-
+  // Keep all messages (including empty ones) - do not filter
   // Add request ID to each new message if provided
   const messagesWithRequestId = awsRequestId
-    ? filteredNewMessages.map((msg) => ({
+    ? newMessages.map((msg) => ({
         ...msg,
         awsRequestId,
       }))
-    : filteredNewMessages;
+    : newMessages;
 
   // Track truly new messages (not duplicates) to send to queue
   // This will be set inside atomicUpdate callback
@@ -1664,116 +1749,40 @@ export async function updateConversation(
 
       if (!existing) {
         // If conversation doesn't exist, create it
-        // DIAGNOSTIC: Log messages before processing (create path)
-        console.log("[updateConversation] Messages received (create path):", {
-          messagesCount: newMessages.length,
-          filteredMessagesCount: filteredNewMessages.length,
-          messages: filteredNewMessages.map((msg) => ({
-            role: msg.role,
-            contentType: typeof msg.content,
-            isArray: Array.isArray(msg.content),
-            contentLength: Array.isArray(msg.content) ? msg.content.length : "N/A",
-            hasToolCalls: Array.isArray(msg.content)
-              ? msg.content.some(
-                  (item) =>
-                    typeof item === "object" &&
-                    item !== null &&
-                    "type" in item &&
-                    item.type === "tool-call"
-                )
-              : false,
-            hasToolResults: Array.isArray(msg.content)
-              ? msg.content.some(
-                  (item) =>
-                    typeof item === "object" &&
-                    item !== null &&
-                    "type" in item &&
-                    item.type === "tool-result"
-                )
-              : false,
-          })),
-        });
-
         // Expand messages to include separate tool call and tool result messages
         const expandedMessages = expandMessagesWithToolCalls(
-          filteredNewMessages,
+          newMessages,
           awsRequestId
         );
         trulyNewMessages = expandedMessages;
 
-        // Extract tool calls and results from BOTH original messages (embedded in content)
-        // AND expanded messages (separate messages) to ensure we capture all tool calls
-        const toolCallsFromOriginal = extractToolCalls(messagesWithRequestId);
-        const toolResultsFromOriginal = extractToolResults(messagesWithRequestId);
-        const toolCallsFromExpanded = extractToolCalls(expandedMessages);
-        const toolResultsFromExpanded = extractToolResults(expandedMessages);
-
-        // Combine tool calls and results from both sources, deduplicating by toolCallId
-        const toolCallsMap = new Map<string, unknown>();
-        for (const toolCall of toolCallsFromOriginal) {
-          if (
-            typeof toolCall === "object" &&
-            toolCall !== null &&
-            "toolCallId" in toolCall &&
-            typeof toolCall.toolCallId === "string"
-          ) {
-            toolCallsMap.set(toolCall.toolCallId, toolCall);
-          }
-        }
-        for (const toolCall of toolCallsFromExpanded) {
-          if (
-            typeof toolCall === "object" &&
-            toolCall !== null &&
-            "toolCallId" in toolCall &&
-            typeof toolCall.toolCallId === "string"
-          ) {
-            toolCallsMap.set(toolCall.toolCallId, toolCall);
-          }
-        }
-
-        const toolResultsMap = new Map<string, unknown>();
-        for (const toolResult of toolResultsFromOriginal) {
-          if (
-            typeof toolResult === "object" &&
-            toolResult !== null &&
-            "toolCallId" in toolResult &&
-            typeof toolResult.toolCallId === "string"
-          ) {
-            toolResultsMap.set(toolResult.toolCallId, toolResult);
-          }
-        }
-        for (const toolResult of toolResultsFromExpanded) {
-          if (
-            typeof toolResult === "object" &&
-            toolResult !== null &&
-            "toolCallId" in toolResult &&
-            typeof toolResult.toolCallId === "string"
-          ) {
-            toolResultsMap.set(toolResult.toolCallId, toolResult);
-          }
-        }
-
-        const toolCalls = Array.from(toolCallsMap.values());
-        const toolResults = Array.from(toolResultsMap.values());
-
-        // DIAGNOSTIC: Log extracted tool calls and results before storage (create path)
-        console.log("[updateConversation] Extracted tool calls and results (create path):", {
-          toolCallsCount: toolCalls.length,
-          toolResultsCount: toolResults.length,
-          toolCalls: toolCalls,
-          toolResults: toolResults,
-          willStoreToolCalls: toolCalls.length > 0,
-          willStoreToolResults: toolResults.length > 0,
-        });
-        
         // Calculate costs and generation times from per-message model/provider data
         let totalCostUsd = 0;
         let totalGenerationTimeMs = 0;
         for (const message of messagesWithRequestId) {
           if (message.role === "assistant") {
-            if ("tokenUsage" in message && message.tokenUsage) {
-              const msgModelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
-              const msgProvider = "provider" in message && typeof message.provider === "string" ? message.provider : "google";
+            // Prefer finalCostUsd if available (from OpenRouter cost verification)
+            if (
+              "finalCostUsd" in message &&
+              typeof message.finalCostUsd === "number"
+            ) {
+              totalCostUsd += message.finalCostUsd;
+            } else if (
+              "provisionalCostUsd" in message &&
+              typeof message.provisionalCostUsd === "number"
+            ) {
+              // Fall back to provisionalCostUsd if finalCostUsd not available
+              totalCostUsd += message.provisionalCostUsd;
+            } else if ("tokenUsage" in message && message.tokenUsage) {
+              // Fall back to calculating from tokenUsage
+              const msgModelName =
+                "modelName" in message && typeof message.modelName === "string"
+                  ? message.modelName
+                  : undefined;
+              const msgProvider =
+                "provider" in message && typeof message.provider === "string"
+                  ? message.provider
+                  : "google";
               const messageCosts = calculateConversationCosts(
                 msgProvider,
                 msgModelName,
@@ -1782,7 +1791,10 @@ export async function updateConversation(
               totalCostUsd += messageCosts.usd;
             }
             // Sum generation times
-            if ("generationTimeMs" in message && typeof message.generationTimeMs === "number") {
+            if (
+              "generationTimeMs" in message &&
+              typeof message.generationTimeMs === "number"
+            ) {
               totalGenerationTimeMs += message.generationTimeMs;
             }
           }
@@ -1796,31 +1808,22 @@ export async function updateConversation(
           workspaceId,
           agentId,
           conversationId,
-          conversationType: (conversationType || "test") as "test" | "webhook" | "stream", // Use provided type or default to test
+          conversationType: (conversationType || "test") as
+            | "test"
+            | "webhook"
+            | "stream", // Use provided type or default to test
           messages: expandedMessages as unknown[],
-          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-          toolResults: toolResults.length > 0 ? toolResults : undefined,
           tokenUsage: additionalTokenUsage,
           usesByok: usesByok,
           error,
           costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
-          totalGenerationTimeMs: totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
+          totalGenerationTimeMs:
+            totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
           awsRequestIds,
           startedAt: now,
           lastMessageAt: now,
           expires: calculateTTL(),
         };
-
-        // DIAGNOSTIC: Log what's being stored (create path)
-        console.log("[updateConversation] Storing conversation record (create path):", {
-          conversationId,
-          toolCallsCount: toolCalls.length,
-          toolResultsCount: toolResults.length,
-          hasToolCalls: !!conversationRecord.toolCalls,
-          hasToolResults: !!conversationRecord.toolResults,
-          toolCalls: conversationRecord.toolCalls,
-          toolResults: conversationRecord.toolResults,
-        });
 
         return conversationRecord;
       }
@@ -1830,10 +1833,9 @@ export async function updateConversation(
 
       // Identify truly new messages (not in existing conversation)
       // This comparison is based on role and content only (ignores metadata like tokenUsage, awsRequestId)
-      // We compare against filteredNewMessages (without request ID) to find new ones
       const trulyNewWithoutRequestId = findNewMessages(
         existingMessages,
-        filteredNewMessages
+        newMessages
       );
       // Expand truly new messages to include separate tool call and tool result messages
       // This ensures tool calls appear as separate messages in conversation history
@@ -1851,121 +1853,13 @@ export async function updateConversation(
         messagesWithRequestId
       );
 
-      // Filter out any empty messages that might have been in existing messages
-      const filteredAllMessages = allMessages.filter(
-        (msg) => !isMessageContentEmpty(msg)
-      );
-
-      // DIAGNOSTIC: Log messages before extraction (update path)
-      console.log("[updateConversation] Messages before extraction (update path):", {
-        allMessagesCount: allMessages.length,
-        filteredAllMessagesCount: filteredAllMessages.length,
-        newMessagesCount: messagesWithRequestId.length,
-        existingMessagesCount: existingMessages.length,
-        messages: filteredAllMessages.map((msg) => ({
-          role: msg.role,
-          contentType: typeof msg.content,
-          isArray: Array.isArray(msg.content),
-          contentLength: Array.isArray(msg.content) ? msg.content.length : "N/A",
-          hasToolCalls: Array.isArray(msg.content)
-            ? msg.content.some(
-                (item) =>
-                  typeof item === "object" &&
-                  item !== null &&
-                  "type" in item &&
-                  item.type === "tool-call"
-              )
-            : false,
-          hasToolResults: Array.isArray(msg.content)
-            ? msg.content.some(
-                (item) =>
-                  typeof item === "object" &&
-                  item !== null &&
-                  "type" in item &&
-                  item.type === "tool-result"
-              )
-            : false,
-        })),
-      });
-
       // Expand messages to include separate tool call and tool result messages
       // This ensures tool calls appear as separate messages in conversation history
       // Expand after deduplication to avoid expanding duplicates
       const expandedAllMessages = expandMessagesWithToolCalls(
-        filteredAllMessages,
+        allMessages,
         awsRequestId
       );
-
-      // Extract tool calls and results from BOTH original messages (embedded in content)
-      // AND expanded messages (separate messages) to ensure we capture all tool calls
-      const toolCallsFromOriginal = extractToolCalls(filteredAllMessages);
-      const toolResultsFromOriginal = extractToolResults(filteredAllMessages);
-      const toolCallsFromExpanded = extractToolCalls(expandedAllMessages);
-      const toolResultsFromExpanded = extractToolResults(expandedAllMessages);
-
-      // Combine tool calls and results from both sources, deduplicating by toolCallId
-      const toolCallsMap = new Map<string, unknown>();
-      for (const toolCall of toolCallsFromOriginal) {
-        if (
-          typeof toolCall === "object" &&
-          toolCall !== null &&
-          "toolCallId" in toolCall &&
-          typeof toolCall.toolCallId === "string"
-        ) {
-          toolCallsMap.set(toolCall.toolCallId, toolCall);
-        }
-      }
-      for (const toolCall of toolCallsFromExpanded) {
-        if (
-          typeof toolCall === "object" &&
-          toolCall !== null &&
-          "toolCallId" in toolCall &&
-          typeof toolCall.toolCallId === "string"
-        ) {
-          toolCallsMap.set(toolCall.toolCallId, toolCall);
-        }
-      }
-
-      const toolResultsMap = new Map<string, unknown>();
-      for (const toolResult of toolResultsFromOriginal) {
-        if (
-          typeof toolResult === "object" &&
-          toolResult !== null &&
-          "toolCallId" in toolResult &&
-          typeof toolResult.toolCallId === "string"
-        ) {
-          toolResultsMap.set(toolResult.toolCallId, toolResult);
-        }
-      }
-      for (const toolResult of toolResultsFromExpanded) {
-        if (
-          typeof toolResult === "object" &&
-          toolResult !== null &&
-          "toolCallId" in toolResult &&
-          typeof toolResult.toolCallId === "string"
-        ) {
-          toolResultsMap.set(toolResult.toolCallId, toolResult);
-        }
-      }
-
-      const toolCalls = Array.from(toolCallsMap.values());
-      const toolResults = Array.from(toolResultsMap.values());
-
-      // DIAGNOSTIC: Log extracted tool calls and results before storage (update path)
-      console.log("[updateConversation] Extracted tool calls and results (update path):", {
-        toolCallsFromOriginalCount: toolCallsFromOriginal.length,
-        toolCallsFromExpandedCount: toolCallsFromExpanded.length,
-        toolResultsFromOriginalCount: toolResultsFromOriginal.length,
-        toolResultsFromExpandedCount: toolResultsFromExpanded.length,
-        toolCallsCount: toolCalls.length,
-        toolResultsCount: toolResults.length,
-        toolCalls: toolCalls,
-        toolResults: toolResults,
-        willStoreToolCalls: toolCalls.length > 0,
-        willStoreToolResults: toolResults.length > 0,
-        filteredAllMessagesCount: filteredAllMessages.length,
-        expandedAllMessagesCount: expandedAllMessages.length,
-      });
 
       // Aggregate token usage
       const existingTokenUsage = existing.tokenUsage as TokenUsage | undefined;
@@ -1978,10 +1872,13 @@ export async function updateConversation(
       // Prefer finalCostUsd (from OpenRouter API verification) if available, then provisionalCostUsd, then calculate from tokenUsage
       let totalCostUsd = 0;
       let totalGenerationTimeMs = 0;
-      for (const message of filteredAllMessages) {
+      for (const message of allMessages) {
         if (message.role === "assistant") {
           // Prefer finalCostUsd if available (from OpenRouter cost verification)
-          if ("finalCostUsd" in message && typeof message.finalCostUsd === "number") {
+          if (
+            "finalCostUsd" in message &&
+            typeof message.finalCostUsd === "number"
+          ) {
             totalCostUsd += message.finalCostUsd;
           } else if (
             "provisionalCostUsd" in message &&
@@ -1991,8 +1888,14 @@ export async function updateConversation(
             totalCostUsd += message.provisionalCostUsd;
           } else if ("tokenUsage" in message && message.tokenUsage) {
             // Fall back to calculating from tokenUsage
-            const msgModelName = "modelName" in message && typeof message.modelName === "string" ? message.modelName : undefined;
-            const msgProvider = "provider" in message && typeof message.provider === "string" ? message.provider : "google";
+            const msgModelName =
+              "modelName" in message && typeof message.modelName === "string"
+                ? message.modelName
+                : undefined;
+            const msgProvider =
+              "provider" in message && typeof message.provider === "string"
+                ? message.provider
+                : "google";
             const messageCosts = calculateConversationCosts(
               msgProvider,
               msgModelName,
@@ -2001,19 +1904,23 @@ export async function updateConversation(
             totalCostUsd += messageCosts.usd;
           }
           // Sum generation times
-          if ("generationTimeMs" in message && typeof message.generationTimeMs === "number") {
+          if (
+            "generationTimeMs" in message &&
+            typeof message.generationTimeMs === "number"
+          ) {
             totalGenerationTimeMs += message.generationTimeMs;
           }
         }
       }
 
       // Update awsRequestIds array - append new request ID if provided
-      const existingRequestIds = (existing as { awsRequestIds?: string[] }).awsRequestIds || [];
+      const existingRequestIds =
+        (existing as { awsRequestIds?: string[] }).awsRequestIds || [];
       const updatedRequestIds = awsRequestId
         ? [...existingRequestIds, awsRequestId]
         : existingRequestIds.length > 0
-          ? existingRequestIds
-          : undefined;
+        ? existingRequestIds
+        : undefined;
 
       // Update conversation, preserving existing fields
       const conversationRecord = {
@@ -2023,35 +1930,18 @@ export async function updateConversation(
         conversationId: existing.conversationId,
         conversationType: existing.conversationType,
         messages: expandedAllMessages as unknown[],
-        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-        toolResults: toolResults.length > 0 ? toolResults : undefined,
         tokenUsage: aggregatedTokenUsage,
         lastMessageAt: now,
         expires: calculateTTL(),
         costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
-        totalGenerationTimeMs: totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
-        usesByok: existing.usesByok !== undefined ? existing.usesByok : usesByok,
+        totalGenerationTimeMs:
+          totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
+        usesByok:
+          existing.usesByok !== undefined ? existing.usesByok : usesByok,
         error: error ?? (existing as { error?: ConversationErrorInfo }).error,
         startedAt: existing.startedAt,
         awsRequestIds: updatedRequestIds,
       };
-
-      // DIAGNOSTIC: Log what's being stored (update path)
-      console.log("[updateConversation] Storing conversation record (update path):", {
-        conversationId: existing.conversationId,
-        toolCallsCount: toolCalls.length,
-        toolResultsCount: toolResults.length,
-        hasToolCalls: !!conversationRecord.toolCalls,
-        hasToolResults: !!conversationRecord.toolResults,
-        toolCalls: conversationRecord.toolCalls,
-        toolResults: conversationRecord.toolResults,
-        existingToolCallsCount: Array.isArray((existing as { toolCalls?: unknown[] }).toolCalls)
-          ? (existing as { toolCalls: unknown[] }).toolCalls.length
-          : 0,
-        existingToolResultsCount: Array.isArray((existing as { toolResults?: unknown[] }).toolResults)
-          ? (existing as { toolResults: unknown[] }).toolResults.length
-          : 0,
-      });
 
       return conversationRecord;
     }
@@ -2063,7 +1953,7 @@ export async function updateConversation(
   // This prevents duplicate fact extraction and embedding generation
   if (trulyNewMessages.length > 0) {
     console.log(
-      `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${agentId}, workspace ${workspaceId}, ${trulyNewMessages.length} truly new messages (out of ${filteredNewMessages.length} filtered messages)`
+      `[Conversation Logger] Calling writeToWorkingMemory for conversation ${conversationId}, agent ${agentId}, workspace ${workspaceId}, ${trulyNewMessages.length} truly new messages (out of ${newMessages.length} messages)`
     );
     console.log(
       `[Conversation Logger] Parameter values being passed - agentId: "${agentId}", workspaceId: "${workspaceId}", conversationId: "${conversationId}"`
@@ -2090,7 +1980,7 @@ export async function updateConversation(
     }
   } else {
     console.log(
-      `[Conversation Logger] Skipping writeToWorkingMemory for conversation ${conversationId} - no truly new messages (${filteredNewMessages.length} filtered messages were all duplicates)`
+      `[Conversation Logger] Skipping writeToWorkingMemory for conversation ${conversationId} - no truly new messages (${newMessages.length} messages were all duplicates)`
     );
   }
 }

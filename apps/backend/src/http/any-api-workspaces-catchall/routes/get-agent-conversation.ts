@@ -50,14 +50,6 @@ import { asyncHandler, requireAuth, requirePermission } from "../middleware";
  *                   type: array
  *                   items:
  *                     type: object
- *                 toolCalls:
- *                   type: array
- *                   items:
- *                     type: object
- *                 toolResults:
- *                   type: array
- *                   items:
- *                     type: object
  *                 tokenUsage:
  *                   type: object
  *                   nullable: true
@@ -122,8 +114,6 @@ export const registerGetAgentConversation = (app: express.Application) => {
         id: conversationId,
         conversationType: conversation.conversationType,
         messages: conversation.messages || [],
-        toolCalls: conversation.toolCalls || [],
-        toolResults: conversation.toolResults || [],
         tokenUsage: conversation.tokenUsage || null,
         startedAt: conversation.startedAt,
         lastMessageAt: conversation.lastMessageAt,

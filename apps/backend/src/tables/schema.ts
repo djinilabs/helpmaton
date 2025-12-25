@@ -174,8 +174,6 @@ export const tableSchemas = {
     conversationId: z.string(), // unique conversation ID (UUID)
     conversationType: z.enum(["test", "webhook", "stream"]), // type of conversation
     messages: z.array(z.unknown()), // array of all messages in the conversation
-    toolCalls: z.array(z.unknown()).optional(), // array of all tool calls made during the conversation
-    toolResults: z.array(z.unknown()).optional(), // array of all tool results from the conversation
     tokenUsage: z
       .object({
         promptTokens: z.number(),

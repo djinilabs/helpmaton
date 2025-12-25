@@ -49,7 +49,6 @@ import {
 import { extractTokenUsageAndCosts } from "../../http/utils/generationTokenExtraction";
 import { database } from "../../tables";
 import {
-  isMessageContentEmpty,
   updateConversation,
   buildConversationErrorInfo,
 } from "../../utils/conversationLogger";
@@ -979,7 +978,7 @@ async function logConversation(
       assistantMessage,
     ];
 
-    // Get valid messages for logging (filter out any invalid ones and empty messages)
+    // Get valid messages for logging (filter out any invalid ones, but keep empty messages)
     const validMessages: UIMessage[] = messagesForLogging.filter(
       (msg): msg is UIMessage =>
         msg != null &&
@@ -990,8 +989,7 @@ async function logConversation(
           msg.role === "assistant" ||
           msg.role === "system" ||
           msg.role === "tool") &&
-        "content" in msg &&
-        !isMessageContentEmpty(msg)
+        "content" in msg
     );
 
     // DIAGNOSTIC: Log messages being passed to updateConversation
