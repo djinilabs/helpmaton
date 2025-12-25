@@ -1407,12 +1407,35 @@ export async function startConversation(
     (msg) => !isMessageContentEmpty(msg)
   );
 
-  // Expand messages to include separate tool call and tool result messages
-  // This ensures tool calls appear as separate messages in conversation history
-  const expandedMessages = expandMessagesWithToolCalls(
-    filteredMessages,
-    data.awsRequestId
-  );
+  // DIAGNOSTIC: Log messages before processing
+  console.log("[startConversation] Messages received:", {
+    messagesCount: data.messages.length,
+    filteredMessagesCount: filteredMessages.length,
+    messages: filteredMessages.map((msg) => ({
+      role: msg.role,
+      contentType: typeof msg.content,
+      isArray: Array.isArray(msg.content),
+      contentLength: Array.isArray(msg.content) ? msg.content.length : "N/A",
+      hasToolCalls: Array.isArray(msg.content)
+        ? msg.content.some(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-call"
+          )
+        : false,
+      hasToolResults: Array.isArray(msg.content)
+        ? msg.content.some(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-result"
+          )
+        : false,
+    })),
+  });
 
   // Extract tool calls and results from original messages (before expansion)
   // for storage in toolCalls/toolResults fields
@@ -1423,8 +1446,67 @@ export async function startConversation(
       }))
     : filteredMessages;
 
-  const toolCalls = extractToolCalls(messagesForExtraction);
-  const toolResults = extractToolResults(messagesForExtraction);
+  // Expand messages to include separate tool call and tool result messages
+  // This ensures tool calls appear as separate messages in conversation history
+  const expandedMessages = expandMessagesWithToolCalls(
+    filteredMessages,
+    data.awsRequestId
+  );
+
+  // Extract tool calls and results from BOTH original messages (embedded in content)
+  // AND expanded messages (separate messages) to ensure we capture all tool calls
+  const toolCallsFromOriginal = extractToolCalls(messagesForExtraction);
+  const toolResultsFromOriginal = extractToolResults(messagesForExtraction);
+  const toolCallsFromExpanded = extractToolCalls(expandedMessages);
+  const toolResultsFromExpanded = extractToolResults(expandedMessages);
+
+  // Combine tool calls and results from both sources, deduplicating by toolCallId
+  const toolCallsMap = new Map<string, unknown>();
+  for (const toolCall of toolCallsFromOriginal) {
+    if (
+      typeof toolCall === "object" &&
+      toolCall !== null &&
+      "toolCallId" in toolCall &&
+      typeof toolCall.toolCallId === "string"
+    ) {
+      toolCallsMap.set(toolCall.toolCallId, toolCall);
+    }
+  }
+  for (const toolCall of toolCallsFromExpanded) {
+    if (
+      typeof toolCall === "object" &&
+      toolCall !== null &&
+      "toolCallId" in toolCall &&
+      typeof toolCall.toolCallId === "string"
+    ) {
+      toolCallsMap.set(toolCall.toolCallId, toolCall);
+    }
+  }
+
+  const toolResultsMap = new Map<string, unknown>();
+  for (const toolResult of toolResultsFromOriginal) {
+    if (
+      typeof toolResult === "object" &&
+      toolResult !== null &&
+      "toolCallId" in toolResult &&
+      typeof toolResult.toolCallId === "string"
+    ) {
+      toolResultsMap.set(toolResult.toolCallId, toolResult);
+    }
+  }
+  for (const toolResult of toolResultsFromExpanded) {
+    if (
+      typeof toolResult === "object" &&
+      toolResult !== null &&
+      "toolCallId" in toolResult &&
+      typeof toolResult.toolCallId === "string"
+    ) {
+      toolResultsMap.set(toolResult.toolCallId, toolResult);
+    }
+  }
+
+  const toolCalls = Array.from(toolCallsMap.values());
+  const toolResults = Array.from(toolResultsMap.values());
 
   // DIAGNOSTIC: Log extracted tool calls and results before storage
   console.log("[startConversation] Extracted tool calls and results:", {
@@ -1582,6 +1664,36 @@ export async function updateConversation(
 
       if (!existing) {
         // If conversation doesn't exist, create it
+        // DIAGNOSTIC: Log messages before processing (create path)
+        console.log("[updateConversation] Messages received (create path):", {
+          messagesCount: newMessages.length,
+          filteredMessagesCount: filteredNewMessages.length,
+          messages: filteredNewMessages.map((msg) => ({
+            role: msg.role,
+            contentType: typeof msg.content,
+            isArray: Array.isArray(msg.content),
+            contentLength: Array.isArray(msg.content) ? msg.content.length : "N/A",
+            hasToolCalls: Array.isArray(msg.content)
+              ? msg.content.some(
+                  (item) =>
+                    typeof item === "object" &&
+                    item !== null &&
+                    "type" in item &&
+                    item.type === "tool-call"
+                )
+              : false,
+            hasToolResults: Array.isArray(msg.content)
+              ? msg.content.some(
+                  (item) =>
+                    typeof item === "object" &&
+                    item !== null &&
+                    "type" in item &&
+                    item.type === "tool-result"
+                )
+              : false,
+          })),
+        });
+
         // Expand messages to include separate tool call and tool result messages
         const expandedMessages = expandMessagesWithToolCalls(
           filteredNewMessages,
@@ -1589,9 +1701,60 @@ export async function updateConversation(
         );
         trulyNewMessages = expandedMessages;
 
-        // Extract tool calls and results from original messages (before expansion)
-        const toolCalls = extractToolCalls(messagesWithRequestId);
-        const toolResults = extractToolResults(messagesWithRequestId);
+        // Extract tool calls and results from BOTH original messages (embedded in content)
+        // AND expanded messages (separate messages) to ensure we capture all tool calls
+        const toolCallsFromOriginal = extractToolCalls(messagesWithRequestId);
+        const toolResultsFromOriginal = extractToolResults(messagesWithRequestId);
+        const toolCallsFromExpanded = extractToolCalls(expandedMessages);
+        const toolResultsFromExpanded = extractToolResults(expandedMessages);
+
+        // Combine tool calls and results from both sources, deduplicating by toolCallId
+        const toolCallsMap = new Map<string, unknown>();
+        for (const toolCall of toolCallsFromOriginal) {
+          if (
+            typeof toolCall === "object" &&
+            toolCall !== null &&
+            "toolCallId" in toolCall &&
+            typeof toolCall.toolCallId === "string"
+          ) {
+            toolCallsMap.set(toolCall.toolCallId, toolCall);
+          }
+        }
+        for (const toolCall of toolCallsFromExpanded) {
+          if (
+            typeof toolCall === "object" &&
+            toolCall !== null &&
+            "toolCallId" in toolCall &&
+            typeof toolCall.toolCallId === "string"
+          ) {
+            toolCallsMap.set(toolCall.toolCallId, toolCall);
+          }
+        }
+
+        const toolResultsMap = new Map<string, unknown>();
+        for (const toolResult of toolResultsFromOriginal) {
+          if (
+            typeof toolResult === "object" &&
+            toolResult !== null &&
+            "toolCallId" in toolResult &&
+            typeof toolResult.toolCallId === "string"
+          ) {
+            toolResultsMap.set(toolResult.toolCallId, toolResult);
+          }
+        }
+        for (const toolResult of toolResultsFromExpanded) {
+          if (
+            typeof toolResult === "object" &&
+            toolResult !== null &&
+            "toolCallId" in toolResult &&
+            typeof toolResult.toolCallId === "string"
+          ) {
+            toolResultsMap.set(toolResult.toolCallId, toolResult);
+          }
+        }
+
+        const toolCalls = Array.from(toolCallsMap.values());
+        const toolResults = Array.from(toolResultsMap.values());
 
         // DIAGNOSTIC: Log extracted tool calls and results before storage (create path)
         console.log("[updateConversation] Extracted tool calls and results (create path):", {
@@ -1693,10 +1856,37 @@ export async function updateConversation(
         (msg) => !isMessageContentEmpty(msg)
       );
 
-      // Extract all tool calls and results from merged messages (before expansion)
-      // for storage in toolCalls/toolResults fields
-      const toolCalls = extractToolCalls(filteredAllMessages);
-      const toolResults = extractToolResults(filteredAllMessages);
+      // DIAGNOSTIC: Log messages before extraction (update path)
+      console.log("[updateConversation] Messages before extraction (update path):", {
+        allMessagesCount: allMessages.length,
+        filteredAllMessagesCount: filteredAllMessages.length,
+        newMessagesCount: messagesWithRequestId.length,
+        existingMessagesCount: existingMessages.length,
+        messages: filteredAllMessages.map((msg) => ({
+          role: msg.role,
+          contentType: typeof msg.content,
+          isArray: Array.isArray(msg.content),
+          contentLength: Array.isArray(msg.content) ? msg.content.length : "N/A",
+          hasToolCalls: Array.isArray(msg.content)
+            ? msg.content.some(
+                (item) =>
+                  typeof item === "object" &&
+                  item !== null &&
+                  "type" in item &&
+                  item.type === "tool-call"
+              )
+            : false,
+          hasToolResults: Array.isArray(msg.content)
+            ? msg.content.some(
+                (item) =>
+                  typeof item === "object" &&
+                  item !== null &&
+                  "type" in item &&
+                  item.type === "tool-result"
+              )
+            : false,
+        })),
+      });
 
       // Expand messages to include separate tool call and tool result messages
       // This ensures tool calls appear as separate messages in conversation history
@@ -1706,8 +1896,67 @@ export async function updateConversation(
         awsRequestId
       );
 
+      // Extract tool calls and results from BOTH original messages (embedded in content)
+      // AND expanded messages (separate messages) to ensure we capture all tool calls
+      const toolCallsFromOriginal = extractToolCalls(filteredAllMessages);
+      const toolResultsFromOriginal = extractToolResults(filteredAllMessages);
+      const toolCallsFromExpanded = extractToolCalls(expandedAllMessages);
+      const toolResultsFromExpanded = extractToolResults(expandedAllMessages);
+
+      // Combine tool calls and results from both sources, deduplicating by toolCallId
+      const toolCallsMap = new Map<string, unknown>();
+      for (const toolCall of toolCallsFromOriginal) {
+        if (
+          typeof toolCall === "object" &&
+          toolCall !== null &&
+          "toolCallId" in toolCall &&
+          typeof toolCall.toolCallId === "string"
+        ) {
+          toolCallsMap.set(toolCall.toolCallId, toolCall);
+        }
+      }
+      for (const toolCall of toolCallsFromExpanded) {
+        if (
+          typeof toolCall === "object" &&
+          toolCall !== null &&
+          "toolCallId" in toolCall &&
+          typeof toolCall.toolCallId === "string"
+        ) {
+          toolCallsMap.set(toolCall.toolCallId, toolCall);
+        }
+      }
+
+      const toolResultsMap = new Map<string, unknown>();
+      for (const toolResult of toolResultsFromOriginal) {
+        if (
+          typeof toolResult === "object" &&
+          toolResult !== null &&
+          "toolCallId" in toolResult &&
+          typeof toolResult.toolCallId === "string"
+        ) {
+          toolResultsMap.set(toolResult.toolCallId, toolResult);
+        }
+      }
+      for (const toolResult of toolResultsFromExpanded) {
+        if (
+          typeof toolResult === "object" &&
+          toolResult !== null &&
+          "toolCallId" in toolResult &&
+          typeof toolResult.toolCallId === "string"
+        ) {
+          toolResultsMap.set(toolResult.toolCallId, toolResult);
+        }
+      }
+
+      const toolCalls = Array.from(toolCallsMap.values());
+      const toolResults = Array.from(toolResultsMap.values());
+
       // DIAGNOSTIC: Log extracted tool calls and results before storage (update path)
       console.log("[updateConversation] Extracted tool calls and results (update path):", {
+        toolCallsFromOriginalCount: toolCallsFromOriginal.length,
+        toolCallsFromExpandedCount: toolCallsFromExpanded.length,
+        toolResultsFromOriginalCount: toolResultsFromOriginal.length,
+        toolResultsFromExpandedCount: toolResultsFromExpanded.length,
         toolCallsCount: toolCalls.length,
         toolResultsCount: toolResults.length,
         toolCalls: toolCalls,
@@ -1715,6 +1964,7 @@ export async function updateConversation(
         willStoreToolCalls: toolCalls.length > 0,
         willStoreToolResults: toolResults.length > 0,
         filteredAllMessagesCount: filteredAllMessages.length,
+        expandedAllMessagesCount: expandedAllMessages.length,
       });
 
       // Aggregate token usage

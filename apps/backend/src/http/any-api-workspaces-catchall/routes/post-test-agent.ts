@@ -1066,6 +1066,37 @@ export const registerPostTestAgent = (app: express.Application) => {
           !isMessageContentEmpty(msg)
       );
 
+      // DIAGNOSTIC: Log messages being passed to updateConversation
+      console.log("[Test Agent Handler] Messages being passed to updateConversation:", {
+        messagesForLoggingCount: messagesForLogging.length,
+        validMessagesCount: validMessages.length,
+        assistantMessageInValid: validMessages.some((msg) => msg.role === "assistant"),
+        messages: validMessages.map((msg) => ({
+          role: msg.role,
+          contentType: typeof msg.content,
+          isArray: Array.isArray(msg.content),
+          contentLength: Array.isArray(msg.content) ? msg.content.length : "N/A",
+          hasToolCalls: Array.isArray(msg.content)
+            ? msg.content.some(
+                (item) =>
+                  typeof item === "object" &&
+                  item !== null &&
+                  "type" in item &&
+                  item.type === "tool-call"
+              )
+            : false,
+          hasToolResults: Array.isArray(msg.content)
+            ? msg.content.some(
+                (item) =>
+                  typeof item === "object" &&
+                  item !== null &&
+                  "type" in item &&
+                  item.type === "tool-result"
+              )
+            : false,
+        })),
+      });
+
       // Log conversation (non-blocking) - always update existing conversation
       try {
         await updateConversation(

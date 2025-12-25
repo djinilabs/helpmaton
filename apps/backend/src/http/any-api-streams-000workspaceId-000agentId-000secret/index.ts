@@ -874,6 +874,9 @@ async function logConversation(
       contentLength: Array.isArray(assistantMessage.content)
         ? assistantMessage.content.length
         : "N/A",
+      content: Array.isArray(assistantMessage.content)
+        ? assistantMessage.content
+        : assistantMessage.content,
       hasToolCallsInContent: Array.isArray(assistantMessage.content)
         ? assistantMessage.content.some(
             (item) =>
@@ -892,6 +895,24 @@ async function logConversation(
               item.type === "tool-result"
           )
         : false,
+      toolCallsInContent: Array.isArray(assistantMessage.content)
+        ? assistantMessage.content.filter(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-call"
+          )
+        : [],
+      toolResultsInContent: Array.isArray(assistantMessage.content)
+        ? assistantMessage.content.filter(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-result"
+          )
+        : [],
     });
 
     // Combine all converted messages and assistant message for logging
@@ -915,6 +936,37 @@ async function logConversation(
         "content" in msg &&
         !isMessageContentEmpty(msg)
     );
+
+    // DIAGNOSTIC: Log messages being passed to updateConversation
+    console.log("[Stream Handler] Messages being passed to updateConversation:", {
+      messagesForLoggingCount: messagesForLogging.length,
+      validMessagesCount: validMessages.length,
+      assistantMessageInValid: validMessages.some((msg) => msg.role === "assistant"),
+      messages: validMessages.map((msg) => ({
+        role: msg.role,
+        contentType: typeof msg.content,
+        isArray: Array.isArray(msg.content),
+        contentLength: Array.isArray(msg.content) ? msg.content.length : "N/A",
+        hasToolCalls: Array.isArray(msg.content)
+          ? msg.content.some(
+              (item) =>
+                typeof item === "object" &&
+                item !== null &&
+                "type" in item &&
+                item.type === "tool-call"
+            )
+          : false,
+        hasToolResults: Array.isArray(msg.content)
+          ? msg.content.some(
+              (item) =>
+                typeof item === "object" &&
+                item !== null &&
+                "type" in item &&
+                item.type === "tool-result"
+            )
+          : false,
+      })),
+    });
 
     // Update existing conversation
     await updateConversation(
