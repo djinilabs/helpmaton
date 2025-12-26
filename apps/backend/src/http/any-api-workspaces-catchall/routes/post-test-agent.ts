@@ -61,10 +61,9 @@ async function persistConversationError(options: {
 
     // Log error structure before extraction (especially for BYOK)
     if (options.usesByok) {
-       
       const errorAny =
         options.error instanceof Error ? (options.error as any) : undefined;
-       
+
       const causeAny =
         options.error instanceof Error && options.error.cause instanceof Error
           ? (options.error.cause as any)
@@ -867,7 +866,6 @@ export const registerPostTestAgent = (app: express.Application) => {
 
         // Check all properties of result object for error information
         if (resultAny._steps && Array.isArray(resultAny._steps)) {
-           
           deepInspect.stepsDetails = resultAny._steps.map(
             (step: any, idx: number) => ({
               index: idx,
@@ -935,11 +933,15 @@ export const registerPostTestAgent = (app: express.Application) => {
       try {
         // Try to access result.text first to catch any errors early
         // Wrap in Promise.allSettled to see all errors, not just the first one
+        // Also extract _steps as the source of truth for tool calls/results
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
+        const resultAny = result as any;
         const results = await Promise.allSettled([
           Promise.resolve(result.text).then((t) => t || ""),
           Promise.resolve(result.toolCalls).then((tc) => tc || []),
           Promise.resolve(result.toolResults).then((tr) => tr || []),
           Promise.resolve(result.usage),
+          Promise.resolve(resultAny._steps?.status?.value).then((s) => s || []),
         ]);
 
         // Check if any promises were rejected
@@ -957,12 +959,112 @@ export const registerPostTestAgent = (app: express.Application) => {
         // All promises resolved successfully
         responseText =
           results[0].status === "fulfilled" ? results[0].value : "";
-        toolCallsFromResult =
+        const toolCallsFromResultRaw =
           results[1].status === "fulfilled" ? results[1].value : [];
-        toolResultsFromResult =
+        const toolResultsFromResultRaw =
           results[2].status === "fulfilled" ? results[2].value : [];
         usage =
           results[3].status === "fulfilled" ? results[3].value : undefined;
+        const stepsValue =
+          results[4].status === "fulfilled" ? results[4].value : [];
+
+        // Extract tool calls and results from _steps (source of truth for server-side tool execution)
+        const toolCallsFromSteps: unknown[] = [];
+        const toolResultsFromSteps: unknown[] = [];
+
+        if (Array.isArray(stepsValue)) {
+          for (const step of stepsValue) {
+            if (step?.content && Array.isArray(step.content)) {
+              for (const contentItem of step.content) {
+                if (
+                  typeof contentItem === "object" &&
+                  contentItem !== null &&
+                  "type" in contentItem
+                ) {
+                  if (contentItem.type === "tool-call") {
+                    // Convert AI SDK tool-call format to our format
+                    toolCallsFromSteps.push({
+                      toolCallId: contentItem.toolCallId,
+                      toolName: contentItem.toolName,
+                      args: contentItem.input || contentItem.args || {},
+                    });
+                  } else if (contentItem.type === "tool-result") {
+                    // Convert AI SDK tool-result format to our format
+                    toolResultsFromSteps.push({
+                      toolCallId: contentItem.toolCallId,
+                      toolName: contentItem.toolName,
+                      result:
+                        contentItem.output?.value ||
+                        contentItem.output ||
+                        contentItem.result,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Use _steps as source of truth - prefer tool calls/results from _steps if available
+        // Only fall back to direct properties if _steps doesn't have them
+        if (toolCallsFromSteps.length > 0) {
+          toolCallsFromResult = toolCallsFromSteps;
+        } else {
+          toolCallsFromResult = Array.isArray(toolCallsFromResultRaw)
+            ? toolCallsFromResultRaw
+            : [];
+        }
+
+        if (toolResultsFromSteps.length > 0) {
+          toolResultsFromResult = toolResultsFromSteps;
+        } else {
+          toolResultsFromResult = Array.isArray(toolResultsFromResultRaw)
+            ? toolResultsFromResultRaw
+            : [];
+        }
+
+        // DIAGNOSTIC: Log tool calls and results extracted from result
+        console.log("[Test Agent Handler] Tool calls extracted from result:", {
+          toolCallsCount: toolCallsFromResult.length,
+          toolCalls: toolCallsFromResult,
+          toolResultsCount: toolResultsFromResult.length,
+          toolResults: toolResultsFromResult,
+          toolCallsFromStepsCount: toolCallsFromSteps.length,
+          toolResultsFromStepsCount: toolResultsFromSteps.length,
+          toolCallsFromResultRawCount: Array.isArray(toolCallsFromResultRaw)
+            ? toolCallsFromResultRaw.length
+            : 0,
+          toolResultsFromResultRawCount: Array.isArray(toolResultsFromResultRaw)
+            ? toolResultsFromResultRaw.length
+            : 0,
+          resultKeys: Object.keys(result),
+          hasToolCalls: "toolCalls" in result,
+          hasToolResults: "toolResults" in result,
+          hasSteps: "_steps" in result,
+          stepsCount: Array.isArray(stepsValue) ? stepsValue.length : 0,
+        });
+
+        // FIX: If tool calls are missing but tool results exist, reconstruct tool calls from results
+        // This can happen when tools execute synchronously and the AI SDK doesn't populate toolCalls
+        if (
+          toolCallsFromResult.length === 0 &&
+          toolResultsFromResult.length > 0
+        ) {
+          console.log(
+            "[Test Agent Handler] Tool calls missing but tool results exist, reconstructing tool calls from results"
+          );
+          const { reconstructToolCallsFromResults } = await import(
+            "../../utils/generationToolReconstruction"
+          );
+          toolCallsFromResult = reconstructToolCallsFromResults(
+            toolResultsFromResult,
+            "Test Agent Handler"
+          ) as unknown as typeof toolCallsFromResult;
+          console.log(
+            "[Test Agent Handler] Reconstructed tool calls:",
+            toolCallsFromResult
+          );
+        }
       } catch (resultError) {
         // Check if this is a BYOK authentication error
         if (usesByok && isAuthenticationError(resultError)) {

@@ -1240,7 +1240,6 @@ export function expandMessagesWithToolCalls(
       }
 
       // If we have tool calls or tool results, create separate messages for them
-      // BUT also keep the original assistant message for LLM compatibility
       if (toolCallsInMessage.length > 0 || toolResultsInMessage.length > 0) {
         // Add tool call messages (as separate assistant messages with just tool calls)
         for (const toolCall of toolCallsInMessage) {
@@ -1260,11 +1259,34 @@ export function expandMessagesWithToolCalls(
           });
         }
 
-        // Also keep the original assistant message with all content (for LLM compatibility)
-        // This ensures the conversation can be replayed correctly for the LLM
-        expandedMessages.push(
-          awsRequestId ? { ...message, awsRequestId } : message
-        );
+        // If there's text content, create a separate assistant message with only text
+        // This avoids duplicating tool calls/results which are already in separate messages
+        if (textParts.length > 0) {
+          const textOnlyMessage: UIMessage = {
+            role: "assistant",
+            content: textParts,
+            ...(awsRequestId && { awsRequestId }),
+            // Preserve other metadata from the original message
+            ...(message.tokenUsage && { tokenUsage: message.tokenUsage }),
+            ...(message.modelName && { modelName: message.modelName }),
+            ...(message.provider && { provider: message.provider }),
+            ...(message.provisionalCostUsd !== undefined && {
+              provisionalCostUsd: message.provisionalCostUsd,
+            }),
+            ...(message.finalCostUsd !== undefined && {
+              finalCostUsd: message.finalCostUsd,
+            }),
+            ...(message.generationTimeMs !== undefined && {
+              generationTimeMs: message.generationTimeMs,
+            }),
+            ...(message.openrouterGenerationId && {
+              openrouterGenerationId: message.openrouterGenerationId,
+            }),
+          };
+          expandedMessages.push(textOnlyMessage);
+        }
+        // If there's no text content, we don't add the original message
+        // since tool calls/results are already represented as separate messages
       } else {
         // No tool calls/results, add message as-is
         expandedMessages.push(

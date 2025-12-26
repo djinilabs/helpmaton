@@ -18,11 +18,17 @@ function getSystemApiKey(provider: Provider): string {
         process.env.GEMINI_API_KEY,
         "GEMINI_API_KEY is not set"
       );
-    case "openrouter":
-      return getDefined(
-        process.env.OPENROUTER_API_KEY,
-        "OPENROUTER_API_KEY is not set"
-      );
+    case "openrouter": {
+      const apiKey = process.env.OPENROUTER_API_KEY;
+      if (!apiKey) {
+        console.error("[modelFactory] OPENROUTER_API_KEY is not set in environment variables");
+        console.error("[modelFactory] Available env vars:", Object.keys(process.env).filter(k => k.includes("OPENROUTER") || k.includes("API") || k.includes("KEY")).join(", "));
+        throw new Error("OPENROUTER_API_KEY is not set");
+      }
+      // Log first few characters for debugging (without exposing full key)
+      console.log("[modelFactory] Using OPENROUTER_API_KEY:", apiKey.substring(0, 8) + "...");
+      return apiKey;
+    }
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }
@@ -123,8 +129,15 @@ export async function createModel(
     const { getWorkspaceApiKey } = await import("./agentUtils");
     const workspaceKey = await getWorkspaceApiKey(workspaceId, provider);
     usesByok = workspaceKey !== null;
-    apiKey = workspaceKey || getSystemApiKey(provider);
+    if (workspaceKey) {
+      console.log("[modelFactory] Using workspace API key (BYOK) for workspace:", workspaceId);
+      apiKey = workspaceKey;
+    } else {
+      console.log("[modelFactory] No workspace API key found, using system key for workspace:", workspaceId);
+      apiKey = getSystemApiKey(provider);
+    }
   } else {
+    console.log("[modelFactory] No workspaceId provided, using system key");
     apiKey = getSystemApiKey(provider);
   }
 
