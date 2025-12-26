@@ -456,13 +456,6 @@ export async function getTavilyCallCountLast24Hours(
 }
 
 /**
- * Check if Tavily API key is production/pay-as-you-go type
- */
-export function isTavilyApiKeyProduction(): boolean {
-  return true;
-}
-
-/**
  * Check if workspace has exceeded daily Tavily call limit
  * Free tier: max 10 calls/day
  * Paid tiers: 10 free calls/day, then require credits
@@ -474,15 +467,6 @@ export function isTavilyApiKeyProduction(): boolean {
 export async function checkTavilyDailyLimit(
   workspaceId: string
 ): Promise<{ withinFreeLimit: boolean; callCount: number }> {
-  // If using production Tavily API key, skip limit check entirely
-  // Production keys have no daily limit - they're pay-as-you-go
-  if (isTavilyApiKeyProduction()) {
-    console.log(
-      "[checkTavilyDailyLimit] Production Tavily API key detected - skipping daily limit check"
-    );
-    return { withinFreeLimit: true, callCount: 0 };
-  }
-
   const callCount = await getTavilyCallCountLast24Hours(workspaceId);
   const FREE_TIER_LIMIT = 10;
 

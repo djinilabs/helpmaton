@@ -10,9 +10,7 @@ import { database } from "../../tables/database";
 import {
   checkTavilyDailyLimit,
   incrementTavilyCallBucket,
-  isTavilyApiKeyProduction,
 } from "../../utils/requestTracking";
-import { getWorkspaceSubscription } from "../../utils/subscriptionUtils";
 import {
   tavilySearch,
   tavilyExtract,
@@ -95,52 +93,22 @@ export function createTavilySearchTool(workspaceId: string) {
           callCount,
         });
 
-        // For production API keys, always charge credits (pay-as-you-go, no free tier)
-        // For non-production keys, only charge if exceeding free tier limit
-        const isProductionKey = isTavilyApiKeyProduction();
-        const shouldReserveCredits = isProductionKey || !withinFreeLimit;
+        // always charge credits (pay-as-you-go, no free tier)
+        const shouldReserveCredits = !withinFreeLimit;
 
         if (shouldReserveCredits) {
-          // Get subscription to check if it's a paid tier
-          const subscription = await getWorkspaceSubscription(workspaceId);
-          if (subscription && subscription.plan !== "free") {
-            // Paid tier: reserve credits for the call
-            const reservation = await reserveTavilyCredits(
-              db,
-              workspaceId,
-              1, // Estimate: 1 credit per call
-              3 // maxRetries
-            );
-            reservationId = reservation.reservationId;
-            console.log("[search_web] Reserved credits:", {
-              workspaceId,
-              reservationId,
-              reservedAmount: reservation.reservedAmount,
-              isProductionKey,
-            });
-          } else {
-            // For production keys, we should still charge even if workspace is free tier
-            // (since production keys are pay-as-you-go)
-            if (isProductionKey) {
-              const reservation = await reserveTavilyCredits(
-                db,
-                workspaceId,
-                1, // Estimate: 1 credit per call
-                3 // maxRetries
-              );
-              reservationId = reservation.reservationId;
-              console.log("[search_web] Reserved credits (production key):", {
-                workspaceId,
-                reservationId,
-                reservedAmount: reservation.reservedAmount,
-              });
-            } else {
-              // This shouldn't happen (checkTavilyDailyLimit should throw for free tier)
-              throw new Error(
-                "Daily Tavily API call limit exceeded. Free tier allows 10 calls per 24 hours."
-              );
-            }
-          }
+          const reservation = await reserveTavilyCredits(
+            db,
+            workspaceId,
+            1, // Estimate: 1 credit per call
+            3 // maxRetries
+          );
+          reservationId = reservation.reservationId;
+          console.log("[search_web] Reserved credits:", {
+            workspaceId,
+            reservationId,
+            reservedAmount: reservation.reservedAmount,
+          });
         }
 
         // Make Tavily API call
@@ -166,7 +134,11 @@ export function createTavilySearchTool(workspaceId: string) {
 
         // Adjust credits if we reserved them
         // Note: reservationId is only set for paid tiers that exceeded free limit and reserved credits
-        if (reservationId && reservationId !== "byok" && reservationId !== "zero-cost") {
+        if (
+          reservationId &&
+          reservationId !== "byok" &&
+          reservationId !== "zero-cost"
+        ) {
           await adjustTavilyCreditReservation(
             db,
             reservationId,
@@ -183,7 +155,9 @@ export function createTavilySearchTool(workspaceId: string) {
 
         // Format search results
         const results = searchResponse.results || [];
-        let resultText = `Found ${results.length} search result${results.length !== 1 ? "s" : ""} for "${query}":\n\n`;
+        let resultText = `Found ${results.length} search result${
+          results.length !== 1 ? "s" : ""
+        } for "${query}":\n\n`;
 
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
@@ -216,7 +190,11 @@ export function createTavilySearchTool(workspaceId: string) {
         return resultText;
       } catch (error) {
         // Refund credits if API call failed and we reserved them
-        if (reservationId && reservationId !== "byok" && reservationId !== "zero-cost") {
+        if (
+          reservationId &&
+          reservationId !== "byok" &&
+          reservationId !== "zero-cost"
+        ) {
           try {
             await refundTavilyCredits(db, reservationId, workspaceId, 3);
             console.log("[search_web] Refunded credits due to error:", {
@@ -227,7 +205,10 @@ export function createTavilySearchTool(workspaceId: string) {
             console.error("[search_web] Error refunding credits:", {
               workspaceId,
               reservationId,
-              error: refundError instanceof Error ? refundError.message : String(refundError),
+              error:
+                refundError instanceof Error
+                  ? refundError.message
+                  : String(refundError),
             });
           }
         }
@@ -313,52 +294,21 @@ export function createTavilyFetchTool(workspaceId: string) {
           callCount,
         });
 
-        // For production API keys, always charge credits (pay-as-you-go, no free tier)
-        // For non-production keys, only charge if exceeding free tier limit
-        const isProductionKey = isTavilyApiKeyProduction();
-        const shouldReserveCredits = isProductionKey || !withinFreeLimit;
+        const shouldReserveCredits = !withinFreeLimit;
 
         if (shouldReserveCredits) {
-          // Get subscription to check if it's a paid tier
-          const subscription = await getWorkspaceSubscription(workspaceId);
-          if (subscription && subscription.plan !== "free") {
-            // Paid tier: reserve credits for the call
-            const reservation = await reserveTavilyCredits(
-              db,
-              workspaceId,
-              1, // Estimate: 1 credit per call
-              3 // maxRetries
-            );
-            reservationId = reservation.reservationId;
-            console.log("[fetch_web] Reserved credits:", {
-              workspaceId,
-              reservationId,
-              reservedAmount: reservation.reservedAmount,
-              isProductionKey,
-            });
-          } else {
-            // For production keys, we should still charge even if workspace is free tier
-            // (since production keys are pay-as-you-go)
-            if (isProductionKey) {
-              const reservation = await reserveTavilyCredits(
-                db,
-                workspaceId,
-                1, // Estimate: 1 credit per call
-                3 // maxRetries
-              );
-              reservationId = reservation.reservationId;
-              console.log("[fetch_web] Reserved credits (production key):", {
-                workspaceId,
-                reservationId,
-                reservedAmount: reservation.reservedAmount,
-              });
-            } else {
-              // This shouldn't happen (checkTavilyDailyLimit should throw for free tier)
-              throw new Error(
-                "Daily Tavily API call limit exceeded. Free tier allows 10 calls per 24 hours."
-              );
-            }
-          }
+          const reservation = await reserveTavilyCredits(
+            db,
+            workspaceId,
+            1, // Estimate: 1 credit per call
+            3 // maxRetries
+          );
+          reservationId = reservation.reservationId;
+          console.log("[fetch_web] Reserved credits:", {
+            workspaceId,
+            reservationId,
+            reservedAmount: reservation.reservedAmount,
+          });
         }
 
         // Make Tavily API call
@@ -382,7 +332,11 @@ export function createTavilyFetchTool(workspaceId: string) {
 
         // Adjust credits if we reserved them
         // Note: reservationId is only set for paid tiers that exceeded free limit and reserved credits
-        if (reservationId && reservationId !== "byok" && reservationId !== "zero-cost") {
+        if (
+          reservationId &&
+          reservationId !== "byok" &&
+          reservationId !== "zero-cost"
+        ) {
           await adjustTavilyCreditReservation(
             db,
             reservationId,
@@ -399,7 +353,7 @@ export function createTavilyFetchTool(workspaceId: string) {
 
         // Format extracted content
         let resultText = `**Content extracted from ${url}:**\n\n`;
-        
+
         if (extractResponse.title) {
           resultText += `**Title:** ${extractResponse.title}\n\n`;
         }
@@ -428,7 +382,11 @@ export function createTavilyFetchTool(workspaceId: string) {
         return resultText;
       } catch (error) {
         // Refund credits if API call failed and we reserved them
-        if (reservationId && reservationId !== "byok" && reservationId !== "zero-cost") {
+        if (
+          reservationId &&
+          reservationId !== "byok" &&
+          reservationId !== "zero-cost"
+        ) {
           try {
             await refundTavilyCredits(db, reservationId, workspaceId, 3);
             console.log("[fetch_web] Refunded credits due to error:", {
@@ -439,7 +397,10 @@ export function createTavilyFetchTool(workspaceId: string) {
             console.error("[fetch_web] Error refunding credits:", {
               workspaceId,
               reservationId,
-              error: refundError instanceof Error ? refundError.message : String(refundError),
+              error:
+                refundError instanceof Error
+                  ? refundError.message
+                  : String(refundError),
             });
           }
         }
@@ -457,4 +418,3 @@ export function createTavilyFetchTool(workspaceId: string) {
     },
   });
 }
-
