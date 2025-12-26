@@ -372,12 +372,15 @@ export async function incrementTavilyCallBucket(
     async (current) => {
       if (current) {
         // Bucket exists, increment count
-        console.log("[incrementTavilyCallBucket] Incrementing existing bucket:", {
-          workspaceId,
-          hourTimestamp,
-          oldCount: current.count,
-          newCount: current.count + 1,
-        });
+        console.log(
+          "[incrementTavilyCallBucket] Incrementing existing bucket:",
+          {
+            workspaceId,
+            hourTimestamp,
+            oldCount: current.count,
+            newCount: current.count + 1,
+          }
+        );
         return {
           pk: bucketPk,
           count: current.count + 1,
@@ -453,9 +456,17 @@ export async function getTavilyCallCountLast24Hours(
 }
 
 /**
+ * Check if Tavily API key is production/pay-as-you-go type
+ */
+export function isTavilyApiKeyProduction(): boolean {
+  return true;
+}
+
+/**
  * Check if workspace has exceeded daily Tavily call limit
  * Free tier: max 10 calls/day
  * Paid tiers: 10 free calls/day, then require credits
+ * Production Tavily API keys: No limit enforced (unlimited calls)
  * @param workspaceId - Workspace ID
  * @throws HTTP 429 if limit is exceeded (free tier only)
  * @returns true if within free tier limit, false if exceeding (paid tiers can continue with credits)
@@ -463,6 +474,15 @@ export async function getTavilyCallCountLast24Hours(
 export async function checkTavilyDailyLimit(
   workspaceId: string
 ): Promise<{ withinFreeLimit: boolean; callCount: number }> {
+  // If using production Tavily API key, skip limit check entirely
+  // Production keys have no daily limit - they're pay-as-you-go
+  if (isTavilyApiKeyProduction()) {
+    console.log(
+      "[checkTavilyDailyLimit] Production Tavily API key detected - skipping daily limit check"
+    );
+    return { withinFreeLimit: true, callCount: 0 };
+  }
+
   const callCount = await getTavilyCallCountLast24Hours(workspaceId);
   const FREE_TIER_LIMIT = 10;
 

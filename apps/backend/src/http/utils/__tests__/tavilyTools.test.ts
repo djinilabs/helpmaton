@@ -38,6 +38,7 @@ vi.mock("../../../tables/database", () => ({
 vi.mock("../../../utils/requestTracking", () => ({
   checkTavilyDailyLimit: mockCheckTavilyDailyLimit,
   incrementTavilyCallBucket: mockIncrementTavilyCallBucket,
+  isTavilyApiKeyProduction: vi.fn(() => false), // Default to free tier for tests
 }));
 
 // Mock subscription utilities

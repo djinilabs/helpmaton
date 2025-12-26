@@ -10,6 +10,7 @@ import { database } from "../../tables/database";
 import {
   checkTavilyDailyLimit,
   incrementTavilyCallBucket,
+  isTavilyApiKeyProduction,
 } from "../../utils/requestTracking";
 import { getWorkspaceSubscription } from "../../utils/subscriptionUtils";
 import {
@@ -94,8 +95,12 @@ export function createTavilySearchTool(workspaceId: string) {
           callCount,
         });
 
-        // Reserve credits if exceeding free tier limit
-        if (!withinFreeLimit) {
+        // For production API keys, always charge credits (pay-as-you-go, no free tier)
+        // For non-production keys, only charge if exceeding free tier limit
+        const isProductionKey = isTavilyApiKeyProduction();
+        const shouldReserveCredits = isProductionKey || !withinFreeLimit;
+
+        if (shouldReserveCredits) {
           // Get subscription to check if it's a paid tier
           const subscription = await getWorkspaceSubscription(workspaceId);
           if (subscription && subscription.plan !== "free") {
@@ -111,12 +116,30 @@ export function createTavilySearchTool(workspaceId: string) {
               workspaceId,
               reservationId,
               reservedAmount: reservation.reservedAmount,
+              isProductionKey,
             });
           } else {
-            // This shouldn't happen (checkTavilyDailyLimit should throw for free tier)
-            throw new Error(
-              "Daily Tavily API call limit exceeded. Free tier allows 10 calls per 24 hours."
-            );
+            // For production keys, we should still charge even if workspace is free tier
+            // (since production keys are pay-as-you-go)
+            if (isProductionKey) {
+              const reservation = await reserveTavilyCredits(
+                db,
+                workspaceId,
+                1, // Estimate: 1 credit per call
+                3 // maxRetries
+              );
+              reservationId = reservation.reservationId;
+              console.log("[search_web] Reserved credits (production key):", {
+                workspaceId,
+                reservationId,
+                reservedAmount: reservation.reservedAmount,
+              });
+            } else {
+              // This shouldn't happen (checkTavilyDailyLimit should throw for free tier)
+              throw new Error(
+                "Daily Tavily API call limit exceeded. Free tier allows 10 calls per 24 hours."
+              );
+            }
           }
         }
 
@@ -290,8 +313,12 @@ export function createTavilyFetchTool(workspaceId: string) {
           callCount,
         });
 
-        // Reserve credits if exceeding free tier limit
-        if (!withinFreeLimit) {
+        // For production API keys, always charge credits (pay-as-you-go, no free tier)
+        // For non-production keys, only charge if exceeding free tier limit
+        const isProductionKey = isTavilyApiKeyProduction();
+        const shouldReserveCredits = isProductionKey || !withinFreeLimit;
+
+        if (shouldReserveCredits) {
           // Get subscription to check if it's a paid tier
           const subscription = await getWorkspaceSubscription(workspaceId);
           if (subscription && subscription.plan !== "free") {
@@ -307,12 +334,30 @@ export function createTavilyFetchTool(workspaceId: string) {
               workspaceId,
               reservationId,
               reservedAmount: reservation.reservedAmount,
+              isProductionKey,
             });
           } else {
-            // This shouldn't happen (checkTavilyDailyLimit should throw for free tier)
-            throw new Error(
-              "Daily Tavily API call limit exceeded. Free tier allows 10 calls per 24 hours."
-            );
+            // For production keys, we should still charge even if workspace is free tier
+            // (since production keys are pay-as-you-go)
+            if (isProductionKey) {
+              const reservation = await reserveTavilyCredits(
+                db,
+                workspaceId,
+                1, // Estimate: 1 credit per call
+                3 // maxRetries
+              );
+              reservationId = reservation.reservationId;
+              console.log("[fetch_web] Reserved credits (production key):", {
+                workspaceId,
+                reservationId,
+                reservedAmount: reservation.reservedAmount,
+              });
+            } else {
+              // This shouldn't happen (checkTavilyDailyLimit should throw for free tier)
+              throw new Error(
+                "Daily Tavily API call limit exceeded. Free tier allows 10 calls per 24 hours."
+              );
+            }
           }
         }
 

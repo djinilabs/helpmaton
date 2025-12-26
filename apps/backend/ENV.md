@@ -119,6 +119,18 @@ This document describes the environment variables required for the helpmaton bac
   - Pricing: $0.008 per API call (1 credit = 1 call)
   - See [Tavily Integration documentation](../docs/tavily-integration.md) for more details
 
+### `TAVILY_API_KEY_TYPE`
+
+- **Description**: Type of Tavily API key being used
+- **Required**: No (defaults to free tier behavior)
+- **Valid Values**: `"production"` or `"pay-as-you-go"` (case-insensitive)
+- **Example**: `production`
+- **Note**:
+  - Set to `"production"` or `"pay-as-you-go"` if using a production Tavily API key
+  - Production keys bypass the 10 calls/day limit and charge credits for all calls
+  - If not set or set to any other value, the system enforces free tier limits (10 calls/day)
+  - Production keys are pay-as-you-go: all calls are charged, no free tier allowance
+
 ### `SENTRY_DSN`
 
 - **Description**: Sentry Data Source Name (DSN) for error tracking and monitoring
