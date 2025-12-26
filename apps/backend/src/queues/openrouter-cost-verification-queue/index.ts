@@ -15,6 +15,31 @@ const BACKOFF_MAX_DELAY_MS = 5000; // 5 seconds maximum
 const BACKOFF_MULTIPLIER = 2;
 
 /**
+ * Extract tool costs from a message's content array
+ * Tool costs are stored in tool-result content items
+ */
+function extractToolCostsFromMessage(message: UIMessage): number {
+  let toolCosts = 0;
+  
+  if (message.role === "assistant" && Array.isArray(message.content)) {
+    for (const item of message.content) {
+      if (
+        typeof item === "object" &&
+        item !== null &&
+        "type" in item &&
+        item.type === "tool-result" &&
+        "costUsd" in item &&
+        typeof item.costUsd === "number"
+      ) {
+        toolCosts += item.costUsd;
+      }
+    }
+  }
+  
+  return toolCosts;
+}
+
+/**
  * Sleep for a given duration
  */
 function sleep(ms: number): Promise<void> {
@@ -442,6 +467,7 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
           }
 
           // Recalculate conversation cost using finalCostUsd from messages
+          // Also include tool costs from tool-result content items
           let totalCostUsd = 0;
           for (const msg of updatedMessages) {
             if (msg.role === "assistant") {
@@ -472,6 +498,10 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
                 );
                 totalCostUsd += messageCosts.usd;
               }
+              
+              // Add tool costs from tool-result content items
+              const toolCosts = extractToolCostsFromMessage(msg);
+              totalCostUsd += toolCosts;
             }
           }
 

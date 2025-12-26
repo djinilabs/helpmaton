@@ -12,6 +12,7 @@ const {
   mockReserveTavilyCredits,
   mockAdjustTavilyCreditReservation,
   mockRefundTavilyCredits,
+  mockCalculateTavilyCost,
 } = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
@@ -24,6 +25,7 @@ const {
     mockReserveTavilyCredits: vi.fn(),
     mockAdjustTavilyCreditReservation: vi.fn(),
     mockRefundTavilyCredits: vi.fn(),
+    mockCalculateTavilyCost: vi.fn(),
   };
 });
 
@@ -55,6 +57,7 @@ vi.mock("../../../utils/tavilyCredits", () => ({
   reserveTavilyCredits: mockReserveTavilyCredits,
   adjustTavilyCreditReservation: mockAdjustTavilyCreditReservation,
   refundTavilyCredits: mockRefundTavilyCredits,
+  calculateTavilyCost: mockCalculateTavilyCost,
 }));
 
 // Import after mocks are set up
@@ -70,6 +73,11 @@ describe("tavilyTools", () => {
 
     mockDb = {} as DatabaseSchema;
     mockDatabase.mockResolvedValue(mockDb);
+    
+    // Default mock for calculateTavilyCost: 1 credit = 8000 millionths ($0.008)
+    mockCalculateTavilyCost.mockImplementation((creditsUsed: number = 1) => {
+      return creditsUsed * 8000;
+    });
   });
 
   describe("createTavilySearchTool", () => {

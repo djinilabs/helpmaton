@@ -648,16 +648,16 @@ async function callAgentInternal(
     );
   }
 
-  // Add Tavily search tool if enabled
+  // Add web search tool if enabled
   if (targetAgent.enableTavilySearch === true) {
     const { createTavilySearchTool } = await import("./tavilyTools");
-    tools.tavily_search = createTavilySearchTool(workspaceId);
+    tools.search_web = createTavilySearchTool(workspaceId);
   }
 
-  // Add Tavily fetch tool if enabled
+  // Add web fetch tool if enabled
   if (targetAgent.enableTavilyFetch === true) {
     const { createTavilyFetchTool } = await import("./tavilyTools");
-    tools.tavily_fetch = createTavilyFetchTool(workspaceId);
+    tools.fetch_web = createTavilyFetchTool(workspaceId);
   }
 
   if (targetAgent.notificationChannelId) {

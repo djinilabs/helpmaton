@@ -32,6 +32,7 @@ export function formatToolCallMessage(
 
 /**
  * Formats tool result as UI message with truncation
+ * Extracts cost from result string if present (format: [TOOL_COST:8000])
  */
 export function formatToolResultMessage(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
@@ -47,8 +48,17 @@ export function formatToolResultMessage(
       ? toolResult.result
       : "";
 
-  // Truncate if string
+  // Extract cost from result string if present (format: [TOOL_COST:8000])
+  let costUsd: number | undefined;
   if (typeof outputValue === "string") {
+    const costMatch = outputValue.match(/\[TOOL_COST:(\d+)\]/);
+    if (costMatch) {
+      costUsd = parseInt(costMatch[1], 10);
+      // Remove cost marker from result string
+      outputValue = outputValue.replace(/\n\n\[TOOL_COST:\d+\]$/, "");
+    }
+
+    // Truncate if string
     if (outputValue.length > MAX_RESULT_LENGTH) {
       outputValue =
         outputValue.substring(0, MAX_RESULT_LENGTH) +
@@ -68,6 +78,7 @@ export function formatToolResultMessage(
         toolName: toolResult.toolName,
         result: outputValue,
         ...(toolResult.toolExecutionTimeMs !== undefined && { toolExecutionTimeMs: toolResult.toolExecutionTimeMs }),
+        ...(costUsd !== undefined && { costUsd }),
       },
     ],
   };

@@ -105,10 +105,12 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                   toolCallId?: string;
                   toolName?: string;
                   result?: unknown;
+                  costUsd?: number;
                 };
                 const toolName = toolResult.toolName || "unknown";
                 const result = toolResult.result;
                 const hasResult = result !== undefined;
+                const costUsd = toolResult.costUsd;
                 return (
                   <div
                     key={itemIndex}
@@ -125,6 +127,11 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                         <span className="text-xs text-green-600 dark:text-green-400">
                           ID: {toolResult.toolCallId.substring(0, 8)}...
                         </span>
+                      )}
+                      {costUsd !== undefined && (
+                        <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 opacity-70 dark:bg-green-900 dark:text-green-200">
+                          {formatCurrency(costUsd, "usd", 10)}
+                        </div>
                       )}
                     </div>
                     {hasResult && (

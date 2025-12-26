@@ -21,10 +21,11 @@ import {
   reserveTavilyCredits,
   adjustTavilyCreditReservation,
   refundTavilyCredits,
+  calculateTavilyCost,
 } from "../../utils/tavilyCredits";
 
 /**
- * Create Tavily search tool
+ * Create web search tool
  * Searches the web using Tavily search API
  */
 export function createTavilySearchTool(workspaceId: string) {
@@ -50,7 +51,7 @@ export function createTavilySearchTool(workspaceId: string) {
   type SearchArgs = z.infer<typeof searchParamsSchema>;
 
   const description =
-    "Search the web using Tavily search API. This tool allows you to find current information, news, articles, and other web content. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. CRITICAL REQUIREMENTS: (1) You MUST provide the 'query' parameter - it is REQUIRED and cannot be empty. (2) The 'query' parameter must be a non-empty string containing what you want to search for. (3) The 'max_results' parameter is optional (defaults to 5 if not provided). (4) When the user asks you to search for something, IMMEDIATELY call this tool with the required 'query' parameter. Example: If user says 'search for latest AI news', call tavily_search with {query: 'latest AI news'}. Example: If user wants 10 results, call tavily_search with {query: 'Python tutorials', max_results: 10}. The search results include titles, URLs, content snippets, and relevance scores.";
+    "Search the web using Tavily search API. This tool allows you to find current information, news, articles, and other web content. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. CRITICAL REQUIREMENTS: (1) You MUST provide the 'query' parameter - it is REQUIRED and cannot be empty. (2) The 'query' parameter must be a non-empty string containing what you want to search for. (3) The 'max_results' parameter is optional (defaults to 5 if not provided). (4) When the user asks you to search for something, IMMEDIATELY call this tool with the required 'query' parameter. Example: If user says 'search for latest AI news', call search_web with {query: 'latest AI news'}. Example: If user wants 10 results, call search_web with {query: 'Python tutorials', max_results: 10}. The search results include titles, URLs, content snippets, and relevance scores.";
 
   return tool({
     description,
@@ -61,7 +62,7 @@ export function createTavilySearchTool(workspaceId: string) {
     execute: async (args: any) => {
       // Validate required parameters
       if (!args || typeof args !== "object") {
-        return "Error: tavily_search requires a 'query' parameter. Please provide a search query string.";
+        return "Error: search_web requires a 'query' parameter. Please provide a search query string.";
       }
 
       const typedArgs = args as SearchArgs;
@@ -69,12 +70,12 @@ export function createTavilySearchTool(workspaceId: string) {
 
       // Validate query parameter
       if (!query || typeof query !== "string" || query.trim().length === 0) {
-        return "Error: tavily_search requires a non-empty 'query' parameter. Please provide a search query string. Example: {query: 'latest news about AI'}";
+        return "Error: search_web requires a non-empty 'query' parameter. Please provide a search query string. Example: {query: 'latest news about AI'}";
       }
 
       // Log tool call
-      console.log("[Tool Call] tavily_search", {
-        toolName: "tavily_search",
+      console.log("[Tool Call] search_web", {
+        toolName: "search_web",
         arguments: { query, max_results },
         workspaceId,
       });
@@ -87,7 +88,7 @@ export function createTavilySearchTool(workspaceId: string) {
         const limitCheck = await checkTavilyDailyLimit(workspaceId);
         const { withinFreeLimit, callCount } = limitCheck;
 
-        console.log("[tavily_search] Daily limit check:", {
+        console.log("[search_web] Daily limit check:", {
           workspaceId,
           withinFreeLimit,
           callCount,
@@ -106,7 +107,7 @@ export function createTavilySearchTool(workspaceId: string) {
               3 // maxRetries
             );
             reservationId = reservation.reservationId;
-            console.log("[tavily_search] Reserved credits:", {
+            console.log("[search_web] Reserved credits:", {
               workspaceId,
               reservationId,
               reservedAmount: reservation.reservedAmount,
@@ -132,7 +133,7 @@ export function createTavilySearchTool(workspaceId: string) {
         try {
           await incrementTavilyCallBucket(workspaceId);
         } catch (trackingError) {
-          console.error("[tavily_search] Failed to track Tavily API call usage", {
+          console.error("[search_web] Failed to track Tavily API call usage", {
             workspaceId,
             reservationId,
             error: trackingError,
@@ -150,7 +151,7 @@ export function createTavilySearchTool(workspaceId: string) {
             actualCreditsUsed,
             3 // maxRetries
           );
-          console.log("[tavily_search] Adjusted credits:", {
+          console.log("[search_web] Adjusted credits:", {
             workspaceId,
             reservationId,
             actualCreditsUsed,
@@ -177,11 +178,16 @@ export function createTavilySearchTool(workspaceId: string) {
           resultText += `\n**Summary Answer:**\n${searchResponse.answer}\n`;
         }
 
+        // Calculate cost and embed in result (will be parsed out when formatting)
+        const costUsd = calculateTavilyCost(actualCreditsUsed);
+        resultText += `\n\n[TOOL_COST:${costUsd}]`;
+
         // Log tool result
-        console.log("[Tool Result] tavily_search", {
-          toolName: "tavily_search",
+        console.log("[Tool Result] search_web", {
+          toolName: "search_web",
           resultCount: results.length,
           creditsUsed: actualCreditsUsed,
+          costUsd,
         });
 
         return resultText;
@@ -190,12 +196,12 @@ export function createTavilySearchTool(workspaceId: string) {
         if (reservationId && reservationId !== "byok" && reservationId !== "zero-cost") {
           try {
             await refundTavilyCredits(db, reservationId, workspaceId, 3);
-            console.log("[tavily_search] Refunded credits due to error:", {
+            console.log("[search_web] Refunded credits due to error:", {
               workspaceId,
               reservationId,
             });
           } catch (refundError) {
-            console.error("[tavily_search] Error refunding credits:", {
+            console.error("[search_web] Error refunding credits:", {
               workspaceId,
               reservationId,
               error: refundError instanceof Error ? refundError.message : String(refundError),
@@ -206,8 +212,8 @@ export function createTavilySearchTool(workspaceId: string) {
         const errorMessage = `Error searching with Tavily: ${
           error instanceof Error ? error.message : String(error)
         }`;
-        console.error("[Tool Error] tavily_search", {
-          toolName: "tavily_search",
+        console.error("[Tool Error] search_web", {
+          toolName: "search_web",
           error: error instanceof Error ? error.message : String(error),
           arguments: { query, max_results },
         });
@@ -218,7 +224,7 @@ export function createTavilySearchTool(workspaceId: string) {
 }
 
 /**
- * Create Tavily fetch tool
+ * Create web fetch tool
  * Extracts and summarizes content from a URL using Tavily extract API
  */
 export function createTavilyFetchTool(workspaceId: string) {
@@ -234,7 +240,7 @@ export function createTavilyFetchTool(workspaceId: string) {
   type FetchArgs = z.infer<typeof fetchParamsSchema>;
 
   const description =
-    "Extract and summarize content from a web page URL using Tavily extract API. This tool allows you to get the main content, title, and metadata from any web page. Use this when you need to read and understand the content of a specific webpage. CRITICAL REQUIREMENTS: (1) You MUST provide the 'url' parameter - it is REQUIRED and cannot be empty. (2) The 'url' parameter must be a valid URL starting with http:// or https://. (3) When the user asks you to fetch or read content from a URL, IMMEDIATELY call this tool with the required 'url' parameter. Example: If user says 'fetch content from https://example.com/article', call tavily_fetch with {url: 'https://example.com/article'}. Example: If user provides a URL, call tavily_fetch with {url: 'https://news.example.com/story'}. The tool extracts the main text content, title, and optionally images from the page.";
+    "Extract and summarize content from a web page URL using Tavily extract API. This tool allows you to get the main content, title, and metadata from any web page. Use this when you need to read and understand the content of a specific webpage. CRITICAL REQUIREMENTS: (1) You MUST provide the 'url' parameter - it is REQUIRED and cannot be empty. (2) The 'url' parameter must be a valid URL starting with http:// or https://. (3) When the user asks you to fetch or read content from a URL, IMMEDIATELY call this tool with the required 'url' parameter. Example: If user says 'fetch content from https://example.com/article', call fetch_web with {url: 'https://example.com/article'}. Example: If user provides a URL, call fetch_web with {url: 'https://news.example.com/story'}. The tool extracts the main text content, title, and optionally images from the page.";
 
   return tool({
     description,
@@ -245,7 +251,7 @@ export function createTavilyFetchTool(workspaceId: string) {
     execute: async (args: any) => {
       // Validate required parameters
       if (!args || typeof args !== "object") {
-        return "Error: tavily_fetch requires a 'url' parameter. Please provide a valid URL string.";
+        return "Error: fetch_web requires a 'url' parameter. Please provide a valid URL string.";
       }
 
       const typedArgs = args as FetchArgs;
@@ -253,19 +259,19 @@ export function createTavilyFetchTool(workspaceId: string) {
 
       // Validate url parameter
       if (!url || typeof url !== "string" || url.trim().length === 0) {
-        return "Error: tavily_fetch requires a non-empty 'url' parameter. Please provide a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
+        return "Error: fetch_web requires a non-empty 'url' parameter. Please provide a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
       }
 
       // Basic URL validation
       try {
         new URL(url);
       } catch {
-        return "Error: tavily_fetch requires a valid URL. The 'url' parameter must be a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
+        return "Error: fetch_web requires a valid URL. The 'url' parameter must be a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
       }
 
       // Log tool call
-      console.log("[Tool Call] tavily_fetch", {
-        toolName: "tavily_fetch",
+      console.log("[Tool Call] fetch_web", {
+        toolName: "fetch_web",
         arguments: { url },
         workspaceId,
       });
@@ -278,7 +284,7 @@ export function createTavilyFetchTool(workspaceId: string) {
         const limitCheck = await checkTavilyDailyLimit(workspaceId);
         const { withinFreeLimit, callCount } = limitCheck;
 
-        console.log("[tavily_fetch] Daily limit check:", {
+        console.log("[fetch_web] Daily limit check:", {
           workspaceId,
           withinFreeLimit,
           callCount,
@@ -297,7 +303,7 @@ export function createTavilyFetchTool(workspaceId: string) {
               3 // maxRetries
             );
             reservationId = reservation.reservationId;
-            console.log("[tavily_fetch] Reserved credits:", {
+            console.log("[fetch_web] Reserved credits:", {
               workspaceId,
               reservationId,
               reservedAmount: reservation.reservedAmount,
@@ -321,7 +327,7 @@ export function createTavilyFetchTool(workspaceId: string) {
         try {
           await incrementTavilyCallBucket(workspaceId);
         } catch (trackingError) {
-          console.error("[tavily_fetch] Failed to track Tavily API call usage", {
+          console.error("[fetch_web] Failed to track Tavily API call usage", {
             workspaceId,
             reservationId,
             error: trackingError,
@@ -339,7 +345,7 @@ export function createTavilyFetchTool(workspaceId: string) {
             actualCreditsUsed,
             3 // maxRetries
           );
-          console.log("[tavily_fetch] Adjusted credits:", {
+          console.log("[fetch_web] Adjusted credits:", {
             workspaceId,
             reservationId,
             actualCreditsUsed,
@@ -362,11 +368,16 @@ export function createTavilyFetchTool(workspaceId: string) {
           });
         }
 
+        // Calculate cost and embed in result (will be parsed out when formatting)
+        const costUsd = calculateTavilyCost(actualCreditsUsed);
+        resultText += `\n\n[TOOL_COST:${costUsd}]`;
+
         // Log tool result
-        console.log("[Tool Result] tavily_fetch", {
-          toolName: "tavily_fetch",
+        console.log("[Tool Result] fetch_web", {
+          toolName: "fetch_web",
           url,
           creditsUsed: actualCreditsUsed,
+          costUsd,
         });
 
         return resultText;
@@ -375,12 +386,12 @@ export function createTavilyFetchTool(workspaceId: string) {
         if (reservationId && reservationId !== "byok" && reservationId !== "zero-cost") {
           try {
             await refundTavilyCredits(db, reservationId, workspaceId, 3);
-            console.log("[tavily_fetch] Refunded credits due to error:", {
+            console.log("[fetch_web] Refunded credits due to error:", {
               workspaceId,
               reservationId,
             });
           } catch (refundError) {
-            console.error("[tavily_fetch] Error refunding credits:", {
+            console.error("[fetch_web] Error refunding credits:", {
               workspaceId,
               reservationId,
               error: refundError instanceof Error ? refundError.message : String(refundError),
@@ -391,8 +402,8 @@ export function createTavilyFetchTool(workspaceId: string) {
         const errorMessage = `Error fetching content with Tavily: ${
           error instanceof Error ? error.message : String(error)
         }`;
-        console.error("[Tool Error] tavily_fetch", {
-          toolName: "tavily_fetch",
+        console.error("[Tool Error] fetch_web", {
+          toolName: "fetch_web",
           error: error instanceof Error ? error.message : String(error),
           arguments: { url },
         });

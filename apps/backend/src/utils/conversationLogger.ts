@@ -1664,6 +1664,31 @@ export function extractTokenUsage(
 }
 
 /**
+ * Extract tool costs from a message's content array
+ * Tool costs are stored in tool-result content items
+ */
+function extractToolCostsFromMessage(message: UIMessage): number {
+  let toolCosts = 0;
+  
+  if (message.role === "assistant" && Array.isArray(message.content)) {
+    for (const item of message.content) {
+      if (
+        typeof item === "object" &&
+        item !== null &&
+        "type" in item &&
+        item.type === "tool-result" &&
+        "costUsd" in item &&
+        typeof item.costUsd === "number"
+      ) {
+        toolCosts += item.costUsd;
+      }
+    }
+  }
+  
+  return toolCosts;
+}
+
+/**
  * Start a new conversation
  */
 export async function startConversation(
@@ -1695,6 +1720,7 @@ export async function startConversation(
 
   // Calculate costs from per-message model/provider data
   // Prefer finalCostUsd (from OpenRouter API verification) if available, then provisionalCostUsd, then calculate from tokenUsage
+  // Also include tool costs from tool-result content items
   let totalCostUsd = 0;
   let totalGenerationTimeMs = 0;
   for (const message of messagesWithRequestId) {
@@ -1728,6 +1754,11 @@ export async function startConversation(
         );
         totalCostUsd += messageCosts.usd;
       }
+      
+      // Add tool costs from tool-result content items
+      const toolCosts = extractToolCostsFromMessage(message);
+      totalCostUsd += toolCosts;
+      
       // Sum generation times
       if (
         "generationTimeMs" in message &&
@@ -1955,6 +1986,7 @@ export async function updateConversation(
 
       // Calculate costs from per-message model/provider data
       // Prefer finalCostUsd (from OpenRouter API verification) if available, then provisionalCostUsd, then calculate from tokenUsage
+      // Also include tool costs from tool-result content items
       let totalCostUsd = 0;
       let totalGenerationTimeMs = 0;
       for (const message of allMessages) {
@@ -1988,6 +2020,11 @@ export async function updateConversation(
             );
             totalCostUsd += messageCosts.usd;
           }
+          
+          // Add tool costs from tool-result content items
+          const toolCosts = extractToolCostsFromMessage(message);
+          totalCostUsd += toolCosts;
+          
           // Sum generation times
           if (
             "generationTimeMs" in message &&

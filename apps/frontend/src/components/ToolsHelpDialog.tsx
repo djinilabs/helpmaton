@@ -220,13 +220,13 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
       ],
     },
     {
-      name: "tavily_search",
+      name: "search_web",
       description:
-        "Search the web using Tavily search API. This tool allows you to find current information, news, articles, and other web content. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources.",
+        "Search the web using Tavily search API. This tool allows you to find current information, news, articles, and other web content. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. Cost: $0.008 per call (first 10 calls/day free for paid tiers).",
       alwaysAvailable: false,
       condition: hasTavilySearch
-        ? "Available (Tavily search enabled)"
-        : "Not available (Tavily search not enabled)",
+        ? "Available (web search enabled)"
+        : "Not available (web search not enabled)",
       parameters: [
         {
           name: "query",
@@ -245,13 +245,13 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
       ],
     },
     {
-      name: "tavily_fetch",
+      name: "fetch_web",
       description:
-        "Extract and summarize content from a web page URL using Tavily extract API. This tool allows you to get the main content, title, and metadata from any web page. Use this when you need to read and understand the content of a specific webpage.",
+        "Extract and summarize content from a web page URL using Tavily extract API. This tool allows you to get the main content, title, and metadata from any web page. Use this when you need to read and understand the content of a specific webpage. Cost: $0.008 per call (first 10 calls/day free for paid tiers).",
       alwaysAvailable: false,
       condition: hasTavilyFetch
-        ? "Available (Tavily fetch enabled)"
-        : "Not available (Tavily fetch not enabled)",
+        ? "Available (web fetch enabled)"
+        : "Not available (web fetch not enabled)",
       parameters: [
         {
           name: "url",

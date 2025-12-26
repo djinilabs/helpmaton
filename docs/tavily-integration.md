@@ -70,7 +70,7 @@ See [Environment Variables](../apps/backend/ENV.md) for configuration details.
 
 ## Tool Details
 
-### Tavily Search Tool (`tavily_search`)
+### Web Search Tool (`search_web`)
 
 **Description**: Search the web using Tavily search API for current information.
 
@@ -82,6 +82,8 @@ See [Environment Variables](../apps/backend/ENV.md) for configuration details.
 - Search results with titles, URLs, content snippets, and relevance scores
 - Optional summary answer if available
 
+**Cost**: $0.008 per call (first 10 calls/day free for paid tiers)
+
 **Example**:
 ```json
 {
@@ -90,7 +92,7 @@ See [Environment Variables](../apps/backend/ENV.md) for configuration details.
 }
 ```
 
-### Tavily Fetch Tool (`tavily_fetch`)
+### Web Fetch Tool (`fetch_web`)
 
 **Description**: Extract and summarize content from a web page URL.
 
@@ -100,6 +102,8 @@ See [Environment Variables](../apps/backend/ENV.md) for configuration details.
 **Returns**:
 - Extracted content, title, and metadata
 - Optional images if available
+
+**Cost**: $0.008 per call (first 10 calls/day free for paid tiers)
 
 **Example**:
 ```json
@@ -141,10 +145,10 @@ Tavily API calls are tracked per workspace using hourly buckets:
 
 ### Agent Setup
 
-Tavily tools are conditionally added to agents based on configuration:
+Web tools are conditionally added to agents based on configuration:
 
-- `enableTavilySearch === true` → Adds `tavily_search` tool
-- `enableTavilyFetch === true` → Adds `tavily_fetch` tool
+- `enableTavilySearch === true` → Adds `search_web` tool
+- `enableTavilyFetch === true` → Adds `fetch_web` tool
 
 ### Agent Delegation
 
@@ -158,8 +162,8 @@ When agents delegate to other agents, Tavily tools are available if the target a
 
 ## Best Practices
 
-1. **Use Search for Research**: Use `tavily_search` when you need to find current information or multiple sources
-2. **Use Fetch for Specific Pages**: Use `tavily_fetch` when you have a specific URL and need its content
+1. **Use Search for Research**: Use `search_web` when you need to find current information or multiple sources
+2. **Use Fetch for Specific Pages**: Use `fetch_web` when you have a specific URL and need its content
 3. **Monitor Usage**: Track daily call counts to stay within free tier limits
 4. **Credit Management**: Ensure sufficient credits for paid tier workspaces exceeding free limits
 5. **Error Handling**: Handle rate limit and credit errors gracefully in agent prompts

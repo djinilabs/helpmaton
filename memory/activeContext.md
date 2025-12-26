@@ -114,10 +114,11 @@
 
 **Key Features Implemented**:
 
-1. **Tavily Tools**:
-   - `tavily_search`: Web search tool for finding current information, news, articles
-   - `tavily_fetch`: Content extraction tool for extracting and summarizing web page content
+1. **Web Tools**:
+   - `search_web`: Web search tool for finding current information, news, articles
+   - `fetch_web`: Content extraction tool for extracting and summarizing web page content
    - Both tools require agent-level configuration to enable
+   - Cost: $0.008 per call (first 10 calls/day free for paid tiers)
 
 2. **Daily Limits & Billing**:
    - Free tier: 10 calls per 24 hours (hard limit, requests blocked when exceeded)

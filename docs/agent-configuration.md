@@ -99,12 +99,12 @@ Enable the `search_memory` tool to allow agents to recall past conversations and
 
 Enable the `send_email` tool to allow agents to send emails using the workspace email connection (requires email connection configuration).
 
-### Tavily Tools
+### Web Tools
 
-Enable Tavily tools to allow agents to search the web and extract content from URLs:
+Enable web tools to allow agents to search the web and extract content from URLs:
 
-- **Tavily Search** (`tavily_search`): Search the web for current information, news, articles, and other web content
-- **Tavily Fetch** (`tavily_fetch`): Extract and summarize content from specific web page URLs
+- **Web Search** (`search_web`): Search the web for current information, news, articles, and other web content. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
+- **Web Fetch** (`fetch_web`): Extract and summarize content from specific web page URLs. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
 
 **Daily Limits**:
 - Free tier: 10 calls per 24 hours

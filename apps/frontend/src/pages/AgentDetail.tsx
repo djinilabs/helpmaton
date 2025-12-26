@@ -1776,10 +1776,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       className="mt-1 rounded border-2 border-neutral-300"
                     />
                     <div className="flex-1">
-                      <div className="font-bold">Enable Tavily Search</div>
+                      <div className="font-bold">Enable Web Search</div>
                       <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                        Allow this agent to use the tavily_search tool to search
-                        the web for current information
+                        Allow this agent to use the search_web tool to search
+                        the web for current information. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
                       </div>
                     </div>
                   </label>
@@ -1823,10 +1823,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       className="mt-1 rounded border-2 border-neutral-300"
                     />
                     <div className="flex-1">
-                      <div className="font-bold">Enable Tavily Fetch</div>
+                      <div className="font-bold">Enable Web Fetch</div>
                       <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                        Allow this agent to use the tavily_fetch tool to extract
-                        and summarize content from web pages
+                        Allow this agent to use the fetch_web tool to extract
+                        and summarize content from web pages. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
                       </div>
                     </div>
                   </label>
