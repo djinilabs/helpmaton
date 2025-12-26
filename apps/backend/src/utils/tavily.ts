@@ -288,6 +288,7 @@ export async function tavilyExtract(
     urls: [url],
     include_images: options?.include_images ?? false,
     include_raw_content: options?.include_raw_content ?? false,
+    include_usage: true,
   };
 
   let lastError: Error | undefined;
