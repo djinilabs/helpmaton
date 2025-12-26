@@ -793,6 +793,10 @@ async function logConversation(
                 toolResultsFromSteps.push({
                   toolCallId: contentItem.toolCallId,
                   toolName: contentItem.toolName,
+                  output:
+                    contentItem.output?.value ||
+                    contentItem.output ||
+                    contentItem.result,
                   result:
                     contentItem.output?.value ||
                     contentItem.output ||

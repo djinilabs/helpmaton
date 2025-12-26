@@ -551,6 +551,10 @@ export const handler = adaptHttpHandler(
                       toolResultsFromSteps.push({
                         toolCallId: contentItem.toolCallId,
                         toolName: contentItem.toolName,
+                        output:
+                          resultValue ||
+                          contentItem.output ||
+                          contentItem.result,
                         result: resultValue || contentItem.result,
                       });
                     } else {

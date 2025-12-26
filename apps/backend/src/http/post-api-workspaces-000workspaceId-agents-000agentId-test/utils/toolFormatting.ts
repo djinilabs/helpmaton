@@ -49,9 +49,10 @@ export function formatToolResultMessage(
       : "";
 
   // Extract cost from result string if present (format: [TOOL_COST:8000])
+  // Only extract if marker is at the end of the string (with optional newlines before it)
   let costUsd: number | undefined;
   if (typeof outputValue === "string") {
-    const costMatch = outputValue.match(/\[TOOL_COST:(\d+)\]/);
+    const costMatch = outputValue.match(/\n\n\[TOOL_COST:(\d+)\]$/);
     if (costMatch) {
       costUsd = parseInt(costMatch[1], 10);
       // Remove cost marker from result string

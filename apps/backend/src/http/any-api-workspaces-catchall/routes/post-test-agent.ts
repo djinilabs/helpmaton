@@ -993,6 +993,10 @@ export const registerPostTestAgent = (app: express.Application) => {
                     toolResultsFromSteps.push({
                       toolCallId: contentItem.toolCallId,
                       toolName: contentItem.toolName,
+                      output:
+                        contentItem.output?.value ||
+                        contentItem.output ||
+                        contentItem.result,
                       result:
                         contentItem.output?.value ||
                         contentItem.output ||
