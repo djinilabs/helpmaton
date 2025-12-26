@@ -2,11 +2,48 @@
 
 ## Current Status
 
-**Status**: Message Storage Simplification & Tool Call Display - Completed ✅
+**Status**: OpenRouter Cost Verification Retry Logic & Error Handling - Completed ✅
 
-**Latest Work**: Simplified message storage by removing redundant toolCalls/toolResults fields, fixed tool call duplication, and enhanced UI to display tool calls/results properly.
+**Latest Work**: Added exponential backoff retry logic to OpenRouter cost fetching with proper error handling to ensure no masked errors. All errors that prevent cost computation are now properly thrown and logged.
 
 **Recent Changes**:
+
+1. **OpenRouter Cost Verification Retry Logic**:
+   - Added exponential backoff retry mechanism to `fetchOpenRouterCost()` function
+   - Configuration: Initial delay 500ms, max 3 retries (4 total attempts), max delay 5 seconds, multiplier 2x
+   - Retries on: Server errors (5xx), rate limits (429), and network errors (fetch failures, connection refused, timeouts)
+   - Does not retry on: 404 (generation not found - permanent failure), other 4xx errors
+   - Added jitter (0-20% random) to prevent thundering herd problems
+   - Comprehensive logging for each retry attempt with delay and error details
+
+2. **Error Handling Improvements**:
+   - Changed `fetchOpenRouterCost()` return type from `Promise<number | null>` to `Promise<number>` - always returns cost or throws error
+   - 404 errors now throw errors instead of returning null (cannot compute cost if generation not found)
+   - Missing cost field in response now throws error instead of returning null (cannot compute cost without data)
+   - All errors are properly propagated to handler wrapper for logging and SQS batch failure tracking
+   - Removed null checks in calling code - errors are handled by handler wrapper
+
+3. **Test Updates**:
+   - Updated tests to expect errors to be thrown when cost cannot be computed
+   - Added reservation mocks to tests that were missing them (required for atomic update logic)
+   - Fixed cost calculation expectations for multiple generation IDs (markup applied individually, then summed)
+   - Updated test expectations to verify messages are marked as failed in batch response when errors occur
+   - All 1,835 tests passing
+
+**Files Modified**:
+- `apps/backend/src/queues/openrouter-cost-verification-queue/index.ts` - Added retry logic with exponential backoff, changed error handling to throw instead of return null
+- `apps/backend/src/queues/openrouter-cost-verification-queue/__tests__/index.test.ts` - Updated tests for new error-throwing behavior, added reservation mocks, fixed cost calculations
+- `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Fixed variable scope for openrouterGenerationIds
+- `apps/backend/src/http/utils/agentUtils.ts` - Fixed import order, removed unused variable, changed endpoint type
+- `apps/backend/src/utils/__tests__/creditManagement.test.ts` - Added mockUpdate variable reference
+
+**Verification**: All tests passing (1,835 tests), typecheck and lint clean ✅
+
+**Previous Status**: Message Storage Simplification & Tool Call Display - Completed ✅
+
+**Previous Work**: Simplified message storage by removing redundant toolCalls/toolResults fields, fixed tool call duplication, and enhanced UI to display tool calls/results properly.
+
+**Previous Changes**:
 
 1. **Message Storage Simplification**:
    - Removed `toolCalls` and `toolResults` fields from `agent-conversations` schema

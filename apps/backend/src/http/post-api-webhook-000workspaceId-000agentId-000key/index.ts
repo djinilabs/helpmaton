@@ -482,8 +482,76 @@ export const handler = adaptHttpHandler(
       let toolCallsFromResult: unknown[];
       let toolResultsFromResult: unknown[];
       try {
-        toolCallsFromResult = result.toolCalls || [];
-        toolResultsFromResult = result.toolResults || [];
+        // Also extract _steps as the source of truth for tool calls/results
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
+        const resultAny = result as any;
+        const stepsValue = resultAny._steps?.status?.value;
+
+        // Extract tool calls and results from _steps (source of truth for server-side tool execution)
+        const toolCallsFromSteps: unknown[] = [];
+        const toolResultsFromSteps: unknown[] = [];
+
+        if (Array.isArray(stepsValue)) {
+          for (const step of stepsValue) {
+            if (step?.content && Array.isArray(step.content)) {
+              for (const contentItem of step.content) {
+                if (
+                  typeof contentItem === "object" &&
+                  contentItem !== null &&
+                  "type" in contentItem
+                ) {
+                  if (contentItem.type === "tool-call") {
+                    // Convert AI SDK tool-call format to our format
+                    toolCallsFromSteps.push({
+                      toolCallId: contentItem.toolCallId,
+                      toolName: contentItem.toolName,
+                      args: contentItem.input || contentItem.args || {},
+                    });
+                  } else if (contentItem.type === "tool-result") {
+                    // Convert AI SDK tool-result format to our format
+                    toolResultsFromSteps.push({
+                      toolCallId: contentItem.toolCallId,
+                      toolName: contentItem.toolName,
+                      result:
+                        contentItem.output?.value ||
+                        contentItem.output ||
+                        contentItem.result,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Use _steps as source of truth - prefer tool calls/results from _steps if available
+        // Only fall back to direct properties if _steps doesn't have them
+        if (toolCallsFromSteps.length > 0) {
+          toolCallsFromResult = toolCallsFromSteps;
+        } else {
+          toolCallsFromResult = result.toolCalls || [];
+        }
+
+        if (toolResultsFromSteps.length > 0) {
+          toolResultsFromResult = toolResultsFromSteps;
+        } else {
+          toolResultsFromResult = result.toolResults || [];
+        }
+
+        // DIAGNOSTIC: Log tool calls and results extracted from result
+        console.log("[Webhook Handler] Tool calls extracted from result:", {
+          toolCallsCount: toolCallsFromResult.length,
+          toolCalls: toolCallsFromResult,
+          toolResultsCount: toolResultsFromResult.length,
+          toolResults: toolResultsFromResult,
+          resultKeys: Object.keys(result),
+          hasToolCalls: "toolCalls" in result,
+          hasToolResults: "toolResults" in result,
+          hasSteps: "_steps" in resultAny,
+          stepsCount: Array.isArray(stepsValue) ? stepsValue.length : 0,
+          toolCallsFromStepsCount: toolCallsFromSteps.length,
+          toolResultsFromStepsCount: toolResultsFromSteps.length,
+        });
       } catch (resultError) {
         // Check if this is a BYOK authentication error
         if (isByokAuthenticationError(resultError, usesByok)) {
@@ -522,17 +590,6 @@ export const handler = adaptHttpHandler(
           "Webhook Handler"
         ) as unknown as typeof toolCallsFromResult;
       }
-
-      // DIAGNOSTIC: Log tool calls and results extracted from result
-      console.log("[Webhook Handler] Tool calls extracted from result:", {
-        toolCallsCount: toolCallsFromResult.length,
-        toolCalls: toolCallsFromResult,
-        toolResultsCount: toolResultsFromResult.length,
-        toolResults: toolResultsFromResult,
-        resultKeys: Object.keys(result),
-        hasToolCalls: "toolCalls" in result,
-        hasToolResults: "toolResults" in result,
-      });
 
       // Format tool calls and results as UI messages
       const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
