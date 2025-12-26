@@ -57,7 +57,7 @@ import {
   transformLambdaUrlToHttpV2Event,
   type LambdaUrlEvent,
 } from "../../utils/httpEventAdapter";
-import { extractOpenRouterGenerationId } from "../../utils/openrouterUtils";
+import { extractAllOpenRouterGenerationIds } from "../../utils/openrouterUtils";
 import { flushPostHog } from "../../utils/posthog";
 import {
   initSentry,
@@ -686,10 +686,12 @@ async function adjustCreditsAfterStream(
   streamResult?: Awaited<ReturnType<typeof streamText>>,
   conversationId?: string
 ): Promise<void> {
-  // Extract OpenRouter generation ID for cost verification
-  const openrouterGenerationId = streamResult
-    ? extractOpenRouterGenerationId(streamResult)
-    : undefined;
+  // Extract all OpenRouter generation IDs for cost verification
+  const openrouterGenerationIds = streamResult
+    ? extractAllOpenRouterGenerationIds(streamResult)
+    : [];
+  const openrouterGenerationId =
+    openrouterGenerationIds.length > 0 ? openrouterGenerationIds[0] : undefined;
 
   // Adjust credits using shared utility
   await adjustCreditsAfterLLMCall(
@@ -702,12 +704,14 @@ async function adjustCreditsAfterStream(
     tokenUsage,
     usesByok,
     openrouterGenerationId,
+    openrouterGenerationIds, // New parameter
     "stream"
   );
 
-  // Enqueue cost verification (Step 3) if we have a generation ID
+  // Enqueue cost verification (Step 3) if we have generation IDs
   await enqueueCostVerificationIfNeeded(
-    openrouterGenerationId,
+    openrouterGenerationId, // Keep for backward compat
+    openrouterGenerationIds, // New parameter
     workspaceId,
     reservationId,
     conversationId,

@@ -2,7 +2,56 @@
 
 ## Current Status
 
-**Status**: Tavily Extract API Fix - Completed ✅
+**Status**: Message Storage Simplification & Tool Call Display - Completed ✅
+
+**Latest Work**: Simplified message storage by removing redundant toolCalls/toolResults fields, fixed tool call duplication, and enhanced UI to display tool calls/results properly.
+
+**Recent Changes**:
+
+1. **Message Storage Simplification**:
+   - Removed `toolCalls` and `toolResults` fields from `agent-conversations` schema
+   - Tool calls and results are now stored only as messages within the `messages` array
+   - Removed empty message filtering (keeps all messages including empty ones to prevent bugs)
+   - Updated all API endpoints (test, webhook, stream) to remove toolCalls/toolResults from responses
+   - Updated frontend types and UI components to remove references to deprecated fields
+   - Updated database schema documentation
+
+2. **Tool Call Extraction from _steps**:
+   - Updated test endpoint to use `_steps` as source of truth for tool calls/results
+   - When tools execute server-side, the AI SDK stores them in `result._steps.status.value`
+   - Test endpoint now extracts from `_steps` first, falls back to direct properties if needed
+   - Added diagnostic logging for API key usage and tool call extraction
+   - Fixed issue where server-side tool executions weren't being recorded
+
+3. **Tool Call Duplication Fix**:
+   - Fixed `expandMessagesWithToolCalls()` to prevent duplicate tool calls/results
+   - Previously created separate messages AND kept original message with all content
+   - Now creates separate messages for tool calls/results, and text-only message if text exists
+   - Preserves metadata (tokenUsage, costs, etc.) on the text-only message
+   - Fix applies to all endpoints (test, webhook, stream) automatically
+
+4. **Frontend UI Enhancements**:
+   - Updated `ConversationDetailModal` to display tool-call and tool-result content with proper UI components
+   - Tool calls shown in blue boxes with expandable arguments section
+   - Tool results shown in green boxes with expandable results section
+   - Supports markdown rendering for string results, JSON formatting for object results
+   - Visual distinction between tool calls, tool results, and text content
+
+**Files Modified**:
+- `apps/backend/src/tables/schema.ts` - Removed toolCalls/toolResults from schema
+- `apps/backend/src/utils/conversationLogger.ts` - Removed filtering, fixed expandMessagesWithToolCalls duplication
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-test-agent.ts` - Extract from _steps, removed filtering
+- `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Removed filtering
+- `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Removed filtering
+- `apps/backend/src/http/utils/modelFactory.ts` - Added diagnostic logging for API key usage
+- `apps/frontend/src/utils/api.ts` - Removed toolCalls/toolResults from ConversationDetail interface
+- `apps/frontend/src/components/ConversationDetailModal.tsx` - Enhanced UI for tool calls/results display
+- `apps/backend/src/utils/__tests__/conversationLogger.test.ts` - Updated tests for new behavior
+- `docs/database-schema.md` - Updated schema documentation
+
+**Verification**: All tests passing, typecheck and lint clean ✅
+
+**Previous Status**: Tavily Extract API Fix - Completed ✅
 
 **Latest Fix**: Fixed Tavily extract API request format to use `urls` (array) instead of `url` (singular). The Tavily API requires `urls` as an array parameter, even for a single URL. Updated request body and response handling to support array responses.
 

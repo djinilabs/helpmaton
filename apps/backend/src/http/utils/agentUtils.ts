@@ -13,6 +13,7 @@ import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation
 import { searchDocuments } from "../../utils/documentSearch";
 import { isCreditDeductionEnabled } from "../../utils/featureFlags";
 import { sendNotification } from "../../utils/notifications";
+import { extractTokenUsageAndCosts } from "../utils/generationTokenExtraction";
 
 import { createMcpServerTools } from "./mcpUtils";
 import { createModel } from "./modelFactory";
@@ -799,12 +800,21 @@ async function callAgentInternal(
       tools,
       ...generateOptions,
     });
-    const generationTimeMs = Date.now() - generationStartTime;
+    // Generation time tracked but not currently used in agent delegation
+    void (Date.now() - generationStartTime);
     // LLM call succeeded - mark as attempted
     llmCallAttempted = true;
 
-    // Extract and track token usage for credit adjustment
-    tokenUsage = extractTokenUsage(result);
+    // Extract token usage, generation IDs, and costs for credit adjustment
+    const extractionResult = extractTokenUsageAndCosts(
+      result,
+      undefined,
+      modelName || MODEL_NAME,
+      "test" // Use "test" endpoint type for agent delegation
+    );
+    tokenUsage = extractionResult.tokenUsage;
+    const openrouterGenerationId = extractionResult.openrouterGenerationId;
+    const openrouterGenerationIds = extractionResult.openrouterGenerationIds;
     if (
       isCreditDeductionEnabled() &&
       reservationId &&
@@ -821,7 +831,9 @@ async function callAgentInternal(
           modelName || MODEL_NAME,
           tokenUsage,
           3, // maxRetries
-          false // usesByok - delegated calls use workspace API key if available
+          false, // usesByok - delegated calls use workspace API key if available
+          openrouterGenerationId,
+          openrouterGenerationIds // New parameter
         );
         console.log(
           "[Agent Delegation] Credit reservation adjusted successfully"

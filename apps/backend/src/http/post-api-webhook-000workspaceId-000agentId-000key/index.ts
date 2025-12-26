@@ -226,6 +226,7 @@ export const handler = adaptHttpHandler(
       let result: Awaited<ReturnType<typeof generateText>> | undefined;
       let tokenUsage: TokenUsage | undefined;
       let openrouterGenerationId: string | undefined;
+      let openrouterGenerationIds: string[] | undefined;
       let provisionalCostUsd: number | undefined;
       let generationTimeMs: number | undefined;
 
@@ -268,7 +269,7 @@ export const handler = adaptHttpHandler(
         });
         generationTimeMs = Date.now() - generationStartTime;
 
-        // Extract token usage, generation ID, and costs
+        // Extract token usage, generation IDs, and costs
         const extractionResult = extractTokenUsageAndCosts(
           result,
           undefined,
@@ -277,6 +278,7 @@ export const handler = adaptHttpHandler(
         );
         tokenUsage = extractionResult.tokenUsage;
         openrouterGenerationId = extractionResult.openrouterGenerationId;
+        openrouterGenerationIds = extractionResult.openrouterGenerationIds;
         provisionalCostUsd = extractionResult.provisionalCostUsd;
 
         // Adjust credit reservation based on actual cost (Step 2)
@@ -290,6 +292,7 @@ export const handler = adaptHttpHandler(
           tokenUsage,
           usesByok,
           openrouterGenerationId,
+          openrouterGenerationIds, // New parameter
           "webhook"
         );
 
@@ -670,9 +673,10 @@ export const handler = adaptHttpHandler(
           awsRequestId,
         });
 
-        // Enqueue cost verification (Step 3) if we have a generation ID
+        // Enqueue cost verification (Step 3) if we have generation IDs
         await enqueueCostVerificationIfNeeded(
-          openrouterGenerationId,
+          openrouterGenerationId, // Keep for backward compat
+          openrouterGenerationIds, // New parameter
           workspaceId,
           reservationId,
           conversationId,

@@ -1154,9 +1154,13 @@ export const registerPostTestAgent = (app: express.Application) => {
         throw resultError;
       }
 
-      // Extract token usage, generation ID, and costs
-      const { tokenUsage, openrouterGenerationId, provisionalCostUsd } =
-        extractTokenUsageAndCosts(result, usage, finalModelName, "test");
+      // Extract token usage, generation IDs, and costs
+      const {
+        tokenUsage,
+        openrouterGenerationId,
+        openrouterGenerationIds,
+        provisionalCostUsd,
+      } = extractTokenUsageAndCosts(result, usage, finalModelName, "test");
 
       // Adjust credit reservation based on actual cost (Step 2)
       await adjustCreditsAfterLLMCall(
@@ -1169,6 +1173,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         tokenUsage,
         usesByok,
         openrouterGenerationId,
+        openrouterGenerationIds, // New parameter
         "test"
       );
 
@@ -1316,9 +1321,10 @@ export const registerPostTestAgent = (app: express.Application) => {
           "test"
         );
 
-        // Enqueue cost verification (Step 3) if we have a generation ID
+        // Enqueue cost verification (Step 3) if we have generation IDs
         await enqueueCostVerificationIfNeeded(
-          openrouterGenerationId,
+          openrouterGenerationId, // Keep for backward compat
+          openrouterGenerationIds, // New parameter
           workspaceId,
           reservationId,
           conversationId,

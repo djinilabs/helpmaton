@@ -104,6 +104,7 @@ export async function adjustCreditsAfterLLMCall(
   tokenUsage: TokenUsage | undefined,
   usesByok: boolean,
   openrouterGenerationId: string | undefined,
+  openrouterGenerationIds: string[] | undefined, // New parameter
   endpoint: GenerationEndpoint
 ): Promise<void> {
   // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
@@ -145,6 +146,8 @@ export async function adjustCreditsAfterLLMCall(
       modelName,
       tokenUsage,
       openrouterGenerationId,
+      openrouterGenerationIds,
+      generationCount: openrouterGenerationIds?.length || 0,
     });
     await adjustCreditReservation(
       db,
@@ -155,7 +158,8 @@ export async function adjustCreditsAfterLLMCall(
       tokenUsage,
       3, // maxRetries
       usesByok,
-      openrouterGenerationId
+      openrouterGenerationId,
+      openrouterGenerationIds // Pass through
     );
     console.log(
       `[${endpoint} Handler] Step 2: Credit reservation adjusted successfully`
@@ -326,43 +330,64 @@ export async function cleanupReservationOnError(
  * Enqueues cost verification (Step 3 of 3-step pricing) if generation ID is available
  */
 export async function enqueueCostVerificationIfNeeded(
-  openrouterGenerationId: string | undefined,
+  openrouterGenerationId: string | undefined, // Keep for backward compatibility
+  openrouterGenerationIds: string[] | undefined, // New parameter
   workspaceId: string,
   reservationId: string | undefined,
   conversationId: string | undefined,
   agentId: string | undefined,
   endpoint: GenerationEndpoint
 ): Promise<void> {
-  if (!openrouterGenerationId) {
+  // Determine which IDs to verify
+  const idsToVerify =
+    openrouterGenerationIds && openrouterGenerationIds.length > 0
+      ? openrouterGenerationIds
+      : openrouterGenerationId
+        ? [openrouterGenerationId]
+        : [];
+
+  if (idsToVerify.length === 0) {
     console.warn(
-      `[${endpoint} Handler] No OpenRouter generation ID found, skipping cost verification`
+      `[${endpoint} Handler] No OpenRouter generation IDs found, skipping cost verification`
     );
     return;
   }
 
-  try {
-    await enqueueCostVerification(
-      openrouterGenerationId,
-      workspaceId,
-      reservationId && reservationId !== "byok" ? reservationId : undefined,
-      conversationId,
-      agentId
-    );
-    console.log(`[${endpoint} Handler] Step 3: Cost verification enqueued`, {
-      openrouterGenerationId,
+  // Enqueue cost verification for each generation ID
+  for (const generationId of idsToVerify) {
+    try {
+      await enqueueCostVerification(
+        generationId,
+        workspaceId,
+        reservationId && reservationId !== "byok" ? reservationId : undefined,
+        conversationId,
+        agentId
+      );
+      console.log(`[${endpoint} Handler] Enqueued cost verification for generation:`, {
+        generationId,
+        reservationId:
+          reservationId && reservationId !== "byok" ? reservationId : undefined,
+      });
+    } catch (error) {
+      // Log but continue with other IDs
+      console.error(
+        `[${endpoint} Handler] Error enqueueing cost verification for ${generationId}:`,
+        {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        }
+      );
+    }
+  }
+
+  console.log(
+    `[${endpoint} Handler] Step 3: Cost verification enqueued for ${idsToVerify.length} generation(s)`,
+    {
+      generationIds: idsToVerify,
       reservationId:
         reservationId && reservationId !== "byok" ? reservationId : undefined,
       hasReservation: !!(reservationId && reservationId !== "byok"),
-    });
-  } catch (error) {
-    // Log error but don't fail the request
-    console.error(
-      `[${endpoint} Handler] Error enqueueing cost verification:`,
-      {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      }
-    );
-  }
+    }
+  );
 }
 

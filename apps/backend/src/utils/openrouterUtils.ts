@@ -125,6 +125,63 @@ export function extractOpenRouterGenerationId(
 }
 
 /**
+ * Extract all OpenRouter generation IDs from AI SDK response
+ * Returns array of all generation IDs found in _steps.status.value[]
+ * @param result - AI SDK response object
+ * @returns Array of generation IDs, or empty array if none found
+ */
+export function extractAllOpenRouterGenerationIds(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK response types are complex
+  result: any
+): string[] {
+  const generationIds: string[] = [];
+
+  try {
+    // Check _steps.status.value[] (OpenRouter AI SDK structure for tool calls)
+    if (
+      result?._steps?.status?.type === "resolved" &&
+      result._steps.status.value
+    ) {
+      const steps = Array.isArray(result._steps.status.value)
+        ? result._steps.status.value
+        : [result._steps.status.value];
+
+      for (const step of steps) {
+        if (
+          step?.response?.id &&
+          typeof step.response.id === "string" &&
+          step.response.id.startsWith("gen-")
+        ) {
+          generationIds.push(step.response.id);
+        }
+      }
+    }
+
+    // Fallback to single ID extraction for backward compatibility
+    // Only if no IDs found in _steps
+    if (generationIds.length === 0) {
+      const singleId = extractOpenRouterGenerationId(result);
+      if (singleId) {
+        generationIds.push(singleId);
+      }
+    }
+
+    console.log("[extractAllOpenRouterGenerationIds] Extracted generation IDs:", {
+      count: generationIds.length,
+      generationIds,
+    });
+
+    return generationIds;
+  } catch (error) {
+    console.warn("[extractAllOpenRouterGenerationIds] Error extracting generation IDs:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    return [];
+  }
+}
+
+/**
  * Extract OpenRouter cost from AI SDK response
  * OpenRouter includes cost in providerMetadata.openrouter.usage.cost
  * @param result - AI SDK response object

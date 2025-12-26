@@ -4,7 +4,7 @@ import {
 } from "../../utils/conversationLogger";
 import {
   extractOpenRouterCost,
-  extractOpenRouterGenerationId,
+  extractAllOpenRouterGenerationIds,
 } from "../../utils/openrouterUtils";
 import { calculateConversationCosts } from "../../utils/tokenAccounting";
 
@@ -15,7 +15,8 @@ import type { GenerationEndpoint } from "./generationErrorHandling";
  */
 export interface TokenAndCostExtraction {
   tokenUsage: TokenUsage | undefined;
-  openrouterGenerationId: string | undefined;
+  openrouterGenerationId: string | undefined; // Keep for backward compatibility
+  openrouterGenerationIds: string[]; // New: all generation IDs
   provisionalCostUsd: number | undefined;
 }
 
@@ -32,11 +33,15 @@ export function extractTokenUsageAndCosts(
   // Extract token usage from result
   const tokenUsage = extractTokenUsage({ ...result, usage });
 
-  // Extract OpenRouter generation ID for cost verification
-  const openrouterGenerationId = extractOpenRouterGenerationId({
+  // Extract all OpenRouter generation IDs for cost verification
+  const openrouterGenerationIds = extractAllOpenRouterGenerationIds({
     ...result,
     usage,
   });
+
+  // Keep single ID for backward compatibility (first one or undefined)
+  const openrouterGenerationId =
+    openrouterGenerationIds.length > 0 ? openrouterGenerationIds[0] : undefined;
 
   // Extract cost from LLM response for provisional cost
   const openrouterCostUsd = extractOpenRouterCost({ ...result, usage });
@@ -72,11 +77,14 @@ export function extractTokenUsageAndCosts(
     usage,
     hasUsage: !!usage,
     openrouterGenerationId,
+    openrouterGenerationIds,
+    generationCount: openrouterGenerationIds.length,
   });
 
   return {
     tokenUsage,
-    openrouterGenerationId,
+    openrouterGenerationId, // Backward compatible
+    openrouterGenerationIds, // New
     provisionalCostUsd,
   };
 }

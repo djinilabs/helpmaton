@@ -218,7 +218,14 @@ export const tableSchemas = {
     expires: z.number(), // TTL timestamp (15 minutes from creation)
     expiresHour: z.number(), // Hour bucket for GSI (expires truncated to hour)
     // OpenRouter cost verification fields
-    openrouterGenerationId: z.string().optional(), // OpenRouter generation ID for cost lookup
+    openrouterGenerationId: z.string().optional(), // OpenRouter generation ID for cost lookup (deprecated but still used for backward compatibility)
+    // New fields for multiple generation tracking
+    openrouterGenerationIds: z.array(z.string()).optional(), // All generation IDs from this request
+    expectedGenerationCount: z.number().optional(), // Total expected count
+    verifiedGenerationIds: z.array(z.string()).optional(), // IDs that have been verified
+    verifiedCosts: z.array(z.number().int()).optional(), // Costs in millionths for each verified generation
+    allGenerationsVerified: z.boolean().optional(), // Flag indicating all generations have been verified
+    totalOpenrouterCost: z.number().int().optional(), // Sum of all verified costs (for finalization)
     provider: z.string().optional(), // Provider used (for tracking)
     modelName: z.string().optional(), // Model used (for tracking)
     tokenUsageBasedCost: z.number().int().optional(), // Cost calculated from token usage (step 2) in millionths

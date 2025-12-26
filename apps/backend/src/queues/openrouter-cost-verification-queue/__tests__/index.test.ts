@@ -7,12 +7,16 @@ const {
   mockFinalizeCreditReservation,
   mockGet,
   mockAtomicUpdate,
+  mockGetReservation,
+  mockAtomicUpdateReservation,
 } = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
     mockFinalizeCreditReservation: vi.fn(),
     mockGet: vi.fn(),
     mockAtomicUpdate: vi.fn(),
+    mockGetReservation: vi.fn(),
+    mockAtomicUpdateReservation: vi.fn(),
   };
 });
 
@@ -101,6 +105,10 @@ describe("openrouter-cost-verification-queue", () => {
         get: mockGet,
         atomicUpdate: mockAtomicUpdate,
       },
+      "credit-reservations": {
+        get: mockGetReservation,
+        atomicUpdate: mockAtomicUpdateReservation,
+      },
     } as unknown as DatabaseSchema;
 
     mockDatabase.mockResolvedValue(mockDb);
@@ -114,6 +122,31 @@ describe("openrouter-cost-verification-queue", () => {
 
   describe("processCostVerification", () => {
     it("should fetch cost from OpenRouter API and update message with finalCostUsd", async () => {
+      // Mock reservation for single generation
+      const mockReservation = {
+        pk: "credit-reservations/res-1",
+        workspaceId: "workspace-1",
+        openrouterGenerationId: "gen-12345", // Single ID (old format)
+        expectedGenerationCount: 1, // Will default to 1 if not set
+        verifiedGenerationIds: [],
+        verifiedCosts: [],
+        reservedAmount: 5000,
+        tokenUsageBasedCost: 4000,
+      };
+
+      mockGetReservation.mockResolvedValue(mockReservation);
+      let currentReservation = { ...mockReservation };
+
+      mockAtomicUpdateReservation.mockImplementation(
+        async (_pk, _sk, updater) => {
+          const updated = await updater(currentReservation);
+          if (updated) {
+            currentReservation = updated;
+          }
+          return updated || currentReservation;
+        }
+      );
+
       // Mock OpenRouter API response (nested structure: data.data.total_cost)
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
@@ -193,6 +226,31 @@ describe("openrouter-cost-verification-queue", () => {
     });
 
     it("should apply 5.5% markup to OpenRouter cost", async () => {
+      // Mock reservation for single generation
+      const mockReservation = {
+        pk: "credit-reservations/res-1",
+        workspaceId: "workspace-1",
+        openrouterGenerationId: "gen-12345", // Single ID (old format)
+        expectedGenerationCount: 1, // Will default to 1 if not set
+        verifiedGenerationIds: [],
+        verifiedCosts: [],
+        reservedAmount: 5000,
+        tokenUsageBasedCost: 4000,
+      };
+
+      mockGetReservation.mockResolvedValue(mockReservation);
+      let currentReservation = { ...mockReservation };
+
+      mockAtomicUpdateReservation.mockImplementation(
+        async (_pk, _sk, updater) => {
+          const updated = await updater(currentReservation);
+          if (updated) {
+            currentReservation = updated;
+          }
+          return updated || currentReservation;
+        }
+      );
+
       // Mock OpenRouter API response with cost 0.01 USD (nested structure)
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
@@ -346,6 +404,31 @@ describe("openrouter-cost-verification-queue", () => {
     });
 
     it("should skip message update if conversationId or agentId missing (backward compatibility)", async () => {
+      // Mock reservation for single generation (backward compatibility)
+      const mockReservation = {
+        pk: "credit-reservations/res-1",
+        workspaceId: "workspace-1",
+        openrouterGenerationId: "gen-12345", // Single ID (old format)
+        expectedGenerationCount: 1, // Will default to 1 if not set
+        verifiedGenerationIds: [],
+        verifiedCosts: [],
+        reservedAmount: 5000,
+        tokenUsageBasedCost: 4000,
+      };
+
+      mockGetReservation.mockResolvedValue(mockReservation);
+      let currentReservation = { ...mockReservation };
+
+      mockAtomicUpdateReservation.mockImplementation(
+        async (_pk, _sk, updater) => {
+          const updated = await updater(currentReservation);
+          if (updated) {
+            currentReservation = updated;
+          }
+          return updated || currentReservation;
+        }
+      );
+
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -387,7 +470,7 @@ describe("openrouter-cost-verification-queue", () => {
       expect(mockAtomicUpdate).not.toHaveBeenCalled();
     });
 
-    it("should handle OpenRouter API 404 gracefully", async () => {
+    it("should throw error when generation not found (404)", async () => {
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: false,
         status: 404,
@@ -418,7 +501,8 @@ describe("openrouter-cost-verification-queue", () => {
         awsRegion: "",
       };
 
-      await handler({ Records: [record] });
+      // Error should be thrown and message should be in failed batch
+      const response = await handler({ Records: [record] });
 
       // Should not finalize credit reservation
       expect(mockFinalizeCreditReservation).not.toHaveBeenCalled();
@@ -426,6 +510,52 @@ describe("openrouter-cost-verification-queue", () => {
       // Should not update conversation
       expect(mockGet).not.toHaveBeenCalled();
       expect(mockAtomicUpdate).not.toHaveBeenCalled();
+
+      // Message should be marked as failed
+      expect(response.batchItemFailures).toHaveLength(1);
+      expect(response.batchItemFailures[0].itemIdentifier).toBe("msg-1");
+    });
+
+    it("should throw error when cost field is missing from OpenRouter response", async () => {
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            // Missing total_cost field
+          },
+        }),
+      });
+
+      const record: SQSRecord = {
+        messageId: "msg-1",
+        receiptHandle: "receipt-1",
+        body: JSON.stringify({
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-12345",
+          workspaceId: "workspace-1",
+        }),
+        attributes: {
+          ApproximateReceiveCount: "1",
+          SentTimestamp: "1234567890000",
+          SenderId: "test-sender",
+          ApproximateFirstReceiveTimestamp: "1234567890000",
+        },
+        messageAttributes: {},
+        md5OfBody: "",
+        eventSource: "aws:sqs",
+        eventSourceARN: "",
+        awsRegion: "",
+      };
+
+      // Error should be thrown and message should be in failed batch
+      const response = await handler({ Records: [record] });
+
+      // Should not finalize credit reservation
+      expect(mockFinalizeCreditReservation).not.toHaveBeenCalled();
+
+      // Message should be marked as failed
+      expect(response.batchItemFailures).toHaveLength(1);
+      expect(response.batchItemFailures[0].itemIdentifier).toBe("msg-1");
     });
 
     it("should handle OpenRouter API error", async () => {
@@ -542,6 +672,31 @@ describe("openrouter-cost-verification-queue", () => {
     });
 
     it("should handle backward compatibility with old API format (top-level cost)", async () => {
+      // Mock reservation for single generation (backward compatibility)
+      const mockReservation = {
+        pk: "credit-reservations/res-1",
+        workspaceId: "workspace-1",
+        openrouterGenerationId: "gen-12345", // Single ID (old format)
+        expectedGenerationCount: 1, // Will default to 1 if not set
+        verifiedGenerationIds: [],
+        verifiedCosts: [],
+        reservedAmount: 5000,
+        tokenUsageBasedCost: 4000,
+      };
+
+      mockGetReservation.mockResolvedValue(mockReservation);
+      let currentReservation = { ...mockReservation };
+
+      mockAtomicUpdateReservation.mockImplementation(
+        async (_pk, _sk, updater) => {
+          const updated = await updater(currentReservation);
+          if (updated) {
+            currentReservation = updated;
+          }
+          return updated || currentReservation;
+        }
+      );
+
       // Mock OpenRouter API response with old format (top-level cost)
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
@@ -611,6 +766,190 @@ describe("openrouter-cost-verification-queue", () => {
       expect(response.batchItemFailures).toHaveLength(1);
       expect(response.batchItemFailures[0].itemIdentifier).toBe("msg-1");
       expect(mockFinalizeCreditReservation).not.toHaveBeenCalled();
+    });
+
+    it("should accumulate costs for multiple generation IDs and finalize when all verified", async () => {
+      // Mock reservation with multiple generation IDs
+      const mockReservation = {
+        pk: "credit-reservations/res-1",
+        workspaceId: "workspace-1",
+        openrouterGenerationIds: ["gen-12345", "gen-67890", "gen-abc123"],
+        expectedGenerationCount: 3,
+        verifiedGenerationIds: [],
+        verifiedCosts: [],
+        reservedAmount: 5000,
+        tokenUsageBasedCost: 4000,
+      };
+
+      mockGetReservation.mockResolvedValue(mockReservation);
+      let currentReservation = { ...mockReservation };
+
+      // Mock atomic update for reservation
+      mockAtomicUpdateReservation.mockImplementation(
+        async (_pk, _sk, updater) => {
+          const updated = await updater(currentReservation);
+          if (updated) {
+            currentReservation = updated;
+          }
+          return updated || currentReservation;
+        }
+      );
+
+      // Mock OpenRouter API responses for each generation
+      (global.fetch as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: { total_cost: 0.001 }, // $0.001 USD
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: { total_cost: 0.002 }, // $0.002 USD
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: { total_cost: 0.0015 }, // $0.0015 USD
+          }),
+        });
+
+      // Process first generation
+      const record1: SQSRecord = {
+        messageId: "msg-1",
+        receiptHandle: "receipt-1",
+        body: JSON.stringify({
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-12345",
+          workspaceId: "workspace-1",
+        }),
+        attributes: {
+          ApproximateReceiveCount: "1",
+          SentTimestamp: "1234567890000",
+          SenderId: "test-sender",
+          ApproximateFirstReceiveTimestamp: "1234567890000",
+        },
+        messageAttributes: {},
+        md5OfBody: "",
+        eventSource: "aws:sqs",
+        eventSourceARN: "",
+        awsRegion: "",
+      };
+
+      await handler({ Records: [record1] });
+
+      // Verify first generation was added but not finalized
+      // Note: atomicUpdate internally calls get, but our mock doesn't expose that
+      expect(mockAtomicUpdateReservation).toHaveBeenCalledWith(
+        "credit-reservations/res-1",
+        undefined,
+        expect.any(Function)
+      );
+      expect(mockFinalizeCreditReservation).not.toHaveBeenCalled();
+
+      // Process second generation
+      const record2: SQSRecord = {
+        ...record1,
+        messageId: "msg-2",
+        body: JSON.stringify({
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-67890",
+          workspaceId: "workspace-1",
+        }),
+      };
+
+      await handler({ Records: [record2] });
+
+      // Still not all verified
+      expect(mockFinalizeCreditReservation).not.toHaveBeenCalled();
+
+      // Process third generation (should trigger finalization)
+      const record3: SQSRecord = {
+        ...record1,
+        messageId: "msg-3",
+        body: JSON.stringify({
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-abc123",
+          workspaceId: "workspace-1",
+        }),
+      };
+
+      await handler({ Records: [record3] });
+
+      // Now all should be verified and finalized
+      // Total cost: Each cost has markup applied individually, then summed:
+      // Cost 1: Math.ceil(0.001 * 1_000_000 * 1.055) = 1,055
+      // Cost 2: Math.ceil(0.002 * 1_000_000 * 1.055) = 2,110
+      // Cost 3: Math.ceil(0.0015 * 1_000_000 * 1.055) = 1,583
+      // Total: 1,055 + 2,110 + 1,583 = 4,748
+      expect(mockFinalizeCreditReservation).toHaveBeenCalledWith(
+        mockDb,
+        "res-1",
+        4748, // Sum of individually marked-up costs
+        3
+      );
+    });
+
+    it("should handle idempotency - skip duplicate generation ID verification", async () => {
+      const mockReservation = {
+        pk: "credit-reservations/res-1",
+        workspaceId: "workspace-1",
+        openrouterGenerationIds: ["gen-12345", "gen-67890"],
+        expectedGenerationCount: 2,
+        verifiedGenerationIds: ["gen-12345"], // Already verified
+        verifiedCosts: [1055], // Already has cost
+        reservedAmount: 5000,
+        tokenUsageBasedCost: 4000,
+      };
+
+      mockGetReservation.mockResolvedValue(mockReservation);
+      mockAtomicUpdateReservation.mockImplementation(
+        async (_pk, _sk, updater) => {
+          const updated = await updater(mockReservation);
+          return updated || mockReservation;
+        }
+      );
+
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: { total_cost: 0.001 },
+        }),
+      });
+
+      const record: SQSRecord = {
+        messageId: "msg-1",
+        receiptHandle: "receipt-1",
+        body: JSON.stringify({
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-12345", // Already verified
+          workspaceId: "workspace-1",
+        }),
+        attributes: {
+          ApproximateReceiveCount: "1",
+          SentTimestamp: "1234567890000",
+          SenderId: "test-sender",
+          ApproximateFirstReceiveTimestamp: "1234567890000",
+        },
+        messageAttributes: {},
+        md5OfBody: "",
+        eventSource: "aws:sqs",
+        eventSourceARN: "",
+        awsRegion: "",
+      };
+
+      await handler({ Records: [record] });
+
+      // Should not finalize since not all verified yet
+      expect(mockFinalizeCreditReservation).not.toHaveBeenCalled();
+
+      // Verify the updater was called but returned unchanged (idempotency check)
+      const updaterCall = mockAtomicUpdateReservation.mock.calls[0][2];
+      const updated = await updaterCall(mockReservation);
+      expect(updated.verifiedGenerationIds).toEqual(["gen-12345"]); // Unchanged
+      expect(updated.verifiedCosts).toEqual([1055]); // Unchanged
     });
   });
 });
