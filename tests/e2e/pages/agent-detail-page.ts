@@ -88,7 +88,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Test Agent section
    */
   async expandTestSection(): Promise<void> {
-    await this.expandAccordion("TEST AGENT");
+    await this.expandAccordion("💬 TEST AGENT");
   }
 
   /**
@@ -155,7 +155,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Conversations section
    */
   async expandConversationsSection(): Promise<void> {
-    await this.expandAccordion("RECENT CONVERSATIONS");
+    await this.expandAccordion("💭 RECENT CONVERSATIONS");
   }
 
   /**
@@ -195,7 +195,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Memory section
    */
   async expandMemorySection(): Promise<void> {
-    await this.expandAccordion("MEMORY RECORDS");
+    await this.expandAccordion("🧠 MEMORY RECORDS");
   }
 
   /**
@@ -282,7 +282,7 @@ export class AgentDetailPage extends BasePage {
    * Expand Usage section
    */
   async expandUsageSection(): Promise<void> {
-    await this.expandAccordion("AGENT USAGE");
+    await this.expandAccordion("📊 AGENT USAGE");
   }
 
   /**

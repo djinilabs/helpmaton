@@ -111,6 +111,8 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           enableMemorySearch: agent.enableMemorySearch ?? false,
           enableSearchDocuments: agent.enableSearchDocuments ?? false,
           enableSendEmail: agent.enableSendEmail ?? false,
+          enableTavilySearch: agent.enableTavilySearch ?? false,
+          enableTavilyFetch: agent.enableTavilyFetch ?? false,
           clientTools: agent.clientTools ?? [],
           spendingLimits: agent.spendingLimits ?? [],
           temperature: agent.temperature ?? null,

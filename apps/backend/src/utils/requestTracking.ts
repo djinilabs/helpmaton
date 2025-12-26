@@ -2,10 +2,17 @@ import { tooManyRequests } from "@hapi/boom";
 
 import { sendEmail } from "../send-email";
 import { database } from "../tables/database";
-import type { LLMRequestBucketRecord } from "../tables/schema";
+import type {
+  LLMRequestBucketRecord,
+  TavilyCallBucketRecord,
+} from "../tables/schema";
 
 import { getPlanLimits } from "./subscriptionPlans";
-import { getSubscriptionById, getUserEmailById } from "./subscriptionUtils";
+import {
+  getSubscriptionById,
+  getUserEmailById,
+  getWorkspaceSubscription,
+} from "./subscriptionUtils";
 
 const BASE_URL = process.env.BASE_URL || "https://app.helpmaton.com";
 
@@ -315,4 +322,169 @@ Visit your subscription settings to upgrade.`;
       `Daily request limit exceeded. Your ${subscription.plan} plan allows ${limits.maxDailyRequests} requests per 24 hours.`
     );
   }
+}
+
+/**
+ * Atomically increment the current hour's Tavily call bucket
+ * Delegates automatic retry on version conflicts to the atomicUpdate API
+ * @param workspaceId - Workspace ID
+ * @param maxRetries - Maximum number of retries (default: 3)
+ * @returns Updated bucket record
+ */
+export async function incrementTavilyCallBucket(
+  workspaceId: string,
+  maxRetries: number = 3
+): Promise<TavilyCallBucketRecord> {
+  console.log("[incrementTavilyCallBucket] Starting increment:", {
+    workspaceId,
+    maxRetries,
+  });
+
+  const db = await database();
+  const hourTimestamp = getCurrentHourTimestamp();
+  const bucketPk = `tavily-call-buckets/${workspaceId}/${hourTimestamp}`;
+  // TTL: 25 hours from bucket hour (ensures 24-hour window coverage)
+  const bucketTime = new Date(hourTimestamp).getTime();
+  const expires = Math.floor(bucketTime / 1000) + 25 * 60 * 60;
+
+  console.log("[incrementTavilyCallBucket] Bucket details:", {
+    workspaceId,
+    hourTimestamp,
+    bucketPk,
+    expires,
+  });
+
+  // Verify table exists
+  if (!db["tavily-call-buckets"]) {
+    const error = new Error(
+      "tavily-call-buckets table not found in database. Make sure the table is defined in app.arc and the app has been restarted."
+    );
+    console.error("[incrementTavilyCallBucket] Table not found:", {
+      workspaceId,
+      availableTables: Object.keys(db),
+    });
+    throw error;
+  }
+
+  const updated = await db["tavily-call-buckets"].atomicUpdate(
+    bucketPk,
+    undefined,
+    async (current) => {
+      if (current) {
+        // Bucket exists, increment count
+        console.log(
+          "[incrementTavilyCallBucket] Incrementing existing bucket:",
+          {
+            workspaceId,
+            hourTimestamp,
+            oldCount: current.count,
+            newCount: current.count + 1,
+          }
+        );
+        return {
+          pk: bucketPk,
+          count: current.count + 1,
+        };
+      } else {
+        // Bucket doesn't exist, create new one
+        console.log("[incrementTavilyCallBucket] Creating new bucket:", {
+          workspaceId,
+          hourTimestamp,
+          count: 1,
+        });
+        return {
+          pk: bucketPk,
+          workspaceId,
+          hourTimestamp,
+          count: 1,
+          expires,
+        };
+      }
+    },
+    { maxRetries }
+  );
+
+  console.log("[incrementTavilyCallBucket] Successfully updated bucket:", {
+    workspaceId,
+    hourTimestamp,
+    count: updated.count,
+  });
+
+  return updated;
+}
+
+/**
+ * Get Tavily call count for the last 24 hours (rolling window)
+ * Queries hourly buckets using GSI and sums the counts
+ * @param workspaceId - Workspace ID
+ * @returns Total call count in last 24 hours
+ */
+export async function getTavilyCallCountLast24Hours(
+  workspaceId: string
+): Promise<number> {
+  const db = await database();
+  const timestamps = getLast24HourTimestamps();
+  const oldestTimestamp = timestamps[timestamps.length - 1];
+  const newestTimestamp = timestamps[0];
+
+  // Query buckets using GSI for workspaceId
+  // Filter by hourTimestamp range (last 24 hours)
+  const queryResult = await db["tavily-call-buckets"].query({
+    IndexName: "byWorkspaceIdAndHour",
+    KeyConditionExpression:
+      "workspaceId = :workspaceId AND hourTimestamp BETWEEN :oldest AND :newest",
+    ExpressionAttributeValues: {
+      ":workspaceId": workspaceId,
+      ":oldest": oldestTimestamp,
+      ":newest": newestTimestamp,
+    },
+  });
+
+  // Sum all bucket counts
+  const totalCount = queryResult.items.reduce(
+    (sum, bucket) => sum + (bucket.count || 0),
+    0
+  );
+
+  console.log("[getTavilyCallCountLast24Hours] Call count:", {
+    workspaceId,
+    totalCount,
+    bucketsFound: queryResult.items.length,
+  });
+
+  return totalCount;
+}
+
+/**
+ * Check if workspace has exceeded daily Tavily call limit
+ * Free tier: max 10 calls/day
+ * Paid tiers: 10 free calls/day, then require credits
+ * Production Tavily API keys: No limit enforced (unlimited calls)
+ * @param workspaceId - Workspace ID
+ * @throws HTTP 429 if limit is exceeded (free tier only)
+ * @returns true if within free tier limit, false if exceeding (paid tiers can continue with credits)
+ */
+export async function checkTavilyDailyLimit(
+  workspaceId: string
+): Promise<{ withinFreeLimit: boolean; callCount: number }> {
+  const callCount = await getTavilyCallCountLast24Hours(workspaceId);
+  const FREE_TIER_LIMIT = 10;
+
+  // Get subscription to determine tier
+  const subscription = await getWorkspaceSubscription(workspaceId);
+  const isFreeTier = !subscription || subscription.plan === "free";
+
+  if (isFreeTier) {
+    // Free tier: block if >= 10 calls/day
+    if (callCount >= FREE_TIER_LIMIT) {
+      throw tooManyRequests(
+        `Daily Tavily API call limit exceeded. Free tier allows ${FREE_TIER_LIMIT} calls per 24 hours. You've made ${callCount} calls.`
+      );
+    }
+    return { withinFreeLimit: true, callCount };
+  }
+
+  // Paid tiers: allow 10 free calls/day, then require credits
+  const withinFreeLimit = callCount < FREE_TIER_LIMIT;
+  return { withinFreeLimit, callCount };
 }

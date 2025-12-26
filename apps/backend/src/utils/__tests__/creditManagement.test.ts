@@ -52,6 +52,7 @@ describe("creditManagement", () => {
   let mockCreate: ReturnType<typeof vi.fn>;
   let mockDelete: ReturnType<typeof vi.fn>;
   let mockReservationGet: ReturnType<typeof vi.fn>;
+  let mockUpdate: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -83,6 +84,9 @@ describe("creditManagement", () => {
     // Setup mock reservation get
     mockReservationGet = vi.fn();
 
+    // Setup mock update
+    mockUpdate = vi.fn().mockResolvedValue({});
+
     // Setup mock database
     mockDb = {
       workspace: {
@@ -93,7 +97,7 @@ describe("creditManagement", () => {
         get: mockReservationGet,
         create: mockCreate,
         delete: mockDelete,
-        update: vi.fn().mockResolvedValue({}),
+        update: mockUpdate,
       },
     } as unknown as DatabaseSchema;
 
@@ -455,6 +459,87 @@ describe("creditManagement", () => {
           2
         )
       ).rejects.toThrow("Failed to adjust credit reservation after 2 retries");
+    });
+
+    it("should store multiple generation IDs in reservation for OpenRouter", async () => {
+      const tokenUsage: TokenUsage = {
+        promptTokens: 100,
+        completionTokens: 50,
+        totalTokens: 150,
+      };
+
+      mockCalculateTokenCost.mockReturnValue(5_000_000);
+      const updatedWorkspace = {
+        ...mockWorkspace,
+        creditBalance: 95_000_000,
+      };
+      mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
+
+      const openrouterGenerationIds = ["gen-12345", "gen-67890", "gen-abc123"];
+
+      await adjustCreditReservation(
+        mockDb,
+        reservationId,
+        "test-workspace",
+        "openrouter",
+        "openrouter/auto",
+        tokenUsage,
+        3,
+        false,
+        undefined,
+        openrouterGenerationIds
+      );
+
+      // Verify reservation was updated with multiple generation IDs
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pk: `credit-reservations/${reservationId}`,
+          openrouterGenerationIds: ["gen-12345", "gen-67890", "gen-abc123"],
+          expectedGenerationCount: 3,
+          verifiedGenerationIds: [],
+          verifiedCosts: [],
+        })
+      );
+    });
+
+    it("should store single generation ID when only one provided", async () => {
+      const tokenUsage: TokenUsage = {
+        promptTokens: 100,
+        completionTokens: 50,
+        totalTokens: 150,
+      };
+
+      mockCalculateTokenCost.mockReturnValue(5_000_000);
+      const updatedWorkspace = {
+        ...mockWorkspace,
+        creditBalance: 95_000_000,
+      };
+      mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
+
+      const openrouterGenerationId = "gen-12345";
+
+      await adjustCreditReservation(
+        mockDb,
+        reservationId,
+        "test-workspace",
+        "openrouter",
+        "openrouter/auto",
+        tokenUsage,
+        3,
+        false,
+        openrouterGenerationId
+      );
+
+      // Verify reservation was updated with single generation ID (as array)
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pk: `credit-reservations/${reservationId}`,
+          openrouterGenerationIds: ["gen-12345"],
+          expectedGenerationCount: 1,
+          verifiedGenerationIds: [],
+          verifiedCosts: [],
+        })
+      );
     });
 
     it("should throw error when delete fails", async () => {

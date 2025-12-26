@@ -95,6 +95,11 @@ llm-request-buckets
   expires TTL
   encrypt true
 
+tavily-call-buckets
+  pk *String
+  expires TTL
+  encrypt true
+
 workspace-invite
   pk *String
   sk **String
@@ -229,6 +234,11 @@ llm-request-buckets
   subscriptionId *String
   hourTimestamp **String
   name bySubscriptionIdAndHour
+
+tavily-call-buckets
+  workspaceId *String
+  hourTimestamp **String
+  name byWorkspaceIdAndHour
 
 workspace-invite
   workspaceId *String

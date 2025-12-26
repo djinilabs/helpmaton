@@ -104,6 +104,8 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           enableMemorySearch,
           enableSearchDocuments,
           enableSendEmail,
+          enableTavilySearch,
+          enableTavilyFetch,
           clientTools,
           temperature,
           topP,
@@ -420,6 +422,14 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             enableSendEmail !== undefined
               ? enableSendEmail
               : agent.enableSendEmail,
+          enableTavilySearch:
+            enableTavilySearch !== undefined
+              ? enableTavilySearch
+              : agent.enableTavilySearch,
+          enableTavilyFetch:
+            enableTavilyFetch !== undefined
+              ? enableTavilyFetch
+              : agent.enableTavilyFetch,
           clientTools:
             clientTools !== undefined ? clientTools : agent.clientTools,
           spendingLimits:
@@ -488,6 +498,8 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           enableMemorySearch: updated.enableMemorySearch ?? false,
           enableSearchDocuments: updated.enableSearchDocuments ?? false,
           enableSendEmail: updated.enableSendEmail ?? false,
+          enableTavilySearch: updated.enableTavilySearch ?? false,
+          enableTavilyFetch: updated.enableTavilyFetch ?? false,
           clientTools: updated.clientTools ?? [],
           spendingLimits: updated.spendingLimits ?? [],
           temperature: updated.temperature ?? null,

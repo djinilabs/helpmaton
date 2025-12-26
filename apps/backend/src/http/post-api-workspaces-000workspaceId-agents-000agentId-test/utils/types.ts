@@ -18,6 +18,7 @@ export type ToolResultContent = {
   toolName: string;
   result: unknown;
   toolExecutionTimeMs?: number; // Duration in milliseconds
+  costUsd?: number; // Cost in millionths (e.g., 8000 = $0.008)
 };
 
 export type UIMessage =

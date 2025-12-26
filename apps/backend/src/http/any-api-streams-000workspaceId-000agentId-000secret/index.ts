@@ -49,7 +49,6 @@ import {
 import { extractTokenUsageAndCosts } from "../../http/utils/generationTokenExtraction";
 import { database } from "../../tables";
 import {
-  isMessageContentEmpty,
   updateConversation,
   buildConversationErrorInfo,
 } from "../../utils/conversationLogger";
@@ -58,7 +57,7 @@ import {
   transformLambdaUrlToHttpV2Event,
   type LambdaUrlEvent,
 } from "../../utils/httpEventAdapter";
-import { extractOpenRouterGenerationId } from "../../utils/openrouterUtils";
+import { extractAllOpenRouterGenerationIds } from "../../utils/openrouterUtils";
 import { flushPostHog } from "../../utils/posthog";
 import {
   initSentry,
@@ -131,7 +130,7 @@ async function persistConversationError(
     if (context.usesByok) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
       const errorAny = error instanceof Error ? (error as any) : undefined;
-       
+
       const causeAny =
         error instanceof Error && error.cause instanceof Error
           ? (error.cause as any)
@@ -656,9 +655,13 @@ async function streamAIResponse(
         responseStream.end();
       } catch (endError) {
         // Stream might already be ended, ignore
-        console.warn("[Stream Handler] Stream already ended (expected in normal flow):", {
-          error: endError instanceof Error ? endError.message : String(endError),
-        });
+        console.warn(
+          "[Stream Handler] Stream already ended (expected in normal flow):",
+          {
+            error:
+              endError instanceof Error ? endError.message : String(endError),
+          }
+        );
       }
     }
     // If streamCompletedSuccessfully is false, there was an error - don't end stream here
@@ -683,10 +686,12 @@ async function adjustCreditsAfterStream(
   streamResult?: Awaited<ReturnType<typeof streamText>>,
   conversationId?: string
 ): Promise<void> {
-  // Extract OpenRouter generation ID for cost verification
-  const openrouterGenerationId = streamResult
-    ? extractOpenRouterGenerationId(streamResult)
-    : undefined;
+  // Extract all OpenRouter generation IDs for cost verification
+  const openrouterGenerationIds = streamResult
+    ? extractAllOpenRouterGenerationIds(streamResult)
+    : [];
+  const openrouterGenerationId =
+    openrouterGenerationIds.length > 0 ? openrouterGenerationIds[0] : undefined;
 
   // Adjust credits using shared utility
   await adjustCreditsAfterLLMCall(
@@ -699,12 +704,14 @@ async function adjustCreditsAfterStream(
     tokenUsage,
     usesByok,
     openrouterGenerationId,
+    openrouterGenerationIds, // New parameter
     "stream"
   );
 
-  // Enqueue cost verification (Step 3) if we have a generation ID
+  // Enqueue cost verification (Step 3) if we have generation IDs
   await enqueueCostVerificationIfNeeded(
-    openrouterGenerationId,
+    openrouterGenerationId, // Keep for backward compat
+    openrouterGenerationIds, // New parameter
     workspaceId,
     reservationId,
     conversationId,
@@ -751,20 +758,73 @@ async function logConversation(
   try {
     // Extract tool calls and tool results from streamText result
     // streamText result properties are promises that need to be awaited
-    // (same as test endpoint)
-    const [toolCallsFromResultRaw, toolResultsFromResultRaw] =
+    // For streamText, tool calls/results may be in _steps array or directly on result
+    const [toolCallsFromResultRaw, toolResultsFromResultRaw, stepsValue] =
       await Promise.all([
         Promise.resolve(streamResult?.toolCalls).then((tc) => tc || []),
         Promise.resolve(streamResult?.toolResults).then((tr) => tr || []),
+        Promise.resolve(streamResult?._steps?.status?.value).then(
+          (s) => s || []
+        ),
       ]);
 
+    // Extract tool calls and results from _steps if they exist
+    const toolCallsFromSteps: unknown[] = [];
+    const toolResultsFromSteps: unknown[] = [];
+
+    if (Array.isArray(stepsValue)) {
+      for (const step of stepsValue) {
+        if (step?.content && Array.isArray(step.content)) {
+          for (const contentItem of step.content) {
+            if (
+              typeof contentItem === "object" &&
+              contentItem !== null &&
+              "type" in contentItem
+            ) {
+              if (contentItem.type === "tool-call") {
+                // Convert AI SDK tool-call format to our format
+                toolCallsFromSteps.push({
+                  toolCallId: contentItem.toolCallId,
+                  toolName: contentItem.toolName,
+                  args: contentItem.input || contentItem.args || {},
+                });
+              } else if (contentItem.type === "tool-result") {
+                // Convert AI SDK tool-result format to our format
+                toolResultsFromSteps.push({
+                  toolCallId: contentItem.toolCallId,
+                  toolName: contentItem.toolName,
+                  output:
+                    contentItem.output?.value ||
+                    contentItem.output ||
+                    contentItem.result,
+                  result:
+                    contentItem.output?.value ||
+                    contentItem.output ||
+                    contentItem.result,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Use tool calls/results from _steps if available, otherwise fall back to direct properties
     // Ensure toolCalls and toolResults are always arrays
     let toolCallsFromResult = Array.isArray(toolCallsFromResultRaw)
       ? toolCallsFromResultRaw
       : [];
-    const toolResultsFromResult = Array.isArray(toolResultsFromResultRaw)
+    let toolResultsFromResult = Array.isArray(toolResultsFromResultRaw)
       ? toolResultsFromResultRaw
       : [];
+
+    // Prefer tool calls/results from _steps if we found any
+    if (toolCallsFromSteps.length > 0) {
+      toolCallsFromResult = toolCallsFromSteps;
+    }
+    if (toolResultsFromSteps.length > 0) {
+      toolResultsFromResult = toolResultsFromSteps;
+    }
 
     // DIAGNOSTIC: Log tool calls and results extracted from stream result
     console.log("[Stream Handler] Tool calls extracted from stream result:", {
@@ -772,9 +832,13 @@ async function logConversation(
       toolCalls: toolCallsFromResult,
       toolResultsCount: toolResultsFromResult.length,
       toolResults: toolResultsFromResult,
+      toolCallsFromStepsCount: toolCallsFromSteps.length,
+      toolResultsFromStepsCount: toolResultsFromSteps.length,
       streamResultKeys: streamResult ? Object.keys(streamResult) : [],
       hasToolCalls: streamResult && "toolCalls" in streamResult,
       hasToolResults: streamResult && "toolResults" in streamResult,
+      hasSteps: streamResult && "_steps" in streamResult,
+      stepsCount: Array.isArray(stepsValue) ? stepsValue.length : 0,
     });
 
     // FIX: If tool calls are missing but tool results exist, reconstruct tool calls from results
@@ -874,6 +938,9 @@ async function logConversation(
       contentLength: Array.isArray(assistantMessage.content)
         ? assistantMessage.content.length
         : "N/A",
+      content: Array.isArray(assistantMessage.content)
+        ? assistantMessage.content
+        : assistantMessage.content,
       hasToolCallsInContent: Array.isArray(assistantMessage.content)
         ? assistantMessage.content.some(
             (item) =>
@@ -892,6 +959,24 @@ async function logConversation(
               item.type === "tool-result"
           )
         : false,
+      toolCallsInContent: Array.isArray(assistantMessage.content)
+        ? assistantMessage.content.filter(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-call"
+          )
+        : [],
+      toolResultsInContent: Array.isArray(assistantMessage.content)
+        ? assistantMessage.content.filter(
+            (item) =>
+              typeof item === "object" &&
+              item !== null &&
+              "type" in item &&
+              item.type === "tool-result"
+          )
+        : [],
     });
 
     // Combine all converted messages and assistant message for logging
@@ -901,7 +986,7 @@ async function logConversation(
       assistantMessage,
     ];
 
-    // Get valid messages for logging (filter out any invalid ones and empty messages)
+    // Get valid messages for logging (filter out any invalid ones, but keep empty messages)
     const validMessages: UIMessage[] = messagesForLogging.filter(
       (msg): msg is UIMessage =>
         msg != null &&
@@ -912,8 +997,45 @@ async function logConversation(
           msg.role === "assistant" ||
           msg.role === "system" ||
           msg.role === "tool") &&
-        "content" in msg &&
-        !isMessageContentEmpty(msg)
+        "content" in msg
+    );
+
+    // DIAGNOSTIC: Log messages being passed to updateConversation
+    console.log(
+      "[Stream Handler] Messages being passed to updateConversation:",
+      {
+        messagesForLoggingCount: messagesForLogging.length,
+        validMessagesCount: validMessages.length,
+        assistantMessageInValid: validMessages.some(
+          (msg) => msg.role === "assistant"
+        ),
+        messages: validMessages.map((msg) => ({
+          role: msg.role,
+          contentType: typeof msg.content,
+          isArray: Array.isArray(msg.content),
+          contentLength: Array.isArray(msg.content)
+            ? msg.content.length
+            : "N/A",
+          hasToolCalls: Array.isArray(msg.content)
+            ? msg.content.some(
+                (item) =>
+                  typeof item === "object" &&
+                  item !== null &&
+                  "type" in item &&
+                  item.type === "tool-call"
+              )
+            : false,
+          hasToolResults: Array.isArray(msg.content)
+            ? msg.content.some(
+                (item) =>
+                  typeof item === "object" &&
+                  item !== null &&
+                  "type" in item &&
+                  item.type === "tool-result"
+              )
+            : false,
+        })),
+      }
     );
 
     // Update existing conversation
@@ -1003,21 +1125,30 @@ async function writeErrorResponse(
       console.log("[Stream Handler] Error response written and stream ended");
     } catch (endError) {
       // Stream might already be ended, log but don't throw
-      console.warn("[Stream Handler] Stream already ended when trying to end after error:", {
-        error: endError instanceof Error ? endError.message : String(endError),
-        originalError: errorMessage,
-      });
+      console.warn(
+        "[Stream Handler] Stream already ended when trying to end after error:",
+        {
+          error:
+            endError instanceof Error ? endError.message : String(endError),
+          originalError: errorMessage,
+        }
+      );
     }
   } catch (writeError) {
     // If we can't write to the stream (e.g., already ended), just log the error
     // Don't throw - the original error is more important
-    console.error("[Stream Handler] Error writing error response (stream may already be ended):", {
-      writeError:
-        writeError instanceof Error ? writeError.message : String(writeError),
-      writeErrorType: writeError?.constructor?.name,
-      originalError: errorMessage,
-      isStreamWriteAfterEnd: writeError instanceof Error && writeError.message.includes("write after end"),
-    });
+    console.error(
+      "[Stream Handler] Error writing error response (stream may already be ended):",
+      {
+        writeError:
+          writeError instanceof Error ? writeError.message : String(writeError),
+        writeErrorType: writeError?.constructor?.name,
+        originalError: errorMessage,
+        isStreamWriteAfterEnd:
+          writeError instanceof Error &&
+          writeError.message.includes("write after end"),
+      }
+    );
     // Try to end the stream even if write failed, but don't throw if it fails
     try {
       responseStream.end();
@@ -1274,9 +1405,12 @@ const internalHandler = async (
       if (isByokAuthenticationError(error, context.usesByok)) {
         await persistConversationError(context, errorToLog);
         // Use writeErrorResponse which handles stream state properly
-        await writeErrorResponse(responseStream, new Error(
-          "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions."
-        ));
+        await writeErrorResponse(
+          responseStream,
+          new Error(
+            "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions."
+          )
+        );
         return;
       }
 
@@ -1345,9 +1479,12 @@ const internalHandler = async (
         const errorToLog = normalizeByokError(resultError);
         await persistConversationError(context, errorToLog);
         // Use writeErrorResponse which handles stream state properly
-        await writeErrorResponse(responseStream, new Error(
-          "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions."
-        ));
+        await writeErrorResponse(
+          responseStream,
+          new Error(
+            "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions."
+          )
+        );
         return;
       }
       // For non-authentication errors when accessing result properties, still log the conversation

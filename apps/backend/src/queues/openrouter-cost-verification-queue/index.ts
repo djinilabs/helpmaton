@@ -8,6 +8,72 @@ import { finalizeCreditReservation } from "../../utils/creditManagement";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
 import { calculateConversationCosts } from "../../utils/tokenAccounting";
 
+// Exponential backoff configuration for OpenRouter API retries
+const BACKOFF_INITIAL_DELAY_MS = 500; // 0.5 seconds
+const BACKOFF_MAX_RETRIES = 3;
+const BACKOFF_MAX_DELAY_MS = 5000; // 5 seconds maximum
+const BACKOFF_MULTIPLIER = 2;
+
+/**
+ * Extract tool costs from a message's content array
+ * Tool costs are stored in tool-result content items
+ * Tool results can be in assistant messages (as content items) or in tool role messages
+ */
+function extractToolCostsFromMessage(message: UIMessage): number {
+  let toolCosts = 0;
+
+  // Check assistant messages with tool-result content items
+  if (message.role === "assistant" && Array.isArray(message.content)) {
+    for (const item of message.content) {
+      if (
+        typeof item === "object" &&
+        item !== null &&
+        "type" in item &&
+        item.type === "tool-result" &&
+        "costUsd" in item &&
+        typeof item.costUsd === "number"
+      ) {
+        toolCosts += item.costUsd;
+      }
+    }
+  }
+
+  // Check tool role messages (tool results are expanded into separate tool messages)
+  if (message.role === "tool") {
+    if (Array.isArray(message.content)) {
+      for (const item of message.content) {
+        if (
+          typeof item === "object" &&
+          item !== null &&
+          "type" in item &&
+          item.type === "tool-result" &&
+          "costUsd" in item &&
+          typeof item.costUsd === "number"
+        ) {
+          toolCosts += item.costUsd;
+        }
+      }
+    }
+  }
+
+  return toolCosts;
+}
+
+/**
+ * Sleep for a given duration
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Check if an error is retryable
+ */
+function isRetryableError(status: number): boolean {
+  // Retry on server errors (5xx) and rate limits (429)
+  return status >= 500 || status === 429;
+}
+
 /**
  * Message schema for cost verification queue
  */
@@ -23,10 +89,10 @@ type CostVerificationMessage = z.infer<typeof CostVerificationMessageSchema>;
 
 /**
  * Fetch cost from OpenRouter API for a generation
+ * Implements exponential backoff retry for transient failures
+ * @throws Error if cost cannot be computed (generation not found, missing cost field, etc.)
  */
-async function fetchOpenRouterCost(
-  generationId: string
-): Promise<number | null> {
+async function fetchOpenRouterCost(generationId: string): Promise<number> {
   const apiKey = getDefined(
     process.env.OPENROUTER_API_KEY,
     "OPENROUTER_API_KEY is not set"
@@ -34,73 +100,181 @@ async function fetchOpenRouterCost(
 
   const url = `https://openrouter.ai/api/v1/generation?id=${generationId}`;
 
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-    });
+  let lastError: Error | undefined;
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        console.log("[Cost Verification] Generation not found in OpenRouter:", {
-          generationId,
-          status: response.status,
-          body: await response.text(),
-        });
-        return null;
+  // Retry loop with exponential backoff
+  for (let attempt = 0; attempt <= BACKOFF_MAX_RETRIES; attempt++) {
+    try {
+      if (attempt > 0) {
+        // Calculate delay with exponential backoff, capped at max delay
+        const baseDelay = Math.min(
+          BACKOFF_INITIAL_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, attempt - 1),
+          BACKOFF_MAX_DELAY_MS
+        );
+        // Add jitter: random value between 0 and 20% of base delay
+        const jitter = Math.random() * baseDelay * 0.2;
+        const delay = baseDelay + jitter;
+
+        console.log(
+          `[Cost Verification] Retrying OpenRouter API call (attempt ${
+            attempt + 1
+          }/${BACKOFF_MAX_RETRIES + 1}) after ${Math.round(delay)}ms:`,
+          {
+            generationId,
+            previousError:
+              lastError instanceof Error
+                ? lastError.message
+                : String(lastError),
+          }
+        );
+
+        await sleep(delay);
       }
-      throw new Error(
-        `OpenRouter API error: ${response.status} ${response.statusText}`
-      );
-    }
 
-    const data = (await response.json()) as {
-      data?: {
-        total_cost?: number;
-      };
-      cost?: number; // Fallback for older API format
-    };
-
-    // OpenRouter API returns cost nested in data.data.total_cost (two levels: data.data.total_cost)
-    // Try nested structure first, then fallback to top-level cost
-    const cost =
-      data.data?.total_cost !== undefined
-        ? data.data.total_cost
-        : data.cost;
-
-    // OpenRouter returns cost in USD, convert to millionths
-    if (cost !== undefined) {
-      // Always use Math.ceil to round up, ensuring we never undercharge
-      const baseCostInMillionths = Math.ceil(cost * 1_000_000);
-      // Apply 5.5% markup to account for OpenRouter's credit purchase fee
-      // OpenRouter charges 5.5% fee when adding credits to account
-      const costInMillionths = Math.ceil(baseCostInMillionths * 1.055);
-      console.log("[Cost Verification] Fetched cost from OpenRouter:", {
-        generationId,
-        cost,
-        baseCostInMillionths,
-        costInMillionthsWithMarkup: costInMillionths,
-        markup: "5.5%",
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
       });
-      return costInMillionths;
-    }
 
-    console.warn("[Cost Verification] No cost field in OpenRouter response:", {
-      generationId,
-      data,
-    });
-    return null;
-  } catch (error) {
-    console.error("[Cost Verification] Error fetching cost from OpenRouter:", {
-      generationId,
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-    throw error;
+      if (!response.ok) {
+        // 404 is a permanent failure - generation not found, don't retry
+        if (response.status === 404) {
+          const errorBody = await response.text();
+          const error = new Error(
+            `OpenRouter generation not found: ${generationId} (status: ${response.status}) - ${errorBody}`
+          );
+          console.error(
+            "[Cost Verification] Generation not found in OpenRouter:",
+            {
+              generationId,
+              status: response.status,
+              body: errorBody,
+            }
+          );
+          throw error;
+        }
+
+        // Check if error is retryable
+        if (
+          isRetryableError(response.status) &&
+          attempt < BACKOFF_MAX_RETRIES
+        ) {
+          const errorText = await response.text();
+          lastError = new Error(
+            `OpenRouter API error: ${response.status} ${response.statusText} - ${errorText}`
+          );
+          console.warn(
+            `[Cost Verification] Retryable error from OpenRouter API:`,
+            {
+              generationId,
+              status: response.status,
+              attempt: attempt + 1,
+              maxRetries: BACKOFF_MAX_RETRIES + 1,
+            }
+          );
+          continue; // Retry
+        }
+
+        // Non-retryable error or max retries reached
+        const errorText = await response.text();
+        throw new Error(
+          `OpenRouter API error: ${response.status} ${response.statusText} - ${errorText}`
+        );
+      }
+
+      const data = (await response.json()) as {
+        data?: {
+          total_cost?: number;
+        };
+        cost?: number; // Fallback for older API format
+      };
+
+      // OpenRouter API returns cost nested in data.data.total_cost (two levels: data.data.total_cost)
+      // Try nested structure first, then fallback to top-level cost
+      const cost =
+        data.data?.total_cost !== undefined ? data.data.total_cost : data.cost;
+
+      // OpenRouter returns cost in USD, convert to millionths
+      if (cost !== undefined) {
+        // Always use Math.ceil to round up, ensuring we never undercharge
+        const baseCostInMillionths = Math.ceil(cost * 1_000_000);
+        // Apply 5.5% markup to account for OpenRouter's credit purchase fee
+        // OpenRouter charges 5.5% fee when adding credits to account
+        const costInMillionths = Math.ceil(baseCostInMillionths * 1.055);
+        console.log("[Cost Verification] Fetched cost from OpenRouter:", {
+          generationId,
+          cost,
+          baseCostInMillionths,
+          costInMillionthsWithMarkup: costInMillionths,
+          markup: "5.5%",
+          attempt: attempt + 1,
+        });
+        return costInMillionths;
+      }
+
+      // Cost field is missing - cannot compute the real value
+      const error = new Error(
+        `OpenRouter API response missing cost field for generation ${generationId}. Response data: ${JSON.stringify(
+          data
+        )}`
+      );
+      console.error(
+        "[Cost Verification] No cost field in OpenRouter response:",
+        {
+          generationId,
+          data,
+        }
+      );
+      throw error;
+    } catch (error) {
+      // Check if it's a network/fetch error that might be retryable
+      if (
+        error instanceof TypeError &&
+        (error.message.includes("fetch") ||
+          error.message.includes("network") ||
+          error.message.includes("ECONNREFUSED") ||
+          error.message.includes("ETIMEDOUT"))
+      ) {
+        if (attempt < BACKOFF_MAX_RETRIES) {
+          lastError = error as Error;
+          console.warn(`[Cost Verification] Network error, will retry:`, {
+            generationId,
+            error: error instanceof Error ? error.message : String(error),
+            attempt: attempt + 1,
+            maxRetries: BACKOFF_MAX_RETRIES + 1,
+          });
+          continue; // Retry
+        }
+      }
+
+      // If we've exhausted retries or it's a non-retryable error, throw
+      if (attempt === BACKOFF_MAX_RETRIES) {
+        console.error(
+          "[Cost Verification] Error fetching cost from OpenRouter after all retries:",
+          {
+            generationId,
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+            totalAttempts: attempt + 1,
+          }
+        );
+        throw error;
+      }
+
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
   }
+
+  // If we get here, all retries were exhausted
+  if (lastError) {
+    throw lastError;
+  }
+  throw new Error(
+    `Failed to fetch cost from OpenRouter for generation ${generationId}: Unknown error`
+  );
 }
 
 /**
@@ -140,33 +314,104 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
   });
 
   // Fetch cost from OpenRouter API
+  // This will throw an error if cost cannot be computed, which will be caught by the handler wrapper
   const openrouterCost = await fetchOpenRouterCost(openrouterGenerationId);
-
-  if (openrouterCost === null) {
-    console.warn(
-      "[Cost Verification] Could not fetch cost from OpenRouter, skipping:",
-      { reservationId, openrouterGenerationId, workspaceId }
-    );
-    // Don't throw error - just log and skip
-    // The reservation will expire via TTL if it exists
-    return;
-  }
 
   const db = await database();
 
-  // Finalize credit reservation with OpenRouter cost (only if reservationId is provided)
+  // If reservation exists, atomically add this cost
   if (reservationId) {
-    await finalizeCreditReservation(db, reservationId, openrouterCost, 3);
-    console.log(
-      "[Cost Verification] Successfully finalized credit reservation:",
-      {
-        reservationId,
-        openrouterGenerationId,
-        workspaceId,
-        openrouterCost,
+    const reservationPk = `credit-reservations/${reservationId}`;
+
+    // Atomically update reservation with this generation's cost
+    const reservation = await db["credit-reservations"].atomicUpdate(
+      reservationPk,
+      undefined,
+      async (current) => {
+        if (!current) {
+          throw new Error(`Reservation ${reservationId} not found`);
+        }
+
+        const verifiedIds = current.verifiedGenerationIds || [];
+        const verifiedCosts = current.verifiedCosts || [];
+        const expectedCount = current.expectedGenerationCount || 1;
+
+        // Check if this generation ID is already verified (idempotency)
+        if (verifiedIds.includes(openrouterGenerationId)) {
+          console.log(
+            "[Cost Verification] Generation ID already verified, skipping:",
+            { openrouterGenerationId, reservationId }
+          );
+          return current; // No change needed
+        }
+
+        // Add this generation's cost
+        verifiedIds.push(openrouterGenerationId);
+        verifiedCosts.push(openrouterCost);
+
+        // Check if all generations are verified
+        const allVerified = verifiedIds.length >= expectedCount;
+
+        console.log(
+          "[Cost Verification] Updated reservation with verified cost:",
+          {
+            reservationId,
+            openrouterGenerationId,
+            cost: openrouterCost,
+            verifiedCount: verifiedIds.length,
+            expectedCount,
+            allVerified,
+          }
+        );
+
+        return {
+          ...current,
+          verifiedGenerationIds: verifiedIds,
+          verifiedCosts: verifiedCosts,
+          // Mark for finalization if all verified
+          ...(allVerified && {
+            allGenerationsVerified: true,
+            totalOpenrouterCost: verifiedCosts.reduce(
+              (sum, cost) => sum + cost,
+              0
+            ),
+          }),
+        };
       }
     );
+
+    // If all generations verified, finalize now
+    if (
+      reservation?.allGenerationsVerified &&
+      reservation.totalOpenrouterCost !== undefined
+    ) {
+      console.log(
+        "[Cost Verification] All generations verified, finalizing reservation:",
+        {
+          reservationId,
+          totalCost: reservation.totalOpenrouterCost,
+          verifiedCount: reservation.verifiedGenerationIds?.length || 0,
+        }
+      );
+
+      await finalizeCreditReservation(
+        db,
+        reservationId,
+        reservation.totalOpenrouterCost,
+        3
+      );
+    } else {
+      console.log(
+        "[Cost Verification] Reservation updated, waiting for remaining generations:",
+        {
+          reservationId,
+          verifiedCount: reservation?.verifiedGenerationIds?.length || 0,
+          expectedCount: reservation?.expectedGenerationCount || 0,
+        }
+      );
+    }
   } else {
+    // No reservation (BYOK case) - just log
     console.log(
       "[Cost Verification] Cost verified (no reservation to finalize):",
       {
@@ -252,7 +497,10 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
             return current;
           }
 
-          // Recalculate conversation cost using finalCostUsd from messages
+          // Recalculate conversation cost from 0 using finalCostUsd from ALL messages
+          // IMPORTANT: Always recalculate from scratch, do NOT use current.costUsd
+          // Also include tool costs from tool-result content items (in both assistant and tool role messages)
+          // Messages are already expanded when stored, so we iterate through all messages
           let totalCostUsd = 0;
           for (const msg of updatedMessages) {
             if (msg.role === "assistant") {
@@ -284,6 +532,10 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
                 totalCostUsd += messageCosts.usd;
               }
             }
+
+            // Extract tool costs from any message (assistant or tool role)
+            const toolCosts = extractToolCostsFromMessage(msg);
+            totalCostUsd += toolCosts;
           }
 
           console.log("[Cost Verification] Updated message with final cost:", {

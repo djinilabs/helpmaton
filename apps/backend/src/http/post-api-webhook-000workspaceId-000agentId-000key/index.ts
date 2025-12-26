@@ -25,9 +25,7 @@ import {
   validateSubscriptionAndLimits,
   trackSuccessfulRequest,
 } from "../../http/utils/generationRequestTracking";
-import {
-  extractTokenUsageAndCosts,
-} from "../../http/utils/generationTokenExtraction";
+import { extractTokenUsageAndCosts } from "../../http/utils/generationTokenExtraction";
 import { reconstructToolCallsFromResults } from "../../http/utils/generationToolReconstruction";
 import { database } from "../../tables";
 import {
@@ -42,9 +40,7 @@ import {
 } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
 import { Sentry, ensureError } from "../../utils/sentry";
-import {
-  setupAgentAndTools,
-} from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
+import { setupAgentAndTools } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
   convertTextToUIMessage,
   convertUIMessagesToModelMessages,
@@ -77,20 +73,35 @@ async function persistWebhookConversationError(options: {
 
     // Log error structure before extraction (especially for BYOK)
     if (options.usesByok) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
-      const errorAny = options.error instanceof Error ? (options.error as any) : undefined;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
-      const causeAny = options.error instanceof Error && options.error.cause instanceof Error ? (options.error.cause as any) : undefined;
+      const errorAny =
+        options.error instanceof Error ? (options.error as any) : undefined;
+
+      const causeAny =
+        options.error instanceof Error && options.error.cause instanceof Error
+          ? (options.error.cause as any)
+          : undefined;
       console.log("[Webhook Handler] BYOK error before extraction:", {
-        errorType: options.error instanceof Error ? options.error.constructor.name : typeof options.error,
+        errorType:
+          options.error instanceof Error
+            ? options.error.constructor.name
+            : typeof options.error,
         errorName: options.error instanceof Error ? options.error.name : "N/A",
-        errorMessage: options.error instanceof Error ? options.error.message : String(options.error),
+        errorMessage:
+          options.error instanceof Error
+            ? options.error.message
+            : String(options.error),
         hasData: !!errorAny?.data,
         dataError: errorAny?.data?.error,
         dataErrorMessage: errorAny?.data?.error?.message,
         hasCause: options.error instanceof Error && !!options.error.cause,
-        causeType: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.constructor.name : undefined,
-        causeMessage: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.message : undefined,
+        causeType:
+          options.error instanceof Error && options.error.cause instanceof Error
+            ? options.error.cause.constructor.name
+            : undefined,
+        causeMessage:
+          options.error instanceof Error && options.error.cause instanceof Error
+            ? options.error.cause.message
+            : undefined,
         causeData: causeAny?.data?.error?.message,
       });
     }
@@ -103,7 +114,7 @@ async function persistWebhookConversationError(options: {
         usesByok: options.usesByok,
       },
     });
-    
+
     // Log extracted error info (especially for BYOK)
     if (options.usesByok) {
       console.log("[Webhook Handler] BYOK error after extraction:", {
@@ -215,6 +226,7 @@ export const handler = adaptHttpHandler(
       let result: Awaited<ReturnType<typeof generateText>> | undefined;
       let tokenUsage: TokenUsage | undefined;
       let openrouterGenerationId: string | undefined;
+      let openrouterGenerationIds: string[] | undefined;
       let provisionalCostUsd: number | undefined;
       let generationTimeMs: number | undefined;
 
@@ -257,7 +269,7 @@ export const handler = adaptHttpHandler(
         });
         generationTimeMs = Date.now() - generationStartTime;
 
-        // Extract token usage, generation ID, and costs
+        // Extract token usage, generation IDs, and costs
         const extractionResult = extractTokenUsageAndCosts(
           result,
           undefined,
@@ -266,6 +278,7 @@ export const handler = adaptHttpHandler(
         );
         tokenUsage = extractionResult.tokenUsage;
         openrouterGenerationId = extractionResult.openrouterGenerationId;
+        openrouterGenerationIds = extractionResult.openrouterGenerationIds;
         provisionalCostUsd = extractionResult.provisionalCostUsd;
 
         // Adjust credit reservation based on actual cost (Step 2)
@@ -279,6 +292,7 @@ export const handler = adaptHttpHandler(
           tokenUsage,
           usesByok,
           openrouterGenerationId,
+          openrouterGenerationIds, // New parameter
           "webhook"
         );
 
@@ -362,7 +376,12 @@ export const handler = adaptHttpHandler(
       }
 
       // Track successful LLM request
-      await trackSuccessfulRequest(subscriptionId, workspaceId, agentId, "webhook");
+      await trackSuccessfulRequest(
+        subscriptionId,
+        workspaceId,
+        agentId,
+        "webhook"
+      );
 
       // Process simple non-streaming response (no tool continuation)
       // This might throw NoOutputGeneratedError if there was an error during generation
@@ -377,9 +396,18 @@ export const handler = adaptHttpHandler(
             {
               workspaceId,
               agentId,
-              error: resultError instanceof Error ? resultError.message : String(resultError),
-              errorType: resultError instanceof Error ? resultError.constructor.name : typeof resultError,
-              errorStringified: JSON.stringify(resultError, Object.getOwnPropertyNames(resultError)),
+              error:
+                resultError instanceof Error
+                  ? resultError.message
+                  : String(resultError),
+              errorType:
+                resultError instanceof Error
+                  ? resultError.constructor.name
+                  : typeof resultError,
+              errorStringified: JSON.stringify(
+                resultError,
+                Object.getOwnPropertyNames(resultError)
+              ),
             }
           );
 
@@ -387,15 +415,17 @@ export const handler = adaptHttpHandler(
           // the original AI_APICallError was thrown but not preserved.
           // We need to manually construct the original error with the proper structure.
           let errorToLog = resultError;
-          
+
           // If it's a NoOutputGeneratedError, construct the original AI_APICallError
           if (
             resultError instanceof Error &&
             (resultError.constructor.name === "NoOutputGeneratedError" ||
-             resultError.name === "AI_NoOutputGeneratedError" ||
-             resultError.message.includes("No output generated"))
+              resultError.name === "AI_NoOutputGeneratedError" ||
+              resultError.message.includes("No output generated"))
           ) {
-            console.log("[Webhook Handler] Constructing original AI_APICallError from NoOutputGeneratedError");
+            console.log(
+              "[Webhook Handler] Constructing original AI_APICallError from NoOutputGeneratedError"
+            );
             // Create a synthetic AI_APICallError with the proper structure
             const originalError = new Error("No cookie auth credentials found");
             originalError.name = "AI_APICallError";
@@ -410,7 +440,8 @@ export const handler = adaptHttpHandler(
                 param: null,
               },
             };
-            errorAny.responseBody = '{"error":{"message":"No cookie auth credentials found","code":401}}';
+            errorAny.responseBody =
+              '{"error":{"message":"No cookie auth credentials found","code":401}}';
             errorToLog = originalError;
           }
 
@@ -430,8 +461,7 @@ export const handler = adaptHttpHandler(
             headers: {
               "Content-Type": "text/plain; charset=utf-8",
             },
-            body:
-              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+            body: "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           };
         }
         await persistWebhookConversationError({
@@ -452,8 +482,129 @@ export const handler = adaptHttpHandler(
       let toolCallsFromResult: unknown[];
       let toolResultsFromResult: unknown[];
       try {
-        toolCallsFromResult = result.toolCalls || [];
-        toolResultsFromResult = result.toolResults || [];
+        // Also extract steps/_steps as the source of truth for tool calls/results
+        // generateText returns result.steps (array), streamText returns result._steps.status.value
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
+        const resultAny = result as any;
+        // Check both result.steps (generateText) and result._steps.status.value (streamText)
+        const stepsValue = Array.isArray(resultAny.steps)
+          ? resultAny.steps
+          : resultAny._steps?.status?.value;
+
+        // Extract tool calls and results from steps (source of truth for server-side tool execution)
+        const toolCallsFromSteps: unknown[] = [];
+        const toolResultsFromSteps: unknown[] = [];
+
+        if (Array.isArray(stepsValue)) {
+          for (const step of stepsValue) {
+            if (step?.content && Array.isArray(step.content)) {
+              for (const contentItem of step.content) {
+                if (
+                  typeof contentItem === "object" &&
+                  contentItem !== null &&
+                  "type" in contentItem
+                ) {
+                  if (contentItem.type === "tool-call") {
+                    // Validate required fields before adding
+                    if (
+                      contentItem.toolCallId &&
+                      contentItem.toolName &&
+                      typeof contentItem.toolCallId === "string" &&
+                      typeof contentItem.toolName === "string"
+                    ) {
+                      // Convert AI SDK tool-call format to our format
+                      toolCallsFromSteps.push({
+                        toolCallId: contentItem.toolCallId,
+                        toolName: contentItem.toolName,
+                        args: contentItem.input || contentItem.args || {},
+                      });
+                    } else {
+                      console.warn(
+                        "[Webhook Handler] Skipping tool call with missing/invalid fields:",
+                        {
+                          hasToolCallId: !!contentItem.toolCallId,
+                          hasToolName: !!contentItem.toolName,
+                          toolCallIdType: typeof contentItem.toolCallId,
+                          toolNameType: typeof contentItem.toolName,
+                          contentItem,
+                        }
+                      );
+                    }
+                  } else if (contentItem.type === "tool-result") {
+                    // Validate required fields before adding
+                    if (
+                      contentItem.toolCallId &&
+                      contentItem.toolName &&
+                      typeof contentItem.toolCallId === "string" &&
+                      typeof contentItem.toolName === "string"
+                    ) {
+                      // Convert AI SDK tool-result format to our format
+                      // Handle both string outputs and object outputs with .value property
+                      let resultValue = contentItem.output;
+                      if (
+                        typeof resultValue === "object" &&
+                        resultValue !== null &&
+                        "value" in resultValue
+                      ) {
+                        resultValue = resultValue.value;
+                      }
+                      toolResultsFromSteps.push({
+                        toolCallId: contentItem.toolCallId,
+                        toolName: contentItem.toolName,
+                        output:
+                          resultValue ||
+                          contentItem.output ||
+                          contentItem.result,
+                        result: resultValue || contentItem.result,
+                      });
+                    } else {
+                      console.warn(
+                        "[Webhook Handler] Skipping tool result with missing/invalid fields:",
+                        {
+                          hasToolCallId: !!contentItem.toolCallId,
+                          hasToolName: !!contentItem.toolName,
+                          toolCallIdType: typeof contentItem.toolCallId,
+                          toolNameType: typeof contentItem.toolName,
+                          contentItem,
+                        }
+                      );
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Use steps as source of truth - prefer tool calls/results from steps if available
+        // Only fall back to direct properties if steps doesn't have them
+        if (toolCallsFromSteps.length > 0) {
+          toolCallsFromResult = toolCallsFromSteps;
+        } else {
+          toolCallsFromResult = result.toolCalls || [];
+        }
+
+        if (toolResultsFromSteps.length > 0) {
+          toolResultsFromResult = toolResultsFromSteps;
+        } else {
+          toolResultsFromResult = result.toolResults || [];
+        }
+
+        // DIAGNOSTIC: Log tool calls and results extracted from result
+        console.log("[Webhook Handler] Tool calls extracted from result:", {
+          toolCallsCount: toolCallsFromResult.length,
+          toolCalls: toolCallsFromResult,
+          toolResultsCount: toolResultsFromResult.length,
+          toolResults: toolResultsFromResult,
+          resultKeys: Object.keys(result),
+          hasToolCalls: "toolCalls" in result,
+          hasToolResults: "toolResults" in result,
+          hasSteps: "steps" in resultAny,
+          has_steps: "_steps" in resultAny,
+          stepsCount: Array.isArray(stepsValue) ? stepsValue.length : 0,
+          toolCallsFromStepsCount: toolCallsFromSteps.length,
+          toolResultsFromStepsCount: toolResultsFromSteps.length,
+        });
       } catch (resultError) {
         // Check if this is a BYOK authentication error
         if (isByokAuthenticationError(resultError, usesByok)) {
@@ -492,17 +643,6 @@ export const handler = adaptHttpHandler(
           "Webhook Handler"
         ) as unknown as typeof toolCallsFromResult;
       }
-
-      // DIAGNOSTIC: Log tool calls and results extracted from result
-      console.log("[Webhook Handler] Tool calls extracted from result:", {
-        toolCallsCount: toolCallsFromResult.length,
-        toolCalls: toolCallsFromResult,
-        toolResultsCount: toolResultsFromResult.length,
-        toolResults: toolResultsFromResult,
-        resultKeys: Object.keys(result),
-        hasToolCalls: "toolCalls" in result,
-        hasToolResults: "toolResults" in result,
-      });
 
       // Format tool calls and results as UI messages
       const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
@@ -618,49 +758,82 @@ export const handler = adaptHttpHandler(
       // Each webhook call creates a new conversation
       // tokenUsage already extracted above for credit deduction
       try {
-        // Filter out empty messages before logging
-        const messagesToLog = [uiMessage, assistantMessage].filter(
-          (msg) => !isMessageContentEmpty(msg)
+        // Combine user message and assistant message for logging
+        // Deduplication will happen in startConversation (via expandMessagesWithToolCalls)
+        const messagesForLogging: UIMessage[] = [uiMessage, assistantMessage];
+
+        // Get valid messages for logging (filter out any invalid ones, but keep empty messages)
+        const validMessages: UIMessage[] = messagesForLogging.filter(
+          (msg): msg is UIMessage =>
+            msg != null &&
+            typeof msg === "object" &&
+            "role" in msg &&
+            typeof msg.role === "string" &&
+            (msg.role === "user" ||
+              msg.role === "assistant" ||
+              msg.role === "system" ||
+              msg.role === "tool") &&
+            "content" in msg
         );
 
-        // Only log if we have at least one non-empty message
-        if (messagesToLog.length > 0) {
-          // DIAGNOSTIC: Log messages being passed to startConversation
-          console.log(
-            "[Webhook Handler] Messages being passed to startConversation:",
-            {
-              messagesCount: messagesToLog.length,
-              messages: messagesToLog,
-              assistantMessageRole: assistantMessage.role,
-              assistantMessageContentType: typeof assistantMessage.content,
-              assistantMessageIsArray: Array.isArray(assistantMessage.content),
-            }
-          );
+        // DIAGNOSTIC: Log messages being passed to startConversation
+        console.log(
+          "[Webhook Handler] Messages being passed to startConversation:",
+          {
+            messagesForLoggingCount: messagesForLogging.length,
+            validMessagesCount: validMessages.length,
+            assistantMessageInValid: validMessages.some(
+              (msg) => msg.role === "assistant"
+            ),
+            messages: validMessages.map((msg) => ({
+              role: msg.role,
+              contentType: typeof msg.content,
+              isArray: Array.isArray(msg.content),
+              contentLength: Array.isArray(msg.content)
+                ? msg.content.length
+                : "N/A",
+              hasToolCalls: Array.isArray(msg.content)
+                ? msg.content.some(
+                    (item) =>
+                      typeof item === "object" &&
+                      item !== null &&
+                      "type" in item &&
+                      item.type === "tool-call"
+                  )
+                : false,
+              hasToolResults: Array.isArray(msg.content)
+                ? msg.content.some(
+                    (item) =>
+                      typeof item === "object" &&
+                      item !== null &&
+                      "type" in item &&
+                      item.type === "tool-result"
+                  )
+                : false,
+            })),
+          }
+        );
 
-          const conversationId = await startConversation(db, {
-            workspaceId,
-            agentId,
-            conversationType: "webhook",
-            messages: messagesToLog,
-            tokenUsage,
-            usesByok,
-            awsRequestId,
-          });
+        const conversationId = await startConversation(db, {
+          workspaceId,
+          agentId,
+          conversationType: "webhook",
+          messages: validMessages,
+          tokenUsage,
+          usesByok,
+          awsRequestId,
+        });
 
-          // Enqueue cost verification (Step 3) if we have a generation ID
-          await enqueueCostVerificationIfNeeded(
-            openrouterGenerationId,
-            workspaceId,
-            reservationId,
-            conversationId,
-            agentId,
-            "webhook"
-          );
-        } else {
-          console.log(
-            "[Webhook Handler] Skipping conversation logging - all messages are empty"
-          );
-        }
+        // Enqueue cost verification (Step 3) if we have generation IDs
+        await enqueueCostVerificationIfNeeded(
+          openrouterGenerationId, // Keep for backward compat
+          openrouterGenerationIds, // New parameter
+          workspaceId,
+          reservationId,
+          conversationId,
+          agentId,
+          "webhook"
+        );
       } catch (error) {
         // Log error but don't fail the request
         console.error("[Webhook Handler] Error logging conversation:", {

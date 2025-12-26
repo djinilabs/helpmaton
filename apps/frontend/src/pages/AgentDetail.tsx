@@ -220,6 +220,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     () => agent?.enableSendEmail ?? false
   );
 
+  // Use agent prop directly for enableTavilySearch, with local state for editing
+  const [enableTavilySearch, setEnableTavilySearch] = useState<boolean>(
+    () => agent?.enableTavilySearch ?? false
+  );
+
+  // Use agent prop directly for enableTavilyFetch, with local state for editing
+  const [enableTavilyFetch, setEnableTavilyFetch] = useState<boolean>(
+    () => agent?.enableTavilyFetch ?? false
+  );
+
   // Use agent prop directly for clientTools, with local state for editing
   const [clientTools, setClientTools] = useState<ClientTool[]>(
     () => agent?.clientTools || []
@@ -422,6 +432,32 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       setEnableSendEmail(currentValue);
     }
   }, [agent?.id, agent?.enableSendEmail]);
+
+  // Synchronize enableTavilySearch state with agent prop using useEffect
+  const prevEnableTavilySearchRef = useRef<boolean | undefined>(
+    agent?.enableTavilySearch
+  );
+  useEffect(() => {
+    const currentValue = agent?.enableTavilySearch ?? false;
+    const prevValue = prevEnableTavilySearchRef.current ?? false;
+    if (currentValue !== prevValue) {
+      prevEnableTavilySearchRef.current = currentValue;
+      setEnableTavilySearch(currentValue);
+    }
+  }, [agent?.id, agent?.enableTavilySearch]);
+
+  // Synchronize enableTavilyFetch state with agent prop using useEffect
+  const prevEnableTavilyFetchRef = useRef<boolean | undefined>(
+    agent?.enableTavilyFetch
+  );
+  useEffect(() => {
+    const currentValue = agent?.enableTavilyFetch ?? false;
+    const prevValue = prevEnableTavilyFetchRef.current ?? false;
+    if (currentValue !== prevValue) {
+      prevEnableTavilyFetchRef.current = currentValue;
+      setEnableTavilyFetch(currentValue);
+    }
+  }, [agent?.id, agent?.enableTavilyFetch]);
 
   // Synchronize clientTools state with agent prop using useEffect
   useEffect(() => {
@@ -690,6 +726,44 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     }
   };
 
+  const handleSaveTavilySearch = async () => {
+    try {
+      const valueToSave = enableTavilySearch;
+      // Update ref immediately to prevent useEffect from overwriting our changes
+      prevEnableTavilySearchRef.current = valueToSave;
+      const updated = await updateAgent.mutateAsync({
+        enableTavilySearch: valueToSave,
+      });
+      // Sync local state with updated agent data
+      const savedValue = updated.enableTavilySearch ?? false;
+      prevEnableTavilySearchRef.current = savedValue;
+      setEnableTavilySearch(savedValue);
+    } catch {
+      // Error is handled by toast in the hook
+      // Reset ref on error so useEffect can sync properly
+      prevEnableTavilySearchRef.current = agent?.enableTavilySearch;
+    }
+  };
+
+  const handleSaveTavilyFetch = async () => {
+    try {
+      const valueToSave = enableTavilyFetch;
+      // Update ref immediately to prevent useEffect from overwriting our changes
+      prevEnableTavilyFetchRef.current = valueToSave;
+      const updated = await updateAgent.mutateAsync({
+        enableTavilyFetch: valueToSave,
+      });
+      // Sync local state with updated agent data
+      const savedValue = updated.enableTavilyFetch ?? false;
+      prevEnableTavilyFetchRef.current = savedValue;
+      setEnableTavilyFetch(savedValue);
+    } catch {
+      // Error is handled by toast in the hook
+      // Reset ref on error so useEffect can sync properly
+      prevEnableTavilyFetchRef.current = agent?.enableTavilyFetch;
+    }
+  };
+
   const handleSaveClientTools = async () => {
     try {
       const updated = await updateAgent.mutateAsync({
@@ -829,7 +903,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 alt={`${agent.name} avatar`}
                 className="size-16 rounded-lg border-2 border-neutral-300 object-contain dark:border-neutral-700"
               />
-              <h1 className="text-4xl font-bold dark:text-neutral-50">{agent.name}</h1>
+              <h1 className="text-4xl font-bold dark:text-neutral-50">
+                {agent.name}
+              </h1>
             </div>
             <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
               Created: {new Date(agent.createdAt).toLocaleString()}
@@ -839,12 +915,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             <div className="mb-4">
               <div className="flex items-center gap-4">
                 <div>
-                  <span className="text-sm font-semibold dark:text-neutral-300">Provider: </span>
+                  <span className="text-sm font-semibold dark:text-neutral-300">
+                    Provider:{" "}
+                  </span>
                   <span className="text-sm dark:text-neutral-300">Google</span>
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold dark:text-neutral-300">Model: </span>
+                    <span className="text-sm font-semibold dark:text-neutral-300">
+                      Model:{" "}
+                    </span>
                     <span className="text-sm dark:text-neutral-300">
                       {isEditing ? (
                         <>
@@ -921,7 +1001,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             </div>
             <div className="mt-4">
               <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-semibold dark:text-neutral-300">System Prompt:</p>
+                <p className="text-sm font-semibold dark:text-neutral-300">
+                  System Prompt:
+                </p>
                 <button
                   type="button"
                   onClick={() => setIsHelpOpen(true)}
@@ -1040,7 +1122,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         ),
                         // Strong/Bold
                         strong: ({ children }) => (
-                          <strong className="font-bold dark:text-neutral-50">{children}</strong>
+                          <strong className="font-bold dark:text-neutral-50">
+                            {children}
+                          </strong>
                         ),
                         // Emphasis/Italic
                         em: ({ children }) => (
@@ -1102,11 +1186,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           </div>
         </div>
 
-        <SectionGroup title="Testing & Interactions">
+        <SectionGroup title="🧪 Testing & Interactions">
           {/* Chat Test Section */}
           <AccordionSection
             id="test"
-            title="TEST AGENT"
+            title="💬 TEST AGENT"
             isExpanded={expandedSection === "test"}
             onToggle={() => toggleSection("test")}
           >
@@ -1118,7 +1202,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {/* Recent Conversations Section */}
           <AccordionSection
             id="conversations"
-            title="RECENT CONVERSATIONS"
+            title="💭 RECENT CONVERSATIONS"
             isExpanded={expandedSection === "conversations"}
             onToggle={() => toggleSection("conversations")}
           >
@@ -1136,7 +1220,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {/* Memory Records Section */}
           <AccordionSection
             id="memory"
-            title="MEMORY RECORDS"
+            title="🧠 MEMORY RECORDS"
             isExpanded={expandedSection === "memory"}
             onToggle={() => toggleSection("memory")}
           >
@@ -1146,12 +1230,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           </AccordionSection>
         </SectionGroup>
 
-        <SectionGroup title="Configuration">
+        <SectionGroup title="⚙️ Configuration">
           {/* Delegation Section */}
           {canEdit && (
             <AccordionSection
               id="delegation"
-              title="DELEGATION"
+              title="🤝 DELEGATION"
               isExpanded={expandedSection === "delegation"}
               onToggle={() => toggleSection("delegation")}
             >
@@ -1229,7 +1313,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="advanced"
-              title="ADVANCED"
+              title="🔧 ADVANCED"
               isExpanded={expandedSection === "advanced"}
               onToggle={() => toggleSection("advanced")}
             >
@@ -1441,12 +1525,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           )}
         </SectionGroup>
 
-        <SectionGroup title="Integration">
+        <SectionGroup title="🔌 Integration">
           {/* MCP Servers Section */}
           {canEdit && (
             <AccordionSection
               id="mcp-servers"
-              title="MCP SERVERS"
+              title="🔌 MCP SERVERS"
               isExpanded={expandedSection === "mcp-servers"}
               onToggle={() => toggleSection("mcp-servers")}
             >
@@ -1506,7 +1590,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="memory-search"
-              title="MEMORY SEARCH TOOL"
+              title="🔍 MEMORY SEARCH TOOL"
               isExpanded={expandedSection === "memory-search"}
               onToggle={() => toggleSection("memory-search")}
             >
@@ -1565,7 +1649,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="document-search"
-              title="DOCUMENT SEARCH TOOL"
+              title="📄 DOCUMENT SEARCH TOOL"
               isExpanded={expandedSection === "document-search"}
               onToggle={() => toggleSection("document-search")}
             >
@@ -1574,8 +1658,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable the document search tool to allow this agent to search
-                    workspace documents using semantic vector search.
+                    Enable the document search tool to allow this agent to
+                    search workspace documents using semantic vector search.
                   </p>
                   <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
                     <input
@@ -1612,7 +1696,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="email-tool"
-              title="EMAIL TOOL"
+              title="📧 EMAIL TOOL"
               isExpanded={expandedSection === "email-tool"}
               onToggle={() => toggleSection("email-tool")}
             >
@@ -1667,11 +1751,104 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             </AccordionSection>
           )}
 
+          {/* Tavily Search Tool Section */}
+          {canEdit && (
+            <AccordionSection
+              id="tavily-search"
+              title="🌐 TAVILY SEARCH TOOL"
+              isExpanded={expandedSection === "tavily-search"}
+              onToggle={() => toggleSection("tavily-search")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "tavily-search"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Enable the Tavily search tool to allow this agent to search
+                    the web for current information. Free tier: 10 calls/day.
+                    Paid tiers: 10 free calls/day, then $0.008 per call.
+                  </p>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={enableTavilySearch}
+                      onChange={(e) => setEnableTavilySearch(e.target.checked)}
+                      className="mt-1 rounded border-2 border-neutral-300"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">Enable Web Search</div>
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                        Allow this agent to use the search_web tool to search
+                        the web for current information. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
+                      </div>
+                    </div>
+                  </label>
+                  <button
+                    onClick={handleSaveTavilySearch}
+                    disabled={updateAgent.isPending}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Tavily Search Setting"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
+          {/* Tavily Fetch Tool Section */}
+          {canEdit && (
+            <AccordionSection
+              id="tavily-fetch"
+              title="🔗 TAVILY FETCH TOOL"
+              isExpanded={expandedSection === "tavily-fetch"}
+              onToggle={() => toggleSection("tavily-fetch")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "tavily-fetch"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Enable the Tavily fetch tool to allow this agent to extract
+                    and summarize content from web pages. Free tier: 10
+                    calls/day. Paid tiers: 10 free calls/day, then $0.008 per
+                    call.
+                  </p>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={enableTavilyFetch}
+                      onChange={(e) => setEnableTavilyFetch(e.target.checked)}
+                      className="mt-1 rounded border-2 border-neutral-300"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">Enable Web Fetch</div>
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                        Allow this agent to use the fetch_web tool to extract
+                        and summarize content from web pages. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
+                      </div>
+                    </div>
+                  </label>
+                  <button
+                    onClick={handleSaveTavilyFetch}
+                    disabled={updateAgent.isPending}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Tavily Fetch Setting"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
           {/* Client-Side Tools Section */}
           {canEdit && (
             <AccordionSection
               id="client-tools"
-              title="CLIENT-SIDE TOOLS"
+              title="💻 CLIENT-SIDE TOOLS"
               isExpanded={expandedSection === "client-tools"}
               onToggle={() => toggleSection("client-tools")}
             >
@@ -1701,12 +1878,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           )}
         </SectionGroup>
 
-        <SectionGroup title="Servers">
+        <SectionGroup title="🖥️ Servers">
           {/* Stream Server Section */}
           {canEdit && (
             <AccordionSection
               id="stream-server"
-              title="STREAM SERVER"
+              title="📡 STREAM SERVER"
               isExpanded={expandedSection === "stream-server"}
               onToggle={() => toggleSection("stream-server")}
             >
@@ -1780,14 +1957,18 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         useChat hook
                       </a>{" "}
                       from{" "}
-                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">@ai-sdk/react</code>{" "}
+                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">
+                        @ai-sdk/react
+                      </code>{" "}
                       - it handles SSE parsing automatically
                     </li>
                     <li>
                       <strong>Other frameworks:</strong> Parse SSE format by
                       reading lines starting with{" "}
-                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">data: </code>, then
-                      parse the JSON object
+                      <code className="bg-neutral-100 px-1 dark:bg-neutral-800">
+                        data:{" "}
+                      </code>
+                      , then parse the JSON object
                     </li>
                   </ul>
                   <p className="mb-0">
@@ -1986,7 +2167,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {/* Webhooks Management Section */}
           <AccordionSection
             id="keys"
-            title="WEBHOOKS"
+            title="🪝 WEBHOOKS"
             isExpanded={expandedSection === "keys"}
             onToggle={() => toggleSection("keys")}
           >
@@ -2048,7 +2229,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               )}
 
               {keys.length === 0 ? (
-                <p className="text-sm opacity-75 dark:text-neutral-300">No keys created yet.</p>
+                <p className="text-sm opacity-75 dark:text-neutral-300">
+                  No keys created yet.
+                </p>
               ) : (
                 <div className="space-y-4">
                   {keys.map((key) => {
@@ -2074,12 +2257,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           </AccordionSection>
         </SectionGroup>
 
-        <SectionGroup title="Billing & Usage">
+        <SectionGroup title="💰 Billing & Usage">
           {/* Spending Limits Section */}
           {canEdit && (
             <AccordionSection
               id="spending-limits"
-              title="SPENDING LIMITS"
+              title="💳 SPENDING LIMITS"
               isExpanded={expandedSection === "spending-limits"}
               onToggle={() => toggleSection("spending-limits")}
             >
@@ -2099,7 +2282,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {/* Usage Section */}
           <AccordionSection
             id="usage"
-            title="AGENT USAGE"
+            title="📊 AGENT USAGE"
             isExpanded={expandedSection === "usage"}
             onToggle={() => toggleSection("usage")}
           >
@@ -2112,7 +2295,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
         {canEdit && (
           <AccordionSection
             id="danger"
-            title="DANGER ZONE"
+            title="⚠️ DANGER ZONE"
             isExpanded={expandedSection === "danger"}
             onToggle={() => toggleSection("danger")}
           >
@@ -2305,7 +2488,9 @@ const KeyItem: FC<KeyItemProps> = ({
             Created: {new Date(keyData.createdAt).toLocaleString()}
           </p>
           <div className="mb-2">
-            <p className="mb-1 text-xs font-semibold dark:text-neutral-300">Webhook URL:</p>
+            <p className="mb-1 text-xs font-semibold dark:text-neutral-300">
+              Webhook URL:
+            </p>
             <div className="flex items-center gap-2">
               <code
                 onClick={handleCopyUrl}
@@ -2323,14 +2508,18 @@ const KeyItem: FC<KeyItemProps> = ({
             </div>
           </div>
           <div>
-            <p className="mb-1 text-xs font-semibold dark:text-neutral-300">Key Value:</p>
+            <p className="mb-1 text-xs font-semibold dark:text-neutral-300">
+              Key Value:
+            </p>
             {keyData.key ? (
               <code className="block break-all rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
                 {keyData.key}
               </code>
             ) : (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs dark:border-amber-800 dark:bg-amber-900">
-                <p className="mb-1 font-semibold dark:text-amber-200">Key Value Not Available</p>
+                <p className="mb-1 font-semibold dark:text-amber-200">
+                  Key Value Not Available
+                </p>
                 <p className="opacity-75 dark:text-neutral-300">
                   For security, key values are only shown once when created. If
                   you need the key value again, please create a new key.
@@ -2457,7 +2646,9 @@ const AgentDetail: FC = () => {
       fallback={(error, resetError) => (
         <div className="flex min-h-screen items-center justify-center bg-white p-8 dark:bg-neutral-950">
           <div className="w-full max-w-2xl rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
-            <h1 className="mb-4 text-4xl font-semibold dark:text-neutral-50">Error</h1>
+            <h1 className="mb-4 text-4xl font-semibold dark:text-neutral-50">
+              Error
+            </h1>
             <p className="mb-4 text-xl font-semibold text-red-600 dark:text-red-400">
               {error.message || "Failed to load agent"}
             </p>

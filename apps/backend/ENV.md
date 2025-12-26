@@ -101,6 +101,36 @@ This document describes the environment variables required for the helpmaton bac
   - Workspace-specific OpenRouter API keys can override this system key (BYOK support)
   - Cost verification is performed in background via OpenRouter API to ensure accurate billing
 
+### `TAVILY_API_KEY`
+
+- **Description**: Tavily API key for web search and content extraction functionality
+- **Required**: Yes (for Tavily search and fetch tools)
+- **Example**: `tvly-...`
+- **How to obtain**:
+  1. Go to [Tavily Dashboard](https://tavily.com)
+  2. Sign up or log in to your account
+  3. Navigate to API Keys section
+  4. Create a new API key
+  5. Copy the key value
+- **Note**:
+  - Used for Tavily search and fetch tools available to agents
+  - System-wide API key (not per-workspace)
+  - Tavily API returns usage information (credits consumed) in responses
+  - Pricing: $0.008 per API call (1 credit = 1 call)
+  - See [Tavily Integration documentation](../docs/tavily-integration.md) for more details
+
+### `TAVILY_API_KEY_TYPE`
+
+- **Description**: Type of Tavily API key being used
+- **Required**: No (defaults to free tier behavior)
+- **Valid Values**: `"production"` or `"pay-as-you-go"` (case-insensitive)
+- **Example**: `production`
+- **Note**:
+  - Set to `"production"` or `"pay-as-you-go"` if using a production Tavily API key
+  - Production keys bypass the 10 calls/day limit and charge credits for all calls
+  - If not set or set to any other value, the system enforces free tier limits (10 calls/day)
+  - Production keys are pay-as-you-go: all calls are charged, no free tier allowance
+
 ### `SENTRY_DSN`
 
 - **Description**: Sentry Data Source Name (DSN) for error tracking and monitoring

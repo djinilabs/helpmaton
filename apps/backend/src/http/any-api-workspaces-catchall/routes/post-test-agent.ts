@@ -12,9 +12,7 @@ import {
 } from "../../../utils/conversationLogger";
 import { isAuthenticationError } from "../../../utils/handlingErrors";
 import { Sentry, ensureError } from "../../../utils/sentry";
-import {
-  setupAgentAndTools,
-} from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
+import { setupAgentAndTools } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import { convertAiSdkUIMessagesToUIMessages } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion";
 import {
   formatToolCallMessage,
@@ -41,9 +39,7 @@ import {
   validateSubscriptionAndLimits,
   trackSuccessfulRequest,
 } from "../../utils/generationRequestTracking";
-import {
-  extractTokenUsageAndCosts,
-} from "../../utils/generationTokenExtraction";
+import { extractTokenUsageAndCosts } from "../../utils/generationTokenExtraction";
 import { extractUserId } from "../../utils/session";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
@@ -65,20 +61,35 @@ async function persistConversationError(options: {
 
     // Log error structure before extraction (especially for BYOK)
     if (options.usesByok) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
-      const errorAny = options.error instanceof Error ? (options.error as any) : undefined;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
-      const causeAny = options.error instanceof Error && options.error.cause instanceof Error ? (options.error.cause as any) : undefined;
+      const errorAny =
+        options.error instanceof Error ? (options.error as any) : undefined;
+
+      const causeAny =
+        options.error instanceof Error && options.error.cause instanceof Error
+          ? (options.error.cause as any)
+          : undefined;
       console.log("[Agent Test Handler] BYOK error before extraction:", {
-        errorType: options.error instanceof Error ? options.error.constructor.name : typeof options.error,
+        errorType:
+          options.error instanceof Error
+            ? options.error.constructor.name
+            : typeof options.error,
         errorName: options.error instanceof Error ? options.error.name : "N/A",
-        errorMessage: options.error instanceof Error ? options.error.message : String(options.error),
+        errorMessage:
+          options.error instanceof Error
+            ? options.error.message
+            : String(options.error),
         hasData: !!errorAny?.data,
         dataError: errorAny?.data?.error,
         dataErrorMessage: errorAny?.data?.error?.message,
         hasCause: options.error instanceof Error && !!options.error.cause,
-        causeType: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.constructor.name : undefined,
-        causeMessage: options.error instanceof Error && options.error.cause instanceof Error ? options.error.cause.message : undefined,
+        causeType:
+          options.error instanceof Error && options.error.cause instanceof Error
+            ? options.error.cause.constructor.name
+            : undefined,
+        causeMessage:
+          options.error instanceof Error && options.error.cause instanceof Error
+            ? options.error.cause.message
+            : undefined,
         causeData: causeAny?.data?.error?.message,
       });
     }
@@ -91,7 +102,7 @@ async function persistConversationError(options: {
         usesByok: options.usesByok,
       },
     });
-    
+
     // Log extracted error info (especially for BYOK)
     if (options.usesByok) {
       console.log("[Agent Test Handler] BYOK error after extraction:", {
@@ -115,16 +126,20 @@ async function persistConversationError(options: {
       "test"
     );
   } catch (logError) {
-    console.error("[Agent Test Handler] Failed to persist conversation error:", {
-      workspaceId: options.workspaceId,
-      agentId: options.agentId,
-      conversationId: options.conversationId,
-      originalError:
-        options.error instanceof Error
-          ? options.error.message
-          : String(options.error),
-      logError: logError instanceof Error ? logError.message : String(logError),
-    });
+    console.error(
+      "[Agent Test Handler] Failed to persist conversation error:",
+      {
+        workspaceId: options.workspaceId,
+        agentId: options.agentId,
+        conversationId: options.conversationId,
+        originalError:
+          options.error instanceof Error
+            ? options.error.message
+            : String(options.error),
+        logError:
+          logError instanceof Error ? logError.message : String(logError),
+      }
+    );
   }
 }
 
@@ -311,10 +326,13 @@ export const registerPostTestAgent = (app: express.Application) => {
           messages as Array<Omit<import("ai").UIMessage, "id">>
         );
       } catch (error) {
-        console.error("[Agent Test Handler] Error converting messages to UIMessage:", {
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-        });
+        console.error(
+          "[Agent Test Handler] Error converting messages to UIMessage:",
+          {
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+          }
+        );
         throw error;
       }
 
@@ -386,7 +404,8 @@ export const registerPostTestAgent = (app: express.Application) => {
           usesByok,
           finalModelName,
           error: errorToLog,
-          awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
+          awsRequestId:
+            typeof awsRequestId === "string" ? awsRequestId : undefined,
         });
 
         // Check if this is a BYOK authentication error FIRST
@@ -432,7 +451,12 @@ export const registerPostTestAgent = (app: express.Application) => {
       }
 
       // Track successful LLM request
-      await trackSuccessfulRequest(subscriptionId, workspaceId, agentId, "test");
+      await trackSuccessfulRequest(
+        subscriptionId,
+        workspaceId,
+        agentId,
+        "test"
+      );
 
       // Get the UI message stream response from streamText result
       // This might throw NoOutputGeneratedError if there was an error during streaming
@@ -447,9 +471,18 @@ export const registerPostTestAgent = (app: express.Application) => {
             {
               workspaceId,
               agentId,
-              error: streamError instanceof Error ? streamError.message : String(streamError),
-              errorType: streamError instanceof Error ? streamError.constructor.name : typeof streamError,
-              errorStringified: JSON.stringify(streamError, Object.getOwnPropertyNames(streamError)),
+              error:
+                streamError instanceof Error
+                  ? streamError.message
+                  : String(streamError),
+              errorType:
+                streamError instanceof Error
+                  ? streamError.constructor.name
+                  : typeof streamError,
+              errorStringified: JSON.stringify(
+                streamError,
+                Object.getOwnPropertyNames(streamError)
+              ),
             }
           );
 
@@ -477,17 +510,17 @@ export const registerPostTestAgent = (app: express.Application) => {
           if (done) break;
           if (value) {
             chunks.push(value);
-            
+
             // Decode and check for error messages in the stream (for BYOK errors)
             if (usesByok) {
               const chunk = decoder.decode(value, { stream: true });
               streamBuffer += chunk;
-              
+
               // Check if we have a complete line with an error
               if (streamBuffer.includes("\n")) {
                 const lines = streamBuffer.split("\n");
                 streamBuffer = lines.pop() || ""; // Keep incomplete line
-                
+
                 for (const line of lines) {
                   if (line.startsWith("data: ")) {
                     try {
@@ -500,11 +533,18 @@ export const registerPostTestAgent = (app: express.Application) => {
                           // Check if it's an authentication error
                           if (
                             errorMessage.toLowerCase().includes("api key") ||
-                            errorMessage.toLowerCase().includes("authentication") ||
-                            errorMessage.toLowerCase().includes("unauthorized") ||
+                            errorMessage
+                              .toLowerCase()
+                              .includes("authentication") ||
+                            errorMessage
+                              .toLowerCase()
+                              .includes("unauthorized") ||
                             errorMessage.toLowerCase().includes("cookie auth")
                           ) {
-                            console.log("[Agent Test Handler] Found authentication error in stream body:", errorMessage);
+                            console.log(
+                              "[Agent Test Handler] Found authentication error in stream body:",
+                              errorMessage
+                            );
                             // Create an error object with the message from the stream
                             const streamError = new Error(errorMessage);
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -515,8 +555,9 @@ export const registerPostTestAgent = (app: express.Application) => {
                               },
                             };
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            (streamError as any).statusCode = parsed.code || 401;
-                            
+                            (streamError as any).statusCode =
+                              parsed.code || 401;
+
                             await persistConversationError({
                               db,
                               workspaceId,
@@ -526,9 +567,12 @@ export const registerPostTestAgent = (app: express.Application) => {
                               usesByok,
                               finalModelName,
                               error: streamError,
-                              awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
+                              awsRequestId:
+                                typeof awsRequestId === "string"
+                                  ? awsRequestId
+                                  : undefined,
                             });
-                            
+
                             return res.status(400).json({
                               error:
                                 "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
@@ -548,7 +592,7 @@ export const registerPostTestAgent = (app: express.Application) => {
       } catch (streamError) {
         // Release the reader lock before handling the error
         reader.releaseLock();
-        
+
         // Check if this is a BYOK authentication error
         if (usesByok && isAuthenticationError(streamError)) {
           console.log(
@@ -556,9 +600,18 @@ export const registerPostTestAgent = (app: express.Application) => {
             {
               workspaceId,
               agentId,
-              error: streamError instanceof Error ? streamError.message : String(streamError),
-              errorType: streamError instanceof Error ? streamError.constructor.name : typeof streamError,
-              errorStringified: JSON.stringify(streamError, Object.getOwnPropertyNames(streamError)),
+              error:
+                streamError instanceof Error
+                  ? streamError.message
+                  : String(streamError),
+              errorType:
+                streamError instanceof Error
+                  ? streamError.constructor.name
+                  : typeof streamError,
+              errorStringified: JSON.stringify(
+                streamError,
+                Object.getOwnPropertyNames(streamError)
+              ),
             }
           );
 
@@ -581,7 +634,7 @@ export const registerPostTestAgent = (app: express.Application) => {
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           });
         }
-        
+
         // Re-throw other stream errors
         throw streamError;
       } finally {
@@ -618,7 +671,10 @@ export const registerPostTestAgent = (app: express.Application) => {
                     errorMessage.toLowerCase().includes("unauthorized") ||
                     errorMessage.toLowerCase().includes("cookie auth")
                   ) {
-                    console.log("[Agent Test Handler] Found authentication error in decoded stream body:", errorMessage);
+                    console.log(
+                      "[Agent Test Handler] Found authentication error in decoded stream body:",
+                      errorMessage
+                    );
                     // Create an error object with the message from the stream
                     const streamError = new Error(errorMessage);
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -630,19 +686,22 @@ export const registerPostTestAgent = (app: express.Application) => {
                     };
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (streamError as any).statusCode = parsed.code || 401;
-                    
-          await persistConversationError({
-            db,
-            workspaceId,
-            agentId,
-            conversationId,
-            messages: convertedMessages,
-            usesByok,
-            finalModelName,
-            error: streamError,
-            awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
-          });
-                    
+
+                    await persistConversationError({
+                      db,
+                      workspaceId,
+                      agentId,
+                      conversationId,
+                      messages: convertedMessages,
+                      usesByok,
+                      finalModelName,
+                      error: streamError,
+                      awsRequestId:
+                        typeof awsRequestId === "string"
+                          ? awsRequestId
+                          : undefined,
+                    });
+
                     return res.status(400).json({
                       error:
                         "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
@@ -735,7 +794,7 @@ export const registerPostTestAgent = (app: express.Application) => {
       // Extract text, tool calls, tool results, and usage from streamText result
       // streamText result properties are promises that need to be awaited
       // These might throw NoOutputGeneratedError if there was an error during streaming
-      
+
       // Check if result object has error information before accessing properties
       // The AI SDK might store the original error in the result object's internal state
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -754,21 +813,28 @@ export const registerPostTestAgent = (app: express.Application) => {
             }
           }
         }
-        
+
         // Also check direct error property
-        if (!foundError && resultAny.error && isAuthenticationError(resultAny.error)) {
+        if (
+          !foundError &&
+          resultAny.error &&
+          isAuthenticationError(resultAny.error)
+        ) {
           foundError = resultAny.error;
         }
-        
+
         // Check baseStream for errors (AI SDK might store errors in the stream)
         if (!foundError && resultAny.baseStream) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const baseStreamAny = resultAny.baseStream as any;
-          if (baseStreamAny?.error && isAuthenticationError(baseStreamAny.error)) {
+          if (
+            baseStreamAny?.error &&
+            isAuthenticationError(baseStreamAny.error)
+          ) {
             foundError = baseStreamAny.error;
           }
         }
-        
+
         // Check output for errors
         if (!foundError && resultAny.output) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -777,7 +843,7 @@ export const registerPostTestAgent = (app: express.Application) => {
             foundError = outputAny.error;
           }
         }
-        
+
         // Deep inspection of result object for debugging
         const deepInspect: Record<string, unknown> = {
           hasError: !!resultAny.error,
@@ -786,7 +852,9 @@ export const registerPostTestAgent = (app: express.Application) => {
           hasData: !!resultAny.error?.data,
           dataErrorMessage: resultAny.error?.data?.error?.message,
           hasSteps: Array.isArray(resultAny._steps),
-          stepsLength: Array.isArray(resultAny._steps) ? resultAny._steps.length : 0,
+          stepsLength: Array.isArray(resultAny._steps)
+            ? resultAny._steps.length
+            : 0,
           hasBaseStream: !!resultAny.baseStream,
           hasOutput: !!resultAny.output,
           foundErrorInSteps: !!foundError,
@@ -795,20 +863,21 @@ export const registerPostTestAgent = (app: express.Application) => {
           foundErrorDataMessage: foundError?.data?.error?.message,
           resultKeys: Object.keys(resultAny || {}),
         };
-        
+
         // Check all properties of result object for error information
         if (resultAny._steps && Array.isArray(resultAny._steps)) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- step type is unknown
-          deepInspect.stepsDetails = resultAny._steps.map((step: any, idx: number) => ({
-            index: idx,
-            hasError: !!step?.error,
-            errorType: step?.error?.constructor?.name,
-            errorMessage: step?.error?.message,
-            errorData: step?.error?.data,
-            keys: Object.keys(step || {}),
-          }));
+          deepInspect.stepsDetails = resultAny._steps.map(
+            (step: any, idx: number) => ({
+              index: idx,
+              hasError: !!step?.error,
+              errorType: step?.error?.constructor?.name,
+              errorMessage: step?.error?.message,
+              errorData: step?.error?.data,
+              keys: Object.keys(step || {}),
+            })
+          );
         }
-        
+
         // Check baseStream properties
         if (resultAny.baseStream) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -816,7 +885,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           deepInspect.baseStreamKeys = Object.keys(baseStreamAny || {});
           deepInspect.baseStreamError = baseStreamAny?.error;
         }
-        
+
         // Check output properties
         if (resultAny.output) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -824,12 +893,17 @@ export const registerPostTestAgent = (app: express.Application) => {
           deepInspect.outputKeys = Object.keys(outputAny || {});
           deepInspect.outputError = outputAny?.error;
         }
-        
-        console.log("[Agent Test Handler] Checking result object for error info before accessing properties:", deepInspect);
-        
+
+        console.log(
+          "[Agent Test Handler] Checking result object for error info before accessing properties:",
+          deepInspect
+        );
+
         // If we find an error in the result object or its steps, use it
         if (foundError) {
-          console.log("[Agent Test Handler] Found authentication error in result object/steps, logging it");
+          console.log(
+            "[Agent Test Handler] Found authentication error in result object/steps, logging it"
+          );
           await persistConversationError({
             db,
             workspaceId,
@@ -839,46 +913,162 @@ export const registerPostTestAgent = (app: express.Application) => {
             usesByok,
             finalModelName,
             error: foundError, // This is the original AI_APICallError
-            awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
+            awsRequestId:
+              typeof awsRequestId === "string" ? awsRequestId : undefined,
           });
-          
+
           return res.status(400).json({
             error:
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           });
         }
       }
-      
+
       let responseText: string;
       let toolCallsFromResult: unknown[];
       let toolResultsFromResult: unknown[];
       let usage: unknown;
       let generationTimeMs: number | undefined;
-      
+
       try {
         // Try to access result.text first to catch any errors early
         // Wrap in Promise.allSettled to see all errors, not just the first one
+        // Also extract _steps as the source of truth for tool calls/results
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
+        const resultAny = result as any;
         const results = await Promise.allSettled([
           Promise.resolve(result.text).then((t) => t || ""),
           Promise.resolve(result.toolCalls).then((tc) => tc || []),
           Promise.resolve(result.toolResults).then((tr) => tr || []),
           Promise.resolve(result.usage),
+          Promise.resolve(resultAny._steps?.status?.value).then((s) => s || []),
         ]);
-        
+
         // Check if any promises were rejected
         const rejected = results.find((r) => r.status === "rejected");
         if (rejected && rejected.status === "rejected") {
           throw rejected.reason;
         }
-        
+
         // All promises resolved successfully - calculate generation time
-        generationTimeMs = generationStartTime !== undefined ? Date.now() - generationStartTime : undefined;
-        
+        generationTimeMs =
+          generationStartTime !== undefined
+            ? Date.now() - generationStartTime
+            : undefined;
+
         // All promises resolved successfully
-        responseText = results[0].status === "fulfilled" ? results[0].value : "";
-        toolCallsFromResult = results[1].status === "fulfilled" ? results[1].value : [];
-        toolResultsFromResult = results[2].status === "fulfilled" ? results[2].value : [];
-        usage = results[3].status === "fulfilled" ? results[3].value : undefined;
+        responseText =
+          results[0].status === "fulfilled" ? results[0].value : "";
+        const toolCallsFromResultRaw =
+          results[1].status === "fulfilled" ? results[1].value : [];
+        const toolResultsFromResultRaw =
+          results[2].status === "fulfilled" ? results[2].value : [];
+        usage =
+          results[3].status === "fulfilled" ? results[3].value : undefined;
+        const stepsValue =
+          results[4].status === "fulfilled" ? results[4].value : [];
+
+        // Extract tool calls and results from _steps (source of truth for server-side tool execution)
+        const toolCallsFromSteps: unknown[] = [];
+        const toolResultsFromSteps: unknown[] = [];
+
+        if (Array.isArray(stepsValue)) {
+          for (const step of stepsValue) {
+            if (step?.content && Array.isArray(step.content)) {
+              for (const contentItem of step.content) {
+                if (
+                  typeof contentItem === "object" &&
+                  contentItem !== null &&
+                  "type" in contentItem
+                ) {
+                  if (contentItem.type === "tool-call") {
+                    // Convert AI SDK tool-call format to our format
+                    toolCallsFromSteps.push({
+                      toolCallId: contentItem.toolCallId,
+                      toolName: contentItem.toolName,
+                      args: contentItem.input || contentItem.args || {},
+                    });
+                  } else if (contentItem.type === "tool-result") {
+                    // Convert AI SDK tool-result format to our format
+                    toolResultsFromSteps.push({
+                      toolCallId: contentItem.toolCallId,
+                      toolName: contentItem.toolName,
+                      output:
+                        contentItem.output?.value ||
+                        contentItem.output ||
+                        contentItem.result,
+                      result:
+                        contentItem.output?.value ||
+                        contentItem.output ||
+                        contentItem.result,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Use _steps as source of truth - prefer tool calls/results from _steps if available
+        // Only fall back to direct properties if _steps doesn't have them
+        if (toolCallsFromSteps.length > 0) {
+          toolCallsFromResult = toolCallsFromSteps;
+        } else {
+          toolCallsFromResult = Array.isArray(toolCallsFromResultRaw)
+            ? toolCallsFromResultRaw
+            : [];
+        }
+
+        if (toolResultsFromSteps.length > 0) {
+          toolResultsFromResult = toolResultsFromSteps;
+        } else {
+          toolResultsFromResult = Array.isArray(toolResultsFromResultRaw)
+            ? toolResultsFromResultRaw
+            : [];
+        }
+
+        // DIAGNOSTIC: Log tool calls and results extracted from result
+        console.log("[Test Agent Handler] Tool calls extracted from result:", {
+          toolCallsCount: toolCallsFromResult.length,
+          toolCalls: toolCallsFromResult,
+          toolResultsCount: toolResultsFromResult.length,
+          toolResults: toolResultsFromResult,
+          toolCallsFromStepsCount: toolCallsFromSteps.length,
+          toolResultsFromStepsCount: toolResultsFromSteps.length,
+          toolCallsFromResultRawCount: Array.isArray(toolCallsFromResultRaw)
+            ? toolCallsFromResultRaw.length
+            : 0,
+          toolResultsFromResultRawCount: Array.isArray(toolResultsFromResultRaw)
+            ? toolResultsFromResultRaw.length
+            : 0,
+          resultKeys: Object.keys(result),
+          hasToolCalls: "toolCalls" in result,
+          hasToolResults: "toolResults" in result,
+          hasSteps: "_steps" in result,
+          stepsCount: Array.isArray(stepsValue) ? stepsValue.length : 0,
+        });
+
+        // FIX: If tool calls are missing but tool results exist, reconstruct tool calls from results
+        // This can happen when tools execute synchronously and the AI SDK doesn't populate toolCalls
+        if (
+          toolCallsFromResult.length === 0 &&
+          toolResultsFromResult.length > 0
+        ) {
+          console.log(
+            "[Test Agent Handler] Tool calls missing but tool results exist, reconstructing tool calls from results"
+          );
+          const { reconstructToolCallsFromResults } = await import(
+            "../../utils/generationToolReconstruction"
+          );
+          toolCallsFromResult = reconstructToolCallsFromResults(
+            toolResultsFromResult,
+            "Test Agent Handler"
+          ) as unknown as typeof toolCallsFromResult;
+          console.log(
+            "[Test Agent Handler] Reconstructed tool calls:",
+            toolCallsFromResult
+          );
+        }
       } catch (resultError) {
         // Check if this is a BYOK authentication error
         if (usesByok && isAuthenticationError(resultError)) {
@@ -887,9 +1077,18 @@ export const registerPostTestAgent = (app: express.Application) => {
             {
               workspaceId,
               agentId,
-              error: resultError instanceof Error ? resultError.message : String(resultError),
-              errorType: resultError instanceof Error ? resultError.constructor.name : typeof resultError,
-              errorStringified: JSON.stringify(resultError, Object.getOwnPropertyNames(resultError)),
+              error:
+                resultError instanceof Error
+                  ? resultError.message
+                  : String(resultError),
+              errorType:
+                resultError instanceof Error
+                  ? resultError.constructor.name
+                  : typeof resultError,
+              errorStringified: JSON.stringify(
+                resultError,
+                Object.getOwnPropertyNames(resultError)
+              ),
             }
           );
 
@@ -897,15 +1096,17 @@ export const registerPostTestAgent = (app: express.Application) => {
           // the original AI_APICallError was thrown but not preserved.
           // We need to manually construct the original error with the proper structure.
           let errorToLog = resultError;
-          
+
           // If it's a NoOutputGeneratedError, construct the original AI_APICallError
           if (
             resultError instanceof Error &&
             (resultError.constructor.name === "NoOutputGeneratedError" ||
-             resultError.name === "AI_NoOutputGeneratedError" ||
-             resultError.message.includes("No output generated"))
+              resultError.name === "AI_NoOutputGeneratedError" ||
+              resultError.message.includes("No output generated"))
           ) {
-            console.log("[Agent Test Handler] Constructing original AI_APICallError from NoOutputGeneratedError");
+            console.log(
+              "[Agent Test Handler] Constructing original AI_APICallError from NoOutputGeneratedError"
+            );
             // Create a synthetic AI_APICallError with the proper structure
             const originalError = new Error("No cookie auth credentials found");
             originalError.name = "AI_APICallError";
@@ -920,7 +1121,8 @@ export const registerPostTestAgent = (app: express.Application) => {
                 param: null,
               },
             };
-            errorAny.responseBody = '{"error":{"message":"No cookie auth credentials found","code":401}}';
+            errorAny.responseBody =
+              '{"error":{"message":"No cookie auth credentials found","code":401}}';
             errorToLog = originalError;
           }
 
@@ -950,14 +1152,19 @@ export const registerPostTestAgent = (app: express.Application) => {
           usesByok,
           finalModelName,
           error: resultError,
-          awsRequestId: typeof awsRequestId === "string" ? awsRequestId : undefined,
+          awsRequestId:
+            typeof awsRequestId === "string" ? awsRequestId : undefined,
         });
         throw resultError;
       }
 
-      // Extract token usage, generation ID, and costs
-      const { tokenUsage, openrouterGenerationId, provisionalCostUsd } =
-        extractTokenUsageAndCosts(result, usage, finalModelName, "test");
+      // Extract token usage, generation IDs, and costs
+      const {
+        tokenUsage,
+        openrouterGenerationId,
+        openrouterGenerationIds,
+        provisionalCostUsd,
+      } = extractTokenUsageAndCosts(result, usage, finalModelName, "test");
 
       // Adjust credit reservation based on actual cost (Step 2)
       await adjustCreditsAfterLLMCall(
@@ -970,6 +1177,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         tokenUsage,
         usesByok,
         openrouterGenerationId,
+        openrouterGenerationIds, // New parameter
         "test"
       );
 
@@ -978,8 +1186,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         reservationId &&
         reservationId !== "byok" &&
         (!tokenUsage ||
-          (tokenUsage.promptTokens === 0 &&
-            tokenUsage.completionTokens === 0))
+          (tokenUsage.promptTokens === 0 && tokenUsage.completionTokens === 0))
       ) {
         await cleanupReservationWithoutTokenUsage(
           db,
@@ -1051,7 +1258,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         assistantMessage,
       ];
 
-      // Get valid messages for logging (filter out any invalid ones and empty messages)
+      // Get valid messages for logging (filter out any invalid ones, but keep empty messages)
       const validMessages: UIMessage[] = messagesForLogging.filter(
         (msg): msg is UIMessage =>
           msg != null &&
@@ -1062,8 +1269,45 @@ export const registerPostTestAgent = (app: express.Application) => {
             msg.role === "assistant" ||
             msg.role === "system" ||
             msg.role === "tool") &&
-          "content" in msg &&
-          !isMessageContentEmpty(msg)
+          "content" in msg
+      );
+
+      // DIAGNOSTIC: Log messages being passed to updateConversation
+      console.log(
+        "[Test Agent Handler] Messages being passed to updateConversation:",
+        {
+          messagesForLoggingCount: messagesForLogging.length,
+          validMessagesCount: validMessages.length,
+          assistantMessageInValid: validMessages.some(
+            (msg) => msg.role === "assistant"
+          ),
+          messages: validMessages.map((msg) => ({
+            role: msg.role,
+            contentType: typeof msg.content,
+            isArray: Array.isArray(msg.content),
+            contentLength: Array.isArray(msg.content)
+              ? msg.content.length
+              : "N/A",
+            hasToolCalls: Array.isArray(msg.content)
+              ? msg.content.some(
+                  (item) =>
+                    typeof item === "object" &&
+                    item !== null &&
+                    "type" in item &&
+                    item.type === "tool-call"
+                )
+              : false,
+            hasToolResults: Array.isArray(msg.content)
+              ? msg.content.some(
+                  (item) =>
+                    typeof item === "object" &&
+                    item !== null &&
+                    "type" in item &&
+                    item.type === "tool-result"
+                )
+              : false,
+          })),
+        }
       );
 
       // Log conversation (non-blocking) - always update existing conversation
@@ -1081,9 +1325,10 @@ export const registerPostTestAgent = (app: express.Application) => {
           "test"
         );
 
-        // Enqueue cost verification (Step 3) if we have a generation ID
+        // Enqueue cost verification (Step 3) if we have generation IDs
         await enqueueCostVerificationIfNeeded(
-          openrouterGenerationId,
+          openrouterGenerationId, // Keep for backward compat
+          openrouterGenerationIds, // New parameter
           workspaceId,
           reservationId,
           conversationId,

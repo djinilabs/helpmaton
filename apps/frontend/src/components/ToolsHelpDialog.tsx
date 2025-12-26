@@ -32,6 +32,8 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
   const hasMemorySearch = agent?.enableMemorySearch === true;
   const hasSearchDocuments = agent?.enableSearchDocuments === true;
   const hasSendEmail = agent?.enableSendEmail === true && hasEmailConnection;
+  const hasTavilySearch = agent?.enableTavilySearch === true;
+  const hasTavilyFetch = agent?.enableTavilyFetch === true;
   const enabledMcpServerIds = agent?.enabledMcpServerIds || [];
   const enabledMcpServers =
     mcpServersData?.servers.filter((server) =>
@@ -217,6 +219,49 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
         },
       ],
     },
+    {
+      name: "search_web",
+      description:
+        "Search the web using Tavily search API. This tool allows you to find current information, news, articles, and other web content. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. Cost: $0.008 per call (first 10 calls/day free for paid tiers).",
+      alwaysAvailable: false,
+      condition: hasTavilySearch
+        ? "Available (web search enabled)"
+        : "Not available (web search not enabled)",
+      parameters: [
+        {
+          name: "query",
+          type: "string",
+          required: true,
+          description:
+            "The search query. This MUST be a non-empty string containing what you want to search for. Example: 'latest news about AI' or 'Python tutorial for beginners'",
+        },
+        {
+          name: "max_results",
+          type: "number",
+          required: false,
+          description:
+            "Maximum number of search results to return (1-10, default: 5). Use a smaller number for focused searches, larger for comprehensive research.",
+        },
+      ],
+    },
+    {
+      name: "fetch_web",
+      description:
+        "Extract and summarize content from a web page URL using Tavily extract API. This tool allows you to get the main content, title, and metadata from any web page. Use this when you need to read and understand the content of a specific webpage. Cost: $0.008 per call (first 10 calls/day free for paid tiers).",
+      alwaysAvailable: false,
+      condition: hasTavilyFetch
+        ? "Available (web fetch enabled)"
+        : "Not available (web fetch not enabled)",
+      parameters: [
+        {
+          name: "url",
+          type: "string (URL)",
+          required: true,
+          description:
+            "The URL to extract content from. This MUST be a valid URL starting with http:// or https://. Example: 'https://example.com/article'",
+        },
+      ],
+    },
   ];
 
   return (
@@ -334,7 +379,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
           {enabledMcpServers.length > 0 && (
             <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
               <h3 className="mb-4 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
-                MCP Server Tools
+                🔌 MCP Server Tools
               </h3>
               <div className="space-y-3">
                 {enabledMcpServers.map((server) => {
@@ -411,7 +456,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
           {enabledMcpServerIds.length === 0 && (
             <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
               <p className="mb-2 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-                MCP Server Tools
+                🔌 MCP Server Tools
               </p>
               <p className="text-xs text-neutral-600 dark:text-neutral-300">
                 No MCP server tools available. Enable MCP servers in the agent

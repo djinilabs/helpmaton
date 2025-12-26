@@ -310,7 +310,8 @@ export async function adjustCreditReservation(
   tokenUsage: TokenUsage,
   maxRetries: number = 3,
   usesByok?: boolean,
-  openrouterGenerationId?: string
+  openrouterGenerationId?: string,
+  openrouterGenerationIds?: string[] // New parameter
 ): Promise<WorkspaceRecord> {
   // Skip adjustment if request was made with user key (BYOK)
   if (usesByok || reservationId === "byok") {
@@ -413,17 +414,36 @@ export async function adjustCreditReservation(
 
     // Update reservation record with token usage cost and OpenRouter generation ID
     // Don't delete yet - will be deleted in finalizeCreditReservation (step 3)
-    if (openrouterGenerationId || provider === "openrouter") {
+    if (openrouterGenerationId || openrouterGenerationIds || provider === "openrouter") {
+      // Determine which generation IDs to store
+      const allGenerationIds =
+        openrouterGenerationIds && openrouterGenerationIds.length > 0
+          ? openrouterGenerationIds
+          : openrouterGenerationId
+            ? [openrouterGenerationId]
+            : [];
+
       await db["credit-reservations"].update({
         pk: reservationPk,
         tokenUsageBasedCost: validatedTokenUsageCost,
-        openrouterGenerationId: openrouterGenerationId || reservation.openrouterGenerationId,
+        // Store multiple IDs
+        openrouterGenerationIds:
+          allGenerationIds.length > 0 ? allGenerationIds : undefined,
+        expectedGenerationCount:
+          allGenerationIds.length > 0 ? allGenerationIds.length : undefined,
+        verifiedGenerationIds: [], // Initialize empty
+        verifiedCosts: [], // Initialize empty
+        // Backward compatibility
+        openrouterGenerationId:
+          openrouterGenerationId || reservation.openrouterGenerationId,
         provider: provider || reservation.provider,
         modelName: modelName || reservation.modelName,
       });
-      console.log("[adjustCreditReservation] Updated reservation with generation ID for step 3:", {
+      console.log("[adjustCreditReservation] Updated reservation with generation IDs for step 3:", {
         reservationId,
         openrouterGenerationId: openrouterGenerationId || reservation.openrouterGenerationId,
+        openrouterGenerationIds: allGenerationIds,
+        expectedGenerationCount: allGenerationIds.length,
         tokenUsageBasedCost: validatedTokenUsageCost,
       });
     } else {

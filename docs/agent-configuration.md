@@ -83,10 +83,52 @@ const { messages, append } = useChat({
 
 For complete protocol documentation, examples, and integration guides, see the [Streaming System documentation](./streaming-system.md).
 
+## Available Tools
+
+Agents can be configured with various tools to extend their capabilities:
+
+### Document Search
+
+Enable the `search_documents` tool to allow agents to search workspace documents using semantic vector search.
+
+### Memory Search
+
+Enable the `search_memory` tool to allow agents to recall past conversations and information from their memory system.
+
+### Email Sending
+
+Enable the `send_email` tool to allow agents to send emails using the workspace email connection (requires email connection configuration).
+
+### Web Tools
+
+Enable web tools to allow agents to search the web and extract content from URLs:
+
+- **Web Search** (`search_web`): Search the web for current information, news, articles, and other web content. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
+- **Web Fetch** (`fetch_web`): Extract and summarize content from specific web page URLs. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
+
+**Daily Limits**:
+- Free tier: 10 calls per 24 hours
+- Paid tiers: 10 free calls/day, then $0.008 per call (requires workspace credits)
+
+See [Tavily Integration](./tavily-integration.md) for detailed documentation.
+
+### MCP Server Tools
+
+Enable MCP (Model Context Protocol) servers to expose their tools to agents. Each enabled MCP server provides tools based on its configuration.
+
+### Agent Delegation
+
+Configure `delegatableAgentIds` to allow agents to delegate tasks to other agents in the workspace.
+
+### Client-Side Tools
+
+Define custom client-side tools that execute in the client application rather than on the server.
+
 ## Best Practices
 
 1. **Clear Prompts**: Write specific, actionable system prompts
 2. **Iterate**: Test and refine prompts based on agent responses
 3. **Document Context**: Upload relevant documents to inform agent behavior
 4. **Security**: Keep agent keys secure and rotate them regularly
+5. **Tool Selection**: Enable only the tools your agent needs to minimize costs and complexity
 

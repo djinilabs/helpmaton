@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { FC } from "react";
+import type { FC, JSX } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -38,43 +38,177 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
     return new Date(dateString).toLocaleString();
   };
 
-  const formatMessageContent = (content: unknown): string => {
+  const renderMessageContent = (content: unknown): JSX.Element | string => {
     if (typeof content === "string") {
       return content;
     }
     if (Array.isArray(content)) {
-      return content
-        .map((item) => {
-          if (typeof item === "string") return item;
-          if (typeof item === "object" && item !== null) {
-            if ("type" in item && item.type === "tool-call") {
-              const toolCall = item as {
-                toolName?: string;
-                toolCallStartedAt?: string;
-              };
-              return `[Tool Call: ${
-                toolCall.toolName || "unknown"
-              }]`;
+      return (
+        <div className="space-y-3">
+          {content.map((item, itemIndex) => {
+            if (typeof item === "string") {
+              return (
+                <div key={itemIndex} className="text-sm">
+                  {item}
+                </div>
+              );
             }
-            if ("type" in item && item.type === "tool-result") {
-              const toolResult = item as {
-                toolName?: string;
-                toolExecutionTimeMs?: number;
-              };
-              const toolName = toolResult.toolName || "unknown";
-              const execTime =
-                toolResult.toolExecutionTimeMs !== undefined
-                  ? ` (${(toolResult.toolExecutionTimeMs / 1000).toFixed(2)}s)`
-                  : "";
-              return `[Tool Result: ${toolName}${execTime}]`;
+            if (typeof item === "object" && item !== null) {
+              // Tool call
+              if ("type" in item && item.type === "tool-call") {
+                const toolCall = item as {
+                  type: "tool-call";
+                  toolCallId?: string;
+                  toolName?: string;
+                  args?: unknown;
+                };
+                const toolName = toolCall.toolName || "unknown";
+                const args = toolCall.args || {};
+                return (
+                  <div
+                    key={itemIndex}
+                    className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950"
+                  >
+                    <div className="mb-2 text-xs font-medium text-blue-700 dark:text-blue-300">
+                      🔧 Tool Call: {toolName}
+                    </div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="rounded bg-blue-100 px-2 py-1 font-mono text-xs font-semibold text-blue-600 dark:bg-blue-900 dark:text-blue-300">
+                        {toolName}
+                      </span>
+                      {toolCall.toolCallId && (
+                        <span className="text-xs text-blue-600 dark:text-blue-400">
+                          ID: {toolCall.toolCallId.substring(0, 8)}...
+                        </span>
+                      )}
+                    </div>
+                    <details className="text-xs">
+                      <summary className="cursor-pointer font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+                        View arguments
+                      </summary>
+                      <div className="mt-2">
+                        <div className="mb-1 font-medium text-blue-700 dark:text-blue-300">
+                          Arguments:
+                        </div>
+                        <pre className="overflow-x-auto rounded bg-blue-100 p-2 text-xs dark:bg-blue-900 dark:text-blue-50">
+                          {JSON.stringify(args, null, 2)}
+                        </pre>
+                      </div>
+                    </details>
+                  </div>
+                );
+              }
+              // Tool result
+              if ("type" in item && item.type === "tool-result") {
+                const toolResult = item as {
+                  type: "tool-result";
+                  toolCallId?: string;
+                  toolName?: string;
+                  result?: unknown;
+                  costUsd?: number;
+                };
+                const toolName = toolResult.toolName || "unknown";
+                const result = toolResult.result;
+                const hasResult = result !== undefined;
+                const costUsd = toolResult.costUsd;
+                return (
+                  <div
+                    key={itemIndex}
+                    className="rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950"
+                  >
+                    <div className="mb-2 text-xs font-medium text-green-700 dark:text-green-300">
+                      ✅ Tool Result: {toolName}
+                    </div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="rounded bg-green-100 px-2 py-1 font-mono text-xs font-semibold text-green-600 dark:bg-green-900 dark:text-green-300">
+                        {toolName}
+                      </span>
+                      {toolResult.toolCallId && (
+                        <span className="text-xs text-green-600 dark:text-green-400">
+                          ID: {toolResult.toolCallId.substring(0, 8)}...
+                        </span>
+                      )}
+                      {costUsd !== undefined && (
+                        <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 opacity-70 dark:bg-green-900 dark:text-green-200">
+                          {formatCurrency(costUsd, "usd", 10)}
+                        </div>
+                      )}
+                    </div>
+                    {hasResult && (
+                      <details className="text-xs">
+                        <summary className="cursor-pointer font-medium text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300">
+                          View result
+                        </summary>
+                        <div className="mt-2">
+                          <div className="mb-1 font-medium text-green-700 dark:text-green-300">
+                            Result:
+                          </div>
+                          {typeof result === "string" ? (
+                            <div className="rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  code: (props) => {
+                                    const { className, children, ...rest } =
+                                      props;
+                                    const isInline =
+                                      !className ||
+                                      !className.includes("language-");
+                                    if (isInline) {
+                                      return (
+                                        <code
+                                          className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                          {...rest}
+                                        >
+                                          {children}
+                                        </code>
+                                      );
+                                    }
+                                    return (
+                                      <code
+                                        className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                        {...rest}
+                                      >
+                                        {children}
+                                      </code>
+                                    );
+                                  },
+                                  p: ({ children }) => (
+                                    <p className="mb-2 last:mb-0">{children}</p>
+                                  ),
+                                }}
+                              >
+                                {result}
+                              </ReactMarkdown>
+                            </div>
+                          ) : (
+                            <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
+                              {JSON.stringify(result, null, 2)}
+                            </pre>
+                          )}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                );
+              }
+              // Text content
+              if ("text" in item && typeof item.text === "string") {
+                return (
+                  <div key={itemIndex} className="text-sm">
+                    {item.text}
+                  </div>
+                );
+              }
             }
-            if ("text" in item && typeof item.text === "string") {
-              return item.text;
-            }
-          }
-          return JSON.stringify(item);
-        })
-        .join("\n");
+            return (
+              <div key={itemIndex} className="text-xs text-neutral-500">
+                {JSON.stringify(item)}
+              </div>
+            );
+          })}
+        </div>
+      );
     }
     return JSON.stringify(content, null, 2);
   };
@@ -221,7 +355,8 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                   Total Generation Time
                 </div>
                 <div className="text-neutral-900 dark:text-neutral-50">
-                  {(conversationDetail.totalGenerationTimeMs / 1000).toFixed(2)}s
+                  {(conversationDetail.totalGenerationTimeMs / 1000).toFixed(2)}
+                  s
                 </div>
               </div>
             )}
@@ -242,7 +377,9 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
             <div className="space-y-2 text-xs text-red-900 dark:text-red-100">
               <div>
                 <span className="font-semibold">Message: </span>
-                <span className="break-words">{conversationDetail.error.message}</span>
+                <span className="break-words">
+                  {conversationDetail.error.message}
+                </span>
               </div>
               {conversationDetail.error.name && (
                 <div>
@@ -262,11 +399,14 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                   {conversationDetail.error.statusCode}
                 </div>
               )}
-              {(conversationDetail.error.provider || conversationDetail.error.modelName) && (
+              {(conversationDetail.error.provider ||
+                conversationDetail.error.modelName) && (
                 <div>
                   <span className="font-semibold">Provider/Model: </span>
                   {conversationDetail.error.provider || "unknown"}
-                  {conversationDetail.error.modelName ? ` / ${conversationDetail.error.modelName}` : ""}
+                  {conversationDetail.error.modelName
+                    ? ` / ${conversationDetail.error.modelName}`
+                    : ""}
                 </div>
               )}
               {conversationDetail.error.stack && (
@@ -316,7 +456,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                         "content" in message
                       ) {
                         const role = message.role as string;
-                        const content = formatMessageContent(message.content);
+                        const content = message.content;
                         const tokenUsage =
                           "tokenUsage" in message
                             ? formatTokenUsage(message.tokenUsage)
@@ -421,51 +561,62 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                               </div>
                             )}
                             <div className="text-sm">
-                              {role === "user" ? (
-                                <div className="whitespace-pre-wrap">
-                                  {content}
-                                </div>
-                              ) : (
-                                content.trim() && (
-                                  <ReactMarkdown
-                                    remarkPlugins={[remarkGfm]}
-                                    components={{
-                                      code: (props) => {
-                                        const { className, children, ...rest } =
-                                          props;
-                                        const isInline =
-                                          !className ||
-                                          !className.includes("language-");
-                                        if (isInline) {
+                              {(() => {
+                                const renderedContent =
+                                  renderMessageContent(content);
+                                if (typeof renderedContent === "string") {
+                                  if (role === "user") {
+                                    return (
+                                      <div className="whitespace-pre-wrap">
+                                        {renderedContent}
+                                      </div>
+                                    );
+                                  }
+                                  return renderedContent.trim() ? (
+                                    <ReactMarkdown
+                                      remarkPlugins={[remarkGfm]}
+                                      components={{
+                                        code: (props) => {
+                                          const {
+                                            className,
+                                            children,
+                                            ...rest
+                                          } = props;
+                                          const isInline =
+                                            !className ||
+                                            !className.includes("language-");
+                                          if (isInline) {
+                                            return (
+                                              <code
+                                                className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                                {...rest}
+                                              >
+                                                {children}
+                                              </code>
+                                            );
+                                          }
                                           return (
                                             <code
-                                              className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                              className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
                                               {...rest}
                                             >
                                               {children}
                                             </code>
                                           );
-                                        }
-                                        return (
-                                          <code
-                                            className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
-                                            {...rest}
-                                          >
+                                        },
+                                        p: ({ children }) => (
+                                          <p className="mb-2 last:mb-0">
                                             {children}
-                                          </code>
-                                        );
-                                      },
-                                      p: ({ children }) => (
-                                        <p className="mb-2 last:mb-0">
-                                          {children}
-                                        </p>
-                                      ),
-                                    }}
-                                  >
-                                    {content}
-                                  </ReactMarkdown>
-                                )
-                              )}
+                                          </p>
+                                        ),
+                                      }}
+                                    >
+                                      {renderedContent}
+                                    </ReactMarkdown>
+                                  ) : null;
+                                }
+                                return renderedContent;
+                              })()}
                             </div>
                           </div>
                         );
@@ -476,53 +627,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Tool Calls */}
-            {Array.isArray(conversationDetail.toolCalls) &&
-              conversationDetail.toolCalls.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="mb-4 border-b border-neutral-200 pb-2 text-xl font-semibold text-neutral-900 dark:border-neutral-700 dark:text-neutral-50">
-                    Tool Calls
-                  </h3>
-                  <div className="space-y-2">
-                    {conversationDetail.toolCalls.map(
-                      (toolCall: unknown, index: number) => (
-                        <div
-                          key={index}
-                          className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
-                        >
-                          <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs text-neutral-900 dark:text-neutral-50">
-                            {JSON.stringify(toolCall, null, 2)}
-                          </pre>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              )}
-
-            {/* Tool Results */}
-            {Array.isArray(conversationDetail.toolResults) &&
-              conversationDetail.toolResults.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="mb-4 border-b border-neutral-200 pb-2 text-xl font-semibold text-neutral-900 dark:border-neutral-700 dark:text-neutral-50">
-                    Tool Results
-                  </h3>
-                  <div className="space-y-2">
-                    {conversationDetail.toolResults.map(
-                      (toolResult: unknown, index: number) => (
-                        <div
-                          key={index}
-                          className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
-                        >
-                          <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs text-neutral-900 dark:text-neutral-50">
-                            {JSON.stringify(toolResult, null, 2)}
-                          </pre>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-              )}
+            {/* Tool calls and results are now part of the messages array */}
           </>
         )}
       </div>

@@ -2488,5 +2488,17 @@
       }
     }
   },
+  "tavily": {
+    "search": {
+      "usd": {
+        "request": 0.008
+      }
+    },
+    "extract": {
+      "usd": {
+        "request": 0.008
+      }
+    }
+  },
   "lastUpdated": "2025-12-23T16:10:07.193Z"
 }

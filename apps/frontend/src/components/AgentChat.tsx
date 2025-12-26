@@ -324,9 +324,51 @@ export const AgentChat: FC<AgentChatProps> = ({
                               <div className="mb-1 font-medium text-green-700 dark:text-green-300">
                                 Output:
                               </div>
-                              <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
-                                {JSON.stringify(toolPart.output, null, 2)}
-                              </pre>
+                              {typeof toolPart.output === "string" ? (
+                                <div className="rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    components={{
+                                      code: (props) => {
+                                        const { className, children, ...rest } =
+                                          props;
+                                        const isInline =
+                                          !className ||
+                                          !className.includes("language-");
+                                        if (isInline) {
+                                          return (
+                                            <code
+                                              className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                              {...rest}
+                                            >
+                                              {children}
+                                            </code>
+                                          );
+                                        }
+                                        return (
+                                          <code
+                                            className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                            {...rest}
+                                          >
+                                            {children}
+                                          </code>
+                                        );
+                                      },
+                                      p: ({ children }) => (
+                                        <p className="mb-2 last:mb-0">
+                                          {children}
+                                        </p>
+                                      ),
+                                    }}
+                                  >
+                                    {toolPart.output}
+                                  </ReactMarkdown>
+                                </div>
+                              ) : (
+                                <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
+                                  {JSON.stringify(toolPart.output, null, 2)}
+                                </pre>
+                              )}
                             </div>
                           )}
                           {hasError && (
@@ -369,23 +411,23 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="max-w-[80%] rounded-xl border border-blue-200 bg-blue-50 p-4"
+                      className="max-w-[80%] rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950"
                     >
-                      <div className="mb-2 text-xs font-medium text-blue-700">
+                      <div className="mb-2 text-xs font-medium text-blue-700 dark:text-blue-300">
                         🔧 Tool Call: {toolName}
                       </div>
                       <div className="mb-2 flex items-center gap-2">
-                        <span className="rounded bg-blue-100 px-2 py-1 font-mono text-xs font-semibold text-blue-600">
+                        <span className="rounded bg-blue-100 px-2 py-1 font-mono text-xs font-semibold text-blue-600 dark:bg-blue-900 dark:text-blue-300">
                           {toolName}
                         </span>
                         {toolPart.state && (
-                          <span className="text-xs text-blue-600">
+                          <span className="text-xs text-blue-600 dark:text-blue-400">
                             ({toolPart.state})
                           </span>
                         )}
                       </div>
                       <details className="text-xs">
-                        <summary className="cursor-pointer font-medium text-blue-600 hover:text-blue-700">
+                        <summary className="cursor-pointer font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
                           View{" "}
                           {hasOutput
                             ? "output"
@@ -395,29 +437,71 @@ export const AgentChat: FC<AgentChatProps> = ({
                         </summary>
                         <div className="mt-2 space-y-2">
                           <div>
-                            <div className="mb-1 font-medium text-blue-700">
+                            <div className="mb-1 font-medium text-blue-700 dark:text-blue-300">
                               Arguments:
                             </div>
-                            <pre className="overflow-x-auto rounded bg-blue-100 p-2 text-xs">
+                            <pre className="overflow-x-auto rounded bg-blue-100 p-2 text-xs dark:bg-blue-900 dark:text-blue-50">
                               {JSON.stringify(toolInput, null, 2)}
                             </pre>
                           </div>
                           {hasOutput && (
                             <div>
-                              <div className="mb-1 font-medium text-green-700">
+                              <div className="mb-1 font-medium text-green-700 dark:text-green-300">
                                 Output:
                               </div>
-                              <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs">
-                                {JSON.stringify(toolPart.output, null, 2)}
-                              </pre>
+                              {typeof toolPart.output === "string" ? (
+                                <div className="rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    components={{
+                                      code: (props) => {
+                                        const { className, children, ...rest } =
+                                          props;
+                                        const isInline =
+                                          !className ||
+                                          !className.includes("language-");
+                                        if (isInline) {
+                                          return (
+                                            <code
+                                              className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                              {...rest}
+                                            >
+                                              {children}
+                                            </code>
+                                          );
+                                        }
+                                        return (
+                                          <code
+                                            className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                            {...rest}
+                                          >
+                                            {children}
+                                          </code>
+                                        );
+                                      },
+                                      p: ({ children }) => (
+                                        <p className="mb-2 last:mb-0">
+                                          {children}
+                                        </p>
+                                      ),
+                                    }}
+                                  >
+                                    {toolPart.output}
+                                  </ReactMarkdown>
+                                </div>
+                              ) : (
+                                <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
+                                  {JSON.stringify(toolPart.output, null, 2)}
+                                </pre>
+                              )}
                             </div>
                           )}
                           {hasError && (
                             <div>
-                              <div className="mb-1 font-medium text-red-700">
+                              <div className="mb-1 font-medium text-red-700 dark:text-red-300">
                                 Error:
                               </div>
-                              <div className="rounded bg-red-100 p-2 text-xs text-red-800">
+                              <div className="rounded bg-red-100 p-2 text-xs text-red-800 dark:bg-red-900 dark:text-red-200">
                                 {toolPart.errorText}
                               </div>
                             </div>
@@ -443,16 +527,16 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="max-w-[80%] rounded-xl border border-amber-200 bg-amber-50 p-3"
+                      className="max-w-[80%] rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950"
                     >
-                      <div className="mb-1 text-xs font-medium text-amber-700">
+                      <div className="mb-1 text-xs font-medium text-amber-700 dark:text-amber-300">
                         📎 Source
                       </div>
                       <a
                         href={sourcePart.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="break-all text-sm text-amber-900 underline hover:text-amber-700"
+                        className="break-all text-sm text-amber-900 underline hover:text-amber-700 dark:text-amber-100 dark:hover:text-amber-300"
                       >
                         {sourcePart.title || sourcePart.url}
                       </a>
@@ -476,20 +560,20 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="max-w-[80%] rounded-xl border border-amber-200 bg-amber-50 p-3"
+                      className="max-w-[80%] rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950"
                     >
-                      <div className="mb-1 text-xs font-medium text-amber-700">
+                      <div className="mb-1 text-xs font-medium text-amber-700 dark:text-amber-300">
                         📄 Document Source
                       </div>
-                      <div className="text-sm font-medium text-amber-900">
+                      <div className="text-sm font-medium text-amber-900 dark:text-amber-100">
                         {docPart.title}
                       </div>
                       {docPart.filename && (
-                        <div className="mt-1 text-xs text-amber-700">
+                        <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">
                           {docPart.filename}
                         </div>
                       )}
-                      <div className="mt-1 text-xs text-amber-600">
+                      <div className="mt-1 text-xs text-amber-600 dark:text-amber-400">
                         {docPart.mediaType}
                       </div>
                     </div>
@@ -511,22 +595,22 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="max-w-[80%] rounded-xl border border-purple-200 bg-purple-50 p-3"
+                      className="max-w-[80%] rounded-xl border border-purple-200 bg-purple-50 p-3 dark:border-purple-800 dark:bg-purple-950"
                     >
-                      <div className="mb-1 text-xs font-medium text-purple-700">
+                      <div className="mb-1 text-xs font-medium text-purple-700 dark:text-purple-300">
                         📎 File
                       </div>
-                      <div className="text-sm font-medium text-purple-900">
+                      <div className="text-sm font-medium text-purple-900 dark:text-purple-100">
                         {filePart.filename || "Untitled file"}
                       </div>
-                      <div className="mt-1 text-xs text-purple-600">
+                      <div className="mt-1 text-xs text-purple-600 dark:text-purple-400">
                         {filePart.mediaType}
                       </div>
                       <a
                         href={filePart.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-2 inline-block text-xs text-purple-700 underline hover:text-purple-900"
+                        className="mt-2 inline-block text-xs text-purple-700 underline hover:text-purple-900 dark:text-purple-300 dark:hover:text-purple-200"
                       >
                         View/Download
                       </a>
@@ -549,16 +633,16 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="max-w-[80%] rounded-xl border border-slate-200 bg-slate-50 p-3"
+                      className="max-w-[80%] rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800"
                     >
-                      <div className="mb-2 text-xs font-medium text-slate-700">
+                      <div className="mb-2 text-xs font-medium text-slate-700 dark:text-slate-300">
                         📊 Data: {dataName}
                       </div>
                       <details className="text-xs">
-                        <summary className="cursor-pointer font-medium text-slate-600 hover:text-slate-700">
+                        <summary className="cursor-pointer font-medium text-slate-600 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">
                           View data
                         </summary>
-                        <pre className="mt-2 overflow-x-auto rounded bg-slate-100 p-2 text-xs">
+                        <pre className="mt-2 overflow-x-auto rounded bg-slate-100 p-2 text-xs dark:bg-slate-900 dark:text-slate-50">
                           {JSON.stringify(dataPart.data, null, 2)}
                         </pre>
                       </details>
@@ -573,11 +657,11 @@ export const AgentChat: FC<AgentChatProps> = ({
                       key={`${message.id}-part-${partIndex}`}
                       className="my-2 flex max-w-[80%] items-center gap-2"
                     >
-                      <div className="flex-1 border-t border-neutral-300"></div>
-                      <div className="px-2 text-xs font-medium text-neutral-500">
+                      <div className="flex-1 border-t border-neutral-300 dark:border-neutral-600"></div>
+                      <div className="px-2 text-xs font-medium text-neutral-500 dark:text-neutral-400">
                         Step
                       </div>
-                      <div className="flex-1 border-t border-neutral-300"></div>
+                      <div className="flex-1 border-t border-neutral-300 dark:border-neutral-600"></div>
                     </div>
                   );
                 }
@@ -586,12 +670,12 @@ export const AgentChat: FC<AgentChatProps> = ({
                 return (
                   <div
                     key={`${message.id}-part-${partIndex}`}
-                    className="max-w-[80%] rounded-xl border border-yellow-200 bg-yellow-50 p-3"
+                    className="max-w-[80%] rounded-xl border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-950"
                   >
-                    <div className="mb-1 text-xs font-medium text-yellow-700">
+                    <div className="mb-1 text-xs font-medium text-yellow-700 dark:text-yellow-300">
                       Unknown part type: {partType}
                     </div>
-                    <pre className="overflow-x-auto text-xs text-yellow-900">
+                    <pre className="overflow-x-auto text-xs text-yellow-900 dark:text-yellow-100">
                       {JSON.stringify(part, null, 2)}
                     </pre>
                   </div>
