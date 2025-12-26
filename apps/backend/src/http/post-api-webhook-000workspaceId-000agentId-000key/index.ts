@@ -705,18 +705,62 @@ export const handler = adaptHttpHandler(
       // Each webhook call creates a new conversation
       // tokenUsage already extracted above for credit deduction
       try {
-        // Keep all messages (including empty ones) - do not filter
-        const messagesToLog = [uiMessage, assistantMessage];
+        // Combine user message and assistant message for logging
+        // Deduplication will happen in startConversation (via expandMessagesWithToolCalls)
+        const messagesForLogging: UIMessage[] = [
+          uiMessage,
+          assistantMessage,
+        ];
+
+        // Get valid messages for logging (filter out any invalid ones, but keep empty messages)
+        const validMessages: UIMessage[] = messagesForLogging.filter(
+          (msg): msg is UIMessage =>
+            msg != null &&
+            typeof msg === "object" &&
+            "role" in msg &&
+            typeof msg.role === "string" &&
+            (msg.role === "user" ||
+              msg.role === "assistant" ||
+              msg.role === "system" ||
+              msg.role === "tool") &&
+            "content" in msg
+        );
 
         // DIAGNOSTIC: Log messages being passed to startConversation
         console.log(
           "[Webhook Handler] Messages being passed to startConversation:",
           {
-            messagesCount: messagesToLog.length,
-            messages: messagesToLog,
-            assistantMessageRole: assistantMessage.role,
-            assistantMessageContentType: typeof assistantMessage.content,
-            assistantMessageIsArray: Array.isArray(assistantMessage.content),
+            messagesForLoggingCount: messagesForLogging.length,
+            validMessagesCount: validMessages.length,
+            assistantMessageInValid: validMessages.some(
+              (msg) => msg.role === "assistant"
+            ),
+            messages: validMessages.map((msg) => ({
+              role: msg.role,
+              contentType: typeof msg.content,
+              isArray: Array.isArray(msg.content),
+              contentLength: Array.isArray(msg.content)
+                ? msg.content.length
+                : "N/A",
+              hasToolCalls: Array.isArray(msg.content)
+                ? msg.content.some(
+                    (item) =>
+                      typeof item === "object" &&
+                      item !== null &&
+                      "type" in item &&
+                      item.type === "tool-call"
+                  )
+                : false,
+              hasToolResults: Array.isArray(msg.content)
+                ? msg.content.some(
+                    (item) =>
+                      typeof item === "object" &&
+                      item !== null &&
+                      "type" in item &&
+                      item.type === "tool-result"
+                  )
+                : false,
+            })),
           }
         );
 
@@ -724,7 +768,7 @@ export const handler = adaptHttpHandler(
           workspaceId,
           agentId,
           conversationType: "webhook",
-          messages: messagesToLog,
+          messages: validMessages,
           tokenUsage,
           usesByok,
           awsRequestId,
