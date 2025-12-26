@@ -58,10 +58,12 @@ describe("tavily", () => {
         "https://api.tavily.com/search",
         expect.objectContaining({
           method: "POST",
-          headers: {
+          headers: expect.objectContaining({
             "Content-Type": "application/json",
-          },
+            Authorization: "Bearer test-api-key",
+          }),
           body: expect.stringContaining("test query"),
+          signal: expect.any(AbortSignal),
         })
       );
     });
@@ -182,9 +184,11 @@ describe("tavily", () => {
         "https://api.tavily.com/extract",
         expect.objectContaining({
           method: "POST",
-          headers: {
+          headers: expect.objectContaining({
             "Content-Type": "application/json",
-          },
+            Authorization: "Bearer test-api-key",
+          }),
+          signal: expect.any(AbortSignal),
         })
       );
     });
