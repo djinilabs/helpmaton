@@ -30,7 +30,24 @@ export function extractOpenRouterGenerationId(
       usageKeys: result?.usage ? Object.keys(result.usage) : [],
     });
 
-    // Check _steps.status.value[0].response.id (OpenRouter AI SDK structure)
+    // Check result.steps[] (generateText structure) first
+    if (Array.isArray(result?.steps)) {
+      for (const step of result.steps) {
+        if (
+          step?.response?.id &&
+          typeof step.response.id === "string" &&
+          step.response.id.startsWith("gen-")
+        ) {
+          console.log(
+            "[extractOpenRouterGenerationId] Found in steps[].response.id:",
+            step.response.id
+          );
+          return step.response.id;
+        }
+      }
+    }
+
+    // Check _steps.status.value[] (streamText structure) if not found
     if (
       result?._steps?.status?.type === "resolved" &&
       result._steps.status.value
@@ -137,8 +154,22 @@ export function extractAllOpenRouterGenerationIds(
   const generationIds: string[] = [];
 
   try {
-    // Check _steps.status.value[] (OpenRouter AI SDK structure for tool calls)
+    // Check result.steps[] (generateText structure) first
+    if (Array.isArray(result?.steps)) {
+      for (const step of result.steps) {
+        if (
+          step?.response?.id &&
+          typeof step.response.id === "string" &&
+          step.response.id.startsWith("gen-")
+        ) {
+          generationIds.push(step.response.id);
+        }
+      }
+    }
+
+    // Check _steps.status.value[] (streamText structure) if no IDs found
     if (
+      generationIds.length === 0 &&
       result?._steps?.status?.type === "resolved" &&
       result._steps.status.value
     ) {
@@ -158,7 +189,7 @@ export function extractAllOpenRouterGenerationIds(
     }
 
     // Fallback to single ID extraction for backward compatibility
-    // Only if no IDs found in _steps
+    // Only if no IDs found in steps/_steps
     if (generationIds.length === 0) {
       const singleId = extractOpenRouterGenerationId(result);
       if (singleId) {
@@ -166,17 +197,23 @@ export function extractAllOpenRouterGenerationIds(
       }
     }
 
-    console.log("[extractAllOpenRouterGenerationIds] Extracted generation IDs:", {
-      count: generationIds.length,
-      generationIds,
-    });
+    console.log(
+      "[extractAllOpenRouterGenerationIds] Extracted generation IDs:",
+      {
+        count: generationIds.length,
+        generationIds,
+      }
+    );
 
     return generationIds;
   } catch (error) {
-    console.warn("[extractAllOpenRouterGenerationIds] Error extracting generation IDs:", {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    console.warn(
+      "[extractAllOpenRouterGenerationIds] Error extracting generation IDs:",
+      {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      }
+    );
     return [];
   }
 }
@@ -192,8 +229,23 @@ export function extractOpenRouterCost(
   result: any
 ): number | undefined {
   try {
-    // Check _steps.status.value[0].providerMetadata.openrouter.usage.cost (OpenRouter AI SDK structure)
+    let totalCost = 0;
+    let foundAnyCost = false;
+
+    // Check result.steps[] (generateText structure) first
+    if (Array.isArray(result?.steps)) {
+      for (const step of result.steps) {
+        const cost = step?.providerMetadata?.openrouter?.usage?.cost;
+        if (typeof cost === "number" && cost >= 0) {
+          totalCost += cost;
+          foundAnyCost = true;
+        }
+      }
+    }
+
+    // Check _steps.status.value[] (streamText structure) if no costs found
     if (
+      !foundAnyCost &&
       result?._steps?.status?.type === "resolved" &&
       result._steps.status.value
     ) {
@@ -204,13 +256,18 @@ export function extractOpenRouterCost(
       for (const step of steps) {
         const cost = step?.providerMetadata?.openrouter?.usage?.cost;
         if (typeof cost === "number" && cost >= 0) {
-          console.log(
-            "[extractOpenRouterCost] Found in _steps.status.value[].providerMetadata.openrouter.usage.cost:",
-            cost
-          );
-          return cost;
+          totalCost += cost;
+          foundAnyCost = true;
         }
       }
+    }
+
+    if (foundAnyCost) {
+      console.log(
+        "[extractOpenRouterCost] Found cost in steps/providerMetadata:",
+        totalCost
+      );
+      return totalCost;
     }
 
     // Check other possible locations

@@ -482,12 +482,16 @@ export const handler = adaptHttpHandler(
       let toolCallsFromResult: unknown[];
       let toolResultsFromResult: unknown[];
       try {
-        // Also extract _steps as the source of truth for tool calls/results
+        // Also extract steps/_steps as the source of truth for tool calls/results
+        // generateText returns result.steps (array), streamText returns result._steps.status.value
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
         const resultAny = result as any;
-        const stepsValue = resultAny._steps?.status?.value;
+        // Check both result.steps (generateText) and result._steps.status.value (streamText)
+        const stepsValue = Array.isArray(resultAny.steps)
+          ? resultAny.steps
+          : resultAny._steps?.status?.value;
 
-        // Extract tool calls and results from _steps (source of truth for server-side tool execution)
+        // Extract tool calls and results from steps (source of truth for server-side tool execution)
         const toolCallsFromSteps: unknown[] = [];
         const toolResultsFromSteps: unknown[] = [];
 
@@ -501,22 +505,66 @@ export const handler = adaptHttpHandler(
                   "type" in contentItem
                 ) {
                   if (contentItem.type === "tool-call") {
-                    // Convert AI SDK tool-call format to our format
-                    toolCallsFromSteps.push({
-                      toolCallId: contentItem.toolCallId,
-                      toolName: contentItem.toolName,
-                      args: contentItem.input || contentItem.args || {},
-                    });
+                    // Validate required fields before adding
+                    if (
+                      contentItem.toolCallId &&
+                      contentItem.toolName &&
+                      typeof contentItem.toolCallId === "string" &&
+                      typeof contentItem.toolName === "string"
+                    ) {
+                      // Convert AI SDK tool-call format to our format
+                      toolCallsFromSteps.push({
+                        toolCallId: contentItem.toolCallId,
+                        toolName: contentItem.toolName,
+                        args: contentItem.input || contentItem.args || {},
+                      });
+                    } else {
+                      console.warn(
+                        "[Webhook Handler] Skipping tool call with missing/invalid fields:",
+                        {
+                          hasToolCallId: !!contentItem.toolCallId,
+                          hasToolName: !!contentItem.toolName,
+                          toolCallIdType: typeof contentItem.toolCallId,
+                          toolNameType: typeof contentItem.toolName,
+                          contentItem,
+                        }
+                      );
+                    }
                   } else if (contentItem.type === "tool-result") {
-                    // Convert AI SDK tool-result format to our format
-                    toolResultsFromSteps.push({
-                      toolCallId: contentItem.toolCallId,
-                      toolName: contentItem.toolName,
-                      result:
-                        contentItem.output?.value ||
-                        contentItem.output ||
-                        contentItem.result,
-                    });
+                    // Validate required fields before adding
+                    if (
+                      contentItem.toolCallId &&
+                      contentItem.toolName &&
+                      typeof contentItem.toolCallId === "string" &&
+                      typeof contentItem.toolName === "string"
+                    ) {
+                      // Convert AI SDK tool-result format to our format
+                      // Handle both string outputs and object outputs with .value property
+                      let resultValue = contentItem.output;
+                      if (
+                        typeof resultValue === "object" &&
+                        resultValue !== null &&
+                        "value" in resultValue
+                      ) {
+                        resultValue = resultValue.value;
+                      }
+                      toolResultsFromSteps.push({
+                        toolCallId: contentItem.toolCallId,
+                        toolName: contentItem.toolName,
+                        result: resultValue || contentItem.result,
+                      });
+                    } else {
+                      console.warn(
+                        "[Webhook Handler] Skipping tool result with missing/invalid fields:",
+                        {
+                          hasToolCallId: !!contentItem.toolCallId,
+                          hasToolName: !!contentItem.toolName,
+                          toolCallIdType: typeof contentItem.toolCallId,
+                          toolNameType: typeof contentItem.toolName,
+                          contentItem,
+                        }
+                      );
+                    }
                   }
                 }
               }
@@ -524,8 +572,8 @@ export const handler = adaptHttpHandler(
           }
         }
 
-        // Use _steps as source of truth - prefer tool calls/results from _steps if available
-        // Only fall back to direct properties if _steps doesn't have them
+        // Use steps as source of truth - prefer tool calls/results from steps if available
+        // Only fall back to direct properties if steps doesn't have them
         if (toolCallsFromSteps.length > 0) {
           toolCallsFromResult = toolCallsFromSteps;
         } else {
@@ -547,7 +595,8 @@ export const handler = adaptHttpHandler(
           resultKeys: Object.keys(result),
           hasToolCalls: "toolCalls" in result,
           hasToolResults: "toolResults" in result,
-          hasSteps: "_steps" in resultAny,
+          hasSteps: "steps" in resultAny,
+          has_steps: "_steps" in resultAny,
           stepsCount: Array.isArray(stepsValue) ? stepsValue.length : 0,
           toolCallsFromStepsCount: toolCallsFromSteps.length,
           toolResultsFromStepsCount: toolResultsFromSteps.length,
@@ -707,10 +756,7 @@ export const handler = adaptHttpHandler(
       try {
         // Combine user message and assistant message for logging
         // Deduplication will happen in startConversation (via expandMessagesWithToolCalls)
-        const messagesForLogging: UIMessage[] = [
-          uiMessage,
-          assistantMessage,
-        ];
+        const messagesForLogging: UIMessage[] = [uiMessage, assistantMessage];
 
         // Get valid messages for logging (filter out any invalid ones, but keep empty messages)
         const validMessages: UIMessage[] = messagesForLogging.filter(

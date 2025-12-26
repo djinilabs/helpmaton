@@ -181,7 +181,6 @@ export function buildConversationErrorInfo(
 
   // If it's a wrapper, check the cause's data.error.message FIRST (this is where the real error is)
   if (isWrapper && error instanceof Error && error.cause) {
-     
     const causeAny =
       error.cause instanceof Error ? (error.cause as any) : undefined;
     console.log(
@@ -279,7 +278,6 @@ export function buildConversationErrorInfo(
           : String(error.cause),
     });
 
-     
     const causeAny =
       error.cause instanceof Error ? (error.cause as any) : undefined;
     console.log("[buildConversationErrorInfo] Cause structure:", {
@@ -374,7 +372,7 @@ export function buildConversationErrorInfo(
       console.log(
         "[buildConversationErrorInfo] Wrapper: Checking cause (no good message yet)"
       );
-       
+
       const causeAny =
         error.cause instanceof Error ? (error.cause as any) : undefined;
       console.log("[buildConversationErrorInfo] Wrapper cause structure:", {
@@ -1468,7 +1466,72 @@ export function extractTokenUsage(
     return undefined;
   }
 
-  const usage = result.usage;
+  // Check top-level usage first
+  let usage = result.usage;
+
+  // If no top-level usage, try to aggregate from steps[].usage (generateText structure)
+  if (!usage || typeof usage !== "object") {
+    const steps = Array.isArray(result.steps)
+      ? result.steps
+      : result._steps?.status?.value;
+
+    if (Array.isArray(steps) && steps.length > 0) {
+      // Aggregate usage from all steps
+      let totalPromptTokens = 0;
+      let totalCompletionTokens = 0;
+      let totalTokens = 0;
+      let totalReasoningTokens = 0;
+      let totalCachedInputTokens = 0;
+
+      for (const step of steps) {
+        if (step?.usage && typeof step.usage === "object") {
+          totalPromptTokens +=
+            step.usage.inputTokens ??
+            step.usage.promptTokens ??
+            step.usage.promptTokenCount ??
+            0;
+          totalCompletionTokens +=
+            step.usage.completionTokens ??
+            step.usage.outputTokens ??
+            step.usage.completionTokenCount ??
+            0;
+          totalTokens +=
+            step.usage.totalTokens ?? step.usage.totalTokenCount ?? 0;
+          totalReasoningTokens += step.usage.reasoningTokens ?? 0;
+          totalCachedInputTokens +=
+            step.usage.cachedInputTokens ??
+            step.usage.cachedTokens ??
+            step.usage.cachedPromptTokenCount ??
+            0;
+        }
+      }
+
+      // Create aggregated usage object if we found any usage data
+      if (
+        totalPromptTokens > 0 ||
+        totalCompletionTokens > 0 ||
+        totalTokens > 0
+      ) {
+        usage = {
+          inputTokens: totalPromptTokens,
+          promptTokens: totalPromptTokens,
+          outputTokens: totalCompletionTokens,
+          completionTokens: totalCompletionTokens,
+          totalTokens:
+            totalTokens ||
+            totalPromptTokens + totalCompletionTokens + totalReasoningTokens,
+          reasoningTokens: totalReasoningTokens,
+          cachedInputTokens: totalCachedInputTokens,
+          cachedTokens: totalCachedInputTokens,
+        };
+        console.log("[extractTokenUsage] Aggregated usage from steps:", {
+          stepsCount: steps.length,
+          aggregatedUsage: usage,
+        });
+      }
+    }
+  }
+
   if (!usage || typeof usage !== "object") {
     return undefined;
   }
