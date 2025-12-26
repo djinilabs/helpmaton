@@ -17,10 +17,12 @@ const BACKOFF_MULTIPLIER = 2;
 /**
  * Extract tool costs from a message's content array
  * Tool costs are stored in tool-result content items
+ * Tool results can be in assistant messages (as content items) or in tool role messages
  */
 function extractToolCostsFromMessage(message: UIMessage): number {
   let toolCosts = 0;
-  
+
+  // Check assistant messages with tool-result content items
   if (message.role === "assistant" && Array.isArray(message.content)) {
     for (const item of message.content) {
       if (
@@ -35,7 +37,25 @@ function extractToolCostsFromMessage(message: UIMessage): number {
       }
     }
   }
-  
+
+  // Check tool role messages (tool results are expanded into separate tool messages)
+  if (message.role === "tool") {
+    if (Array.isArray(message.content)) {
+      for (const item of message.content) {
+        if (
+          typeof item === "object" &&
+          item !== null &&
+          "type" in item &&
+          item.type === "tool-result" &&
+          "costUsd" in item &&
+          typeof item.costUsd === "number"
+        ) {
+          toolCosts += item.costUsd;
+        }
+      }
+    }
+  }
+
   return toolCosts;
 }
 
@@ -72,9 +92,7 @@ type CostVerificationMessage = z.infer<typeof CostVerificationMessageSchema>;
  * Implements exponential backoff retry for transient failures
  * @throws Error if cost cannot be computed (generation not found, missing cost field, etc.)
  */
-async function fetchOpenRouterCost(
-  generationId: string
-): Promise<number> {
+async function fetchOpenRouterCost(generationId: string): Promise<number> {
   const apiKey = getDefined(
     process.env.OPENROUTER_API_KEY,
     "OPENROUTER_API_KEY is not set"
@@ -98,11 +116,15 @@ async function fetchOpenRouterCost(
         const delay = baseDelay + jitter;
 
         console.log(
-          `[Cost Verification] Retrying OpenRouter API call (attempt ${attempt + 1}/${BACKOFF_MAX_RETRIES + 1}) after ${Math.round(delay)}ms:`,
+          `[Cost Verification] Retrying OpenRouter API call (attempt ${
+            attempt + 1
+          }/${BACKOFF_MAX_RETRIES + 1}) after ${Math.round(delay)}ms:`,
           {
             generationId,
             previousError:
-              lastError instanceof Error ? lastError.message : String(lastError),
+              lastError instanceof Error
+                ? lastError.message
+                : String(lastError),
           }
         );
 
@@ -136,7 +158,10 @@ async function fetchOpenRouterCost(
         }
 
         // Check if error is retryable
-        if (isRetryableError(response.status) && attempt < BACKOFF_MAX_RETRIES) {
+        if (
+          isRetryableError(response.status) &&
+          attempt < BACKOFF_MAX_RETRIES
+        ) {
           const errorText = await response.text();
           lastError = new Error(
             `OpenRouter API error: ${response.status} ${response.statusText} - ${errorText}`
@@ -170,9 +195,7 @@ async function fetchOpenRouterCost(
       // OpenRouter API returns cost nested in data.data.total_cost (two levels: data.data.total_cost)
       // Try nested structure first, then fallback to top-level cost
       const cost =
-        data.data?.total_cost !== undefined
-          ? data.data.total_cost
-          : data.cost;
+        data.data?.total_cost !== undefined ? data.data.total_cost : data.cost;
 
       // OpenRouter returns cost in USD, convert to millionths
       if (cost !== undefined) {
@@ -194,7 +217,9 @@ async function fetchOpenRouterCost(
 
       // Cost field is missing - cannot compute the real value
       const error = new Error(
-        `OpenRouter API response missing cost field for generation ${generationId}. Response data: ${JSON.stringify(data)}`
+        `OpenRouter API response missing cost field for generation ${generationId}. Response data: ${JSON.stringify(
+          data
+        )}`
       );
       console.error(
         "[Cost Verification] No cost field in OpenRouter response:",
@@ -215,15 +240,12 @@ async function fetchOpenRouterCost(
       ) {
         if (attempt < BACKOFF_MAX_RETRIES) {
           lastError = error as Error;
-          console.warn(
-            `[Cost Verification] Network error, will retry:`,
-            {
-              generationId,
-              error: error instanceof Error ? error.message : String(error),
-              attempt: attempt + 1,
-              maxRetries: BACKOFF_MAX_RETRIES + 1,
-            }
-          );
+          console.warn(`[Cost Verification] Network error, will retry:`, {
+            generationId,
+            error: error instanceof Error ? error.message : String(error),
+            attempt: attempt + 1,
+            maxRetries: BACKOFF_MAX_RETRIES + 1,
+          });
           continue; // Retry
         }
       }
@@ -330,14 +352,17 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
         // Check if all generations are verified
         const allVerified = verifiedIds.length >= expectedCount;
 
-        console.log("[Cost Verification] Updated reservation with verified cost:", {
-          reservationId,
-          openrouterGenerationId,
-          cost: openrouterCost,
-          verifiedCount: verifiedIds.length,
-          expectedCount,
-          allVerified,
-        });
+        console.log(
+          "[Cost Verification] Updated reservation with verified cost:",
+          {
+            reservationId,
+            openrouterGenerationId,
+            cost: openrouterCost,
+            verifiedCount: verifiedIds.length,
+            expectedCount,
+            allVerified,
+          }
+        );
 
         return {
           ...current,
@@ -346,7 +371,10 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
           // Mark for finalization if all verified
           ...(allVerified && {
             allGenerationsVerified: true,
-            totalOpenrouterCost: verifiedCosts.reduce((sum, cost) => sum + cost, 0),
+            totalOpenrouterCost: verifiedCosts.reduce(
+              (sum, cost) => sum + cost,
+              0
+            ),
           }),
         };
       }
@@ -384,13 +412,16 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
     }
   } else {
     // No reservation (BYOK case) - just log
-    console.log("[Cost Verification] Cost verified (no reservation to finalize):", {
-      openrouterGenerationId,
-      workspaceId,
-      openrouterCost,
-      reason:
-        "No reservationId provided (likely BYOK or cost verification only)",
-    });
+    console.log(
+      "[Cost Verification] Cost verified (no reservation to finalize):",
+      {
+        openrouterGenerationId,
+        workspaceId,
+        openrouterCost,
+        reason:
+          "No reservationId provided (likely BYOK or cost verification only)",
+      }
+    );
   }
 
   // Update message with final cost if conversation context is available
@@ -466,8 +497,10 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
             return current;
           }
 
-          // Recalculate conversation cost using finalCostUsd from messages
-          // Also include tool costs from tool-result content items
+          // Recalculate conversation cost from 0 using finalCostUsd from ALL messages
+          // IMPORTANT: Always recalculate from scratch, do NOT use current.costUsd
+          // Also include tool costs from tool-result content items (in both assistant and tool role messages)
+          // Messages are already expanded when stored, so we iterate through all messages
           let totalCostUsd = 0;
           for (const msg of updatedMessages) {
             if (msg.role === "assistant") {
@@ -498,11 +531,11 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
                 );
                 totalCostUsd += messageCosts.usd;
               }
-              
-              // Add tool costs from tool-result content items
-              const toolCosts = extractToolCostsFromMessage(msg);
-              totalCostUsd += toolCosts;
             }
+
+            // Extract tool costs from any message (assistant or tool role)
+            const toolCosts = extractToolCostsFromMessage(msg);
+            totalCostUsd += toolCosts;
           }
 
           console.log("[Cost Verification] Updated message with final cost:", {
