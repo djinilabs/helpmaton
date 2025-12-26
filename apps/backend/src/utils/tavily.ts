@@ -137,13 +137,13 @@ export async function tavilySearch(
   const apiKey = getTavilyApiKey();
 
   const requestBody = {
-    api_key: apiKey,
     query,
     max_results: options?.max_results ?? 5,
     search_depth: options?.search_depth ?? "basic",
     include_answer: options?.include_answer ?? false,
     include_raw_content: options?.include_raw_content ?? false,
     include_images: options?.include_images ?? false,
+    include_usage: true,
   };
 
   let lastError: Error | undefined;
@@ -156,6 +156,7 @@ export async function tavilySearch(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(requestBody),
         signal: controller.signal,
@@ -208,7 +209,10 @@ export async function tavilySearch(
       return result;
     } catch (error) {
       // If error message includes "Tavily search API error", it's a non-retryable API error - throw immediately
-      if (error instanceof Error && error.message.includes("Tavily search API error")) {
+      if (
+        error instanceof Error &&
+        error.message.includes("Tavily search API error")
+      ) {
         throw error;
       }
 
@@ -250,7 +254,10 @@ export async function tavilySearch(
 
       // If we've exhausted retries or it's a non-retryable error, throw
       if (attempt === MAX_RETRIES) {
-        console.error(`[tavilySearch] Error after ${MAX_RETRIES} retries:`, error);
+        console.error(
+          `[tavilySearch] Error after ${MAX_RETRIES} retries:`,
+          error
+        );
         if (error instanceof Error) {
           throw error;
         }
@@ -278,7 +285,6 @@ export async function tavilyExtract(
   const apiKey = getTavilyApiKey();
 
   const requestBody = {
-    api_key: apiKey,
     urls: [url],
     include_images: options?.include_images ?? false,
     include_raw_content: options?.include_raw_content ?? false,
@@ -296,6 +302,7 @@ export async function tavilyExtract(
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify(requestBody),
           signal: controller.signal,
@@ -352,22 +359,27 @@ export async function tavilyExtract(
       }
 
       const jsonResult = await response.json();
-      
+
       // Log the raw response to debug structure
       console.log("[tavilyExtract] Raw API response:", {
         isArray: Array.isArray(jsonResult),
         type: typeof jsonResult,
-        keys: Array.isArray(jsonResult) ? undefined : Object.keys(jsonResult || {}),
-        firstElementKeys: Array.isArray(jsonResult) && jsonResult[0] ? Object.keys(jsonResult[0]) : undefined,
+        keys: Array.isArray(jsonResult)
+          ? undefined
+          : Object.keys(jsonResult || {}),
+        firstElementKeys:
+          Array.isArray(jsonResult) && jsonResult[0]
+            ? Object.keys(jsonResult[0])
+            : undefined,
         sample: Array.isArray(jsonResult) ? jsonResult[0] : jsonResult,
       });
-      
+
       // Tavily API returns an array when urls is provided as an array
       // Extract the first result if it's an array, otherwise use the result directly
-      const result = Array.isArray(jsonResult) 
+      const result = Array.isArray(jsonResult)
         ? (jsonResult[0] as TavilyExtractResponse)
         : (jsonResult as TavilyExtractResponse);
-      
+
       // Log the extracted result structure
       console.log("[tavilyExtract] Extracted result:", {
         url: result?.url,
@@ -378,11 +390,14 @@ export async function tavilyExtract(
         imagesCount: result?.images?.length,
         keys: Object.keys(result || {}),
       });
-      
+
       return result;
     } catch (error) {
       // If error message includes "Tavily extract API error", it's a non-retryable API error - throw immediately
-      if (error instanceof Error && error.message.includes("Tavily extract API error")) {
+      if (
+        error instanceof Error &&
+        error.message.includes("Tavily extract API error")
+      ) {
         throw error;
       }
 
@@ -424,7 +439,10 @@ export async function tavilyExtract(
 
       // If we've exhausted retries or it's a non-retryable error, throw
       if (attempt === MAX_RETRIES) {
-        console.error(`[tavilyExtract] Error after ${MAX_RETRIES} retries:`, error);
+        console.error(
+          `[tavilyExtract] Error after ${MAX_RETRIES} retries:`,
+          error
+        );
         if (error instanceof Error) {
           throw error;
         }
@@ -453,4 +471,3 @@ export function extractCreditsUsed(
   // Default to 1 credit per API call if not specified
   return response.usage?.credits_used ?? 1;
 }
-
