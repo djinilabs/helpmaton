@@ -552,6 +552,61 @@ export type TableAPI<
   ) => Promise<TTableRecord>;
 };
 
+// Transaction operation types
+export type TransactionOperation =
+  | TransactionPutOperation<TableName>
+  | TransactionUpdateOperation<TableName>
+  | TransactionDeleteOperation
+  | TransactionConditionCheckOperation;
+
+// Put operation: can use direct item OR updater function
+export type TransactionPutOperation<TTableName extends TableName = TableName> = {
+  type: "Put";
+  table: TTableName;
+  key: { pk: string; sk?: string };
+  // Either provide item directly OR use updater function
+  item?: Record<string, unknown>;
+  updater?: (
+    current: z.infer<TableSchemas[TTableName]> | undefined
+  ) => Promise<Partial<z.infer<TableSchemas[TTableName]>>>;
+  conditionExpression?: string;
+  expressionAttributeNames?: Record<string, string>;
+  expressionAttributeValues?: Record<string, unknown>;
+};
+
+// Update operation: can use direct update expression OR updater function
+export type TransactionUpdateOperation<TTableName extends TableName = TableName> = {
+  type: "Update";
+  table: TTableName;
+  key: { pk: string; sk?: string };
+  // Either provide updateExpression directly OR use updater function
+  updateExpression?: string;
+  updater?: (
+    current: z.infer<TableSchemas[TTableName]> | undefined
+  ) => Promise<Partial<z.infer<TableSchemas[TTableName]>>>;
+  conditionExpression?: string;
+  expressionAttributeNames?: Record<string, string>;
+  expressionAttributeValues?: Record<string, unknown>;
+};
+
+export type TransactionDeleteOperation = {
+  type: "Delete";
+  table: TableName;
+  key: { pk: string; sk?: string };
+  conditionExpression?: string;
+  expressionAttributeNames?: Record<string, string>;
+  expressionAttributeValues?: Record<string, unknown>;
+};
+
+export type TransactionConditionCheckOperation = {
+  type: "ConditionCheck";
+  table: TableName;
+  key: { pk: string; sk?: string };
+  conditionExpression: string;
+  expressionAttributeNames?: Record<string, string>;
+  expressionAttributeValues?: Record<string, unknown>;
+};
+
 export type DatabaseSchema = {
   "next-auth": TableAPI<"next-auth">;
   workspace: TableAPI<"workspace">;
@@ -574,4 +629,8 @@ export type DatabaseSchema = {
   "agent-stream-servers": TableAPI<"agent-stream-servers">;
   "user-api-key": TableAPI<"user-api-key">;
   "user-refresh-token": TableAPI<"user-refresh-token">;
+  transactWrite: (
+    operations: TransactionOperation[],
+    options?: { maxRetries?: number }
+  ) => Promise<{ success: boolean }>;
 };

@@ -4,6 +4,7 @@ import { once } from "../utils";
 
 import { DatabaseSchema, TableAPI, TableName, tableSchemas } from "./schema";
 import { tableApi } from "./tableApi";
+import { transactWrite } from "./transactions";
 
 
 export const database = once(async (): Promise<DatabaseSchema> => {
@@ -14,7 +15,15 @@ export const database = once(async (): Promise<DatabaseSchema> => {
     Object.entries(await client.reflect())
   ) as Array<[TableName, string]>;
   const lowLevelClient = client._client;
-  return Object.fromEntries(
+  
+  // Build table name mapping
+  const tableNameMap = new Map<TableName, string>();
+  existingTables.forEach(([tableName, lowLevelTableName]) => {
+    tableNameMap.set(tableName, lowLevelTableName);
+  });
+
+  // Build database schema with table APIs
+  const dbSchema = Object.fromEntries(
     existingTables.map(([tableName, lowLevelTableName]) => {
       const lowLevelTable = client[tableName];
       const schema = tableSchemas[tableName as keyof typeof tableSchemas];
@@ -29,6 +38,22 @@ export const database = once(async (): Promise<DatabaseSchema> => {
         ),
       ] as [typeof tableName, TableAPI<typeof tableName>];
     })
-  ) as DatabaseSchema;
+  ) as Omit<DatabaseSchema, "transactWrite">;
+
+  // Add transactWrite method
+  return {
+    ...dbSchema,
+    transactWrite: async (operations, options) => {
+      return transactWrite(
+        {
+          db: dbSchema as DatabaseSchema,
+          lowLevelClient,
+          tableNameMap,
+        },
+        operations,
+        options
+      );
+    },
+  } as DatabaseSchema;
 });
 

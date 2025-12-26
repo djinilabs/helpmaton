@@ -2,9 +2,55 @@
 
 ## Current Status
 
-**Status**: OpenRouter Cost Verification Retry Logic & Error Handling - Completed ✅
+**Status**: DynamoDB Transaction API Implementation - Completed ✅
 
-**Latest Work**: Added exponential backoff retry logic to OpenRouter cost fetching with proper error handling to ensure no masked errors. All errors that prevent cost computation are now properly thrown and logged.
+**Latest Work**: Implemented `transactWrite` method on the DatabaseSchema type to enable DynamoDB `TransactWriteItems` operations with optimistic concurrency control. The API supports both direct values and updater functions (similar to `atomicUpdate`) with automatic retry logic for version conflicts.
+
+**Recent Changes**:
+
+1. **Transaction Types & Schema**:
+   - Added `TransactionOperation` union type with support for Put, Update, Delete, and ConditionCheck operations
+   - Operations can use direct values (`item`/`updateExpression`) or updater functions (`updater`)
+   - Extended `DatabaseSchema` type with `transactWrite` method signature
+   - Support for optimistic concurrency control with version checking
+
+2. **Transaction Implementation**:
+   - Created `transactions.ts` module with full `transactWrite` implementation
+   - **Phase 1**: Reads current items for operations with updater functions
+   - **Phase 2**: Applies updater functions to generate new items
+   - **Phase 3**: Builds DynamoDB `TransactWriteItems` requests with version conditions
+   - **Phase 4**: Executes with retry logic (exponential backoff: 50ms, 100ms, 200ms)
+   - Handles version conflicts by retrying entire transaction
+   - Re-reads current items and re-applies updaters on each retry
+   - Validates operations (max 25, table existence, required fields)
+
+3. **Database Integration**:
+   - Modified `database.ts` to build table name mappings
+   - Added `transactWrite` method to returned `DatabaseSchema` object
+   - Passes context (db, lowLevelClient, tableNameMap) to transaction function
+
+4. **Comprehensive Test Coverage**:
+   - 16 unit tests covering all operation types and scenarios
+   - Tests for direct values (Put, Update, Delete, ConditionCheck)
+   - Tests for updater functions (existing items, new items)
+   - Tests for mixed operations
+   - Tests for version conflict retries
+   - Tests for validation errors
+   - Tests for non-retryable errors
+
+**Files Created**:
+- `apps/backend/src/tables/transactions.ts` - Transaction implementation with retry logic
+- `apps/backend/src/tables/__tests__/transactions.test.ts` - Comprehensive test suite (16 tests)
+
+**Files Modified**:
+- `apps/backend/src/tables/schema.ts` - Added transaction types and extended DatabaseSchema
+- `apps/backend/src/tables/database.ts` - Added transactWrite method integration
+
+**Verification**: All tests passing (16/16), typecheck and lint clean ✅
+
+**Previous Status**: OpenRouter Cost Verification Retry Logic & Error Handling - Completed ✅
+
+**Previous Work**: Added exponential backoff retry logic to OpenRouter cost fetching with proper error handling to ensure no masked errors. All errors that prevent cost computation are now properly thrown and logged.
 
 **Recent Changes**:
 
