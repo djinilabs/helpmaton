@@ -1,3 +1,25 @@
+import {
+  ChatBubbleLeftRightIcon,
+  ChatBubbleLeftIcon,
+  LightBulbIcon,
+  Cog6ToothIcon,
+  UserGroupIcon,
+  BoltIcon,
+  MagnifyingGlassIcon,
+  DocumentMagnifyingGlassIcon,
+  EnvelopeIcon,
+  GlobeAltIcon,
+  LinkIcon,
+  ComputerDesktopIcon,
+  ServerIcon,
+  SignalIcon,
+  CreditCardIcon,
+  ChartBarIcon,
+  ExclamationTriangleIcon,
+  CurrencyDollarIcon,
+  BeakerIcon,
+  WrenchScrewdriverIcon,
+} from "@heroicons/react/24/outline";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { useState, Suspense, useRef, useEffect, lazy } from "react";
 import type { FC } from "react";
@@ -1186,11 +1208,23 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           </div>
         </div>
 
-        <SectionGroup title="🧪 Testing & Interactions">
+        <SectionGroup
+          title={
+            <>
+              <BeakerIcon className="mr-2 inline-block size-5" />
+              Testing & Interactions
+            </>
+          }
+        >
           {/* Chat Test Section */}
           <AccordionSection
             id="test"
-            title="💬 TEST AGENT"
+            title={
+              <>
+                <ChatBubbleLeftRightIcon className="mr-2 inline-block size-5" />
+                TEST AGENT
+              </>
+            }
             isExpanded={expandedSection === "test"}
             onToggle={() => toggleSection("test")}
           >
@@ -1202,7 +1236,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {/* Recent Conversations Section */}
           <AccordionSection
             id="conversations"
-            title="💭 RECENT CONVERSATIONS"
+            title={
+              <>
+                <ChatBubbleLeftIcon className="mr-2 inline-block size-5" />
+                RECENT CONVERSATIONS
+              </>
+            }
             isExpanded={expandedSection === "conversations"}
             onToggle={() => toggleSection("conversations")}
           >
@@ -1220,7 +1259,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {/* Memory Records Section */}
           <AccordionSection
             id="memory"
-            title="🧠 MEMORY RECORDS"
+            title={
+              <>
+                <LightBulbIcon className="mr-2 inline-block size-5" />
+                MEMORY RECORDS
+              </>
+            }
             isExpanded={expandedSection === "memory"}
             onToggle={() => toggleSection("memory")}
           >
@@ -1230,12 +1274,24 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           </AccordionSection>
         </SectionGroup>
 
-        <SectionGroup title="⚙️ Configuration">
+        <SectionGroup
+          title={
+            <>
+              <Cog6ToothIcon className="mr-2 inline-block size-5" />
+              Configuration
+            </>
+          }
+        >
           {/* Delegation Section */}
           {canEdit && (
             <AccordionSection
               id="delegation"
-              title="🤝 DELEGATION"
+              title={
+                <>
+                  <UserGroupIcon className="mr-2 inline-block size-5" />
+                  DELEGATION
+                </>
+              }
               isExpanded={expandedSection === "delegation"}
               onToggle={() => toggleSection("delegation")}
             >
@@ -1313,7 +1369,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="advanced"
-              title="🔧 ADVANCED"
+              title={
+                <>
+                  <WrenchScrewdriverIcon className="mr-2 inline-block size-5" />
+                  ADVANCED
+                </>
+              }
               isExpanded={expandedSection === "advanced"}
               onToggle={() => toggleSection("advanced")}
             >
@@ -1525,12 +1586,24 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           )}
         </SectionGroup>
 
-        <SectionGroup title="🔌 Integration">
+        <SectionGroup
+          title={
+            <>
+              <BoltIcon className="mr-2 inline-block size-5" />
+              Integration
+            </>
+          }
+        >
           {/* MCP Servers Section */}
           {canEdit && (
             <AccordionSection
               id="mcp-servers"
-              title="🔌 MCP SERVERS"
+              title={
+                <>
+                  <BoltIcon className="mr-2 inline-block size-5" />
+                  MCP SERVERS
+                </>
+              }
               isExpanded={expandedSection === "mcp-servers"}
               onToggle={() => toggleSection("mcp-servers")}
             >
@@ -1590,7 +1663,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="memory-search"
-              title="🔍 MEMORY SEARCH TOOL"
+              title={
+                <>
+                  <MagnifyingGlassIcon className="mr-2 inline-block size-5" />
+                  MEMORY SEARCH TOOL
+                </>
+              }
               isExpanded={expandedSection === "memory-search"}
               onToggle={() => toggleSection("memory-search")}
             >
@@ -1604,8 +1682,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     past conversations.
                   </p>
                   <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
-                    <p className="mb-2 text-sm font-semibold text-yellow-900">
-                      ⚠️ Privacy Warning
+                    <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-yellow-900">
+                      <ExclamationTriangleIcon className="size-4" />
+                      Privacy Warning
                     </p>
                     <p className="text-sm text-yellow-900">
                       Activating the memory search tool may result in data
@@ -1649,7 +1728,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="document-search"
-              title="📄 DOCUMENT SEARCH TOOL"
+              title={
+                <>
+                  <DocumentMagnifyingGlassIcon className="mr-2 inline-block size-5" />
+                  DOCUMENT SEARCH TOOL
+                </>
+              }
               isExpanded={expandedSection === "document-search"}
               onToggle={() => toggleSection("document-search")}
             >
@@ -1696,7 +1780,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="email-tool"
-              title="📧 EMAIL TOOL"
+              title={
+                <>
+                  <EnvelopeIcon className="mr-2 inline-block size-5" />
+                  EMAIL TOOL
+                </>
+              }
               isExpanded={expandedSection === "email-tool"}
               onToggle={() => toggleSection("email-tool")}
             >
@@ -1710,8 +1799,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   </p>
                   {!emailConnection && (
                     <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
-                      <p className="text-sm font-semibold text-yellow-900">
-                        ⚠️ Email Connection Required
+                      <p className="flex items-center gap-2 text-sm font-semibold text-yellow-900">
+                        <ExclamationTriangleIcon className="size-4" />
+                        Email Connection Required
                       </p>
                       <p className="mt-1 text-sm text-yellow-800">
                         This workspace does not have an email connection
@@ -1755,7 +1845,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="tavily-search"
-              title="🌐 TAVILY SEARCH TOOL"
+              title={
+                <>
+                  <GlobeAltIcon className="mr-2 inline-block size-5" />
+                  TAVILY SEARCH TOOL
+                </>
+              }
               isExpanded={expandedSection === "tavily-search"}
               onToggle={() => toggleSection("tavily-search")}
             >
@@ -1801,7 +1896,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="tavily-fetch"
-              title="🔗 TAVILY FETCH TOOL"
+              title={
+                <>
+                  <LinkIcon className="mr-2 inline-block size-5" />
+                  TAVILY FETCH TOOL
+                </>
+              }
               isExpanded={expandedSection === "tavily-fetch"}
               onToggle={() => toggleSection("tavily-fetch")}
             >
@@ -1848,7 +1948,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="client-tools"
-              title="💻 CLIENT-SIDE TOOLS"
+              title={
+                <>
+                  <ComputerDesktopIcon className="mr-2 inline-block size-5" />
+                  CLIENT-SIDE TOOLS
+                </>
+              }
               isExpanded={expandedSection === "client-tools"}
               onToggle={() => toggleSection("client-tools")}
             >
@@ -1878,12 +1983,24 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           )}
         </SectionGroup>
 
-        <SectionGroup title="🖥️ Servers">
+        <SectionGroup
+          title={
+            <>
+              <ServerIcon className="mr-2 inline-block size-5" />
+              Servers
+            </>
+          }
+        >
           {/* Stream Server Section */}
           {canEdit && (
             <AccordionSection
               id="stream-server"
-              title="📡 STREAM SERVER"
+              title={
+                <>
+                  <SignalIcon className="mr-2 inline-block size-5" />
+                  STREAM SERVER
+                </>
+              }
               isExpanded={expandedSection === "stream-server"}
               onToggle={() => toggleSection("stream-server")}
             >
@@ -1895,8 +2012,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 </p>
                 {!streamUrlData && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                    <p className="mb-1 font-semibold text-amber-800">
-                      ⚠️ Streaming Function URL Not Configured
+                    <p className="mb-1 flex items-center gap-2 font-semibold text-amber-800">
+                      <ExclamationTriangleIcon className="size-4" />
+                      Streaming Function URL Not Configured
                     </p>
                     <p className="text-xs text-yellow-700">
                       The Lambda Function URL may not be deployed yet, or the
@@ -2167,7 +2285,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {/* Webhooks Management Section */}
           <AccordionSection
             id="keys"
-            title="🪝 WEBHOOKS"
+            title={
+              <>
+                <LinkIcon className="mr-2 inline-block size-5" />
+                WEBHOOKS
+              </>
+            }
             isExpanded={expandedSection === "keys"}
             onToggle={() => toggleSection("keys")}
           >
@@ -2257,12 +2380,24 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           </AccordionSection>
         </SectionGroup>
 
-        <SectionGroup title="💰 Billing & Usage">
+        <SectionGroup
+          title={
+            <>
+              <CurrencyDollarIcon className="mr-2 inline-block size-5" />
+              Billing & Usage
+            </>
+          }
+        >
           {/* Spending Limits Section */}
           {canEdit && (
             <AccordionSection
               id="spending-limits"
-              title="💳 SPENDING LIMITS"
+              title={
+                <>
+                  <CreditCardIcon className="mr-2 inline-block size-5" />
+                  SPENDING LIMITS
+                </>
+              }
               isExpanded={expandedSection === "spending-limits"}
               onToggle={() => toggleSection("spending-limits")}
             >
@@ -2282,7 +2417,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           {/* Usage Section */}
           <AccordionSection
             id="usage"
-            title="📊 AGENT USAGE"
+            title={
+              <>
+                <ChartBarIcon className="mr-2 inline-block size-5" />
+                AGENT USAGE
+              </>
+            }
             isExpanded={expandedSection === "usage"}
             onToggle={() => toggleSection("usage")}
           >
@@ -2295,7 +2435,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
         {canEdit && (
           <AccordionSection
             id="danger"
-            title="⚠️ DANGER ZONE"
+            title={
+              <>
+                <ExclamationTriangleIcon className="mr-2 inline-block size-5" />
+                DANGER ZONE
+              </>
+            }
             isExpanded={expandedSection === "danger"}
             onToggle={() => toggleSection("danger")}
           >

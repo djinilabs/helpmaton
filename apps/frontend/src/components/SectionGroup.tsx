@@ -1,7 +1,7 @@
 import type { FC, ReactNode } from "react";
 
 interface SectionGroupProps {
-  title: string;
+  title: string | ReactNode;
   children: ReactNode;
 }
 

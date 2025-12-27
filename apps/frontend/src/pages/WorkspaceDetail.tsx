@@ -1,3 +1,20 @@
+import {
+  ArchiveBoxIcon,
+  ChatBubbleLeftRightIcon,
+  CurrencyDollarIcon,
+  Cog6ToothIcon,
+  BoltIcon,
+  CpuChipIcon,
+  DocumentTextIcon,
+  MegaphoneIcon,
+  EnvelopeIcon,
+  CreditCardIcon,
+  ArrowTrendingDownIcon,
+  ChartBarIcon,
+  KeyIcon,
+  UsersIcon,
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
 import { useQueryErrorResetBoundary, useQuery } from "@tanstack/react-query";
 import { useState, Suspense, lazy } from "react";
 import type { FC } from "react";
@@ -495,10 +512,22 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           />
         )}
 
-        <SectionGroup title="📦 Resources">
+        <SectionGroup
+          title={
+            <>
+              <ArchiveBoxIcon className="mr-2 inline-block size-5" />
+              Resources
+            </>
+          }
+        >
           <AccordionSection
             id="agents"
-            title="🤖 Agents"
+            title={
+              <>
+                <CpuChipIcon className="mr-2 inline-block size-5" />
+                Agents
+              </>
+            }
             isExpanded={expandedSection === "agents"}
             onToggle={() => toggleSection("agents")}
           >
@@ -515,7 +544,12 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
           <AccordionSection
             id="documents"
-            title="📄 Documents"
+            title={
+              <>
+                <DocumentTextIcon className="mr-2 inline-block size-5" />
+                Documents
+              </>
+            }
             isExpanded={expandedSection === "documents"}
             onToggle={() => toggleSection("documents")}
           >
@@ -542,10 +576,22 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           </AccordionSection>
         </SectionGroup>
 
-        <SectionGroup title="💬 Communications">
+        <SectionGroup
+          title={
+            <>
+              <ChatBubbleLeftRightIcon className="mr-2 inline-block size-5" />
+              Communications
+            </>
+          }
+        >
           <AccordionSection
             id="channels"
-            title="📢 Channels"
+            title={
+              <>
+                <MegaphoneIcon className="mr-2 inline-block size-5" />
+                Channels
+              </>
+            }
             isExpanded={expandedSection === "channels"}
             onToggle={() => toggleSection("channels")}
           >
@@ -565,7 +611,12 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
           <AccordionSection
             id="email-connection"
-            title="📧 Email Connection"
+            title={
+              <>
+                <EnvelopeIcon className="mr-2 inline-block size-5" />
+                Email Connection
+              </>
+            }
             isExpanded={expandedSection === "email-connection"}
             onToggle={() => toggleSection("email-connection")}
           >
@@ -579,10 +630,22 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           </AccordionSection>
         </SectionGroup>
 
-        <SectionGroup title="💰 Billing & Usage">
+        <SectionGroup
+          title={
+            <>
+              <CurrencyDollarIcon className="mr-2 inline-block size-5" />
+              Billing & Usage
+            </>
+          }
+        >
           <AccordionSection
             id="credits"
-            title="💳 Credit Balance"
+            title={
+              <>
+                <CreditCardIcon className="mr-2 inline-block size-5" />
+                Credit Balance
+              </>
+            }
             isExpanded={expandedSection === "credits"}
             onToggle={() => toggleSection("credits")}
           >
@@ -603,7 +666,12 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="spending-limits"
-              title="💸 Spending Limits"
+              title={
+                <>
+                  <ArrowTrendingDownIcon className="mr-2 inline-block size-5" />
+                  Spending Limits
+                </>
+              }
               isExpanded={expandedSection === "spending-limits"}
               onToggle={() => toggleSection("spending-limits")}
             >
@@ -621,7 +689,12 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
           <AccordionSection
             id="usage"
-            title="📊 Workspace Usage"
+            title={
+              <>
+                <ChartBarIcon className="mr-2 inline-block size-5" />
+                Workspace Usage
+              </>
+            }
             isExpanded={expandedSection === "usage"}
             onToggle={() => toggleSection("usage")}
           >
@@ -631,11 +704,23 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           </AccordionSection>
         </SectionGroup>
 
-        <SectionGroup title="⚙️ Configuration">
+        <SectionGroup
+          title={
+            <>
+              <Cog6ToothIcon className="mr-2 inline-block size-5" />
+              Configuration
+            </>
+          }
+        >
           {canEdit && (
             <AccordionSection
               id="api-key"
-              title="🔑 API Key"
+              title={
+                <>
+                  <KeyIcon className="mr-2 inline-block size-5" />
+                  API Key
+                </>
+              }
               isExpanded={expandedSection === "api-key"}
               onToggle={() => toggleSection("api-key")}
             >
@@ -651,7 +736,12 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           {canEdit && (
             <AccordionSection
               id="mcp-servers"
-              title="🔌 MCP Servers"
+              title={
+                <>
+                  <BoltIcon className="mr-2 inline-block size-5" />
+                  MCP Servers
+                </>
+              }
               isExpanded={expandedSection === "mcp-servers"}
               onToggle={() => toggleSection("mcp-servers")}
             >
@@ -666,7 +756,12 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
 
         <AccordionSection
           id="team"
-          title="👥 Team"
+          title={
+            <>
+              <UsersIcon className="mr-2 inline-block size-5" />
+              Team
+            </>
+          }
           isExpanded={expandedSection === "team"}
           onToggle={() => toggleSection("team")}
         >
@@ -716,7 +811,12 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
         {canDelete && (
           <AccordionSection
             id="danger"
-            title="⚠️ Danger Zone"
+            title={
+              <>
+                <ExclamationTriangleIcon className="mr-2 inline-block size-5" />
+                Danger Zone
+              </>
+            }
             isExpanded={expandedSection === "danger"}
             onToggle={() => toggleSection("danger")}
           >

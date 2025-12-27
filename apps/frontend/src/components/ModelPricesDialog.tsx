@@ -1,3 +1,4 @@
+import { InformationCircleIcon } from "@heroicons/react/24/outline";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import type { FC } from "react";
@@ -211,8 +212,9 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
             </div>
 
             <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950">
-              <p className="mb-2 text-sm font-semibold text-blue-800 dark:text-blue-200">
-                ℹ️ Pricing Information
+              <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-blue-800 dark:text-blue-200">
+                <InformationCircleIcon className="size-4" />
+                Pricing Information
               </p>
               <p className="text-xs text-blue-900 dark:text-blue-100">
                 All prices are in USD. Token prices are per 1 million tokens, while

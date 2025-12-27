@@ -1,3 +1,4 @@
+import { CheckCircleIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import type { FC, JSX } from "react";
 import ReactMarkdown from "react-markdown";
@@ -116,8 +117,9 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                     key={itemIndex}
                     className="rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950"
                   >
-                    <div className="mb-2 text-xs font-medium text-green-700 dark:text-green-300">
-                      ✅ Tool Result: {toolName}
+                    <div className="mb-2 flex items-center gap-2 text-xs font-medium text-green-700 dark:text-green-300">
+                      <CheckCircleIcon className="size-3" />
+                      Tool Result: {toolName}
                     </div>
                     <div className="mb-2 flex items-center gap-2">
                       <span className="rounded bg-green-100 px-2 py-1 font-mono text-xs font-semibold text-green-600 dark:bg-green-900 dark:text-green-300">
