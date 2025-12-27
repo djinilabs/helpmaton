@@ -652,13 +652,13 @@ async function callAgentInternal(
   // Add web search tool if enabled
   if (targetAgent.enableTavilySearch === true) {
     const { createTavilySearchTool } = await import("./tavilyTools");
-    tools.search_web = createTavilySearchTool(workspaceId);
+    tools.search_web = createTavilySearchTool(workspaceId, context);
   }
 
   // Add web fetch tool if enabled
   if (targetAgent.enableTavilyFetch === true) {
     const { createTavilyFetchTool } = await import("./tavilyTools");
-    tools.fetch_web = createTavilyFetchTool(workspaceId);
+    tools.fetch_web = createTavilyFetchTool(workspaceId, context);
   }
 
   if (targetAgent.notificationChannelId) {

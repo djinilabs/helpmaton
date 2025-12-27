@@ -142,6 +142,9 @@ export interface CreditReservation {
  * @param estimatedCost - Estimated cost for the LLM call
  * @param maxRetries - Maximum number of retries (default: 3)
  * @param usesByok - Whether request was made with user key (BYOK)
+ * @param context - Augmented Lambda context for transaction creation (optional)
+ * @param provider - LLM provider name for transaction metadata (optional)
+ * @param modelName - Model name for transaction metadata (optional)
  * @returns Reservation info with reservationId, reservedAmount, and updated workspace
  * @throws InsufficientCreditsError if credit balance is insufficient
  */
@@ -150,7 +153,10 @@ export async function reserveCredits(
   workspaceId: string,
   estimatedCost: number,
   maxRetries: number = 3,
-  usesByok?: boolean
+  usesByok?: boolean,
+  context?: AugmentedContext,
+  provider?: string,
+  modelName?: string
 ): Promise<CreditReservation> {
   // Skip reservation if request was made with user key (BYOK)
   if (usesByok) {
@@ -255,6 +261,29 @@ export async function reserveCredits(
       currency: updated.currency,
       expires,
     });
+
+    // Create transaction record if context is provided
+    if (context) {
+      const effectiveProvider = provider || "openrouter";
+      const effectiveModel = modelName || "unknown";
+      
+      console.log("[reserveCredits] Creating credit transaction (Step 1):", {
+        workspaceId,
+        reservationId,
+        estimatedCost,
+        provider: effectiveProvider,
+        model: effectiveModel,
+      });
+
+      context.addWorkspaceCreditTransaction({
+        workspaceId,
+        source: "text-generation",
+        supplier: effectiveProvider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter for now
+        model: effectiveModel,
+        description: "Initial credit reservation (Step 1)",
+        amountMillionthUsd: estimatedCost,
+      });
+    }
 
     return {
       reservationId,

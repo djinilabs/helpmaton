@@ -377,7 +377,8 @@ export const registerPostTestAgent = (app: express.Application) => {
           agent.systemPrompt,
           tools,
           usesByok,
-          "test"
+          "test",
+          context
         );
 
         // Prepare LLM call (logging and generate options)

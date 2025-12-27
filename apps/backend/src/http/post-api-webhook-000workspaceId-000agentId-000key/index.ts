@@ -260,7 +260,8 @@ export const handler = adaptHttpHandler(
           agent.systemPrompt,
           tools,
           usesByok,
-          "webhook"
+          "webhook",
+          context
         );
 
         // Prepare LLM call (logging and generate options)

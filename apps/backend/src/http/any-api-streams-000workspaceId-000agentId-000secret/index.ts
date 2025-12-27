@@ -506,7 +506,8 @@ async function validateCreditsAndReserveBeforeLLM(
   agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"],
   modelMessages: ModelMessage[],
   tools: Awaited<ReturnType<typeof setupAgentAndTools>>["tools"],
-  usesByok: boolean
+  usesByok: boolean,
+  context?: Awaited<ReturnType<typeof getContextFromRequestId>>
 ): Promise<string | undefined> {
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
@@ -522,7 +523,8 @@ async function validateCreditsAndReserveBeforeLLM(
     agent.systemPrompt,
     tools,
     usesByok,
-    "stream"
+    "stream",
+    context
   );
 }
 
@@ -1291,7 +1293,8 @@ async function buildRequestContext(
     agent,
     modelMessages,
     tools,
-    usesByok
+    usesByok,
+    lambdaContext
   );
 
   // Extract request ID from Lambda Function URL event (for context access)

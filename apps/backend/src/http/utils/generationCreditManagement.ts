@@ -54,7 +54,8 @@ export async function validateAndReserveCredits(
   systemPrompt: string,
   tools: Record<string, unknown> | undefined,
   usesByok: boolean,
-  endpoint: GenerationEndpoint
+  endpoint: GenerationEndpoint,
+  context?: AugmentedContext
 ): Promise<string | undefined> {
   const toolDefinitions = convertToolsToDefinitions(tools);
 
@@ -67,7 +68,8 @@ export async function validateAndReserveCredits(
     modelMessages,
     systemPrompt,
     toolDefinitions,
-    usesByok
+    usesByok,
+    context
   );
 
   if (reservation) {

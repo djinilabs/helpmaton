@@ -22,12 +22,18 @@ import {
   refundTavilyCredits,
   calculateTavilyCost,
 } from "../../utils/tavilyCredits";
+import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 /**
  * Create web search tool
  * Searches the web using Tavily search API
+ * @param workspaceId - Workspace ID
+ * @param context - Augmented Lambda context for transaction creation (optional)
  */
-export function createTavilySearchTool(workspaceId: string) {
+export function createTavilySearchTool(
+  workspaceId: string,
+  context?: AugmentedContext
+) {
   const searchParamsSchema = z.object({
     query: z
       .string()
@@ -97,11 +103,17 @@ export function createTavilySearchTool(workspaceId: string) {
         const shouldReserveCredits = !withinFreeLimit;
 
         if (shouldReserveCredits) {
+          if (!context) {
+            throw new Error(
+              "Context not available for Tavily credit transactions (search_web)"
+            );
+          }
           const reservation = await reserveTavilyCredits(
             db,
             workspaceId,
             1, // Estimate: 1 credit per call
-            3 // maxRetries
+            3, // maxRetries
+            context
           );
           reservationId = reservation.reservationId;
           console.log("[search_web] Reserved credits:", {
@@ -139,11 +151,18 @@ export function createTavilySearchTool(workspaceId: string) {
           reservationId !== "byok" &&
           reservationId !== "zero-cost"
         ) {
+          if (!context) {
+            throw new Error(
+              "Context not available for Tavily credit transactions (search_web adjustment)"
+            );
+          }
           await adjustTavilyCreditReservation(
             db,
             reservationId,
             workspaceId,
             actualCreditsUsed,
+            context,
+            "search_web",
             3 // maxRetries
           );
           console.log("[search_web] Adjusted credits:", {
@@ -196,7 +215,19 @@ export function createTavilySearchTool(workspaceId: string) {
           reservationId !== "zero-cost"
         ) {
           try {
-            await refundTavilyCredits(db, reservationId, workspaceId, 3);
+            if (!context) {
+              throw new Error(
+                "Context not available for Tavily credit transactions (search_web refund)"
+              );
+            }
+            await refundTavilyCredits(
+              db,
+              reservationId,
+              workspaceId,
+              context,
+              "search_web",
+              3
+            );
             console.log("[search_web] Refunded credits due to error:", {
               workspaceId,
               reservationId,
@@ -230,8 +261,13 @@ export function createTavilySearchTool(workspaceId: string) {
 /**
  * Create web fetch tool
  * Extracts and summarizes content from a URL using Tavily extract API
+ * @param workspaceId - Workspace ID
+ * @param context - Augmented Lambda context for transaction creation (optional)
  */
-export function createTavilyFetchTool(workspaceId: string) {
+export function createTavilyFetchTool(
+  workspaceId: string,
+  context?: AugmentedContext
+) {
   const fetchParamsSchema = z.object({
     url: z
       .string()
@@ -297,11 +333,17 @@ export function createTavilyFetchTool(workspaceId: string) {
         const shouldReserveCredits = !withinFreeLimit;
 
         if (shouldReserveCredits) {
+          if (!context) {
+            throw new Error(
+              "Context not available for Tavily credit transactions (fetch_web)"
+            );
+          }
           const reservation = await reserveTavilyCredits(
             db,
             workspaceId,
             1, // Estimate: 1 credit per call
-            3 // maxRetries
+            3, // maxRetries
+            context
           );
           reservationId = reservation.reservationId;
           console.log("[fetch_web] Reserved credits:", {
@@ -337,11 +379,18 @@ export function createTavilyFetchTool(workspaceId: string) {
           reservationId !== "byok" &&
           reservationId !== "zero-cost"
         ) {
+          if (!context) {
+            throw new Error(
+              "Context not available for Tavily credit transactions (fetch_web adjustment)"
+            );
+          }
           await adjustTavilyCreditReservation(
             db,
             reservationId,
             workspaceId,
             actualCreditsUsed,
+            context,
+            "fetch_web",
             3 // maxRetries
           );
           console.log("[fetch_web] Adjusted credits:", {
@@ -388,7 +437,19 @@ export function createTavilyFetchTool(workspaceId: string) {
           reservationId !== "zero-cost"
         ) {
           try {
-            await refundTavilyCredits(db, reservationId, workspaceId, 3);
+            if (!context) {
+              throw new Error(
+                "Context not available for Tavily credit transactions (fetch_web refund)"
+              );
+            }
+            await refundTavilyCredits(
+              db,
+              reservationId,
+              workspaceId,
+              context,
+              "fetch_web",
+              3
+            );
             console.log("[fetch_web] Refunded credits due to error:", {
               workspaceId,
               reservationId,
