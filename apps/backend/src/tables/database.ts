@@ -88,11 +88,12 @@ export const database = once(async (): Promise<DatabaseSchemaWithAtomicUpdate> =
     recordSpec: AtomicUpdateRecordSpec,
     callback: AtomicUpdateCallback
   ): Promise<TableRecord[]> => {
-    const maxRetries = 3;
+    const maxAttempts = 4; // 1 initial attempt + 3 retries
     let lastError: Error | undefined;
-    let retryCount = 0;
+    let attemptCount = 0;
 
-    while (retryCount <= maxRetries) {
+    while (attemptCount < maxAttempts) {
+      attemptCount++;
       try {
         // Phase 1: Fetch all records
         const fetchedRecords = new Map<string, TableRecord | undefined>();
@@ -132,7 +133,13 @@ export const database = once(async (): Promise<DatabaseSchemaWithAtomicUpdate> =
           // Find matching recordSpec by matching pk/sk
           let matchedSpec: { key: string; spec: { table: TableName; pk: string; sk?: string } } | undefined;
           for (const [key, spec] of recordSpec.entries()) {
-            if (recordToPut.pk === spec.pk && (spec.sk === undefined || recordToPut.sk === spec.sk)) {
+            if (
+              recordToPut.pk === spec.pk &&
+              (
+                (spec.sk === undefined && recordToPut.sk === undefined) ||
+                (spec.sk !== undefined && recordToPut.sk === spec.sk)
+              )
+            ) {
               matchedSpec = { key, spec };
               break;
             }
@@ -238,20 +245,19 @@ export const database = once(async (): Promise<DatabaseSchemaWithAtomicUpdate> =
             err.message.toLowerCase().includes("transaction cancelled") ||
             err.message.toLowerCase().includes("transactionconflict"));
 
-        if (isConditionalCheckError && retryCount < maxRetries) {
-          retryCount++;
+        if (isConditionalCheckError && attemptCount < maxAttempts) {
           // No exponential backoff - just retry immediately
           continue;
         }
 
-        // If it's not a conditional check error, or we've exceeded max retries, throw
+        // If it's not a conditional check error, or we've exceeded max attempts, throw
         throw lastError;
       }
     }
 
     // Should never reach here, but TypeScript needs this
     throw conflict(
-      `Failed to atomically update records after ${maxRetries} retries: ${
+      `Failed to atomically update records after ${maxAttempts} attempts: ${
         lastError?.message || "Unknown error"
       }`
     );
