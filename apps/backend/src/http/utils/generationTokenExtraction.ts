@@ -2,7 +2,7 @@ import {
   extractTokenUsage,
   type TokenUsage,
   type GenerateTextResultWithTotalUsage,
-  type StreamTextFinishResult,
+  type StreamTextResultWithResolvedUsage,
 } from "../../utils/conversationLogger";
 import {
   extractOpenRouterCost,
@@ -26,7 +26,7 @@ export interface TokenAndCostExtraction {
  * Extracts token usage, generation ID, and costs from LLM result
  */
 export function extractTokenUsageAndCosts(
-  result: GenerateTextResultWithTotalUsage | StreamTextFinishResult | unknown,
+  result: GenerateTextResultWithTotalUsage | StreamTextResultWithResolvedUsage | unknown,
   usage: unknown,
   modelName: string | undefined,
   endpoint: GenerationEndpoint

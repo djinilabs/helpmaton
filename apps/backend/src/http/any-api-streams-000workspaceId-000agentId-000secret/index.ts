@@ -52,8 +52,9 @@ import {
   updateConversation,
   buildConversationErrorInfo,
   type GenerateTextResultWithTotalUsage,
-  type StreamTextFinishResult,
+  type StreamTextResultWithResolvedUsage,
   type TokenUsage,
+  type LanguageModelUsage,
 } from "../../utils/conversationLogger";
 import {
   transformLambdaUrlToHttpV2Event,
@@ -919,12 +920,15 @@ async function logConversation(
     }
 
     // Extract token usage, generation ID, and costs
-    // streamResult from onFinish has totalUsage property
+    // streamResult.totalUsage is a Promise, so we need to await it
+    const totalUsage = await streamResult.totalUsage;
+    // Pass totalUsage directly - extractTokenUsage handles field name variations
+    // (LanguageModelV2Usage may use different field names than our LanguageModelUsage)
     const {
       openrouterGenerationId,
       provisionalCostUsd: extractedProvisionalCostUsd,
     } = extractTokenUsageAndCosts(
-      streamResult as unknown as StreamTextFinishResult,
+      { totalUsage } as unknown as StreamTextResultWithResolvedUsage,
       undefined,
       finalModelName,
       "stream"
@@ -1536,9 +1540,12 @@ const internalHandler = async (
     });
 
     // Extract token usage, generation ID, and costs
-    // streamResult from onFinish has totalUsage property
+    // streamResult.totalUsage is a Promise, so we need to await it
+    const totalUsage = await streamResult.totalUsage;
+    // Pass totalUsage directly - extractTokenUsage handles field name variations
+    // (LanguageModelV2Usage may use different field names than our LanguageModelUsage)
     const { tokenUsage } = extractTokenUsageAndCosts(
-      streamResult as unknown as StreamTextFinishResult,
+      { totalUsage } as unknown as StreamTextResultWithResolvedUsage,
       usage,
       context.finalModelName,
       "stream"

@@ -33,11 +33,19 @@ export interface GenerateTextResultWithTotalUsage {
 }
 
 /**
- * Type representing a result from streamText (onFinish callback)
+ * Type representing a result from streamText with resolved totalUsage
+ * streamText returns totalUsage as a Promise, so we need to await it
+ * totalUsage is LanguageModelV2Usage from AI SDK, which extractTokenUsage handles
  */
-export interface StreamTextFinishResult {
-  totalUsage: LanguageModelUsage;
-  steps?: Array<{ usage?: LanguageModelUsage }>;
+export interface StreamTextResultWithResolvedUsage {
+  totalUsage: unknown; // LanguageModelV2Usage from AI SDK - extractTokenUsage handles field name variations
+  usage?: unknown;
+  steps?: Array<{ usage?: unknown }>;
+  _steps?: {
+    status?: {
+      value?: Array<{ usage?: unknown }>;
+    };
+  };
 }
 
 export interface TokenUsage {
@@ -1494,7 +1502,10 @@ export function aggregateTokenUsage(
  * Falls back to usage or step aggregation for backward compatibility
  */
 export function extractTokenUsage(
-  result: GenerateTextResultWithTotalUsage | StreamTextFinishResult | unknown
+  result:
+    | GenerateTextResultWithTotalUsage
+    | StreamTextResultWithResolvedUsage
+    | unknown
 ): TokenUsage | undefined {
   if (!result || typeof result !== "object") {
     return undefined;
@@ -1504,8 +1515,12 @@ export function extractTokenUsage(
   // This is the preferred method as it aggregates all steps automatically
   const typedResult = result as
     | GenerateTextResultWithTotalUsage
-    | StreamTextFinishResult;
-  let usage: LanguageModelUsage | undefined = typedResult.totalUsage;
+    | StreamTextResultWithResolvedUsage;
+  // totalUsage may be LanguageModelUsage (from generateText) or LanguageModelV2Usage (from streamText)
+  // extractTokenUsage handles both formats, so we pass it through
+  let usage: LanguageModelUsage | unknown | undefined =
+    (typedResult as GenerateTextResultWithTotalUsage).totalUsage ??
+    (typedResult as StreamTextResultWithResolvedUsage).totalUsage;
 
   // Fall back to top-level usage if totalUsage is not available
   if (!usage) {
@@ -1577,7 +1592,9 @@ export function extractTokenUsage(
     usageObject: JSON.stringify(usage, null, 2),
     resultKeys: Object.keys(result),
     hasTotalUsage: !!(
-      typedResult as GenerateTextResultWithTotalUsage | StreamTextFinishResult
+      typedResult as
+        | GenerateTextResultWithTotalUsage
+        | StreamTextResultWithResolvedUsage
     ).totalUsage,
   });
 
@@ -1586,25 +1603,26 @@ export function extractTokenUsage(
   // Standard: promptTokens/completionTokens (AI SDK format)
   // Legacy: inputTokens/outputTokens (some provider adapters)
   // Legacy: promptTokenCount/completionTokenCount (Google API format)
+  // LanguageModelV2Usage from streamText may use different field names
   const usageAny = usage as unknown as Record<string, unknown>;
   const promptTokens =
-    (usage.promptTokens as number | undefined) ??
+    ((usage as LanguageModelUsage).promptTokens as number | undefined) ??
     (usageAny.inputTokens as number | undefined) ??
     (usageAny.promptTokenCount as number | undefined) ??
     0;
   const completionTokens =
-    (usage.completionTokens as number | undefined) ??
+    ((usage as LanguageModelUsage).completionTokens as number | undefined) ??
     (usageAny.outputTokens as number | undefined) ??
     (usageAny.completionTokenCount as number | undefined) ??
     0;
   const totalTokens =
-    (usage.totalTokens as number | undefined) ??
+    ((usage as LanguageModelUsage).totalTokens as number | undefined) ??
     (usageAny.totalTokenCount as number | undefined) ??
     0;
 
   // Extract cached prompt tokens (various field names for backward compatibility)
   const cachedPromptTokens =
-    (usage.cachedPromptTokens as number | undefined) ??
+    ((usage as LanguageModelUsage).cachedPromptTokens as number | undefined) ??
     (usageAny.cachedPromptTokenCount as number | undefined) ??
     (usageAny.cachedInputTokens as number | undefined) ??
     (usageAny.cachedTokens as number | undefined) ??
@@ -1612,8 +1630,9 @@ export function extractTokenUsage(
 
   // Extract reasoning tokens (various field names for backward compatibility)
   const reasoningTokens =
-    (usage.reasoningTokens as number | undefined) ??
+    ((usage as LanguageModelUsage).reasoningTokens as number | undefined) ??
     (usageAny.reasoning as number | undefined) ??
+    (usageAny.reasoningTokens as number | undefined) ??
     ((typedResult as Record<string, unknown>).reasoningTokens as
       | number
       | undefined) ??

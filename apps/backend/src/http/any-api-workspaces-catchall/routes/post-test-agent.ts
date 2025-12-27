@@ -10,7 +10,7 @@ import {
   updateConversation,
   buildConversationErrorInfo,
   type GenerateTextResultWithTotalUsage,
-  type StreamTextFinishResult,
+  type StreamTextResultWithResolvedUsage,
   type TokenUsage,
 } from "../../../utils/conversationLogger";
 import { isAuthenticationError } from "../../../utils/handlingErrors";
@@ -1172,15 +1172,15 @@ export const registerPostTestAgent = (app: express.Application) => {
       }
 
       // Extract token usage, generation IDs, and costs
-      // result from streamText has totalUsage in onFinish callback, but we extract from the result object
-      // usage is extracted separately from the stream result
+      // result from streamText has totalUsage as a Promise, but we're using usage which is already extracted
+      // For streamText, we pass the result with usage already extracted
       const {
         tokenUsage,
         openrouterGenerationId,
         openrouterGenerationIds,
         provisionalCostUsd,
       } = extractTokenUsageAndCosts(
-        result as unknown as GenerateTextResultWithTotalUsage | StreamTextFinishResult,
+        result as unknown as GenerateTextResultWithTotalUsage | StreamTextResultWithResolvedUsage,
         usage,
         finalModelName,
         "test"
