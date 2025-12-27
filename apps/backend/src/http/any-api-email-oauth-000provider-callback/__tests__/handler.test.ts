@@ -23,6 +23,14 @@ const {
 });
 
 // Mock the app creation
+// Mock @architect/functions for database initialization (used by handlingErrors)
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
+
 vi.mock("../email-oauth-app", () => ({
   createApp: mockCreateApp,
 }));

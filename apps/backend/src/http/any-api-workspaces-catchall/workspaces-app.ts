@@ -20,6 +20,7 @@ import { registerGetAgentConversation } from "./routes/get-agent-conversation";
 import { registerGetAgentConversations } from "./routes/get-agent-conversations";
 import { registerGetAgentKeys } from "./routes/get-agent-keys";
 import { registerGetAgentMemory } from "./routes/get-agent-memory";
+import { registerGetAgentTransactions } from "./routes/get-agent-transactions";
 import { registerGetAgentUsage } from "./routes/get-agent-usage";
 import { registerGetAgentUsageDaily } from "./routes/get-agent-usage-daily";
 import { registerGetEmailConnection } from "./routes/get-email-connection";
@@ -44,6 +45,7 @@ import { registerGetWorkspaceEmailOauthCallback } from "./routes/get-workspace-e
 import { registerGetWorkspaceInvite } from "./routes/get-workspace-invite";
 import { registerGetWorkspaceInvites } from "./routes/get-workspace-invites";
 import { registerGetWorkspaceMembers } from "./routes/get-workspace-members";
+import { registerGetWorkspaceTransactions } from "./routes/get-workspace-transactions";
 import { registerGetWorkspaceUsage } from "./routes/get-workspace-usage";
 import { registerGetWorkspaceUsageDaily } from "./routes/get-workspace-usage-daily";
 import { registerGetWorkspaceUserLimit } from "./routes/get-workspace-user-limit";
@@ -91,6 +93,33 @@ export const createApp: () => express.Application = () => {
     next();
   });
 
+  // Add middleware to ensure requestId is available in headers for context lookup
+  // serverlessExpress attaches the event to req.apiGateway.event
+  app.use((req, res, next) => {
+    // Try to get requestId from various sources (priority order)
+    const requestId =
+      // First check headers (might already be set)
+      req.headers["x-amzn-requestid"] ||
+      req.headers["X-Amzn-Requestid"] ||
+      req.headers["x-request-id"] ||
+      req.headers["X-Request-Id"] ||
+      // Then check req.apiGateway.event (serverlessExpress attaches it)
+      req.apiGateway?.event?.requestContext?.requestId ||
+      // Fallback to Lambda context if available
+      req.context?.awsRequestId;
+
+    // If we found a requestId and it's not already in headers, add it
+    if (requestId && typeof requestId === "string") {
+      if (!req.headers["x-amzn-requestid"] && !req.headers["X-Amzn-Requestid"]) {
+        req.headers["x-amzn-requestid"] = requestId;
+      }
+      if (!req.headers["x-request-id"] && !req.headers["X-Request-Id"]) {
+        req.headers["x-request-id"] = requestId;
+      }
+    }
+    next();
+  });
+
   // Register all routes
   registerGetWorkspaces(app);
   registerPostWorkspaces(app);
@@ -131,6 +160,8 @@ export const createApp: () => express.Application = () => {
   registerDeleteWorkspaceApiKey(app);
   registerGetAgentConversations(app);
   registerGetAgentConversation(app);
+  registerGetAgentTransactions(app);
+  registerGetWorkspaceTransactions(app);
   registerGetWorkspaceDocuments(app);
   registerGetWorkspaceDocumentFolders(app);
   registerGetWorkspaceDocumentsSearch(app);

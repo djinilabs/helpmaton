@@ -1,6 +1,7 @@
 import { jsonSchema, tool } from "ai";
 
 import { database } from "../../../tables";
+import type { AugmentedContext } from "../../../utils/workspaceCreditContext";
 import {
   createAgentModel,
   createSearchDocumentsTool,
@@ -29,6 +30,8 @@ export interface AgentSetupOptions {
   callDepth?: number;
   maxDelegationDepth?: number;
   userId?: string;
+  context?: AugmentedContext;
+  conversationId?: string;
 }
 
 /**
@@ -122,7 +125,8 @@ export async function setupAgentAndTools(
   workspaceId: string,
   agentId: string,
   messages: unknown[],
-  options?: AgentSetupOptions
+  options?: AgentSetupOptions,
+  context?: AugmentedContext
 ): Promise<AgentSetup> {
   const { agent } = await validateWorkspaceAndAgent(workspaceId, agentId);
 
@@ -185,16 +189,29 @@ export async function setupAgentAndTools(
     }
   }
 
+  // Use context from options if available, otherwise use parameter
+  const effectiveContext = options?.context || context;
+
   // Add web search tool if enabled
   if (agent.enableTavilySearch === true) {
     const { createTavilySearchTool } = await import("../../utils/tavilyTools");
-    tools.search_web = createTavilySearchTool(workspaceId);
+    tools.search_web = createTavilySearchTool(
+      workspaceId,
+      effectiveContext,
+      extractedAgentId,
+      options?.conversationId
+    );
   }
 
   // Add web fetch tool if enabled
   if (agent.enableTavilyFetch === true) {
     const { createTavilyFetchTool } = await import("../../utils/tavilyTools");
-    tools.fetch_web = createTavilyFetchTool(workspaceId);
+    tools.fetch_web = createTavilyFetchTool(
+      workspaceId,
+      effectiveContext,
+      extractedAgentId,
+      options?.conversationId
+    );
   }
 
   // Add delegation tools if agent has delegatable agents configured
@@ -218,7 +235,8 @@ export async function setupAgentAndTools(
       agent.delegatableAgentIds,
       agentId,
       callDepth,
-      maxDepth
+      maxDepth,
+      options?.context
     );
   }
 

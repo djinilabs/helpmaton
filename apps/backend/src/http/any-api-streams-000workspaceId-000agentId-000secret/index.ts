@@ -51,8 +51,9 @@ import { database } from "../../tables";
 import {
   updateConversation,
   buildConversationErrorInfo,
+  type StreamTextResultWithResolvedUsage,
+  type TokenUsage,
 } from "../../utils/conversationLogger";
-import type { TokenUsage } from "../../utils/conversationLogger";
 import {
   transformLambdaUrlToHttpV2Event,
   type LambdaUrlEvent,
@@ -69,6 +70,7 @@ import {
   getAllowedOrigins,
   validateSecret,
 } from "../../utils/streamServerUtils";
+import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { setupAgentAndTools } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
   convertAiSdkUIMessagesToUIMessages,
@@ -128,12 +130,17 @@ async function persistConversationError(
   try {
     // Log error structure before extraction (especially for BYOK)
     if (context.usesByok) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
-      const errorAny = error instanceof Error ? (error as any) : undefined;
+      type ErrorWithCustomFields = Error & {
+        data?: { error?: { message?: string } };
+        statusCode?: number;
+        response?: { data?: { error?: { message?: string } } };
+      };
+      const errorAny =
+        error instanceof Error ? (error as ErrorWithCustomFields) : undefined;
 
       const causeAny =
         error instanceof Error && error.cause instanceof Error
-          ? (error.cause as any)
+          ? (error.cause as ErrorWithCustomFields)
           : undefined;
       console.log("[Stream Handler] BYOK error before extraction:", {
         errorType:
@@ -308,7 +315,9 @@ async function validateSubscriptionAndLimitsStream(
 async function setupAgentContext(
   workspaceId: string,
   agentId: string,
-  modelReferer: string
+  modelReferer: string,
+  context?: Awaited<ReturnType<typeof getContextFromRequestId>>,
+  conversationId?: string
 ): Promise<{
   agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"];
   model: Awaited<ReturnType<typeof setupAgentAndTools>>["model"];
@@ -323,6 +332,8 @@ async function setupAgentContext(
       modelReferer,
       callDepth: 0,
       maxDelegationDepth: 3,
+      context,
+      conversationId,
       searchDocumentsOptions: {
         description:
           "Search workspace documents using semantic vector search. Returns the most relevant document snippets based on the query.",
@@ -497,7 +508,9 @@ async function validateCreditsAndReserveBeforeLLM(
   agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"],
   modelMessages: ModelMessage[],
   tools: Awaited<ReturnType<typeof setupAgentAndTools>>["tools"],
-  usesByok: boolean
+  usesByok: boolean,
+  context?: Awaited<ReturnType<typeof getContextFromRequestId>>,
+  conversationId?: string
 ): Promise<string | undefined> {
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
@@ -513,7 +526,9 @@ async function validateCreditsAndReserveBeforeLLM(
     agent.systemPrompt,
     tools,
     usesByok,
-    "stream"
+    "stream",
+    context,
+    conversationId
   );
 }
 
@@ -684,7 +699,8 @@ async function adjustCreditsAfterStream(
   tokenUsage: TokenUsage | undefined,
   usesByok: boolean,
   streamResult?: Awaited<ReturnType<typeof streamText>>,
-  conversationId?: string
+  conversationId?: string,
+  awsRequestId?: string
 ): Promise<void> {
   // Extract all OpenRouter generation IDs for cost verification
   const openrouterGenerationIds = streamResult
@@ -692,6 +708,12 @@ async function adjustCreditsAfterStream(
     : [];
   const openrouterGenerationId =
     openrouterGenerationIds.length > 0 ? openrouterGenerationIds[0] : undefined;
+
+  // Get context for workspace credit transactions
+  const lambdaContext = getContextFromRequestId(awsRequestId);
+  if (!lambdaContext) {
+    throw new Error("Context not available for workspace credit transactions");
+  }
 
   // Adjust credits using shared utility
   await adjustCreditsAfterLLMCall(
@@ -705,7 +727,9 @@ async function adjustCreditsAfterStream(
     usesByok,
     openrouterGenerationId,
     openrouterGenerationIds, // New parameter
-    "stream"
+    "stream",
+    lambdaContext,
+    conversationId
   );
 
   // Enqueue cost verification (Step 3) if we have generation IDs
@@ -906,11 +930,15 @@ async function logConversation(
     }
 
     // Extract token usage, generation ID, and costs
+    // streamResult.totalUsage is a Promise, so we need to await it
+    const totalUsage = await streamResult.totalUsage;
+    // Pass totalUsage directly - extractTokenUsage handles field name variations
+    // (LanguageModelV2Usage may use different field names than our LanguageModelUsage)
     const {
       openrouterGenerationId,
       provisionalCostUsd: extractedProvisionalCostUsd,
     } = extractTokenUsageAndCosts(
-      streamResult,
+      { totalUsage } as unknown as StreamTextResultWithResolvedUsage,
       undefined,
       finalModelName,
       "stream"
@@ -1193,13 +1221,22 @@ async function buildRequestContext(
   // Setup database connection
   const db = await database();
 
+  // Get context for workspace credit transactions
+  const awsRequestId = event.requestContext?.requestId;
+  const lambdaContext = getContextFromRequestId(awsRequestId);
+  if (!lambdaContext) {
+    throw new Error("Context not available for workspace credit transactions");
+  }
+
   // Setup agent context
   // Always use "https://app.helpmaton.com" as the Referer header for LLM provider calls
   const modelReferer = "https://app.helpmaton.com";
   const { agent, model, tools, usesByok } = await setupAgentContext(
     workspaceId,
     agentId,
-    modelReferer
+    modelReferer,
+    lambdaContext,
+    conversationId
   );
 
   // Extract and convert request body
@@ -1262,11 +1299,13 @@ async function buildRequestContext(
     agent,
     modelMessages,
     tools,
-    usesByok
+    usesByok,
+    lambdaContext,
+    conversationId
   );
 
-  // Extract request ID from Lambda Function URL event
-  const awsRequestId = event.requestContext?.requestId;
+  // Extract request ID from Lambda Function URL event (for context access)
+  const requestIdForContext = event.requestContext?.requestId;
 
   return {
     workspaceId,
@@ -1286,7 +1325,7 @@ async function buildRequestContext(
     usesByok,
     reservationId,
     finalModelName,
-    awsRequestId,
+    awsRequestId: requestIdForContext,
   };
 }
 
@@ -1437,18 +1476,27 @@ const internalHandler = async (
 
       // Error after reservation but before or during LLM call
       if (context.reservationId && context.reservationId !== "byok") {
-        await cleanupReservationOnError(
-          context.db,
-          context.reservationId,
-          context.workspaceId,
-          context.agentId,
-          "openrouter",
-          context.finalModelName,
-          error,
-          llmCallAttempted,
-          context.usesByok,
-          "stream"
-        );
+        // Get context for workspace credit transactions
+        const lambdaContext = getContextFromRequestId(context.awsRequestId);
+        if (lambdaContext) {
+          await cleanupReservationOnError(
+            context.db,
+            context.reservationId,
+            context.workspaceId,
+            context.agentId,
+            "openrouter",
+            context.finalModelName,
+            error,
+            llmCallAttempted,
+            context.usesByok,
+            "stream",
+            lambdaContext
+          );
+        } else {
+          console.warn(
+            "[Stream Handler] Context not available for cleanup, skipping transaction creation"
+          );
+        }
       }
 
       // Re-throw error to be handled by error handler
@@ -1505,8 +1553,12 @@ const internalHandler = async (
     });
 
     // Extract token usage, generation ID, and costs
+    // streamResult.totalUsage is a Promise, so we need to await it
+    const totalUsage = await streamResult.totalUsage;
+    // Pass totalUsage directly - extractTokenUsage handles field name variations
+    // (LanguageModelV2Usage may use different field names than our LanguageModelUsage)
     const { tokenUsage } = extractTokenUsageAndCosts(
-      streamResult,
+      { totalUsage } as unknown as StreamTextResultWithResolvedUsage,
       usage,
       context.finalModelName,
       "stream"
@@ -1531,7 +1583,8 @@ const internalHandler = async (
         tokenUsage,
         context.usesByok,
         streamResult,
-        context.conversationId
+        context.conversationId,
+        context.awsRequestId
       );
     } catch (error) {
       // Log error but don't fail the request

@@ -31,3 +31,24 @@ export function fromMillionths(millionths: number): number {
   return millionths / 1_000_000;
 }
 
+/**
+ * Format millionths as a readable currency string for transaction descriptions
+ * Currently only supports USD currency symbol
+ * 
+ * @param millionths - Amount in millionths (e.g., 1_500_000)
+ * @param decimals - Number of decimal places to show (default: 10)
+ * @returns Formatted currency string (e.g., "$1.50" or "$0.000123")
+ */
+export function formatCurrencyMillionths(
+  millionths: number,
+  decimals: number = 10
+): string {
+  const amount = fromMillionths(millionths);
+  // Round to nearest for accurate display
+  const multiplier = Math.pow(10, decimals);
+  const roundedAmount = Math.round(amount * multiplier) / multiplier;
+  // Format with specified decimals, then remove trailing zeros and optional decimal point
+  const formatted = roundedAmount.toFixed(decimals).replace(/\.?0+$/, "");
+  return `$${formatted}`;
+}
+

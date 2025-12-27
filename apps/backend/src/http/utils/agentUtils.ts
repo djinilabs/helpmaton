@@ -43,6 +43,7 @@ export interface WorkspaceAndAgent {
 /**
  * Get workspace API key if it exists for OpenRouter
  * Only OpenRouter keys are supported for BYOK (Bring Your Own Key)
+ * BYOK is only available for paid plans (Starter and Pro)
  */
 export async function getWorkspaceApiKey(
   workspaceId: string,
@@ -60,6 +61,15 @@ export async function getWorkspaceApiKey(
   try {
     const workspaceKey = await db["workspace-api-key"].get(pk, sk);
     if (workspaceKey?.key) {
+      // Check subscription plan - BYOK is only available for paid plans
+      const { getWorkspaceSubscription } = await import(
+        "../../utils/subscriptionUtils"
+      );
+      const subscription = await getWorkspaceSubscription(workspaceId);
+      if (!subscription || subscription.plan === "free") {
+        // Return null for free plans even if key exists
+        return null;
+      }
       return workspaceKey.key;
     }
   } catch {
@@ -579,7 +589,8 @@ async function callAgentInternal(
   targetAgentId: string,
   message: string,
   callDepth: number,
-  maxDepth: number
+  maxDepth: number,
+  context?: Awaited<ReturnType<typeof import("../../utils/workspaceCreditContext").getContextFromRequestId>>
 ): Promise<string> {
   // Check depth limit
   if (callDepth >= maxDepth) {
@@ -651,13 +662,17 @@ async function callAgentInternal(
   // Add web search tool if enabled
   if (targetAgent.enableTavilySearch === true) {
     const { createTavilySearchTool } = await import("./tavilyTools");
-    tools.search_web = createTavilySearchTool(workspaceId);
+    tools.search_web = createTavilySearchTool(
+      workspaceId,
+      context,
+      targetAgentId
+    );
   }
 
   // Add web fetch tool if enabled
   if (targetAgent.enableTavilyFetch === true) {
     const { createTavilyFetchTool } = await import("./tavilyTools");
-    tools.fetch_web = createTavilyFetchTool(workspaceId);
+    tools.fetch_web = createTavilyFetchTool(workspaceId, context, targetAgentId);
   }
 
   if (targetAgent.notificationChannelId) {
@@ -723,7 +738,8 @@ async function callAgentInternal(
       targetAgent.delegatableAgentIds,
       targetAgentId,
       callDepth + 1,
-      maxDepth
+      maxDepth,
+      context
     );
   }
 
@@ -823,18 +839,24 @@ async function callAgentInternal(
       (tokenUsage.promptTokens > 0 || tokenUsage.completionTokens > 0)
     ) {
       try {
-        await adjustCreditReservation(
-          db,
-          reservationId,
-          workspaceId,
-          agentProvider, // provider
-          modelName || MODEL_NAME,
-          tokenUsage,
-          3, // maxRetries
-          false, // usesByok - delegated calls use workspace API key if available
-          openrouterGenerationId,
-          openrouterGenerationIds // New parameter
-        );
+        if (context) {
+          await adjustCreditReservation(
+            db,
+            reservationId,
+            workspaceId,
+            agentProvider, // provider
+            modelName || MODEL_NAME,
+            tokenUsage,
+            context,
+            3, // maxRetries
+            false, // usesByok - delegated calls use workspace API key if available
+            openrouterGenerationId,
+            openrouterGenerationIds,
+            targetAgentId
+          );
+        } else {
+          console.warn("[callAgentInternal] Context not available, skipping credit adjustment");
+        }
         console.log(
           "[Agent Delegation] Credit reservation adjusted successfully"
         );
@@ -899,7 +921,11 @@ async function callAgentInternal(
               error: error instanceof Error ? error.message : String(error),
             }
           );
-          await refundReservation(db, reservationId);
+          if (context) {
+            await refundReservation(db, reservationId, context);
+          } else {
+            console.warn("[callAgentInternal] Context not available, skipping refund transaction");
+          }
         } catch (refundError) {
           // Log but don't fail - refund is best effort
           console.error("[callAgentInternal] Error refunding reservation:", {
@@ -936,16 +962,24 @@ async function callAgentInternal(
         ) {
           // We have token usage - adjust reservation
           try {
-            await adjustCreditReservation(
-              db,
-              reservationId,
-              workspaceId,
-              agentProvider,
-              modelName || MODEL_NAME,
-              errorTokenUsage,
-              3,
-              false
-            );
+            if (context) {
+              await adjustCreditReservation(
+                db,
+                reservationId,
+                workspaceId,
+                agentProvider,
+                modelName || MODEL_NAME,
+                errorTokenUsage,
+                context,
+                3,
+                false, // usesByok
+                undefined, // openrouterGenerationId
+                undefined, // openrouterGenerationIds
+                targetAgentId
+              );
+            } else {
+              console.warn("[callAgentInternal] Context not available, skipping credit adjustment");
+            }
           } catch (adjustError) {
             console.error(
               "[callAgentInternal] Error adjusting reservation after error:",
@@ -1054,7 +1088,8 @@ export function createCallAgentTool(
   delegatableAgentIds: string[],
   currentAgentId: string,
   callDepth: number,
-  maxDepth: number = 3
+  maxDepth: number = 3,
+  context?: Awaited<ReturnType<typeof import("../../utils/workspaceCreditContext").getContextFromRequestId>>
 ) {
   const callAgentParamsSchema = z.object({
     agentId: z
@@ -1203,7 +1238,8 @@ export function createCallAgentTool(
           agentId,
           message.trim(),
           callDepth,
-          maxDepth
+          maxDepth,
+          context
         );
 
         // Wrap response with metadata

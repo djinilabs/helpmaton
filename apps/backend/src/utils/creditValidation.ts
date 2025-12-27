@@ -15,6 +15,7 @@ import {
 } from "./featureFlags";
 import { checkSpendingLimits } from "./spendingLimits";
 import { estimateTokenCost } from "./tokenEstimation";
+import type { AugmentedContext } from "./workspaceCreditContext";
 
 /**
  * Combined validation before LLM call
@@ -175,7 +176,9 @@ export async function validateCreditsAndLimitsAndReserve(
   messages: ModelMessage[],
   systemPrompt?: string,
   toolDefinitions?: unknown[],
-  usesByok?: boolean
+  usesByok?: boolean,
+  context?: AugmentedContext,
+  conversationId?: string
 ): Promise<CreditReservation | null> {
   // For BYOK requests, skip credit reservation but still check spending limits
   const isByok = usesByok === true;
@@ -274,7 +277,12 @@ export async function validateCreditsAndLimitsAndReserve(
       workspaceId,
       estimatedCost,
       3, // maxRetries
-      usesByok
+      usesByok,
+      context,
+      provider,
+      modelName,
+      agentId,
+      conversationId
     );
     return reservation;
   }

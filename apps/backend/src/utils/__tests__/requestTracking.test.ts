@@ -1,5 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import type {
+  LLMRequestBucketRecord,
+  SubscriptionRecord,
+  TavilyCallBucketRecord,
+} from "../../tables/schema";
+import {
+  getCurrentHourTimestamp,
+  getLast24HourTimestamps,
+  incrementRequestBucket,
+  getRequestCountLast24Hours,
+  checkDailyRequestLimit,
+  incrementTavilyCallBucket,
+  getTavilyCallCountLast24Hours,
+  checkTavilyDailyLimit,
+} from "../requestTracking";
+
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
 const {
   mockDatabase,
@@ -40,22 +56,6 @@ vi.mock("../subscriptionPlans", () => ({
 vi.mock("../../send-email", () => ({
   sendEmail: mockSendEmail,
 }));
-
-// Import after mocks are set up
-import type {
-  LLMRequestBucketRecord,
-  TavilyCallBucketRecord,
-} from "../../tables/schema";
-import {
-  getCurrentHourTimestamp,
-  getLast24HourTimestamps,
-  incrementRequestBucket,
-  getRequestCountLast24Hours,
-  checkDailyRequestLimit,
-  incrementTavilyCallBucket,
-  getTavilyCallCountLast24Hours,
-  checkTavilyDailyLimit,
-} from "../requestTracking";
 
 describe("requestTracking", () => {
   beforeEach(() => {
@@ -732,9 +732,7 @@ describe("requestTracking", () => {
 
       const result = await incrementTavilyCallBucket(workspaceId);
 
-      expect(
-        mockDb["tavily-call-buckets"].atomicUpdate
-      ).toHaveBeenCalledWith(
+      expect(mockDb["tavily-call-buckets"].atomicUpdate).toHaveBeenCalledWith(
         `tavily-call-buckets/${workspaceId}/2024-01-15T14:00:00.000Z`,
         undefined,
         expect.any(Function),
@@ -769,9 +767,7 @@ describe("requestTracking", () => {
 
       const result = await incrementTavilyCallBucket(workspaceId);
 
-      expect(
-        mockDb["tavily-call-buckets"].atomicUpdate
-      ).toHaveBeenCalledWith(
+      expect(mockDb["tavily-call-buckets"].atomicUpdate).toHaveBeenCalledWith(
         existingBucket.pk,
         undefined,
         expect.any(Function),
@@ -930,7 +926,9 @@ describe("requestTracking", () => {
       const buckets: TavilyCallBucketRecord[] = Array.from(
         { length: 10 },
         (_, i) => ({
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${14 - i}:00:00.000Z`,
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${
+            14 - i
+          }:00:00.000Z`,
           workspaceId,
           hourTimestamp: `2024-01-15T${14 - i}:00:00.000Z`,
           count: 1,
@@ -965,7 +963,7 @@ describe("requestTracking", () => {
       mockDatabase.mockResolvedValue(mockDb);
       mockGetWorkspaceSubscription.mockResolvedValue({
         plan: "starter",
-      } as any);
+      } as Partial<SubscriptionRecord>);
 
       const result = await checkTavilyDailyLimit(workspaceId);
 
@@ -980,7 +978,9 @@ describe("requestTracking", () => {
       const buckets: TavilyCallBucketRecord[] = Array.from(
         { length: 15 },
         (_, i) => ({
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${14 - i}:00:00.000Z`,
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${
+            14 - i
+          }:00:00.000Z`,
           workspaceId,
           hourTimestamp: `2024-01-15T${14 - i}:00:00.000Z`,
           count: 1,
@@ -999,7 +999,7 @@ describe("requestTracking", () => {
       mockDatabase.mockResolvedValue(mockDb);
       mockGetWorkspaceSubscription.mockResolvedValue({
         plan: "pro",
-      } as any);
+      } as Partial<SubscriptionRecord>);
 
       const result = await checkTavilyDailyLimit(workspaceId);
 
@@ -1014,7 +1014,9 @@ describe("requestTracking", () => {
       const buckets: TavilyCallBucketRecord[] = Array.from(
         { length: 10 },
         (_, i) => ({
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${14 - i}:00:00.000Z`,
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${
+            14 - i
+          }:00:00.000Z`,
           workspaceId,
           hourTimestamp: `2024-01-15T${14 - i}:00:00.000Z`,
           count: 1,
@@ -1033,11 +1035,73 @@ describe("requestTracking", () => {
       mockDatabase.mockResolvedValue(mockDb);
       mockGetWorkspaceSubscription.mockResolvedValue({
         plan: "free",
-      } as any);
+      } as Partial<SubscriptionRecord>);
 
       await expect(checkTavilyDailyLimit(workspaceId)).rejects.toThrow(
         "Daily Tavily API call limit exceeded"
       );
+    });
+
+    it("should disable free tier in testing environment (ARC_ENV=testing)", async () => {
+      const workspaceId = "workspace-123";
+      const mockDb = {
+        "tavily-call-buckets": {
+          query: vi.fn().mockResolvedValue({ items: [] }),
+        },
+      };
+
+      mockDatabase.mockResolvedValue(mockDb);
+      mockGetWorkspaceSubscription.mockResolvedValue(undefined); // No subscription = free tier
+
+      // Set ARC_ENV to "testing" to simulate local sandbox
+      const originalArcEnv = process.env.ARC_ENV;
+      process.env.ARC_ENV = "testing";
+
+      try {
+        const result = await checkTavilyDailyLimit(workspaceId);
+
+        // Should return withinFreeLimit: false even though it's free tier with 0 calls
+        expect(result).toEqual({ withinFreeLimit: false, callCount: 0 });
+      } finally {
+        // Restore original ARC_ENV
+        if (originalArcEnv !== undefined) {
+          process.env.ARC_ENV = originalArcEnv;
+        } else {
+          delete process.env.ARC_ENV;
+        }
+      }
+    });
+
+    it("should disable free tier in testing environment even for paid tiers", async () => {
+      const workspaceId = "workspace-123";
+      const mockDb = {
+        "tavily-call-buckets": {
+          query: vi.fn().mockResolvedValue({ items: [] }),
+        },
+      };
+
+      mockDatabase.mockResolvedValue(mockDb);
+      mockGetWorkspaceSubscription.mockResolvedValue({
+        plan: "pro",
+      } as Partial<SubscriptionRecord>);
+
+      // Set ARC_ENV to "testing" to simulate local sandbox
+      const originalArcEnv = process.env.ARC_ENV;
+      process.env.ARC_ENV = "testing";
+
+      try {
+        const result = await checkTavilyDailyLimit(workspaceId);
+
+        // Should return withinFreeLimit: false even though it's paid tier with 0 calls (within free limit)
+        expect(result).toEqual({ withinFreeLimit: false, callCount: 0 });
+      } finally {
+        // Restore original ARC_ENV
+        if (originalArcEnv !== undefined) {
+          process.env.ARC_ENV = originalArcEnv;
+        } else {
+          delete process.env.ARC_ENV;
+        }
+      }
     });
   });
 });

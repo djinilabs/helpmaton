@@ -435,7 +435,12 @@ describe("creditValidation", () => {
         "test-workspace",
         10_000_000, // 10.0 USD in millionths
         3,
-        false
+        false,
+        undefined, // context (optional)
+        "google", // provider
+        "gemini-2.5-flash", // modelName
+        "test-agent", // agentId
+        undefined // conversationId (optional)
       );
     });
 

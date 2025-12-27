@@ -1,5 +1,8 @@
-import type { TokenUsage } from "../../../utils/conversationLogger";
-import { extractTokenUsage } from "../../../utils/conversationLogger";
+import {
+  extractTokenUsage,
+  type GenerateTextResultWithTotalUsage,
+  type TokenUsage,
+} from "../../../utils/conversationLogger";
 import { type WorkspaceAndAgent } from "../../utils/agentUtils";
 import { createModel } from "../../utils/modelFactory";
 
@@ -14,8 +17,7 @@ export interface ProcessResponseResult {
  * Processes the non-streaming AI response and handles tool calls
  */
 export async function processNonStreamingResponse(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
-  result: any,
+  result: GenerateTextResultWithTotalUsage | unknown,
   agent: WorkspaceAndAgent["agent"],
   model: Awaited<ReturnType<typeof createModel>>,
   messages: unknown[],
@@ -23,14 +25,16 @@ export async function processNonStreamingResponse(
   tools?: Record<string, any>
 ): Promise<ProcessResponseResult> {
   // Extract text, tool calls, and tool results from generateText result
+  // result from generateText has totalUsage property
+  const typedResult = result as GenerateTextResultWithTotalUsage;
   let finalText: string;
   let toolCalls: unknown[];
   let toolResults: unknown[];
   try {
     [finalText, toolCalls, toolResults] = await Promise.all([
-      Promise.resolve(result.text),
-      Promise.resolve(result.toolCalls || []),
-      Promise.resolve(result.toolResults || []),
+      Promise.resolve((typedResult as { text: string }).text),
+      Promise.resolve((typedResult as { toolCalls?: unknown[] }).toolCalls || []),
+      Promise.resolve((typedResult as { toolResults?: unknown[] }).toolResults || []),
     ]);
   } catch (error) {
     console.error("[Agent Test Handler] Error extracting result data:", {
@@ -40,7 +44,7 @@ export async function processNonStreamingResponse(
     throw error;
   }
 
-  const initialTokenUsage = extractTokenUsage(result);
+  const initialTokenUsage = extractTokenUsage(typedResult);
   const hasText = finalText && finalText.trim().length > 0;
   const hasToolResults = toolResults && toolResults.length > 0;
 
@@ -95,8 +99,8 @@ export async function processNonStreamingResponse(
  * Processes simple non-streaming response for webhook handler (no tool continuation)
  */
 export async function processSimpleNonStreamingResponse(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
-  result: any
+  result: GenerateTextResultWithTotalUsage | unknown
 ): Promise<string> {
-  return result.text || "";
+  const typedResult = result as { text?: string };
+  return typedResult.text || "";
 }

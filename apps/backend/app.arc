@@ -121,6 +121,11 @@ user-refresh-token
   sk **String
   encrypt true
 
+workspace-credit-transactions
+  pk *String
+  sk **String
+  encrypt true
+
 agent-conversations
   pk *String
   expires TTL
@@ -249,6 +254,11 @@ credit-reservations
   expiresHour *Number
   expires **Number
   name byExpiresHour
+
+workspace-credit-transactions
+  agentId *String
+  sk **String
+  name byAgentId
 
 @scheduled
 aggregate-token-usage rate(1 day)

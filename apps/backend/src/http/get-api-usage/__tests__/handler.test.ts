@@ -29,6 +29,14 @@ vi.mock("../../../tables", () => ({
   database: mockDatabase,
 }));
 
+// Mock @architect/functions for database initialization
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
+
 vi.mock("../../utils/session", () => ({
   requireSession: mockRequireSession,
   userRef: (userId: string) => `users/${userId}`,

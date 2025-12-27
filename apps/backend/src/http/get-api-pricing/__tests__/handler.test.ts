@@ -19,6 +19,14 @@ vi.mock("../../../utils/pricing", () => ({
   loadPricingConfig: mockLoadPricingConfig,
 }));
 
+// Mock @architect/functions for database initialization (used by handlingErrors)
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
+
 // Import the handler after mocks are set up
 import { handler } from "../index";
 
@@ -336,6 +344,7 @@ describe("get-api-pricing handler", () => {
     expect(modelNames).toEqual(["a-model", "m-model", "z-model"]);
   });
 });
+
 
 
 

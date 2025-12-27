@@ -1,5 +1,5 @@
 import type { Session } from "@auth/express";
-import type { APIGatewayProxyEventV2 } from "aws-lambda";
+import type { APIGatewayProxyEventV2, Context } from "aws-lambda";
 
 declare global {
   namespace Express {
@@ -12,6 +12,7 @@ declare global {
       };
       files?: Express.Multer.File[];
       file?: Express.Multer.File;
+      context?: Context;
     }
   }
 }

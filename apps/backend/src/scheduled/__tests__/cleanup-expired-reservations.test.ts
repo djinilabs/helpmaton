@@ -23,12 +23,14 @@ import type {
   DatabaseSchema,
   CreditReservationRecord,
 } from "../../tables/schema";
+import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 import { cleanupExpiredReservations } from "../cleanup-expired-reservations";
 
 describe("cleanupExpiredReservations", () => {
   let mockDb: DatabaseSchema;
   let mockQuery: ReturnType<typeof vi.fn>;
   let mockDelete: ReturnType<typeof vi.fn>;
+  let mockContext: AugmentedContext;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -49,6 +51,23 @@ describe("cleanupExpiredReservations", () => {
     } as unknown as DatabaseSchema;
 
     mockDatabase.mockResolvedValue(mockDb);
+
+    // Setup mock context
+    mockContext = {
+      awsRequestId: "test-request-id",
+      functionName: "test-function",
+      functionVersion: "1",
+      memoryLimitInMB: "512",
+      getRemainingTimeInMillis: () => 30000,
+      logGroupName: "test-log-group",
+      logStreamName: "test-log-stream",
+      callbackWaitsForEmptyEventLoop: true,
+      invokedFunctionArn: "arn:aws:lambda:us-east-1:123456789012:function:test",
+      done: vi.fn(),
+      fail: vi.fn(),
+      succeed: vi.fn(),
+      addWorkspaceCreditTransaction: vi.fn(),
+    } as AugmentedContext;
   });
 
   it("should successfully process expired reservations and refund credits", async () => {
@@ -75,19 +94,20 @@ describe("cleanupExpiredReservations", () => {
       .mockResolvedValueOnce({ items: [reservation] });
     mockRefundReservation.mockResolvedValue(undefined);
 
-    await cleanupExpiredReservations();
+    await cleanupExpiredReservations(mockContext);
 
     expect(mockQuery).toHaveBeenCalledTimes(2);
     expect(mockRefundReservation).toHaveBeenCalledWith(
       mockDb,
-      "reservation-123"
+      "reservation-123",
+      mockContext
     );
   });
 
   it("should query correct hour buckets (current and previous hour)", async () => {
     mockQuery.mockResolvedValue({ items: [] });
 
-    await cleanupExpiredReservations();
+    await cleanupExpiredReservations(mockContext);
 
     // Should query both current and previous hour
     expect(mockQuery).toHaveBeenCalledTimes(2);
@@ -126,12 +146,13 @@ describe("cleanupExpiredReservations", () => {
       .mockResolvedValueOnce({ items: [] })
       .mockResolvedValueOnce({ items: [expiredReservation] });
 
-    await cleanupExpiredReservations();
+    await cleanupExpiredReservations(mockContext);
 
     expect(mockRefundReservation).toHaveBeenCalledTimes(1);
     expect(mockRefundReservation).toHaveBeenCalledWith(
       mockDb,
-      "reservation-123"
+      "reservation-123",
+      mockContext
     );
   });
 
@@ -157,7 +178,7 @@ describe("cleanupExpiredReservations", () => {
       .mockResolvedValueOnce({ items: [] })
       .mockResolvedValueOnce({ items: [byokReservation] });
 
-    await cleanupExpiredReservations();
+    await cleanupExpiredReservations(mockContext);
 
     expect(mockRefundReservation).not.toHaveBeenCalled();
     expect(mockDelete).toHaveBeenCalledWith("credit-reservations/byok");
@@ -188,7 +209,7 @@ describe("cleanupExpiredReservations", () => {
     // First hour bucket returns 1000, should stop before querying second bucket
     mockQuery.mockResolvedValueOnce({ items: reservations });
 
-    await cleanupExpiredReservations();
+    await cleanupExpiredReservations(mockContext);
 
     // Should only process first 1000 and stop
     expect(mockRefundReservation).toHaveBeenCalledTimes(1000);
@@ -234,12 +255,12 @@ describe("cleanupExpiredReservations", () => {
       .mockRejectedValueOnce(new Error("Refund failed"))
       .mockResolvedValueOnce(undefined);
 
-    await cleanupExpiredReservations();
+    await cleanupExpiredReservations(mockContext);
 
     // Should attempt both refunds
     expect(mockRefundReservation).toHaveBeenCalledTimes(2);
-    expect(mockRefundReservation).toHaveBeenCalledWith(mockDb, "reservation-1");
-    expect(mockRefundReservation).toHaveBeenCalledWith(mockDb, "reservation-2");
+    expect(mockRefundReservation).toHaveBeenCalledWith(mockDb, "reservation-1", mockContext);
+    expect(mockRefundReservation).toHaveBeenCalledWith(mockDb, "reservation-2", mockContext);
   });
 
   it("should handle query errors gracefully (continues with next hour bucket)", async () => {
@@ -248,7 +269,7 @@ describe("cleanupExpiredReservations", () => {
       .mockRejectedValueOnce(new Error("Query failed"))
       .mockResolvedValueOnce({ items: [] });
 
-    await cleanupExpiredReservations();
+    await cleanupExpiredReservations(mockContext);
 
     // Should still query both hour buckets
     expect(mockQuery).toHaveBeenCalledTimes(2);
@@ -276,7 +297,7 @@ describe("cleanupExpiredReservations", () => {
     mockRefundReservation.mockRejectedValue(new Error("Refund failed"));
 
     // Should not throw
-    await expect(cleanupExpiredReservations()).resolves.not.toThrow();
+    await expect(cleanupExpiredReservations(mockContext)).resolves.not.toThrow();
 
     expect(mockRefundReservation).toHaveBeenCalled();
   });
@@ -284,7 +305,7 @@ describe("cleanupExpiredReservations", () => {
   it("should return early when no expired reservations found", async () => {
     mockQuery.mockResolvedValue({ items: [] });
 
-    await cleanupExpiredReservations();
+    await cleanupExpiredReservations(mockContext);
 
     expect(mockRefundReservation).not.toHaveBeenCalled();
     expect(mockDelete).not.toHaveBeenCalled();
@@ -313,11 +334,12 @@ describe("cleanupExpiredReservations", () => {
       .mockResolvedValueOnce({ items: [reservation] });
     mockRefundReservation.mockResolvedValue(undefined);
 
-    await cleanupExpiredReservations();
+    await cleanupExpiredReservations(mockContext);
 
     expect(mockRefundReservation).toHaveBeenCalledWith(
       mockDb,
-      "complex-reservation-id-123"
+      "complex-reservation-id-123",
+      mockContext
     );
   });
 
@@ -387,10 +409,10 @@ describe("cleanupExpiredReservations", () => {
       .mockResolvedValueOnce({ items: [reservation1] })
       .mockResolvedValueOnce({ items: [reservation2] });
 
-    await cleanupExpiredReservations();
+    await cleanupExpiredReservations(mockContext);
 
     expect(mockRefundReservation).toHaveBeenCalledTimes(2);
-    expect(mockRefundReservation).toHaveBeenCalledWith(mockDb, "reservation-1");
-    expect(mockRefundReservation).toHaveBeenCalledWith(mockDb, "reservation-2");
+    expect(mockRefundReservation).toHaveBeenCalledWith(mockDb, "reservation-1", mockContext);
+    expect(mockRefundReservation).toHaveBeenCalledWith(mockDb, "reservation-2", mockContext);
   });
 });

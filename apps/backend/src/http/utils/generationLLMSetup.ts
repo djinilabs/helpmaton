@@ -3,7 +3,6 @@ import type { ModelMessage } from "ai";
 import { logToolDefinitions } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 
 import { buildGenerateTextOptions } from "./agentUtils";
-import { convertToolsToDefinitions } from "./generationCreditManagement";
 import type { GenerationEndpoint } from "./generationErrorHandling";
 
 /**

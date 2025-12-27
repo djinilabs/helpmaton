@@ -1,6 +1,11 @@
-import type { Callback, Context } from "aws-lambda";
+import type {
+  APIGatewayProxyEventV2,
+  Callback,
+  Context,
+} from "aws-lambda";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { AugmentedContext } from "../../../utils/workspaceCreditContext";
 import { createAPIGatewayEventV2 } from "../../utils/__tests__/test-helpers";
 import { handler } from "../index";
 
@@ -42,6 +47,14 @@ vi.mock("../../../tables", () => ({
   database: () => mockDatabase(),
 }));
 
+// Mock @architect/functions for database initialization
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
+
 vi.mock("../../../utils/lemonSqueezy", () => ({
   verifyWebhookSignature: mockVerifyWebhookSignature,
   getSubscription: mockGetLemonSqueezySubscription,
@@ -65,11 +78,46 @@ vi.mock("../../../utils/apiGatewayUsagePlans", () => ({
   associateSubscriptionWithPlan: mockAssociateSubscriptionWithPlan,
 }));
 
-// Mock crypto for signature verification
-const mockCreateHmac = vi.fn();
-const mockHmacUpdate = vi.fn();
-const mockHmacDigest = vi.fn();
-const mockTimingSafeEqual = vi.fn();
+// Mock workspaceCreditContext
+const mockContext: AugmentedContext = {
+  awsRequestId: "test-request-id",
+  addWorkspaceCreditTransaction: vi.fn(),
+  getRemainingTimeInMillis: () => 30000,
+  functionName: "test-function",
+  functionVersion: "$LATEST",
+  invokedFunctionArn: "arn:aws:lambda:us-east-1:123456789012:function:test",
+  memoryLimitInMB: "128",
+  logGroupName: "/aws/lambda/test",
+  logStreamName: "2024/01/01/[$LATEST]test",
+  callbackWaitsForEmptyEventLoop: true,
+  succeed: vi.fn(),
+  fail: vi.fn(),
+  done: vi.fn(),
+} as AugmentedContext;
+
+vi.mock("../../../utils/workspaceCreditContext", () => ({
+  getContextFromRequestId: vi.fn(() => mockContext),
+  augmentContextWithCreditTransactions: vi.fn((context) => ({
+    ...context,
+    addWorkspaceCreditTransaction: vi.fn(),
+  })),
+  commitContextTransactions: vi.fn().mockResolvedValue(undefined),
+  setCurrentHTTPContext: vi.fn(),
+  clearCurrentHTTPContext: vi.fn(),
+}));
+
+// Mock crypto for signature verification - must be in hoisted block
+const {
+  mockCreateHmac,
+  mockHmacUpdate,
+  mockHmacDigest,
+  mockTimingSafeEqual,
+} = vi.hoisted(() => ({
+  mockCreateHmac: vi.fn(),
+  mockHmacUpdate: vi.fn(),
+  mockHmacDigest: vi.fn(),
+  mockTimingSafeEqual: vi.fn(),
+}));
 
 vi.mock("crypto", () => ({
   default: {
@@ -87,6 +135,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
     };
     workspace: {
       get: ReturnType<typeof vi.fn>;
+      update: ReturnType<typeof vi.fn>;
       atomicUpdate: ReturnType<typeof vi.fn>;
     };
     "next-auth": {
@@ -111,6 +160,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       },
       workspace: {
         get: vi.fn(),
+        update: vi.fn().mockResolvedValue(undefined),
         atomicUpdate: vi.fn().mockResolvedValue(undefined),
       },
       "next-auth": {
@@ -517,20 +567,29 @@ describe("Lemon Squeezy Webhook Handler", () => {
             attributes: {},
           },
         }),
+        requestContext: {
+          requestId: "test-request-id",
+        } as APIGatewayProxyEventV2["requestContext"],
       });
 
-      const mockContext: Context = {
+      const lambdaContext: Context = {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
       const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as {
+      const result = (await handler(event, lambdaContext, mockCallback)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
       };
 
       expect(result.statusCode).toBe(200);
-      expect(mockDb.workspace?.atomicUpdate).toHaveBeenCalled();
+      // With transaction system, verify transaction was added to buffer instead of atomicUpdate
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "ws-123",
+          amountMillionthUsd: expect.any(Number),
+        })
+      );
     });
 
     it("should throw error if workspace ID is missing", async () => {

@@ -1,9 +1,11 @@
 import type { ScheduledEvent } from "aws-lambda";
 
+
 import { database } from "../../tables";
 import type { CreditReservationRecord } from "../../tables/schema";
 import { refundReservation } from "../../utils/creditManagement";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
+import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 /**
  * Cleanup expired credit reservations
@@ -13,7 +15,9 @@ import { handlingScheduledErrors } from "../../utils/handlingErrors";
  * Uses GSI on expiresHour to efficiently query expired reservations.
  * This handles cases where Lambda timeouts prevent normal cleanup.
  */
-export async function cleanupExpiredReservations(): Promise<void> {
+export async function cleanupExpiredReservations(
+  context?: AugmentedContext
+): Promise<void> {
   const db = await database();
   const now = Math.floor(Date.now() / 1000); // Current time in seconds
 
@@ -149,7 +153,10 @@ export async function cleanupExpiredReservations(): Promise<void> {
           }
         );
 
-        await refundReservation(db, reservationId);
+        if (!context) {
+          throw new Error("Context not available for workspace credit transactions");
+        }
+        await refundReservation(db, reservationId, context);
 
         refundedCount++;
         console.log(
@@ -198,11 +205,11 @@ export async function cleanupExpiredReservations(): Promise<void> {
  * Lambda handler for scheduled cleanup
  */
 export const handler = handlingScheduledErrors(
-  async (event: ScheduledEvent): Promise<void> => {
+  async (event: ScheduledEvent, context?: AugmentedContext): Promise<void> => {
     console.log(
       "[Cleanup Expired Reservations] Scheduled event received:",
       event
     );
-    await cleanupExpiredReservations();
+    await cleanupExpiredReservations(context);
   }
 );

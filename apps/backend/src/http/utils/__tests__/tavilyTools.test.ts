@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Type for tool with execute method (AI SDK tool type doesn't expose execute in types)
+// We use unknown as intermediate cast because the actual Tool type is complex
+type ToolWithExecute = {
+  execute: (args: unknown, options?: unknown) => Promise<string>;
+};
+
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
 const {
   mockDatabase,
@@ -63,10 +69,12 @@ vi.mock("../../../utils/tavilyCredits", () => ({
 
 // Import after mocks are set up
 import type { DatabaseSchema } from "../../../tables/schema";
+import type { AugmentedContext } from "../../../utils/workspaceCreditContext";
 import { createTavilySearchTool, createTavilyFetchTool } from "../tavilyTools";
 
 describe("tavilyTools", () => {
   let mockDb: DatabaseSchema;
+  let mockContext: AugmentedContext;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -74,7 +82,12 @@ describe("tavilyTools", () => {
 
     mockDb = {} as DatabaseSchema;
     mockDatabase.mockResolvedValue(mockDb);
-    
+
+    // Setup mock context
+    mockContext = {
+      addWorkspaceCreditTransaction: vi.fn(),
+    } as unknown as AugmentedContext;
+
     // Default mock for calculateTavilyCost: 1 credit = 8000 millionths ($0.008)
     mockCalculateTavilyCost.mockImplementation((creditsUsed: number = 1) => {
       return creditsUsed * 8000;
@@ -85,7 +98,7 @@ describe("tavilyTools", () => {
     const workspaceId = "test-workspace";
 
     it("should successfully search within free limit", async () => {
-      const tool = createTavilySearchTool(workspaceId);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const searchResponse = {
         results: [
           {
@@ -114,7 +127,7 @@ describe("tavilyTools", () => {
         createdAt: new Date().toISOString(),
       });
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -124,13 +137,24 @@ describe("tavilyTools", () => {
         max_results: 5,
       });
       expect(mockIncrementTavilyCallBucket).toHaveBeenCalledWith(workspaceId);
+      // Verify transaction is created for free tier users with actual cost
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith({
+        workspaceId,
+        agentId: undefined,
+        conversationId: undefined,
+        source: "tool-execution",
+        supplier: "tavily",
+        tool_call: "search_web",
+        description: "Tavily API call: search_web - actual cost (free tier)",
+        amountMillionthUsd: -8000, // 1 credit * 8000 = 8000, negative for debit
+      });
       expect(result).toContain("Found 1 search result");
       expect(result).toContain("Test Result");
       expect(result).toContain("https://example.com");
     });
 
     it("should reserve credits for paid tier exceeding free limit", async () => {
-      const tool = createTavilySearchTool(workspaceId);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const searchResponse = {
         results: [
           {
@@ -171,7 +195,7 @@ describe("tavilyTools", () => {
       });
       mockAdjustTavilyCreditReservation.mockResolvedValue(undefined);
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -180,27 +204,34 @@ describe("tavilyTools", () => {
         mockDb,
         workspaceId,
         1, // estimatedCredits
-        3 // maxRetries
+        3, // maxRetries
+        mockContext,
+        undefined, // agentId (optional)
+        undefined // conversationId (optional)
       );
       expect(mockAdjustTavilyCreditReservation).toHaveBeenCalledWith(
         mockDb,
         "test-reservation-id",
         workspaceId,
         1, // actualCreditsUsed
-        3 // maxRetries
+        mockContext,
+        "search_web",
+        3, // maxRetries
+        undefined, // agentId
+        undefined // conversationId
       );
       expect(result).toContain("Found 1 search result");
     });
 
     it("should return error message for free tier exceeding limit", async () => {
-      const tool = createTavilySearchTool(workspaceId);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const { tooManyRequests } = await import("@hapi/boom");
 
       mockCheckTavilyDailyLimit.mockRejectedValue(
         tooManyRequests("Daily Tavily API call limit exceeded")
       );
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -210,7 +241,7 @@ describe("tavilyTools", () => {
     });
 
     it("should refund credits on API error", async () => {
-      const tool = createTavilySearchTool(workspaceId);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const apiError = new Error("Tavily API error");
 
       mockCheckTavilyDailyLimit.mockResolvedValue({
@@ -231,7 +262,7 @@ describe("tavilyTools", () => {
       mockTavilySearch.mockRejectedValue(apiError);
       mockRefundTavilyCredits.mockResolvedValue(undefined);
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -242,12 +273,16 @@ describe("tavilyTools", () => {
         mockDb,
         "test-reservation-id",
         workspaceId,
-        3 // maxRetries
+        mockContext,
+        "search_web",
+        3, // maxRetries
+        undefined, // agentId
+        undefined // conversationId
       );
     });
 
     it("should handle tracking failure gracefully", async () => {
-      const tool = createTavilySearchTool(workspaceId);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const searchResponse = {
         results: [
           {
@@ -271,7 +306,7 @@ describe("tavilyTools", () => {
       );
 
       // Should not throw - tracking failure is logged but doesn't fail the tool
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -280,7 +315,7 @@ describe("tavilyTools", () => {
     });
 
     it("should handle empty search results", async () => {
-      const tool = createTavilySearchTool(workspaceId);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const searchResponse = {
         results: [],
         query: "test query",
@@ -302,7 +337,7 @@ describe("tavilyTools", () => {
         createdAt: new Date().toISOString(),
       });
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -311,7 +346,7 @@ describe("tavilyTools", () => {
     });
 
     it("should include answer if available in response", async () => {
-      const tool = createTavilySearchTool(workspaceId);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const searchResponse = {
         results: [
           {
@@ -341,7 +376,7 @@ describe("tavilyTools", () => {
         createdAt: new Date().toISOString(),
       });
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -354,7 +389,7 @@ describe("tavilyTools", () => {
     const workspaceId = "test-workspace";
 
     it("should successfully fetch content within free limit", async () => {
-      const tool = createTavilyFetchTool(workspaceId);
+      const tool = createTavilyFetchTool(workspaceId, mockContext);
       const extractResponse = {
         content: "This is the extracted content",
         title: "Test Page",
@@ -378,7 +413,7 @@ describe("tavilyTools", () => {
         createdAt: new Date().toISOString(),
       });
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         url: "https://example.com/article",
       });
 
@@ -387,13 +422,24 @@ describe("tavilyTools", () => {
         "https://example.com/article"
       );
       expect(mockIncrementTavilyCallBucket).toHaveBeenCalledWith(workspaceId);
+      // Verify transaction is created for free tier users with actual cost
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith({
+        workspaceId,
+        agentId: undefined,
+        conversationId: undefined,
+        source: "tool-execution",
+        supplier: "tavily",
+        tool_call: "fetch_web",
+        description: "Tavily API call: fetch_web - actual cost (free tier)",
+        amountMillionthUsd: -8000, // 1 credit * 8000 = 8000, negative for debit
+      });
       expect(result).toContain("Test Page");
       expect(result).toContain("This is the extracted content");
       expect(result).toContain("https://example.com/article");
     });
 
     it("should reserve credits for paid tier exceeding free limit", async () => {
-      const tool = createTavilyFetchTool(workspaceId);
+      const tool = createTavilyFetchTool(workspaceId, mockContext);
       const extractResponse = {
         content: "This is the extracted content",
         title: "Test Page",
@@ -428,7 +474,7 @@ describe("tavilyTools", () => {
       });
       mockAdjustTavilyCreditReservation.mockResolvedValue(undefined);
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         url: "https://example.com/article",
       });
 
@@ -436,27 +482,34 @@ describe("tavilyTools", () => {
         mockDb,
         workspaceId,
         1, // estimatedCredits
-        3 // maxRetries
+        3, // maxRetries
+        mockContext,
+        undefined, // agentId (optional)
+        undefined // conversationId (optional)
       );
       expect(mockAdjustTavilyCreditReservation).toHaveBeenCalledWith(
         mockDb,
         "test-reservation-id",
         workspaceId,
         1, // actualCreditsUsed
-        3 // maxRetries
+        mockContext,
+        "fetch_web",
+        3, // maxRetries
+        undefined, // agentId
+        undefined // conversationId
       );
       expect(result).toContain("Test Page");
     });
 
     it("should return error message for free tier exceeding limit", async () => {
-      const tool = createTavilyFetchTool(workspaceId);
+      const tool = createTavilyFetchTool(workspaceId, mockContext);
       const { tooManyRequests } = await import("@hapi/boom");
 
       mockCheckTavilyDailyLimit.mockRejectedValue(
         tooManyRequests("Daily Tavily API call limit exceeded")
       );
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         url: "https://example.com/article",
       });
 
@@ -465,7 +518,7 @@ describe("tavilyTools", () => {
     });
 
     it("should refund credits on API error", async () => {
-      const tool = createTavilyFetchTool(workspaceId);
+      const tool = createTavilyFetchTool(workspaceId, mockContext);
       const apiError = new Error("Tavily API error");
 
       mockCheckTavilyDailyLimit.mockResolvedValue({
@@ -486,7 +539,7 @@ describe("tavilyTools", () => {
       mockTavilyExtract.mockRejectedValue(apiError);
       mockRefundTavilyCredits.mockResolvedValue(undefined);
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         url: "https://example.com/article",
       });
 
@@ -496,12 +549,16 @@ describe("tavilyTools", () => {
         mockDb,
         "test-reservation-id",
         workspaceId,
-        3 // maxRetries
+        mockContext,
+        "fetch_web",
+        3, // maxRetries
+        undefined, // agentId
+        undefined // conversationId
       );
     });
 
     it("should handle tracking failure gracefully", async () => {
-      const tool = createTavilyFetchTool(workspaceId);
+      const tool = createTavilyFetchTool(workspaceId, mockContext);
       const extractResponse = {
         content: "This is the extracted content",
         title: "Test Page",
@@ -519,7 +576,7 @@ describe("tavilyTools", () => {
       );
 
       // Should not throw - tracking failure is logged but doesn't fail the tool
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         url: "https://example.com/article",
       });
 
@@ -527,7 +584,7 @@ describe("tavilyTools", () => {
     });
 
     it("should handle missing title and content", async () => {
-      const tool = createTavilyFetchTool(workspaceId);
+      const tool = createTavilyFetchTool(workspaceId, mockContext);
       const extractResponse = {
         url: "https://example.com/article",
       };
@@ -548,7 +605,7 @@ describe("tavilyTools", () => {
         createdAt: new Date().toISOString(),
       });
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         url: "https://example.com/article",
       });
 
@@ -556,4 +613,3 @@ describe("tavilyTools", () => {
     });
   });
 });
-

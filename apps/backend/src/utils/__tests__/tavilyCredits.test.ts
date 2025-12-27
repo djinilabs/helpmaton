@@ -22,6 +22,7 @@ import {
   adjustTavilyCreditReservation,
   refundTavilyCredits,
 } from "../tavilyCredits";
+import type { AugmentedContext } from "../workspaceCreditContext";
 
 describe("tavilyCredits", () => {
   let mockDb: DatabaseSchema;
@@ -30,6 +31,7 @@ describe("tavilyCredits", () => {
   let mockGet: ReturnType<typeof vi.fn>;
   let mockDelete: ReturnType<typeof vi.fn>;
   let mockReservationGet: ReturnType<typeof vi.fn>;
+  let mockContext: AugmentedContext;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -69,6 +71,11 @@ describe("tavilyCredits", () => {
         delete: mockDelete,
       },
     } as unknown as DatabaseSchema;
+
+    // Setup mock context
+    mockContext = {
+      addWorkspaceCreditTransaction: vi.fn(),
+    } as unknown as AugmentedContext;
   });
 
   describe("calculateTavilyCost", () => {
@@ -111,7 +118,12 @@ describe("tavilyCredits", () => {
         "test-workspace",
         8_000, // estimatedCost (1 * 8,000)
         3, // maxRetries
-        false // usesByok
+        false, // usesByok
+        undefined, // context (optional)
+        "tavily", // provider
+        "tavily-api", // modelName
+        undefined, // agentId (optional)
+        undefined // conversationId (optional)
       );
     });
 
@@ -136,7 +148,12 @@ describe("tavilyCredits", () => {
         "test-workspace",
         16_000, // estimatedCost (2 * 8,000)
         3, // maxRetries (default)
-        false // usesByok
+        false, // usesByok
+        undefined, // context (optional)
+        "tavily", // provider
+        "tavily-api", // modelName
+        undefined, // agentId (optional)
+        undefined // conversationId (optional)
       );
     });
   });
@@ -174,27 +191,25 @@ describe("tavilyCredits", () => {
         reservationId,
         "test-workspace",
         1, // actualCreditsUsed (same as reserved)
+        mockContext,
+        "search_web",
         3 // maxRetries
       );
 
-      expect(mockAtomicUpdate).toHaveBeenCalledWith(
-        "workspaces/test-workspace",
-        "workspace",
-        expect.any(Function),
-        { maxRetries: 3 }
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "test-workspace",
+          source: "tool-execution",
+          supplier: "tavily",
+          tool_call: "search_web",
+          amountMillionthUsd: 0, // difference is 0 (actual = reserved)
+        })
       );
       expect(mockDelete).toHaveBeenCalledWith(
         `credit-reservations/${reservationId}`
       );
 
-      // Verify the updater function logic
-      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
-      const current = { ...mockWorkspace };
-      const result = await updaterCall(current);
-
-      // actualCost = 8_000, reservedAmount = 8_000, difference = 0
-      // newBalance = 100_000_000 - 0 = 100_000_000
-      expect(result.creditBalance).toBe(100_000_000);
+      // Transaction should record zero difference (actual = reserved)
     });
 
     it("should refund difference when actual is less than reserved", async () => {
@@ -210,17 +225,23 @@ describe("tavilyCredits", () => {
         reservationId,
         "test-workspace",
         0.5, // actualCreditsUsed (less than 1)
+        mockContext,
+        "search_web",
         3
       );
 
-      // Verify the updater function logic
-      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
-      const current = { ...mockWorkspace };
-      const result = await updaterCall(current);
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "test-workspace",
+          source: "tool-execution",
+          supplier: "tavily",
+          tool_call: "search_web",
+          amountMillionthUsd: 4_000, // difference is negative (refund), negated = positive (credit)
+        })
+      );
 
       // actualCost = 0.5 * 8_000 = 4_000, reservedAmount = 8_000, difference = -4_000
-      // newBalance = 100_000_000 - (-4_000) = 100_004_000 (refund)
-      expect(result.creditBalance).toBe(100_004_000);
+      // Transaction should record negative amount for refund
     });
 
     it("should charge additional when actual is more than reserved", async () => {
@@ -236,39 +257,60 @@ describe("tavilyCredits", () => {
         reservationId,
         "test-workspace",
         2, // actualCreditsUsed (more than 1)
+        mockContext,
+        "search_web",
         3
       );
 
-      // Verify the updater function logic
-      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
-      const current = { ...mockWorkspace };
-      const result = await updaterCall(current);
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "test-workspace",
+          source: "tool-execution",
+          supplier: "tavily",
+          tool_call: "search_web",
+          amountMillionthUsd: -8_000, // difference is positive (additional charge), negated = negative (debit)
+        })
+      );
 
       // actualCost = 2 * 8_000 = 16_000, reservedAmount = 8_000, difference = 8_000
-      // newBalance = 100_000_000 - 8_000 = 99_992_000 (additional charge)
-      expect(result.creditBalance).toBe(99_992_000);
+      // Transaction should record positive amount for additional charge
     });
 
-    it("should return early if reservation not found", async () => {
+    it("should create transaction even if reservation not found", async () => {
       mockReservationGet.mockResolvedValue(undefined);
+      mockGet.mockResolvedValue({
+        pk: "workspaces/test-workspace",
+        sk: "workspace",
+        creditBalance: 100_000_000,
+        currency: "usd",
+      });
 
       await adjustTavilyCreditReservation(
         mockDb,
         reservationId,
         "test-workspace",
         1,
+        mockContext,
+        "search_web",
         3
       );
 
-      expect(mockAtomicUpdate).not.toHaveBeenCalled();
+      // Should create transaction with actual cost even if reservation not found
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith({
+        workspaceId: "test-workspace",
+        agentId: undefined,
+        conversationId: undefined,
+        source: "tool-execution",
+        supplier: "tavily",
+        tool_call: "search_web",
+        description: "Tavily API call: search_web - reservation not found, using actual cost",
+        amountMillionthUsd: -8_000, // actualCost = calculateTavilyCost(1) = 8_000, negative for debit
+      });
       expect(mockDelete).not.toHaveBeenCalled();
     });
 
     it("should throw error if workspace not found", async () => {
-      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
-        const current = undefined; // Workspace not found
-        await updater(current);
-      });
+      mockGet.mockResolvedValue(undefined); // Workspace not found
 
       await expect(
         adjustTavilyCreditReservation(
@@ -276,6 +318,8 @@ describe("tavilyCredits", () => {
           reservationId,
           "test-workspace",
           1,
+          mockContext,
+          "search_web",
           3
         )
       ).rejects.toThrow("Workspace test-workspace not found");
@@ -294,6 +338,8 @@ describe("tavilyCredits", () => {
         reservationId,
         "test-workspace",
         1,
+        mockContext,
+        "search_web",
         3
       );
 
@@ -331,44 +377,59 @@ describe("tavilyCredits", () => {
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
 
-      await refundTavilyCredits(mockDb, reservationId, "test-workspace", 3);
+      await refundTavilyCredits(
+        mockDb,
+        reservationId,
+        "test-workspace",
+        mockContext,
+        "search_web",
+        3
+      );
 
-      expect(mockAtomicUpdate).toHaveBeenCalledWith(
-        "workspaces/test-workspace",
-        "workspace",
-        expect.any(Function),
-        { maxRetries: 3 }
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "test-workspace",
+          source: "tool-execution",
+          supplier: "tavily",
+          tool_call: "search_web",
+          amountMillionthUsd: 8_000, // Positive for credit/refund
+        })
       );
       expect(mockDelete).toHaveBeenCalledWith(
         `credit-reservations/${reservationId}`
       );
 
-      // Verify the updater function logic
-      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
-      const current = { ...mockWorkspace };
-      const result = await updaterCall(current);
-
-      // newBalance = 100_000_000 + 8_000 = 100_008_000 (refund)
-      expect(result.creditBalance).toBe(100_008_000);
+      // Transaction should record negative amount for refund
     });
 
     it("should return early if reservation not found", async () => {
       mockReservationGet.mockResolvedValue(undefined);
 
-      await refundTavilyCredits(mockDb, reservationId, "test-workspace", 3);
+      await refundTavilyCredits(
+        mockDb,
+        reservationId,
+        "test-workspace",
+        mockContext,
+        undefined,
+        3
+      );
 
-      expect(mockAtomicUpdate).not.toHaveBeenCalled();
+      expect(mockContext.addWorkspaceCreditTransaction).not.toHaveBeenCalled();
       expect(mockDelete).not.toHaveBeenCalled();
     });
 
     it("should throw error if workspace not found", async () => {
-      mockAtomicUpdate.mockImplementation(async (_pk, _sk, updater) => {
-        const current = undefined; // Workspace not found
-        await updater(current);
-      });
+      mockGet.mockResolvedValue(undefined); // Workspace not found
 
       await expect(
-        refundTavilyCredits(mockDb, reservationId, "test-workspace", 3)
+        refundTavilyCredits(
+          mockDb,
+          reservationId,
+          "test-workspace",
+          mockContext,
+          undefined,
+          3
+        )
       ).rejects.toThrow("Workspace test-workspace not found");
     });
 
@@ -380,8 +441,24 @@ describe("tavilyCredits", () => {
 
       mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
 
-      await refundTavilyCredits(mockDb, reservationId, "test-workspace", 3);
+      await refundTavilyCredits(
+        mockDb,
+        reservationId,
+        "test-workspace",
+        mockContext,
+        "search_web",
+        3
+      );
 
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "test-workspace",
+          source: "tool-execution",
+          supplier: "tavily",
+          tool_call: "search_web",
+          amountMillionthUsd: 8_000, // Positive for credit/refund
+        })
+      );
       expect(mockDelete).toHaveBeenCalledWith(
         `credit-reservations/${reservationId}`
       );

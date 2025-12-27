@@ -2,6 +2,7 @@ import { badRequest, unauthorized } from "@hapi/boom";
 import { generateText } from "ai";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import type { AugmentedContext } from "../../../utils/workspaceCreditContext";
 // eslint-disable-next-line import/order
 import {
   createAPIGatewayEventV2,
@@ -62,6 +63,14 @@ const {
 // Mock the modules
 vi.mock("../../../tables", () => ({
   database: mockDatabase,
+}));
+
+// Mock @architect/functions for database initialization
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
 }));
 
 vi.mock(
@@ -139,6 +148,34 @@ vi.mock(
     processSimpleNonStreamingResponse: mockProcessSimpleNonStreamingResponse,
   })
 );
+
+// Mock workspaceCreditContext
+const mockContext: AugmentedContext = {
+  awsRequestId: "test-request-id",
+  addWorkspaceCreditTransaction: vi.fn(),
+  getRemainingTimeInMillis: () => 30000,
+  functionName: "test-function",
+  functionVersion: "$LATEST",
+  invokedFunctionArn: "arn:aws:lambda:us-east-1:123456789012:function:test",
+  memoryLimitInMB: "128",
+  logGroupName: "/aws/lambda/test",
+  logStreamName: "2024/01/01/[$LATEST]test",
+  callbackWaitsForEmptyEventLoop: true,
+  succeed: vi.fn(),
+  fail: vi.fn(),
+  done: vi.fn(),
+} as AugmentedContext;
+
+vi.mock("../../../utils/workspaceCreditContext", () => ({
+  getContextFromRequestId: vi.fn(() => mockContext),
+  augmentContextWithCreditTransactions: vi.fn((context) => ({
+    ...context,
+    addWorkspaceCreditTransaction: vi.fn(),
+  })),
+  commitContextTransactions: vi.fn().mockResolvedValue(undefined),
+  setCurrentHTTPContext: vi.fn(),
+  clearCurrentHTTPContext: vi.fn(),
+}));
 
 vi.mock(
   "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/toolFormatting",
@@ -1106,11 +1143,34 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
 
     // Mock generateText result with steps array (generateText format, not _steps)
     // This matches the actual structure from CloudWatch logs
+    // totalUsage aggregates usage from all steps automatically
+    const step1Usage = {
+      promptTokens: 524,
+      completionTokens: 9,
+      totalTokens: 533,
+      reasoningTokens: 0,
+      cachedPromptTokens: 0,
+    };
+    const step2Usage = {
+      promptTokens: 594,
+      completionTokens: 28,
+      totalTokens: 622,
+      reasoningTokens: 0,
+      cachedPromptTokens: 0,
+    };
     const mockGenerateTextResult = {
       text: "I found documents.",
       toolCalls: [], // Empty - tool calls are in steps
       toolResults: [], // Empty - tool results are in steps
       usage: undefined, // No top-level usage - it's in steps[].usage
+      totalUsage: {
+        // AI SDK provides totalUsage that aggregates all steps
+        promptTokens: step1Usage.promptTokens + step2Usage.promptTokens, // 1118
+        completionTokens: step1Usage.completionTokens + step2Usage.completionTokens, // 37
+        totalTokens: step1Usage.totalTokens + step2Usage.totalTokens, // 1155
+        reasoningTokens: 0,
+        cachedPromptTokens: 0,
+      },
       steps: [
         {
           content: [
@@ -1130,13 +1190,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
               },
             },
           ],
-          usage: {
-            inputTokens: 524,
-            outputTokens: 9,
-            totalTokens: 533,
-            reasoningTokens: 0,
-            cachedInputTokens: 0,
-          },
+          usage: step1Usage,
           response: {
             id: "gen-1766755634-mSZupEMPTYHYviRp0kbj",
           },
@@ -1155,13 +1209,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
               text: "I found documents.",
             },
           ],
-          usage: {
-            inputTokens: 594,
-            outputTokens: 28,
-            totalTokens: 622,
-            reasoningTokens: 0,
-            cachedInputTokens: 0,
-          },
+          usage: step2Usage,
           response: {
             id: "gen-1766755635-GhZIxomllM8bIk1B2vXN",
           },
@@ -1464,7 +1512,10 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
       false,
       "gen-123",
       ["gen-123"],
-      "webhook"
+      "webhook",
+      expect.objectContaining({
+        addWorkspaceCreditTransaction: expect.any(Function),
+      })
     );
 
     // Verify startConversation was called with token usage

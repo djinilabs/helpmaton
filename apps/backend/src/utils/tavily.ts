@@ -1,9 +1,17 @@
 /**
  * Tavily API client utility
  * Provides functions for calling Tavily search and extract APIs
+ * Uses the official @tavily/core library with backward-compatible interface
  */
 
-const TAVILY_API_BASE_URL = "https://api.tavily.com";
+import { tavily as createTavilyClient } from "@tavily/core";
+import type {
+  TavilySearchResponse as LibrarySearchResponse,
+  TavilyExtractResponse as LibraryExtractResponse,
+  TavilySearchOptions as LibrarySearchOptions,
+  TavilyExtractOptions as LibraryExtractOptions,
+} from "@tavily/core";
+
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY_MS = 1000;
 const MAX_RETRY_DELAY_MS = 10000;
@@ -64,6 +72,28 @@ function getTavilyApiKey(): string {
 }
 
 /**
+ * Get or create Tavily client instance
+ * Note: API key validation should be done before calling this function
+ */
+let tavilyClient: ReturnType<typeof createTavilyClient> | null = null;
+
+function getTavilyClient() {
+  if (!tavilyClient) {
+    const apiKey = getTavilyApiKey();
+    tavilyClient = createTavilyClient({ apiKey });
+  }
+  return tavilyClient;
+}
+
+/**
+ * Reset client instance (useful for testing)
+ * @internal
+ */
+export function resetTavilyClient() {
+  tavilyClient = null;
+}
+
+/**
  * Sleep utility with timeout support
  */
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -103,23 +133,38 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 /**
  * Check if error is retryable (rate limit, network error, etc.)
  */
-function isRetryableError(status: number, errorText: string): boolean {
-  // Rate limit errors
-  if (status === 429) {
+function isRetryableError(error: Error): boolean {
+  const errorMessage = error.message.toLowerCase();
+  const errorName = error.name.toLowerCase();
+
+  // Rate limit errors (429)
+  if (
+    errorMessage.includes("429") ||
+    errorMessage.includes("rate limit") ||
+    errorMessage.includes("too many requests")
+  ) {
     return true;
   }
 
   // Server errors (5xx)
-  if (status >= 500 && status < 600) {
+  if (
+    errorMessage.includes("500") ||
+    errorMessage.includes("502") ||
+    errorMessage.includes("503") ||
+    errorMessage.includes("504") ||
+    errorMessage.includes("server error")
+  ) {
     return true;
   }
 
   // Network/timeout errors
   if (
-    errorText.toLowerCase().includes("timeout") ||
-    errorText.toLowerCase().includes("network") ||
-    errorText.toLowerCase().includes("econnreset") ||
-    errorText.toLowerCase().includes("enotfound")
+    errorMessage.includes("timeout") ||
+    errorMessage.includes("network") ||
+    errorMessage.includes("econnreset") ||
+    errorMessage.includes("enotfound") ||
+    errorMessage.includes("fetch") ||
+    errorName === "aborterror"
   ) {
     return true;
   }
@@ -128,22 +173,108 @@ function isRetryableError(status: number, errorText: string): boolean {
 }
 
 /**
- * Call Tavily search API
+ * Convert library search response to our format
+ */
+function convertSearchResponse(
+  libResponse: LibrarySearchResponse
+): TavilySearchResponse {
+  return {
+    query: libResponse.query,
+    response_time: libResponse.responseTime,
+    answer: libResponse.answer,
+    images: libResponse.images?.map((img) => img.url),
+    results: libResponse.results.map((result) => ({
+      title: result.title,
+      url: result.url,
+      content: result.content,
+      score: result.score,
+      raw_content: result.rawContent,
+    })),
+    usage: libResponse.usage
+      ? {
+          credits_used: libResponse.usage.credits,
+        }
+      : undefined,
+  };
+}
+
+/**
+ * Convert library extract response to our format
+ */
+function convertExtractResponse(
+  libResponse: LibraryExtractResponse,
+  requestedUrl: string
+): TavilyExtractResponse {
+  // Library returns array of results, we need the first one for the requested URL
+  const result = libResponse.results.find((r) => r.url === requestedUrl);
+
+  if (!result) {
+    // If no result found, check failed results
+    const failedResult = libResponse.failedResults.find(
+      (r) => r.url === requestedUrl
+    );
+    if (failedResult) {
+      throw new Error(
+        `Tavily extract API error: Failed to extract ${requestedUrl}: ${failedResult.error}`
+      );
+    }
+    // If still not found, use first result or throw
+    if (libResponse.results.length === 0) {
+      throw new Error(
+        `Tavily extract API error: No results returned for ${requestedUrl}`
+      );
+    }
+    // Use first result as fallback
+    const firstResult = libResponse.results[0];
+    return {
+      url: firstResult.url,
+      content: firstResult.rawContent,
+      images: firstResult.images,
+      raw_content: firstResult.rawContent,
+      usage: libResponse.usage
+        ? {
+            credits_used: libResponse.usage.credits,
+          }
+        : undefined,
+    };
+  }
+
+  // Extract title from rawContent if possible (library doesn't provide title separately)
+  // For now, we'll leave title undefined as the library doesn't provide it
+  return {
+    url: result.url,
+    content: result.rawContent,
+    images: result.images,
+    raw_content: result.rawContent,
+    usage: libResponse.usage
+      ? {
+          credits_used: libResponse.usage.credits,
+        }
+      : undefined,
+  };
+}
+
+/**
+ * Call Tavily search API with retry logic
  */
 export async function tavilySearch(
   query: string,
   options?: TavilySearchOptions
 ): Promise<TavilySearchResponse> {
-  const apiKey = getTavilyApiKey();
+  // Check API key first (before creating client)
+  getTavilyApiKey();
+  const client = getTavilyClient();
 
-  const requestBody = {
-    query,
-    max_results: options?.max_results ?? 5,
-    search_depth: options?.search_depth ?? "basic",
-    include_answer: options?.include_answer ?? false,
-    include_raw_content: options?.include_raw_content ?? false,
-    include_images: options?.include_images ?? false,
-    include_usage: true,
+  // Map our options to library format
+  const libraryOptions: LibrarySearchOptions = {
+    maxResults: options?.max_results ?? 5,
+    searchDepth: options?.search_depth ?? "basic",
+    includeAnswer: options?.include_answer ?? false,
+    includeRawContent: options?.include_raw_content
+      ? "text"
+      : false,
+    includeImages: options?.include_images ?? false,
+    includeUsage: true,
   };
 
   let lastError: Error | undefined;
@@ -152,32 +283,66 @@ export async function tavilySearch(
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
-      const response = await fetch(`${TAVILY_API_BASE_URL}/search`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
+
+      // Call library with timeout handling
+      const searchPromise = client.search(query, {
+        ...libraryOptions,
+        timeout: 30000,
       });
+
+      // Race against timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          controller.abort();
+          reject(new Error("Tavily search API request timeout"));
+        }, 30000);
+      });
+
+      const libResponse = await Promise.race([searchPromise, timeoutPromise]);
       clearTimeout(timeoutId);
 
-      if (!response) {
-        throw new TypeError("fetch returned undefined response");
+      // Convert library response to our format
+      return convertSearchResponse(libResponse);
+    } catch (error) {
+      // If error message includes "Tavily search API error", it's a non-retryable API error - throw immediately
+      if (
+        error instanceof Error &&
+        error.message.includes("Tavily search API error")
+      ) {
+        throw error;
       }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(
-          `[tavilySearch] API error response: ${response.status} ${errorText}`
-        );
+      // Check if it's an abort/timeout error
+      if (
+        error instanceof Error &&
+        (error.name === "AbortError" ||
+          error.message === "Operation aborted" ||
+          error.message.includes("timeout"))
+      ) {
+        if (attempt < MAX_RETRIES) {
+          const baseDelay = Math.min(
+            INITIAL_RETRY_DELAY_MS * Math.pow(RETRY_MULTIPLIER, attempt),
+            MAX_RETRY_DELAY_MS
+          );
+          const jitter = Math.random() * baseDelay * 0.2;
+          const delay = baseDelay + jitter;
 
-        // Check if retryable and we have retries left
-        if (
-          isRetryableError(response.status, errorText) &&
-          attempt < MAX_RETRIES
-        ) {
+          console.log(
+            `[tavilySearch] Timeout error, retrying in ${delay}ms (attempt ${
+              attempt + 1
+            }/${MAX_RETRIES + 1})`
+          );
+
+          await sleep(delay);
+          lastError = error;
+          continue;
+        }
+        throw new Error("Tavily search API request timeout");
+      }
+
+      // Check if it's a retryable error
+      if (error instanceof Error && isRetryableError(error)) {
+        if (attempt < MAX_RETRIES) {
           // Calculate delay with exponential backoff and jitter
           const baseDelay = Math.min(
             INITIAL_RETRY_DELAY_MS * Math.pow(RETRY_MULTIPLIER, attempt),
@@ -189,65 +354,11 @@ export async function tavilySearch(
           console.log(
             `[tavilySearch] Retryable error, retrying in ${delay}ms (attempt ${
               attempt + 1
-            }/${MAX_RETRIES + 1})`
+            }/${MAX_RETRIES + 1}): ${error.message}`
           );
 
           await sleep(delay);
-          lastError = new Error(
-            `Tavily API error: ${response.status} ${errorText}`
-          );
-          continue;
-        }
-
-        // Not retryable or no retries left
-        throw new Error(
-          `Tavily search API error: ${response.status} ${errorText}`
-        );
-      }
-
-      const result = (await response.json()) as TavilySearchResponse;
-      return result;
-    } catch (error) {
-      // If error message includes "Tavily search API error", it's a non-retryable API error - throw immediately
-      if (
-        error instanceof Error &&
-        error.message.includes("Tavily search API error")
-      ) {
-        throw error;
-      }
-
-      // Check if it's an abort error
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new Error("Tavily search API request timeout");
-      }
-      if (error instanceof Error && error.message === "Operation aborted") {
-        throw error;
-      }
-
-      // Check if it's a network/fetch error that might be retryable
-      if (
-        error instanceof TypeError &&
-        (error.message.includes("fetch") ||
-          error.message.includes("network") ||
-          error.message.includes("timeout") ||
-          error.message.includes("undefined"))
-      ) {
-        if (attempt < MAX_RETRIES) {
-          const baseDelay = Math.min(
-            INITIAL_RETRY_DELAY_MS * Math.pow(RETRY_MULTIPLIER, attempt),
-            MAX_RETRY_DELAY_MS
-          );
-          const jitter = Math.random() * baseDelay * 0.2;
-          const delay = baseDelay + jitter;
-
-          console.log(
-            `[tavilySearch] Network error, retrying in ${delay}ms (attempt ${
-              attempt + 1
-            }/${MAX_RETRIES + 1})`
-          );
-
-          await sleep(delay);
-          lastError = error as Error;
+          lastError = error;
           continue;
         }
       }
@@ -259,7 +370,9 @@ export async function tavilySearch(
           error
         );
         if (error instanceof Error) {
-          throw error;
+          throw new Error(
+            `Tavily search API error: ${error.message}`
+          );
         }
         throw new Error(`Failed to call Tavily search API: ${String(error)}`);
       }
@@ -270,68 +383,98 @@ export async function tavilySearch(
 
   // If we get here, all retries were exhausted
   if (lastError) {
-    throw lastError;
+    throw new Error(
+      `Tavily search API error: ${lastError.message}`
+    );
   }
   throw new Error("Failed to call Tavily search API: Unknown error");
 }
 
 /**
- * Call Tavily extract API
+ * Call Tavily extract API with retry logic
  */
 export async function tavilyExtract(
   url: string,
   options?: TavilyExtractOptions
 ): Promise<TavilyExtractResponse> {
-  const apiKey = getTavilyApiKey();
+  // Check API key first (before creating client)
+  getTavilyApiKey();
+  const client = getTavilyClient();
 
-  const requestBody = {
-    urls: [url],
-    include_images: options?.include_images ?? false,
-    include_raw_content: options?.include_raw_content ?? false,
-    include_usage: true,
+  // Map our options to library format
+  const libraryOptions: LibraryExtractOptions = {
+    includeImages: options?.include_images ?? false,
+    format: options?.include_raw_content ? "text" : undefined,
+    includeUsage: true,
   };
 
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      let response: Response;
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-        response = await fetch(`${TAVILY_API_BASE_URL}/extract`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify(requestBody),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-      } catch (fetchError) {
-        // Handle abort or other fetch errors
-        if (fetchError instanceof Error && fetchError.name === "AbortError") {
-          throw new Error("Tavily extract API request timeout");
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+      // Call library with timeout handling
+      // Library expects array of URLs
+      const extractPromise = client.extract([url], {
+        ...libraryOptions,
+        timeout: 30000,
+      });
+
+      // Race against timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          controller.abort();
+          reject(new Error("Tavily extract API request timeout"));
+        }, 30000);
+      });
+
+      const libResponse = await Promise.race([extractPromise, timeoutPromise]);
+      clearTimeout(timeoutId);
+
+      // Convert library response to our format
+      return convertExtractResponse(libResponse, url);
+    } catch (error) {
+      // If error message includes "Tavily extract API error", it's a non-retryable API error - throw immediately
+      if (
+        error instanceof Error &&
+        error.message.includes("Tavily extract API error")
+      ) {
+        throw error;
+      }
+
+      // Check if it's an abort/timeout error
+      if (
+        error instanceof Error &&
+        (error.name === "AbortError" ||
+          error.message === "Operation aborted" ||
+          error.message.includes("timeout"))
+      ) {
+        if (attempt < MAX_RETRIES) {
+          const baseDelay = Math.min(
+            INITIAL_RETRY_DELAY_MS * Math.pow(RETRY_MULTIPLIER, attempt),
+            MAX_RETRY_DELAY_MS
+          );
+          const jitter = Math.random() * baseDelay * 0.2;
+          const delay = baseDelay + jitter;
+
+          console.log(
+            `[tavilyExtract] Timeout error, retrying in ${delay}ms (attempt ${
+              attempt + 1
+            }/${MAX_RETRIES + 1})`
+          );
+
+          await sleep(delay);
+          lastError = error;
+          continue;
         }
-        throw fetchError;
+        throw new Error("Tavily extract API request timeout");
       }
 
-      if (!response) {
-        throw new TypeError("fetch returned undefined response");
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(
-          `[tavilyExtract] API error response: ${response.status} ${errorText}`
-        );
-
-        // Check if retryable and we have retries left
-        if (
-          isRetryableError(response.status, errorText) &&
-          attempt < MAX_RETRIES
-        ) {
+      // Check if it's a retryable error
+      if (error instanceof Error && isRetryableError(error)) {
+        if (attempt < MAX_RETRIES) {
           // Calculate delay with exponential backoff and jitter
           const baseDelay = Math.min(
             INITIAL_RETRY_DELAY_MS * Math.pow(RETRY_MULTIPLIER, attempt),
@@ -343,97 +486,11 @@ export async function tavilyExtract(
           console.log(
             `[tavilyExtract] Retryable error, retrying in ${delay}ms (attempt ${
               attempt + 1
-            }/${MAX_RETRIES + 1})`
+            }/${MAX_RETRIES + 1}): ${error.message}`
           );
 
           await sleep(delay);
-          lastError = new Error(
-            `Tavily API error: ${response.status} ${errorText}`
-          );
-          continue;
-        }
-
-        // Not retryable or no retries left
-        throw new Error(
-          `Tavily extract API error: ${response.status} ${errorText}`
-        );
-      }
-
-      const jsonResult = await response.json();
-
-      // Log the raw response to debug structure
-      console.log("[tavilyExtract] Raw API response:", {
-        isArray: Array.isArray(jsonResult),
-        type: typeof jsonResult,
-        keys: Array.isArray(jsonResult)
-          ? undefined
-          : Object.keys(jsonResult || {}),
-        firstElementKeys:
-          Array.isArray(jsonResult) && jsonResult[0]
-            ? Object.keys(jsonResult[0])
-            : undefined,
-        sample: Array.isArray(jsonResult) ? jsonResult[0] : jsonResult,
-      });
-
-      // Tavily API returns an array when urls is provided as an array
-      // Extract the first result if it's an array, otherwise use the result directly
-      const result = Array.isArray(jsonResult)
-        ? (jsonResult[0] as TavilyExtractResponse)
-        : (jsonResult as TavilyExtractResponse);
-
-      // Log the extracted result structure
-      console.log("[tavilyExtract] Extracted result:", {
-        url: result?.url,
-        title: result?.title,
-        hasContent: !!result?.content,
-        contentLength: result?.content?.length,
-        hasImages: !!result?.images,
-        imagesCount: result?.images?.length,
-        keys: Object.keys(result || {}),
-      });
-
-      return result;
-    } catch (error) {
-      // If error message includes "Tavily extract API error", it's a non-retryable API error - throw immediately
-      if (
-        error instanceof Error &&
-        error.message.includes("Tavily extract API error")
-      ) {
-        throw error;
-      }
-
-      // Check if it's an abort error
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new Error("Tavily extract API request timeout");
-      }
-      if (error instanceof Error && error.message === "Operation aborted") {
-        throw error;
-      }
-
-      // Check if it's a network/fetch error that might be retryable
-      if (
-        error instanceof TypeError &&
-        (error.message.includes("fetch") ||
-          error.message.includes("network") ||
-          error.message.includes("timeout") ||
-          error.message.includes("undefined"))
-      ) {
-        if (attempt < MAX_RETRIES) {
-          const baseDelay = Math.min(
-            INITIAL_RETRY_DELAY_MS * Math.pow(RETRY_MULTIPLIER, attempt),
-            MAX_RETRY_DELAY_MS
-          );
-          const jitter = Math.random() * baseDelay * 0.2;
-          const delay = baseDelay + jitter;
-
-          console.log(
-            `[tavilyExtract] Network error, retrying in ${delay}ms (attempt ${
-              attempt + 1
-            }/${MAX_RETRIES + 1})`
-          );
-
-          await sleep(delay);
-          lastError = error as Error;
+          lastError = error;
           continue;
         }
       }
@@ -445,7 +502,9 @@ export async function tavilyExtract(
           error
         );
         if (error instanceof Error) {
-          throw error;
+          throw new Error(
+            `Tavily extract API error: ${error.message}`
+          );
         }
         throw new Error(`Failed to call Tavily extract API: ${String(error)}`);
       }
@@ -456,7 +515,9 @@ export async function tavilyExtract(
 
   // If we get here, all retries were exhausted
   if (lastError) {
-    throw lastError;
+    throw new Error(
+      `Tavily extract API error: ${lastError.message}`
+    );
   }
   throw new Error("Failed to call Tavily extract API: Unknown error");
 }

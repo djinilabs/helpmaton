@@ -2,10 +2,17 @@
  * Reconstructs tool calls from tool results when tool calls are missing
  * This can happen when tools execute synchronously and the AI SDK doesn't populate toolCalls
  */
- 
+
+type ToolResult = {
+  toolCallId?: string;
+  toolName?: string;
+  args?: unknown;
+  input?: unknown;
+  [key: string]: unknown;
+};
+
 export function reconstructToolCallsFromResults(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
-  toolResults: any[],
+  toolResults: unknown[],
   endpoint: string
 ): Array<{
   toolCallId: string;
@@ -21,13 +28,16 @@ export function reconstructToolCallsFromResults(
   );
 
   // Reconstruct tool calls from tool results
-  const reconstructed = toolResults.map((toolResult: any) => ({
-    toolCallId:
-      toolResult.toolCallId ||
-      `call-${Math.random().toString(36).substring(7)}`,
-    toolName: toolResult.toolName || "unknown",
-    args: toolResult.args || toolResult.input || {},
-  }));
+  const reconstructed = toolResults.map((toolResult: unknown) => {
+    const result = toolResult as ToolResult;
+    return {
+      toolCallId:
+        result.toolCallId ||
+        `call-${Math.random().toString(36).substring(7)}`,
+      toolName: result.toolName || "unknown",
+      args: result.args || result.input || {},
+    };
+  });
 
   console.log(`[${endpoint} Handler] Reconstructed tool calls:`, reconstructed);
 

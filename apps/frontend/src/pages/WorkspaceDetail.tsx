@@ -18,7 +18,7 @@ import {
 import { useQueryErrorResetBoundary, useQuery } from "@tanstack/react-query";
 import { useState, Suspense, lazy } from "react";
 import type { FC } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 
 import { AccordionSection } from "../components/AccordionSection";
 import { ErrorBoundary } from "../components/ErrorBoundary";
@@ -89,6 +89,11 @@ const UsageDashboard = lazy(() =>
     default: module.UsageDashboard,
   }))
 );
+const TransactionTable = lazy(() =>
+  import("../components/TransactionTable").then((module) => ({
+    default: module.TransactionTable,
+  }))
+);
 const TeamMembers = lazy(() =>
   import("../components/TeamMembers").then((module) => ({
     default: module.TeamMembers,
@@ -100,6 +105,7 @@ const InviteMember = lazy(() =>
   }))
 );
 import { useAccordion } from "../hooks/useAccordion";
+import { useSubscription } from "../hooks/useSubscription";
 import { useTrialStatus } from "../hooks/useTrialCredits";
 import { useWorkspaceUsage, useWorkspaceDailyUsage } from "../hooks/useUsage";
 import { useUpdateWorkspace, useDeleteWorkspace } from "../hooks/useWorkspaces";
@@ -132,9 +138,13 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
   const [apiKey, setApiKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const { data: subscription } = useSubscription();
 
   // Check if OpenRouter key exists
   const hasKey = apiKeys?.openrouter || false;
+  
+  // Check if user is on free plan
+  const isFreePlan = subscription?.plan === "free";
 
   const handleSave = async () => {
     if (!apiKey.trim()) {
@@ -171,23 +181,54 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-primary-200 bg-primary-50/50 p-5 dark:border-primary-800 dark:bg-primary-950/50">
-        <p className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-50">Help:</p>
-        <ul className="list-inside list-disc space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
-          <li>
-            Configure your OpenRouter API key to use your own key for LLM requests
-          </li>
-          <li>
-            By default, if you add no key, we will use workspace credits (if
-            any)
-          </li>
-          <li>
-            When you add an OpenRouter key, you are responsible for the billing and
-            correctness of the key. Costs will be applied to your spending rate limits
-            but will not be deducted from workspace credits.
-          </li>
-        </ul>
-      </div>
+      {isFreePlan ? (
+        <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-5 dark:border-orange-800 dark:bg-orange-950/50">
+          <p className="mb-2 text-sm font-semibold text-orange-900 dark:text-orange-50">
+            Bring Your Own Key (BYOK) is only available for Starter and Pro plans
+          </p>
+          <p className="mb-3 text-sm text-orange-800 dark:text-orange-200">
+            Upgrade your plan to use your own API keys and pay providers directly while
+            still benefiting from Helpmaton&apos;s infrastructure, analytics, and management features.
+          </p>
+          <Link
+            to="/subscription"
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored"
+          >
+            Upgrade Your Plan
+            <svg
+              className="size-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </Link>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-primary-200 bg-primary-50/50 p-5 dark:border-primary-800 dark:bg-primary-950/50">
+          <p className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-50">Help:</p>
+          <ul className="list-inside list-disc space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
+            <li>
+              Configure your OpenRouter API key to use your own key for LLM requests
+            </li>
+            <li>
+              By default, if you add no key, we will use workspace credits (if
+              any)
+            </li>
+            <li>
+              When you add an OpenRouter key, you are responsible for the billing and
+              correctness of the key. Costs will be applied to your spending rate limits
+              but will not be deducted from workspace credits.
+            </li>
+          </ul>
+        </div>
+      )}
 
       {hasKey && (
         <div className="rounded-xl border border-accent-200 bg-accent-50/50 p-5 dark:border-accent-800 dark:bg-accent-950/50">
@@ -201,43 +242,45 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
         </div>
       )}
 
-      <div className="space-y-3">
-        <div>
-          <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-            OpenRouter API Key
-          </label>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder={
-              hasKey
-                ? "Enter new key to replace existing"
-                : "Enter your OpenRouter API key"
-            }
-            className="w-full rounded-xl border border-neutral-300 bg-white p-3 font-mono text-sm text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-            disabled={isSaving || isClearing}
-          />
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={handleSave}
-            disabled={!apiKey.trim() || isSaving || isClearing}
-            className="rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
-          >
-            {isSaving ? "Saving..." : "Save Key"}
-          </button>
-          {hasKey && (
-            <button
-              onClick={handleClear}
+      {!isFreePlan && (
+        <div className="space-y-3">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+              OpenRouter API Key
+            </label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={
+                hasKey
+                  ? "Enter new key to replace existing"
+                  : "Enter your OpenRouter API key"
+              }
+              className="w-full rounded-xl border border-neutral-300 bg-white p-3 font-mono text-sm text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               disabled={isSaving || isClearing}
-              className="rounded-xl border border-neutral-300 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+            />
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleSave}
+              disabled={!apiKey.trim() || isSaving || isClearing}
+              className="rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
             >
-              {isClearing ? "Clearing..." : "Clear Key"}
+              {isSaving ? "Saving..." : "Save Key"}
             </button>
-          )}
+            {hasKey && (
+              <button
+                onClick={handleClear}
+                disabled={isSaving || isClearing}
+                className="rounded-xl border border-neutral-300 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              >
+                {isClearing ? "Clearing..." : "Clear Key"}
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -700,6 +743,30 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           >
             <LazyAccordionContent isExpanded={expandedSection === "usage"}>
               <WorkspaceUsageSection workspaceId={id!} />
+            </LazyAccordionContent>
+          </AccordionSection>
+
+          <AccordionSection
+            id="transactions"
+            title={
+              <>
+                <CurrencyDollarIcon className="mr-2 inline-block size-5" />
+                Transactions
+              </>
+            }
+            isExpanded={expandedSection === "transactions"}
+            onToggle={() => toggleSection("transactions")}
+          >
+            <LazyAccordionContent
+              isExpanded={expandedSection === "transactions"}
+            >
+              <QueryPanel
+                fallback={
+                  <LoadingScreen compact message="Loading transactions..." />
+                }
+              >
+                <TransactionTable workspaceId={id!} />
+              </QueryPanel>
             </LazyAccordionContent>
           </AccordionSection>
         </SectionGroup>

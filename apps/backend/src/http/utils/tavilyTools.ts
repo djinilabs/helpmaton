@@ -22,12 +22,22 @@ import {
   refundTavilyCredits,
   calculateTavilyCost,
 } from "../../utils/tavilyCredits";
+import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 /**
  * Create web search tool
  * Searches the web using Tavily search API
+ * @param workspaceId - Workspace ID
+ * @param context - Augmented Lambda context for transaction creation (optional)
+ * @param agentId - Agent ID (optional, for transaction tracking)
+ * @param conversationId - Conversation ID (optional, for transaction tracking)
  */
-export function createTavilySearchTool(workspaceId: string) {
+export function createTavilySearchTool(
+  workspaceId: string,
+  context?: AugmentedContext,
+  agentId?: string,
+  conversationId?: string
+) {
   const searchParamsSchema = z.object({
     query: z
       .string()
@@ -97,11 +107,19 @@ export function createTavilySearchTool(workspaceId: string) {
         const shouldReserveCredits = !withinFreeLimit;
 
         if (shouldReserveCredits) {
+          if (!context) {
+            throw new Error(
+              "Context not available for Tavily credit transactions (search_web)"
+            );
+          }
           const reservation = await reserveTavilyCredits(
             db,
             workspaceId,
             1, // Estimate: 1 credit per call
-            3 // maxRetries
+            3, // maxRetries
+            context,
+            agentId,
+            conversationId
           );
           reservationId = reservation.reservationId;
           console.log("[search_web] Reserved credits:", {
@@ -132,6 +150,27 @@ export function createTavilySearchTool(workspaceId: string) {
           // Continue execution - tracking failure is a logging issue, not a correctness issue
         }
 
+        // Create transaction for free tier users (when no reservation was made)
+        // This ensures all API usage is tracked, even for free tier
+        if (!reservationId && context) {
+          const actualCost = calculateTavilyCost(actualCreditsUsed);
+          context.addWorkspaceCreditTransaction({
+            workspaceId,
+            agentId: agentId || undefined,
+            conversationId: conversationId || undefined,
+            source: "tool-execution",
+            supplier: "tavily",
+            tool_call: "search_web",
+            description: `Tavily API call: search_web - actual cost (free tier)`,
+            amountMillionthUsd: -actualCost, // Negative for debit (deducting from workspace)
+          });
+          console.log("[search_web] Created transaction for free tier:", {
+            workspaceId,
+            actualCreditsUsed,
+            actualCost,
+          });
+        }
+
         // Adjust credits if we reserved them
         // Note: reservationId is only set for paid tiers that exceeded free limit and reserved credits
         if (
@@ -139,12 +178,21 @@ export function createTavilySearchTool(workspaceId: string) {
           reservationId !== "byok" &&
           reservationId !== "zero-cost"
         ) {
+          if (!context) {
+            throw new Error(
+              "Context not available for Tavily credit transactions (search_web adjustment)"
+            );
+          }
           await adjustTavilyCreditReservation(
             db,
             reservationId,
             workspaceId,
             actualCreditsUsed,
-            3 // maxRetries
+            context,
+            "search_web",
+            3, // maxRetries
+            agentId,
+            conversationId
           );
           console.log("[search_web] Adjusted credits:", {
             workspaceId,
@@ -196,7 +244,21 @@ export function createTavilySearchTool(workspaceId: string) {
           reservationId !== "zero-cost"
         ) {
           try {
-            await refundTavilyCredits(db, reservationId, workspaceId, 3);
+            if (!context) {
+              throw new Error(
+                "Context not available for Tavily credit transactions (search_web refund)"
+              );
+            }
+            await refundTavilyCredits(
+              db,
+              reservationId,
+              workspaceId,
+              context,
+              "search_web",
+              3,
+              agentId,
+              conversationId
+            );
             console.log("[search_web] Refunded credits due to error:", {
               workspaceId,
               reservationId,
@@ -230,8 +292,17 @@ export function createTavilySearchTool(workspaceId: string) {
 /**
  * Create web fetch tool
  * Extracts and summarizes content from a URL using Tavily extract API
+ * @param workspaceId - Workspace ID
+ * @param context - Augmented Lambda context for transaction creation (optional)
+ * @param agentId - Agent ID (optional, for transaction tracking)
+ * @param conversationId - Conversation ID (optional, for transaction tracking)
  */
-export function createTavilyFetchTool(workspaceId: string) {
+export function createTavilyFetchTool(
+  workspaceId: string,
+  context?: AugmentedContext,
+  agentId?: string,
+  conversationId?: string
+) {
   const fetchParamsSchema = z.object({
     url: z
       .string()
@@ -297,11 +368,19 @@ export function createTavilyFetchTool(workspaceId: string) {
         const shouldReserveCredits = !withinFreeLimit;
 
         if (shouldReserveCredits) {
+          if (!context) {
+            throw new Error(
+              "Context not available for Tavily credit transactions (fetch_web)"
+            );
+          }
           const reservation = await reserveTavilyCredits(
             db,
             workspaceId,
             1, // Estimate: 1 credit per call
-            3 // maxRetries
+            3, // maxRetries
+            context,
+            agentId,
+            conversationId
           );
           reservationId = reservation.reservationId;
           console.log("[fetch_web] Reserved credits:", {
@@ -330,6 +409,27 @@ export function createTavilyFetchTool(workspaceId: string) {
           // Continue execution - tracking failure is a logging issue, not a correctness issue
         }
 
+        // Create transaction for free tier users (when no reservation was made)
+        // This ensures all API usage is tracked, even for free tier
+        if (!reservationId && context) {
+          const actualCost = calculateTavilyCost(actualCreditsUsed);
+          context.addWorkspaceCreditTransaction({
+            workspaceId,
+            agentId: agentId || undefined,
+            conversationId: conversationId || undefined,
+            source: "tool-execution",
+            supplier: "tavily",
+            tool_call: "fetch_web",
+            description: `Tavily API call: fetch_web - actual cost (free tier)`,
+            amountMillionthUsd: -actualCost, // Negative for debit (deducting from workspace)
+          });
+          console.log("[fetch_web] Created transaction for free tier:", {
+            workspaceId,
+            actualCreditsUsed,
+            actualCost,
+          });
+        }
+
         // Adjust credits if we reserved them
         // Note: reservationId is only set for paid tiers that exceeded free limit and reserved credits
         if (
@@ -337,12 +437,21 @@ export function createTavilyFetchTool(workspaceId: string) {
           reservationId !== "byok" &&
           reservationId !== "zero-cost"
         ) {
+          if (!context) {
+            throw new Error(
+              "Context not available for Tavily credit transactions (fetch_web adjustment)"
+            );
+          }
           await adjustTavilyCreditReservation(
             db,
             reservationId,
             workspaceId,
             actualCreditsUsed,
-            3 // maxRetries
+            context,
+            "fetch_web",
+            3, // maxRetries
+            agentId,
+            conversationId
           );
           console.log("[fetch_web] Adjusted credits:", {
             workspaceId,
@@ -388,7 +497,21 @@ export function createTavilyFetchTool(workspaceId: string) {
           reservationId !== "zero-cost"
         ) {
           try {
-            await refundTavilyCredits(db, reservationId, workspaceId, 3);
+            if (!context) {
+              throw new Error(
+                "Context not available for Tavily credit transactions (fetch_web refund)"
+              );
+            }
+            await refundTavilyCredits(
+              db,
+              reservationId,
+              workspaceId,
+              context,
+              "fetch_web",
+              3,
+              agentId,
+              conversationId
+            );
             console.log("[fetch_web] Refunded credits due to error:", {
               workspaceId,
               reservationId,

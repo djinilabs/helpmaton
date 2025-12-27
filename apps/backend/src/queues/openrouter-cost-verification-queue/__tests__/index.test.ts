@@ -1,6 +1,10 @@
 import type { SQSEvent, SQSRecord } from "aws-lambda";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import type { UIMessage } from "../../../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
+import type { DatabaseSchema } from "../../../tables/schema";
+import { handler } from "../index";
+
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
 const {
   mockDatabase,
@@ -25,6 +29,50 @@ vi.mock("../../../tables/database", () => ({
   database: mockDatabase,
 }));
 
+// Mock @architect/functions for database initialization
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
+
+// Mock workspaceCreditContext functions
+vi.mock("../../../utils/workspaceCreditContext", () => {
+  const mockContext = {
+    awsRequestId: "test-request-id",
+    addWorkspaceCreditTransaction: vi.fn(),
+  };
+  return {
+    augmentContextWithCreditTransactions: vi.fn((context) => ({
+      ...context,
+      addWorkspaceCreditTransaction: vi.fn(),
+    })),
+    commitContextTransactions: vi.fn().mockResolvedValue(undefined),
+    setCurrentHTTPContext: vi.fn(),
+    clearCurrentHTTPContext: vi.fn(),
+    setTransactionBuffer: vi.fn(),
+    createTransactionBuffer: vi.fn(() => new Map()),
+    setCurrentSQSContext: vi.fn(),
+    clearCurrentSQSContext: vi.fn(),
+    getCurrentSQSContext: vi.fn(() => mockContext),
+  };
+});
+
+// Mock posthog and sentry for handlingSQSErrors
+vi.mock("../../../utils/posthog", () => ({
+  flushPostHog: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../../../utils/sentry", () => ({
+  flushSentry: vi.fn().mockResolvedValue(undefined),
+  ensureError: vi.fn((error) => error),
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: vi.fn(),
+}));
+
 // Mock creditManagement
 vi.mock("../../../utils/creditManagement", () => ({
   finalizeCreditReservation: mockFinalizeCreditReservation,
@@ -37,11 +85,6 @@ vi.mock("../../../utils", () => ({
     return value;
   },
 }));
-
-// Import after mocks are set up
-import type { UIMessage } from "../../../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
-import type { DatabaseSchema } from "../../../tables/schema";
-import { handler } from "../index";
 
 // Mock global fetch
 global.fetch = vi.fn();
@@ -202,6 +245,9 @@ describe("openrouter-cost-verification-queue", () => {
         mockDb,
         "res-1",
         1055, // Math.ceil(0.001 * 1_000_000 * 1.055) = 1055
+        expect.objectContaining({
+          addWorkspaceCreditTransaction: expect.any(Function),
+        }),
         3
       );
 
@@ -291,6 +337,9 @@ describe("openrouter-cost-verification-queue", () => {
         mockDb,
         "res-1",
         10550,
+        expect.objectContaining({
+          addWorkspaceCreditTransaction: expect.any(Function),
+        }),
         3
       );
     });
@@ -729,10 +778,14 @@ describe("openrouter-cost-verification-queue", () => {
       await handler({ Records: [record] });
 
       // Verify finalizeCreditReservation was called with correct cost (0.002 * 1_000_000 * 1.055 = 2110 millionths)
+      // With transaction system, context is now required
       expect(mockFinalizeCreditReservation).toHaveBeenCalledWith(
         mockDb,
         "res-1",
         2110, // Math.ceil(0.002 * 1_000_000 * 1.055) = 2110
+        expect.objectContaining({
+          addWorkspaceCreditTransaction: expect.any(Function),
+        }),
         3
       );
     });
@@ -888,6 +941,9 @@ describe("openrouter-cost-verification-queue", () => {
         mockDb,
         "res-1",
         4748, // Sum of individually marked-up costs
+        expect.objectContaining({
+          addWorkspaceCreditTransaction: expect.any(Function),
+        }),
         3
       );
     });
@@ -953,4 +1009,3 @@ describe("openrouter-cost-verification-queue", () => {
     });
   });
 });
-

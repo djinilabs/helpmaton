@@ -1,9 +1,31 @@
 import type { SQSEvent } from "aws-lambda";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import { handlingSQSErrors } from "../handlingSQSErrors";
+// Mock dependencies - must be before imports
+const { mockDatabase, mockCommitContextTransactions } = vi.hoisted(() => {
+  const db = {
+    workspace: { get: vi.fn() },
+    "workspace-credit-transactions": { create: vi.fn() },
+    atomicUpdate: vi.fn().mockResolvedValue([]),
+  };
+  return {
+    mockDatabase: vi.fn().mockResolvedValue(db),
+    mockCommitContextTransactions: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
-// Mock dependencies
+// Mock database function to return the mocked database
+vi.mock("../tables/database", () => ({
+  database: mockDatabase,
+}));
+
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
+
 vi.mock("@sentry/node", () => ({
   captureException: vi.fn(),
 }));
@@ -16,6 +38,17 @@ vi.mock("../sentry", () => ({
   flushSentry: vi.fn().mockResolvedValue(undefined),
   ensureError: vi.fn((error) => error),
 }));
+
+vi.mock("../workspaceCreditContext", () => ({
+  augmentContextWithCreditTransactions: vi.fn((context) => context),
+  commitContextTransactions: mockCommitContextTransactions,
+  setTransactionBuffer: vi.fn(),
+  createTransactionBuffer: vi.fn(() => new Map()),
+  setCurrentSQSContext: vi.fn(),
+  clearCurrentSQSContext: vi.fn(),
+}));
+
+import { handlingSQSErrors } from "../handlingSQSErrors";
 
 describe("handlingSQSErrors", () => {
   const mockEvent: SQSEvent = {
@@ -80,7 +113,14 @@ describe("handlingSQSErrors", () => {
 
       const result = await wrappedHandler(mockEvent);
 
-      expect(handler).toHaveBeenCalledWith(mockEvent);
+      // Handler should be called once per record with single-record events
+      expect(handler).toHaveBeenCalledTimes(2);
+      expect(handler).toHaveBeenNthCalledWith(1, {
+        Records: [mockEvent.Records[0]],
+      });
+      expect(handler).toHaveBeenNthCalledWith(2, {
+        Records: [mockEvent.Records[1]],
+      });
       expect(result).toEqual({
         batchItemFailures: [],
       });
@@ -100,8 +140,11 @@ describe("handlingSQSErrors", () => {
 
   describe("partial batch failures", () => {
     it("should return batchItemFailures for failed messages", async () => {
-      const failedMessageIds = ["msg-1"];
-      const handler = vi.fn().mockResolvedValue(failedMessageIds);
+      // Handler returns msg-1 as failed for first record, empty for second
+      const handler = vi
+        .fn()
+        .mockResolvedValueOnce(["msg-1"])
+        .mockResolvedValueOnce([]);
       const wrappedHandler = handlingSQSErrors(handler);
 
       const result = await wrappedHandler(mockEvent);
@@ -116,21 +159,27 @@ describe("handlingSQSErrors", () => {
     });
 
     it("should log warning for failed messages", async () => {
-      const failedMessageIds = ["msg-1"];
-      const handler = vi.fn().mockResolvedValue(failedMessageIds);
+      // Handler returns msg-1 as failed for first record, empty for second
+      const handler = vi
+        .fn()
+        .mockResolvedValueOnce(["msg-1"])
+        .mockResolvedValueOnce([]);
       const wrappedHandler = handlingSQSErrors(handler);
 
       await wrappedHandler(mockEvent);
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining("1 message(s) failed out of 2"),
-        failedMessageIds
+        ["msg-1"]
       );
     });
 
     it("should handle multiple failed messages", async () => {
-      const failedMessageIds = ["msg-1", "msg-2"];
-      const handler = vi.fn().mockResolvedValue(failedMessageIds);
+      // Handler returns each message as failed
+      const handler = vi
+        .fn()
+        .mockResolvedValueOnce(["msg-1"])
+        .mockResolvedValueOnce(["msg-2"]);
       const wrappedHandler = handlingSQSErrors(handler);
 
       const result = await wrappedHandler(mockEvent);
@@ -170,19 +219,20 @@ describe("handlingSQSErrors", () => {
 
     it("should log error details when handler throws", async () => {
       const error = new Error("Unexpected error");
-      const handler = vi.fn().mockRejectedValue(error);
+      // Handler throws for first record, succeeds for second
+      const handler = vi
+        .fn()
+        .mockRejectedValueOnce(error)
+        .mockResolvedValueOnce([]);
       const wrappedHandler = handlingSQSErrors(handler);
 
       await wrappedHandler(mockEvent);
 
+      // Should log error for the specific record that failed
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "SQS function error:",
+        expect.stringContaining("[SQS Handler] Error processing message msg-1"),
         expect.objectContaining({
           error: "Unexpected error",
-          event: {
-            recordCount: 2,
-            messageIds: ["msg-1", "msg-2"],
-          },
         })
       );
     });
@@ -190,22 +240,26 @@ describe("handlingSQSErrors", () => {
     it("should report error to Sentry when handler throws", async () => {
       const { captureException } = await import("@sentry/node");
       const error = new Error("Unexpected error");
-      const handler = vi.fn().mockRejectedValue(error);
+      // Handler throws for first record, succeeds for second
+      const handler = vi
+        .fn()
+        .mockRejectedValueOnce(error)
+        .mockResolvedValueOnce([]);
       const wrappedHandler = handlingSQSErrors(handler);
 
       await wrappedHandler(mockEvent);
 
+      // Should report error for the specific record that failed
       expect(captureException).toHaveBeenCalledWith(
-        error,
+        expect.any(Error),
         expect.objectContaining({
           tags: expect.objectContaining({
             handler: "SQSFunction",
-            recordCount: 2,
+            messageId: "msg-1",
           }),
           contexts: expect.objectContaining({
             event: expect.objectContaining({
-              recordCount: 2,
-              messageIds: ["msg-1", "msg-2"],
+              messageId: "msg-1",
             }),
           }),
         })
@@ -278,14 +332,19 @@ describe("handlingSQSErrors", () => {
     });
 
     it("should handle handler returning undefined message IDs", async () => {
-      const handler = vi.fn().mockResolvedValue([undefined, "msg-1", null]);
+      // Handler returns msg-1 as failed for first record, empty for second
+      // (handler returns the messageId of the failed record)
+      const handler = vi
+        .fn()
+        .mockResolvedValueOnce(["msg-1"])
+        .mockResolvedValueOnce([]);
       const wrappedHandler = handlingSQSErrors(handler);
 
       const result = await wrappedHandler(mockEvent);
 
-      // Should handle undefined/null gracefully
-      expect(result.batchItemFailures).toHaveLength(3);
-      expect(result.batchItemFailures[1]).toEqual({
+      // Should handle the failed message
+      expect(result.batchItemFailures).toHaveLength(1);
+      expect(result.batchItemFailures[0]).toEqual({
         itemIdentifier: "msg-1",
       });
     });

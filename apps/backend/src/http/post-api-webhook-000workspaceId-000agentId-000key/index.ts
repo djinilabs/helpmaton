@@ -32,14 +32,16 @@ import {
   isMessageContentEmpty,
   startConversation,
   buildConversationErrorInfo,
+  type GenerateTextResultWithTotalUsage,
+  type TokenUsage,
 } from "../../utils/conversationLogger";
-import type { TokenUsage } from "../../utils/conversationLogger";
 import {
   handlingErrors,
   isAuthenticationError,
 } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
 import { Sentry, ensureError } from "../../utils/sentry";
+import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { setupAgentAndTools } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
   convertTextToUIMessage,
@@ -73,12 +75,19 @@ async function persistWebhookConversationError(options: {
 
     // Log error structure before extraction (especially for BYOK)
     if (options.usesByok) {
+      type ErrorWithCustomFields = Error & {
+        data?: { error?: { message?: string } };
+        statusCode?: number;
+        response?: { data?: { error?: { message?: string } } };
+      };
       const errorAny =
-        options.error instanceof Error ? (options.error as any) : undefined;
+        options.error instanceof Error
+          ? (options.error as ErrorWithCustomFields)
+          : undefined;
 
       const causeAny =
         options.error instanceof Error && options.error.cause instanceof Error
-          ? (options.error.cause as any)
+          ? (options.error.cause as ErrorWithCustomFields)
           : undefined;
       console.log("[Webhook Handler] BYOK error before extraction:", {
         errorType:
@@ -153,6 +162,14 @@ export const handler = adaptHttpHandler(
       // Extract request ID for logging
       const awsRequestId = event.requestContext?.requestId;
 
+      // Get context for workspace credit transactions
+      const context = getContextFromRequestId(awsRequestId);
+      if (!context) {
+        throw new Error(
+          "Context not available for workspace credit transactions"
+        );
+      }
+
       // Validate request
       const { workspaceId, agentId, key, bodyText } =
         validateWebhookRequest(event);
@@ -175,6 +192,7 @@ export const handler = adaptHttpHandler(
           modelReferer: "http://localhost:3000/api/webhook",
           callDepth: 0,
           maxDelegationDepth: 3,
+          context,
           searchDocumentsOptions: {
             description:
               "Search workspace documents using semantic vector search. Returns the most relevant document snippets based on the query.",
@@ -242,7 +260,8 @@ export const handler = adaptHttpHandler(
           agent.systemPrompt,
           tools,
           usesByok,
-          "webhook"
+          "webhook",
+          context
         );
 
         // Prepare LLM call (logging and generate options)
@@ -270,8 +289,9 @@ export const handler = adaptHttpHandler(
         generationTimeMs = Date.now() - generationStartTime;
 
         // Extract token usage, generation IDs, and costs
+        // result from generateText has totalUsage property
         const extractionResult = extractTokenUsageAndCosts(
-          result,
+          result as unknown as GenerateTextResultWithTotalUsage,
           undefined,
           finalModelName,
           "webhook"
@@ -293,7 +313,8 @@ export const handler = adaptHttpHandler(
           usesByok,
           openrouterGenerationId,
           openrouterGenerationIds, // New parameter
-          "webhook"
+          "webhook",
+          context
         );
 
         // Handle case where no token usage is available
@@ -362,7 +383,8 @@ export const handler = adaptHttpHandler(
             error,
             llmCallAttempted,
             usesByok,
-            "webhook"
+            "webhook",
+            context
           );
         }
 
@@ -823,6 +845,41 @@ export const handler = adaptHttpHandler(
           usesByok,
           awsRequestId,
         });
+
+        // Update reservation with conversationId so it's available for Step 3
+        if (
+          reservationId &&
+          reservationId !== "byok" &&
+          reservationId !== "zero-cost"
+        ) {
+          try {
+            const reservationPk = `credit-reservations/${reservationId}`;
+            await db["credit-reservations"].update({
+              pk: reservationPk,
+              conversationId,
+            });
+            console.log(
+              "[Webhook Handler] Updated reservation with conversationId:",
+              {
+                reservationId,
+                conversationId,
+              }
+            );
+          } catch (updateError) {
+            // Log but don't fail - this is best effort
+            console.warn(
+              "[Webhook Handler] Failed to update reservation with conversationId:",
+              {
+                reservationId,
+                conversationId,
+                error:
+                  updateError instanceof Error
+                    ? updateError.message
+                    : String(updateError),
+              }
+            );
+          }
+        }
 
         // Enqueue cost verification (Step 3) if we have generation IDs
         await enqueueCostVerificationIfNeeded(

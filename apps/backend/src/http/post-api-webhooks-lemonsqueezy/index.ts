@@ -19,6 +19,7 @@ import {
   sendSubscriptionCancelledEmail,
 } from "../../utils/subscriptionEmails";
 import { getUserSubscription } from "../../utils/subscriptionUtils";
+import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 
 interface LemonSqueezyWebhookEvent {
   meta: {
@@ -715,7 +716,8 @@ async function handleSubscriptionExpired(
  */
 async function handleOrderCreated(
   orderData: LemonSqueezyWebhookEvent["data"],
-  customData?: Record<string, unknown>
+  customData?: Record<string, unknown>,
+  context?: Awaited<ReturnType<typeof getContextFromRequestId>>
 ): Promise<void> {
   const db = await database();
   const order = await getLemonSqueezyOrder(orderData.id);
@@ -760,26 +762,41 @@ async function handleOrderCreated(
   // Lemon Squeezy stores amounts in cents, so: cents * 10_000 = millionths
   const creditAmount = attributes.total * 10_000;
 
-  // Add credits to workspace using atomic update
-  await db.workspace.atomicUpdate(
-    workspacePk,
-    "workspace",
-    async (workspace) => {
-      if (!workspace) {
-        throw new Error(`Workspace ${workspaceId} not found`);
-      }
-      const newBalance = (workspace.creditBalance || 0) + creditAmount;
-      return {
-        pk: workspacePk,
-        sk: "workspace",
-        creditBalance: newBalance,
-        lemonSqueezyOrderId: orderData.id,
-      };
-    }
-  );
+  if (!context) {
+    throw new Error("Context not available for workspace credit transactions");
+  }
+
+  // Get current workspace for logging
+  const oldBalance = workspace.creditBalance;
+  const newBalance = oldBalance - (-creditAmount); // Negative amount for credit (adds to balance)
+
+  console.log("[Webhook] Creating credit purchase transaction:", {
+    workspaceId,
+    orderId: orderData.id,
+    creditAmount,
+    transactionAmount: -creditAmount, // Negative for credit
+    oldBalance,
+    newBalance,
+    currency: workspace.currency,
+  });
+
+  // Create transaction in memory (negative amount = credit)
+  context.addWorkspaceCreditTransaction({
+    workspaceId,
+    source: "text-generation", // Credit purchase is for text generation
+    supplier: "openrouter", // Default supplier
+    description: `Credit purchase from Lemon Squeezy order ${orderData.id}`,
+    amountMillionthUsd: -creditAmount, // Negative for credit
+  });
+
+  // Update workspace with order ID (non-credit field, can be done separately)
+  await db.workspace.update({
+    pk: workspacePk,
+    lemonSqueezyOrderId: orderData.id,
+  });
 
   console.log(
-    `[Webhook] Added ${creditAmount} credits to workspace ${workspaceId} from order ${orderData.id}`
+    `[Webhook] Created credit purchase transaction for ${creditAmount} credits to workspace ${workspaceId} from order ${orderData.id}`
   );
 }
 
@@ -971,6 +988,10 @@ async function findUserIdByEmail(email: string): Promise<string | undefined> {
 export const handler = adaptHttpHandler(
   handlingErrors(
     async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+      // Extract request ID for context access
+      const awsRequestId = event.requestContext?.requestId;
+      const context = getContextFromRequestId(awsRequestId);
+
       // Verify webhook signature
       // Lemon Squeezy sends signature in X-Signature header
       const signature =
@@ -1051,7 +1072,7 @@ export const handler = adaptHttpHandler(
           await handleSubscriptionExpired(webhookEvent.data, customData);
           break;
         case "order_created":
-          await handleOrderCreated(webhookEvent.data, customData);
+          await handleOrderCreated(webhookEvent.data, customData, context);
           break;
         case "order_refunded":
           await handleOrderRefunded(webhookEvent.data, customData);

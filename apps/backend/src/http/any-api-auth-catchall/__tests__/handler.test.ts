@@ -24,6 +24,14 @@ const {
   };
 });
 
+// Mock @architect/functions for database initialization (used by handlingErrors)
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
+
 // Mock authConfig first (createApp depends on it)
 vi.mock("../../../auth-config", () => ({
   authConfig: mockAuthConfig,

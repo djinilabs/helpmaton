@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { getWorkspaceSubscription } from "../../../utils/subscriptionUtils";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 import { isValidProvider, VALID_PROVIDERS } from "./workspaceApiKeyUtils";
@@ -101,7 +102,7 @@ export const registerPutWorkspaceApiKey = (app: express.Application) => {
         const sk = "key";
 
         if (!key || key === "") {
-          // Delete the key if it exists
+          // Delete the key if it exists (allowed for all plans)
           try {
             await db["workspace-api-key"].delete(pk, sk);
           } catch {
@@ -110,6 +111,14 @@ export const registerPutWorkspaceApiKey = (app: express.Application) => {
 
           res.status(204).send();
           return;
+        }
+
+        // Check subscription plan - BYOK is only available for paid plans
+        const subscription = await getWorkspaceSubscription(workspaceId);
+        if (!subscription || subscription.plan === "free") {
+          throw badRequest(
+            "Bring Your Own Key (BYOK) is only available for Starter and Pro plans. Please upgrade to use your own API keys."
+          );
         }
 
         // Check if key already exists

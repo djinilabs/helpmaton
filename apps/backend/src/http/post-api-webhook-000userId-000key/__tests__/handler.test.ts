@@ -1,5 +1,13 @@
 import type { HttpRequest } from "@architect/functions/types/http";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// Mock @architect/functions for database initialization (used by handlingErrors)
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
 
 // eslint-disable-next-line import/order
 import { createMockContext } from "../../utils/__tests__/test-helpers";

@@ -58,6 +58,11 @@ const AgentMemoryRecords = lazy(() =>
     default: module.AgentMemoryRecords,
   }))
 );
+const TransactionTable = lazy(() =>
+  import("../components/TransactionTable").then((module) => ({
+    default: module.TransactionTable,
+  }))
+);
 import { useAccordion } from "../hooks/useAccordion";
 import {
   useAgent,
@@ -2428,6 +2433,34 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           >
             <LazyAccordionContent isExpanded={expandedSection === "usage"}>
               <AgentUsageSection workspaceId={workspaceId} agentId={agentId} />
+            </LazyAccordionContent>
+          </AccordionSection>
+
+          {/* Transactions Section */}
+          <AccordionSection
+            id="transactions"
+            title={
+              <>
+                <CurrencyDollarIcon className="mr-2 inline-block size-5" />
+                TRANSACTIONS
+              </>
+            }
+            isExpanded={expandedSection === "transactions"}
+            onToggle={() => toggleSection("transactions")}
+          >
+            <LazyAccordionContent
+              isExpanded={expandedSection === "transactions"}
+            >
+              <QueryPanel
+                fallback={
+                  <LoadingScreen compact message="Loading transactions..." />
+                }
+              >
+                <TransactionTable
+                  workspaceId={workspaceId}
+                  agentId={agentId}
+                />
+              </QueryPanel>
             </LazyAccordionContent>
           </AccordionSection>
         </SectionGroup>

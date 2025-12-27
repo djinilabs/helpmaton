@@ -9,15 +9,20 @@ import {
 } from "../../../utils/__tests__/test-helpers";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
-const { mockDatabase } = vi.hoisted(() => {
+const { mockDatabase, mockGetWorkspaceSubscription } = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
+    mockGetWorkspaceSubscription: vi.fn(),
   };
 });
 
 // Mock the modules
 vi.mock("../../../../tables", () => ({
   database: mockDatabase,
+}));
+
+vi.mock("../../../../utils/subscriptionUtils", () => ({
+  getWorkspaceSubscription: mockGetWorkspaceSubscription,
 }));
 
 // Mock middleware to pass through
@@ -86,6 +91,12 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     const apiKey = "test-api-key-123";
     const provider = "openrouter";
 
+    // Mock subscription to return a paid plan (required for BYOK)
+    mockGetWorkspaceSubscription.mockResolvedValue({
+      plan: "starter",
+      status: "active",
+    });
+
     const mockApiKeyGet = vi.fn().mockResolvedValue(null);
     mockDb["workspace-api-key"].get = mockApiKeyGet;
 
@@ -140,6 +151,12 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
     const oldApiKey = "old-api-key";
     const newApiKey = "new-api-key";
     const provider = "openrouter";
+
+    // Mock subscription to return a paid plan (required for BYOK)
+    mockGetWorkspaceSubscription.mockResolvedValue({
+      plan: "starter",
+      status: "active",
+    });
 
     const existingKey = {
       pk: `workspace-api-keys/${workspaceId}/${provider}`,

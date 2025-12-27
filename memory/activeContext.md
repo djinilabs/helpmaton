@@ -2,9 +2,58 @@
 
 ## Current Status
 
-**Status**: OpenRouter Cost Verification Retry Logic & Error Handling - Completed ✅
+**Status**: Multi-Table Atomic Update API with DynamoDB Transactions - Completed ✅
 
-**Latest Work**: Added exponential backoff retry logic to OpenRouter cost fetching with proper error handling to ensure no masked errors. All errors that prevent cost computation are now properly thrown and logged.
+**Latest Work**: Implemented a database-level `atomicUpdate` method that enables multi-table DynamoDB transactions with optimistic concurrency control. This allows users to atomically update multiple records across different tables with automatic retries on version conflicts.
+
+**Recent Changes**:
+
+1. **Multi-Table Atomic Update API**:
+   - Added `atomicUpdate` method to database object for multi-table transactions
+   - Supports fetching multiple records, passing them to a callback function, and executing a DynamoDB transaction
+   - Implements optimistic concurrency control with version number checks
+   - Automatic retry logic (max 3 retries) on version conflicts with no exponential backoff
+   - Schema validation for all records before transaction execution
+   - Support for both create and update operations in the same transaction
+
+2. **Type Definitions**:
+   - Added `RecordSpec` type for specifying records to fetch (table, pk, optional sk)
+   - Added `AtomicUpdateRecordSpec` type (Map of record specs keyed by string identifiers)
+   - Added `AtomicUpdateCallback` type for user-provided callback functions
+   - Added `TableRecord` union type for all possible table record types
+   - Extended `DatabaseSchema` with `DatabaseSchemaWithAtomicUpdate` type
+
+3. **Implementation Details**:
+   - Fetch phase: Retrieves all specified records (passes `undefined` if not found)
+   - Callback phase: Calls user-provided function with Map of fetched records
+   - Validation phase: Validates each returned record against its table schema
+   - Transaction building: Creates `TransactWriteItems` with version checks:
+     - Updates: `#version = :expectedVersion` condition
+     - Creates: `attribute_not_exists(pk)` condition
+   - Transaction execution: Executes DynamoDB transaction with retry logic
+   - Table name translation: Maps logical table names to physical DynamoDB table names
+
+4. **Test Coverage**:
+   - 12 comprehensive unit tests covering all scenarios
+   - Single table operations (create and update)
+   - Multi-table transactions (2+ tables)
+   - Version conflict retry logic
+   - Missing records handling
+   - Schema validation failures
+   - Record matching by pk/sk
+   - Empty callback results
+   - Non-conditional error handling
+
+**Files Modified**:
+- `apps/backend/src/tables/schema.ts` - Added type definitions (RecordSpec, AtomicUpdateRecordSpec, AtomicUpdateCallback, TableRecord, DatabaseSchemaWithAtomicUpdate)
+- `apps/backend/src/tables/database.ts` - Implemented atomicUpdate method with fetch, callback, validation, transaction building, and retry logic
+- `apps/backend/src/tables/__tests__/database.test.ts` - Created comprehensive test suite (12 tests)
+
+**Verification**: All tests passing (12 tests), typecheck and lint clean ✅
+
+**Previous Status**: OpenRouter Cost Verification Retry Logic & Error Handling - Completed ✅
+
+**Previous Work**: Added exponential backoff retry logic to OpenRouter cost fetching with proper error handling to ensure no masked errors. All errors that prevent cost computation are now properly thrown and logged.
 
 **Recent Changes**:
 

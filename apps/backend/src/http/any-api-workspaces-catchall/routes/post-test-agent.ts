@@ -9,9 +9,12 @@ import {
   isMessageContentEmpty,
   updateConversation,
   buildConversationErrorInfo,
+  type GenerateTextResultWithTotalUsage,
+  type StreamTextResultWithResolvedUsage,
 } from "../../../utils/conversationLogger";
 import { isAuthenticationError } from "../../../utils/handlingErrors";
 import { Sentry, ensureError } from "../../../utils/sentry";
+import { getContextFromRequestId } from "../../../utils/workspaceCreditContext";
 import { setupAgentAndTools } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import { convertAiSdkUIMessagesToUIMessages } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion";
 import {
@@ -61,12 +64,19 @@ async function persistConversationError(options: {
 
     // Log error structure before extraction (especially for BYOK)
     if (options.usesByok) {
+      type ErrorWithCustomFields = Error & {
+        data?: { error?: { message?: string } };
+        statusCode?: number;
+        response?: { data?: { error?: { message?: string } } };
+      };
       const errorAny =
-        options.error instanceof Error ? (options.error as any) : undefined;
+        options.error instanceof Error
+          ? (options.error as ErrorWithCustomFields)
+          : undefined;
 
       const causeAny =
         options.error instanceof Error && options.error.cause instanceof Error
-          ? (options.error.cause as any)
+          ? (options.error.cause as ErrorWithCustomFields)
           : undefined;
       console.log("[Agent Test Handler] BYOK error before extraction:", {
         errorType:
@@ -263,12 +273,34 @@ export const registerPostTestAgent = (app: express.Application) => {
         throw badRequest("X-Conversation-Id header is required");
       }
 
-      // Extract AWS request ID from headers (API Gateway includes it in x-amzn-requestid)
-      const awsRequestId =
+      // Extract AWS request ID from headers or from req.apiGateway.event (serverlessExpress attaches it)
+      // Priority: headers first, then req.apiGateway.event.requestContext.requestId
+      const awsRequestIdRaw =
         req.headers["x-amzn-requestid"] ||
         req.headers["X-Amzn-Requestid"] ||
         req.headers["x-request-id"] ||
-        req.headers["X-Request-Id"];
+        req.headers["X-Request-Id"] ||
+        req.apiGateway?.event?.requestContext?.requestId;
+      const awsRequestId = Array.isArray(awsRequestIdRaw) ? awsRequestIdRaw[0] : awsRequestIdRaw;
+
+      // Get context for workspace credit transactions
+      const context = getContextFromRequestId(awsRequestId);
+      if (!context) {
+        // Log for debugging
+        console.error("[post-test-agent] Context not available:", {
+          awsRequestId,
+          hasApiGateway: !!req.apiGateway,
+          hasEvent: !!req.apiGateway?.event,
+          requestIdFromEvent: req.apiGateway?.event?.requestContext?.requestId,
+          headers: {
+            "x-amzn-requestid": req.headers["x-amzn-requestid"],
+            "X-Amzn-Requestid": req.headers["X-Amzn-Requestid"],
+            "x-request-id": req.headers["x-request-id"],
+            "X-Request-Id": req.headers["X-Request-Id"],
+          },
+        });
+        throw new Error("Context not available for workspace credit transactions");
+      }
 
       // Validate subscription and limits
       const subscriptionId = await validateSubscriptionAndLimits(
@@ -288,6 +320,8 @@ export const registerPostTestAgent = (app: express.Application) => {
           callDepth: 0,
           maxDelegationDepth: 3,
           userId,
+          context,
+          conversationId,
         }
       );
 
@@ -359,7 +393,9 @@ export const registerPostTestAgent = (app: express.Application) => {
           agent.systemPrompt,
           tools,
           usesByok,
-          "test"
+          "test",
+          context,
+          conversationId
         );
 
         // Prepare LLM call (logging and generate options)
@@ -437,7 +473,8 @@ export const registerPostTestAgent = (app: express.Application) => {
             error,
             llmCallAttempted,
             usesByok,
-            "test"
+            "test",
+            context
           );
         }
 
@@ -837,8 +874,11 @@ export const registerPostTestAgent = (app: express.Application) => {
 
         // Check output for errors
         if (!foundError && resultAny.output) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const outputAny = resultAny.output as any;
+          type OutputWithError = {
+            error?: Error;
+            [key: string]: unknown;
+          };
+          const outputAny = resultAny.output as OutputWithError;
           if (outputAny?.error && isAuthenticationError(outputAny.error)) {
             foundError = outputAny.error;
           }
@@ -866,8 +906,12 @@ export const registerPostTestAgent = (app: express.Application) => {
 
         // Check all properties of result object for error information
         if (resultAny._steps && Array.isArray(resultAny._steps)) {
+          type StepWithError = {
+            error?: Error & { data?: unknown };
+            [key: string]: unknown;
+          };
           deepInspect.stepsDetails = resultAny._steps.map(
-            (step: any, idx: number) => ({
+            (step: StepWithError, idx: number) => ({
               index: idx,
               hasError: !!step?.error,
               errorType: step?.error?.constructor?.name,
@@ -1159,12 +1203,19 @@ export const registerPostTestAgent = (app: express.Application) => {
       }
 
       // Extract token usage, generation IDs, and costs
+      // result from streamText has totalUsage as a Promise, but we're using usage which is already extracted
+      // For streamText, we pass the result with usage already extracted
       const {
         tokenUsage,
         openrouterGenerationId,
         openrouterGenerationIds,
         provisionalCostUsd,
-      } = extractTokenUsageAndCosts(result, usage, finalModelName, "test");
+      } = extractTokenUsageAndCosts(
+        result as unknown as GenerateTextResultWithTotalUsage | StreamTextResultWithResolvedUsage,
+        usage,
+        finalModelName,
+        "test"
+      );
 
       // Adjust credit reservation based on actual cost (Step 2)
       await adjustCreditsAfterLLMCall(
@@ -1178,7 +1229,9 @@ export const registerPostTestAgent = (app: express.Application) => {
         usesByok,
         openrouterGenerationId,
         openrouterGenerationIds, // New parameter
-        "test"
+        "test",
+        context,
+        conversationId
       );
 
       // Handle case where no token usage is available

@@ -1,0 +1,199 @@
+import { badRequest } from "@hapi/boom";
+import express from "express";
+
+import { database } from "../../../tables";
+import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { asyncHandler, requireAuth, requirePermission } from "../middleware";
+
+/**
+ * @openapi
+ * /api/workspaces/{workspaceId}/transactions:
+ *   get:
+ *     summary: List workspace transactions
+ *     description: Returns paginated list of credit transactions for a workspace, sorted by most recent first
+ *     tags:
+ *       - Workspaces
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: workspaceId
+ *         in: path
+ *         required: true
+ *         description: Workspace ID
+ *         schema:
+ *           type: string
+ *       - name: limit
+ *         in: query
+ *         description: Maximum number of transactions to return (1-100, default 50)
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 50
+ *       - name: cursor
+ *         in: query
+ *         description: Pagination cursor from previous response
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of transactions
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 transactions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       workspaceId:
+ *                         type: string
+ *                       agentId:
+ *                         type: string
+ *                         nullable: true
+ *                       conversationId:
+ *                         type: string
+ *                         nullable: true
+ *                       source:
+ *                         type: string
+ *                         enum: [embedding-generation, text-generation, tool-execution]
+ *                       supplier:
+ *                         type: string
+ *                         enum: [openrouter, tavily]
+ *                       model:
+ *                         type: string
+ *                         nullable: true
+ *                       tool_call:
+ *                         type: string
+ *                         nullable: true
+ *                       description:
+ *                         type: string
+ *                       amountMillionthUsd:
+ *                         type: integer
+ *                       workspaceCreditsBeforeMillionthUsd:
+ *                         type: integer
+ *                       workspaceCreditsAfterMillionthUsd:
+ *                         type: integer
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                 nextCursor:
+ *                   type: string
+ *                   nullable: true
+ *                   description: Cursor for next page of results
+ *       400:
+ *         $ref: '#/components/responses/BadRequest'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ *       404:
+ *         $ref: '#/components/responses/NotFound'
+ *       500:
+ *         $ref: '#/components/responses/InternalServerError'
+ */
+export const registerGetWorkspaceTransactions = (
+  app: express.Application
+) => {
+  app.get(
+    "/api/workspaces/:workspaceId/transactions",
+    requireAuth,
+    requirePermission(PERMISSION_LEVELS.READ),
+    asyncHandler(async (req, res) => {
+      const db = await database();
+      const workspaceResource = req.workspaceResource;
+      if (!workspaceResource) {
+        throw badRequest("Workspace resource not found");
+      }
+      const workspaceId = req.params.workspaceId;
+      const workspacePk = `workspaces/${workspaceId}`;
+
+      // Verify workspace exists
+      const workspace = await db.workspace.get(workspacePk, "workspace");
+      if (!workspace) {
+        throw badRequest("Workspace not found");
+      }
+
+      // Parse pagination parameters
+      const limit = req.query.limit
+        ? Math.min(Math.max(parseInt(req.query.limit as string, 10), 1), 100)
+        : 50; // Default 50, max 100
+      const cursor = req.query.cursor as string | undefined;
+
+      // Query transactions by workspaceId (using pk)
+      const query: Parameters<
+        (typeof db)["workspace-credit-transactions"]["query"]
+      >[0] = {
+        KeyConditionExpression: "pk = :pk",
+        ExpressionAttributeValues: {
+          ":pk": workspacePk,
+        },
+        ScanIndexForward: false, // Sort descending (most recent first, since sk contains timestamp)
+      };
+
+      // Query all transactions (tableApi will fetch all pages)
+      const result = await db["workspace-credit-transactions"].query(query);
+
+      // Map transactions to response format
+      const allTransactions = result.items.map((t) => {
+        // Extract transaction ID from sk (format: `${timestamp}-${uuid}`)
+        // For display, we'll use the full sk as the ID
+        const transactionId = t.sk;
+
+        return {
+          id: transactionId,
+          workspaceId: t.workspaceId,
+          agentId: t.agentId || null,
+          conversationId: t.conversationId || null,
+          source: t.source,
+          supplier: t.supplier,
+          model: t.model || null,
+          tool_call: t.tool_call || null,
+          description: t.description,
+          amountMillionthUsd: t.amountMillionthUsd,
+          workspaceCreditsBeforeMillionthUsd:
+            t.workspaceCreditsBeforeMillionthUsd,
+          workspaceCreditsAfterMillionthUsd: t.workspaceCreditsAfterMillionthUsd,
+          createdAt: t.createdAt,
+        };
+      });
+
+      // Handle cursor-based pagination
+      let startIndex = 0;
+      if (cursor) {
+        try {
+          const cursorData = JSON.parse(
+            Buffer.from(cursor, "base64").toString()
+          );
+          startIndex = cursorData.startIndex || 0;
+        } catch {
+          throw badRequest("Invalid cursor");
+        }
+      }
+
+      // Apply pagination
+      const transactions = allTransactions.slice(
+        startIndex,
+        startIndex + limit
+      );
+
+      // Build next cursor if there are more results
+      let nextCursor: string | undefined;
+      if (startIndex + limit < allTransactions.length) {
+        nextCursor = Buffer.from(
+          JSON.stringify({ startIndex: startIndex + limit })
+        ).toString("base64");
+      }
+
+      res.json({
+        transactions,
+        nextCursor,
+      });
+    })
+  );
+};
+

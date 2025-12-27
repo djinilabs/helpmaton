@@ -804,6 +804,68 @@ export async function listAgentConversations(
   return response.json();
 }
 
+export interface Transaction {
+  id: string;
+  workspaceId: string;
+  agentId: string | null;
+  conversationId: string | null;
+  source: "embedding-generation" | "text-generation" | "tool-execution";
+  supplier: "openrouter" | "tavily";
+  model: string | null;
+  tool_call: string | null;
+  description: string;
+  amountMillionthUsd: number;
+  workspaceCreditsBeforeMillionthUsd: number;
+  workspaceCreditsAfterMillionthUsd: number;
+  createdAt: string;
+}
+
+export interface ListTransactionsResponse {
+  transactions: Transaction[];
+  nextCursor?: string;
+}
+
+export async function listWorkspaceTransactions(
+  workspaceId: string,
+  limit?: number,
+  cursor?: string
+): Promise<ListTransactionsResponse> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) {
+    params.append("limit", limit.toString());
+  }
+  if (cursor) {
+    params.append("cursor", cursor);
+  }
+  const queryString = params.toString();
+  const url = `/api/workspaces/${workspaceId}/transactions${
+    queryString ? `?${queryString}` : ""
+  }`;
+  const response = await apiFetch(url);
+  return response.json();
+}
+
+export async function listAgentTransactions(
+  workspaceId: string,
+  agentId: string,
+  limit?: number,
+  cursor?: string
+): Promise<ListTransactionsResponse> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) {
+    params.append("limit", limit.toString());
+  }
+  if (cursor) {
+    params.append("cursor", cursor);
+  }
+  const queryString = params.toString();
+  const url = `/api/workspaces/${workspaceId}/agents/${agentId}/transactions${
+    queryString ? `?${queryString}` : ""
+  }`;
+  const response = await apiFetch(url);
+  return response.json();
+}
+
 export async function getAgentConversation(
   workspaceId: string,
   agentId: string,
