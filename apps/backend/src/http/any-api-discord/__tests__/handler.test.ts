@@ -27,6 +27,14 @@ const {
 });
 
 // Mock the Discord services
+// Mock @architect/functions for database initialization (used by handlingErrors)
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
+
 vi.mock("../services/discordService", () => ({
   verifyDiscordSignature: mockVerifyDiscordSignature,
   verifyDiscordUser: mockVerifyDiscordUser,

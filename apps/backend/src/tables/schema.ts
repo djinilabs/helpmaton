@@ -392,6 +392,28 @@ export const tableSchemas = {
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),
+  "workspace-credit-transactions": TableBaseSchema.extend({
+    pk: z.string(), // workspace ID (e.g., "workspaces/{workspaceId}")
+    sk: z.string(), // sort key: `${numeric_timestamp}-${unique_id}` for sorting and uniqueness
+    requestId: z.string(), // AWS request id to match against the cloudwatch logs if needed
+    workspaceId: z.string(),
+    agentId: z.string().optional(),
+    conversationId: z.string().optional(),
+    source: z.enum([
+      "embedding-generation",
+      "text-generation",
+      "tool-execution",
+    ]),
+    supplier: z.enum(["openrouter", "tavily"]), // add more when we have more suppliers
+    model: z.string().optional(), // the model that originated this charge, if any
+    tool_call: z.string().optional(), // the tool call that was used when originating this charge, if any
+    description: z.string(),
+    amountMillionthUsd: z.number().int(), // should be integer
+    workspaceCreditsBeforeMillionthUsd: z.number().int(), // the expected credits before applying this transaction
+    workspaceCreditsAfterMillionthUsd: z.number().int(), // the expected credits after applying this transaction
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
 } as const;
 
 export type TableBaseSchemaType = z.infer<typeof TableBaseSchema>;
@@ -417,7 +439,8 @@ export type TableName =
   | "workspace-invite"
   | "agent-stream-servers"
   | "user-api-key"
-  | "user-refresh-token";
+  | "user-refresh-token"
+  | "workspace-credit-transactions";
 
 export type WorkspaceRecord = z.infer<typeof tableSchemas.workspace>;
 export type PermissionRecord = z.infer<typeof tableSchemas.permission>;
@@ -464,6 +487,9 @@ export type AgentStreamServerRecord = z.infer<
 export type UserApiKeyRecord = z.infer<(typeof tableSchemas)["user-api-key"]>;
 export type UserRefreshTokenRecord = z.infer<
   (typeof tableSchemas)["user-refresh-token"]
+>;
+export type WorkspaceCreditTransactionRecord = z.infer<
+  (typeof tableSchemas)["workspace-credit-transactions"]
 >;
 
 export const PERMISSION_LEVELS = {
@@ -574,6 +600,7 @@ export type DatabaseSchema = {
   "agent-stream-servers": TableAPI<"agent-stream-servers">;
   "user-api-key": TableAPI<"user-api-key">;
   "user-refresh-token": TableAPI<"user-refresh-token">;
+  "workspace-credit-transactions": TableAPI<"workspace-credit-transactions">;
 };
 
 /**
@@ -595,27 +622,28 @@ export type AtomicUpdateRecordSpec = Map<string, RecordSpec>;
  * Union type of all possible table record types
  */
 export type TableRecord =
-  | z.infer<typeof tableSchemas["next-auth"]>
+  | z.infer<(typeof tableSchemas)["next-auth"]>
   | z.infer<typeof tableSchemas.workspace>
   | z.infer<typeof tableSchemas.permission>
   | z.infer<typeof tableSchemas.agent>
-  | z.infer<typeof tableSchemas["agent-key"]>
-  | z.infer<typeof tableSchemas["workspace-api-key"]>
-  | z.infer<typeof tableSchemas["workspace-document"]>
+  | z.infer<(typeof tableSchemas)["agent-key"]>
+  | z.infer<(typeof tableSchemas)["workspace-api-key"]>
+  | z.infer<(typeof tableSchemas)["workspace-document"]>
   | z.infer<typeof tableSchemas.output_channel>
-  | z.infer<typeof tableSchemas["agent-conversations"]>
-  | z.infer<typeof tableSchemas["credit-reservations"]>
-  | z.infer<typeof tableSchemas["token-usage-aggregates"]>
-  | z.infer<typeof tableSchemas["email-connection"]>
-  | z.infer<typeof tableSchemas["mcp-server"]>
-  | z.infer<typeof tableSchemas["trial-credit-requests"]>
+  | z.infer<(typeof tableSchemas)["agent-conversations"]>
+  | z.infer<(typeof tableSchemas)["credit-reservations"]>
+  | z.infer<(typeof tableSchemas)["token-usage-aggregates"]>
+  | z.infer<(typeof tableSchemas)["email-connection"]>
+  | z.infer<(typeof tableSchemas)["mcp-server"]>
+  | z.infer<(typeof tableSchemas)["trial-credit-requests"]>
   | z.infer<typeof tableSchemas.subscription>
-  | z.infer<typeof tableSchemas["llm-request-buckets"]>
-  | z.infer<typeof tableSchemas["tavily-call-buckets"]>
-  | z.infer<typeof tableSchemas["workspace-invite"]>
-  | z.infer<typeof tableSchemas["agent-stream-servers"]>
-  | z.infer<typeof tableSchemas["user-api-key"]>
-  | z.infer<typeof tableSchemas["user-refresh-token"]>;
+  | z.infer<(typeof tableSchemas)["llm-request-buckets"]>
+  | z.infer<(typeof tableSchemas)["tavily-call-buckets"]>
+  | z.infer<(typeof tableSchemas)["workspace-invite"]>
+  | z.infer<(typeof tableSchemas)["agent-stream-servers"]>
+  | z.infer<(typeof tableSchemas)["user-api-key"]>
+  | z.infer<(typeof tableSchemas)["user-refresh-token"]>
+  | z.infer<(typeof tableSchemas)["workspace-credit-transactions"]>;
 
 /**
  * Callback function for atomic update operations

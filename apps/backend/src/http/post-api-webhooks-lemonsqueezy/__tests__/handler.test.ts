@@ -42,6 +42,14 @@ vi.mock("../../../tables", () => ({
   database: () => mockDatabase(),
 }));
 
+// Mock @architect/functions for database initialization
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
+
 vi.mock("../../../utils/lemonSqueezy", () => ({
   verifyWebhookSignature: mockVerifyWebhookSignature,
   getSubscription: mockGetLemonSqueezySubscription,
@@ -65,11 +73,18 @@ vi.mock("../../../utils/apiGatewayUsagePlans", () => ({
   associateSubscriptionWithPlan: mockAssociateSubscriptionWithPlan,
 }));
 
-// Mock crypto for signature verification
-const mockCreateHmac = vi.fn();
-const mockHmacUpdate = vi.fn();
-const mockHmacDigest = vi.fn();
-const mockTimingSafeEqual = vi.fn();
+// Mock crypto for signature verification - must be in hoisted block
+const {
+  mockCreateHmac,
+  mockHmacUpdate,
+  mockHmacDigest,
+  mockTimingSafeEqual,
+} = vi.hoisted(() => ({
+  mockCreateHmac: vi.fn(),
+  mockHmacUpdate: vi.fn(),
+  mockHmacDigest: vi.fn(),
+  mockTimingSafeEqual: vi.fn(),
+}));
 
 vi.mock("crypto", () => ({
   default: {

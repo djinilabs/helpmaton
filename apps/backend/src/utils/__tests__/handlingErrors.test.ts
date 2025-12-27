@@ -1,13 +1,25 @@
 import type { APIGatewayProxyEventV2, Context } from "aws-lambda";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import { handlingErrors } from "../handlingErrors";
-import { flushPostHog } from "../posthog";
-import { flushSentry } from "../sentry";
+// Mock dependencies - must be before imports
+const { mockSentryCaptureException, mockDatabase, mockCommitContextTransactions } = vi.hoisted(() => {
+  const db = {
+    workspace: { get: vi.fn() },
+    "workspace-credit-transactions": { create: vi.fn() },
+    atomicUpdate: vi.fn().mockResolvedValue([]),
+  };
+  return {
+    mockSentryCaptureException: vi.fn(),
+    mockDatabase: vi.fn().mockResolvedValue(db),
+    mockCommitContextTransactions: vi.fn().mockResolvedValue(undefined),
+  };
+});
 
-// Mock dependencies
-const { mockSentryCaptureException } = vi.hoisted(() => ({
-  mockSentryCaptureException: vi.fn(),
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
 }));
 
 vi.mock("../sentry", () => ({
@@ -25,6 +37,15 @@ vi.mock("../posthog", () => ({
   flushPostHog: vi.fn(),
 }));
 
+vi.mock("../tables/database", () => ({
+  database: mockDatabase,
+}));
+
+vi.mock("../workspaceCreditContext", () => ({
+  augmentContextWithCreditTransactions: vi.fn((context) => context),
+  commitContextTransactions: mockCommitContextTransactions,
+}));
+
 vi.mock("@sentry/node", () => ({
   default: {
     captureException: vi.fn(),
@@ -33,6 +54,10 @@ vi.mock("@sentry/node", () => ({
     captureException: vi.fn(),
   },
 }));
+
+import { handlingErrors } from "../handlingErrors";
+import { flushPostHog } from "../posthog";
+import { flushSentry } from "../sentry";
 
 describe("handlingErrors", () => {
   const mockContext: Context = {

@@ -25,6 +25,38 @@ vi.mock("../../../tables/database", () => ({
   database: mockDatabase,
 }));
 
+// Mock @architect/functions for database initialization
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
+
+// Mock workspaceCreditContext functions
+vi.mock("../../../utils/workspaceCreditContext", () => ({
+  augmentContextWithCreditTransactions: vi.fn((context) => context),
+  commitContextTransactions: vi.fn().mockResolvedValue(undefined),
+  setTransactionBuffer: vi.fn(),
+  createTransactionBuffer: vi.fn(() => new Map()),
+  setCurrentSQSContext: vi.fn(),
+  clearCurrentSQSContext: vi.fn(),
+}));
+
+// Mock posthog and sentry for handlingSQSErrors
+vi.mock("../../../utils/posthog", () => ({
+  flushPostHog: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../../../utils/sentry", () => ({
+  flushSentry: vi.fn().mockResolvedValue(undefined),
+  ensureError: vi.fn((error) => error),
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: vi.fn(),
+}));
+
 // Mock creditManagement
 vi.mock("../../../utils/creditManagement", () => ({
   finalizeCreditReservation: mockFinalizeCreditReservation,

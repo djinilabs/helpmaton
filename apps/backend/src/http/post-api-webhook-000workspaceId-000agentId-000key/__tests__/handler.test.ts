@@ -64,6 +64,14 @@ vi.mock("../../../tables", () => ({
   database: mockDatabase,
 }));
 
+// Mock @architect/functions for database initialization
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
+
 vi.mock(
   "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/requestValidation",
   () => ({

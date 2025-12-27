@@ -20,6 +20,14 @@ vi.mock("../../../utils/pricing", () => ({
   loadPricingConfig: mockLoadPricingConfig,
 }));
 
+// Mock @architect/functions for database initialization (used by handlingErrors)
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
+
 vi.mock("../../utils/modelFactory", () => ({
   getDefaultModel: mockGetDefaultModel,
 }));

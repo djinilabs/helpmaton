@@ -121,6 +121,11 @@ user-refresh-token
   sk **String
   encrypt true
 
+workspace-credit-transactions
+  pk *String
+  sk **String
+  encrypt true
+
 agent-conversations
   pk *String
   expires TTL

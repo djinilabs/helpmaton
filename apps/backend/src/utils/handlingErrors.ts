@@ -197,8 +197,14 @@ export function isAuthenticationError(error: unknown): boolean {
   return checkError(error);
 }
 
+import { database } from "../tables/database";
+
 import { initPostHog, flushPostHog } from "./posthog";
 import { initSentry, Sentry, flushSentry, ensureError } from "./sentry";
+import {
+  augmentContextWithCreditTransactions,
+  commitContextTransactions,
+} from "./workspaceCreditContext";
 
 // Initialize Sentry when this module is loaded (before any handlers are called)
 initSentry();
@@ -213,13 +219,19 @@ export const handlingErrors = (
     context: Context,
     callback: Callback
   ): Promise<APIGatewayProxyResultV2> => {
+    // Augment context with workspace credit transaction capability
+    const db = await database();
+    const augmentedContext = augmentContextWithCreditTransactions(context, db);
+    
+    let hadError = false;
     try {
-      const result = await userHandler(event, context, callback);
+      const result = await userHandler(event, augmentedContext, callback);
       if (!result) {
         throw new Error("Handler returned undefined");
       }
       return result as APIGatewayProxyResultV2;
     } catch (error) {
+      hadError = true; // Used in finally block for commitContextTransactions
       const boomed = boomify(error as Error);
 
       // Always log the full error details
@@ -303,6 +315,16 @@ export const handlingErrors = (
         body: JSON.stringify(payload),
       };
     } finally {
+      // Commit workspace credit transactions (only on success, no errors)
+      try {
+        await commitContextTransactions(context, hadError);
+      } catch (commitError) {
+        // Commit failures cause handler to fail (per user requirement)
+        console.error("[handlingErrors] Failed to commit credit transactions:", commitError);
+        // eslint-disable-next-line no-unsafe-finally
+        throw commitError;
+      }
+      
       // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
       // This ensures flushing happens on both success and error paths
       await Promise.all([flushPostHog(), flushSentry()]).catch(
@@ -321,10 +343,16 @@ export const handlingHttpAsyncErrors = (
     req: HttpRequest,
     context: Context
   ): Promise<HttpResponse | void> => {
+    // Augment context with workspace credit transaction capability
+    const db = await database();
+    const augmentedContext = augmentContextWithCreditTransactions(context, db);
+    
+    let hadError = false;
     try {
-      const result = await userHandler(req, context);
+      const result = await userHandler(req, augmentedContext);
       return result;
     } catch (error) {
+      hadError = true;
       const boomed = boomify(error as Error);
 
       if (boomed.isServer) {
@@ -354,6 +382,16 @@ export const handlingHttpAsyncErrors = (
         body: JSON.stringify(payload),
       };
     } finally {
+      // Commit workspace credit transactions (only on success, no errors)
+      try {
+        await commitContextTransactions(context, hadError);
+      } catch (commitError) {
+        // Commit failures cause handler to fail (per user requirement)
+        console.error("[handlingHttpAsyncErrors] Failed to commit credit transactions:", commitError);
+        // eslint-disable-next-line no-unsafe-finally
+        throw commitError;
+      }
+      
       // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
       // This ensures flushing happens on both success and error paths
       await Promise.all([flushPostHog(), flushSentry()]).catch(
@@ -371,6 +409,9 @@ export const handlingHttpErrors = (userHandler: HttpHandler): HttpHandler => {
     res: (resOrError: HttpResponse | Error) => void,
     next: () => void
   ): void => {
+    // Note: HttpHandler is synchronous, so we can't augment context here
+    // This handler type is deprecated in favor of HttpAsyncHandler
+    // For now, we'll just pass through without credit transaction support
     try {
       userHandler(req, res, next);
     } catch (error) {
@@ -424,9 +465,29 @@ export const handlingScheduledErrors = (
   userHandler: (event: ScheduledEvent) => Promise<void>
 ): ((event: ScheduledEvent) => Promise<void>) => {
   return async (event: ScheduledEvent): Promise<void> => {
+    // Create a mock context for scheduled functions (they don't have a real context)
+    // We'll create a minimal context object with awsRequestId
+    const mockContext = {
+      awsRequestId: `scheduled-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+    } as Context;
+    
+    // Augment context with workspace credit transaction capability
+    const db = await database();
+    augmentContextWithCreditTransactions(mockContext, db);
+    
+    // Wrap user handler to pass augmented context
+    const wrappedHandler = async (e: ScheduledEvent) => {
+      // Scheduled handlers don't receive context, so we can't pass it
+      // But we can still use the augmented context's addWorkspaceCreditTransaction
+      // by accessing it from the closure
+      await userHandler(e);
+    };
+    
+    let hadError = false;
     try {
-      await userHandler(event);
+      await wrappedHandler(event);
     } catch (error) {
+      hadError = true;
       const boomed = boomify(error as Error);
 
       // Always log the full error details
@@ -469,6 +530,16 @@ export const handlingScheduledErrors = (
       // Re-throw the error so Lambda marks the invocation as failed
       throw error;
     } finally {
+      // Commit workspace credit transactions (only on success, no errors)
+      try {
+        await commitContextTransactions(mockContext, hadError);
+      } catch (commitError) {
+        // Commit failures cause handler to fail (per user requirement)
+        console.error("[handlingScheduledErrors] Failed to commit credit transactions:", commitError);
+        // eslint-disable-next-line no-unsafe-finally
+        throw commitError;
+      }
+      
       // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
       // This ensures flushing happens on both success and error paths
       await Promise.all([flushPostHog(), flushSentry()]).catch(

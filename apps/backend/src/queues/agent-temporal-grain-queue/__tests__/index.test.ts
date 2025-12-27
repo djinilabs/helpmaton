@@ -26,8 +26,37 @@ vi.mock("../../../utils/vectordb/config", () => ({
   }),
 }));
 
-vi.mock("../../../utils/handlingSQSErrors", () => ({
-  handlingSQSErrors: (fn: (event: SQSEvent) => Promise<string[]>) => fn,
+// Mock database for handlingSQSErrors
+const { mockDatabase } = vi.hoisted(() => {
+  const db = {
+    workspace: { get: vi.fn() },
+    "workspace-credit-transactions": { create: vi.fn() },
+    atomicUpdate: vi.fn().mockResolvedValue([]),
+  };
+  return {
+    mockDatabase: vi.fn().mockResolvedValue(db),
+  };
+});
+
+vi.mock("../../../tables/database", () => ({
+  database: mockDatabase,
+}));
+
+vi.mock("@architect/functions", () => ({
+  tables: vi.fn().mockResolvedValue({
+    reflect: vi.fn().mockResolvedValue({}),
+    _client: {},
+  }),
+}));
+
+// Mock workspaceCreditContext functions
+vi.mock("../../../utils/workspaceCreditContext", () => ({
+  augmentContextWithCreditTransactions: vi.fn((context) => context),
+  commitContextTransactions: vi.fn().mockResolvedValue(undefined),
+  setTransactionBuffer: vi.fn(),
+  createTransactionBuffer: vi.fn(() => new Map()),
+  setCurrentSQSContext: vi.fn(),
+  clearCurrentSQSContext: vi.fn(),
 }));
 
 vi.mock("../../../http/utils/agentUtils", () => ({
@@ -144,7 +173,7 @@ describe("agent-temporal-grain-queue handler", () => {
             folderPath: "",
           },
         ]);
-        expect(result).toEqual([]);
+        expect(result).toEqual({ batchItemFailures: [] });
       });
 
       it("should create table if it doesn't exist", async () => {
@@ -191,7 +220,7 @@ describe("agent-temporal-grain-queue handler", () => {
             }),
           ])
         );
-        expect(result).toEqual([]);
+        expect(result).toEqual({ batchItemFailures: [] });
       });
     });
 
@@ -239,7 +268,7 @@ describe("agent-temporal-grain-queue handler", () => {
             content: "Updated content",
           }),
         ]);
-        expect(result).toEqual([]);
+        expect(result).toEqual({ batchItemFailures: [] });
       });
     });
 
@@ -271,7 +300,7 @@ describe("agent-temporal-grain-queue handler", () => {
 
         expect(mockDelete).toHaveBeenCalledWith("id = 'record-1'");
         expect(mockDelete).toHaveBeenCalledWith("id = 'record-2'");
-        expect(result).toEqual([]);
+        expect(result).toEqual({ batchItemFailures: [] });
       });
     });
 
@@ -301,7 +330,9 @@ describe("agent-temporal-grain-queue handler", () => {
         const result = await handler(event);
 
         // Message should be marked as failed
-        expect(result).toEqual(["msg-1"]);
+        expect(result).toEqual({
+          batchItemFailures: [{ itemIdentifier: "msg-1" }],
+        });
       });
 
       it("should return failed message ID for missing records or rawFacts in insert", async () => {
@@ -317,7 +348,9 @@ describe("agent-temporal-grain-queue handler", () => {
         const result = await handler(event as unknown as SQSEvent);
 
         // Message should be marked as failed
-        expect(result).toEqual(["msg-0"]);
+        expect(result).toEqual({
+          batchItemFailures: [{ itemIdentifier: "msg-0" }],
+        });
       });
 
       it("should process insert operation with rawFacts and generate embeddings", async () => {
@@ -387,7 +420,7 @@ describe("agent-temporal-grain-queue handler", () => {
             folderPath: "",
           },
         ]);
-        expect(result).toEqual([]);
+        expect(result).toEqual({ batchItemFailures: [] });
       });
 
       it("should return failed message ID for unknown operation", async () => {
@@ -405,7 +438,9 @@ describe("agent-temporal-grain-queue handler", () => {
         const result = await handler(event as unknown as SQSEvent);
 
         // Message should be marked as failed
-        expect(result).toEqual(["msg-0"]);
+        expect(result).toEqual({
+          batchItemFailures: [{ itemIdentifier: "msg-0" }],
+        });
       });
     });
 
@@ -462,7 +497,7 @@ describe("agent-temporal-grain-queue handler", () => {
         const result = await handler(event);
 
         expect(mockAdd).toHaveBeenCalledTimes(2);
-        expect(result).toEqual([]); // No failed messages
+        expect(result).toEqual({ batchItemFailures: [] }); // No failed messages
       });
 
       it("should return failed message IDs for partial batch failures", async () => {
@@ -544,7 +579,9 @@ describe("agent-temporal-grain-queue handler", () => {
         expect(mockAdd).toHaveBeenCalledTimes(3);
 
         // Only the second message should be marked as failed
-        expect(result).toEqual(["msg-1"]);
+        expect(result).toEqual({
+          batchItemFailures: [{ itemIdentifier: "msg-1" }],
+        });
       });
 
       it("should return all failed message IDs when all messages fail", async () => {
@@ -601,7 +638,12 @@ describe("agent-temporal-grain-queue handler", () => {
 
         const result = await handler(event);
 
-        expect(result).toEqual(["msg-0", "msg-1"]);
+        expect(result).toEqual({
+          batchItemFailures: [
+            { itemIdentifier: "msg-0" },
+            { itemIdentifier: "msg-1" },
+          ],
+        });
       });
     });
   });
