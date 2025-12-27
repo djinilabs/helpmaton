@@ -75,12 +75,19 @@ async function persistWebhookConversationError(options: {
 
     // Log error structure before extraction (especially for BYOK)
     if (options.usesByok) {
+      type ErrorWithCustomFields = Error & {
+        data?: { error?: { message?: string } };
+        statusCode?: number;
+        response?: { data?: { error?: { message?: string } } };
+      };
       const errorAny =
-        options.error instanceof Error ? (options.error as any) : undefined;
+        options.error instanceof Error
+          ? (options.error as ErrorWithCustomFields)
+          : undefined;
 
       const causeAny =
         options.error instanceof Error && options.error.cause instanceof Error
-          ? (options.error.cause as any)
+          ? (options.error.cause as ErrorWithCustomFields)
           : undefined;
       console.log("[Webhook Handler] BYOK error before extraction:", {
         errorType:

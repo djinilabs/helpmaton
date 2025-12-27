@@ -11,7 +11,6 @@ import {
   buildConversationErrorInfo,
   type GenerateTextResultWithTotalUsage,
   type StreamTextResultWithResolvedUsage,
-  type TokenUsage,
 } from "../../../utils/conversationLogger";
 import { isAuthenticationError } from "../../../utils/handlingErrors";
 import { Sentry, ensureError } from "../../../utils/sentry";
@@ -65,12 +64,19 @@ async function persistConversationError(options: {
 
     // Log error structure before extraction (especially for BYOK)
     if (options.usesByok) {
+      type ErrorWithCustomFields = Error & {
+        data?: { error?: { message?: string } };
+        statusCode?: number;
+        response?: { data?: { error?: { message?: string } } };
+      };
       const errorAny =
-        options.error instanceof Error ? (options.error as any) : undefined;
+        options.error instanceof Error
+          ? (options.error as ErrorWithCustomFields)
+          : undefined;
 
       const causeAny =
         options.error instanceof Error && options.error.cause instanceof Error
-          ? (options.error.cause as any)
+          ? (options.error.cause as ErrorWithCustomFields)
           : undefined;
       console.log("[Agent Test Handler] BYOK error before extraction:", {
         errorType:
@@ -850,8 +856,11 @@ export const registerPostTestAgent = (app: express.Application) => {
 
         // Check output for errors
         if (!foundError && resultAny.output) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const outputAny = resultAny.output as any;
+          type OutputWithError = {
+            error?: Error;
+            [key: string]: unknown;
+          };
+          const outputAny = resultAny.output as OutputWithError;
           if (outputAny?.error && isAuthenticationError(outputAny.error)) {
             foundError = outputAny.error;
           }
@@ -879,8 +888,12 @@ export const registerPostTestAgent = (app: express.Application) => {
 
         // Check all properties of result object for error information
         if (resultAny._steps && Array.isArray(resultAny._steps)) {
+          type StepWithError = {
+            error?: Error & { data?: unknown };
+            [key: string]: unknown;
+          };
           deepInspect.stepsDetails = resultAny._steps.map(
-            (step: any, idx: number) => ({
+            (step: StepWithError, idx: number) => ({
               index: idx,
               hasError: !!step?.error,
               errorType: step?.error?.constructor?.name,

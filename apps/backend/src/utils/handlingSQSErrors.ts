@@ -2,8 +2,6 @@ import { boomify } from "@hapi/boom";
 import * as Sentry from "@sentry/node";
 import type { Context, SQSBatchResponse, SQSEvent } from "aws-lambda";
 
-import { database } from "../tables/database";
-
 import { flushPostHog } from "./posthog";
 import { flushSentry, ensureError } from "./sentry";
 import {

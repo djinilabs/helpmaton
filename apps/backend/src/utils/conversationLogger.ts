@@ -201,8 +201,14 @@ export function buildConversationErrorInfo(
   // If it is, the real error with data.error.message is likely in error.cause
   const isWrapper = error instanceof Error && isGenericWrapper(error);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const errorAny = error instanceof Error ? (error as any) : undefined;
+  type ErrorWithCustomFields = Error & {
+    data?: { error?: { message?: string } };
+    statusCode?: number;
+    responseBody?: string | unknown;
+    response?: { data?: { error?: { message?: string } } };
+  };
+  const errorAny =
+    error instanceof Error ? (error as ErrorWithCustomFields) : undefined;
 
   // Log error structure
   console.log("[buildConversationErrorInfo] Error structure check:", {
@@ -223,8 +229,15 @@ export function buildConversationErrorInfo(
 
   // If it's a wrapper, check the cause's data.error.message FIRST (this is where the real error is)
   if (isWrapper && error instanceof Error && error.cause) {
+    type ErrorWithCustomFields = Error & {
+      data?: { error?: { message?: string } };
+      statusCode?: number;
+      response?: { data?: { error?: { message?: string } } };
+    };
     const causeAny =
-      error.cause instanceof Error ? (error.cause as any) : undefined;
+      error.cause instanceof Error
+        ? (error.cause as ErrorWithCustomFields)
+        : undefined;
     console.log(
       "[buildConversationErrorInfo] Wrapper detected - checking cause's data.error.message:",
       {
@@ -320,8 +333,15 @@ export function buildConversationErrorInfo(
           : String(error.cause),
     });
 
+    type ErrorWithCustomFields = Error & {
+      data?: { error?: { message?: string } };
+      statusCode?: number;
+      response?: { data?: { error?: { message?: string } } };
+    };
     const causeAny =
-      error.cause instanceof Error ? (error.cause as any) : undefined;
+      error.cause instanceof Error
+        ? (error.cause as ErrorWithCustomFields)
+        : undefined;
     console.log("[buildConversationErrorInfo] Cause structure:", {
       hasData: !!causeAny?.data,
       hasDataError: !!causeAny?.data?.error,
@@ -415,8 +435,15 @@ export function buildConversationErrorInfo(
         "[buildConversationErrorInfo] Wrapper: Checking cause (no good message yet)"
       );
 
+      type ErrorWithCustomFields = Error & {
+        data?: { error?: { message?: string } };
+        statusCode?: number;
+        response?: { data?: { error?: { message?: string } } };
+      };
       const causeAny =
-        error.cause instanceof Error ? (error.cause as any) : undefined;
+        error.cause instanceof Error
+          ? (error.cause as ErrorWithCustomFields)
+          : undefined;
       console.log("[buildConversationErrorInfo] Wrapper cause structure:", {
         hasData: !!causeAny?.data,
         hasDataError: !!causeAny?.data?.error,

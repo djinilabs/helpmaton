@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-import type { DatabaseSchemaWithAtomicUpdate } from "../schema";
+import type {
+  DatabaseSchemaWithAtomicUpdate,
+  WorkspaceRecord,
+  AgentRecord,
+} from "../schema";
 
 // Mock @architect/functions
 vi.mock("@architect/functions", () => {
@@ -101,7 +105,7 @@ describe("database atomicUpdate", () => {
       });
 
       expect(result).toHaveLength(1);
-      expect((result[0] as any).name).toBe("New Workspace");
+      expect((result[0] as WorkspaceRecord).name).toBe("New Workspace");
       expect(mockClient._client.TransactWriteItems).toHaveBeenCalledWith({
         TransactItems: [
           expect.objectContaining({
@@ -142,7 +146,9 @@ describe("database atomicUpdate", () => {
       const result = await db.atomicUpdate(recordSpec, async (records) => {
         const current = records.get("workspace1");
         expect(current).toBeDefined();
-        expect((current as any)?.name).toBe("Old Workspace");
+        expect((current as WorkspaceRecord | undefined)?.name).toBe(
+          "Old Workspace"
+        );
         return [
           {
             ...current!,
@@ -153,7 +159,7 @@ describe("database atomicUpdate", () => {
       });
 
       expect(result).toHaveLength(1);
-      expect((result[0] as any).name).toBe("Updated Workspace");
+      expect((result[0] as WorkspaceRecord).name).toBe("Updated Workspace");
       expect(mockClient._client.TransactWriteItems).toHaveBeenCalledWith({
         TransactItems: [
           expect.objectContaining({
@@ -235,8 +241,8 @@ describe("database atomicUpdate", () => {
       });
 
       expect(result).toHaveLength(2);
-      expect((result[0] as any).creditBalance).toBe(2000000);
-      expect((result[1] as any).name).toBe("Updated Agent");
+      expect((result[0] as WorkspaceRecord).creditBalance).toBe(2000000);
+      expect((result[1] as AgentRecord).name).toBe("Updated Agent");
       expect(mockClient._client.TransactWriteItems).toHaveBeenCalledWith({
         TransactItems: expect.arrayContaining([
           expect.objectContaining({
@@ -507,7 +513,7 @@ describe("database atomicUpdate", () => {
               // Missing name, currency, creditBalance
               version: 1,
               createdAt: new Date().toISOString(),
-            } as any,
+            } as WorkspaceRecord,
           ];
         })
       ).rejects.toThrow();

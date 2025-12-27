@@ -201,8 +201,6 @@ export function isAuthenticationError(error: unknown): boolean {
   return checkError(error);
 }
 
-import { database } from "../tables/database";
-
 import { initPostHog, flushPostHog } from "./posthog";
 import { initSentry, Sentry, flushSentry, ensureError } from "./sentry";
 import type { AugmentedContext } from "./workspaceCreditContext";
@@ -522,7 +520,7 @@ export const handlingScheduledErrors = (
     const wrappedHandler = async (e: ScheduledEvent) => {
       // Pass the augmented context as a second parameter
       // Handlers can opt in by accepting a second Context parameter
-      await (userHandler as any)(e, augmentedContext);
+      await userHandler(e, augmentedContext);
     };
 
     let hadError = false;

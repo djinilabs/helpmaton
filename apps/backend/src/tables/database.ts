@@ -177,12 +177,13 @@ export const database = once(
             if (isCreate) {
               // Create: set version=1, createdAt, and check attribute_not_exists(pk)
               // Omit version and createdAt from recordToPut to avoid duplicates
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
               const {
-                version: _,
-                createdAt: __,
+                version: _unusedVersion,
+                createdAt: _unusedCreatedAt,
                 ...recordWithoutVersion
               } = recordToPut as Record<string, unknown>;
+              void _unusedVersion;
+              void _unusedCreatedAt;
               validatedItem = parseItem(
                 {
                   ...recordWithoutVersion,
@@ -197,12 +198,13 @@ export const database = once(
             } else {
               // Update: increment version, set updatedAt, and check version matches
               // Omit version and updatedAt from recordToPut to avoid duplicates
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
               const {
-                version: _,
-                updatedAt: __,
+                version: _unusedVersion,
+                updatedAt: _unusedUpdatedAt,
                 ...recordWithoutVersion
               } = recordToPut as Record<string, unknown>;
+              void _unusedVersion;
+              void _unusedUpdatedAt;
               validatedItem = parseItem(
                 {
                   ...existingRecord,

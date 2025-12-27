@@ -51,10 +51,8 @@ import { database } from "../../tables";
 import {
   updateConversation,
   buildConversationErrorInfo,
-  type GenerateTextResultWithTotalUsage,
   type StreamTextResultWithResolvedUsage,
   type TokenUsage,
-  type LanguageModelUsage,
 } from "../../utils/conversationLogger";
 import {
   transformLambdaUrlToHttpV2Event,
@@ -132,12 +130,17 @@ async function persistConversationError(
   try {
     // Log error structure before extraction (especially for BYOK)
     if (context.usesByok) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- error might carry custom fields
-      const errorAny = error instanceof Error ? (error as any) : undefined;
+      type ErrorWithCustomFields = Error & {
+        data?: { error?: { message?: string } };
+        statusCode?: number;
+        response?: { data?: { error?: { message?: string } } };
+      };
+      const errorAny =
+        error instanceof Error ? (error as ErrorWithCustomFields) : undefined;
 
       const causeAny =
         error instanceof Error && error.cause instanceof Error
-          ? (error.cause as any)
+          ? (error.cause as ErrorWithCustomFields)
           : undefined;
       console.log("[Stream Handler] BYOK error before extraction:", {
         errorType:
