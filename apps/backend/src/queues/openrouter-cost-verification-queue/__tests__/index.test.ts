@@ -34,14 +34,29 @@ vi.mock("@architect/functions", () => ({
 }));
 
 // Mock workspaceCreditContext functions
-vi.mock("../../../utils/workspaceCreditContext", () => ({
-  augmentContextWithCreditTransactions: vi.fn((context) => context),
-  commitContextTransactions: vi.fn().mockResolvedValue(undefined),
-  setTransactionBuffer: vi.fn(),
-  createTransactionBuffer: vi.fn(() => new Map()),
-  setCurrentSQSContext: vi.fn(),
-  clearCurrentSQSContext: vi.fn(),
-}));
+const mockContext = {
+  awsRequestId: "test-request-id",
+  addWorkspaceCreditTransaction: vi.fn(),
+} as any;
+
+vi.mock("../../../utils/workspaceCreditContext", () => {
+  const mockContext = {
+    awsRequestId: "test-request-id",
+    addWorkspaceCreditTransaction: vi.fn(),
+  };
+  return {
+    augmentContextWithCreditTransactions: vi.fn((context) => ({
+      ...context,
+      addWorkspaceCreditTransaction: vi.fn(),
+    })),
+    commitContextTransactions: vi.fn().mockResolvedValue(undefined),
+    setTransactionBuffer: vi.fn(),
+    createTransactionBuffer: vi.fn(() => new Map()),
+    setCurrentSQSContext: vi.fn(),
+    clearCurrentSQSContext: vi.fn(),
+    getCurrentSQSContext: vi.fn(() => mockContext),
+  };
+});
 
 // Mock posthog and sentry for handlingSQSErrors
 vi.mock("../../../utils/posthog", () => ({
@@ -234,6 +249,9 @@ describe("openrouter-cost-verification-queue", () => {
         mockDb,
         "res-1",
         1055, // Math.ceil(0.001 * 1_000_000 * 1.055) = 1055
+        expect.objectContaining({
+          addWorkspaceCreditTransaction: expect.any(Function),
+        }),
         3
       );
 
@@ -323,6 +341,9 @@ describe("openrouter-cost-verification-queue", () => {
         mockDb,
         "res-1",
         10550,
+        expect.objectContaining({
+          addWorkspaceCreditTransaction: expect.any(Function),
+        }),
         3
       );
     });
@@ -761,10 +782,14 @@ describe("openrouter-cost-verification-queue", () => {
       await handler({ Records: [record] });
 
       // Verify finalizeCreditReservation was called with correct cost (0.002 * 1_000_000 * 1.055 = 2110 millionths)
+      // With transaction system, context is now required
       expect(mockFinalizeCreditReservation).toHaveBeenCalledWith(
         mockDb,
         "res-1",
         2110, // Math.ceil(0.002 * 1_000_000 * 1.055) = 2110
+        expect.objectContaining({
+          addWorkspaceCreditTransaction: expect.any(Function),
+        }),
         3
       );
     });
@@ -920,6 +945,9 @@ describe("openrouter-cost-verification-queue", () => {
         mockDb,
         "res-1",
         4748, // Sum of individually marked-up costs
+        expect.objectContaining({
+          addWorkspaceCreditTransaction: expect.any(Function),
+        }),
         3
       );
     });

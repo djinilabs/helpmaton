@@ -7,6 +7,7 @@ import type { DatabaseSchema, WorkspaceRecord } from "../tables/schema";
 import type { TokenUsage } from "./conversationLogger";
 import { CreditDeductionError, InsufficientCreditsError } from "./creditErrors";
 import { calculateTokenCost } from "./pricing";
+import type { AugmentedContext } from "./workspaceCreditContext";
 
 /**
  * Send cost verification message to queue for OpenRouter cost lookup
@@ -308,10 +309,11 @@ export async function adjustCreditReservation(
   provider: string,
   modelName: string,
   tokenUsage: TokenUsage,
-  maxRetries: number = 3,
+  context: AugmentedContext,
+  _maxRetries: number = 3,
   usesByok?: boolean,
   openrouterGenerationId?: string,
-  openrouterGenerationIds?: string[] // New parameter
+  openrouterGenerationIds?: string[]
 ): Promise<WorkspaceRecord> {
   // Skip adjustment if request was made with user key (BYOK)
   if (usesByok || reservationId === "byok") {
@@ -370,47 +372,62 @@ export async function adjustCreditReservation(
   // Calculate difference between token usage cost and reserved amount
   const difference = validatedTokenUsageCost - reservation.reservedAmount;
 
+  // Create transaction in memory (will be committed atomically at end of request)
+  // Positive difference = debit (deduct more), negative difference = credit (refund)
+  // For transaction system: positive amount = debit, negative amount = credit
+  const transactionAmount = difference; // Positive for debit, negative for credit
+
+  console.log("[adjustCreditReservation] Step 2: Creating credit transaction:", {
+    workspaceId,
+    reservationId,
+    reservedAmount: reservation.reservedAmount,
+    tokenUsageBasedCost: validatedTokenUsageCost,
+    originalTokenUsageCost: tokenUsageBasedCost !== validatedTokenUsageCost ? tokenUsageBasedCost : undefined,
+    difference,
+    transactionAmount,
+    tokenUsage: {
+      promptTokens: tokenUsage.promptTokens || 0,
+      cachedPromptTokens: tokenUsage.cachedPromptTokens || 0,
+      completionTokens: tokenUsage.completionTokens || 0,
+      reasoningTokens: tokenUsage.reasoningTokens || 0,
+    },
+  });
+
+  // Get current workspace to determine current balance for logging
+  const workspace = await db.workspace.get(workspacePk, "workspace");
+  if (!workspace) {
+    throw new Error(`Workspace ${workspaceId} not found`);
+  }
+
+  const oldBalance = workspace.creditBalance;
+  const newBalance = oldBalance - transactionAmount; // Will be applied when transaction commits
+
+  console.log("[adjustCreditReservation] Step 2: Transaction created (will commit at end of request):", {
+    workspaceId,
+    reservationId,
+    transactionAmount,
+    oldBalance,
+    newBalance,
+    currency: workspace.currency,
+  });
+
+  // Create transaction in memory
+  context.addWorkspaceCreditTransaction({
+    workspaceId,
+    source: "text-generation",
+    supplier: provider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter for now
+    model: modelName,
+    description: `Adjust credit reservation: ${difference > 0 ? "additional charge" : "refund"} based on token usage (Step 2)`,
+    amountMillionthUsd: transactionAmount,
+  });
+
   try {
-    const updated = await db.workspace.atomicUpdate(
-      workspacePk,
-      "workspace",
-      async (current) => {
-        if (!current) {
-          throw new Error(`Workspace ${workspaceId} not found`);
-        }
-
-        // Adjust balance based on difference
-        // If actual > reserved, deduct more (difference is positive)
-        // If actual < reserved, refund difference (difference is negative, so we add it back)
-        // All values in millionths, so simple subtraction
-        const newBalance = current.creditBalance - difference;
-
-        console.log("[adjustCreditReservation] Step 2: Adjusting credits based on token usage:", {
-          workspaceId,
-          reservationId,
-          reservedAmount: reservation.reservedAmount,
-          tokenUsageBasedCost: validatedTokenUsageCost,
-          originalTokenUsageCost: tokenUsageBasedCost !== validatedTokenUsageCost ? tokenUsageBasedCost : undefined,
-          difference,
-          oldBalance: current.creditBalance,
-          newBalance,
-          currency: current.currency,
-          tokenUsage: {
-            promptTokens: tokenUsage.promptTokens || 0,
-            cachedPromptTokens: tokenUsage.cachedPromptTokens || 0,
-            completionTokens: tokenUsage.completionTokens || 0,
-            reasoningTokens: tokenUsage.reasoningTokens || 0,
-          },
-        });
-
-        return {
-          pk: workspacePk,
-          sk: "workspace",
-          creditBalance: newBalance,
-        };
-      },
-      { maxRetries }
-    );
+    // Fetch updated workspace record (balance will be updated when transaction commits)
+    // For now, return workspace with calculated new balance for logging purposes
+    const updated = {
+      ...workspace,
+      creditBalance: newBalance,
+    };
 
     // Update reservation record with token usage cost and OpenRouter generation ID
     // Don't delete yet - will be deleted in finalizeCreditReservation (step 3)
@@ -454,7 +471,7 @@ export async function adjustCreditReservation(
       });
     }
 
-    console.log("[adjustCreditReservation] Step 2 completed successfully:", {
+    console.log("[adjustCreditReservation] Step 2 completed successfully (transaction created):", {
       workspaceId,
       reservationId,
       newBalance: updated.creditBalance,
@@ -463,36 +480,33 @@ export async function adjustCreditReservation(
 
     return updated;
   } catch (error) {
+    // Log error but transaction has already been created
+    // The transaction will be committed at end of request if no error occurs
     const lastError = error instanceof Error ? error : new Error(String(error));
-
-    // Check if it's a version conflict error
-    if (
-      error instanceof Error &&
-      (error.message.toLowerCase().includes("item was outdated") ||
-        error.message.toLowerCase().includes("conditional request failed") ||
-        error.message.toLowerCase().includes("failed to atomically update"))
-    ) {
-      throw new Error(
-        `Failed to adjust credit reservation after ${maxRetries} retries: ${lastError.message}`
-      );
-    }
-
-    // If it's not a version conflict, rethrow immediately
+    console.error("[adjustCreditReservation] Error updating reservation record:", {
+      reservationId,
+      workspaceId,
+      error: lastError.message,
+    });
+    // Rethrow to allow caller to handle
     throw lastError;
   }
 }
 
 /**
  * Refund reserved credits (used when error occurs before LLM call)
+ * Creates transaction in memory using context, committed atomically at end of request
  *
  * @param db - Database instance
  * @param reservationId - Reservation ID
- * @param maxRetries - Maximum number of retries (default: 3)
+ * @param context - Augmented Lambda context for transaction creation
+ * @param maxRetries - Maximum number of retries (default: 3, not used for transactions)
  */
 export async function refundReservation(
   db: DatabaseSchema,
   reservationId: string,
-  maxRetries: number = 3
+  context: AugmentedContext,
+  _maxRetries: number = 3
 ): Promise<void> {
   // Skip if BYOK reservation
   if (reservationId === "byok") {
@@ -514,37 +528,42 @@ export async function refundReservation(
   }
 
   const workspacePk = `workspaces/${reservation.workspaceId}`;
+  const workspaceId = reservation.workspaceId;
+
+  // Get current workspace for logging
+  const workspace = await db.workspace.get(workspacePk, "workspace");
+  if (!workspace) {
+    throw new Error(`Workspace ${workspaceId} not found`);
+  }
+
+  // Create credit transaction (negative amount = credit/refund)
+  const refundAmount = reservation.reservedAmount;
+  const transactionAmount = -refundAmount; // Negative for credit
+
+  const oldBalance = workspace.creditBalance;
+  const newBalance = oldBalance - transactionAmount; // Will be applied when transaction commits
+
+  console.log("[refundReservation] Creating refund transaction:", {
+    workspaceId,
+    reservationId,
+    refundAmount,
+    transactionAmount,
+    oldBalance,
+    newBalance,
+    currency: reservation.currency,
+  });
+
+  // Create transaction in memory
+  context.addWorkspaceCreditTransaction({
+    workspaceId,
+    source: "text-generation",
+    supplier: reservation.provider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter
+    model: reservation.modelName,
+    description: `Refund reserved credits due to error before LLM call`,
+    amountMillionthUsd: transactionAmount,
+  });
 
   try {
-    // Refund the reserved amount
-    const updated = await db.workspace.atomicUpdate(
-      workspacePk,
-      "workspace",
-      async (current) => {
-        if (!current) {
-          throw new Error(`Workspace ${reservation.workspaceId} not found`);
-        }
-
-        // Refund the reserved amount (all values in millionths, so simple addition)
-        const newBalance = current.creditBalance + reservation.reservedAmount;
-
-        console.log("[refundReservation] Refunding credits:", {
-          workspaceId: reservation.workspaceId,
-          reservationId,
-          refundAmount: reservation.reservedAmount,
-          oldBalance: current.creditBalance,
-          newBalance,
-          currency: reservation.currency,
-        });
-
-        return {
-          pk: workspacePk,
-          sk: "workspace",
-          creditBalance: newBalance,
-        };
-      },
-      { maxRetries }
-    );
 
     // Delete reservation record
     await db["credit-reservations"].delete(reservationPk);
@@ -552,28 +571,22 @@ export async function refundReservation(
       reservationId,
     });
 
-    console.log("[refundReservation] Successfully refunded credits:", {
-      workspaceId: reservation.workspaceId,
+    console.log("[refundReservation] Successfully created refund transaction:", {
+      workspaceId,
       reservationId,
-      newBalance: updated.creditBalance,
-      currency: updated.currency,
+      newBalance,
+      currency: reservation.currency,
     });
   } catch (error) {
+    // Log error but transaction has already been created
+    // The transaction will be committed at end of request if no error occurs
     const lastError = error instanceof Error ? error : new Error(String(error));
-
-    // Check if it's a version conflict error
-    if (
-      error instanceof Error &&
-      (error.message.toLowerCase().includes("item was outdated") ||
-        error.message.toLowerCase().includes("conditional request failed") ||
-        error.message.toLowerCase().includes("failed to atomically update"))
-    ) {
-      throw new Error(
-        `Failed to refund reservation after ${maxRetries} retries: ${lastError.message}`
-      );
-    }
-
-    // If it's not a version conflict, rethrow immediately
+    console.error("[refundReservation] Error deleting reservation record:", {
+      reservationId,
+      workspaceId,
+      error: lastError.message,
+    });
+    // Rethrow to allow caller to handle
     throw lastError;
   }
 }
@@ -708,20 +721,22 @@ export async function debitCredits(
 
 /**
  * Finalize credit reservation based on OpenRouter API cost (Step 3 of 3-step pricing)
- * Makes final adjustment between OpenRouter cost and token usage-based cost
+ * Creates transaction in memory using context, committed atomically at end of request
  * Deletes reservation record after finalization
  *
  * @param db - Database instance
  * @param reservationId - Reservation ID
  * @param openrouterCost - Cost from OpenRouter API in millionths
- * @param maxRetries - Maximum number of retries (default: 3)
- * @returns Updated workspace record
+ * @param context - Augmented Lambda context for transaction creation
+ * @param maxRetries - Maximum number of retries (default: 3, not used for transactions)
+ * @returns Updated workspace record (fetched after transaction creation)
  */
 export async function finalizeCreditReservation(
   db: DatabaseSchema,
   reservationId: string,
   openrouterCost: number,
-  maxRetries: number = 3
+  context: AugmentedContext,
+  _maxRetries: number = 3
 ): Promise<WorkspaceRecord> {
   // Get reservation to find token usage-based cost
   const reservationPk = `credit-reservations/${reservationId}`;
@@ -756,68 +771,87 @@ export async function finalizeCreditReservation(
       "[finalizeCreditReservation] Token usage-based cost not found, using OpenRouter cost directly:",
       { reservationId, workspaceId, openrouterCost: validatedOpenrouterCost }
     );
-    // If token usage cost is missing, just use OpenRouter cost
-    // This shouldn't happen, but handle gracefully
-    const updated = await db.workspace.atomicUpdate(
-      workspacePk,
-      "workspace",
-      async (current) => {
-        if (!current) {
-          throw new Error(`Workspace ${workspaceId} not found`);
-        }
-        // Adjust based on OpenRouter cost vs reserved amount
-        const difference = validatedOpenrouterCost - reservation.reservedAmount;
-        const newBalance = current.creditBalance - difference;
-        return {
-          pk: workspacePk,
-          sk: "workspace",
-          creditBalance: newBalance,
-        };
-      },
-      { maxRetries }
-    );
+    // If token usage cost is missing, calculate difference vs reserved amount
+    const difference = validatedOpenrouterCost - reservation.reservedAmount;
+    const transactionAmount = difference;
+
+    // Get current workspace for logging
+    const workspace = await db.workspace.get(workspacePk, "workspace");
+    if (!workspace) {
+      throw new Error(`Workspace ${workspaceId} not found`);
+    }
+
+    const oldBalance = workspace.creditBalance;
+    const newBalance = oldBalance - transactionAmount;
+
+    console.log("[finalizeCreditReservation] Step 3: Creating credit transaction (no token usage cost):", {
+      workspaceId,
+      reservationId,
+      openrouterCost: validatedOpenrouterCost,
+      reservedAmount: reservation.reservedAmount,
+      difference: transactionAmount,
+      oldBalance,
+      newBalance,
+      currency: workspace.currency,
+    });
+
+    // Create transaction in memory
+    context.addWorkspaceCreditTransaction({
+      workspaceId,
+      source: "text-generation",
+      supplier: "openrouter",
+      model: reservation.modelName,
+      description: `Finalize credit reservation: ${difference > 0 ? "additional charge" : "refund"} based on OpenRouter cost (Step 3, no token usage cost)`,
+      amountMillionthUsd: transactionAmount,
+    });
+
     await db["credit-reservations"].delete(reservationPk);
-    return updated;
+    return {
+      ...workspace,
+      creditBalance: newBalance,
+    };
   }
 
   // Calculate difference between OpenRouter cost and token usage-based cost
   const difference = validatedOpenrouterCost - tokenUsageBasedCost;
+  const transactionAmount = difference; // Positive for debit, negative for credit
+
+  // Get current workspace for logging
+  const workspace = await db.workspace.get(workspacePk, "workspace");
+  if (!workspace) {
+    throw new Error(`Workspace ${workspaceId} not found`);
+  }
+
+  const oldBalance = workspace.creditBalance;
+  const newBalance = oldBalance - transactionAmount;
+
+  console.log("[finalizeCreditReservation] Step 3: Creating credit transaction:", {
+    workspaceId,
+    reservationId,
+    tokenUsageBasedCost,
+    openrouterCost: validatedOpenrouterCost,
+    originalOpenrouterCost: openrouterCost !== validatedOpenrouterCost ? openrouterCost : undefined,
+    difference: transactionAmount,
+    oldBalance,
+    newBalance,
+    currency: workspace.currency,
+  });
+
+  // Create transaction in memory
+  context.addWorkspaceCreditTransaction({
+    workspaceId,
+    source: "text-generation",
+    supplier: "openrouter",
+    model: reservation.modelName,
+    description: `Finalize credit reservation: ${difference > 0 ? "additional charge" : "refund"} based on OpenRouter cost (Step 3)`,
+    amountMillionthUsd: transactionAmount,
+  });
 
   try {
-    const updated = await db.workspace.atomicUpdate(
-      workspacePk,
-      "workspace",
-      async (current) => {
-        if (!current) {
-          throw new Error(`Workspace ${workspaceId} not found`);
-        }
-
-        // Adjust balance based on difference between OpenRouter cost and token usage cost
-        // If OpenRouter > token usage, deduct more (difference is positive)
-        // If OpenRouter < token usage, refund difference (difference is negative)
-        // All values in millionths, so simple subtraction
-        const newBalance = current.creditBalance - difference;
-
-        console.log("[finalizeCreditReservation] Step 3: Final adjustment based on OpenRouter cost:", {
-          workspaceId,
-          reservationId,
-          tokenUsageBasedCost,
-          openrouterCost: validatedOpenrouterCost,
-          originalOpenrouterCost: openrouterCost !== validatedOpenrouterCost ? openrouterCost : undefined,
-          difference,
-          oldBalance: current.creditBalance,
-          newBalance,
-          currency: current.currency,
-        });
-
-        return {
-          pk: workspacePk,
-          sk: "workspace",
-          creditBalance: newBalance,
-        };
-      },
-      { maxRetries }
-    );
+    const updated = {
+      ...workspace,
+      creditBalance: newBalance,
+    };
 
     // Update reservation with OpenRouter cost for tracking, then delete
     await db["credit-reservations"].update({
@@ -831,7 +865,7 @@ export async function finalizeCreditReservation(
       reservationId,
     });
 
-    console.log("[finalizeCreditReservation] Step 3 completed successfully:", {
+    console.log("[finalizeCreditReservation] Step 3 completed successfully (transaction created):", {
       workspaceId,
       reservationId,
       newBalance: updated.creditBalance,
@@ -840,21 +874,15 @@ export async function finalizeCreditReservation(
 
     return updated;
   } catch (error) {
+    // Log error but transaction has already been created
+    // The transaction will be committed at end of request if no error occurs
     const lastError = error instanceof Error ? error : new Error(String(error));
-
-    // Check if it's a version conflict error
-    if (
-      error instanceof Error &&
-      (error.message.toLowerCase().includes("item was outdated") ||
-        error.message.toLowerCase().includes("conditional request failed") ||
-        error.message.toLowerCase().includes("failed to atomically update"))
-    ) {
-      throw new Error(
-        `Failed to finalize credit reservation after ${maxRetries} retries: ${lastError.message}`
-      );
-    }
-
-    // If it's not a version conflict, rethrow immediately
+    console.error("[finalizeCreditReservation] Error updating/deleting reservation record:", {
+      reservationId,
+      workspaceId,
+      error: lastError.message,
+    });
+    // Rethrow to allow caller to handle
     throw lastError;
   }
 }

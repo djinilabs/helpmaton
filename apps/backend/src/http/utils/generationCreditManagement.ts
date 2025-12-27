@@ -10,6 +10,7 @@ import {
 import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation";
 import { isCreditDeductionEnabled } from "../../utils/featureFlags";
 import { Sentry, ensureError } from "../../utils/sentry";
+import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 import type { GenerationEndpoint } from "./generationErrorHandling";
 
@@ -105,7 +106,8 @@ export async function adjustCreditsAfterLLMCall(
   usesByok: boolean,
   openrouterGenerationId: string | undefined,
   openrouterGenerationIds: string[] | undefined, // New parameter
-  endpoint: GenerationEndpoint
+  endpoint: GenerationEndpoint,
+  context: AugmentedContext
 ): Promise<void> {
   // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
   if (
@@ -156,10 +158,11 @@ export async function adjustCreditsAfterLLMCall(
       provider,
       modelName,
       tokenUsage,
+      context,
       3, // maxRetries
       usesByok,
       openrouterGenerationId,
-      openrouterGenerationIds // Pass through
+      openrouterGenerationIds
     );
     console.log(
       `[${endpoint} Handler] Step 2: Credit reservation adjusted successfully`
@@ -238,7 +241,8 @@ export async function cleanupReservationOnError(
   error: unknown,
   llmCallAttempted: boolean,
   usesByok: boolean,
-  endpoint: GenerationEndpoint
+  endpoint: GenerationEndpoint,
+  context: AugmentedContext
 ): Promise<void> {
   if (!llmCallAttempted) {
     // Error before LLM call - refund reservation
@@ -251,7 +255,7 @@ export async function cleanupReservationOnError(
           error: error instanceof Error ? error.message : String(error),
         }
       );
-      await refundReservation(db, reservationId);
+      await refundReservation(db, reservationId, context);
     } catch (refundError) {
       // Log but don't fail - refund is best effort
       console.error(`[${endpoint} Handler] Error refunding reservation:`, {
@@ -293,6 +297,7 @@ export async function cleanupReservationOnError(
           provider,
           modelName,
           errorTokenUsage,
+          context,
           3,
           usesByok
         );

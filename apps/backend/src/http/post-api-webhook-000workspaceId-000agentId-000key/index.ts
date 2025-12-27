@@ -40,6 +40,7 @@ import {
 } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
 import { Sentry, ensureError } from "../../utils/sentry";
+import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { setupAgentAndTools } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
   convertTextToUIMessage,
@@ -153,6 +154,12 @@ export const handler = adaptHttpHandler(
       // Extract request ID for logging
       const awsRequestId = event.requestContext?.requestId;
 
+      // Get context for workspace credit transactions
+      const context = getContextFromRequestId(awsRequestId);
+      if (!context) {
+        throw new Error("Context not available for workspace credit transactions");
+      }
+
       // Validate request
       const { workspaceId, agentId, key, bodyText } =
         validateWebhookRequest(event);
@@ -175,6 +182,7 @@ export const handler = adaptHttpHandler(
           modelReferer: "http://localhost:3000/api/webhook",
           callDepth: 0,
           maxDelegationDepth: 3,
+          context,
           searchDocumentsOptions: {
             description:
               "Search workspace documents using semantic vector search. Returns the most relevant document snippets based on the query.",
@@ -293,7 +301,8 @@ export const handler = adaptHttpHandler(
           usesByok,
           openrouterGenerationId,
           openrouterGenerationIds, // New parameter
-          "webhook"
+          "webhook",
+          context
         );
 
         // Handle case where no token usage is available
@@ -362,7 +371,8 @@ export const handler = adaptHttpHandler(
             error,
             llmCallAttempted,
             usesByok,
-            "webhook"
+            "webhook",
+            context
           );
         }
 

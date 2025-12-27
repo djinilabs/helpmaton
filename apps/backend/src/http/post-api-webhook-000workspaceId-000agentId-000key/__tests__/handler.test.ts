@@ -148,6 +148,21 @@ vi.mock(
   })
 );
 
+// Mock workspaceCreditContext
+const mockContext = {
+  awsRequestId: "test-request-id",
+  addWorkspaceCreditTransaction: vi.fn(),
+} as any;
+
+vi.mock("../../../utils/workspaceCreditContext", () => ({
+  getContextFromRequestId: vi.fn(() => mockContext),
+  augmentContextWithCreditTransactions: vi.fn((context) => ({
+    ...context,
+    addWorkspaceCreditTransaction: vi.fn(),
+  })),
+  commitContextTransactions: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock(
   "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/toolFormatting",
   () => ({
@@ -1472,7 +1487,10 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
       false,
       "gen-123",
       ["gen-123"],
-      "webhook"
+      "webhook",
+      expect.objectContaining({
+        addWorkspaceCreditTransaction: expect.any(Function),
+      })
     );
 
     // Verify startConversation was called with token usage

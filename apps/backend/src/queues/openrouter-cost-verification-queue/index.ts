@@ -7,6 +7,7 @@ import { getDefined } from "../../utils";
 import { finalizeCreditReservation } from "../../utils/creditManagement";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
 import { calculateConversationCosts } from "../../utils/tokenAccounting";
+import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
 
 // Exponential backoff configuration for OpenRouter API retries
 const BACKOFF_INITIAL_DELAY_MS = 500; // 0.5 seconds
@@ -281,6 +282,13 @@ async function fetchOpenRouterCost(generationId: string): Promise<number> {
  * Process a single cost verification message
  */
 async function processCostVerification(record: SQSRecord): Promise<void> {
+  // Get context for workspace credit transactions
+  const messageId = record.messageId || "unknown";
+  const context = getCurrentSQSContext(messageId);
+  if (!context) {
+    throw new Error("Context not available for workspace credit transactions");
+  }
+
   const messageBody = JSON.parse(record.body || "{}");
   const validationResult = CostVerificationMessageSchema.safeParse(messageBody);
 
@@ -398,6 +406,7 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
         db,
         reservationId,
         reservation.totalOpenrouterCost,
+        context,
         3
       );
     } else {

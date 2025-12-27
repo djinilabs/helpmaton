@@ -12,6 +12,7 @@ import {
 } from "../../../utils/conversationLogger";
 import { isAuthenticationError } from "../../../utils/handlingErrors";
 import { Sentry, ensureError } from "../../../utils/sentry";
+import { getContextFromRequestId } from "../../../utils/workspaceCreditContext";
 import { setupAgentAndTools } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import { convertAiSdkUIMessagesToUIMessages } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion";
 import {
@@ -264,11 +265,18 @@ export const registerPostTestAgent = (app: express.Application) => {
       }
 
       // Extract AWS request ID from headers (API Gateway includes it in x-amzn-requestid)
-      const awsRequestId =
+      const awsRequestIdRaw =
         req.headers["x-amzn-requestid"] ||
         req.headers["X-Amzn-Requestid"] ||
         req.headers["x-request-id"] ||
         req.headers["X-Request-Id"];
+      const awsRequestId = Array.isArray(awsRequestIdRaw) ? awsRequestIdRaw[0] : awsRequestIdRaw;
+
+      // Get context for workspace credit transactions
+      const context = getContextFromRequestId(awsRequestId);
+      if (!context) {
+        throw new Error("Context not available for workspace credit transactions");
+      }
 
       // Validate subscription and limits
       const subscriptionId = await validateSubscriptionAndLimits(
@@ -288,6 +296,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           callDepth: 0,
           maxDelegationDepth: 3,
           userId,
+          context,
         }
       );
 
@@ -437,7 +446,8 @@ export const registerPostTestAgent = (app: express.Application) => {
             error,
             llmCallAttempted,
             usesByok,
-            "test"
+            "test",
+            context
           );
         }
 
@@ -1178,7 +1188,8 @@ export const registerPostTestAgent = (app: express.Application) => {
         usesByok,
         openrouterGenerationId,
         openrouterGenerationIds, // New parameter
-        "test"
+        "test",
+        context
       );
 
       // Handle case where no token usage is available

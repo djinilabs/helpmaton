@@ -73,6 +73,21 @@ vi.mock("../../../utils/apiGatewayUsagePlans", () => ({
   associateSubscriptionWithPlan: mockAssociateSubscriptionWithPlan,
 }));
 
+// Mock workspaceCreditContext
+const mockContext = {
+  awsRequestId: "test-request-id",
+  addWorkspaceCreditTransaction: vi.fn(),
+} as any;
+
+vi.mock("../../../utils/workspaceCreditContext", () => ({
+  getContextFromRequestId: vi.fn(() => mockContext),
+  augmentContextWithCreditTransactions: vi.fn((context) => ({
+    ...context,
+    addWorkspaceCreditTransaction: vi.fn(),
+  })),
+  commitContextTransactions: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock crypto for signature verification - must be in hoisted block
 const {
   mockCreateHmac,
@@ -102,6 +117,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
     };
     workspace: {
       get: ReturnType<typeof vi.fn>;
+      update: ReturnType<typeof vi.fn>;
       atomicUpdate: ReturnType<typeof vi.fn>;
     };
     "next-auth": {
@@ -126,6 +142,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
       },
       workspace: {
         get: vi.fn(),
+        update: vi.fn().mockResolvedValue(undefined),
         atomicUpdate: vi.fn().mockResolvedValue(undefined),
       },
       "next-auth": {
@@ -532,20 +549,29 @@ describe("Lemon Squeezy Webhook Handler", () => {
             attributes: {},
           },
         }),
+        requestContext: {
+          requestId: "test-request-id",
+        } as any,
       });
 
-      const mockContext: Context = {
+      const lambdaContext: Context = {
         getRemainingTimeInMillis: () => 30000,
       } as Context;
       const mockCallback: Callback = () => {};
-      const result = (await handler(event, mockContext, mockCallback)) as {
+      const result = (await handler(event, lambdaContext, mockCallback)) as {
         statusCode: number;
         headers: Record<string, string>;
         body: string;
       };
 
       expect(result.statusCode).toBe(200);
-      expect(mockDb.workspace?.atomicUpdate).toHaveBeenCalled();
+      // With transaction system, verify transaction was added to buffer instead of atomicUpdate
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId: "ws-123",
+          amountMillionthUsd: expect.any(Number),
+        })
+      );
     });
 
     it("should throw error if workspace ID is missing", async () => {

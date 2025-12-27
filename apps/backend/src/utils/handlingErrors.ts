@@ -201,9 +201,12 @@ import { database } from "../tables/database";
 
 import { initPostHog, flushPostHog } from "./posthog";
 import { initSentry, Sentry, flushSentry, ensureError } from "./sentry";
+import type { AugmentedContext } from "./workspaceCreditContext";
 import {
   augmentContextWithCreditTransactions,
   commitContextTransactions,
+  setCurrentHTTPContext,
+  clearCurrentHTTPContext,
 } from "./workspaceCreditContext";
 
 // Initialize Sentry when this module is loaded (before any handlers are called)
@@ -220,8 +223,9 @@ export const handlingErrors = (
     callback: Callback
   ): Promise<APIGatewayProxyResultV2> => {
     // Augment context with workspace credit transaction capability
-    const db = await database();
-    const augmentedContext = augmentContextWithCreditTransactions(context, db);
+    // Database will be lazy-loaded only if workspace credit transactions are actually used
+    // This avoids interfering with other handlers (e.g., auth) that need tables() with specific options
+    const augmentedContext = augmentContextWithCreditTransactions(context);
     
     let hadError = false;
     try {
@@ -354,8 +358,12 @@ export const handlingHttpAsyncErrors = (
     context: Context
   ): Promise<HttpResponse | void> => {
     // Augment context with workspace credit transaction capability
-    const db = await database();
-    const augmentedContext = augmentContextWithCreditTransactions(context, db);
+    // Database will be lazy-loaded only if workspace credit transactions are actually used
+    const augmentedContext = augmentContextWithCreditTransactions(context);
+    
+    // Make context available to Express handlers via module-level storage
+    const requestId = context.awsRequestId;
+    setCurrentHTTPContext(requestId, augmentedContext);
     
     let hadError = false;
     try {
@@ -400,6 +408,9 @@ export const handlingHttpAsyncErrors = (
         console.error("[handlingHttpAsyncErrors] Failed to commit credit transactions:", commitError);
         // eslint-disable-next-line no-unsafe-finally
         throw commitError;
+      } finally {
+        // Clear context from module-level storage
+        clearCurrentHTTPContext(requestId);
       }
       
       // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
@@ -477,7 +488,7 @@ export const handlingHttpErrors = (userHandler: HttpHandler): HttpHandler => {
  * Scheduled functions don't have user errors - all errors are server errors
  */
 export const handlingScheduledErrors = (
-  userHandler: (event: ScheduledEvent) => Promise<void>
+  userHandler: (event: ScheduledEvent, context?: AugmentedContext) => Promise<void>
 ): ((event: ScheduledEvent) => Promise<void>) => {
   return async (event: ScheduledEvent): Promise<void> => {
     // Create a mock context for scheduled functions (they don't have a real context)
@@ -487,8 +498,8 @@ export const handlingScheduledErrors = (
     } as Context;
     
     // Augment context with workspace credit transaction capability
-    const db = await database();
-    const augmentedContext = augmentContextWithCreditTransactions(mockContext, db);
+    // Database will be lazy-loaded only if workspace credit transactions are actually used
+    const augmentedContext = augmentContextWithCreditTransactions(mockContext);
     
     // Wrap user handler to pass augmented context
     // Scheduled handlers normally don't receive context from AWS,

@@ -1,6 +1,7 @@
 import { jsonSchema, tool } from "ai";
 
 import { database } from "../../../tables";
+import type { AugmentedContext } from "../../../utils/workspaceCreditContext";
 import {
   createAgentModel,
   createSearchDocumentsTool,
@@ -29,6 +30,7 @@ export interface AgentSetupOptions {
   callDepth?: number;
   maxDelegationDepth?: number;
   userId?: string;
+  context?: AugmentedContext;
 }
 
 /**
@@ -218,7 +220,8 @@ export async function setupAgentAndTools(
       agent.delegatableAgentIds,
       agentId,
       callDepth,
-      maxDepth
+      maxDepth,
+      options?.context
     );
   }
 

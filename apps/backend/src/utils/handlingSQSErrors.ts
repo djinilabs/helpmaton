@@ -33,7 +33,6 @@ export const handlingSQSErrors = (
 ): ((event: SQSEvent) => Promise<SQSBatchResponse>) => {
   return async (event: SQSEvent): Promise<SQSBatchResponse> => {
     try {
-      const db = await database();
       const failedMessageIds: string[] = [];
 
       // Process each record separately with its own context
@@ -50,9 +49,9 @@ export const handlingSQSErrors = (
         setTransactionBuffer(recordContext, recordBuffer);
 
         // Augment context with workspace credit transaction capability
+        // Database will be lazy-loaded only if workspace credit transactions are actually used
         const augmentedContext = augmentContextWithCreditTransactions(
-          recordContext,
-          db
+          recordContext
         );
 
         // Make context available to handler code via module-level storage

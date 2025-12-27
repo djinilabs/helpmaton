@@ -579,7 +579,8 @@ async function callAgentInternal(
   targetAgentId: string,
   message: string,
   callDepth: number,
-  maxDepth: number
+  maxDepth: number,
+  context?: Awaited<ReturnType<typeof import("../../utils/workspaceCreditContext").getContextFromRequestId>>
 ): Promise<string> {
   // Check depth limit
   if (callDepth >= maxDepth) {
@@ -723,7 +724,8 @@ async function callAgentInternal(
       targetAgent.delegatableAgentIds,
       targetAgentId,
       callDepth + 1,
-      maxDepth
+      maxDepth,
+      context
     );
   }
 
@@ -823,18 +825,23 @@ async function callAgentInternal(
       (tokenUsage.promptTokens > 0 || tokenUsage.completionTokens > 0)
     ) {
       try {
-        await adjustCreditReservation(
-          db,
-          reservationId,
-          workspaceId,
-          agentProvider, // provider
-          modelName || MODEL_NAME,
-          tokenUsage,
-          3, // maxRetries
-          false, // usesByok - delegated calls use workspace API key if available
-          openrouterGenerationId,
-          openrouterGenerationIds // New parameter
-        );
+        if (context) {
+          await adjustCreditReservation(
+            db,
+            reservationId,
+            workspaceId,
+            agentProvider, // provider
+            modelName || MODEL_NAME,
+            tokenUsage,
+            context,
+            3, // maxRetries
+            false, // usesByok - delegated calls use workspace API key if available
+            openrouterGenerationId,
+            openrouterGenerationIds // New parameter
+          );
+        } else {
+          console.warn("[callAgentInternal] Context not available, skipping credit adjustment");
+        }
         console.log(
           "[Agent Delegation] Credit reservation adjusted successfully"
         );
@@ -899,7 +906,11 @@ async function callAgentInternal(
               error: error instanceof Error ? error.message : String(error),
             }
           );
-          await refundReservation(db, reservationId);
+          if (context) {
+            await refundReservation(db, reservationId, context);
+          } else {
+            console.warn("[callAgentInternal] Context not available, skipping refund transaction");
+          }
         } catch (refundError) {
           // Log but don't fail - refund is best effort
           console.error("[callAgentInternal] Error refunding reservation:", {
@@ -936,16 +947,21 @@ async function callAgentInternal(
         ) {
           // We have token usage - adjust reservation
           try {
-            await adjustCreditReservation(
-              db,
-              reservationId,
-              workspaceId,
-              agentProvider,
-              modelName || MODEL_NAME,
-              errorTokenUsage,
-              3,
-              false
-            );
+            if (context) {
+              await adjustCreditReservation(
+                db,
+                reservationId,
+                workspaceId,
+                agentProvider,
+                modelName || MODEL_NAME,
+                errorTokenUsage,
+                context,
+                3,
+                false
+              );
+            } else {
+              console.warn("[callAgentInternal] Context not available, skipping credit adjustment");
+            }
           } catch (adjustError) {
             console.error(
               "[callAgentInternal] Error adjusting reservation after error:",
@@ -1054,7 +1070,8 @@ export function createCallAgentTool(
   delegatableAgentIds: string[],
   currentAgentId: string,
   callDepth: number,
-  maxDepth: number = 3
+  maxDepth: number = 3,
+  context?: Awaited<ReturnType<typeof import("../../utils/workspaceCreditContext").getContextFromRequestId>>
 ) {
   const callAgentParamsSchema = z.object({
     agentId: z
@@ -1203,7 +1220,8 @@ export function createCallAgentTool(
           agentId,
           message.trim(),
           callDepth,
-          maxDepth
+          maxDepth,
+          context
         );
 
         // Wrap response with metadata

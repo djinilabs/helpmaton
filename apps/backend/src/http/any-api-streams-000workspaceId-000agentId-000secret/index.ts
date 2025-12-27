@@ -69,6 +69,7 @@ import {
   getAllowedOrigins,
   validateSecret,
 } from "../../utils/streamServerUtils";
+import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { setupAgentAndTools } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
   convertAiSdkUIMessagesToUIMessages,
@@ -308,7 +309,8 @@ async function validateSubscriptionAndLimitsStream(
 async function setupAgentContext(
   workspaceId: string,
   agentId: string,
-  modelReferer: string
+  modelReferer: string,
+  context?: Awaited<ReturnType<typeof getContextFromRequestId>>
 ): Promise<{
   agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"];
   model: Awaited<ReturnType<typeof setupAgentAndTools>>["model"];
@@ -323,6 +325,7 @@ async function setupAgentContext(
       modelReferer,
       callDepth: 0,
       maxDelegationDepth: 3,
+      context,
       searchDocumentsOptions: {
         description:
           "Search workspace documents using semantic vector search. Returns the most relevant document snippets based on the query.",
@@ -684,7 +687,8 @@ async function adjustCreditsAfterStream(
   tokenUsage: TokenUsage | undefined,
   usesByok: boolean,
   streamResult?: Awaited<ReturnType<typeof streamText>>,
-  conversationId?: string
+  conversationId?: string,
+  awsRequestId?: string
 ): Promise<void> {
   // Extract all OpenRouter generation IDs for cost verification
   const openrouterGenerationIds = streamResult
@@ -692,6 +696,12 @@ async function adjustCreditsAfterStream(
     : [];
   const openrouterGenerationId =
     openrouterGenerationIds.length > 0 ? openrouterGenerationIds[0] : undefined;
+
+  // Get context for workspace credit transactions
+  const lambdaContext = getContextFromRequestId(awsRequestId);
+  if (!lambdaContext) {
+    throw new Error("Context not available for workspace credit transactions");
+  }
 
   // Adjust credits using shared utility
   await adjustCreditsAfterLLMCall(
@@ -705,7 +715,8 @@ async function adjustCreditsAfterStream(
     usesByok,
     openrouterGenerationId,
     openrouterGenerationIds, // New parameter
-    "stream"
+    "stream",
+    lambdaContext
   );
 
   // Enqueue cost verification (Step 3) if we have generation IDs
@@ -1193,13 +1204,21 @@ async function buildRequestContext(
   // Setup database connection
   const db = await database();
 
+  // Get context for workspace credit transactions
+  const awsRequestId = event.requestContext?.requestId;
+  const lambdaContext = getContextFromRequestId(awsRequestId);
+  if (!lambdaContext) {
+    throw new Error("Context not available for workspace credit transactions");
+  }
+
   // Setup agent context
   // Always use "https://app.helpmaton.com" as the Referer header for LLM provider calls
   const modelReferer = "https://app.helpmaton.com";
   const { agent, model, tools, usesByok } = await setupAgentContext(
     workspaceId,
     agentId,
-    modelReferer
+    modelReferer,
+    lambdaContext
   );
 
   // Extract and convert request body
@@ -1265,8 +1284,8 @@ async function buildRequestContext(
     usesByok
   );
 
-  // Extract request ID from Lambda Function URL event
-  const awsRequestId = event.requestContext?.requestId;
+  // Extract request ID from Lambda Function URL event (for context access)
+  const requestIdForContext = event.requestContext?.requestId;
 
   return {
     workspaceId,
@@ -1286,7 +1305,7 @@ async function buildRequestContext(
     usesByok,
     reservationId,
     finalModelName,
-    awsRequestId,
+    awsRequestId: requestIdForContext,
   };
 }
 
@@ -1437,18 +1456,27 @@ const internalHandler = async (
 
       // Error after reservation but before or during LLM call
       if (context.reservationId && context.reservationId !== "byok") {
-        await cleanupReservationOnError(
-          context.db,
-          context.reservationId,
-          context.workspaceId,
-          context.agentId,
-          "openrouter",
-          context.finalModelName,
-          error,
-          llmCallAttempted,
-          context.usesByok,
-          "stream"
-        );
+        // Get context for workspace credit transactions
+        const lambdaContext = getContextFromRequestId(context.awsRequestId);
+        if (lambdaContext) {
+          await cleanupReservationOnError(
+            context.db,
+            context.reservationId,
+            context.workspaceId,
+            context.agentId,
+            "openrouter",
+            context.finalModelName,
+            error,
+            llmCallAttempted,
+            context.usesByok,
+            "stream",
+            lambdaContext
+          );
+        } else {
+          console.warn(
+            "[Stream Handler] Context not available for cleanup, skipping transaction creation"
+          );
+        }
       }
 
       // Re-throw error to be handled by error handler
@@ -1531,7 +1559,8 @@ const internalHandler = async (
         tokenUsage,
         context.usesByok,
         streamResult,
-        context.conversationId
+        context.conversationId,
+        context.awsRequestId
       );
     } catch (error) {
       // Log error but don't fail the request
