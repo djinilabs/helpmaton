@@ -137,6 +137,17 @@ describe("tavilyTools", () => {
         max_results: 5,
       });
       expect(mockIncrementTavilyCallBucket).toHaveBeenCalledWith(workspaceId);
+      // Verify transaction is created for free tier users with actual cost
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith({
+        workspaceId,
+        agentId: undefined,
+        conversationId: undefined,
+        source: "tool-execution",
+        supplier: "tavily",
+        tool_call: "search_web",
+        description: "Tavily API call: search_web - actual cost (free tier)",
+        amountMillionthUsd: -8000, // 1 credit * 8000 = 8000, negative for debit
+      });
       expect(result).toContain("Found 1 search result");
       expect(result).toContain("Test Result");
       expect(result).toContain("https://example.com");
@@ -411,6 +422,17 @@ describe("tavilyTools", () => {
         "https://example.com/article"
       );
       expect(mockIncrementTavilyCallBucket).toHaveBeenCalledWith(workspaceId);
+      // Verify transaction is created for free tier users with actual cost
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith({
+        workspaceId,
+        agentId: undefined,
+        conversationId: undefined,
+        source: "tool-execution",
+        supplier: "tavily",
+        tool_call: "fetch_web",
+        description: "Tavily API call: fetch_web - actual cost (free tier)",
+        amountMillionthUsd: -8000, // 1 credit * 8000 = 8000, negative for debit
+      });
       expect(result).toContain("Test Page");
       expect(result).toContain("This is the extracted content");
       expect(result).toContain("https://example.com/article");

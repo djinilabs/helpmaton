@@ -150,6 +150,27 @@ export function createTavilySearchTool(
           // Continue execution - tracking failure is a logging issue, not a correctness issue
         }
 
+        // Create transaction for free tier users (when no reservation was made)
+        // This ensures all API usage is tracked, even for free tier
+        if (!reservationId && context) {
+          const actualCost = calculateTavilyCost(actualCreditsUsed);
+          context.addWorkspaceCreditTransaction({
+            workspaceId,
+            agentId: agentId || undefined,
+            conversationId: conversationId || undefined,
+            source: "tool-execution",
+            supplier: "tavily",
+            tool_call: "search_web",
+            description: `Tavily API call: search_web - actual cost (free tier)`,
+            amountMillionthUsd: -actualCost, // Negative for debit (deducting from workspace)
+          });
+          console.log("[search_web] Created transaction for free tier:", {
+            workspaceId,
+            actualCreditsUsed,
+            actualCost,
+          });
+        }
+
         // Adjust credits if we reserved them
         // Note: reservationId is only set for paid tiers that exceeded free limit and reserved credits
         if (
@@ -386,6 +407,27 @@ export function createTavilyFetchTool(
             error: trackingError,
           });
           // Continue execution - tracking failure is a logging issue, not a correctness issue
+        }
+
+        // Create transaction for free tier users (when no reservation was made)
+        // This ensures all API usage is tracked, even for free tier
+        if (!reservationId && context) {
+          const actualCost = calculateTavilyCost(actualCreditsUsed);
+          context.addWorkspaceCreditTransaction({
+            workspaceId,
+            agentId: agentId || undefined,
+            conversationId: conversationId || undefined,
+            source: "tool-execution",
+            supplier: "tavily",
+            tool_call: "fetch_web",
+            description: `Tavily API call: fetch_web - actual cost (free tier)`,
+            amountMillionthUsd: -actualCost, // Negative for debit (deducting from workspace)
+          });
+          console.log("[fetch_web] Created transaction for free tier:", {
+            workspaceId,
+            actualCreditsUsed,
+            actualCost,
+          });
         }
 
         // Adjust credits if we reserved them
