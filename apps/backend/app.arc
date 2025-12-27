@@ -255,6 +255,11 @@ credit-reservations
   expires **Number
   name byExpiresHour
 
+workspace-credit-transactions
+  agentId *String
+  sk **String
+  name byAgentId
+
 @scheduled
 aggregate-token-usage rate(1 day)
 cleanup-expired-reservations rate(10 minutes)

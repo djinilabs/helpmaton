@@ -89,6 +89,11 @@ const UsageDashboard = lazy(() =>
     default: module.UsageDashboard,
   }))
 );
+const TransactionTable = lazy(() =>
+  import("../components/TransactionTable").then((module) => ({
+    default: module.TransactionTable,
+  }))
+);
 const TeamMembers = lazy(() =>
   import("../components/TeamMembers").then((module) => ({
     default: module.TeamMembers,
@@ -700,6 +705,30 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           >
             <LazyAccordionContent isExpanded={expandedSection === "usage"}>
               <WorkspaceUsageSection workspaceId={id!} />
+            </LazyAccordionContent>
+          </AccordionSection>
+
+          <AccordionSection
+            id="transactions"
+            title={
+              <>
+                <CurrencyDollarIcon className="mr-2 inline-block size-5" />
+                Transactions
+              </>
+            }
+            isExpanded={expandedSection === "transactions"}
+            onToggle={() => toggleSection("transactions")}
+          >
+            <LazyAccordionContent
+              isExpanded={expandedSection === "transactions"}
+            >
+              <QueryPanel
+                fallback={
+                  <LoadingScreen compact message="Loading transactions..." />
+                }
+              >
+                <TransactionTable workspaceId={id!} />
+              </QueryPanel>
             </LazyAccordionContent>
           </AccordionSection>
         </SectionGroup>

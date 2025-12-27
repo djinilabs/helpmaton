@@ -315,5 +315,13 @@ export function createMockDatabase() {
       delete: async () => ({}),
       query: async () => ({ items: [] }),
     },
+    "workspace-credit-transactions": {
+      get: async () => null,
+      put: async () => ({}),
+      create: async () => ({}),
+      update: async () => ({}),
+      delete: async () => ({}),
+      query: async () => ({ items: [] }),
+    },
   };
 }

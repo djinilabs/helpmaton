@@ -20,6 +20,7 @@ import { registerGetAgentConversation } from "./routes/get-agent-conversation";
 import { registerGetAgentConversations } from "./routes/get-agent-conversations";
 import { registerGetAgentKeys } from "./routes/get-agent-keys";
 import { registerGetAgentMemory } from "./routes/get-agent-memory";
+import { registerGetAgentTransactions } from "./routes/get-agent-transactions";
 import { registerGetAgentUsage } from "./routes/get-agent-usage";
 import { registerGetAgentUsageDaily } from "./routes/get-agent-usage-daily";
 import { registerGetEmailConnection } from "./routes/get-email-connection";
@@ -44,6 +45,7 @@ import { registerGetWorkspaceEmailOauthCallback } from "./routes/get-workspace-e
 import { registerGetWorkspaceInvite } from "./routes/get-workspace-invite";
 import { registerGetWorkspaceInvites } from "./routes/get-workspace-invites";
 import { registerGetWorkspaceMembers } from "./routes/get-workspace-members";
+import { registerGetWorkspaceTransactions } from "./routes/get-workspace-transactions";
 import { registerGetWorkspaceUsage } from "./routes/get-workspace-usage";
 import { registerGetWorkspaceUsageDaily } from "./routes/get-workspace-usage-daily";
 import { registerGetWorkspaceUserLimit } from "./routes/get-workspace-user-limit";
@@ -131,6 +133,8 @@ export const createApp: () => express.Application = () => {
   registerDeleteWorkspaceApiKey(app);
   registerGetAgentConversations(app);
   registerGetAgentConversation(app);
+  registerGetAgentTransactions(app);
+  registerGetWorkspaceTransactions(app);
   registerGetWorkspaceDocuments(app);
   registerGetWorkspaceDocumentFolders(app);
   registerGetWorkspaceDocumentsSearch(app);
