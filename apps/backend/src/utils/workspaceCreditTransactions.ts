@@ -3,6 +3,12 @@ import { randomUUID } from "crypto";
 import type { DatabaseSchemaWithAtomicUpdate, TableRecord , AtomicUpdateRecordSpec, AtomicUpdateCallback } from "../tables/schema";
 
 /**
+ * Process-level counter for transaction IDs to ensure higher time resolution
+ * This counter increments monotonically for each transaction within the process
+ */
+let transactionCounter = 0;
+
+/**
  * Workspace credit transaction input type
  */
 export type WorkspaceCreditTransaction = {
@@ -33,11 +39,17 @@ export function createTransactionBuffer(): TransactionBuffer {
 /**
  * Adds a transaction to the buffer
  * Groups transactions by workspace for later aggregation
+ * Discards transactions with zero amount
  */
 export function addTransactionToBuffer(
   buffer: TransactionBuffer,
   transaction: WorkspaceCreditTransaction
 ): void {
+  // Discard transactions with zero amount
+  if (transaction.amountMillionthUsd === 0) {
+    return;
+  }
+
   const { workspaceId } = transaction;
   const existing = buffer.get(workspaceId) || [];
   existing.push(transaction);
@@ -87,10 +99,15 @@ export async function commitTransactions(
 
   for (const [workspaceId, { transactions }] of workspaceTransactions.entries()) {
     for (const transaction of transactions) {
+      // Increment process-level counter for higher time resolution
+      // This ensures transactions created in the same millisecond are still sortable
+      transactionCounter++;
+      
       // Use full UUID for better uniqueness (128 bits of entropy)
-      // The timestamp prefix ensures sortability, UUID ensures uniqueness
+      // Format: timestamp-counter-uuid
+      // The timestamp ensures sortability, counter provides higher resolution, UUID ensures uniqueness
       const uniqueId = randomUUID();
-      const sk = `${timestamp}-${uniqueId}`;
+      const sk = `${timestamp}-${transactionCounter}-${uniqueId}`;
       transactionRecords.push({
         workspaceId,
         transaction,

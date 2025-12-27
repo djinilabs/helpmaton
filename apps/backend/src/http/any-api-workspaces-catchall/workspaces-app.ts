@@ -93,6 +93,33 @@ export const createApp: () => express.Application = () => {
     next();
   });
 
+  // Add middleware to ensure requestId is available in headers for context lookup
+  // serverlessExpress attaches the event to req.apiGateway.event
+  app.use((req, res, next) => {
+    // Try to get requestId from various sources (priority order)
+    const requestId =
+      // First check headers (might already be set)
+      req.headers["x-amzn-requestid"] ||
+      req.headers["X-Amzn-Requestid"] ||
+      req.headers["x-request-id"] ||
+      req.headers["X-Request-Id"] ||
+      // Then check req.apiGateway.event (serverlessExpress attaches it)
+      req.apiGateway?.event?.requestContext?.requestId ||
+      // Fallback to Lambda context if available
+      (req as any).context?.awsRequestId;
+
+    // If we found a requestId and it's not already in headers, add it
+    if (requestId && typeof requestId === "string") {
+      if (!req.headers["x-amzn-requestid"] && !req.headers["X-Amzn-Requestid"]) {
+        req.headers["x-amzn-requestid"] = requestId;
+      }
+      if (!req.headers["x-request-id"] && !req.headers["X-Request-Id"]) {
+        req.headers["x-request-id"] = requestId;
+      }
+    }
+    next();
+  });
+
   // Register all routes
   registerGetWorkspaces(app);
   registerPostWorkspaces(app);

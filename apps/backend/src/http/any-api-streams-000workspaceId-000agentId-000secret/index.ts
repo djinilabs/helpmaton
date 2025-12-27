@@ -316,7 +316,8 @@ async function setupAgentContext(
   workspaceId: string,
   agentId: string,
   modelReferer: string,
-  context?: Awaited<ReturnType<typeof getContextFromRequestId>>
+  context?: Awaited<ReturnType<typeof getContextFromRequestId>>,
+  conversationId?: string
 ): Promise<{
   agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"];
   model: Awaited<ReturnType<typeof setupAgentAndTools>>["model"];
@@ -332,6 +333,7 @@ async function setupAgentContext(
       callDepth: 0,
       maxDelegationDepth: 3,
       context,
+      conversationId,
       searchDocumentsOptions: {
         description:
           "Search workspace documents using semantic vector search. Returns the most relevant document snippets based on the query.",
@@ -507,7 +509,8 @@ async function validateCreditsAndReserveBeforeLLM(
   modelMessages: ModelMessage[],
   tools: Awaited<ReturnType<typeof setupAgentAndTools>>["tools"],
   usesByok: boolean,
-  context?: Awaited<ReturnType<typeof getContextFromRequestId>>
+  context?: Awaited<ReturnType<typeof getContextFromRequestId>>,
+  conversationId?: string
 ): Promise<string | undefined> {
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
@@ -524,7 +527,8 @@ async function validateCreditsAndReserveBeforeLLM(
     tools,
     usesByok,
     "stream",
-    context
+    context,
+    conversationId
   );
 }
 
@@ -724,7 +728,8 @@ async function adjustCreditsAfterStream(
     openrouterGenerationId,
     openrouterGenerationIds, // New parameter
     "stream",
-    lambdaContext
+    lambdaContext,
+    conversationId
   );
 
   // Enqueue cost verification (Step 3) if we have generation IDs
@@ -1230,7 +1235,8 @@ async function buildRequestContext(
     workspaceId,
     agentId,
     modelReferer,
-    lambdaContext
+    lambdaContext,
+    conversationId
   );
 
   // Extract and convert request body
@@ -1294,7 +1300,8 @@ async function buildRequestContext(
     modelMessages,
     tools,
     usesByok,
-    lambdaContext
+    lambdaContext,
+    conversationId
   );
 
   // Extract request ID from Lambda Function URL event (for context access)

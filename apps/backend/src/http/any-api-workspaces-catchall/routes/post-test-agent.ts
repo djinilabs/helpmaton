@@ -273,17 +273,32 @@ export const registerPostTestAgent = (app: express.Application) => {
         throw badRequest("X-Conversation-Id header is required");
       }
 
-      // Extract AWS request ID from headers (API Gateway includes it in x-amzn-requestid)
+      // Extract AWS request ID from headers or from req.apiGateway.event (serverlessExpress attaches it)
+      // Priority: headers first, then req.apiGateway.event.requestContext.requestId
       const awsRequestIdRaw =
         req.headers["x-amzn-requestid"] ||
         req.headers["X-Amzn-Requestid"] ||
         req.headers["x-request-id"] ||
-        req.headers["X-Request-Id"];
+        req.headers["X-Request-Id"] ||
+        req.apiGateway?.event?.requestContext?.requestId;
       const awsRequestId = Array.isArray(awsRequestIdRaw) ? awsRequestIdRaw[0] : awsRequestIdRaw;
 
       // Get context for workspace credit transactions
       const context = getContextFromRequestId(awsRequestId);
       if (!context) {
+        // Log for debugging
+        console.error("[post-test-agent] Context not available:", {
+          awsRequestId,
+          hasApiGateway: !!req.apiGateway,
+          hasEvent: !!req.apiGateway?.event,
+          requestIdFromEvent: req.apiGateway?.event?.requestContext?.requestId,
+          headers: {
+            "x-amzn-requestid": req.headers["x-amzn-requestid"],
+            "X-Amzn-Requestid": req.headers["X-Amzn-Requestid"],
+            "x-request-id": req.headers["x-request-id"],
+            "X-Request-Id": req.headers["X-Request-Id"],
+          },
+        });
         throw new Error("Context not available for workspace credit transactions");
       }
 
@@ -306,6 +321,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           maxDelegationDepth: 3,
           userId,
           context,
+          conversationId,
         }
       );
 
@@ -378,7 +394,8 @@ export const registerPostTestAgent = (app: express.Application) => {
           tools,
           usesByok,
           "test",
-          context
+          context,
+          conversationId
         );
 
         // Prepare LLM call (logging and generate options)
@@ -1213,7 +1230,8 @@ export const registerPostTestAgent = (app: express.Application) => {
         openrouterGenerationId,
         openrouterGenerationIds, // New parameter
         "test",
-        context
+        context,
+        conversationId
       );
 
       // Handle case where no token usage is available

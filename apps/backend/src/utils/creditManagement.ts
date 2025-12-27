@@ -156,7 +156,9 @@ export async function reserveCredits(
   usesByok?: boolean,
   context?: AugmentedContext,
   provider?: string,
-  modelName?: string
+  modelName?: string,
+  agentId?: string,
+  conversationId?: string
 ): Promise<CreditReservation> {
   // Skip reservation if request was made with user key (BYOK)
   if (usesByok) {
@@ -246,6 +248,8 @@ export async function reserveCredits(
     await db["credit-reservations"].create({
       pk: reservationPk,
       workspaceId,
+      agentId: agentId || undefined,
+      conversationId: conversationId || undefined,
       reservedAmount: estimatedCost,
       estimatedCost,
       currency: updated.currency,
@@ -277,6 +281,8 @@ export async function reserveCredits(
 
       context.addWorkspaceCreditTransaction({
         workspaceId,
+        agentId: agentId || undefined,
+        conversationId: conversationId || undefined,
         source: "text-generation",
         supplier: effectiveProvider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter for now
         model: effectiveModel,
@@ -342,7 +348,9 @@ export async function adjustCreditReservation(
   _maxRetries: number = 3,
   usesByok?: boolean,
   openrouterGenerationId?: string,
-  openrouterGenerationIds?: string[]
+  openrouterGenerationIds?: string[],
+  agentId?: string,
+  conversationId?: string
 ): Promise<WorkspaceRecord> {
   // Skip adjustment if request was made with user key (BYOK)
   if (usesByok || reservationId === "byok") {
@@ -440,9 +448,14 @@ export async function adjustCreditReservation(
     currency: workspace.currency,
   });
 
+  // Get conversationId from reservation if not provided
+  const effectiveConversationId = conversationId || reservation.conversationId;
+
   // Create transaction in memory
   context.addWorkspaceCreditTransaction({
     workspaceId,
+    agentId: agentId || reservation.agentId || undefined,
+    conversationId: effectiveConversationId || undefined,
     source: "text-generation",
     supplier: provider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter for now
     model: modelName,
@@ -484,6 +497,8 @@ export async function adjustCreditReservation(
           openrouterGenerationId || reservation.openrouterGenerationId,
         provider: provider || reservation.provider,
         modelName: modelName || reservation.modelName,
+        // Update conversationId if provided (e.g., from webhook endpoint where it's created after LLM call)
+        conversationId: conversationId || reservation.conversationId || undefined,
       });
       console.log("[adjustCreditReservation] Updated reservation with generation IDs for step 3:", {
         reservationId,
@@ -585,6 +600,8 @@ export async function refundReservation(
   // Create transaction in memory
   context.addWorkspaceCreditTransaction({
     workspaceId,
+    agentId: reservation.agentId || undefined,
+    conversationId: reservation.conversationId || undefined,
     source: "text-generation",
     supplier: reservation.provider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter
     model: reservation.modelName,
@@ -869,6 +886,8 @@ export async function finalizeCreditReservation(
   // Create transaction in memory
   context.addWorkspaceCreditTransaction({
     workspaceId,
+    agentId: reservation.agentId || undefined,
+    conversationId: reservation.conversationId || undefined,
     source: "text-generation",
     supplier: "openrouter",
     model: reservation.modelName,

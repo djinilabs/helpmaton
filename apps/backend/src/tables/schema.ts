@@ -212,6 +212,8 @@ export const tableSchemas = {
   "credit-reservations": TableBaseSchema.extend({
     pk: z.string(), // reservation ID (e.g., "credit-reservations/{reservationId}")
     workspaceId: z.string(), // workspace ID
+    agentId: z.string().optional(), // agent ID (if transaction is associated with an agent)
+    conversationId: z.string().optional(), // conversation ID (if transaction is associated with a conversation)
     reservedAmount: z.number().int(), // amount reserved (estimated cost) in millionths
     estimatedCost: z.number().int(), // estimated cost at reservation time in millionths
     currency: z.enum(["usd"]), // workspace currency

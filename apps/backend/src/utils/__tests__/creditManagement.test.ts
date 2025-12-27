@@ -513,14 +513,14 @@ describe("creditManagement", () => {
       // Version conflicts would occur during transaction commit, not here
       // This test verifies the function completes successfully and adds transaction to buffer
       await adjustCreditReservation(
-        mockDb,
-        reservationId,
-        "test-workspace",
-        "google",
-        "gemini-2.5-flash",
-        tokenUsage,
+          mockDb,
+          reservationId,
+          "test-workspace",
+          "google",
+          "gemini-2.5-flash",
+          tokenUsage,
         mockContext,
-        2
+          2
       );
 
       // Verify transaction was added to buffer
@@ -689,9 +689,9 @@ describe("creditManagement", () => {
       
       // Mock workspace with balance after initial reservation (100 - 10 = 90)
       const workspaceAfterReservation = {
-        ...mockWorkspace,
-        creditBalance: 90_000_000, // Balance after initial reservation
-      };
+          ...mockWorkspace,
+          creditBalance: 90_000_000, // Balance after initial reservation
+        };
       mockGet.mockResolvedValue(workspaceAfterReservation);
 
       const result = await adjustCreditReservation(

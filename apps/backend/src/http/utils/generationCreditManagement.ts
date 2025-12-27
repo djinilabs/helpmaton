@@ -55,7 +55,8 @@ export async function validateAndReserveCredits(
   tools: Record<string, unknown> | undefined,
   usesByok: boolean,
   endpoint: GenerationEndpoint,
-  context?: AugmentedContext
+  context?: AugmentedContext,
+  conversationId?: string
 ): Promise<string | undefined> {
   const toolDefinitions = convertToolsToDefinitions(tools);
 
@@ -69,7 +70,8 @@ export async function validateAndReserveCredits(
     systemPrompt,
     toolDefinitions,
     usesByok,
-    context
+    context,
+    conversationId
   );
 
   if (reservation) {
@@ -109,7 +111,8 @@ export async function adjustCreditsAfterLLMCall(
   openrouterGenerationId: string | undefined,
   openrouterGenerationIds: string[] | undefined, // New parameter
   endpoint: GenerationEndpoint,
-  context: AugmentedContext
+  context: AugmentedContext,
+  conversationId?: string
 ): Promise<void> {
   // TEMPORARY: This can be disabled via ENABLE_CREDIT_DEDUCTION env var
   if (
@@ -164,7 +167,9 @@ export async function adjustCreditsAfterLLMCall(
       3, // maxRetries
       usesByok,
       openrouterGenerationId,
-      openrouterGenerationIds
+      openrouterGenerationIds,
+      agentId,
+      conversationId
     );
     console.log(
       `[${endpoint} Handler] Step 2: Credit reservation adjusted successfully`
@@ -301,7 +306,11 @@ export async function cleanupReservationOnError(
           errorTokenUsage,
           context,
           3,
-          usesByok
+          usesByok,
+          undefined, // openrouterGenerationId
+          undefined, // openrouterGenerationIds
+          agentId,
+          undefined // conversationId - not available in error path
         );
       } catch (adjustError) {
         console.error(

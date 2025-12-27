@@ -193,7 +193,9 @@ describe("tavilyTools", () => {
         workspaceId,
         1, // estimatedCredits
         3, // maxRetries
-        mockContext
+        mockContext,
+        undefined, // agentId (optional)
+        undefined // conversationId (optional)
       );
       expect(mockAdjustTavilyCreditReservation).toHaveBeenCalledWith(
         mockDb,
@@ -202,7 +204,9 @@ describe("tavilyTools", () => {
         1, // actualCreditsUsed
         mockContext,
         "search_web",
-        3 // maxRetries
+        3, // maxRetries
+        undefined, // agentId
+        undefined // conversationId
       );
       expect(result).toContain("Found 1 search result");
     });
@@ -259,7 +263,9 @@ describe("tavilyTools", () => {
         workspaceId,
         mockContext,
         "search_web",
-        3 // maxRetries
+        3, // maxRetries
+        undefined, // agentId
+        undefined // conversationId
       );
     });
 
@@ -454,7 +460,9 @@ describe("tavilyTools", () => {
         workspaceId,
         1, // estimatedCredits
         3, // maxRetries
-        mockContext
+        mockContext,
+        undefined, // agentId (optional)
+        undefined // conversationId (optional)
       );
       expect(mockAdjustTavilyCreditReservation).toHaveBeenCalledWith(
         mockDb,
@@ -463,7 +471,9 @@ describe("tavilyTools", () => {
         1, // actualCreditsUsed
         mockContext,
         "fetch_web",
-        3 // maxRetries
+        3, // maxRetries
+        undefined, // agentId
+        undefined // conversationId
       );
       expect(result).toContain("Test Page");
     });
@@ -518,7 +528,9 @@ describe("tavilyTools", () => {
         workspaceId,
         mockContext,
         "fetch_web",
-        3 // maxRetries
+        3, // maxRetries
+        undefined, // agentId
+        undefined // conversationId
       );
     });
 

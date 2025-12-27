@@ -99,6 +99,32 @@ describe("workspaceCreditTransactions", () => {
       expect(buffer.get("workspace-1")).toHaveLength(1);
       expect(buffer.get("workspace-2")).toHaveLength(1);
     });
+
+    it("should discard transactions with zero amount", () => {
+      const buffer = createTransactionBuffer();
+      const zeroTransaction: WorkspaceCreditTransaction = {
+        workspaceId: "workspace-1",
+        source: "text-generation",
+        supplier: "openrouter",
+        description: "Zero amount transaction",
+        amountMillionthUsd: 0,
+      };
+      const nonZeroTransaction: WorkspaceCreditTransaction = {
+        workspaceId: "workspace-1",
+        source: "text-generation",
+        supplier: "openrouter",
+        description: "Non-zero transaction",
+        amountMillionthUsd: 1000000,
+      };
+
+      addTransactionToBuffer(buffer, zeroTransaction);
+      addTransactionToBuffer(buffer, nonZeroTransaction);
+
+      // Zero transaction should be discarded
+      expect(buffer.size).toBe(1);
+      expect(buffer.get("workspace-1")).toHaveLength(1);
+      expect(buffer.get("workspace-1")?.[0]).toEqual(nonZeroTransaction);
+    });
   });
 
   describe("commitTransactions", () => {

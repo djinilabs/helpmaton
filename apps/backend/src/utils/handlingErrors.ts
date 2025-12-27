@@ -229,6 +229,76 @@ export const handlingErrors = (
     // This avoids interfering with other handlers (e.g., auth) that need tables() with specific options
     const augmentedContext = augmentContextWithCreditTransactions(context);
 
+    // Make context available to Express handlers via module-level storage
+    // Extract requestId from event (API Gateway includes it in requestContext.requestId)
+    // In local sandbox environments, requestId might not be present, so generate one if needed
+    let requestId = event.requestContext?.requestId || context.awsRequestId;
+
+    // If no requestId is available (e.g., in local sandbox), generate one
+    if (!requestId) {
+      // Generate a unique requestId for local development
+      requestId = `local-${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2, 15)}`;
+      console.log(
+        "[handlingErrors] Generated requestId for local environment:",
+        requestId
+      );
+
+      // Ensure requestContext exists and set the requestId
+      if (!event.requestContext) {
+        event.requestContext = {
+          accountId: "local",
+          apiId: "local",
+          domainName: "localhost",
+          domainPrefix: "local",
+          http: {
+            method: "GET",
+            path: "/",
+            protocol: "HTTP/1.1",
+            sourceIp: "127.0.0.1",
+            userAgent: "",
+          },
+          requestId,
+          routeKey: event.routeKey || "GET /",
+          stage: "local",
+          time: new Date().toISOString(),
+          timeEpoch: Date.now(),
+        };
+      } else {
+        event.requestContext.requestId = requestId;
+      }
+
+      // Also set it on the context's awsRequestId property for commitContextTransactions
+      // This is needed because commitContextTransactions reads from context.awsRequestId
+      (context as { awsRequestId: string }).awsRequestId = requestId;
+    }
+
+    if (requestId) {
+      // Ensure context.awsRequestId is set (needed for commitContextTransactions)
+      if (!context.awsRequestId) {
+        (context as { awsRequestId: string }).awsRequestId = requestId;
+      }
+
+      console.log(
+        "[handlingErrors] Setting up context with requestId:",
+        requestId
+      );
+      setCurrentHTTPContext(requestId, augmentedContext);
+
+      // Ensure requestId is in event headers so serverlessExpress can pass it to Express handlers
+      // This is needed because serverlessExpress may not automatically add x-amzn-requestid header
+      if (
+        !event.headers["x-amzn-requestid"] &&
+        !event.headers["X-Amzn-Requestid"]
+      ) {
+        event.headers["x-amzn-requestid"] = requestId;
+      }
+      if (!event.headers["x-request-id"] && !event.headers["X-Request-Id"]) {
+        event.headers["x-request-id"] = requestId;
+      }
+    }
+
     let hadError = false;
     try {
       const result = await userHandler(event, augmentedContext, callback);
@@ -341,6 +411,13 @@ export const handlingErrors = (
 
         // eslint-disable-next-line no-unsafe-finally
         throw wrappedError;
+      } finally {
+        // Clear context from module-level storage
+        const requestId =
+          event.requestContext?.requestId || context.awsRequestId;
+        if (requestId) {
+          clearCurrentHTTPContext(requestId);
+        }
       }
 
       // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)

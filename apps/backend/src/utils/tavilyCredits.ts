@@ -28,6 +28,8 @@ export function calculateTavilyCost(creditsUsed: number = 1): number {
  * @param estimatedCredits - Estimated credits to use (default: 1)
  * @param maxRetries - Maximum number of retries (default: 3)
  * @param context - Augmented Lambda context for transaction creation (optional)
+ * @param agentId - Agent ID (optional, for transaction tracking)
+ * @param conversationId - Conversation ID (optional, for transaction tracking)
  * @returns Credit reservation info
  */
 export async function reserveTavilyCredits(
@@ -35,13 +37,17 @@ export async function reserveTavilyCredits(
   workspaceId: string,
   estimatedCredits: number = 1,
   maxRetries: number = 3,
-  context?: AugmentedContext
+  context?: AugmentedContext,
+  agentId?: string,
+  conversationId?: string
 ): Promise<CreditReservation> {
   const estimatedCost = calculateTavilyCost(estimatedCredits);
   console.log("[reserveTavilyCredits] Reserving credits:", {
     workspaceId,
     estimatedCredits,
     estimatedCost,
+    agentId,
+    conversationId,
   });
 
   return await reserveCredits(
@@ -52,7 +58,9 @@ export async function reserveTavilyCredits(
     false,
     context,
     "tavily",
-    "tavily-api"
+    "tavily-api",
+    agentId,
+    conversationId
   );
 }
 
@@ -65,6 +73,8 @@ export async function reserveTavilyCredits(
  * @param context - Augmented Lambda context for transaction creation (required)
  * @param toolName - Tool name ("search_web" or "fetch_web") for transaction metadata
  * @param maxRetries - Maximum number of retries (default: 3, not used for transactions)
+ * @param agentId - Agent ID (optional, for transaction tracking)
+ * @param conversationId - Conversation ID (optional, for transaction tracking)
  * @returns Updated workspace record
  */
 export async function adjustTavilyCreditReservation(
@@ -74,7 +84,9 @@ export async function adjustTavilyCreditReservation(
   actualCreditsUsed: number,
   context: AugmentedContext,
   toolName: "search_web" | "fetch_web",
-  _maxRetries: number = 3
+  _maxRetries: number = 3,
+  agentId?: string,
+  conversationId?: string
 ): Promise<void> {
   // Get reservation to find reserved amount
   const reservationPk = `credit-reservations/${reservationId}`;
@@ -128,6 +140,8 @@ export async function adjustTavilyCreditReservation(
   // Create transaction in memory
   context.addWorkspaceCreditTransaction({
     workspaceId,
+    agentId: agentId || undefined,
+    conversationId: conversationId || undefined,
     source: "tool-execution",
     supplier: "tavily",
     tool_call: toolName,
@@ -156,6 +170,8 @@ export async function adjustTavilyCreditReservation(
  * @param context - Augmented Lambda context for transaction creation (required)
  * @param toolName - Tool name ("search_web" or "fetch_web") for transaction metadata (optional)
  * @param maxRetries - Maximum number of retries (default: 3, not used for transactions)
+ * @param agentId - Agent ID (optional, for transaction tracking)
+ * @param conversationId - Conversation ID (optional, for transaction tracking)
  */
 export async function refundTavilyCredits(
   db: DatabaseSchema,
@@ -163,7 +179,9 @@ export async function refundTavilyCredits(
   workspaceId: string,
   context: AugmentedContext,
   toolName?: "search_web" | "fetch_web",
-  _maxRetries: number = 3
+  _maxRetries: number = 3,
+  agentId?: string,
+  conversationId?: string
 ): Promise<void> {
   // Get reservation to find reserved amount
   const reservationPk = `credit-reservations/${reservationId}`;
@@ -210,6 +228,8 @@ export async function refundTavilyCredits(
   // Create transaction in memory
   context.addWorkspaceCreditTransaction({
     workspaceId,
+    agentId: agentId || undefined,
+    conversationId: conversationId || undefined,
     source: "tool-execution",
     supplier: "tavily",
     tool_call: toolName,

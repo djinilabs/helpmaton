@@ -31,6 +31,7 @@ export interface AgentSetupOptions {
   maxDelegationDepth?: number;
   userId?: string;
   context?: AugmentedContext;
+  conversationId?: string;
 }
 
 /**
@@ -194,13 +195,23 @@ export async function setupAgentAndTools(
   // Add web search tool if enabled
   if (agent.enableTavilySearch === true) {
     const { createTavilySearchTool } = await import("../../utils/tavilyTools");
-    tools.search_web = createTavilySearchTool(workspaceId, effectiveContext);
+    tools.search_web = createTavilySearchTool(
+      workspaceId,
+      effectiveContext,
+      extractedAgentId,
+      options?.conversationId
+    );
   }
 
   // Add web fetch tool if enabled
   if (agent.enableTavilyFetch === true) {
     const { createTavilyFetchTool } = await import("../../utils/tavilyTools");
-    tools.fetch_web = createTavilyFetchTool(workspaceId, effectiveContext);
+    tools.fetch_web = createTavilyFetchTool(
+      workspaceId,
+      effectiveContext,
+      extractedAgentId,
+      options?.conversationId
+    );
   }
 
   // Add delegation tools if agent has delegatable agents configured

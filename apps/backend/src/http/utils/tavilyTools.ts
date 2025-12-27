@@ -29,10 +29,14 @@ import type { AugmentedContext } from "../../utils/workspaceCreditContext";
  * Searches the web using Tavily search API
  * @param workspaceId - Workspace ID
  * @param context - Augmented Lambda context for transaction creation (optional)
+ * @param agentId - Agent ID (optional, for transaction tracking)
+ * @param conversationId - Conversation ID (optional, for transaction tracking)
  */
 export function createTavilySearchTool(
   workspaceId: string,
-  context?: AugmentedContext
+  context?: AugmentedContext,
+  agentId?: string,
+  conversationId?: string
 ) {
   const searchParamsSchema = z.object({
     query: z
@@ -113,7 +117,9 @@ export function createTavilySearchTool(
             workspaceId,
             1, // Estimate: 1 credit per call
             3, // maxRetries
-            context
+            context,
+            agentId,
+            conversationId
           );
           reservationId = reservation.reservationId;
           console.log("[search_web] Reserved credits:", {
@@ -163,7 +169,9 @@ export function createTavilySearchTool(
             actualCreditsUsed,
             context,
             "search_web",
-            3 // maxRetries
+            3, // maxRetries
+            agentId,
+            conversationId
           );
           console.log("[search_web] Adjusted credits:", {
             workspaceId,
@@ -226,7 +234,9 @@ export function createTavilySearchTool(
               workspaceId,
               context,
               "search_web",
-              3
+              3,
+              agentId,
+              conversationId
             );
             console.log("[search_web] Refunded credits due to error:", {
               workspaceId,
@@ -263,10 +273,14 @@ export function createTavilySearchTool(
  * Extracts and summarizes content from a URL using Tavily extract API
  * @param workspaceId - Workspace ID
  * @param context - Augmented Lambda context for transaction creation (optional)
+ * @param agentId - Agent ID (optional, for transaction tracking)
+ * @param conversationId - Conversation ID (optional, for transaction tracking)
  */
 export function createTavilyFetchTool(
   workspaceId: string,
-  context?: AugmentedContext
+  context?: AugmentedContext,
+  agentId?: string,
+  conversationId?: string
 ) {
   const fetchParamsSchema = z.object({
     url: z
@@ -343,7 +357,9 @@ export function createTavilyFetchTool(
             workspaceId,
             1, // Estimate: 1 credit per call
             3, // maxRetries
-            context
+            context,
+            agentId,
+            conversationId
           );
           reservationId = reservation.reservationId;
           console.log("[fetch_web] Reserved credits:", {
@@ -391,7 +407,9 @@ export function createTavilyFetchTool(
             actualCreditsUsed,
             context,
             "fetch_web",
-            3 // maxRetries
+            3, // maxRetries
+            agentId,
+            conversationId
           );
           console.log("[fetch_web] Adjusted credits:", {
             workspaceId,
@@ -448,7 +466,9 @@ export function createTavilyFetchTool(
               workspaceId,
               context,
               "fetch_web",
-              3
+              3,
+              agentId,
+              conversationId
             );
             console.log("[fetch_web] Refunded credits due to error:", {
               workspaceId,

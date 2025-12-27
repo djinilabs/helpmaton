@@ -438,7 +438,9 @@ describe("creditValidation", () => {
         false,
         undefined, // context (optional)
         "google", // provider
-        "gemini-2.5-flash" // modelName
+        "gemini-2.5-flash", // modelName
+        "test-agent", // agentId
+        undefined // conversationId (optional)
       );
     });
 

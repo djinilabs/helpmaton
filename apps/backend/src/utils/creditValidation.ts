@@ -177,7 +177,8 @@ export async function validateCreditsAndLimitsAndReserve(
   systemPrompt?: string,
   toolDefinitions?: unknown[],
   usesByok?: boolean,
-  context?: AugmentedContext
+  context?: AugmentedContext,
+  conversationId?: string
 ): Promise<CreditReservation | null> {
   // For BYOK requests, skip credit reservation but still check spending limits
   const isByok = usesByok === true;
@@ -279,7 +280,9 @@ export async function validateCreditsAndLimitsAndReserve(
       usesByok,
       context,
       provider,
-      modelName
+      modelName,
+      agentId,
+      conversationId
     );
     return reservation;
   }

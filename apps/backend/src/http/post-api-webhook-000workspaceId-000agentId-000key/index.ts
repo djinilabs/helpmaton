@@ -846,6 +846,41 @@ export const handler = adaptHttpHandler(
           awsRequestId,
         });
 
+        // Update reservation with conversationId so it's available for Step 3
+        if (
+          reservationId &&
+          reservationId !== "byok" &&
+          reservationId !== "zero-cost"
+        ) {
+          try {
+            const reservationPk = `credit-reservations/${reservationId}`;
+            await db["credit-reservations"].update({
+              pk: reservationPk,
+              conversationId,
+            });
+            console.log(
+              "[Webhook Handler] Updated reservation with conversationId:",
+              {
+                reservationId,
+                conversationId,
+              }
+            );
+          } catch (updateError) {
+            // Log but don't fail - this is best effort
+            console.warn(
+              "[Webhook Handler] Failed to update reservation with conversationId:",
+              {
+                reservationId,
+                conversationId,
+                error:
+                  updateError instanceof Error
+                    ? updateError.message
+                    : String(updateError),
+              }
+            );
+          }
+        }
+
         // Enqueue cost verification (Step 3) if we have generation IDs
         await enqueueCostVerificationIfNeeded(
           openrouterGenerationId, // Keep for backward compat

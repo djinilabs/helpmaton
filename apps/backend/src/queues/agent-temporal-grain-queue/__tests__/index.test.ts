@@ -53,6 +53,8 @@ vi.mock("@architect/functions", () => ({
 vi.mock("../../../utils/workspaceCreditContext", () => ({
   augmentContextWithCreditTransactions: vi.fn((context) => context),
   commitContextTransactions: vi.fn().mockResolvedValue(undefined),
+  setCurrentHTTPContext: vi.fn(),
+  clearCurrentHTTPContext: vi.fn(),
   setTransactionBuffer: vi.fn(),
   createTransactionBuffer: vi.fn(() => new Map()),
   setCurrentSQSContext: vi.fn(),

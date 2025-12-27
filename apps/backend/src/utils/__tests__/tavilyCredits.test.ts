@@ -120,7 +120,9 @@ describe("tavilyCredits", () => {
         false, // usesByok
         undefined, // context (optional)
         "tavily", // provider
-        "tavily-api" // modelName
+        "tavily-api", // modelName
+        undefined, // agentId (optional)
+        undefined // conversationId (optional)
       );
     });
 
@@ -148,7 +150,9 @@ describe("tavilyCredits", () => {
         false, // usesByok
         undefined, // context (optional)
         "tavily", // provider
-        "tavily-api" // modelName
+        "tavily-api", // modelName
+        undefined, // agentId (optional)
+        undefined // conversationId (optional)
       );
     });
   });

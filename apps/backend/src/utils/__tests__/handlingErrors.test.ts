@@ -44,6 +44,8 @@ vi.mock("../tables/database", () => ({
 vi.mock("../workspaceCreditContext", () => ({
   augmentContextWithCreditTransactions: vi.fn((context) => context),
   commitContextTransactions: mockCommitContextTransactions,
+  setCurrentHTTPContext: vi.fn(),
+  clearCurrentHTTPContext: vi.fn(),
 }));
 
 vi.mock("@sentry/node", () => ({

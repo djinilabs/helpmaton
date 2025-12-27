@@ -102,6 +102,8 @@ vi.mock("../../../utils/workspaceCreditContext", () => ({
     addWorkspaceCreditTransaction: vi.fn(),
   })),
   commitContextTransactions: vi.fn().mockResolvedValue(undefined),
+  setCurrentHTTPContext: vi.fn(),
+  clearCurrentHTTPContext: vi.fn(),
 }));
 
 // Mock crypto for signature verification - must be in hoisted block

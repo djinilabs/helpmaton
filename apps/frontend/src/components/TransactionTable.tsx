@@ -1,8 +1,19 @@
+import { lazy, Suspense, useState } from "react";
 import type { FC } from "react";
+import { Link } from "react-router-dom";
 
-import { useAgentTransactions, useWorkspaceTransactions } from "../hooks/useTransactions";
-import type { Transaction } from "../utils/api";
+import {
+  useAgentTransactions,
+  useWorkspaceTransactions,
+} from "../hooks/useTransactions";
+import type { Conversation, Transaction } from "../utils/api";
 import { formatCurrency } from "../utils/currency";
+
+const ConversationDetailModal = lazy(() =>
+  import("./ConversationDetailModal").then((module) => ({
+    default: module.ConversationDetailModal,
+  }))
+);
 
 interface TransactionTableProps {
   workspaceId: string;
@@ -13,6 +24,11 @@ export const TransactionTable: FC<TransactionTableProps> = ({
   workspaceId,
   agentId,
 }) => {
+  const [selectedConversation, setSelectedConversation] = useState<{
+    conversation: Conversation;
+    agentId: string;
+  } | null>(null);
+
   const workspaceQuery = useWorkspaceTransactions(workspaceId, 50);
   const agentQuery = useAgentTransactions(workspaceId, agentId || "", 50, {
     enabled: !!agentId,
@@ -34,7 +50,9 @@ export const TransactionTable: FC<TransactionTableProps> = ({
   // Flatten all transactions from all pages
   const transactions =
     (data && "pages" in data
-      ? data.pages.flatMap((page: { transactions: Transaction[] }) => page.transactions)
+      ? data.pages.flatMap(
+          (page: { transactions: Transaction[] }) => page.transactions
+        )
       : []) ?? [];
 
   const formatDate = (dateString: string) => {
@@ -143,6 +161,12 @@ export const TransactionTable: FC<TransactionTableProps> = ({
                     Supplier
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
+                    Agent
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
+                    Conversation
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
                     Model
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
@@ -166,13 +190,56 @@ export const TransactionTable: FC<TransactionTableProps> = ({
                       {formatDate(transaction.createdAt)}
                     </td>
                     <td className="px-4 py-3 text-sm text-neutral-900 dark:text-neutral-50">
-                      {transaction.description}
+                      <span
+                        title={transaction.description}
+                        className="cursor-help"
+                      >
+                        {transaction.description.length > 10
+                          ? `${transaction.description.substring(0, 10)}...`
+                          : transaction.description}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                       {formatSource(transaction.source)}
                     </td>
                     <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                       {transaction.supplier}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                      {transaction.agentId ? (
+                        <Link
+                          to={`/workspaces/${workspaceId}/agents/${transaction.agentId}`}
+                          className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                        >
+                          View Agent
+                        </Link>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
+                      {transaction.conversationId && transaction.agentId ? (
+                        <button
+                          onClick={() => {
+                            setSelectedConversation({
+                              conversation: {
+                                id: transaction.conversationId!,
+                                conversationType: "test", // Will be fetched by the modal
+                                startedAt: transaction.createdAt,
+                                lastMessageAt: transaction.createdAt,
+                                messageCount: 0,
+                                tokenUsage: null,
+                              },
+                              agentId: transaction.agentId!,
+                            });
+                          }}
+                          className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                        >
+                          View Conversation
+                        </button>
+                      ) : (
+                        "-"
+                      )}
                     </td>
                     <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                       {transaction.model || "-"}
@@ -211,7 +278,28 @@ export const TransactionTable: FC<TransactionTableProps> = ({
           )}
         </>
       )}
+
+      {selectedConversation && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+              <div className="rounded-xl border border-neutral-200 bg-white p-8 shadow-xl dark:border-neutral-700 dark:bg-neutral-900">
+                <div className="text-2xl font-semibold">
+                  Loading conversation...
+                </div>
+              </div>
+            </div>
+          }
+        >
+          <ConversationDetailModal
+            isOpen={!!selectedConversation}
+            onClose={() => setSelectedConversation(null)}
+            workspaceId={workspaceId}
+            agentId={selectedConversation.agentId}
+            conversation={selectedConversation.conversation}
+          />
+        </Suspense>
+      )}
     </>
   );
 };
-

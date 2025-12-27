@@ -652,13 +652,17 @@ async function callAgentInternal(
   // Add web search tool if enabled
   if (targetAgent.enableTavilySearch === true) {
     const { createTavilySearchTool } = await import("./tavilyTools");
-    tools.search_web = createTavilySearchTool(workspaceId, context);
+    tools.search_web = createTavilySearchTool(
+      workspaceId,
+      context,
+      targetAgentId
+    );
   }
 
   // Add web fetch tool if enabled
   if (targetAgent.enableTavilyFetch === true) {
     const { createTavilyFetchTool } = await import("./tavilyTools");
-    tools.fetch_web = createTavilyFetchTool(workspaceId, context);
+    tools.fetch_web = createTavilyFetchTool(workspaceId, context, targetAgentId);
   }
 
   if (targetAgent.notificationChannelId) {
@@ -837,7 +841,8 @@ async function callAgentInternal(
             3, // maxRetries
             false, // usesByok - delegated calls use workspace API key if available
             openrouterGenerationId,
-            openrouterGenerationIds // New parameter
+            openrouterGenerationIds,
+            targetAgentId
           );
         } else {
           console.warn("[callAgentInternal] Context not available, skipping credit adjustment");
@@ -957,7 +962,10 @@ async function callAgentInternal(
                 errorTokenUsage,
                 context,
                 3,
-                false
+                false, // usesByok
+                undefined, // openrouterGenerationId
+                undefined, // openrouterGenerationIds
+                targetAgentId
               );
             } else {
               console.warn("[callAgentInternal] Context not available, skipping credit adjustment");

@@ -244,9 +244,54 @@ export const database = once(
             return [];
           }
 
-          await (lowLevelClient as AwsLiteDynamoDB).TransactWriteItems({
-            TransactItems: transactItems,
-          });
+          console.log("transactItems", JSON.stringify(transactItems, null, 2));
+
+          // Check if we're in local sandbox environment
+          // Local DynamoDB emulators (like Architect Sandbox) may not support TransactWriteItems
+          const clientConfig = lowLevelClient as {
+            config?: { endpoint?: string };
+          };
+          const isLocalSandbox =
+            process.env.ARC_SANDBOX !== undefined ||
+            process.env.ARC_ENV === "testing" ||
+            clientConfig.config?.endpoint?.includes("localhost") ||
+            clientConfig.config?.endpoint?.includes("127.0.0.1");
+
+          if (isLocalSandbox) {
+            // Local sandbox: execute individual PutItem calls instead of TransactWriteItems
+            // This maintains the same conditional logic but without transaction guarantees
+            console.log(
+              "[atomicUpdate] Local sandbox detected - using individual PutItem calls instead of TransactWriteItems"
+            );
+
+            // Execute each PutItem individually
+            // Note: This loses transaction atomicity, but works in local sandbox
+            for (const transactItem of transactItems) {
+              const { Put } = transactItem;
+              if (!Put) {
+                throw new Error(
+                  "Only Put operations are supported in local sandbox mode"
+                );
+              }
+
+              await lowLevelClient.PutItem({
+                Item: Put.Item,
+                TableName: Put.TableName,
+                ConditionExpression: Put.ConditionExpression,
+                ...(Put.ExpressionAttributeValues && {
+                  ExpressionAttributeValues: Put.ExpressionAttributeValues,
+                }),
+                ...(Put.ExpressionAttributeNames && {
+                  ExpressionAttributeNames: Put.ExpressionAttributeNames,
+                }),
+              });
+            }
+          } else {
+            // Production: use TransactWriteItems for atomicity
+            await lowLevelClient.TransactWriteItems({
+              TransactItems: transactItems,
+            });
+          }
 
           // Success: return the records that were written
           return recordsToPut;

@@ -173,6 +173,8 @@ vi.mock("../../../utils/workspaceCreditContext", () => ({
     addWorkspaceCreditTransaction: vi.fn(),
   })),
   commitContextTransactions: vi.fn().mockResolvedValue(undefined),
+  setCurrentHTTPContext: vi.fn(),
+  clearCurrentHTTPContext: vi.fn(),
 }));
 
 vi.mock(
