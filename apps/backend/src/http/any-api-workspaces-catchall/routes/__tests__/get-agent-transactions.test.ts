@@ -366,7 +366,6 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/transactions", () => 
 
     const workspaceId = "workspace-123";
     const agentId = "agent-456";
-    const agentPk = `agents/${workspaceId}/${agentId}`;
 
     const mockAgentGet = vi.fn().mockResolvedValue(null);
     mockDb.agent.get = mockAgentGet;

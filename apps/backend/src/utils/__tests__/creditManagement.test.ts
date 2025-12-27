@@ -1,4 +1,3 @@
-import { conflict } from "@hapi/boom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports

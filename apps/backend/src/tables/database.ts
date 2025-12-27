@@ -1,5 +1,4 @@
 import { tables } from "@architect/functions";
-import { AwsLiteDynamoDB } from "@aws-lite/dynamodb-types";
 import { conflict } from "@hapi/boom";
 import { z } from "zod";
 

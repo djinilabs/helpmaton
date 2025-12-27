@@ -1,4 +1,4 @@
-import type { ScheduledEvent , Context } from "aws-lambda";
+import type { ScheduledEvent } from "aws-lambda";
 
 
 import { database } from "../../tables";

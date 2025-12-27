@@ -69,11 +69,12 @@ vi.mock("../../../utils/tavilyCredits", () => ({
 
 // Import after mocks are set up
 import type { DatabaseSchema } from "../../../tables/schema";
+import type { AugmentedContext } from "../../../utils/workspaceCreditContext";
 import { createTavilySearchTool, createTavilyFetchTool } from "../tavilyTools";
 
 describe("tavilyTools", () => {
   let mockDb: DatabaseSchema;
-  let mockContext: { addWorkspaceCreditTransaction: ReturnType<typeof vi.fn> };
+  let mockContext: AugmentedContext;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -85,7 +86,7 @@ describe("tavilyTools", () => {
     // Setup mock context
     mockContext = {
       addWorkspaceCreditTransaction: vi.fn(),
-    };
+    } as unknown as AugmentedContext;
 
     // Default mock for calculateTavilyCost: 1 credit = 8000 millionths ($0.008)
     mockCalculateTavilyCost.mockImplementation((creditsUsed: number = 1) => {
@@ -97,7 +98,7 @@ describe("tavilyTools", () => {
     const workspaceId = "test-workspace";
 
     it("should successfully search within free limit", async () => {
-      const tool = createTavilySearchTool(workspaceId, mockContext as any);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const searchResponse = {
         results: [
           {
@@ -142,7 +143,7 @@ describe("tavilyTools", () => {
     });
 
     it("should reserve credits for paid tier exceeding free limit", async () => {
-      const tool = createTavilySearchTool(workspaceId, mockContext as any);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const searchResponse = {
         results: [
           {
@@ -212,7 +213,7 @@ describe("tavilyTools", () => {
     });
 
     it("should return error message for free tier exceeding limit", async () => {
-      const tool = createTavilySearchTool(workspaceId, mockContext as any);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const { tooManyRequests } = await import("@hapi/boom");
 
       mockCheckTavilyDailyLimit.mockRejectedValue(
@@ -229,7 +230,7 @@ describe("tavilyTools", () => {
     });
 
     it("should refund credits on API error", async () => {
-      const tool = createTavilySearchTool(workspaceId, mockContext as any);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const apiError = new Error("Tavily API error");
 
       mockCheckTavilyDailyLimit.mockResolvedValue({
@@ -270,7 +271,7 @@ describe("tavilyTools", () => {
     });
 
     it("should handle tracking failure gracefully", async () => {
-      const tool = createTavilySearchTool(workspaceId, mockContext as any);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const searchResponse = {
         results: [
           {
@@ -303,7 +304,7 @@ describe("tavilyTools", () => {
     });
 
     it("should handle empty search results", async () => {
-      const tool = createTavilySearchTool(workspaceId, mockContext as any);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const searchResponse = {
         results: [],
         query: "test query",
@@ -334,7 +335,7 @@ describe("tavilyTools", () => {
     });
 
     it("should include answer if available in response", async () => {
-      const tool = createTavilySearchTool(workspaceId, mockContext as any);
+      const tool = createTavilySearchTool(workspaceId, mockContext);
       const searchResponse = {
         results: [
           {
@@ -377,7 +378,7 @@ describe("tavilyTools", () => {
     const workspaceId = "test-workspace";
 
     it("should successfully fetch content within free limit", async () => {
-      const tool = createTavilyFetchTool(workspaceId, mockContext as any);
+      const tool = createTavilyFetchTool(workspaceId, mockContext);
       const extractResponse = {
         content: "This is the extracted content",
         title: "Test Page",
@@ -416,7 +417,7 @@ describe("tavilyTools", () => {
     });
 
     it("should reserve credits for paid tier exceeding free limit", async () => {
-      const tool = createTavilyFetchTool(workspaceId, mockContext as any);
+      const tool = createTavilyFetchTool(workspaceId, mockContext);
       const extractResponse = {
         content: "This is the extracted content",
         title: "Test Page",
@@ -479,7 +480,7 @@ describe("tavilyTools", () => {
     });
 
     it("should return error message for free tier exceeding limit", async () => {
-      const tool = createTavilyFetchTool(workspaceId, mockContext as any);
+      const tool = createTavilyFetchTool(workspaceId, mockContext);
       const { tooManyRequests } = await import("@hapi/boom");
 
       mockCheckTavilyDailyLimit.mockRejectedValue(
@@ -495,7 +496,7 @@ describe("tavilyTools", () => {
     });
 
     it("should refund credits on API error", async () => {
-      const tool = createTavilyFetchTool(workspaceId, mockContext as any);
+      const tool = createTavilyFetchTool(workspaceId, mockContext);
       const apiError = new Error("Tavily API error");
 
       mockCheckTavilyDailyLimit.mockResolvedValue({
@@ -535,7 +536,7 @@ describe("tavilyTools", () => {
     });
 
     it("should handle tracking failure gracefully", async () => {
-      const tool = createTavilyFetchTool(workspaceId, mockContext as any);
+      const tool = createTavilyFetchTool(workspaceId, mockContext);
       const extractResponse = {
         content: "This is the extracted content",
         title: "Test Page",
@@ -561,7 +562,7 @@ describe("tavilyTools", () => {
     });
 
     it("should handle missing title and content", async () => {
-      const tool = createTavilyFetchTool(workspaceId, mockContext as any);
+      const tool = createTavilyFetchTool(workspaceId, mockContext);
       const extractResponse = {
         url: "https://example.com/article",
       };

@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import type { UIMessage } from "../../../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 import type { DatabaseSchema } from "../../../tables/schema";
-import type { AugmentedContext } from "../../../utils/workspaceCreditContext";
 import { handler } from "../index";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
@@ -39,22 +38,6 @@ vi.mock("@architect/functions", () => ({
 }));
 
 // Mock workspaceCreditContext functions
-const mockContext: AugmentedContext = {
-  awsRequestId: "test-request-id",
-  addWorkspaceCreditTransaction: vi.fn(),
-  getRemainingTimeInMillis: () => 30000,
-  functionName: "test-function",
-  functionVersion: "$LATEST",
-  invokedFunctionArn: "arn:aws:lambda:us-east-1:123456789012:function:test",
-  memoryLimitInMB: "128",
-  logGroupName: "/aws/lambda/test",
-  logStreamName: "2024/01/01/[$LATEST]test",
-  callbackWaitsForEmptyEventLoop: true,
-  succeed: vi.fn(),
-  fail: vi.fn(),
-  done: vi.fn(),
-} as AugmentedContext;
-
 vi.mock("../../../utils/workspaceCreditContext", () => {
   const mockContext = {
     awsRequestId: "test-request-id",

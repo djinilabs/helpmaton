@@ -340,7 +340,6 @@ describe("GET /api/workspaces/:workspaceId/transactions", () => {
     mockDatabase.mockResolvedValue(mockDb);
 
     const workspaceId = "workspace-123";
-    const workspacePk = `workspaces/${workspaceId}`;
 
     const mockWorkspaceGet = vi.fn().mockResolvedValue(null);
     mockDb.workspace.get = mockWorkspaceGet;

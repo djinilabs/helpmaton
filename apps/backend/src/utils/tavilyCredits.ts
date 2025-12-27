@@ -137,6 +137,7 @@ export async function adjustTavilyCreditReservation(
   actualCreditsUsed: number,
   context: AugmentedContext,
   toolName: "search_web" | "fetch_web",
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _maxRetries: number = 3,
   agentId?: string,
   conversationId?: string
@@ -196,8 +197,6 @@ export async function adjustTavilyCreditReservation(
     );
     
     // Even if reservation is not found, create a transaction to track the API call
-    // Use estimated cost (8,000 millionths = $0.008) as fallback
-    const estimatedCost = calculateTavilyCost(1); // Default to 1 credit
     const actualCost = calculateTavilyCost(actualCreditsUsed);
     
     // Get current workspace for logging
@@ -320,6 +319,7 @@ export async function refundTavilyCredits(
   workspaceId: string,
   context: AugmentedContext,
   toolName?: "search_web" | "fetch_web",
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _maxRetries: number = 3,
   agentId?: string,
   conversationId?: string

@@ -22,6 +22,7 @@ import {
   adjustTavilyCreditReservation,
   refundTavilyCredits,
 } from "../tavilyCredits";
+import type { AugmentedContext } from "../workspaceCreditContext";
 
 describe("tavilyCredits", () => {
   let mockDb: DatabaseSchema;
@@ -30,7 +31,7 @@ describe("tavilyCredits", () => {
   let mockGet: ReturnType<typeof vi.fn>;
   let mockDelete: ReturnType<typeof vi.fn>;
   let mockReservationGet: ReturnType<typeof vi.fn>;
-  let mockContext: { addWorkspaceCreditTransaction: ReturnType<typeof vi.fn> };
+  let mockContext: AugmentedContext;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -74,7 +75,7 @@ describe("tavilyCredits", () => {
     // Setup mock context
     mockContext = {
       addWorkspaceCreditTransaction: vi.fn(),
-    };
+    } as unknown as AugmentedContext;
   });
 
   describe("calculateTavilyCost", () => {
@@ -190,7 +191,7 @@ describe("tavilyCredits", () => {
         reservationId,
         "test-workspace",
         1, // actualCreditsUsed (same as reserved)
-        mockContext as any,
+        mockContext,
         "search_web",
         3 // maxRetries
       );
@@ -224,7 +225,7 @@ describe("tavilyCredits", () => {
         reservationId,
         "test-workspace",
         0.5, // actualCreditsUsed (less than 1)
-        mockContext as any,
+        mockContext,
         "search_web",
         3
       );
@@ -256,7 +257,7 @@ describe("tavilyCredits", () => {
         reservationId,
         "test-workspace",
         2, // actualCreditsUsed (more than 1)
-        mockContext as any,
+        mockContext,
         "search_web",
         3
       );
@@ -289,7 +290,7 @@ describe("tavilyCredits", () => {
         reservationId,
         "test-workspace",
         1,
-        mockContext as any,
+        mockContext,
         "search_web",
         3
       );
@@ -317,7 +318,7 @@ describe("tavilyCredits", () => {
           reservationId,
           "test-workspace",
           1,
-          mockContext as any,
+          mockContext,
           "search_web",
           3
         )
@@ -337,7 +338,7 @@ describe("tavilyCredits", () => {
         reservationId,
         "test-workspace",
         1,
-        mockContext as any,
+        mockContext,
         "search_web",
         3
       );
@@ -380,7 +381,7 @@ describe("tavilyCredits", () => {
         mockDb,
         reservationId,
         "test-workspace",
-        mockContext as any,
+        mockContext,
         "search_web",
         3
       );
@@ -408,7 +409,7 @@ describe("tavilyCredits", () => {
         mockDb,
         reservationId,
         "test-workspace",
-        mockContext as any,
+        mockContext,
         undefined,
         3
       );
@@ -425,7 +426,7 @@ describe("tavilyCredits", () => {
           mockDb,
           reservationId,
           "test-workspace",
-          mockContext as any,
+          mockContext,
           undefined,
           3
         )
@@ -444,7 +445,7 @@ describe("tavilyCredits", () => {
         mockDb,
         reservationId,
         "test-workspace",
-        mockContext as any,
+        mockContext,
         "search_web",
         3
       );

@@ -353,6 +353,7 @@ export async function adjustCreditReservation(
   modelName: string,
   tokenUsage: TokenUsage,
   context: AugmentedContext,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _maxRetries: number = 3,
   usesByok?: boolean,
   openrouterGenerationId?: string,
@@ -564,6 +565,7 @@ export async function refundReservation(
   db: DatabaseSchema,
   reservationId: string,
   context: AugmentedContext,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _maxRetries: number = 3
 ): Promise<void> {
   // Skip if BYOK reservation
@@ -796,6 +798,7 @@ export async function finalizeCreditReservation(
   reservationId: string,
   openrouterCost: number,
   context: AugmentedContext,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _maxRetries: number = 3
 ): Promise<WorkspaceRecord> {
   // Get reservation to find token usage-based cost

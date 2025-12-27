@@ -106,7 +106,7 @@ export const createApp: () => express.Application = () => {
       // Then check req.apiGateway.event (serverlessExpress attaches it)
       req.apiGateway?.event?.requestContext?.requestId ||
       // Fallback to Lambda context if available
-      (req as any).context?.awsRequestId;
+      req.context?.awsRequestId;
 
     // If we found a requestId and it's not already in headers, add it
     if (requestId && typeof requestId === "string") {
