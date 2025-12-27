@@ -100,6 +100,71 @@ async function applyUpdaters(
   return newItems;
 }
 
+/**
+ * Builds an item and condition expression for an updater-based operation.
+ * This is shared logic for both Put and Update operations when using updater functions.
+ * Note: pk, sk, version, and updatedAt are set after spread to prevent
+ * updater from overriding these critical fields that maintain optimistic concurrency control.
+ */
+function buildItemFromUpdater<TTableName extends TableName>(
+  current: z.infer<TableSchemas[TTableName]> | undefined,
+  updated: Record<string, unknown>,
+  key: { pk: string; sk?: string },
+  parse: (item: unknown, operation: string) => Record<string, unknown>
+): {
+  item: Record<string, unknown>;
+  conditionExpression: string;
+  expressionAttributeNames: Record<string, string>;
+  expressionAttributeValues: Record<string, unknown>;
+} {
+  const expressionAttributeNames: Record<string, string> = {};
+  const expressionAttributeValues: Record<string, unknown> = {};
+
+  if (current) {
+    // Item exists: increment version and add condition
+    const currentVersion = (current as { version?: number }).version ?? 0;
+    const item = parse(
+      {
+        ...current,
+        ...updated,
+        pk: key.pk,
+        sk: key.sk,
+        version: currentVersion + 1,
+        updatedAt: new Date().toISOString(),
+      },
+      "transactWrite"
+    );
+    const conditionExpression = "#version = :version";
+    expressionAttributeNames["#version"] = "version";
+    expressionAttributeValues[":version"] = currentVersion;
+    return {
+      item,
+      conditionExpression,
+      expressionAttributeNames,
+      expressionAttributeValues,
+    };
+  } else {
+    // Item doesn't exist: create with version=1
+    const item = parse(
+      {
+        version: 1,
+        createdAt: new Date().toISOString(),
+        ...updated,
+        pk: key.pk,
+        sk: key.sk,
+      },
+      "transactWrite"
+    );
+    const conditionExpression = "attribute_not_exists(pk)";
+    return {
+      item,
+      conditionExpression,
+      expressionAttributeNames,
+      expressionAttributeValues,
+    };
+  }
+}
+
 type TransactItem = {
   Put?: {
     TableName: string;
@@ -143,38 +208,6 @@ function buildTransactionRequest(
 ): {
   TransactItems: TransactItem[];
 } {
-  type TransactItem = {
-    Put?: {
-      TableName: string;
-      Item: Record<string, unknown>;
-      ConditionExpression?: string;
-      ExpressionAttributeNames?: Record<string, string>;
-      ExpressionAttributeValues?: Record<string, unknown>;
-    };
-    Update?: {
-      TableName: string;
-      Key: { pk: string; sk?: string };
-      UpdateExpression: string;
-      ConditionExpression?: string;
-      ExpressionAttributeNames?: Record<string, string>;
-      ExpressionAttributeValues?: Record<string, unknown>;
-    };
-    Delete?: {
-      TableName: string;
-      Key: { pk: string; sk?: string };
-      ConditionExpression?: string;
-      ExpressionAttributeNames?: Record<string, string>;
-      ExpressionAttributeValues?: Record<string, unknown>;
-    };
-    ConditionCheck?: {
-      TableName: string;
-      Key: { pk: string; sk?: string };
-      ConditionExpression: string;
-      ExpressionAttributeNames?: Record<string, string>;
-      ExpressionAttributeValues?: Record<string, unknown>;
-    };
-  };
-
   const transactItems: TransactItem[] = [];
 
   for (let i = 0; i < operations.length; i++) {
@@ -190,13 +223,19 @@ function buildTransactionRequest(
       let item: Record<string, unknown>;
       let conditionExpression: string | undefined;
       const expressionAttributeNames: Record<string, string> = {
-        ...op.expressionAttributeNames,
+        ...(op.expressionAttributeNames || {}),
       };
       const expressionAttributeValues: Record<string, unknown> = {
-        ...op.expressionAttributeValues,
+        ...(op.expressionAttributeValues || {}),
       };
 
       if (op.updater) {
+        // Validate that item is not also provided (updater takes precedence)
+        if (op.item) {
+          throw new Error(
+            `Put operation at index ${i} cannot provide both 'item' and 'updater' - use only one`
+          );
+        }
         // Use updater result
         const current = currentItems.get(i) as
           | z.infer<TableSchemas[typeof op.table]>
@@ -204,40 +243,22 @@ function buildTransactionRequest(
         const updated = newItems.get(i)!;
         const key = { pk: op.key.pk, sk: op.key.sk };
 
-        if (current) {
-          // Item exists: increment version and add condition
-          item = parse(
-            {
-              ...current,
-              ...updated,
-              pk: key.pk,
-              sk: key.sk,
-              version: current.version + 1,
-              updatedAt: new Date().toISOString(),
-            },
-            "transactWrite"
-          );
-          conditionExpression = "#version = :version";
-          expressionAttributeNames["#version"] = "version";
-          expressionAttributeValues[":version"] = current.version;
-        } else {
-          // Item doesn't exist: create with version=1
-          item = parse(
-            {
-              version: 1,
-              createdAt: new Date().toISOString(),
-              ...updated,
-              pk: key.pk,
-              sk: key.sk,
-            },
-            "transactWrite"
-          );
-          conditionExpression = "attribute_not_exists(pk)";
-        }
+        const result = buildItemFromUpdater(current, updated, key, parse);
+        item = result.item;
+        conditionExpression = result.conditionExpression;
+        Object.assign(
+          expressionAttributeNames,
+          result.expressionAttributeNames
+        );
+        Object.assign(
+          expressionAttributeValues,
+          result.expressionAttributeValues
+        );
       } else if (op.item) {
         // Use direct item
         item = parse(op.item, "transactWrite");
         conditionExpression = op.conditionExpression;
+        // Only merge expression attributes if they're provided
         if (op.expressionAttributeNames) {
           Object.assign(expressionAttributeNames, op.expressionAttributeNames);
         }
@@ -259,13 +280,25 @@ function buildTransactionRequest(
           Item: item,
           ...(conditionExpression && {
             ConditionExpression: conditionExpression,
-            ExpressionAttributeNames: expressionAttributeNames,
-            ExpressionAttributeValues: expressionAttributeValues,
+            // Only include expression attributes if condition is present
+            // (they're only meaningful with a condition expression for Put operations)
+            ...(Object.keys(expressionAttributeNames).length > 0 && {
+              ExpressionAttributeNames: expressionAttributeNames,
+            }),
+            ...(Object.keys(expressionAttributeValues).length > 0 && {
+              ExpressionAttributeValues: expressionAttributeValues,
+            }),
           }),
         },
       });
     } else if (op.type === "Update") {
       if (op.updater) {
+        // Validate that updateExpression is not also provided (updater takes precedence)
+        if (op.updateExpression) {
+          throw new Error(
+            `Update operation at index ${i} cannot provide both 'updateExpression' and 'updater' - use only one`
+          );
+        }
         // Convert updater result to Put operation (same as Put with updater)
         const current = currentItems.get(i) as
           | z.infer<TableSchemas[typeof op.table]>
@@ -273,39 +306,11 @@ function buildTransactionRequest(
         const updated = newItems.get(i)!;
         const key = { pk: op.key.pk, sk: op.key.sk };
 
-        let item: Record<string, unknown>;
-        let conditionExpression: string;
-        const expressionAttributeNames: Record<string, string> = {};
-        const expressionAttributeValues: Record<string, unknown> = {};
-
-        if (current) {
-          item = parse(
-            {
-              ...current,
-              ...updated,
-              pk: key.pk,
-              sk: key.sk,
-              version: current.version + 1,
-              updatedAt: new Date().toISOString(),
-            },
-            "transactWrite"
-          );
-          conditionExpression = "#version = :version";
-          expressionAttributeNames["#version"] = "version";
-          expressionAttributeValues[":version"] = current.version;
-        } else {
-          item = parse(
-            {
-              version: 1,
-              createdAt: new Date().toISOString(),
-              ...updated,
-              pk: key.pk,
-              sk: key.sk,
-            },
-            "transactWrite"
-          );
-          conditionExpression = "attribute_not_exists(pk)";
-        }
+        const result = buildItemFromUpdater(current, updated, key, parse);
+        const item = result.item;
+        const conditionExpression = result.conditionExpression;
+        const expressionAttributeNames = result.expressionAttributeNames;
+        const expressionAttributeValues = result.expressionAttributeValues;
 
         transactItems.push({
           Put: {
@@ -318,15 +323,27 @@ function buildTransactionRequest(
         });
       } else if (op.updateExpression) {
         // Use direct update expression
+        // Build expression attributes - needed for both updateExpression and conditionExpression
+        const expressionAttributeNames: Record<string, string> = {
+          ...(op.expressionAttributeNames || {}),
+        };
+        const expressionAttributeValues: Record<string, unknown> = {
+          ...(op.expressionAttributeValues || {}),
+        };
+
         transactItems.push({
           Update: {
             TableName: tableName,
             Key: { pk: op.key.pk, ...(op.key.sk && { sk: op.key.sk }) },
             UpdateExpression: op.updateExpression,
+            ...(Object.keys(expressionAttributeNames).length > 0 && {
+              ExpressionAttributeNames: expressionAttributeNames,
+            }),
+            ...(Object.keys(expressionAttributeValues).length > 0 && {
+              ExpressionAttributeValues: expressionAttributeValues,
+            }),
             ...(op.conditionExpression && {
               ConditionExpression: op.conditionExpression,
-              ExpressionAttributeNames: op.expressionAttributeNames,
-              ExpressionAttributeValues: op.expressionAttributeValues,
             }),
           },
         });
@@ -459,6 +476,7 @@ export async function transactWrite(
     }
   }
 
+  // This should never be reached, but TypeScript requires it for exhaustiveness
   throw conflict(
     `Failed to execute transaction after ${maxRetries} retries: ${
       lastError?.message || "Unknown error"

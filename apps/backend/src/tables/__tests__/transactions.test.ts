@@ -147,6 +147,68 @@ describe("transactWrite", () => {
       expect(call.TransactItems[0].Update?.UpdateExpression).toBe(
         "SET #name = :name"
       );
+      // Verify ExpressionAttributeNames and ExpressionAttributeValues are included
+      // (needed for updateExpression, not just conditionExpression)
+      expect(call.TransactItems[0].Update?.ExpressionAttributeNames).toEqual({
+        "#name": "name",
+      });
+      expect(call.TransactItems[0].Update?.ExpressionAttributeValues).toEqual({
+        ":name": "Updated Agent",
+      });
+    });
+
+    it("should execute Update operation with updateExpression and placeholders (no condition)", async () => {
+      mockLowLevelClient.TransactWriteItems.mockResolvedValue({});
+
+      const operations: TransactionOperation[] = [
+        {
+          type: "Update",
+          table: "agent",
+          key: { pk: "agents/123", sk: undefined },
+          updateExpression: "SET #name = :name, #systemPrompt = :systemPrompt",
+          expressionAttributeNames: {
+            "#name": "name",
+            "#systemPrompt": "systemPrompt",
+          },
+          expressionAttributeValues: {
+            ":name": "New Name",
+            ":systemPrompt": "New Prompt",
+          },
+          // No conditionExpression - expression attributes should still be included
+        },
+      ];
+
+      const result = await transactWrite(
+        {
+          db: mockDb,
+          lowLevelClient: mockLowLevelClient as unknown as Parameters<
+            typeof transactWrite
+          >[0]["lowLevelClient"],
+          tableNameMap,
+        },
+        operations
+      );
+
+      expect(result.success).toBe(true);
+      expect(mockLowLevelClient.TransactWriteItems).toHaveBeenCalledTimes(1);
+      const call = mockLowLevelClient.TransactWriteItems.mock.calls[0][0];
+      expect(call.TransactItems).toHaveLength(1);
+      expect(call.TransactItems[0].Update).toBeDefined();
+      expect(call.TransactItems[0].Update?.UpdateExpression).toBe(
+        "SET #name = :name, #systemPrompt = :systemPrompt"
+      );
+      // Verify ExpressionAttributeNames and ExpressionAttributeValues are included
+      // even without conditionExpression
+      expect(call.TransactItems[0].Update?.ExpressionAttributeNames).toEqual({
+        "#name": "name",
+        "#systemPrompt": "systemPrompt",
+      });
+      expect(call.TransactItems[0].Update?.ExpressionAttributeValues).toEqual({
+        ":name": "New Name",
+        ":systemPrompt": "New Prompt",
+      });
+      // Should not have ConditionExpression
+      expect(call.TransactItems[0].Update?.ConditionExpression).toBeUndefined();
     });
 
     it("should execute Delete operation", async () => {

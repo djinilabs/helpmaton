@@ -559,35 +559,59 @@ export type TransactionOperation =
   | TransactionDeleteOperation
   | TransactionConditionCheckOperation;
 
-// Put operation: can use direct item OR updater function
-export type TransactionPutOperation<TTableName extends TableName = TableName> = {
-  type: "Put";
-  table: TTableName;
-  key: { pk: string; sk?: string };
-  // Either provide item directly OR use updater function
-  item?: Record<string, unknown>;
-  updater?: (
-    current: z.infer<TableSchemas[TTableName]> | undefined
-  ) => Promise<Partial<z.infer<TableSchemas[TTableName]>>>;
-  conditionExpression?: string;
-  expressionAttributeNames?: Record<string, string>;
-  expressionAttributeValues?: Record<string, unknown>;
-};
+// Put operation: can use direct item OR updater function (mutually exclusive)
+export type TransactionPutOperation<TTableName extends TableName = TableName> =
+  | {
+      type: "Put";
+      table: TTableName;
+      key: { pk: string; sk?: string };
+      // Direct item provided; no updater function
+      item: Record<string, unknown>;
+      updater?: never;
+      conditionExpression?: string;
+      expressionAttributeNames?: Record<string, string>;
+      expressionAttributeValues?: Record<string, unknown>;
+    }
+  | {
+      type: "Put";
+      table: TTableName;
+      key: { pk: string; sk?: string };
+      // Updater function provided; no direct item
+      item?: never;
+      updater: (
+        current: z.infer<TableSchemas[TTableName]> | undefined
+      ) => Promise<Partial<z.infer<TableSchemas[TTableName]>>>;
+      conditionExpression?: string;
+      expressionAttributeNames?: Record<string, string>;
+      expressionAttributeValues?: Record<string, unknown>;
+    };
 
-// Update operation: can use direct update expression OR updater function
-export type TransactionUpdateOperation<TTableName extends TableName = TableName> = {
-  type: "Update";
-  table: TTableName;
-  key: { pk: string; sk?: string };
-  // Either provide updateExpression directly OR use updater function
-  updateExpression?: string;
-  updater?: (
-    current: z.infer<TableSchemas[TTableName]> | undefined
-  ) => Promise<Partial<z.infer<TableSchemas[TTableName]>>>;
-  conditionExpression?: string;
-  expressionAttributeNames?: Record<string, string>;
-  expressionAttributeValues?: Record<string, unknown>;
-};
+// Update operation: can use direct update expression OR updater function (mutually exclusive)
+export type TransactionUpdateOperation<TTableName extends TableName = TableName> =
+  | {
+      type: "Update";
+      table: TTableName;
+      key: { pk: string; sk?: string };
+      // Direct update expression provided; no updater function
+      updateExpression: string;
+      updater?: never;
+      conditionExpression?: string;
+      expressionAttributeNames?: Record<string, string>;
+      expressionAttributeValues?: Record<string, unknown>;
+    }
+  | {
+      type: "Update";
+      table: TTableName;
+      key: { pk: string; sk?: string };
+      // Updater function provided; no direct update expression
+      updateExpression?: never;
+      updater: (
+        current: z.infer<TableSchemas[TTableName]> | undefined
+      ) => Promise<Partial<z.infer<TableSchemas[TTableName]>>>;
+      conditionExpression?: string;
+      expressionAttributeNames?: Record<string, string>;
+      expressionAttributeValues?: Record<string, unknown>;
+    };
 
 export type TransactionDeleteOperation = {
   type: "Delete";

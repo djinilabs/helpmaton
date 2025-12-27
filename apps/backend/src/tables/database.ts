@@ -46,7 +46,7 @@ export const database = once(async (): Promise<DatabaseSchema> => {
     transactWrite: async (operations, options) => {
       return transactWrite(
         {
-          db: dbSchema as DatabaseSchema,
+          db: dbSchema, // dbSchema is already Omit<DatabaseSchema, "transactWrite">
           lowLevelClient,
           tableNameMap,
         },
