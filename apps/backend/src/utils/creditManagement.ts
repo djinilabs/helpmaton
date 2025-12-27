@@ -289,7 +289,7 @@ export async function reserveCredits(
         supplier: effectiveProvider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter for now
         model: effectiveModel,
         description: "Initial credit reservation (Step 1)",
-        amountMillionthUsd: estimatedCost,
+        amountMillionthUsd: -estimatedCost, // Negative for debit (deducting from workspace)
       });
     } else if (context && provider === "tavily") {
       console.log("[reserveCredits] Skipping transaction creation for Tavily (will be created in adjustment step):", {
@@ -419,9 +419,10 @@ export async function adjustCreditReservation(
   const difference = validatedTokenUsageCost - reservation.reservedAmount;
 
   // Create transaction in memory (will be committed atomically at end of request)
-  // Positive difference = debit (deduct more), negative difference = credit (refund)
-  // For transaction system: positive amount = debit, negative amount = credit
-  const transactionAmount = difference; // Positive for debit, negative for credit
+  // Negative amount = debit (deduct from workspace), positive amount = credit (add to workspace)
+  // If difference > 0, we need to charge more (debit = negative)
+  // If difference < 0, we need to refund (credit = positive)
+  const transactionAmount = difference === 0 ? 0 : -difference; // Negate: positive difference becomes negative (debit), negative becomes positive (credit), avoid -0
 
   console.log("[adjustCreditReservation] Step 2: Creating credit transaction:", {
     workspaceId,
@@ -446,7 +447,7 @@ export async function adjustCreditReservation(
   }
 
   const oldBalance = workspace.creditBalance;
-  const newBalance = oldBalance - transactionAmount; // Will be applied when transaction commits
+  const newBalance = oldBalance + transactionAmount; // Will be applied when transaction commits (add because transactionAmount is already signed correctly)
 
   console.log("[adjustCreditReservation] Step 2: Transaction created (will commit at end of request):", {
     workspaceId,
@@ -596,12 +597,12 @@ export async function refundReservation(
     throw new Error(`Workspace ${workspaceId} not found`);
   }
 
-  // Create credit transaction (negative amount = credit/refund)
+  // Create credit transaction (positive amount = credit/refund)
   const refundAmount = reservation.reservedAmount;
-  const transactionAmount = -refundAmount; // Negative for credit
+  const transactionAmount = refundAmount; // Positive for credit (adding back to workspace)
 
   const oldBalance = workspace.creditBalance;
-  const newBalance = oldBalance - transactionAmount; // Will be applied when transaction commits
+  const newBalance = oldBalance + transactionAmount; // Will be applied when transaction commits
 
   console.log("[refundReservation] Creating refund transaction:", {
     workspaceId,
@@ -836,7 +837,8 @@ export async function finalizeCreditReservation(
     );
     // If token usage cost is missing, calculate difference vs reserved amount
     const difference = validatedOpenrouterCost - reservation.reservedAmount;
-    const transactionAmount = difference;
+    // Negative amount = debit (deduct from workspace), positive amount = credit (add to workspace)
+    const transactionAmount = difference === 0 ? 0 : -difference; // Negate: positive difference becomes negative (debit), negative becomes positive (credit), avoid -0
 
     // Get current workspace for logging
     const workspace = await db.workspace.get(workspacePk, "workspace");
@@ -845,7 +847,7 @@ export async function finalizeCreditReservation(
     }
 
     const oldBalance = workspace.creditBalance;
-    const newBalance = oldBalance - transactionAmount;
+    const newBalance = oldBalance + transactionAmount; // Will be applied when transaction commits
 
     console.log("[finalizeCreditReservation] Step 3: Creating credit transaction (no token usage cost):", {
       workspaceId,
@@ -882,7 +884,8 @@ export async function finalizeCreditReservation(
 
   // Calculate difference between OpenRouter cost and token usage-based cost
   const difference = validatedOpenrouterCost - tokenUsageBasedCost;
-  const transactionAmount = difference; // Positive for debit, negative for credit
+  // Negative amount = debit (deduct from workspace), positive amount = credit (add to workspace)
+  const transactionAmount = difference === 0 ? 0 : -difference; // Negate: positive difference becomes negative (debit), negative becomes positive (credit), avoid -0
 
   // Get current workspace for logging
   const workspace = await db.workspace.get(workspacePk, "workspace");
@@ -891,7 +894,7 @@ export async function finalizeCreditReservation(
   }
 
   const oldBalance = workspace.creditBalance;
-  const newBalance = oldBalance - transactionAmount;
+  const newBalance = oldBalance + transactionAmount; // Will be applied when transaction commits
 
   console.log("[finalizeCreditReservation] Step 3: Creating credit transaction:", {
     workspaceId,

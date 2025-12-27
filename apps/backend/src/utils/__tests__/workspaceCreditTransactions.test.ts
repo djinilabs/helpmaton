@@ -39,7 +39,7 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction",
-        amountMillionthUsd: 1000000,
+        amountMillionthUsd: -1000000, // Negative for debit (deducting from workspace)
       };
 
       addTransactionToBuffer(buffer, transaction);
@@ -56,14 +56,14 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction 1",
-        amountMillionthUsd: 1000000,
+        amountMillionthUsd: -1000000, // Negative for debit
       };
       const transaction2: WorkspaceCreditTransaction = {
         workspaceId: "workspace-1",
         source: "tool-execution",
         supplier: "tavily",
         description: "Test transaction 2",
-        amountMillionthUsd: 2000000,
+        amountMillionthUsd: -2000000, // Negative for debit
       };
 
       addTransactionToBuffer(buffer, transaction1);
@@ -82,14 +82,14 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction 1",
-        amountMillionthUsd: 1000000,
+        amountMillionthUsd: -1000000, // Negative for debit
       };
       const transaction2: WorkspaceCreditTransaction = {
         workspaceId: "workspace-2",
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction 2",
-        amountMillionthUsd: 2000000,
+        amountMillionthUsd: -2000000, // Negative for debit
       };
 
       addTransactionToBuffer(buffer, transaction1);
@@ -114,7 +114,7 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Non-zero transaction",
-        amountMillionthUsd: 1000000,
+        amountMillionthUsd: -1000000, // Negative for debit
       };
 
       addTransactionToBuffer(buffer, zeroTransaction);
@@ -141,7 +141,7 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction",
-        amountMillionthUsd: 1000000,
+        amountMillionthUsd: -1000000, // Negative for debit (deducting from workspace)
       };
 
       addTransactionToBuffer(buffer, transaction);
@@ -181,7 +181,7 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction",
-        amountMillionthUsd: 1000000,
+        amountMillionthUsd: -1000000, // Negative for debit (deducting from workspace)
       };
 
       addTransactionToBuffer(buffer, transaction);
@@ -206,14 +206,14 @@ describe("workspaceCreditTransactions", () => {
         source: "text-generation",
         supplier: "openrouter",
         description: "Test transaction 1",
-        amountMillionthUsd: 1000000,
+        amountMillionthUsd: -1000000, // Negative for debit
       };
       const transaction2: WorkspaceCreditTransaction = {
         workspaceId: "workspace-1",
         source: "tool-execution",
         supplier: "tavily",
         description: "Test transaction 2",
-        amountMillionthUsd: 2000000,
+        amountMillionthUsd: -2000000, // Negative for debit
       };
 
       addTransactionToBuffer(buffer, transaction1);
@@ -237,11 +237,12 @@ describe("workspaceCreditTransactions", () => {
 
       await commitTransactions(mockDb, buffer, "request-123");
 
-      // Should update workspace with aggregated amount (1000000 + 2000000 = 3000000)
+      // Should update workspace with aggregated amount (-1000000 + -2000000 = -3000000)
+      // Negative amounts = debits (deduct from workspace)
       const workspaceUpdate = recordsPut.find(
         (r) => (r as { pk?: string }).pk === "workspaces/workspace-1" && (r as { sk?: string }).sk === "workspace"
       ) as { creditBalance?: number } | undefined;
-      expect(workspaceUpdate?.creditBalance).toBe(2000000); // 5000000 - 3000000
+      expect(workspaceUpdate?.creditBalance).toBe(2000000); // 5000000 + (-3000000) = 2000000
 
       // Should create two transaction records
       const transactionRecords = recordsPut.filter(

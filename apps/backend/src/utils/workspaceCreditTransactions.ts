@@ -45,15 +45,22 @@ export function addTransactionToBuffer(
   buffer: TransactionBuffer,
   transaction: WorkspaceCreditTransaction
 ): void {
-  // Discard transactions with zero amount
-  if (transaction.amountMillionthUsd === 0) {
+  // Discard transactions with zero amount, EXCEPT for tool-execution (we want to track usage even if cost is 0)
+  if (transaction.amountMillionthUsd === 0 && transaction.source !== "tool-execution") {
     return;
   }
 
   const { workspaceId } = transaction;
   const existing = buffer.get(workspaceId) || [];
   existing.push(transaction);
-  buffer.set(workspaceId, existing);
+  buffer.set(workspaceId, existing); // Set the updated array back to the buffer
+  
+  console.log("[addTransactionToBuffer] Added transaction:", {
+    workspaceId,
+    transaction,
+    bufferSize: buffer.size,
+    transactionsForWorkspace: existing.length,
+  });
 }
 
 /**
@@ -158,8 +165,9 @@ export async function commitTransactions(
       }
 
       // Calculate new balance
+      // Negative amounts = debit (deduct from workspace), positive amounts = credit (add to workspace)
       const currentBalance = (workspace as { creditBalance: number }).creditBalance;
-      const newBalance = currentBalance - totalAmount;
+      const newBalance = currentBalance + totalAmount;
       workspaceNewBalances.set(workspaceId, newBalance);
 
       // Update workspace balance

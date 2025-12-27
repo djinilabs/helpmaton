@@ -183,8 +183,21 @@ export function augmentContextWithCreditTransactions(
   ) => {
     const currentBuffer = getTransactionBuffer(context);
     if (!currentBuffer) {
+      console.error(
+        "[addWorkspaceCreditTransaction] Transaction buffer not initialized:",
+        {
+          transaction,
+          hasContext: !!context,
+          contextAwsRequestId: context.awsRequestId,
+        }
+      );
       throw new Error("Transaction buffer not initialized in context");
     }
+    console.log("[addWorkspaceCreditTransaction] Adding transaction:", {
+      transaction,
+      bufferSize: currentBuffer.size,
+      contextAwsRequestId: context.awsRequestId,
+    });
     addTransactionToBuffer(currentBuffer, transaction);
   };
 
@@ -214,14 +227,33 @@ export async function commitContextTransactions(
 ): Promise<void> {
   // Only commit if no error occurred
   if (hadError) {
+    console.log("[commitContextTransactions] Skipping commit due to error:", {
+      hadError,
+      contextAwsRequestId: context.awsRequestId,
+    });
     return;
   }
 
   const buffer = getTransactionBuffer(context);
   if (!buffer || buffer.size === 0) {
     // No transactions to commit
+    console.log("[commitContextTransactions] No transactions to commit:", {
+      hasBuffer: !!buffer,
+      bufferSize: buffer?.size || 0,
+      contextAwsRequestId: context.awsRequestId,
+    });
     return;
   }
+
+  console.log("[commitContextTransactions] Committing transactions:", {
+    bufferSize: buffer.size,
+    workspaces: Array.from(buffer.keys()),
+    totalTransactions: Array.from(buffer.values()).reduce(
+      (sum, txs) => sum + txs.length,
+      0
+    ),
+    contextAwsRequestId: context.awsRequestId,
+  });
 
   // Get db reference from context, or lazy-load if not present
   let db = (

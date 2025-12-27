@@ -236,7 +236,7 @@ describe("tavilyCredits", () => {
           source: "tool-execution",
           supplier: "tavily",
           tool_call: "search_web",
-          amountMillionthUsd: -4_000, // difference is negative (refund)
+          amountMillionthUsd: 4_000, // difference is negative (refund), negated = positive (credit)
         })
       );
 
@@ -268,7 +268,7 @@ describe("tavilyCredits", () => {
           source: "tool-execution",
           supplier: "tavily",
           tool_call: "search_web",
-          amountMillionthUsd: 8_000, // difference is positive (additional charge)
+          amountMillionthUsd: -8_000, // difference is positive (additional charge), negated = negative (debit)
         })
       );
 
@@ -304,7 +304,7 @@ describe("tavilyCredits", () => {
         supplier: "tavily",
         tool_call: "search_web",
         description: "Tavily API call: search_web - reservation not found, using actual cost",
-        amountMillionthUsd: 8_000, // actualCost = calculateTavilyCost(1) = 8_000
+        amountMillionthUsd: -8_000, // actualCost = calculateTavilyCost(1) = 8_000, negative for debit
       });
       expect(mockDelete).not.toHaveBeenCalled();
     });
@@ -392,7 +392,7 @@ describe("tavilyCredits", () => {
           source: "tool-execution",
           supplier: "tavily",
           tool_call: "search_web",
-          amountMillionthUsd: -8_000, // Negative for refund
+          amountMillionthUsd: 8_000, // Positive for credit/refund
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(
@@ -456,7 +456,7 @@ describe("tavilyCredits", () => {
           source: "tool-execution",
           supplier: "tavily",
           tool_call: "search_web",
-          amountMillionthUsd: -8_000, // Negative for refund
+          amountMillionthUsd: 8_000, // Positive for credit/refund
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(

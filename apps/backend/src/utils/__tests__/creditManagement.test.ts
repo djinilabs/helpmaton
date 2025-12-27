@@ -351,13 +351,14 @@ describe("creditManagement", () => {
       );
 
       // Difference: 5_000_000 - 10_000_000 = -5_000_000 (refund)
-      // New balance: 90_000_000 - (-5_000_000) = 95_000_000
+      // Transaction amount: -(-5_000_000) = 5_000_000 (positive for credit)
+      // New balance: 90_000_000 + 5_000_000 = 95_000_000
       expect(result.creditBalance).toBe(95_000_000); // 95.0 USD in millionths
-      // Verify transaction was added to buffer with negative amount (refund)
+      // Verify transaction was added to buffer with positive amount (credit/refund)
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: -5_000_000, // Negative for refund
+          amountMillionthUsd: 5_000_000, // Positive for credit/refund
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(
@@ -393,13 +394,14 @@ describe("creditManagement", () => {
       );
 
       // Difference: 15_000_000 - 10_000_000 = 5_000_000 (additional charge)
-      // New balance: 90_000_000 - 5_000_000 = 85_000_000
+      // Transaction amount: -5_000_000 (negative for debit)
+      // New balance: 90_000_000 + (-5_000_000) = 85_000_000
       expect(result.creditBalance).toBe(85_000_000);
-      // Verify transaction was added to buffer with positive amount (debit)
+      // Verify transaction was added to buffer with negative amount (debit)
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: 5_000_000, // Positive for additional charge
+          amountMillionthUsd: -5_000_000, // Negative for debit/additional charge
         })
       );
     });
@@ -710,7 +712,7 @@ describe("creditManagement", () => {
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: -10_000_000, // Negative for refund (full reserved amount)
+          amountMillionthUsd: 10_000_000, // Positive for credit/refund (full reserved amount)
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(
@@ -747,15 +749,17 @@ describe("creditManagement", () => {
         creditBalance: 110_000_000, // 100_000_000 + 10_000_000 (refund) in millionths
       };
 
-      mockAtomicUpdate.mockResolvedValue(updatedWorkspace);
+      mockGet.mockResolvedValue(mockWorkspace);
 
       await refundReservation(mockDb, reservationId, mockContext);
 
       // With transaction system, verify transaction was added to buffer
+      // Transaction amount: 10_000_000 (positive for credit/refund)
+      // New balance: 100_000_000 + 10_000_000 = 110_000_000
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: -10_000_000, // Negative for refund
+          amountMillionthUsd: 10_000_000, // Positive for credit/refund
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(
@@ -837,7 +841,7 @@ describe("creditManagement", () => {
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: -10_123_456, // Negative for refund
+          amountMillionthUsd: 10_123_456, // Positive for credit/refund
         })
       );
       expect(mockDelete).toHaveBeenCalledWith(
@@ -974,14 +978,15 @@ describe("creditManagement", () => {
         mockContext
       );
 
-      // Difference: 47_000_000 - 45_000_000 = 2_000_000
-      // New balance: 100_000_000 - 2_000_000 = 98_000_000
+      // Difference: 47_000_000 - 45_000_000 = 2_000_000 (additional charge)
+      // Transaction amount: -2_000_000 (negative for debit)
+      // New balance: 100_000_000 + (-2_000_000) = 98_000_000
       expect(result.creditBalance).toBe(98_000_000);
       // Verify transaction was added to buffer
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: 2_000_000, // Additional charge
+          amountMillionthUsd: -2_000_000, // Negative for debit/additional charge
         })
       );
       expect(mockDelete).toHaveBeenCalledWith("credit-reservations/test-reservation");
@@ -998,13 +1003,14 @@ describe("creditManagement", () => {
       );
 
       // Difference: 43_000_000 - 45_000_000 = -2_000_000 (refund)
-      // New balance: 100_000_000 - (-2_000_000) = 102_000_000
+      // Transaction amount: -(-2_000_000) = 2_000_000 (positive for credit)
+      // New balance: 100_000_000 + 2_000_000 = 102_000_000
       expect(result.creditBalance).toBe(102_000_000);
-      // Verify transaction was added to buffer with negative amount (refund)
+      // Verify transaction was added to buffer with positive amount (credit/refund)
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: -2_000_000, // Negative for refund
+          amountMillionthUsd: 2_000_000, // Positive for credit/refund
         })
       );
     });
@@ -1109,7 +1115,7 @@ describe("creditManagement", () => {
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: 2_000_000, // 47 - 45 = 2 (additional charge)
+          amountMillionthUsd: -2_000_000, // 47 - 45 = 2, negated = -2 (negative for debit/additional charge)
         })
       );
     });
@@ -1125,13 +1131,14 @@ describe("creditManagement", () => {
       );
 
       // Cost should be clamped to 0, so difference = 0 - 45_000_000 = -45_000_000 (refund)
-      // New balance: 100_000_000 - (-45_000_000) = 145_000_000
+      // Transaction amount: -(-45_000_000) = 45_000_000 (positive for credit)
+      // New balance: 100_000_000 + 45_000_000 = 145_000_000
       expect(result.creditBalance).toBe(145_000_000);
-      // Verify transaction was added to buffer with negative amount (refund)
+      // Verify transaction was added to buffer with positive amount (credit/refund)
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "test-workspace",
-          amountMillionthUsd: -45_000_000, // Negative for refund
+          amountMillionthUsd: 45_000_000, // Positive for credit/refund
         })
       );
       expect(mockDelete).toHaveBeenCalledWith("credit-reservations/test-reservation");

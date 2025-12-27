@@ -223,7 +223,7 @@ export async function adjustTavilyCreditReservation(
       supplier: "tavily",
       tool_call: toolName,
       description: `Tavily API call: ${toolName} - reservation not found, using actual cost`,
-      amountMillionthUsd: actualCost,
+      amountMillionthUsd: -actualCost, // Negative for debit (deducting from workspace)
     });
 
     console.log("[adjustTavilyCreditReservation] Created transaction (reservation not found):", {
@@ -258,13 +258,17 @@ export async function adjustTavilyCreditReservation(
   }
 
   const oldBalance = workspace.creditBalance;
-  const newBalance = oldBalance - difference; // Will be applied when transaction commits
+  // Negative amount = debit (deduct from workspace), positive amount = credit (add to workspace)
+  // If difference > 0, we need to charge more (debit = negative)
+  // If difference < 0, we need to refund (credit = positive)
+  const transactionAmount = difference === 0 ? 0 : -difference; // Negate: positive difference becomes negative (debit), negative becomes positive (credit), avoid -0
+  const newBalance = oldBalance + transactionAmount; // Will be applied when transaction commits
 
   console.log("[adjustTavilyCreditReservation] Creating credit transaction (will commit at end of request):", {
     workspaceId,
     reservationId,
     difference,
-    transactionAmount: difference,
+    transactionAmount,
     oldBalance,
     newBalance,
     currency: workspace.currency,
@@ -275,9 +279,26 @@ export async function adjustTavilyCreditReservation(
   const actualCostFormatted = formatCurrencyMillionths(actualCost);
   const reservedAmountFormatted = formatCurrencyMillionths(reservation.reservedAmount);
   const differenceFormatted = formatCurrencyMillionths(Math.abs(difference));
-  const action = difference > 0 ? "additional charge" : "refund";
+  const action = difference > 0 ? "additional charge" : difference < 0 ? "refund" : "no adjustment";
+
+  // For Tavily, use the negated difference for the transaction amount
+  // Negative amount = debit (deduct from workspace), positive amount = credit (add to workspace)
+  // The actual cost is already accounted for in the reservation, so we only charge/refund the difference
+  
+  console.log("[adjustTavilyCreditReservation] Creating transaction:", {
+    workspaceId,
+    reservationId,
+    actualCost,
+    reservedAmount: reservation.reservedAmount,
+    difference,
+    transactionAmount,
+    toolName,
+    willBeTracked: transactionAmount === 0 ? "yes (tool-execution allows 0-amount)" : "yes",
+  });
 
   // Create transaction in memory
+  // Note: Even if difference is 0, this transaction will be created because tool-execution transactions
+  // are not discarded (see addTransactionToBuffer)
   context.addWorkspaceCreditTransaction({
     workspaceId,
     agentId: agentId || undefined,
@@ -286,7 +307,13 @@ export async function adjustTavilyCreditReservation(
     supplier: "tavily",
     tool_call: toolName,
     description: `Tavily API call: ${toolName} - actual cost ${actualCostFormatted}, reserved ${reservedAmountFormatted}, ${action} ${differenceFormatted}`,
-    amountMillionthUsd: difference,
+    amountMillionthUsd: transactionAmount, // Negative for debit, positive for credit (can be 0, but will be tracked)
+  });
+  
+  console.log("[adjustTavilyCreditReservation] Transaction added to buffer:", {
+    workspaceId,
+    transactionAmount,
+    toolName,
   });
 
   // Delete reservation after adjustment (Tavily doesn't need step 3 like OpenRouter)
@@ -353,13 +380,15 @@ export async function refundTavilyCredits(
   }
 
   const oldBalance = workspace.creditBalance;
-  const newBalance = oldBalance + reservedAmount; // Will be applied when transaction commits
+  // Positive amount = credit (adding back to workspace)
+  const transactionAmount = reservedAmount; // Positive for credit/refund
+  const newBalance = oldBalance + transactionAmount; // Will be applied when transaction commits
 
   console.log("[refundTavilyCredits] Creating credit transaction (will commit at end of request):", {
     workspaceId,
     reservationId,
     refundAmount: reservedAmount,
-    transactionAmount: -reservedAmount, // Negative for credit/refund
+    transactionAmount, // Positive for credit/refund
     oldBalance,
     newBalance,
     currency: workspace.currency,
@@ -375,7 +404,7 @@ export async function refundTavilyCredits(
     supplier: "tavily",
     tool_call: toolName,
     description: `Tavily API call refund (error occurred)${toolName ? ` - ${toolName}` : ""}`,
-    amountMillionthUsd: -reservedAmount, // Negative for credit/refund
+    amountMillionthUsd: transactionAmount, // Positive for credit/refund
   });
 
   // Delete the reservation
