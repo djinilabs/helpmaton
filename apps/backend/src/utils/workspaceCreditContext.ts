@@ -23,6 +23,12 @@ export {
 const TRANSACTION_BUFFER_SYMBOL = Symbol("workspaceCreditTransactionBuffer");
 
 /**
+ * Symbol for storing database instance in context
+ * Using Symbol ensures it doesn't conflict with other context properties
+ */
+const DB_SYMBOL = Symbol("workspaceCreditTransactionDb");
+
+/**
  * Module-level storage for current SQS record context
  * This allows handlers to access the context even though they don't receive it as a parameter
  * Keyed by messageId to support concurrent processing
@@ -122,7 +128,6 @@ export function augmentContextWithCreditTransactions(
   };
 
   // Store db reference in context for commit (using another symbol)
-  const DB_SYMBOL = Symbol("workspaceCreditTransactionDb");
   (context as unknown as Record<symbol, DatabaseSchemaWithAtomicUpdate>)[
     DB_SYMBOL
   ] = db;
@@ -154,7 +159,6 @@ export async function commitContextTransactions(
   }
 
   // Get db reference from context
-  const DB_SYMBOL = Symbol("workspaceCreditTransactionDb");
   const db = (
     context as unknown as Record<
       symbol,
