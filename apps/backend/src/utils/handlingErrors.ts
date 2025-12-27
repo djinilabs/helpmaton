@@ -320,9 +320,19 @@ export const handlingErrors = (
         await commitContextTransactions(context, hadError);
       } catch (commitError) {
         // Commit failures cause handler to fail (per user requirement)
-        console.error("[handlingErrors] Failed to commit credit transactions:", commitError);
+        const messagePrefix = hadError
+          ? "[handlingErrors] Handler failed and additionally failed to commit credit transactions"
+          : "[handlingErrors] Failed to commit credit transactions";
+        console.error(messagePrefix + ":", commitError);
+        
+        // Wrap the commit error to preserve context about prior handler failure
+        const wrappedError =
+          commitError instanceof Error
+            ? new Error(messagePrefix + ": " + commitError.message, { cause: commitError })
+            : new Error(messagePrefix + ": " + String(commitError));
+        
         // eslint-disable-next-line no-unsafe-finally
-        throw commitError;
+        throw wrappedError;
       }
       
       // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
@@ -409,6 +419,11 @@ export const handlingHttpErrors = (userHandler: HttpHandler): HttpHandler => {
     res: (resOrError: HttpResponse | Error) => void,
     next: () => void
   ): void => {
+    /**
+     * @deprecated HttpHandler is synchronous and deprecated in favor of HttpAsyncHandler.
+     * This handler type does not support workspace credit transactions.
+     * Use HttpAsyncHandler instead for credit transaction support.
+     */
     // Note: HttpHandler is synchronous, so we can't augment context here
     // This handler type is deprecated in favor of HttpAsyncHandler
     // For now, we'll just pass through without credit transaction support
@@ -473,14 +488,16 @@ export const handlingScheduledErrors = (
     
     // Augment context with workspace credit transaction capability
     const db = await database();
-    augmentContextWithCreditTransactions(mockContext, db);
+    const augmentedContext = augmentContextWithCreditTransactions(mockContext, db);
     
     // Wrap user handler to pass augmented context
+    // Scheduled handlers normally don't receive context from AWS,
+    // but we can still pass our augmented mockContext as a second
+    // argument so user handlers can opt in to using it.
     const wrappedHandler = async (e: ScheduledEvent) => {
-      // Scheduled handlers don't receive context, so we can't pass it
-      // But we can still use the augmented context's addWorkspaceCreditTransaction
-      // by accessing it from the closure
-      await userHandler(e);
+      // Pass the augmented context as a second parameter
+      // Handlers can opt in by accepting a second Context parameter
+      await (userHandler as any)(e, augmentedContext);
     };
     
     let hadError = false;

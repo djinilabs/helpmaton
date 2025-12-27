@@ -32,6 +32,10 @@ const DB_SYMBOL = Symbol("workspaceCreditTransactionDb");
  * Module-level storage for current SQS record context
  * This allows handlers to access the context even though they don't receive it as a parameter
  * Keyed by messageId to support concurrent processing
+ * 
+ * Note: In Lambda, this Map is cleared after each invocation since the process is recycled.
+ * However, contexts are explicitly cleared in the finally block to prevent memory leaks
+ * in case of unexpected process behavior or long-running handlers.
  */
 const currentSQSContexts = new Map<string, AugmentedContext>();
 

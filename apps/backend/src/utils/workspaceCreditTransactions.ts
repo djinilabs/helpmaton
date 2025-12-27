@@ -87,7 +87,9 @@ export async function commitTransactions(
 
   for (const [workspaceId, { transactions }] of workspaceTransactions.entries()) {
     for (const transaction of transactions) {
-      const uniqueId = randomUUID().slice(0, 8);
+      // Use full UUID for better uniqueness (128 bits of entropy)
+      // The timestamp prefix ensures sortability, UUID ensures uniqueness
+      const uniqueId = randomUUID();
       const sk = `${timestamp}-${uniqueId}`;
       transactionRecords.push({
         workspaceId,
@@ -124,18 +126,24 @@ export async function commitTransactions(
   // Build callback that updates workspaces and creates transaction records
   const callback: AtomicUpdateCallback = async (fetchedRecords) => {
     const recordsToPut: Array<TableRecord> = [];
+    
+    // Track new balances per workspace to avoid recalculating
+    const workspaceNewBalances = new Map<string, number>();
 
     for (const [workspaceId, { totalAmount }] of workspaceTransactions.entries()) {
       const workspaceKey = `workspace-${workspaceId}`;
       const workspace = fetchedRecords.get(workspaceKey);
 
       if (!workspace) {
-        throw new Error(`Workspace ${workspaceId} not found`);
+        throw new Error(
+          `Workspace ${workspaceId} not found (requestId: ${requestId})`
+        );
       }
 
       // Calculate new balance
       const currentBalance = (workspace as { creditBalance: number }).creditBalance;
       const newBalance = currentBalance - totalAmount;
+      workspaceNewBalances.set(workspaceId, newBalance);
 
       // Update workspace balance
       const workspacePk = `workspaces/${workspaceId}`;
@@ -158,12 +166,19 @@ export async function commitTransactions(
       const workspaceKey = `workspace-${workspaceId}`;
       const workspace = fetchedRecords.get(workspaceKey);
       if (!workspace) {
-        throw new Error(`Workspace ${workspaceId} not found`);
+        throw new Error(
+          `Workspace ${workspaceId} not found (requestId: ${requestId})`
+        );
       }
       
       const currentBalance = (workspace as { creditBalance: number }).creditBalance;
-      const workspaceTotalAmount = workspaceTransactions.get(workspaceId)?.totalAmount || 0;
-      const newBalance = currentBalance - workspaceTotalAmount;
+      // Use the already-calculated newBalance instead of recalculating
+      const newBalance = workspaceNewBalances.get(workspaceId);
+      if (newBalance === undefined) {
+        throw new Error(
+          `New balance not calculated for workspace ${workspaceId} (requestId: ${requestId})`
+        );
+      }
       
       recordsToPut.push({
         pk: workspacePk,
