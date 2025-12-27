@@ -51,7 +51,7 @@ jobs:
         run: |
           CURRENT_COMMIT=$(git rev-parse HEAD)
           echo "Testing commit: ${CURRENT_COMMIT}"
-          
+
           if [ "${{ github.event_name }}" == "workflow_run" ]; then
             EXPECTED_COMMIT="${{ github.event.workflow_run.head_sha }}"
             echo "Expected commit (from workflow_run): ${EXPECTED_COMMIT}"
@@ -89,6 +89,8 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.2
 
       - name: Get pnpm store directory
         shell: bash
