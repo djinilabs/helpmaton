@@ -43,6 +43,7 @@ export interface WorkspaceAndAgent {
 /**
  * Get workspace API key if it exists for OpenRouter
  * Only OpenRouter keys are supported for BYOK (Bring Your Own Key)
+ * BYOK is only available for paid plans (Starter and Pro)
  */
 export async function getWorkspaceApiKey(
   workspaceId: string,
@@ -60,6 +61,15 @@ export async function getWorkspaceApiKey(
   try {
     const workspaceKey = await db["workspace-api-key"].get(pk, sk);
     if (workspaceKey?.key) {
+      // Check subscription plan - BYOK is only available for paid plans
+      const { getWorkspaceSubscription } = await import(
+        "../../utils/subscriptionUtils"
+      );
+      const subscription = await getWorkspaceSubscription(workspaceId);
+      if (!subscription || subscription.plan === "free") {
+        // Return null for free plans even if key exists
+        return null;
+      }
       return workspaceKey.key;
     }
   } catch {

@@ -275,8 +275,14 @@ describe("tavilyCredits", () => {
       // Transaction should record positive amount for additional charge
     });
 
-    it("should return early if reservation not found", async () => {
+    it("should create transaction even if reservation not found", async () => {
       mockReservationGet.mockResolvedValue(undefined);
+      mockGet.mockResolvedValue({
+        pk: "workspaces/test-workspace",
+        sk: "workspace",
+        creditBalance: 100_000_000,
+        currency: "usd",
+      });
 
       await adjustTavilyCreditReservation(
         mockDb,
@@ -288,7 +294,17 @@ describe("tavilyCredits", () => {
         3
       );
 
-      expect(mockContext.addWorkspaceCreditTransaction).not.toHaveBeenCalled();
+      // Should create transaction with actual cost even if reservation not found
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith({
+        workspaceId: "test-workspace",
+        agentId: undefined,
+        conversationId: undefined,
+        source: "tool-execution",
+        supplier: "tavily",
+        tool_call: "search_web",
+        description: "Tavily API call: search_web - reservation not found, using actual cost",
+        amountMillionthUsd: 8_000, // actualCost = calculateTavilyCost(1) = 8_000
+      });
       expect(mockDelete).not.toHaveBeenCalled();
     });
 

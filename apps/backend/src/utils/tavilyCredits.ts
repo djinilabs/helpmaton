@@ -5,8 +5,10 @@
 
 import type { DatabaseSchema } from "../tables/schema";
 
+import { formatCurrencyMillionths } from "./creditConversions";
 import type { CreditReservation } from "./creditManagement";
 import { reserveCredits } from "./creditManagement";
+import { isCreditDeductionEnabled } from "./featureFlags";
 import type { AugmentedContext } from "./workspaceCreditContext";
 
 // Tavily pricing: $0.008 per API call = 8,000 millionths (1 Tavily API call = $0.008)
@@ -48,7 +50,58 @@ export async function reserveTavilyCredits(
     estimatedCost,
     agentId,
     conversationId,
+    creditDeductionEnabled: isCreditDeductionEnabled(),
   });
+
+  // If credit deduction is disabled, still create a transaction to track usage
+  // but skip the actual reservation (no credit balance check or deduction)
+  if (!isCreditDeductionEnabled()) {
+    console.log(
+      "[reserveTavilyCredits] Credit deduction disabled, creating transaction without reservation:",
+      {
+        workspaceId,
+        estimatedCost,
+        agentId,
+        conversationId,
+      }
+    );
+
+    // Get workspace for return value
+    const workspacePk = `workspaces/${workspaceId}`;
+    const workspace = await db.workspace.get(workspacePk, "workspace");
+    if (!workspace) {
+      throw new Error(`Workspace ${workspaceId} not found`);
+    }
+
+    // Create transaction immediately (amount 0 since deduction is disabled, but still track usage)
+    if (context) {
+      context.addWorkspaceCreditTransaction({
+        workspaceId,
+        agentId: agentId || undefined,
+        conversationId: conversationId || undefined,
+        source: "tool-execution",
+        supplier: "tavily",
+        tool_call: "tavily-api", // Will be updated in adjustment
+        description: `Tavily API call: reservation (credit deduction disabled)`,
+        amountMillionthUsd: 0, // No charge when deduction is disabled
+      });
+      console.log(
+        "[reserveTavilyCredits] Created transaction (deduction disabled):",
+        {
+          workspaceId,
+          estimatedCost,
+        }
+      );
+    }
+
+    // Return a special reservation ID that indicates deduction is disabled
+    // The adjustment step will update the transaction with actual cost
+    return {
+      reservationId: "deduction-disabled",
+      reservedAmount: 0,
+      workspace,
+    };
+  }
 
   return await reserveCredits(
     db,
@@ -88,15 +141,97 @@ export async function adjustTavilyCreditReservation(
   agentId?: string,
   conversationId?: string
 ): Promise<void> {
+  // Handle special case: deduction disabled (transaction already created in reservation step)
+  if (reservationId === "deduction-disabled") {
+    const actualCost = calculateTavilyCost(actualCreditsUsed);
+    console.log(
+      "[adjustTavilyCreditReservation] Credit deduction disabled, updating transaction with actual cost:",
+      {
+        workspaceId,
+        actualCreditsUsed,
+        actualCost,
+        toolName,
+      }
+    );
+
+    // Get current workspace for logging
+    const workspacePk = `workspaces/${workspaceId}`;
+    const workspace = await db.workspace.get(workspacePk, "workspace");
+    if (!workspace) {
+      throw new Error(`Workspace ${workspaceId} not found`);
+    }
+
+    // Create a new transaction with actual cost (amount 0 since deduction is disabled, but track usage)
+    // Note: The previous transaction with amount 0 will also be created, but that's okay for tracking
+    context.addWorkspaceCreditTransaction({
+      workspaceId,
+      agentId: agentId || undefined,
+      conversationId: conversationId || undefined,
+      source: "tool-execution",
+      supplier: "tavily",
+      tool_call: toolName,
+      description: `Tavily API call: ${toolName} (credit deduction disabled) - actual cost: ${actualCost} millionths`,
+      amountMillionthUsd: 0, // No charge when deduction is disabled, but track usage
+    });
+
+    console.log(
+      "[adjustTavilyCreditReservation] Created transaction (deduction disabled):",
+      {
+        workspaceId,
+        actualCost,
+        toolName,
+      }
+    );
+    return;
+  }
+
   // Get reservation to find reserved amount
   const reservationPk = `credit-reservations/${reservationId}`;
   const reservation = await db["credit-reservations"].get(reservationPk);
 
   if (!reservation) {
     console.warn(
-      "[adjustTavilyCreditReservation] Reservation not found, assuming already processed:",
+      "[adjustTavilyCreditReservation] Reservation not found, creating transaction with estimated cost:",
       { reservationId, workspaceId }
     );
+    
+    // Even if reservation is not found, create a transaction to track the API call
+    // Use estimated cost (8,000 millionths = $0.008) as fallback
+    const estimatedCost = calculateTavilyCost(1); // Default to 1 credit
+    const actualCost = calculateTavilyCost(actualCreditsUsed);
+    
+    // Get current workspace for logging
+    const workspacePk = `workspaces/${workspaceId}`;
+    const workspace = await db.workspace.get(workspacePk, "workspace");
+    if (!workspace) {
+      throw new Error(`Workspace ${workspaceId} not found`);
+    }
+
+    console.log("[adjustTavilyCreditReservation] Creating transaction without reservation:", {
+      workspaceId,
+      reservationId,
+      actualCreditsUsed,
+      actualCost,
+      toolName,
+    });
+
+    // Create transaction with actual cost (reservation was already processed or missing)
+    context.addWorkspaceCreditTransaction({
+      workspaceId,
+      agentId: agentId || undefined,
+      conversationId: conversationId || undefined,
+      source: "tool-execution",
+      supplier: "tavily",
+      tool_call: toolName,
+      description: `Tavily API call: ${toolName} - reservation not found, using actual cost`,
+      amountMillionthUsd: actualCost,
+    });
+
+    console.log("[adjustTavilyCreditReservation] Created transaction (reservation not found):", {
+      workspaceId,
+      actualCost,
+      toolName,
+    });
     return;
   }
 
@@ -137,6 +272,12 @@ export async function adjustTavilyCreditReservation(
     toolName,
   });
 
+  // Format costs for description
+  const actualCostFormatted = formatCurrencyMillionths(actualCost);
+  const reservedAmountFormatted = formatCurrencyMillionths(reservation.reservedAmount);
+  const differenceFormatted = formatCurrencyMillionths(Math.abs(difference));
+  const action = difference > 0 ? "additional charge" : "refund";
+
   // Create transaction in memory
   context.addWorkspaceCreditTransaction({
     workspaceId,
@@ -145,7 +286,7 @@ export async function adjustTavilyCreditReservation(
     source: "tool-execution",
     supplier: "tavily",
     tool_call: toolName,
-    description: `Tavily API call: ${toolName} - adjust reservation`,
+    description: `Tavily API call: ${toolName} - actual cost ${actualCostFormatted}, reserved ${reservedAmountFormatted}, ${action} ${differenceFormatted}`,
     amountMillionthUsd: difference,
   });
 

@@ -72,6 +72,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
         `${starterLimits?.maxAgentKeys || 25} agent keys`,
         `${starterLimits?.maxChannels || 10} channels`,
         `${starterLimits?.maxMcpServers || 10} MCP servers`,
+        "Bring Your Own Key (BYOK)",
       ],
     },
     {
@@ -91,6 +92,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
         `${proLimits?.maxAgentKeys || 250} agent keys`,
         `${proLimits?.maxChannels || 50} channels`,
         `${proLimits?.maxMcpServers || 50} MCP servers`,
+        "Bring Your Own Key (BYOK)",
       ],
     },
   ];

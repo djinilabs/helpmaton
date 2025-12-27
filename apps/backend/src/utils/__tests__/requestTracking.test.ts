@@ -1041,5 +1041,67 @@ describe("requestTracking", () => {
         "Daily Tavily API call limit exceeded"
       );
     });
+
+    it("should disable free tier in testing environment (ARC_ENV=testing)", async () => {
+      const workspaceId = "workspace-123";
+      const mockDb = {
+        "tavily-call-buckets": {
+          query: vi.fn().mockResolvedValue({ items: [] }),
+        },
+      };
+
+      mockDatabase.mockResolvedValue(mockDb);
+      mockGetWorkspaceSubscription.mockResolvedValue(undefined); // No subscription = free tier
+
+      // Set ARC_ENV to "testing" to simulate local sandbox
+      const originalArcEnv = process.env.ARC_ENV;
+      process.env.ARC_ENV = "testing";
+
+      try {
+        const result = await checkTavilyDailyLimit(workspaceId);
+
+        // Should return withinFreeLimit: false even though it's free tier with 0 calls
+        expect(result).toEqual({ withinFreeLimit: false, callCount: 0 });
+      } finally {
+        // Restore original ARC_ENV
+        if (originalArcEnv !== undefined) {
+          process.env.ARC_ENV = originalArcEnv;
+        } else {
+          delete process.env.ARC_ENV;
+        }
+      }
+    });
+
+    it("should disable free tier in testing environment even for paid tiers", async () => {
+      const workspaceId = "workspace-123";
+      const mockDb = {
+        "tavily-call-buckets": {
+          query: vi.fn().mockResolvedValue({ items: [] }),
+        },
+      };
+
+      mockDatabase.mockResolvedValue(mockDb);
+      mockGetWorkspaceSubscription.mockResolvedValue({
+        plan: "pro",
+      } as Partial<SubscriptionRecord>);
+
+      // Set ARC_ENV to "testing" to simulate local sandbox
+      const originalArcEnv = process.env.ARC_ENV;
+      process.env.ARC_ENV = "testing";
+
+      try {
+        const result = await checkTavilyDailyLimit(workspaceId);
+
+        // Should return withinFreeLimit: false even though it's paid tier with 0 calls (within free limit)
+        expect(result).toEqual({ withinFreeLimit: false, callCount: 0 });
+      } finally {
+        // Restore original ARC_ENV
+        if (originalArcEnv !== undefined) {
+          process.env.ARC_ENV = originalArcEnv;
+        } else {
+          delete process.env.ARC_ENV;
+        }
+      }
+    });
   });
 });

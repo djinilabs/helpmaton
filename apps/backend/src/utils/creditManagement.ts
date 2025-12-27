@@ -5,6 +5,7 @@ import { queues } from "@architect/functions";
 import type { DatabaseSchema, WorkspaceRecord } from "../tables/schema";
 
 import type { TokenUsage } from "./conversationLogger";
+import { formatCurrencyMillionths } from "./creditConversions";
 import { CreditDeductionError, InsufficientCreditsError } from "./creditErrors";
 import { calculateTokenCost } from "./pricing";
 import type { AugmentedContext } from "./workspaceCreditContext";
@@ -267,7 +268,8 @@ export async function reserveCredits(
     });
 
     // Create transaction record if context is provided
-    if (context) {
+    // Skip transaction creation for Tavily (provider="tavily") - transactions are created in adjustment step
+    if (context && provider !== "tavily") {
       const effectiveProvider = provider || "openrouter";
       const effectiveModel = modelName || "unknown";
       
@@ -288,6 +290,12 @@ export async function reserveCredits(
         model: effectiveModel,
         description: "Initial credit reservation (Step 1)",
         amountMillionthUsd: estimatedCost,
+      });
+    } else if (context && provider === "tavily") {
+      console.log("[reserveCredits] Skipping transaction creation for Tavily (will be created in adjustment step):", {
+        workspaceId,
+        reservationId,
+        estimatedCost,
       });
     }
 
@@ -451,6 +459,12 @@ export async function adjustCreditReservation(
   // Get conversationId from reservation if not provided
   const effectiveConversationId = conversationId || reservation.conversationId;
 
+  // Format costs for description
+  const calculatedCostFormatted = formatCurrencyMillionths(validatedTokenUsageCost);
+  const reservedAmountFormatted = formatCurrencyMillionths(reservation.reservedAmount);
+  const differenceFormatted = formatCurrencyMillionths(Math.abs(difference));
+  const action = difference > 0 ? "additional charge" : "refund";
+
   // Create transaction in memory
   context.addWorkspaceCreditTransaction({
     workspaceId,
@@ -459,7 +473,7 @@ export async function adjustCreditReservation(
     source: "text-generation",
     supplier: provider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter for now
     model: modelName,
-    description: `Adjust credit reservation: ${difference > 0 ? "additional charge" : "refund"} based on token usage (Step 2)`,
+    description: `Adjust credit reservation (Step 2): calculated cost ${calculatedCostFormatted}, reserved ${reservedAmountFormatted}, ${action} ${differenceFormatted} based on token usage`,
     amountMillionthUsd: transactionAmount,
   });
 
@@ -841,13 +855,18 @@ export async function finalizeCreditReservation(
       currency: workspace.currency,
     });
 
+    // Format costs for description
+    const openrouterCostFormatted = formatCurrencyMillionths(validatedOpenrouterCost);
+    const differenceFormatted = formatCurrencyMillionths(Math.abs(difference));
+    const action = difference > 0 ? "additional charge" : "refund";
+
     // Create transaction in memory
     context.addWorkspaceCreditTransaction({
       workspaceId,
       source: "text-generation",
       supplier: "openrouter",
       model: reservation.modelName,
-      description: `Finalize credit reservation: ${difference > 0 ? "additional charge" : "refund"} based on OpenRouter cost (Step 3, no token usage cost)`,
+      description: `Finalize credit reservation (Step 3): OpenRouter cost ${openrouterCostFormatted}, ${action} ${differenceFormatted} (no token usage cost)`,
       amountMillionthUsd: transactionAmount,
     });
 
@@ -883,6 +902,12 @@ export async function finalizeCreditReservation(
     currency: workspace.currency,
   });
 
+  // Format costs for description
+  const openrouterCostFormatted = formatCurrencyMillionths(validatedOpenrouterCost);
+  const tokenUsageCostFormatted = formatCurrencyMillionths(tokenUsageBasedCost);
+  const differenceFormatted = formatCurrencyMillionths(Math.abs(transactionAmount));
+  const action = transactionAmount > 0 ? "additional charge" : "refund";
+
   // Create transaction in memory
   context.addWorkspaceCreditTransaction({
     workspaceId,
@@ -891,7 +916,7 @@ export async function finalizeCreditReservation(
     source: "text-generation",
     supplier: "openrouter",
     model: reservation.modelName,
-    description: `Finalize credit reservation: ${difference > 0 ? "additional charge" : "refund"} based on OpenRouter cost (Step 3)`,
+    description: `Finalize credit reservation (Step 3): OpenRouter cost ${openrouterCostFormatted}, token usage cost ${tokenUsageCostFormatted}, ${action} ${differenceFormatted}`,
     amountMillionthUsd: transactionAmount,
   });
 

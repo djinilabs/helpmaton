@@ -66,7 +66,10 @@
       "aws-sdk",
       "esbuild",
       "sharp"
-    ]
+    ],
+    "overrides": {
+      "@types/node": "24.10.4"
+    }
   },
   "devDependencies": {
     "@aws-sdk/client-cloudformation": "^3.943.0",
@@ -99,7 +102,6 @@
   },
   "dependencies": {
     "@architect/asap": "^7.0.10",
-    "@aws-sdk/util-dynamodb": "^3.958.0",
     "@posthog/ai": "^7.2.1"
   }
 }

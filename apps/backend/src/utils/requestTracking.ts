@@ -470,6 +470,11 @@ export async function checkTavilyDailyLimit(
   const callCount = await getTavilyCallCountLast24Hours(workspaceId);
   const FREE_TIER_LIMIT = 10;
 
+  // In local sandbox (testing environment), disable free tier to ensure transactions are created
+  if (process.env.ARC_ENV === "testing") {
+    return { withinFreeLimit: false, callCount };
+  }
+
   // Get subscription to determine tier
   const subscription = await getWorkspaceSubscription(workspaceId);
   const isFreeTier = !subscription || subscription.plan === "free";
