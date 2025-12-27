@@ -1,4 +1,5 @@
 import { useChat } from "@ai-sdk/react";
+import { ChartBarIcon } from "@heroicons/react/24/outline";
 import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
@@ -635,8 +636,9 @@ export const AgentChat: FC<AgentChatProps> = ({
                       key={`${message.id}-part-${partIndex}`}
                       className="max-w-[80%] rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800"
                     >
-                      <div className="mb-2 text-xs font-medium text-slate-700 dark:text-slate-300">
-                        📊 Data: {dataName}
+                      <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300">
+                        <ChartBarIcon className="size-3" />
+                        Data: {dataName}
                       </div>
                       <details className="text-xs">
                         <summary className="cursor-pointer font-medium text-slate-600 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300">

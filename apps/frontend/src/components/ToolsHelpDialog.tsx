@@ -1,3 +1,4 @@
+import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { type FC } from "react";
 
 import { useEmailConnection } from "../hooks/useEmailConnection";
@@ -280,8 +281,9 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
         </div>
 
         <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-800 dark:bg-yellow-950">
-          <p className="mb-2 text-sm font-semibold text-yellow-800 dark:text-yellow-200">
-            ⚠️ Important
+          <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-yellow-800 dark:text-yellow-200">
+            <ExclamationTriangleIcon className="size-4" />
+            Important
           </p>
           <p className="text-sm text-yellow-900 dark:text-yellow-100">
             Tool availability depends on your agent configuration. Tools marked

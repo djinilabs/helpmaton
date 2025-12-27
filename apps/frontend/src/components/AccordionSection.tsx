@@ -5,7 +5,7 @@ import { LazyAccordionContent } from "./LazyAccordionContent";
 
 interface AccordionSectionProps {
   id: string;
-  title: string;
+  title: string | ReactNode;
   isExpanded: boolean;
   onToggle: () => void;
   children: ReactNode;
@@ -166,7 +166,7 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
         className="w-full rounded-2xl bg-white p-6 text-left transition-all duration-200 hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-800 lg:p-8"
         aria-expanded={isExpanded}
         aria-controls={`accordion-content-${id}`}
-        aria-label={`${isExpanded ? "Collapse" : "Expand"} section ${title}`}
+        aria-label={`${isExpanded ? "Collapse" : "Expand"} section ${typeof title === "string" ? title : id}`}
       >
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">

@@ -36,7 +36,7 @@ export class WorkspaceDetailPage extends BasePage {
     // Wait for the workspace detail page to load
     await this.page.waitForLoadState("domcontentloaded");
     // Wait for the heading or accordion sections to appear
-    await this.page.waitForSelector('h2:has-text("🤖 Agents")', {
+    await this.page.waitForSelector('h2:has-text("Agents")', {
       timeout: 15000,
     });
   }
@@ -84,7 +84,7 @@ export class WorkspaceDetailPage extends BasePage {
    * Expand Agents section
    */
   async expandAgentsSection(): Promise<void> {
-    await this.expandAccordion("🤖 Agents");
+    await this.expandAccordion("Agents");
   }
 
   /**
@@ -164,7 +164,7 @@ export class WorkspaceDetailPage extends BasePage {
    * Expand Documents section
    */
   async expandDocumentsSection(): Promise<void> {
-    await this.expandAccordion("📄 Documents");
+    await this.expandAccordion("Documents");
   }
 
   /**
@@ -319,7 +319,7 @@ export class WorkspaceDetailPage extends BasePage {
    * Expand Team section
    */
   async expandTeamSection(): Promise<void> {
-    await this.expandAccordion("👥 Team");
+    await this.expandAccordion("Team");
   }
 
   /**
@@ -432,7 +432,7 @@ export class WorkspaceDetailPage extends BasePage {
    * Expand Credits section
    */
   async expandCreditsSection(): Promise<void> {
-    await this.expandAccordion("💳 Credit Balance");
+    await this.expandAccordion("Credit Balance");
   }
 
   /**
@@ -481,7 +481,7 @@ export class WorkspaceDetailPage extends BasePage {
    * Expand Spending Limits section
    */
   async expandSpendingLimitsSection(): Promise<void> {
-    await this.expandAccordion("💸 Spending Limits");
+    await this.expandAccordion("Spending Limits");
   }
 
   /**
