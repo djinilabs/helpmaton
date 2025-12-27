@@ -33,7 +33,10 @@ const currentSQSContexts = new Map<string, AugmentedContext>();
  * Sets the current SQS record context for a given messageId
  * Used by handlingSQSErrors to make context available to handlers
  */
-export function setCurrentSQSContext(messageId: string, context: AugmentedContext): void {
+export function setCurrentSQSContext(
+  messageId: string,
+  context: AugmentedContext
+): void {
   currentSQSContexts.set(messageId, context);
 }
 
@@ -41,7 +44,9 @@ export function setCurrentSQSContext(messageId: string, context: AugmentedContex
  * Gets the current SQS record context for a given messageId
  * Used by handlers to access context when processing records
  */
-export function getCurrentSQSContext(messageId: string): AugmentedContext | undefined {
+export function getCurrentSQSContext(
+  messageId: string
+): AugmentedContext | undefined {
   return currentSQSContexts.get(messageId);
 }
 
@@ -57,14 +62,20 @@ export function clearCurrentSQSContext(messageId: string): void {
  * Augmented context with workspace credit transaction capability
  */
 export interface AugmentedContext extends Context {
-  addWorkspaceCreditTransaction: (transaction: WorkspaceCreditTransaction) => void;
+  addWorkspaceCreditTransaction: (
+    transaction: WorkspaceCreditTransaction
+  ) => void;
 }
 
 /**
  * Gets the transaction buffer from context
  */
-export function getTransactionBuffer(context: Context): TransactionBuffer | undefined {
-  return (context as unknown as Record<symbol, TransactionBuffer | undefined>)[TRANSACTION_BUFFER_SYMBOL];
+export function getTransactionBuffer(
+  context: Context
+): TransactionBuffer | undefined {
+  return (context as unknown as Record<symbol, TransactionBuffer | undefined>)[
+    TRANSACTION_BUFFER_SYMBOL
+  ];
 }
 
 /**
@@ -74,12 +85,14 @@ export function setTransactionBuffer(
   context: Context,
   buffer: TransactionBuffer
 ): void {
-  (context as unknown as Record<symbol, TransactionBuffer>)[TRANSACTION_BUFFER_SYMBOL] = buffer;
+  (context as unknown as Record<symbol, TransactionBuffer>)[
+    TRANSACTION_BUFFER_SYMBOL
+  ] = buffer;
 }
 
 /**
  * Augments a Lambda context with workspace credit transaction capability
- * 
+ *
  * @param context - Lambda context to augment
  * @param db - Database instance (needed for commit, but stored for later use)
  * @returns Augmented context with addWorkspaceCreditTransaction function
@@ -97,8 +110,10 @@ export function augmentContextWithCreditTransactions(
 
   // Create augmented context with addWorkspaceCreditTransaction function
   const augmentedContext = context as AugmentedContext;
-  
-  augmentedContext.addWorkspaceCreditTransaction = (transaction: WorkspaceCreditTransaction) => {
+
+  augmentedContext.addWorkspaceCreditTransaction = (
+    transaction: WorkspaceCreditTransaction
+  ) => {
     const currentBuffer = getTransactionBuffer(context);
     if (!currentBuffer) {
       throw new Error("Transaction buffer not initialized in context");
@@ -108,7 +123,9 @@ export function augmentContextWithCreditTransactions(
 
   // Store db reference in context for commit (using another symbol)
   const DB_SYMBOL = Symbol("workspaceCreditTransactionDb");
-  (context as unknown as Record<symbol, DatabaseSchemaWithAtomicUpdate>)[DB_SYMBOL] = db;
+  (context as unknown as Record<symbol, DatabaseSchemaWithAtomicUpdate>)[
+    DB_SYMBOL
+  ] = db;
 
   return augmentedContext;
 }
@@ -116,7 +133,7 @@ export function augmentContextWithCreditTransactions(
 /**
  * Commits all transactions in the context's buffer
  * Only commits if no error was thrown (called from finally block)
- * 
+ *
  * @param context - Lambda context with transaction buffer
  * @param hadError - Whether an error was thrown during handler execution
  * @throws Error if commit fails
@@ -138,7 +155,12 @@ export async function commitContextTransactions(
 
   // Get db reference from context
   const DB_SYMBOL = Symbol("workspaceCreditTransactionDb");
-  const db = (context as unknown as Record<symbol, DatabaseSchemaWithAtomicUpdate | undefined>)[DB_SYMBOL];
+  const db = (
+    context as unknown as Record<
+      symbol,
+      DatabaseSchemaWithAtomicUpdate | undefined
+    >
+  )[DB_SYMBOL];
   if (!db) {
     throw new Error("Database instance not found in context");
   }
@@ -146,4 +168,3 @@ export async function commitContextTransactions(
   const requestId = context.awsRequestId;
   await commitTransactions(db, buffer, requestId);
 }
-
