@@ -6,6 +6,40 @@ import type { DatabaseSchema } from "../tables/schema";
 import { writeToWorkingMemory } from "./memory/writeMemory";
 import { calculateConversationCosts } from "./tokenAccounting";
 
+/**
+ * Type representing usage information from AI SDK
+ * Matches LanguageModelV2Usage structure from @ai-sdk/provider
+ */
+export interface LanguageModelUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  cachedPromptTokens?: number;
+  reasoningTokens?: number;
+}
+
+/**
+ * Type representing a result from generateText that has totalUsage
+ */
+export interface GenerateTextResultWithTotalUsage {
+  totalUsage?: LanguageModelUsage;
+  usage?: LanguageModelUsage;
+  steps?: Array<{ usage?: LanguageModelUsage }>;
+  _steps?: {
+    status?: {
+      value?: Array<{ usage?: LanguageModelUsage }>;
+    };
+  };
+}
+
+/**
+ * Type representing a result from streamText (onFinish callback)
+ */
+export interface StreamTextFinishResult {
+  totalUsage: LanguageModelUsage;
+  steps?: Array<{ usage?: LanguageModelUsage }>;
+}
+
 export interface TokenUsage {
   promptTokens: number;
   completionTokens: number;
@@ -1455,28 +1489,39 @@ export function aggregateTokenUsage(
 }
 
 /**
- * Extract token usage from generateText result
- * Handles Google AI SDK response format including reasoning tokens and cached tokens
+ * Extract token usage from generateText or streamText result
+ * Uses AI SDK's totalUsage when available (aggregates all steps automatically)
+ * Falls back to usage or step aggregation for backward compatibility
  */
 export function extractTokenUsage(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  result: any
+  result: GenerateTextResultWithTotalUsage | StreamTextFinishResult | unknown
 ): TokenUsage | undefined {
   if (!result || typeof result !== "object") {
     return undefined;
   }
 
-  // Check top-level usage first
-  let usage = result.usage;
+  // Use totalUsage if available (AI SDK provides this for generateText/streamText)
+  // This is the preferred method as it aggregates all steps automatically
+  const typedResult = result as
+    | GenerateTextResultWithTotalUsage
+    | StreamTextFinishResult;
+  let usage: LanguageModelUsage | undefined = typedResult.totalUsage;
 
-  // If no top-level usage, try to aggregate from steps[].usage (generateText structure)
+  // Fall back to top-level usage if totalUsage is not available
+  if (!usage) {
+    usage = (typedResult as GenerateTextResultWithTotalUsage).usage;
+  }
+
+  // Last resort: try to aggregate from steps (for older formats or edge cases)
   if (!usage || typeof usage !== "object") {
-    const steps = Array.isArray(result.steps)
-      ? result.steps
-      : result._steps?.status?.value;
+    const steps = Array.isArray(
+      (typedResult as GenerateTextResultWithTotalUsage).steps
+    )
+      ? (typedResult as GenerateTextResultWithTotalUsage).steps
+      : (typedResult as GenerateTextResultWithTotalUsage)._steps?.status?.value;
 
     if (Array.isArray(steps) && steps.length > 0) {
-      // Aggregate usage from all steps
+      // Aggregate usage from all steps (fallback for older formats)
       let totalPromptTokens = 0;
       let totalCompletionTokens = 0;
       let totalTokens = 0;
@@ -1485,24 +1530,12 @@ export function extractTokenUsage(
 
       for (const step of steps) {
         if (step?.usage && typeof step.usage === "object") {
-          totalPromptTokens +=
-            step.usage.inputTokens ??
-            step.usage.promptTokens ??
-            step.usage.promptTokenCount ??
-            0;
-          totalCompletionTokens +=
-            step.usage.completionTokens ??
-            step.usage.outputTokens ??
-            step.usage.completionTokenCount ??
-            0;
-          totalTokens +=
-            step.usage.totalTokens ?? step.usage.totalTokenCount ?? 0;
-          totalReasoningTokens += step.usage.reasoningTokens ?? 0;
-          totalCachedInputTokens +=
-            step.usage.cachedInputTokens ??
-            step.usage.cachedTokens ??
-            step.usage.cachedPromptTokenCount ??
-            0;
+          const stepUsage = step.usage as LanguageModelUsage;
+          totalPromptTokens += stepUsage.promptTokens ?? 0;
+          totalCompletionTokens += stepUsage.completionTokens ?? 0;
+          totalTokens += stepUsage.totalTokens ?? 0;
+          totalReasoningTokens += stepUsage.reasoningTokens ?? 0;
+          totalCachedInputTokens += stepUsage.cachedPromptTokens ?? 0;
         }
       }
 
@@ -1513,21 +1546,23 @@ export function extractTokenUsage(
         totalTokens > 0
       ) {
         usage = {
-          inputTokens: totalPromptTokens,
           promptTokens: totalPromptTokens,
-          outputTokens: totalCompletionTokens,
           completionTokens: totalCompletionTokens,
           totalTokens:
             totalTokens ||
             totalPromptTokens + totalCompletionTokens + totalReasoningTokens,
-          reasoningTokens: totalReasoningTokens,
-          cachedInputTokens: totalCachedInputTokens,
-          cachedTokens: totalCachedInputTokens,
+          reasoningTokens:
+            totalReasoningTokens > 0 ? totalReasoningTokens : undefined,
+          cachedPromptTokens:
+            totalCachedInputTokens > 0 ? totalCachedInputTokens : undefined,
         };
-        console.log("[extractTokenUsage] Aggregated usage from steps:", {
-          stepsCount: steps.length,
-          aggregatedUsage: usage,
-        });
+        console.log(
+          "[extractTokenUsage] Aggregated usage from steps (fallback):",
+          {
+            stepsCount: steps.length,
+            aggregatedUsage: usage,
+          }
+        );
       }
     }
   }
@@ -1541,41 +1576,48 @@ export function extractTokenUsage(
     usageKeys: Object.keys(usage),
     usageObject: JSON.stringify(usage, null, 2),
     resultKeys: Object.keys(result),
+    hasTotalUsage: !!(
+      typedResult as GenerateTextResultWithTotalUsage | StreamTextFinishResult
+    ).totalUsage,
   });
 
-  // Handle both field name variations:
-  // - promptTokens/completionTokens (standard AI SDK format)
-  // - inputTokens/outputTokens (some provider adapters use these)
-  // - promptTokenCount/completionTokenCount (Google API format)
+  // Extract token values from usage object
+  // Handle both standard AI SDK format and legacy field name variations for backward compatibility
+  // Standard: promptTokens/completionTokens (AI SDK format)
+  // Legacy: inputTokens/outputTokens (some provider adapters)
+  // Legacy: promptTokenCount/completionTokenCount (Google API format)
+  const usageAny = usage as unknown as Record<string, unknown>;
   const promptTokens =
-    usage.promptTokens ?? usage.inputTokens ?? usage.promptTokenCount ?? 0;
+    (usage.promptTokens as number | undefined) ??
+    (usageAny.inputTokens as number | undefined) ??
+    (usageAny.promptTokenCount as number | undefined) ??
+    0;
   const completionTokens =
-    usage.completionTokens ??
-    usage.outputTokens ??
-    usage.completionTokenCount ??
+    (usage.completionTokens as number | undefined) ??
+    (usageAny.outputTokens as number | undefined) ??
+    (usageAny.completionTokenCount as number | undefined) ??
     0;
-  const totalTokens = usage.totalTokens ?? usage.totalTokenCount ?? 0;
+  const totalTokens =
+    (usage.totalTokens as number | undefined) ??
+    (usageAny.totalTokenCount as number | undefined) ??
+    0;
 
-  // Extract cached prompt tokens if present (Google API may provide this)
-  // Cached tokens can be in various formats:
-  // - cachedPromptTokenCount (Google API format)
-  // - cachedPromptTokens
-  // - cachedInputTokens (alternative field name)
-  // - cachedTokens
+  // Extract cached prompt tokens (various field names for backward compatibility)
   const cachedPromptTokens =
-    usage.cachedPromptTokenCount ??
-    usage.cachedPromptTokens ??
-    usage.cachedInputTokens ??
-    usage.cachedTokens ??
+    (usage.cachedPromptTokens as number | undefined) ??
+    (usageAny.cachedPromptTokenCount as number | undefined) ??
+    (usageAny.cachedInputTokens as number | undefined) ??
+    (usageAny.cachedTokens as number | undefined) ??
     0;
 
-  // Extract reasoning tokens if present (Google AI SDK may provide this)
-  // Reasoning tokens can be in various formats:
-  // - reasoningTokens (direct field)
-  // - usage.reasoningTokens
-  // - nested in usage object
+  // Extract reasoning tokens (various field names for backward compatibility)
   const reasoningTokens =
-    usage.reasoningTokens ?? usage.reasoning ?? result.reasoningTokens ?? 0;
+    (usage.reasoningTokens as number | undefined) ??
+    (usageAny.reasoning as number | undefined) ??
+    ((typedResult as Record<string, unknown>).reasoningTokens as
+      | number
+      | undefined) ??
+    0;
 
   // Calculate non-cached prompt tokens
   // If we have cached tokens, the promptTokens might include them
@@ -1592,36 +1634,6 @@ export function extractTokenUsage(
     reasoningTokens,
     allUsageFields: Object.keys(usage),
   });
-
-  // Warn if we found unexpected fields that might be relevant
-  const knownFields = [
-    "promptTokens",
-    "inputTokens",
-    "promptTokenCount",
-    "completionTokens",
-    "outputTokens",
-    "completionTokenCount",
-    "totalTokens",
-    "totalTokenCount",
-    "cachedPromptTokenCount",
-    "cachedPromptTokens",
-    "cachedInputTokens",
-    "cachedTokens",
-    "reasoningTokens",
-    "reasoning",
-  ];
-  const unexpectedFields = Object.keys(usage).filter(
-    (key) => !knownFields.includes(key)
-  );
-  if (unexpectedFields.length > 0) {
-    console.warn(
-      "[extractTokenUsage] Found unexpected fields in usage object:",
-      {
-        unexpectedFields,
-        usageObject: usage,
-      }
-    );
-  }
 
   // Calculate totalTokens as the sum of prompt (including cached), completion, and reasoning tokens
   // This ensures reasoning tokens and cached prompt tokens are always included in the total

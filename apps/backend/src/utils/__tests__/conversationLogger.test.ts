@@ -194,6 +194,43 @@ describe("conversationLogger", () => {
       expect(usage2?.cachedPromptTokens).toBeUndefined();
     });
 
+    it("should use totalUsage when available (preferred method)", () => {
+      const result = {
+        totalUsage: {
+          promptTokens: 1000,
+          completionTokens: 500,
+          totalTokens: 1500,
+          reasoningTokens: 200,
+          cachedPromptTokens: 100,
+        },
+        usage: {
+          promptTokens: 500, // This should be ignored when totalUsage is present
+          completionTokens: 250,
+          totalTokens: 750,
+        },
+        steps: [
+          {
+            usage: {
+              promptTokens: 300,
+              completionTokens: 150,
+              totalTokens: 450,
+            },
+          },
+        ],
+      };
+
+      const usage = extractTokenUsage(result);
+
+      // Should use totalUsage, not usage or steps
+      expect(usage).toEqual({
+        promptTokens: 900, // 1000 - 100 cached
+        completionTokens: 500,
+        totalTokens: 1700, // max(1500, 900 + 100 + 500 + 200)
+        reasoningTokens: 200,
+        cachedPromptTokens: 100,
+      });
+    });
+
     it("should handle both cached tokens and reasoning tokens", () => {
       const result = {
         usage: {

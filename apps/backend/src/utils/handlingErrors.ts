@@ -21,17 +21,17 @@ export function isAuthenticationError(error: unknown): boolean {
   // Helper to check a single error object
   const checkError = (err: unknown): boolean => {
     if (!err) return false;
-    
+
     // Check if it's an Error instance
     if (err instanceof Error) {
       const message = err.message.toLowerCase();
-      
+
       // Check for HTTP status codes in error properties
       const statusCode = (err as { statusCode?: number }).statusCode;
       if (statusCode === 401 || statusCode === 403) {
         return true;
       }
-      
+
       // Check for authentication-related keywords in error message
       if (
         message.includes("api key") ||
@@ -49,18 +49,19 @@ export function isAuthenticationError(error: unknown): boolean {
         message.includes("no cookie auth credentials") ||
         message.includes("cookie auth credentials") ||
         // NoOutputGeneratedError with "check the stream for errors" often indicates auth errors
-        (message.includes("no output generated") && message.includes("check the stream for errors"))
+        (message.includes("no output generated") &&
+          message.includes("check the stream for errors"))
       ) {
         return true;
       }
-      
+
       // Check error.cause (standard Error property) - recursively check the cause chain
       if (err.cause) {
         if (checkError(err.cause)) {
           return true;
         }
       }
-      
+
       // For AI SDK errors, check if there's a cause with statusCode
       // AI SDK wraps errors, so we need to check nested properties
       if (typeof err === "object" && err !== null && !(err instanceof Error)) {
@@ -73,11 +74,11 @@ export function isAuthenticationError(error: unknown): boolean {
         }
       }
     }
-    
+
     // Check if error object has statusCode property
     if (typeof err === "object" && err !== null) {
       const obj = err as Record<string, unknown>;
-      
+
       // Check statusCode
       if ("statusCode" in obj) {
         const statusCode = obj.statusCode;
@@ -85,7 +86,7 @@ export function isAuthenticationError(error: unknown): boolean {
           return true;
         }
       }
-      
+
       // Check status
       if ("status" in obj) {
         const status = obj.status;
@@ -93,7 +94,7 @@ export function isAuthenticationError(error: unknown): boolean {
           return true;
         }
       }
-      
+
       // Check response object (common in fetch errors)
       if ("response" in obj && obj.response) {
         const response = obj.response as Record<string, unknown>;
@@ -110,11 +111,11 @@ export function isAuthenticationError(error: unknown): boolean {
           }
         }
       }
-      
+
       // Check data/body for error messages (AI SDK errors often have error info in data)
       if ("data" in obj && typeof obj.data === "object" && obj.data !== null) {
         const data = obj.data as Record<string, unknown>;
-        
+
         // Check data.error.message (common in AI SDK errors)
         if ("error" in data) {
           const errorField = data.error;
@@ -135,7 +136,10 @@ export function isAuthenticationError(error: unknown): boolean {
               }
             }
             // Check for status code in error object
-            if ("code" in errorObj && (errorObj.code === 401 || errorObj.code === 403)) {
+            if (
+              "code" in errorObj &&
+              (errorObj.code === 401 || errorObj.code === 403)
+            ) {
               return true;
             }
           } else if (typeof errorField === "string") {
@@ -151,7 +155,7 @@ export function isAuthenticationError(error: unknown): boolean {
             }
           }
         }
-        
+
         // Check data.message directly
         if ("message" in data && typeof data.message === "string") {
           const errorMsg = data.message.toLowerCase();
@@ -168,7 +172,7 @@ export function isAuthenticationError(error: unknown): boolean {
           }
         }
       }
-      
+
       // Check body for error messages
       if ("body" in obj && typeof obj.body === "string") {
         try {
@@ -190,10 +194,10 @@ export function isAuthenticationError(error: unknown): boolean {
         }
       }
     }
-    
+
     return false;
   };
-  
+
   return checkError(error);
 }
 
@@ -226,7 +230,7 @@ export const handlingErrors = (
     // Database will be lazy-loaded only if workspace credit transactions are actually used
     // This avoids interfering with other handlers (e.g., auth) that need tables() with specific options
     const augmentedContext = augmentContextWithCreditTransactions(context);
-    
+
     let hadError = false;
     try {
       const result = await userHandler(event, augmentedContext, callback);
@@ -328,17 +332,19 @@ export const handlingErrors = (
           ? "[handlingErrors] Handler failed and additionally failed to commit credit transactions"
           : "[handlingErrors] Failed to commit credit transactions";
         console.error(messagePrefix + ":", commitError);
-        
+
         // Wrap the commit error to preserve context about prior handler failure
         const wrappedError =
           commitError instanceof Error
-            ? new Error(messagePrefix + ": " + commitError.message, { cause: commitError })
+            ? new Error(messagePrefix + ": " + commitError.message, {
+                cause: commitError,
+              })
             : new Error(messagePrefix + ": " + String(commitError));
-        
+
         // eslint-disable-next-line no-unsafe-finally
         throw wrappedError;
       }
-      
+
       // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
       // This ensures flushing happens on both success and error paths
       await Promise.all([flushPostHog(), flushSentry()]).catch(
@@ -360,11 +366,11 @@ export const handlingHttpAsyncErrors = (
     // Augment context with workspace credit transaction capability
     // Database will be lazy-loaded only if workspace credit transactions are actually used
     const augmentedContext = augmentContextWithCreditTransactions(context);
-    
+
     // Make context available to Express handlers via module-level storage
     const requestId = context.awsRequestId;
     setCurrentHTTPContext(requestId, augmentedContext);
-    
+
     let hadError = false;
     try {
       const result = await userHandler(req, augmentedContext);
@@ -405,14 +411,17 @@ export const handlingHttpAsyncErrors = (
         await commitContextTransactions(context, hadError);
       } catch (commitError) {
         // Commit failures cause handler to fail (per user requirement)
-        console.error("[handlingHttpAsyncErrors] Failed to commit credit transactions:", commitError);
+        console.error(
+          "[handlingHttpAsyncErrors] Failed to commit credit transactions:",
+          commitError
+        );
         // eslint-disable-next-line no-unsafe-finally
         throw commitError;
       } finally {
         // Clear context from module-level storage
         clearCurrentHTTPContext(requestId);
       }
-      
+
       // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
       // This ensures flushing happens on both success and error paths
       await Promise.all([flushPostHog(), flushSentry()]).catch(
@@ -488,19 +497,24 @@ export const handlingHttpErrors = (userHandler: HttpHandler): HttpHandler => {
  * Scheduled functions don't have user errors - all errors are server errors
  */
 export const handlingScheduledErrors = (
-  userHandler: (event: ScheduledEvent, context?: AugmentedContext) => Promise<void>
+  userHandler: (
+    event: ScheduledEvent,
+    context?: AugmentedContext
+  ) => Promise<void>
 ): ((event: ScheduledEvent) => Promise<void>) => {
   return async (event: ScheduledEvent): Promise<void> => {
     // Create a mock context for scheduled functions (they don't have a real context)
     // We'll create a minimal context object with awsRequestId
     const mockContext = {
-      awsRequestId: `scheduled-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      awsRequestId: `scheduled-${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(7)}`,
     } as Context;
-    
+
     // Augment context with workspace credit transaction capability
     // Database will be lazy-loaded only if workspace credit transactions are actually used
     const augmentedContext = augmentContextWithCreditTransactions(mockContext);
-    
+
     // Wrap user handler to pass augmented context
     // Scheduled handlers normally don't receive context from AWS,
     // but we can still pass our augmented mockContext as a second
@@ -510,7 +524,7 @@ export const handlingScheduledErrors = (
       // Handlers can opt in by accepting a second Context parameter
       await (userHandler as any)(e, augmentedContext);
     };
-    
+
     let hadError = false;
     try {
       await wrappedHandler(event);
@@ -563,11 +577,14 @@ export const handlingScheduledErrors = (
         await commitContextTransactions(mockContext, hadError);
       } catch (commitError) {
         // Commit failures cause handler to fail (per user requirement)
-        console.error("[handlingScheduledErrors] Failed to commit credit transactions:", commitError);
+        console.error(
+          "[handlingScheduledErrors] Failed to commit credit transactions:",
+          commitError
+        );
         // eslint-disable-next-line no-unsafe-finally
         throw commitError;
       }
-      
+
       // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
       // This ensures flushing happens on both success and error paths
       await Promise.all([flushPostHog(), flushSentry()]).catch(

@@ -32,8 +32,9 @@ import {
   isMessageContentEmpty,
   startConversation,
   buildConversationErrorInfo,
+  type GenerateTextResultWithTotalUsage,
+  type TokenUsage,
 } from "../../utils/conversationLogger";
-import type { TokenUsage } from "../../utils/conversationLogger";
 import {
   handlingErrors,
   isAuthenticationError,
@@ -157,7 +158,9 @@ export const handler = adaptHttpHandler(
       // Get context for workspace credit transactions
       const context = getContextFromRequestId(awsRequestId);
       if (!context) {
-        throw new Error("Context not available for workspace credit transactions");
+        throw new Error(
+          "Context not available for workspace credit transactions"
+        );
       }
 
       // Validate request
@@ -278,8 +281,9 @@ export const handler = adaptHttpHandler(
         generationTimeMs = Date.now() - generationStartTime;
 
         // Extract token usage, generation IDs, and costs
+        // result from generateText has totalUsage property
         const extractionResult = extractTokenUsageAndCosts(
-          result,
+          result as unknown as GenerateTextResultWithTotalUsage,
           undefined,
           finalModelName,
           "webhook"

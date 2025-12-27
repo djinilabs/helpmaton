@@ -1,8 +1,11 @@
 import type { ModelMessage } from "ai";
 import { generateText } from "ai";
 
-import type { TokenUsage } from "../../../utils/conversationLogger";
-import { extractTokenUsage } from "../../../utils/conversationLogger";
+import {
+  extractTokenUsage,
+  type GenerateTextResultWithTotalUsage,
+  type TokenUsage,
+} from "../../../utils/conversationLogger";
 import {
   type WorkspaceAndAgent,
   buildGenerateTextOptions,
@@ -178,8 +181,11 @@ export async function handleToolContinuation(
   }
 
   // Get continuation text and token usage
+  // continuationResult from generateText has totalUsage property
   let continuationText: string;
-  const continuationTokenUsage = extractTokenUsage(continuationResult);
+  const continuationTokenUsage = extractTokenUsage(
+    continuationResult as unknown as GenerateTextResultWithTotalUsage
+  );
   try {
     continuationText = continuationResult.text;
   } catch (error) {

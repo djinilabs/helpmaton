@@ -51,8 +51,10 @@ import { database } from "../../tables";
 import {
   updateConversation,
   buildConversationErrorInfo,
+  type GenerateTextResultWithTotalUsage,
+  type StreamTextFinishResult,
+  type TokenUsage,
 } from "../../utils/conversationLogger";
-import type { TokenUsage } from "../../utils/conversationLogger";
 import {
   transformLambdaUrlToHttpV2Event,
   type LambdaUrlEvent,
@@ -917,11 +919,12 @@ async function logConversation(
     }
 
     // Extract token usage, generation ID, and costs
+    // streamResult from onFinish has totalUsage property
     const {
       openrouterGenerationId,
       provisionalCostUsd: extractedProvisionalCostUsd,
     } = extractTokenUsageAndCosts(
-      streamResult,
+      streamResult as unknown as StreamTextFinishResult,
       undefined,
       finalModelName,
       "stream"
@@ -1533,8 +1536,9 @@ const internalHandler = async (
     });
 
     // Extract token usage, generation ID, and costs
+    // streamResult from onFinish has totalUsage property
     const { tokenUsage } = extractTokenUsageAndCosts(
-      streamResult,
+      streamResult as unknown as StreamTextFinishResult,
       usage,
       context.finalModelName,
       "stream"

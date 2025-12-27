@@ -1,6 +1,8 @@
 import {
   extractTokenUsage,
   type TokenUsage,
+  type GenerateTextResultWithTotalUsage,
+  type StreamTextFinishResult,
 } from "../../utils/conversationLogger";
 import {
   extractOpenRouterCost,
@@ -24,27 +26,31 @@ export interface TokenAndCostExtraction {
  * Extracts token usage, generation ID, and costs from LLM result
  */
 export function extractTokenUsageAndCosts(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK response types are complex
-  result: any,
+  result: GenerateTextResultWithTotalUsage | StreamTextFinishResult | unknown,
   usage: unknown,
   modelName: string | undefined,
   endpoint: GenerationEndpoint
 ): TokenAndCostExtraction {
   // Extract token usage from result
-  const tokenUsage = extractTokenUsage({ ...result, usage });
+  // If usage is provided separately, merge it with result for extraction
+  const resultWithUsage = usage
+    ? { ...(result as Record<string, unknown>), usage }
+    : result;
+  const tokenUsage = extractTokenUsage(resultWithUsage);
 
   // Extract all OpenRouter generation IDs for cost verification
-  const openrouterGenerationIds = extractAllOpenRouterGenerationIds({
-    ...result,
-    usage,
-  });
+  const openrouterGenerationIds = extractAllOpenRouterGenerationIds(
+    resultWithUsage as Record<string, unknown>
+  );
 
   // Keep single ID for backward compatibility (first one or undefined)
   const openrouterGenerationId =
     openrouterGenerationIds.length > 0 ? openrouterGenerationIds[0] : undefined;
 
   // Extract cost from LLM response for provisional cost
-  const openrouterCostUsd = extractOpenRouterCost({ ...result, usage });
+  const openrouterCostUsd = extractOpenRouterCost(
+    resultWithUsage as Record<string, unknown>
+  );
   let provisionalCostUsd: number | undefined;
   if (openrouterCostUsd !== undefined && openrouterCostUsd >= 0) {
     // Convert from USD to millionths with 5.5% markup

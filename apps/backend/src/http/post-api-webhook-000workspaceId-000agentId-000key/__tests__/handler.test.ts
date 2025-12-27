@@ -1129,11 +1129,34 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
 
     // Mock generateText result with steps array (generateText format, not _steps)
     // This matches the actual structure from CloudWatch logs
+    // totalUsage aggregates usage from all steps automatically
+    const step1Usage = {
+      promptTokens: 524,
+      completionTokens: 9,
+      totalTokens: 533,
+      reasoningTokens: 0,
+      cachedPromptTokens: 0,
+    };
+    const step2Usage = {
+      promptTokens: 594,
+      completionTokens: 28,
+      totalTokens: 622,
+      reasoningTokens: 0,
+      cachedPromptTokens: 0,
+    };
     const mockGenerateTextResult = {
       text: "I found documents.",
       toolCalls: [], // Empty - tool calls are in steps
       toolResults: [], // Empty - tool results are in steps
       usage: undefined, // No top-level usage - it's in steps[].usage
+      totalUsage: {
+        // AI SDK provides totalUsage that aggregates all steps
+        promptTokens: step1Usage.promptTokens + step2Usage.promptTokens, // 1118
+        completionTokens: step1Usage.completionTokens + step2Usage.completionTokens, // 37
+        totalTokens: step1Usage.totalTokens + step2Usage.totalTokens, // 1155
+        reasoningTokens: 0,
+        cachedPromptTokens: 0,
+      },
       steps: [
         {
           content: [
@@ -1153,13 +1176,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
               },
             },
           ],
-          usage: {
-            inputTokens: 524,
-            outputTokens: 9,
-            totalTokens: 533,
-            reasoningTokens: 0,
-            cachedInputTokens: 0,
-          },
+          usage: step1Usage,
           response: {
             id: "gen-1766755634-mSZupEMPTYHYviRp0kbj",
           },
@@ -1178,13 +1195,7 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
               text: "I found documents.",
             },
           ],
-          usage: {
-            inputTokens: 594,
-            outputTokens: 28,
-            totalTokens: 622,
-            reasoningTokens: 0,
-            cachedInputTokens: 0,
-          },
+          usage: step2Usage,
           response: {
             id: "gen-1766755635-GhZIxomllM8bIk1B2vXN",
           },

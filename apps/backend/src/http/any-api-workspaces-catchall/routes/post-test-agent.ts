@@ -9,6 +9,9 @@ import {
   isMessageContentEmpty,
   updateConversation,
   buildConversationErrorInfo,
+  type GenerateTextResultWithTotalUsage,
+  type StreamTextFinishResult,
+  type TokenUsage,
 } from "../../../utils/conversationLogger";
 import { isAuthenticationError } from "../../../utils/handlingErrors";
 import { Sentry, ensureError } from "../../../utils/sentry";
@@ -1169,12 +1172,19 @@ export const registerPostTestAgent = (app: express.Application) => {
       }
 
       // Extract token usage, generation IDs, and costs
+      // result from streamText has totalUsage in onFinish callback, but we extract from the result object
+      // usage is extracted separately from the stream result
       const {
         tokenUsage,
         openrouterGenerationId,
         openrouterGenerationIds,
         provisionalCostUsd,
-      } = extractTokenUsageAndCosts(result, usage, finalModelName, "test");
+      } = extractTokenUsageAndCosts(
+        result as unknown as GenerateTextResultWithTotalUsage | StreamTextFinishResult,
+        usage,
+        finalModelName,
+        "test"
+      );
 
       // Adjust credit reservation based on actual cost (Step 2)
       await adjustCreditsAfterLLMCall(
