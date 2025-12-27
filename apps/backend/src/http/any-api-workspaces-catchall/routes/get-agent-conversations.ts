@@ -115,33 +115,32 @@ export const registerGetAgentConversations = (app: express.Application) => {
         : 50; // Default 50, max 100
       const cursor = req.query.cursor as string | undefined;
 
-      // Note: The tableApi query method automatically fetches all pages
-      // For proper pagination, we'd need to use the low-level client directly
-      // For now, we'll fetch all conversations and manually paginate
-      // This works but isn't ideal for very large datasets
-      const query: Parameters<(typeof db)["agent-conversations"]["query"]>[0] =
-        {
-          IndexName: "byAgentId",
-          KeyConditionExpression: "agentId = :agentId",
-          ExpressionAttributeValues: {
-            ":agentId": agentId,
-          },
-          ScanIndexForward: false, // Sort descending (most recent first)
-        };
+      // Query conversations by agentId using the byAgentIdAndLastMessageAt GSI with pagination
+      // This GSI sorts by lastMessageAt at the database level, so no in-memory sorting is needed
+      // Note: We add a FilterExpression to ensure only conversations for this workspace
+      // are returned (security check). This filtering happens at the database level.
+      const query: Parameters<
+        (typeof db)["agent-conversations"]["queryPaginated"]
+      >[0] = {
+        IndexName: "byAgentIdAndLastMessageAt",
+        KeyConditionExpression: "agentId = :agentId",
+        FilterExpression: "workspaceId = :workspaceId",
+        ExpressionAttributeValues: {
+          ":agentId": agentId,
+          ":workspaceId": workspaceId,
+        },
+        ScanIndexForward: false, // Sort descending (most recent first by lastMessageAt)
+      };
 
-      // Query all conversations (tableApi will fetch all pages)
-      const result = await db["agent-conversations"].query(query);
+      // Query with database-level pagination (only fetches requested page)
+      // Results are already sorted by lastMessageAt descending at the database level
+      const result = await db["agent-conversations"].queryPaginated(query, {
+        limit,
+        cursor: cursor || null,
+      });
 
-      // Filter to only conversations for this workspace and sort by lastMessageAt
-      const allConversations = result.items
-        .filter((c) => c.workspaceId === workspaceId)
-        .sort((a, b) => {
-          // Sort by lastMessageAt descending
-          const aTime = new Date(a.lastMessageAt).getTime();
-          const bTime = new Date(b.lastMessageAt).getTime();
-          return bTime - aTime;
-        })
-        .map((c) => {
+      // Map conversations to response format (no sorting needed - already sorted by DB)
+      const conversations = result.items.map((c) => {
           // Extract conversationId from pk: "conversations/{workspaceId}/{agentId}/{conversationId}"
           const pkParts = c.pk.split("/");
           const conversationId = pkParts[3];
@@ -159,36 +158,9 @@ export const registerGetAgentConversations = (app: express.Application) => {
           };
         });
 
-      // Handle cursor-based pagination
-      let startIndex = 0;
-      if (cursor) {
-        try {
-          const cursorData = JSON.parse(
-            Buffer.from(cursor, "base64").toString()
-          );
-          startIndex = cursorData.startIndex || 0;
-        } catch {
-          throw badRequest("Invalid cursor");
-        }
-      }
-
-      // Apply pagination
-      const conversations = allConversations.slice(
-        startIndex,
-        startIndex + limit
-      );
-
-      // Build next cursor if there are more results
-      let nextCursor: string | undefined;
-      if (startIndex + limit < allConversations.length) {
-        nextCursor = Buffer.from(
-          JSON.stringify({ startIndex: startIndex + limit })
-        ).toString("base64");
-      }
-
       res.json({
         conversations,
-        nextCursor,
+        nextCursor: result.nextCursor || undefined,
       });
     })
   );

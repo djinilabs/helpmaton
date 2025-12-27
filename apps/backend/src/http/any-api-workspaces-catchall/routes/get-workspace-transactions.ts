@@ -124,9 +124,9 @@ export const registerGetWorkspaceTransactions = (
         : 50; // Default 50, max 100
       const cursor = req.query.cursor as string | undefined;
 
-      // Query transactions by workspaceId (using pk)
+      // Query transactions by workspaceId (using pk) with pagination
       const query: Parameters<
-        (typeof db)["workspace-credit-transactions"]["query"]
+        (typeof db)["workspace-credit-transactions"]["queryPaginated"]
       >[0] = {
         KeyConditionExpression: "pk = :pk",
         ExpressionAttributeValues: {
@@ -135,11 +135,17 @@ export const registerGetWorkspaceTransactions = (
         ScanIndexForward: false, // Sort descending (most recent first, since sk contains timestamp)
       };
 
-      // Query all transactions (tableApi will fetch all pages)
-      const result = await db["workspace-credit-transactions"].query(query);
+      // Query with database-level pagination (only fetches requested page)
+      const result = await db["workspace-credit-transactions"].queryPaginated(
+        query,
+        {
+          limit,
+          cursor: cursor || null,
+        }
+      );
 
       // Map transactions to response format
-      const allTransactions = result.items.map((t) => {
+      const transactions = result.items.map((t) => {
         // Extract transaction ID from sk (format: `${timestamp}-${uuid}`)
         // For display, we'll use the full sk as the ID
         const transactionId = t.sk;
@@ -162,36 +168,9 @@ export const registerGetWorkspaceTransactions = (
         };
       });
 
-      // Handle cursor-based pagination
-      let startIndex = 0;
-      if (cursor) {
-        try {
-          const cursorData = JSON.parse(
-            Buffer.from(cursor, "base64").toString()
-          );
-          startIndex = cursorData.startIndex || 0;
-        } catch {
-          throw badRequest("Invalid cursor");
-        }
-      }
-
-      // Apply pagination
-      const transactions = allTransactions.slice(
-        startIndex,
-        startIndex + limit
-      );
-
-      // Build next cursor if there are more results
-      let nextCursor: string | undefined;
-      if (startIndex + limit < allTransactions.length) {
-        nextCursor = Buffer.from(
-          JSON.stringify({ startIndex: startIndex + limit })
-        ).toString("base64");
-      }
-
       res.json({
         transactions,
-        nextCursor,
+        nextCursor: result.nextCursor || undefined,
       });
     })
   );

@@ -556,6 +556,17 @@ export type TableAPI<
     query: Query,
     version?: string | null
   ) => Promise<QueryResponse<TTableRecord>>;
+  queryPaginated: (
+    query: Query,
+    options: {
+      limit: number;
+      cursor?: string | null;
+      version?: string | null;
+    }
+  ) => Promise<{
+    items: TTableRecord[];
+    nextCursor: string | null;
+  }>;
   queryAsync: (
     query: Query,
     version?: string | null

@@ -602,6 +602,90 @@ export const tableApi = <
     },
 
     /**
+     * Queries items from the table with pagination support
+     * Uses DynamoDB Limit and ExclusiveStartKey for efficient pagination
+     * Only fetches the requested page, not all results
+     *
+     * @param query - The DynamoDB query parameters
+     * @param options - Pagination options (limit, cursor, version)
+     * @returns Object containing items and nextCursor for pagination
+     */
+    queryPaginated: async (
+      query: Query,
+      options: {
+        limit: number;
+        cursor?: string | null;
+        version?: string | null;
+      }
+    ) => {
+      const { limit, cursor, version } = options;
+      try {
+        // Parse cursor (LastEvaluatedKey) if provided
+        let exclusiveStartKey: Record<string, unknown> | undefined = undefined;
+        if (cursor) {
+          try {
+            exclusiveStartKey = JSON.parse(
+              Buffer.from(cursor, "base64").toString()
+            ) as Record<string, unknown>;
+          } catch {
+            throw new Error("Invalid cursor format");
+          }
+        }
+
+        // Query with limit + 1 to detect if more results exist
+        const response = (await lowLevelTable.query({
+          ...query,
+          Limit: limit + 1,
+          ExclusiveStartKey: exclusiveStartKey,
+        })) as unknown as {
+          Items: TTableRecord[];
+          LastEvaluatedKey: Record<string, unknown> | undefined;
+        };
+
+        // Parse and validate items
+        const versionedItems = response.Items.map((item) =>
+          getVersion(parseItem(item, "queryPaginated") as TTableRecord, version)
+        );
+
+        const validItems = versionedItems
+          .map((item) => item.item)
+          .filter(Boolean) as TTableRecord[];
+
+        // Check if we have more results (we requested limit+1 to detect this)
+        const hasMore = validItems.length > limit;
+        const items = hasMore ? validItems.slice(0, limit) : validItems;
+
+        // Build next cursor if there are more results
+        // DynamoDB's LastEvaluatedKey contains the exact keys needed to continue
+        // the query from where we left off (works for both table and GSI queries)
+        let nextCursor: string | null = null;
+        if (hasMore && response.LastEvaluatedKey) {
+          // We got limit+1 items, so there are more results
+          // Use DynamoDB's LastEvaluatedKey which has the correct structure
+          // for continuing the query (includes GSI keys if using an index)
+          nextCursor = Buffer.from(
+            JSON.stringify(response.LastEvaluatedKey)
+          ).toString("base64");
+        }
+
+        return {
+          items,
+          nextCursor,
+        };
+      } catch (err: unknown) {
+        console.error("Error querying table with pagination", tableName, query, err);
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const error = new Error(
+          `Error querying table ${tableName} with pagination: ${errorMessage}`
+        );
+        if (err instanceof Error && err.stack) {
+          error.stack = err.stack;
+        }
+        throw error;
+      }
+    },
+
+    /**
      * Queries items from the table using DynamoDB query expressions
      * Returns an async generator that yields items one by one without buffering all results
      * Supports pagination and version-specific queries

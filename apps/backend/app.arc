@@ -215,6 +215,11 @@ agent-conversations
   pk **String
   name byAgentId
 
+agent-conversations
+  agentId *String
+  lastMessageAt **String
+  name byAgentIdAndLastMessageAt
+
 token-usage-aggregates
   workspaceId *String
   date **String

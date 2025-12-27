@@ -133,78 +133,58 @@ export const registerGetAgentTransactions = (app: express.Application) => {
         : 50; // Default 50, max 100
       const cursor = req.query.cursor as string | undefined;
 
-      // Query transactions by agentId using the byAgentId GSI
+      // Query transactions by agentId using the byAgentId GSI with pagination
+      // Note: We add a FilterExpression to ensure only transactions for this workspace
+      // are returned (security check). This filtering happens at the database level.
       const query: Parameters<
-        (typeof db)["workspace-credit-transactions"]["query"]
+        (typeof db)["workspace-credit-transactions"]["queryPaginated"]
       >[0] = {
         IndexName: "byAgentId",
         KeyConditionExpression: "agentId = :agentId",
+        FilterExpression: "workspaceId = :workspaceId",
         ExpressionAttributeValues: {
           ":agentId": agentId,
+          ":workspaceId": workspaceId,
         },
         ScanIndexForward: false, // Sort descending (most recent first)
       };
 
-      // Query all transactions (tableApi will fetch all pages)
-      const result = await db["workspace-credit-transactions"].query(query);
-
-      // Filter to only transactions for this workspace (security check)
-      // and map to response format
-      const allTransactions = result.items
-        .filter((t) => t.workspaceId === workspaceId)
-        .map((t) => {
-          // Extract transaction ID from sk (format: `${timestamp}-${uuid}`)
-          // For display, we'll use the full sk as the ID
-          const transactionId = t.sk;
-
-          return {
-            id: transactionId,
-            workspaceId: t.workspaceId,
-            agentId: t.agentId || null,
-            conversationId: t.conversationId || null,
-            source: t.source,
-            supplier: t.supplier,
-            model: t.model || null,
-            tool_call: t.tool_call || null,
-            description: t.description,
-            amountMillionthUsd: t.amountMillionthUsd,
-            workspaceCreditsBeforeMillionthUsd:
-              t.workspaceCreditsBeforeMillionthUsd,
-            workspaceCreditsAfterMillionthUsd: t.workspaceCreditsAfterMillionthUsd,
-            createdAt: t.createdAt,
-          };
-        });
-
-      // Handle cursor-based pagination
-      let startIndex = 0;
-      if (cursor) {
-        try {
-          const cursorData = JSON.parse(
-            Buffer.from(cursor, "base64").toString()
-          );
-          startIndex = cursorData.startIndex || 0;
-        } catch {
-          throw badRequest("Invalid cursor");
+      // Query with database-level pagination (only fetches requested page)
+      const result = await db["workspace-credit-transactions"].queryPaginated(
+        query,
+        {
+          limit,
+          cursor: cursor || null,
         }
-      }
-
-      // Apply pagination
-      const transactions = allTransactions.slice(
-        startIndex,
-        startIndex + limit
       );
 
-      // Build next cursor if there are more results
-      let nextCursor: string | undefined;
-      if (startIndex + limit < allTransactions.length) {
-        nextCursor = Buffer.from(
-          JSON.stringify({ startIndex: startIndex + limit })
-        ).toString("base64");
-      }
+      // Map transactions to response format
+      const transactions = result.items.map((t) => {
+        // Extract transaction ID from sk (format: `${timestamp}-${uuid}`)
+        // For display, we'll use the full sk as the ID
+        const transactionId = t.sk;
+
+        return {
+          id: transactionId,
+          workspaceId: t.workspaceId,
+          agentId: t.agentId || null,
+          conversationId: t.conversationId || null,
+          source: t.source,
+          supplier: t.supplier,
+          model: t.model || null,
+          tool_call: t.tool_call || null,
+          description: t.description,
+          amountMillionthUsd: t.amountMillionthUsd,
+          workspaceCreditsBeforeMillionthUsd:
+            t.workspaceCreditsBeforeMillionthUsd,
+          workspaceCreditsAfterMillionthUsd: t.workspaceCreditsAfterMillionthUsd,
+          createdAt: t.createdAt,
+        };
+      });
 
       res.json({
         transactions,
-        nextCursor,
+        nextCursor: result.nextCursor || undefined,
       });
     })
   );
