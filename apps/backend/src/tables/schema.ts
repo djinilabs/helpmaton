@@ -575,3 +575,63 @@ export type DatabaseSchema = {
   "user-api-key": TableAPI<"user-api-key">;
   "user-refresh-token": TableAPI<"user-refresh-token">;
 };
+
+/**
+ * Specification for a record to fetch in an atomic update operation
+ */
+export type RecordSpec = {
+  table: TableName;
+  pk: string;
+  sk?: string;
+};
+
+/**
+ * Map of record specifications keyed by string identifiers
+ * Used to specify which records to fetch for an atomic update
+ */
+export type AtomicUpdateRecordSpec = Map<string, RecordSpec>;
+
+/**
+ * Union type of all possible table record types
+ */
+export type TableRecord =
+  | z.infer<typeof tableSchemas["next-auth"]>
+  | z.infer<typeof tableSchemas.workspace>
+  | z.infer<typeof tableSchemas.permission>
+  | z.infer<typeof tableSchemas.agent>
+  | z.infer<typeof tableSchemas["agent-key"]>
+  | z.infer<typeof tableSchemas["workspace-api-key"]>
+  | z.infer<typeof tableSchemas["workspace-document"]>
+  | z.infer<typeof tableSchemas.output_channel>
+  | z.infer<typeof tableSchemas["agent-conversations"]>
+  | z.infer<typeof tableSchemas["credit-reservations"]>
+  | z.infer<typeof tableSchemas["token-usage-aggregates"]>
+  | z.infer<typeof tableSchemas["email-connection"]>
+  | z.infer<typeof tableSchemas["mcp-server"]>
+  | z.infer<typeof tableSchemas["trial-credit-requests"]>
+  | z.infer<typeof tableSchemas.subscription>
+  | z.infer<typeof tableSchemas["llm-request-buckets"]>
+  | z.infer<typeof tableSchemas["tavily-call-buckets"]>
+  | z.infer<typeof tableSchemas["workspace-invite"]>
+  | z.infer<typeof tableSchemas["agent-stream-servers"]>
+  | z.infer<typeof tableSchemas["user-api-key"]>
+  | z.infer<typeof tableSchemas["user-refresh-token"]>;
+
+/**
+ * Callback function for atomic update operations
+ * Receives a Map of fetched records (or undefined if not found) and returns
+ * an array of TableRecords to put in the transaction
+ */
+export type AtomicUpdateCallback = (
+  records: Map<string, TableRecord | undefined>
+) => Promise<TableRecord[]> | TableRecord[];
+
+/**
+ * Extended DatabaseSchema with atomicUpdate method for multi-table transactions
+ */
+export type DatabaseSchemaWithAtomicUpdate = DatabaseSchema & {
+  atomicUpdate: (
+    recordSpec: AtomicUpdateRecordSpec,
+    callback: AtomicUpdateCallback
+  ) => Promise<TableRecord[]>;
+};

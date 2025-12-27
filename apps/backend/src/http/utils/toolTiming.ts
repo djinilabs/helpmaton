@@ -77,3 +77,4 @@ export function clearToolTiming(toolCallId: string): void {
 export function clearAllToolTiming(): void {
   toolTimingMap.clear();
 }
+
