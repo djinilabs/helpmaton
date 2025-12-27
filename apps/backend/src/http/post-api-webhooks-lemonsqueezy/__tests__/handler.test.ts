@@ -1,6 +1,11 @@
-import type { Callback, Context } from "aws-lambda";
+import type {
+  APIGatewayProxyEventV2,
+  Callback,
+  Context,
+} from "aws-lambda";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { AugmentedContext } from "../../../utils/workspaceCreditContext";
 import { createAPIGatewayEventV2 } from "../../utils/__tests__/test-helpers";
 import { handler } from "../index";
 
@@ -74,10 +79,21 @@ vi.mock("../../../utils/apiGatewayUsagePlans", () => ({
 }));
 
 // Mock workspaceCreditContext
-const mockContext = {
+const mockContext: AugmentedContext = {
   awsRequestId: "test-request-id",
   addWorkspaceCreditTransaction: vi.fn(),
-} as any;
+  getRemainingTimeInMillis: () => 30000,
+  functionName: "test-function",
+  functionVersion: "$LATEST",
+  invokedFunctionArn: "arn:aws:lambda:us-east-1:123456789012:function:test",
+  memoryLimitInMB: "128",
+  logGroupName: "/aws/lambda/test",
+  logStreamName: "2024/01/01/[$LATEST]test",
+  callbackWaitsForEmptyEventLoop: true,
+  succeed: vi.fn(),
+  fail: vi.fn(),
+  done: vi.fn(),
+} as AugmentedContext;
 
 vi.mock("../../../utils/workspaceCreditContext", () => ({
   getContextFromRequestId: vi.fn(() => mockContext),
@@ -551,7 +567,7 @@ describe("Lemon Squeezy Webhook Handler", () => {
         }),
         requestContext: {
           requestId: "test-request-id",
-        } as any,
+        } as APIGatewayProxyEventV2["requestContext"],
       });
 
       const lambdaContext: Context = {

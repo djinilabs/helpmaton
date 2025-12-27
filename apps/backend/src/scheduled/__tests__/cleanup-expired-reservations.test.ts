@@ -57,7 +57,7 @@ describe("cleanupExpiredReservations", () => {
       awsRequestId: "test-request-id",
       functionName: "test-function",
       functionVersion: "1",
-      memoryLimitInMB: 512,
+      memoryLimitInMB: "512",
       getRemainingTimeInMillis: () => 30000,
       logGroupName: "test-log-group",
       logStreamName: "test-log-stream",
@@ -67,7 +67,7 @@ describe("cleanupExpiredReservations", () => {
       fail: vi.fn(),
       succeed: vi.fn(),
       addWorkspaceCreditTransaction: vi.fn(),
-    } as unknown as any;
+    } as AugmentedContext;
   });
 
   it("should successfully process expired reservations and refund credits", async () => {

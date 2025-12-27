@@ -1,5 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import type {
+  LLMRequestBucketRecord,
+  SubscriptionRecord,
+  TavilyCallBucketRecord,
+} from "../../tables/schema";
+import {
+  getCurrentHourTimestamp,
+  getLast24HourTimestamps,
+  incrementRequestBucket,
+  getRequestCountLast24Hours,
+  checkDailyRequestLimit,
+  incrementTavilyCallBucket,
+  getTavilyCallCountLast24Hours,
+  checkTavilyDailyLimit,
+} from "../requestTracking";
+
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
 const {
   mockDatabase,
@@ -40,22 +56,6 @@ vi.mock("../subscriptionPlans", () => ({
 vi.mock("../../send-email", () => ({
   sendEmail: mockSendEmail,
 }));
-
-// Import after mocks are set up
-import type {
-  LLMRequestBucketRecord,
-  TavilyCallBucketRecord,
-} from "../../tables/schema";
-import {
-  getCurrentHourTimestamp,
-  getLast24HourTimestamps,
-  incrementRequestBucket,
-  getRequestCountLast24Hours,
-  checkDailyRequestLimit,
-  incrementTavilyCallBucket,
-  getTavilyCallCountLast24Hours,
-  checkTavilyDailyLimit,
-} from "../requestTracking";
 
 describe("requestTracking", () => {
   beforeEach(() => {
@@ -732,9 +732,7 @@ describe("requestTracking", () => {
 
       const result = await incrementTavilyCallBucket(workspaceId);
 
-      expect(
-        mockDb["tavily-call-buckets"].atomicUpdate
-      ).toHaveBeenCalledWith(
+      expect(mockDb["tavily-call-buckets"].atomicUpdate).toHaveBeenCalledWith(
         `tavily-call-buckets/${workspaceId}/2024-01-15T14:00:00.000Z`,
         undefined,
         expect.any(Function),
@@ -769,9 +767,7 @@ describe("requestTracking", () => {
 
       const result = await incrementTavilyCallBucket(workspaceId);
 
-      expect(
-        mockDb["tavily-call-buckets"].atomicUpdate
-      ).toHaveBeenCalledWith(
+      expect(mockDb["tavily-call-buckets"].atomicUpdate).toHaveBeenCalledWith(
         existingBucket.pk,
         undefined,
         expect.any(Function),
@@ -930,7 +926,9 @@ describe("requestTracking", () => {
       const buckets: TavilyCallBucketRecord[] = Array.from(
         { length: 10 },
         (_, i) => ({
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${14 - i}:00:00.000Z`,
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${
+            14 - i
+          }:00:00.000Z`,
           workspaceId,
           hourTimestamp: `2024-01-15T${14 - i}:00:00.000Z`,
           count: 1,
@@ -965,7 +963,7 @@ describe("requestTracking", () => {
       mockDatabase.mockResolvedValue(mockDb);
       mockGetWorkspaceSubscription.mockResolvedValue({
         plan: "starter",
-      } as any);
+      } as Partial<SubscriptionRecord>);
 
       const result = await checkTavilyDailyLimit(workspaceId);
 
@@ -980,7 +978,9 @@ describe("requestTracking", () => {
       const buckets: TavilyCallBucketRecord[] = Array.from(
         { length: 15 },
         (_, i) => ({
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${14 - i}:00:00.000Z`,
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${
+            14 - i
+          }:00:00.000Z`,
           workspaceId,
           hourTimestamp: `2024-01-15T${14 - i}:00:00.000Z`,
           count: 1,
@@ -999,7 +999,7 @@ describe("requestTracking", () => {
       mockDatabase.mockResolvedValue(mockDb);
       mockGetWorkspaceSubscription.mockResolvedValue({
         plan: "pro",
-      } as any);
+      } as Partial<SubscriptionRecord>);
 
       const result = await checkTavilyDailyLimit(workspaceId);
 
@@ -1014,7 +1014,9 @@ describe("requestTracking", () => {
       const buckets: TavilyCallBucketRecord[] = Array.from(
         { length: 10 },
         (_, i) => ({
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${14 - i}:00:00.000Z`,
+          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${
+            14 - i
+          }:00:00.000Z`,
           workspaceId,
           hourTimestamp: `2024-01-15T${14 - i}:00:00.000Z`,
           count: 1,
@@ -1033,7 +1035,7 @@ describe("requestTracking", () => {
       mockDatabase.mockResolvedValue(mockDb);
       mockGetWorkspaceSubscription.mockResolvedValue({
         plan: "free",
-      } as any);
+      } as Partial<SubscriptionRecord>);
 
       await expect(checkTavilyDailyLimit(workspaceId)).rejects.toThrow(
         "Daily Tavily API call limit exceeded"

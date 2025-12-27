@@ -2,6 +2,7 @@ import { badRequest, unauthorized } from "@hapi/boom";
 import { generateText } from "ai";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import type { AugmentedContext } from "../../../utils/workspaceCreditContext";
 // eslint-disable-next-line import/order
 import {
   createAPIGatewayEventV2,
@@ -149,10 +150,21 @@ vi.mock(
 );
 
 // Mock workspaceCreditContext
-const mockContext = {
+const mockContext: AugmentedContext = {
   awsRequestId: "test-request-id",
   addWorkspaceCreditTransaction: vi.fn(),
-} as any;
+  getRemainingTimeInMillis: () => 30000,
+  functionName: "test-function",
+  functionVersion: "$LATEST",
+  invokedFunctionArn: "arn:aws:lambda:us-east-1:123456789012:function:test",
+  memoryLimitInMB: "128",
+  logGroupName: "/aws/lambda/test",
+  logStreamName: "2024/01/01/[$LATEST]test",
+  callbackWaitsForEmptyEventLoop: true,
+  succeed: vi.fn(),
+  fail: vi.fn(),
+  done: vi.fn(),
+} as AugmentedContext;
 
 vi.mock("../../../utils/workspaceCreditContext", () => ({
   getContextFromRequestId: vi.fn(() => mockContext),

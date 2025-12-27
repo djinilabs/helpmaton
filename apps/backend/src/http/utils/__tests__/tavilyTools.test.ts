@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Type for tool with execute method (AI SDK tool type doesn't expose execute in types)
+// We use unknown as intermediate cast because the actual Tool type is complex
+type ToolWithExecute = {
+  execute: (args: unknown, options?: unknown) => Promise<string>;
+};
+
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
 const {
   mockDatabase,
@@ -114,7 +120,7 @@ describe("tavilyTools", () => {
         createdAt: new Date().toISOString(),
       });
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -171,7 +177,7 @@ describe("tavilyTools", () => {
       });
       mockAdjustTavilyCreditReservation.mockResolvedValue(undefined);
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -200,7 +206,7 @@ describe("tavilyTools", () => {
         tooManyRequests("Daily Tavily API call limit exceeded")
       );
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -231,7 +237,7 @@ describe("tavilyTools", () => {
       mockTavilySearch.mockRejectedValue(apiError);
       mockRefundTavilyCredits.mockResolvedValue(undefined);
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -271,7 +277,7 @@ describe("tavilyTools", () => {
       );
 
       // Should not throw - tracking failure is logged but doesn't fail the tool
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -302,7 +308,7 @@ describe("tavilyTools", () => {
         createdAt: new Date().toISOString(),
       });
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -341,7 +347,7 @@ describe("tavilyTools", () => {
         createdAt: new Date().toISOString(),
       });
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         query: "test query",
         max_results: 5,
       });
@@ -378,7 +384,7 @@ describe("tavilyTools", () => {
         createdAt: new Date().toISOString(),
       });
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         url: "https://example.com/article",
       });
 
@@ -428,7 +434,7 @@ describe("tavilyTools", () => {
       });
       mockAdjustTavilyCreditReservation.mockResolvedValue(undefined);
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         url: "https://example.com/article",
       });
 
@@ -456,7 +462,7 @@ describe("tavilyTools", () => {
         tooManyRequests("Daily Tavily API call limit exceeded")
       );
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         url: "https://example.com/article",
       });
 
@@ -486,7 +492,7 @@ describe("tavilyTools", () => {
       mockTavilyExtract.mockRejectedValue(apiError);
       mockRefundTavilyCredits.mockResolvedValue(undefined);
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         url: "https://example.com/article",
       });
 
@@ -519,7 +525,7 @@ describe("tavilyTools", () => {
       );
 
       // Should not throw - tracking failure is logged but doesn't fail the tool
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         url: "https://example.com/article",
       });
 
@@ -548,7 +554,7 @@ describe("tavilyTools", () => {
         createdAt: new Date().toISOString(),
       });
 
-      const result = await (tool as any).execute({
+      const result = await (tool as unknown as ToolWithExecute).execute({
         url: "https://example.com/article",
       });
 
