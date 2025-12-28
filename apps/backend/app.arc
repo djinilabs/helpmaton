@@ -138,6 +138,10 @@ token-usage-aggregates
   pk *String
   sk **String
 
+tool-usage-aggregates
+  pk *String
+  sk **String
+
 @tables-indexes
 
 next-auth
@@ -231,6 +235,21 @@ token-usage-aggregates
   name byAgentIdAndDate
 
 token-usage-aggregates
+  userId *String
+  date **String
+  name byUserIdAndDate
+
+tool-usage-aggregates
+  workspaceId *String
+  date **String
+  name byWorkspaceIdAndDate
+
+tool-usage-aggregates
+  agentId *String
+  date **String
+  name byAgentIdAndDate
+
+tool-usage-aggregates
   userId *String
   date **String
   name byUserIdAndDate

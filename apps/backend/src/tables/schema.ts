@@ -253,6 +253,21 @@ export const tableSchemas = {
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),
+  "tool-usage-aggregates": TableBaseSchema.extend({
+    pk: z.string(), // aggregate ID (e.g., "tool-aggregates/{workspaceId}/{date}" or "tool-aggregates/{agentId}/{date}" or "tool-aggregates/{userId}/{date}")
+    sk: z.string().optional(), // sort key: "{toolCall}:{supplier}"
+    date: z.string(), // date in YYYY-MM-DD format
+    aggregateType: z.enum(["workspace", "agent", "user"]), // type of aggregation
+    workspaceId: z.string().optional(), // workspace ID (required for workspace/agent aggregates)
+    agentId: z.string().optional(), // agent ID (required for agent aggregates)
+    userId: z.string().optional(), // user ID (required for user aggregates)
+    toolCall: z.string(), // tool name (e.g., "search_web", "fetch_web")
+    supplier: z.string(), // supplier name (e.g., "tavily")
+    costUsd: z.number().int(), // total cost in USD in millionths
+    callCount: z.number().int(), // number of tool calls
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
   "email-connection": TableBaseSchema.extend({
     pk: z.string(), // email-connection ID (e.g., "email-connections/{workspaceId}")
     sk: z.string().optional(), // optional sort key (fixed value "connection")
@@ -432,6 +447,7 @@ export type TableName =
   | "agent-conversations"
   | "credit-reservations"
   | "token-usage-aggregates"
+  | "tool-usage-aggregates"
   | "email-connection"
   | "mcp-server"
   | "trial-credit-requests"
@@ -465,6 +481,9 @@ export type CreditReservationRecord = z.infer<
 >;
 export type TokenUsageAggregateRecord = z.infer<
   (typeof tableSchemas)["token-usage-aggregates"]
+>;
+export type ToolUsageAggregateRecord = z.infer<
+  (typeof tableSchemas)["tool-usage-aggregates"]
 >;
 export type EmailConnectionRecord = z.infer<
   (typeof tableSchemas)["email-connection"]
@@ -603,6 +622,7 @@ export type DatabaseSchema = {
   "agent-conversations": TableAPI<"agent-conversations">;
   "credit-reservations": TableAPI<"credit-reservations">;
   "token-usage-aggregates": TableAPI<"token-usage-aggregates">;
+  "tool-usage-aggregates": TableAPI<"tool-usage-aggregates">;
   "email-connection": TableAPI<"email-connection">;
   "mcp-server": TableAPI<"mcp-server">;
   "trial-credit-requests": TableAPI<"trial-credit-requests">;
@@ -646,6 +666,7 @@ export type TableRecord =
   | z.infer<(typeof tableSchemas)["agent-conversations"]>
   | z.infer<(typeof tableSchemas)["credit-reservations"]>
   | z.infer<(typeof tableSchemas)["token-usage-aggregates"]>
+  | z.infer<(typeof tableSchemas)["tool-usage-aggregates"]>
   | z.infer<(typeof tableSchemas)["email-connection"]>
   | z.infer<(typeof tableSchemas)["mcp-server"]>
   | z.infer<(typeof tableSchemas)["trial-credit-requests"]>

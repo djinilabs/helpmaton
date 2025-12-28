@@ -64,6 +64,50 @@ export function addTransactionToBuffer(
 }
 
 /**
+ * Updates conversationId in all transactions in the buffer that don't have one
+ * This is useful when conversationId becomes available after transactions are created
+ * 
+ * @param buffer - Transaction buffer to update
+ * @param workspaceId - Workspace ID to filter transactions (optional, updates all if not provided)
+ * @param conversationId - Conversation ID to set on transactions
+ */
+export function updateTransactionBufferConversationId(
+  buffer: TransactionBuffer,
+  conversationId: string,
+  workspaceId?: string
+): void {
+  if (buffer.size === 0) {
+    return;
+  }
+
+  const workspacesToUpdate = workspaceId ? [workspaceId] : Array.from(buffer.keys());
+  let updatedCount = 0;
+
+  for (const wsId of workspacesToUpdate) {
+    const transactions = buffer.get(wsId);
+    if (!transactions) {
+      continue;
+    }
+
+    for (const transaction of transactions) {
+      if (!transaction.conversationId) {
+        transaction.conversationId = conversationId;
+        updatedCount++;
+      }
+    }
+  }
+
+  if (updatedCount > 0) {
+    console.log("[updateTransactionBufferConversationId] Updated transactions with conversationId:", {
+      conversationId,
+      workspaceId: workspaceId || "all",
+      updatedCount,
+      bufferSize: buffer.size,
+    });
+  }
+}
+
+/**
  * Commits all transactions in the buffer using atomic multi-table transaction
  * Aggregates transactions by workspace (sums amounts) but creates separate transaction records
  * 

@@ -2,6 +2,8 @@ import type {
   DatabaseSchema,
   AgentConversationRecord,
   TokenUsageAggregateRecord,
+  ToolUsageAggregateRecord,
+  WorkspaceCreditTransactionRecord,
 } from "../tables/schema";
 
 import type { TokenUsage } from "./conversationLogger";
@@ -15,6 +17,11 @@ export interface ByokStats {
   costUsd: number;
 }
 
+export interface ToolExpenseStats {
+  costUsd: number;
+  callCount: number;
+}
+
 export interface UsageStats {
   inputTokens: number;
   outputTokens: number;
@@ -26,6 +33,7 @@ export interface UsageStats {
     byok: ByokStats;
     platform: ByokStats;
   };
+  toolExpenses: Record<string, ToolExpenseStats>; // Key: "{toolCall}-{supplier}"
 }
 
 export interface DailyUsageStats extends UsageStats {
@@ -77,7 +85,7 @@ export function aggregateConversations(
     inputTokens: 0,
     outputTokens: 0,
     totalTokens: 0,
-    costUsd: 0,
+    costUsd: 0, // Cost now comes from transactions, not conversations
     byModel: {},
     byProvider: {},
     byByok: {
@@ -94,6 +102,7 @@ export function aggregateConversations(
         costUsd: 0,
       },
     },
+    toolExpenses: {},
   };
 
   for (const conv of conversations) {
@@ -169,13 +178,11 @@ export function aggregateConversations(
       // But we'll still count totalTokens
     }
 
-    const costUsd = conv.costUsd || 0;
-
-    // Aggregate totals
+    // Aggregate totals (cost comes from transactions, not conversations)
     stats.inputTokens += inputTokens;
     stats.outputTokens += outputTokens;
     stats.totalTokens += totalTokens;
-    stats.costUsd += costUsd;
+    // costUsd is not aggregated from conversations anymore
 
     // Aggregate by model
     const modelName = conv.modelName || "unknown";
@@ -190,7 +197,7 @@ export function aggregateConversations(
     stats.byModel[modelName].inputTokens += inputTokens;
     stats.byModel[modelName].outputTokens += outputTokens;
     stats.byModel[modelName].totalTokens += totalTokens;
-    stats.byModel[modelName].costUsd += costUsd;
+    // costUsd is not aggregated from conversations anymore
 
     // Aggregate by provider
     const provider = conv.provider || "unknown";
@@ -205,7 +212,7 @@ export function aggregateConversations(
     stats.byProvider[provider].inputTokens += inputTokens;
     stats.byProvider[provider].outputTokens += outputTokens;
     stats.byProvider[provider].totalTokens += totalTokens;
-    stats.byProvider[provider].costUsd += costUsd;
+    // costUsd is not aggregated from conversations anymore
 
     // Aggregate by BYOK
     const isByok = conv.usesByok === true;
@@ -213,7 +220,7 @@ export function aggregateConversations(
     stats.byByok[byokKey].inputTokens += inputTokens;
     stats.byByok[byokKey].outputTokens += outputTokens;
     stats.byByok[byokKey].totalTokens += totalTokens;
-    stats.byByok[byokKey].costUsd += costUsd;
+    // costUsd is not aggregated from conversations anymore
   }
 
   return stats;
@@ -229,7 +236,7 @@ export function aggregateAggregates(
     inputTokens: 0,
     outputTokens: 0,
     totalTokens: 0,
-    costUsd: 0,
+    costUsd: 0, // Cost now comes from transactions/aggregates, not token aggregates
     byModel: {},
     byProvider: {},
     byByok: {
@@ -246,14 +253,15 @@ export function aggregateAggregates(
         costUsd: 0,
       },
     },
+    toolExpenses: {},
   };
 
   for (const agg of aggregates) {
-    // Aggregate totals
+    // Aggregate totals (cost comes from transactions/aggregates, not token aggregates)
     stats.inputTokens += agg.inputTokens;
     stats.outputTokens += agg.outputTokens;
     stats.totalTokens += agg.totalTokens;
-    stats.costUsd += agg.costUsd;
+    // costUsd is not aggregated from token aggregates anymore
 
     // Aggregate by model
     const modelName = agg.modelName;
@@ -268,7 +276,7 @@ export function aggregateAggregates(
     stats.byModel[modelName].inputTokens += agg.inputTokens;
     stats.byModel[modelName].outputTokens += agg.outputTokens;
     stats.byModel[modelName].totalTokens += agg.totalTokens;
-    stats.byModel[modelName].costUsd += agg.costUsd;
+    // costUsd is not aggregated from token aggregates anymore
 
     // Aggregate by provider
     const provider = agg.provider;
@@ -283,7 +291,7 @@ export function aggregateAggregates(
     stats.byProvider[provider].inputTokens += agg.inputTokens;
     stats.byProvider[provider].outputTokens += agg.outputTokens;
     stats.byProvider[provider].totalTokens += agg.totalTokens;
-    stats.byProvider[provider].costUsd += agg.costUsd;
+    // costUsd is not aggregated from token aggregates anymore
 
     // Aggregate by BYOK
     const isByok = agg.usesByok === true;
@@ -291,7 +299,7 @@ export function aggregateAggregates(
     stats.byByok[byokKey].inputTokens += agg.inputTokens;
     stats.byByok[byokKey].outputTokens += agg.outputTokens;
     stats.byByok[byokKey].totalTokens += agg.totalTokens;
-    stats.byByok[byokKey].costUsd += agg.costUsd;
+    // costUsd is not aggregated from token aggregates anymore
   }
 
   return stats;
@@ -322,6 +330,7 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
         costUsd: 0,
       },
     },
+    toolExpenses: {},
   };
 
   for (const stats of statsArray) {

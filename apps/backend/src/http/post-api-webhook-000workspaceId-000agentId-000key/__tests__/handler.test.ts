@@ -168,6 +168,7 @@ const mockContext: AugmentedContext = {
 
 vi.mock("../../../utils/workspaceCreditContext", () => ({
   getContextFromRequestId: vi.fn(() => mockContext),
+  getTransactionBuffer: vi.fn(() => new Map()), // Return empty buffer for tests
   augmentContextWithCreditTransactions: vi.fn((context) => ({
     ...context,
     addWorkspaceCreditTransaction: vi.fn(),
@@ -175,6 +176,10 @@ vi.mock("../../../utils/workspaceCreditContext", () => ({
   commitContextTransactions: vi.fn().mockResolvedValue(undefined),
   setCurrentHTTPContext: vi.fn(),
   clearCurrentHTTPContext: vi.fn(),
+}));
+
+vi.mock("../../../utils/workspaceCreditTransactions", () => ({
+  updateTransactionBufferConversationId: vi.fn(), // Mock the new function
 }));
 
 vi.mock(

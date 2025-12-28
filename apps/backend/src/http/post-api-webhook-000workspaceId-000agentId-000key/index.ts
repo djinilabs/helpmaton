@@ -41,7 +41,11 @@ import {
 } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
 import { Sentry, ensureError } from "../../utils/sentry";
-import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
+import {
+  getContextFromRequestId,
+  getTransactionBuffer,
+} from "../../utils/workspaceCreditContext";
+import { updateTransactionBufferConversationId } from "../../utils/workspaceCreditTransactions";
 import { setupAgentAndTools } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
   convertTextToUIMessage,
@@ -845,6 +849,16 @@ export const handler = adaptHttpHandler(
           usesByok,
           awsRequestId,
         });
+
+        // Update transaction buffer with conversationId for any transactions that don't have it
+        // This ensures workspace transactions include the conversationId even though they were
+        // created before the conversation was logged
+        if (context) {
+          const buffer = getTransactionBuffer(context);
+          if (buffer) {
+            updateTransactionBufferConversationId(buffer, conversationId, workspaceId);
+          }
+        }
 
         // Update reservation with conversationId so it's available for Step 3
         if (
