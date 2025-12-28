@@ -44,7 +44,7 @@ There are three permission levels:
 
 1. **Principle of Least Privilege**: Grant minimum necessary permissions
 2. **Regular Audits**: Review workspace members periodically
-3. **Key Management**: Keep agent keys secure
+3. **Key Management**: Keep webhook keys secure
 4. **Document Access**: Be mindful of sensitive information in documents
 
 ## Common Scenarios

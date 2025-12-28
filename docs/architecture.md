@@ -427,7 +427,7 @@ Return response to client
 - **Session-based**: Cookie-based sessions for web UI
 - **JWT Tokens**: Short-lived access tokens for API
 - **API Keys**: User and workspace API keys
-- **Agent Keys**: Per-agent authentication for webhooks
+- **Webhooks**: Per-agent webhook endpoints for sending messages
 
 ### Data Protection
 

@@ -56,11 +56,11 @@
 - **PUT /api/workspaces/{workspaceId}/agents/{agentId}** - Update workspace agent
 - **DELETE /api/workspaces/{workspaceId}/agents/{agentId}** - Delete workspace agent
 
-### Agent Keys
+### Webhooks
 
-- **GET /api/workspaces/{workspaceId}/agents/{agentId}/keys** - List agent keys
-- **POST /api/workspaces/{workspaceId}/agents/{agentId}/keys** - Create agent key
-- **DELETE /api/workspaces/{workspaceId}/agents/{agentId}/keys/{keyId}** - Delete agent key
+- **GET /api/workspaces/{workspaceId}/agents/{agentId}/keys** - List webhooks
+- **POST /api/workspaces/{workspaceId}/agents/{agentId}/keys** - Create webhook
+- **DELETE /api/workspaces/{workspaceId}/agents/{agentId}/keys/{keyId}** - Delete webhook
 
 ### Agent Spending Limits
 

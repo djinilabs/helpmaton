@@ -59,7 +59,7 @@ Common issues and solutions when using Helpmaton.
 **Problem**: Agent webhook or test endpoint doesn't return responses.
 
 **Solutions**:
-- Verify the agent key is correct
+- Verify the webhook key is correct
 - Check that the agent exists and is properly configured
 - Ensure the system prompt is valid
 - Review server logs for errors

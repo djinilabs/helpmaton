@@ -564,7 +564,7 @@ describe("requestTracking", () => {
         maxDocumentSizeBytes: 10 * 1024 * 1024,
         maxAgents: 5,
         maxManagers: 1,
-        maxDailyRequests: 2500,
+        maxDailyRequests: 3000,
       });
       mockGetUserEmailById.mockResolvedValue("user@example.com");
       mockSendEmail.mockResolvedValue({ message: "Email sent" });
@@ -661,7 +661,7 @@ describe("requestTracking", () => {
     it("should allow request when plan has no limit", async () => {
       // Note: This test uses "pro" plan but mocks maxDailyRequests as undefined
       // to test the conditional logic that allows requests when no limit is configured.
-      // In reality, the Pro plan has maxDailyRequests: 25000, but this test validates
+      // In reality, the Pro plan has maxDailyRequests: 10000, but this test validates
       // the behavior when a plan has no limit configured.
       const subscriptionId = "sub-123";
       const subscription = {

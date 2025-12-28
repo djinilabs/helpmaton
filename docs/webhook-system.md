@@ -28,14 +28,14 @@ POST https://app.helpmaton.com/api/webhook/ws_123/agent_456/key_789
 
 ## Authentication
 
-### Agent Keys
+### Webhooks
 
-Each agent can have multiple API keys for authentication:
+Each agent can have multiple webhooks for sending messages:
 
-- Keys are generated as UUIDs when created
+- Webhook keys are generated as UUIDs when created
 - Keys are stored in the `agent-key` table, encrypted at rest
-- Keys can be named for easy identification
-- Keys can be deleted if compromised
+- Webhooks can be named for easy identification
+- Webhooks can be deleted if compromised
 
 ### Key Validation
 
@@ -51,20 +51,20 @@ When a webhook request arrives:
 
 ### Key Management
 
-**Create Agent Key**:
+**Create Webhook**:
 
 ```
 POST /api/workspaces/:workspaceId/agents/:agentId/keys
 Body: { name?: string, provider?: "google" }
 ```
 
-**List Agent Keys**:
+**List Webhooks**:
 
 ```
 GET /api/workspaces/:workspaceId/agents/:agentId/keys
 ```
 
-**Delete Agent Key**:
+**Delete Webhook**:
 
 ```
 DELETE /api/workspaces/:workspaceId/agents/:agentId/keys/:keyId

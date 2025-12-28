@@ -31,14 +31,14 @@ Your role is to:
 If you don't know the answer, acknowledge it and offer to find out more information.
 ```
 
-## Agent Keys
+## Webhooks
 
-Each agent has one or more API keys that can be used to authenticate requests:
+Each agent has one or more webhooks that can be used to send messages:
 
-- Keys are generated automatically when created
-- Each key is unique and should be kept secure
-- Keys can be deleted if compromised
-- Use keys in webhook URLs to send messages to agents
+- Webhooks are created automatically when you generate a key
+- Each webhook has a unique key that should be kept secure
+- Webhooks can be deleted if compromised
+- Use webhook URLs to send messages to agents
 
 ## Testing Agents
 
@@ -129,6 +129,6 @@ Define custom client-side tools that execute in the client application rather th
 1. **Clear Prompts**: Write specific, actionable system prompts
 2. **Iterate**: Test and refine prompts based on agent responses
 3. **Document Context**: Upload relevant documents to inform agent behavior
-4. **Security**: Keep agent keys secure and rotate them regularly
+4. **Security**: Keep webhook keys secure and rotate them regularly
 5. **Tool Selection**: Enable only the tools your agent needs to minimize costs and complexity
 

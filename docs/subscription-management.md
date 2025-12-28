@@ -15,9 +15,9 @@ Helpmaton supports subscription-based access control with three plans: **free**,
 - **Maximum total document size**: 1 MB
 - **Maximum agents**: 1 (total across all workspaces)
 - **Maximum managers**: 1
-- **Maximum daily requests**: 50 LLM requests per 24 hours (rolling window)
+- **Maximum daily requests**: 25 LLM requests per 24 hours (rolling window)
 - **Maximum users**: 1 team member
-- **Maximum agent keys**: 5
+- **Maximum webhooks**: 5
 - **Maximum channels**: 2 output channels
 - **Maximum MCP servers**: 2
 - **Expiration**: None (free plans never expire)
@@ -29,9 +29,9 @@ Helpmaton supports subscription-based access control with three plans: **free**,
 - **Maximum total document size**: 10 MB
 - **Maximum agents**: 5 (total across all workspaces)
 - **Maximum managers**: 1
-- **Maximum daily requests**: 2,500 LLM requests per 24 hours (rolling window)
+- **Maximum daily requests**: 3,000 LLM requests per 24 hours (rolling window)
 - **Maximum users**: 1 team member
-- **Maximum agent keys**: 25
+- **Maximum webhooks**: 25
 - **Maximum channels**: 10 output channels
 - **Maximum MCP servers**: 10
 - **Expiration**: None (active until cancelled or upgraded)
@@ -43,9 +43,9 @@ Helpmaton supports subscription-based access control with three plans: **free**,
 - **Maximum total document size**: 100 MB
 - **Maximum agents**: 50 (total across all workspaces)
 - **Maximum managers**: Unlimited
-- **Maximum daily requests**: 25,000 LLM requests per 24 hours (rolling window)
+- **Maximum daily requests**: 10,000 LLM requests per 24 hours (rolling window)
 - **Maximum users**: 5 team members
-- **Maximum agent keys**: 250
+- **Maximum webhooks**: 250
 - **Maximum channels**: 50 output channels
 - **Maximum MCP servers**: 50
 - **Expiration**: None (active until cancelled or upgraded)
@@ -155,10 +155,10 @@ DELETE /api/subscriptions/:subscriptionId/managers/:userId
 - Counts all agents across all workspaces in the subscription
 - Returns error if limit would be exceeded
 
-### Agent Key Limits
+### Webhook Limits
 
-- Enforced when creating a new agent key
-- Counts all agent keys across all agents in the subscription
+- Enforced when creating a new webhook
+- Counts all webhooks across all agents in the subscription
 - Returns error if limit would be exceeded
 
 ### Channel Limits
@@ -261,7 +261,7 @@ Common error messages users may encounter:
 - **Agent limit exceeded**: "Agent limit exceeded. Maximum {N} agent(s) allowed for {plan} plan."
 - **Daily request limit exceeded**: "Daily request limit exceeded. Maximum {N} request(s) per 24 hours allowed for {plan} plan."
 - **User limit exceeded**: "User limit exceeded. Maximum {N} user(s) allowed for {plan} plan."
-- **Agent key limit exceeded**: "Agent key limit exceeded. Maximum {N} agent key(s) allowed for {plan} plan."
+- **Webhook limit exceeded**: "Webhook limit exceeded. Maximum {N} webhook(s) allowed for {plan} plan."
 - **Channel limit exceeded**: "Channel limit exceeded. Maximum {N} channel(s) allowed for {plan} plan."
 - **MCP server limit exceeded**: "MCP server limit exceeded. Maximum {N} MCP server(s) allowed for {plan} plan."
 - **Cannot add manager**: "User already has a non-free subscription and cannot be added as a manager."
@@ -281,7 +281,7 @@ Common error messages users may encounter:
 
 ### Centralized Limits
 
-All subscription limits (workspaces, documents, agents, managers, daily requests, users, agent keys, channels, and MCP servers) are defined in a single file: `apps/backend/src/utils/subscriptionPlans.ts`. This ensures consistency and makes it easy to update limits by modifying a single source of truth.
+All subscription limits (workspaces, documents, agents, managers, daily requests, users, webhooks, channels, and MCP servers) are defined in a single file: `apps/backend/src/utils/subscriptionPlans.ts`. This ensures consistency and makes it easy to update limits by modifying a single source of truth.
 
 ### Database Schema
 

@@ -36,7 +36,7 @@ describe("aggregateTokenUsageForDate", () => {
   let mockAgentQuery: ReturnType<typeof vi.fn>;
   let mockConversationsQuery: ReturnType<typeof vi.fn>;
   let mockUpsert: ReturnType<typeof vi.fn>;
-  let mockTransactionsQuery: ReturnType<typeof vi.fn>;
+  let mockTransactionsQueryAsync: ReturnType<typeof vi.fn>;
   let mockToolUpsert: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -48,7 +48,10 @@ describe("aggregateTokenUsageForDate", () => {
     mockAgentQuery = vi.fn().mockResolvedValue({ items: [] });
     mockConversationsQuery = vi.fn().mockResolvedValue({ items: [] });
     mockUpsert = vi.fn().mockResolvedValue({});
-    mockTransactionsQuery = vi.fn().mockResolvedValue({ items: [] });
+    // Mock queryAsync as an async generator
+    mockTransactionsQueryAsync = vi.fn(async function* () {
+      // Yield nothing by default - can be overridden in tests
+    });
     mockToolUpsert = vi.fn().mockResolvedValue({});
 
     // Setup mock database
@@ -66,7 +69,7 @@ describe("aggregateTokenUsageForDate", () => {
         upsert: mockUpsert,
       },
       "workspace-credit-transactions": {
-        query: mockTransactionsQuery,
+        queryAsync: mockTransactionsQueryAsync,
       },
       "tool-usage-aggregates": {
         upsert: mockToolUpsert,

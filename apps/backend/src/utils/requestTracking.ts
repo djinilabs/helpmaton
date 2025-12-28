@@ -227,21 +227,21 @@ export async function checkDailyRequestLimit(
           let upgradeOptionsHtml = "";
           if (subscription.plan === "free") {
             upgradeOptionsText = `Upgrade options:
-- Starter Plan: 2,500 requests per day
-- Pro Plan: 25,000 requests per day`;
+- Starter Plan: 3,000 requests per day
+- Pro Plan: 10,000 requests per day`;
             upgradeOptionsHtml = `
     <h2 style="color: #000; margin-top: 30px;">Upgrade Options:</h2>
     <ul>
-      <li><strong>Starter Plan:</strong> 2,500 requests per day</li>
-      <li><strong>Pro Plan:</strong> 25,000 requests per day</li>
+      <li><strong>Starter Plan:</strong> 3,000 requests per day</li>
+      <li><strong>Pro Plan:</strong> 10,000 requests per day</li>
     </ul>`;
           } else if (subscription.plan === "starter") {
             upgradeOptionsText = `Upgrade option:
-- Pro Plan: 25,000 requests per day`;
+- Pro Plan: 10,000 requests per day`;
             upgradeOptionsHtml = `
     <h2 style="color: #000; margin-top: 30px;">Upgrade Option:</h2>
     <ul>
-      <li><strong>Pro Plan:</strong> 25,000 requests per day</li>
+      <li><strong>Pro Plan:</strong> 10,000 requests per day</li>
     </ul>`;
           } else {
             // Pro plan - no upgrades available

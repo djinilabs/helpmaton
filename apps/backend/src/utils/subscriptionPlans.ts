@@ -21,7 +21,7 @@ const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
     maxDocumentSizeBytes: 1024 * 1024, // 1 MB
     maxAgents: 1,
     maxManagers: 1,
-    maxDailyRequests: 50,
+    maxDailyRequests: 25,
     maxUsers: 1,
     maxAgentKeys: 5,
     maxChannels: 2,
@@ -33,7 +33,7 @@ const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
     maxDocumentSizeBytes: 10 * 1024 * 1024, // 10 MB
     maxAgents: 5,
     maxManagers: 1,
-    maxDailyRequests: 2500,
+    maxDailyRequests: 3000,
     maxUsers: 1,
     maxAgentKeys: 25,
     maxChannels: 10,
@@ -44,7 +44,7 @@ const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
     maxDocuments: 1000,
     maxDocumentSizeBytes: 100 * 1024 * 1024, // 100 MB
     maxAgents: 50,
-    maxDailyRequests: 25000,
+    maxDailyRequests: 10000,
     maxUsers: 5,
     // maxManagers: undefined (unlimited)
     maxAgentKeys: 250,

@@ -255,32 +255,32 @@ DELETE /api/workspaces/:workspaceId/agents/:agentId
 
 Deletes an agent.
 
-## Agent Keys
+## Webhooks
 
-### List Agent Keys
+### List Webhooks
 
 ```
 GET /api/workspaces/:workspaceId/agents/:agentId/keys
 ```
 
-Returns all keys for an agent.
+Returns all webhooks for an agent.
 
-### Create Agent Key
+### Create Webhook
 
 ```
 POST /api/workspaces/:workspaceId/agents/:agentId/keys
 Body: { name?: string }
 ```
 
-Creates a new API key for an agent.
+Creates a new webhook for an agent.
 
-### Delete Agent Key
+### Delete Webhook
 
 ```
 DELETE /api/workspaces/:workspaceId/agents/:agentId/keys/:keyId
 ```
 
-Deletes an agent key.
+Deletes a webhook.
 
 ## Documents
 
