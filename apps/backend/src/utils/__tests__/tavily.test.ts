@@ -472,5 +472,18 @@ describe("tavily", () => {
 
       expect(extractCreditsUsed(response)).toBe(1);
     });
+
+    it("should return 1 credit when Tavily reports 0 credits", () => {
+      const response: TavilySearchResponse = {
+        query: "test",
+        response_time: 0.5,
+        results: [],
+        usage: {
+          credits_used: 0,
+        },
+      };
+
+      expect(extractCreditsUsed(response)).toBe(1);
+    });
   });
 });

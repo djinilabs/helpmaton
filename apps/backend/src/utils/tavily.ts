@@ -499,5 +499,7 @@ export function extractCreditsUsed(
 ): number {
   // Tavily API returns usage information in the response
   // Default to 1 credit per API call if not specified
-  return response.usage?.credits_used ?? 1;
+  // If Tavily reports 0 credits, assume 1 credit instead (minimum charge)
+  const creditsUsed = response.usage?.credits_used ?? 1;
+  return creditsUsed === 0 ? 1 : creditsUsed;
 }
