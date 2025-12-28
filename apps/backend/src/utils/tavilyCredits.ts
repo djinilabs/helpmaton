@@ -124,7 +124,7 @@ export async function reserveTavilyCredits(
  * @param workspaceId - Workspace ID
  * @param actualCreditsUsed - Actual credits consumed from Tavily API response
  * @param context - Augmented Lambda context for transaction creation (required)
- * @param toolName - Tool name ("search_web" or "fetch_web") for transaction metadata
+ * @param toolName - Tool name ("search_web" or "fetch_url") for transaction metadata
  * @param maxRetries - Maximum number of retries (default: 3, not used for transactions)
  * @param agentId - Agent ID (optional, for transaction tracking)
  * @param conversationId - Conversation ID (optional, for transaction tracking)
@@ -136,7 +136,7 @@ export async function adjustTavilyCreditReservation(
   workspaceId: string,
   actualCreditsUsed: number,
   context: AugmentedContext,
-  toolName: "search_web" | "fetch_web",
+  toolName: "search_web" | "fetch_url",
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _maxRetries: number = 3,
   agentId?: string,
@@ -335,7 +335,7 @@ export async function adjustTavilyCreditReservation(
  * @param reservationId - Reservation ID
  * @param workspaceId - Workspace ID
  * @param context - Augmented Lambda context for transaction creation (required)
- * @param toolName - Tool name ("search_web" or "fetch_web") for transaction metadata (optional)
+ * @param toolName - Tool name ("search_web" or "fetch_url") for transaction metadata (optional)
  * @param maxRetries - Maximum number of retries (default: 3, not used for transactions)
  * @param agentId - Agent ID (optional, for transaction tracking)
  * @param conversationId - Conversation ID (optional, for transaction tracking)
@@ -345,7 +345,7 @@ export async function refundTavilyCredits(
   reservationId: string,
   workspaceId: string,
   context: AugmentedContext,
-  toolName?: "search_web" | "fetch_web",
+  toolName?: "search_web" | "fetch_url",
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _maxRetries: number = 3,
   agentId?: string,

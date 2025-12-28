@@ -92,7 +92,7 @@ See [Environment Variables](../apps/backend/ENV.md) for configuration details.
 }
 ```
 
-### Web Fetch Tool (`fetch_web`)
+### Web Fetch Tool (`fetch_url`)
 
 **Description**: Extract and summarize content from a web page URL.
 
@@ -148,7 +148,7 @@ Tavily API calls are tracked per workspace using hourly buckets:
 Web tools are conditionally added to agents based on configuration:
 
 - `enableTavilySearch === true` → Adds `search_web` tool
-- `enableTavilyFetch === true` → Adds `fetch_web` tool
+- `enableTavilyFetch === true` → Adds `fetch_url` tool
 
 ### Agent Delegation
 
@@ -163,7 +163,7 @@ When agents delegate to other agents, Tavily tools are available if the target a
 ## Best Practices
 
 1. **Use Search for Research**: Use `search_web` when you need to find current information or multiple sources
-2. **Use Fetch for Specific Pages**: Use `fetch_web` when you have a specific URL and need its content
+2. **Use Fetch for Specific Pages**: Use `fetch_url` when you have a specific URL and need its content
 3. **Monitor Usage**: Track daily call counts to stay within free tier limits
 4. **Credit Management**: Ensure sufficient credits for paid tier workspaces exceeding free limits
 5. **Error Handling**: Handle rate limit and credit errors gracefully in agent prompts

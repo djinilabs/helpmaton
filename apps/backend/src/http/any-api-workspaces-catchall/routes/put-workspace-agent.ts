@@ -105,7 +105,8 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           enableSearchDocuments,
           enableSendEmail,
           enableTavilySearch,
-          enableTavilyFetch,
+          enableTavilyFetch, // Legacy field for backward compatibility
+          fetchWebProvider,
           clientTools,
           temperature,
           topP,
@@ -387,6 +388,24 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           }
         }
 
+        // Handle fetchWebProvider with backward compatibility for enableTavilyFetch
+        let resolvedFetchWebProvider: "tavily" | "jina" | undefined;
+        if (fetchWebProvider !== undefined) {
+          // New field takes precedence
+          if (fetchWebProvider !== null && fetchWebProvider !== "tavily" && fetchWebProvider !== "jina") {
+            throw badRequest(
+              "fetchWebProvider must be 'tavily', 'jina', or null"
+            );
+          }
+          resolvedFetchWebProvider = fetchWebProvider === null ? undefined : fetchWebProvider;
+        } else if (enableTavilyFetch !== undefined) {
+          // Legacy field: migrate to new field
+          resolvedFetchWebProvider = enableTavilyFetch === true ? "tavily" : undefined;
+        } else {
+          // Keep existing value
+          resolvedFetchWebProvider = agent.fetchWebProvider;
+        }
+
         // Update agent
         // Convert null to undefined for optional fields to match schema
         const updated = await db.agent.update({
@@ -426,10 +445,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             enableTavilySearch !== undefined
               ? enableTavilySearch
               : agent.enableTavilySearch,
-          enableTavilyFetch:
-            enableTavilyFetch !== undefined
-              ? enableTavilyFetch
-              : agent.enableTavilyFetch,
+          fetchWebProvider: resolvedFetchWebProvider,
           clientTools:
             clientTools !== undefined ? clientTools : agent.clientTools,
           spendingLimits:
@@ -499,7 +515,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           enableSearchDocuments: updated.enableSearchDocuments ?? false,
           enableSendEmail: updated.enableSendEmail ?? false,
           enableTavilySearch: updated.enableTavilySearch ?? false,
-          enableTavilyFetch: updated.enableTavilyFetch ?? false,
+          fetchWebProvider: updated.fetchWebProvider ?? null,
           clientTools: updated.clientTools ?? [],
           spendingLimits: updated.spendingLimits ?? [],
           temperature: updated.temperature ?? null,

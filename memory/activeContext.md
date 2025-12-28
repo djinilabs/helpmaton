@@ -165,7 +165,7 @@
 
 1. **Web Tools**:
    - `search_web`: Web search tool for finding current information, news, articles
-   - `fetch_web`: Content extraction tool for extracting and summarizing web page content
+   - `fetch_url`: Content extraction tool for extracting and summarizing web page content
    - Both tools require agent-level configuration to enable
    - Cost: $0.008 per call (first 10 calls/day free for paid tiers)
 

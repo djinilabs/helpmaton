@@ -590,7 +590,11 @@ async function callAgentInternal(
   message: string,
   callDepth: number,
   maxDepth: number,
-  context?: Awaited<ReturnType<typeof import("../../utils/workspaceCreditContext").getContextFromRequestId>>
+  context?: Awaited<
+    ReturnType<
+      typeof import("../../utils/workspaceCreditContext").getContextFromRequestId
+    >
+  >
 ): Promise<string> {
   // Check depth limit
   if (callDepth >= maxDepth) {
@@ -669,10 +673,17 @@ async function callAgentInternal(
     );
   }
 
-  // Add web fetch tool if enabled
-  if (targetAgent.enableTavilyFetch === true) {
+  // Add web fetch tool if enabled (based on provider selection)
+  if (targetAgent.fetchWebProvider === "tavily") {
     const { createTavilyFetchTool } = await import("./tavilyTools");
-    tools.fetch_web = createTavilyFetchTool(workspaceId, context, targetAgentId);
+    tools.fetch_url = createTavilyFetchTool(
+      workspaceId,
+      context,
+      targetAgentId
+    );
+  } else if (targetAgent.fetchWebProvider === "jina") {
+    const { createJinaFetchTool } = await import("./tavilyTools");
+    tools.fetch_url = createJinaFetchTool(workspaceId, targetAgentId);
   }
 
   if (targetAgent.notificationChannelId) {
@@ -855,7 +866,9 @@ async function callAgentInternal(
             targetAgentId
           );
         } else {
-          console.warn("[callAgentInternal] Context not available, skipping credit adjustment");
+          console.warn(
+            "[callAgentInternal] Context not available, skipping credit adjustment"
+          );
         }
         console.log(
           "[Agent Delegation] Credit reservation adjusted successfully"
@@ -924,7 +937,9 @@ async function callAgentInternal(
           if (context) {
             await refundReservation(db, reservationId, context);
           } else {
-            console.warn("[callAgentInternal] Context not available, skipping refund transaction");
+            console.warn(
+              "[callAgentInternal] Context not available, skipping refund transaction"
+            );
           }
         } catch (refundError) {
           // Log but don't fail - refund is best effort
@@ -978,7 +993,9 @@ async function callAgentInternal(
                 targetAgentId
               );
             } else {
-              console.warn("[callAgentInternal] Context not available, skipping credit adjustment");
+              console.warn(
+                "[callAgentInternal] Context not available, skipping credit adjustment"
+              );
             }
           } catch (adjustError) {
             console.error(
@@ -1089,7 +1106,11 @@ export function createCallAgentTool(
   currentAgentId: string,
   callDepth: number,
   maxDepth: number = 3,
-  context?: Awaited<ReturnType<typeof import("../../utils/workspaceCreditContext").getContextFromRequestId>>
+  context?: Awaited<
+    ReturnType<
+      typeof import("../../utils/workspaceCreditContext").getContextFromRequestId
+    >
+  >
 ) {
   const callAgentParamsSchema = z.object({
     agentId: z

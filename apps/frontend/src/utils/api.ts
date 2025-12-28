@@ -79,7 +79,7 @@ export interface Agent {
   enableSearchDocuments?: boolean;
   enableSendEmail?: boolean;
   enableTavilySearch?: boolean;
-  enableTavilyFetch?: boolean;
+  fetchWebProvider?: "tavily" | "jina" | null;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
   temperature?: number;
@@ -114,7 +114,7 @@ export interface UpdateAgentInput {
   enableSearchDocuments?: boolean;
   enableSendEmail?: boolean;
   enableTavilySearch?: boolean;
-  enableTavilyFetch?: boolean;
+  fetchWebProvider?: "tavily" | "jina" | null;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
   temperature?: number | null;

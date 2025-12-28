@@ -203,12 +203,19 @@ export async function setupAgentAndTools(
     );
   }
 
-  // Add web fetch tool if enabled
-  if (agent.enableTavilyFetch === true) {
+  // Add web fetch tool if enabled (based on provider selection)
+  if (agent.fetchWebProvider === "tavily") {
     const { createTavilyFetchTool } = await import("../../utils/tavilyTools");
-    tools.fetch_web = createTavilyFetchTool(
+    tools.fetch_url = createTavilyFetchTool(
       workspaceId,
       effectiveContext,
+      extractedAgentId,
+      options?.conversationId
+    );
+  } else if (agent.fetchWebProvider === "jina") {
+    const { createJinaFetchTool } = await import("../../utils/tavilyTools");
+    tools.fetch_url = createJinaFetchTool(
+      workspaceId,
       extractedAgentId,
       options?.conversationId
     );

@@ -131,6 +131,25 @@ This document describes the environment variables required for the helpmaton bac
   - If not set or set to any other value, the system enforces free tier limits (10 calls/day)
   - Production keys are pay-as-you-go: all calls are charged, no free tier allowance
 
+### `JINA_API_KEY`
+
+- **Description**: Jina Reader API key for web content extraction functionality
+- **Required**: No (Jina Reader API works without API key but with rate limits)
+- **Example**: `jina_...`
+- **How to obtain**:
+  1. Go to [Jina.ai Dashboard](https://jina.ai)
+  2. Sign up or log in to your account
+  3. Navigate to API Keys section
+  4. Create a new API key
+  5. Copy the key value
+- **Note**:
+  - Used for Jina Reader API when `fetchWebProvider` is set to `"jina"` for agents
+  - Optional: Jina Reader API works without API key (20 requests per minute limit)
+  - With API key: Rate limit increases to 200 requests per minute
+  - Free tier: 1 million free tokens available
+  - System-wide API key (not per-workspace)
+  - Jina Reader API is free to use (no credits charged to workspace)
+
 ### `SENTRY_DSN`
 
 - **Description**: Sentry Data Source Name (DSN) for error tracking and monitoring

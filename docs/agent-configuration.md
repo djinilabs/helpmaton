@@ -104,7 +104,7 @@ Enable the `send_email` tool to allow agents to send emails using the workspace 
 Enable web tools to allow agents to search the web and extract content from URLs:
 
 - **Web Search** (`search_web`): Search the web for current information, news, articles, and other web content. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
-- **Web Fetch** (`fetch_web`): Extract and summarize content from specific web page URLs. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
+- **Web Fetch** (`fetch_url`): Extract and summarize content from specific web page URLs. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
 
 **Daily Limits**:
 - Free tier: 10 calls per 24 hours

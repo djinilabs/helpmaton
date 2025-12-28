@@ -34,7 +34,9 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
   const hasSearchDocuments = agent?.enableSearchDocuments === true;
   const hasSendEmail = agent?.enableSendEmail === true && hasEmailConnection;
   const hasTavilySearch = agent?.enableTavilySearch === true;
-  const hasTavilyFetch = agent?.enableTavilyFetch === true;
+  const hasFetchWeb =
+    agent?.fetchWebProvider === "tavily" || agent?.fetchWebProvider === "jina";
+  const fetchWebProvider = agent?.fetchWebProvider;
   const enabledMcpServerIds = agent?.enabledMcpServerIds || [];
   const enabledMcpServers =
     mcpServersData?.servers.filter((server) =>
@@ -138,10 +140,10 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
       condition: hasSendEmail
         ? "Available (email tool enabled and email connection configured)"
         : agent?.enableSendEmail === true && !hasEmailConnection
-          ? "Not available (email tool enabled but no email connection configured)"
-          : !agent?.enableSendEmail
-            ? "Not available (email tool not enabled)"
-            : "Not available (email tool not enabled and no email connection configured)",
+        ? "Not available (email tool enabled but no email connection configured)"
+        : !agent?.enableSendEmail
+        ? "Not available (email tool not enabled)"
+        : "Not available (email tool not enabled and no email connection configured)",
       parameters: [
         {
           name: "to",
@@ -246,12 +248,18 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
       ],
     },
     {
-      name: "fetch_web",
+      name: "fetch_url",
       description:
-        "Extract and summarize content from a web page URL using Tavily extract API. This tool allows you to get the main content, title, and metadata from any web page. Use this when you need to read and understand the content of a specific webpage. Cost: $0.008 per call (first 10 calls/day free for paid tiers).",
+        fetchWebProvider === "tavily"
+          ? "Extract and summarize content from a web page URL using Tavily extract API. This tool allows you to get the main content, title, and metadata from any web page. Use this when you need to read and understand the content of a specific webpage. Cost: $0.008 per call (first 10 calls/day free for paid tiers)."
+          : fetchWebProvider === "jina"
+          ? "Extract and summarize content from a web page URL using Jina Reader API. This tool allows you to get the main content and title from any web page. Use this when you need to read and understand the content of a specific webpage. Free to use (no credits charged). Rate limits: may apply."
+          : "Extract and summarize content from a web page URL. This tool can use either Tavily extract API (costs credits) or Jina Reader API (free). Use this when you need to read and understand the content of a specific webpage.",
       alwaysAvailable: false,
-      condition: hasTavilyFetch
-        ? "Available (web fetch enabled)"
+      condition: hasFetchWeb
+        ? `Available (${
+            fetchWebProvider === "tavily" ? "Tavily" : "Jina"
+          } provider enabled)`
         : "Not available (web fetch not enabled)",
       parameters: [
         {

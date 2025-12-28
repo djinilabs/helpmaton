@@ -92,7 +92,8 @@ export const tableSchemas = {
     enableSearchDocuments: z.boolean().optional(), // enable document search tool for this agent (default: false)
     enableSendEmail: z.boolean().optional(), // enable email sending tool for this agent (default: false, requires workspace email connection)
     enableTavilySearch: z.boolean().optional(), // enable Web search tool for this agent (default: false)
-    enableTavilyFetch: z.boolean().optional(), // enable Web fetch tool for this agent (default: false)
+    enableTavilyFetch: z.boolean().optional(), // @deprecated Use fetchWebProvider instead. Legacy field for backward compatibility (default: false)
+    fetchWebProvider: z.enum(["tavily", "jina"]).optional(), // Web fetch provider: "tavily" uses Tavily extract API, "jina" uses Jina Reader API (default: undefined, no fetch tool)
     spendingLimits: z
       .array(
         z.object({
@@ -261,7 +262,7 @@ export const tableSchemas = {
     workspaceId: z.string().optional(), // workspace ID (required for workspace/agent aggregates)
     agentId: z.string().optional(), // agent ID (required for agent aggregates)
     userId: z.string().optional(), // user ID (required for user aggregates)
-    toolCall: z.string(), // tool name (e.g., "search_web", "fetch_web")
+    toolCall: z.string(), // tool name (e.g., "search_web", "fetch_url")
     supplier: z.string(), // supplier name (e.g., "tavily")
     costUsd: z.number().int(), // total cost in USD in millionths
     callCount: z.number().int(), // number of tool calls

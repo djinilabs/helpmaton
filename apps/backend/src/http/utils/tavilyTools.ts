@@ -7,6 +7,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { database } from "../../tables/database";
+import { jinaFetch } from "../../utils/jina";
 import {
   checkTavilyDailyLimit,
   incrementTavilyCallBucket,
@@ -308,14 +309,14 @@ export function createTavilyFetchTool(
       .string()
       .url("url must be a valid URL")
       .describe(
-        "REQUIRED: The URL to extract content from. This MUST be a valid URL starting with http:// or https://. Example: 'https://example.com/article'"
+        "REQUIRED: The URL to extract content from. This MUST be a valid URL starting with http:// or https://. Example: 'https://example.com/article. It can also be a JSON or markdown URL.'"
       ),
   });
 
   type FetchArgs = z.infer<typeof fetchParamsSchema>;
 
   const description =
-    "Extract and summarize content from a web page URL using Tavily extract API. This tool allows you to get the main content, title, and metadata from any web page. Use this when you need to read and understand the content of a specific webpage. CRITICAL REQUIREMENTS: (1) You MUST provide the 'url' parameter - it is REQUIRED and cannot be empty. (2) The 'url' parameter must be a valid URL starting with http:// or https://. (3) When the user asks you to fetch or read content from a URL, IMMEDIATELY call this tool with the required 'url' parameter. Example: If user says 'fetch content from https://example.com/article', call fetch_web with {url: 'https://example.com/article'}. Example: If user provides a URL, call fetch_web with {url: 'https://news.example.com/story'}. The tool extracts the main text content, title, and optionally images from the page.";
+    "Extract and summarize content from a web page URL using Tavily extract API. This tool allows you to get the main content, title, and metadata from any web resource, being HTML, JSON or markdown. Use this when you need to read and understand the content of a specific URL. CRITICAL REQUIREMENTS: (1) You MUST provide the 'url' parameter - it is REQUIRED and cannot be empty. (2) The 'url' parameter must be a valid URL starting with http:// or https://. (3) When the user asks you to fetch or read content from a URL, IMMEDIATELY call this tool with the required 'url' parameter. Example: If user says 'fetch content from https://example.com/article', call fetch_url with {url: 'https://example.com/article'}. Example: If user provides a URL, call fetch_url with {url: 'https://news.example.com/story'}. The tool extracts the main text content, title, and optionally images from the page.";
 
   return tool({
     description,
@@ -326,7 +327,7 @@ export function createTavilyFetchTool(
     execute: async (args: any) => {
       // Validate required parameters
       if (!args || typeof args !== "object") {
-        return "Error: fetch_web requires a 'url' parameter. Please provide a valid URL string.";
+        return "Error: fetch_url requires a 'url' parameter. Please provide a valid URL string.";
       }
 
       const typedArgs = args as FetchArgs;
@@ -334,19 +335,19 @@ export function createTavilyFetchTool(
 
       // Validate url parameter
       if (!url || typeof url !== "string" || url.trim().length === 0) {
-        return "Error: fetch_web requires a non-empty 'url' parameter. Please provide a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
+        return "Error: fetch_url requires a non-empty 'url' parameter. Please provide a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
       }
 
       // Basic URL validation
       try {
         new URL(url);
       } catch {
-        return "Error: fetch_web requires a valid URL. The 'url' parameter must be a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
+        return "Error: fetch_url requires a valid URL. The 'url' parameter must be a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
       }
 
       // Log tool call
-      console.log("[Tool Call] fetch_web", {
-        toolName: "fetch_web",
+      console.log("[Tool Call] fetch_url", {
+        toolName: "fetch_url",
         arguments: { url },
         workspaceId,
       });
@@ -359,7 +360,7 @@ export function createTavilyFetchTool(
         const limitCheck = await checkTavilyDailyLimit(workspaceId);
         const { withinFreeLimit, callCount } = limitCheck;
 
-        console.log("[fetch_web] Daily limit check:", {
+        console.log("[fetch_url] Daily limit check:", {
           workspaceId,
           withinFreeLimit,
           callCount,
@@ -370,7 +371,7 @@ export function createTavilyFetchTool(
         if (shouldReserveCredits) {
           if (!context) {
             throw new Error(
-              "Context not available for Tavily credit transactions (fetch_web)"
+              "Context not available for Tavily credit transactions (fetch_url)"
             );
           }
           const reservation = await reserveTavilyCredits(
@@ -383,7 +384,7 @@ export function createTavilyFetchTool(
             conversationId
           );
           reservationId = reservation.reservationId;
-          console.log("[fetch_web] Reserved credits:", {
+          console.log("[fetch_url] Reserved credits:", {
             workspaceId,
             reservationId,
             reservedAmount: reservation.reservedAmount,
@@ -401,7 +402,7 @@ export function createTavilyFetchTool(
         try {
           await incrementTavilyCallBucket(workspaceId);
         } catch (trackingError) {
-          console.error("[fetch_web] Failed to track Tavily API call usage", {
+          console.error("[fetch_url] Failed to track Tavily API call usage", {
             workspaceId,
             reservationId,
             error: trackingError,
@@ -419,11 +420,11 @@ export function createTavilyFetchTool(
             conversationId: conversationId || undefined,
             source: "tool-execution",
             supplier: "tavily",
-            tool_call: "fetch_web",
-            description: `Tavily API call: fetch_web - actual cost (free tier)`,
+            tool_call: "fetch_url",
+            description: `Tavily API call: fetch_url - actual cost (free tier)`,
             amountMillionthUsd: -actualCost, // Negative for debit (deducting from workspace)
           });
-          console.log("[fetch_web] Created transaction for free tier:", {
+          console.log("[fetch_url] Created transaction for free tier:", {
             workspaceId,
             actualCreditsUsed,
             actualCost,
@@ -439,7 +440,7 @@ export function createTavilyFetchTool(
         ) {
           if (!context) {
             throw new Error(
-              "Context not available for Tavily credit transactions (fetch_web adjustment)"
+              "Context not available for Tavily credit transactions (fetch_url adjustment)"
             );
           }
           await adjustTavilyCreditReservation(
@@ -448,12 +449,12 @@ export function createTavilyFetchTool(
             workspaceId,
             actualCreditsUsed,
             context,
-            "fetch_web",
+            "fetch_url",
             3, // maxRetries
             agentId,
             conversationId
           );
-          console.log("[fetch_web] Adjusted credits:", {
+          console.log("[fetch_url] Adjusted credits:", {
             workspaceId,
             reservationId,
             actualCreditsUsed,
@@ -481,8 +482,8 @@ export function createTavilyFetchTool(
         resultText += `\n\n[TOOL_COST:${costUsd}]`;
 
         // Log tool result
-        console.log("[Tool Result] fetch_web", {
-          toolName: "fetch_web",
+        console.log("[Tool Result] fetch_url", {
+          toolName: "fetch_url",
           url,
           creditsUsed: actualCreditsUsed,
           costUsd,
@@ -499,7 +500,7 @@ export function createTavilyFetchTool(
           try {
             if (!context) {
               throw new Error(
-                "Context not available for Tavily credit transactions (fetch_web refund)"
+                "Context not available for Tavily credit transactions (fetch_url refund)"
               );
             }
             await refundTavilyCredits(
@@ -507,17 +508,17 @@ export function createTavilyFetchTool(
               reservationId,
               workspaceId,
               context,
-              "fetch_web",
+              "fetch_url",
               3,
               agentId,
               conversationId
             );
-            console.log("[fetch_web] Refunded credits due to error:", {
+            console.log("[fetch_url] Refunded credits due to error:", {
               workspaceId,
               reservationId,
             });
           } catch (refundError) {
-            console.error("[fetch_web] Error refunding credits:", {
+            console.error("[fetch_url] Error refunding credits:", {
               workspaceId,
               reservationId,
               error:
@@ -531,10 +532,119 @@ export function createTavilyFetchTool(
         const errorMessage = `Error fetching web content: ${
           error instanceof Error ? error.message : String(error)
         }`;
-        console.error("[Tool Error] fetch_web", {
-          toolName: "fetch_web",
+        console.error("[Tool Error] fetch_url", {
+          toolName: "fetch_url",
           error: error instanceof Error ? error.message : String(error),
           arguments: { url },
+        });
+        return errorMessage;
+      }
+    },
+  });
+}
+
+/**
+ * Create web fetch tool using Jina Reader API
+ * Extracts and summarizes content from a URL using Jina.ai
+ * @param workspaceId - Workspace ID
+ * @param agentId - Agent ID (optional, for logging)
+ * @param conversationId - Conversation ID (optional, for logging)
+ */
+export function createJinaFetchTool(
+  workspaceId: string,
+  agentId?: string,
+  conversationId?: string
+) {
+  const fetchParamsSchema = z.object({
+    url: z
+      .string()
+      .url("url must be a valid URL")
+      .describe(
+        "REQUIRED: The URL to extract content from. This MUST be a valid URL starting with http:// or https://. Example: 'https://example.com/article'. It can also be a JSON or markdown URL."
+      ),
+  });
+
+  type FetchArgs = z.infer<typeof fetchParamsSchema>;
+
+  const description =
+    "Extract and summarize content from a URL using Jina Reader API. This tool allows you to get the main content and title from any web resource, being HTML, JSON or markdown. Use this when you need to read and understand the content of a specific URL. CRITICAL REQUIREMENTS: (1) You MUST provide the 'url' parameter - it is REQUIRED and cannot be empty. (2) The 'url' parameter must be a valid URL starting with http:// or https://. (3) When the user asks you to fetch or read content from a URL, IMMEDIATELY call this tool with the required 'url' parameter. Example: If user says 'fetch content from https://example.com/article', call fetch_url with {url: 'https://example.com/article'}. Example: If user provides a URL, call fetch_url with {url: 'https://news.example.com/story'}. The tool extracts the main text content and title from the page. Note: This tool is free to use (no credits charged).";
+
+  return tool({
+    description,
+    parameters: fetchParamsSchema,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
+    // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    execute: async (args: any) => {
+      // Validate required parameters
+      if (!args || typeof args !== "object") {
+        return "Error: fetch_url requires a 'url' parameter. Please provide a valid URL string.";
+      }
+
+      const typedArgs = args as FetchArgs;
+      const { url } = typedArgs;
+
+      // Validate url parameter
+      if (!url || typeof url !== "string" || url.trim().length === 0) {
+        return "Error: fetch_url requires a non-empty 'url' parameter. Please provide a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
+      }
+
+      // Basic URL validation
+      try {
+        new URL(url);
+      } catch {
+        return "Error: fetch_url requires a valid URL. The 'url' parameter must be a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
+      }
+
+      // Log tool call
+      console.log("[Tool Call] fetch_url (Jina)", {
+        toolName: "fetch_url",
+        provider: "jina",
+        arguments: { url },
+        workspaceId,
+        agentId,
+        conversationId,
+      });
+
+      try {
+        // Make Jina API call (no credit tracking needed - Jina is free)
+        const fetchResponse = await jinaFetch(url);
+
+        // Format extracted content
+        let resultText = `**Content extracted from ${url}:**\n\n`;
+
+        if (fetchResponse.title) {
+          resultText += `**Title:** ${fetchResponse.title}\n\n`;
+        }
+
+        resultText += `**Content:**\n${fetchResponse.content}\n`;
+
+        // Jina is free, so no cost tracking
+        // No [TOOL_COST:...] tag needed
+
+        // Log tool result
+        console.log("[Tool Result] fetch_url (Jina)", {
+          toolName: "fetch_url",
+          provider: "jina",
+          url,
+          workspaceId,
+          agentId,
+          conversationId,
+        });
+
+        return resultText;
+      } catch (error) {
+        const errorMessage = `Error fetching web content: ${
+          error instanceof Error ? error.message : String(error)
+        }`;
+        console.error("[Tool Error] fetch_url (Jina)", {
+          toolName: "fetch_url",
+          provider: "jina",
+          error: error instanceof Error ? error.message : String(error),
+          arguments: { url },
+          workspaceId,
+          agentId,
+          conversationId,
         });
         return errorMessage;
       }

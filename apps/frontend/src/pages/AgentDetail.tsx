@@ -252,10 +252,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     () => agent?.enableTavilySearch ?? false
   );
 
-  // Use agent prop directly for enableTavilyFetch, with local state for editing
-  const [enableTavilyFetch, setEnableTavilyFetch] = useState<boolean>(
-    () => agent?.enableTavilyFetch ?? false
-  );
+  // Use agent prop directly for fetchWebProvider, with local state for editing
+  const [fetchWebProvider, setFetchWebProvider] = useState<
+    "tavily" | "jina" | null
+  >(() => agent?.fetchWebProvider ?? null);
 
   // Use agent prop directly for clientTools, with local state for editing
   const [clientTools, setClientTools] = useState<ClientTool[]>(
@@ -473,18 +473,18 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     }
   }, [agent?.id, agent?.enableTavilySearch]);
 
-  // Synchronize enableTavilyFetch state with agent prop using useEffect
-  const prevEnableTavilyFetchRef = useRef<boolean | undefined>(
-    agent?.enableTavilyFetch
+  // Synchronize fetchWebProvider state with agent prop using useEffect
+  const prevFetchWebProviderRef = useRef<"tavily" | "jina" | null | undefined>(
+    agent?.fetchWebProvider
   );
   useEffect(() => {
-    const currentValue = agent?.enableTavilyFetch ?? false;
-    const prevValue = prevEnableTavilyFetchRef.current ?? false;
+    const currentValue = agent?.fetchWebProvider ?? null;
+    const prevValue = prevFetchWebProviderRef.current ?? null;
     if (currentValue !== prevValue) {
-      prevEnableTavilyFetchRef.current = currentValue;
-      setEnableTavilyFetch(currentValue);
+      prevFetchWebProviderRef.current = currentValue;
+      setFetchWebProvider(currentValue);
     }
-  }, [agent?.id, agent?.enableTavilyFetch]);
+  }, [agent?.id, agent?.fetchWebProvider]);
 
   // Synchronize clientTools state with agent prop using useEffect
   useEffect(() => {
@@ -772,22 +772,22 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     }
   };
 
-  const handleSaveTavilyFetch = async () => {
+  const handleSaveFetchWebProvider = async () => {
     try {
-      const valueToSave = enableTavilyFetch;
+      const valueToSave = fetchWebProvider;
       // Update ref immediately to prevent useEffect from overwriting our changes
-      prevEnableTavilyFetchRef.current = valueToSave;
+      prevFetchWebProviderRef.current = valueToSave;
       const updated = await updateAgent.mutateAsync({
-        enableTavilyFetch: valueToSave,
+        fetchWebProvider: valueToSave,
       });
       // Sync local state with updated agent data
-      const savedValue = updated.enableTavilyFetch ?? false;
-      prevEnableTavilyFetchRef.current = savedValue;
-      setEnableTavilyFetch(savedValue);
+      const savedValue = updated.fetchWebProvider ?? null;
+      prevFetchWebProviderRef.current = savedValue;
+      setFetchWebProvider(savedValue);
     } catch {
       // Error is handled by toast in the hook
       // Reset ref on error so useEffect can sync properly
-      prevEnableTavilyFetchRef.current = agent?.enableTavilyFetch;
+      prevFetchWebProviderRef.current = agent?.fetchWebProvider;
     }
   };
 
@@ -1864,9 +1864,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable the Web search tool to allow this agent to search
-                    the web for current information. Free tier: 10 calls/day.
-                    Paid tiers: 10 free calls/day, then $0.008 per call.
+                    Enable the Web search tool to allow this agent to search the
+                    web for current information. Free tier: 10 calls/day. Paid
+                    tiers: 10 free calls/day, then $0.008 per call.
                   </p>
                   <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
                     <input
@@ -1879,7 +1879,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       <div className="font-bold">Enable Web Search</div>
                       <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
                         Allow this agent to use the search_web tool to search
-                        the web for current information. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
+                        the web for current information. Cost: $0.008 per call
+                        (first 10 calls/day free for paid tiers).
                       </div>
                     </div>
                   </label>
@@ -1915,34 +1916,70 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable the Web fetch tool to allow this agent to extract
-                    and summarize content from web pages. Free tier: 10
-                    calls/day. Paid tiers: 10 free calls/day, then $0.008 per
-                    call.
+                    Choose a provider for the fetch_url tool. Tavily: $0.008 per
+                    call (first 10 calls/day free for paid tiers). Jina: Free
+                    (no credits charged).
                   </p>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-                    <input
-                      type="checkbox"
-                      checked={enableTavilyFetch}
-                      onChange={(e) => setEnableTavilyFetch(e.target.checked)}
-                      className="mt-1 rounded border-2 border-neutral-300"
-                    />
-                    <div className="flex-1">
-                      <div className="font-bold">Enable Web Fetch</div>
-                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                        Allow this agent to use the fetch_web tool to extract
-                        and summarize content from web pages. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
+                  <div className="space-y-3">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                      <input
+                        type="radio"
+                        name="fetchWebProvider"
+                        value=""
+                        checked={fetchWebProvider === null}
+                        onChange={() => setFetchWebProvider(null)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="font-bold">None</div>
+                        <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                          Disable the fetch_url tool for this agent.
+                        </div>
                       </div>
-                    </div>
-                  </label>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                      <input
+                        type="radio"
+                        name="fetchWebProvider"
+                        value="tavily"
+                        checked={fetchWebProvider === "tavily"}
+                        onChange={() => setFetchWebProvider("tavily")}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="font-bold">Tavily</div>
+                        <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                          Use Tavily extract API. Cost: $0.008 per call (first
+                          10 calls/day free for paid tiers).
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                      <input
+                        type="radio"
+                        name="fetchWebProvider"
+                        value="jina"
+                        checked={fetchWebProvider === "jina"}
+                        onChange={() => setFetchWebProvider("jina")}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="font-bold">Jina</div>
+                        <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                          Use Jina Reader API. Free to use (no credits charged).
+                          Rate limits may apply.
+                        </div>
+                      </div>
+                    </label>
+                  </div>
                   <button
-                    onClick={handleSaveTavilyFetch}
+                    onClick={handleSaveFetchWebProvider}
                     disabled={updateAgent.isPending}
                     className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {updateAgent.isPending
                       ? "Saving..."
-                      : "Save Web Fetch Setting"}
+                      : "Save Web Fetch Provider"}
                   </button>
                 </div>
               </LazyAccordionContent>
@@ -2456,10 +2493,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   <LoadingScreen compact message="Loading transactions..." />
                 }
               >
-                <TransactionTable
-                  workspaceId={workspaceId}
-                  agentId={agentId}
-                />
+                <TransactionTable workspaceId={workspaceId} agentId={agentId} />
               </QueryPanel>
             </LazyAccordionContent>
           </AccordionSection>

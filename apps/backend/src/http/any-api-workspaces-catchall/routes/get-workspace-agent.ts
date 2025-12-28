@@ -101,6 +101,11 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           throw resourceGone("Agent not found");
         }
 
+        // Migrate enableTavilyFetch to fetchWebProvider for backward compatibility
+        const fetchWebProvider =
+          agent.fetchWebProvider ??
+          (agent.enableTavilyFetch === true ? "tavily" : undefined);
+
         res.json({
           id: agentId,
           name: agent.name,
@@ -112,7 +117,7 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           enableSearchDocuments: agent.enableSearchDocuments ?? false,
           enableSendEmail: agent.enableSendEmail ?? false,
           enableTavilySearch: agent.enableTavilySearch ?? false,
-          enableTavilyFetch: agent.enableTavilyFetch ?? false,
+          fetchWebProvider: fetchWebProvider ?? null,
           clientTools: agent.clientTools ?? [],
           spendingLimits: agent.spendingLimits ?? [],
           temperature: agent.temperature ?? null,

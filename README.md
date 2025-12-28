@@ -54,7 +54,7 @@ Give your agents access to real-time, up-to-date information beyond their traini
 
 **Web Search** (`search_web`): Agents can search the web for current information, news, articles, and research. Perfect for finding the latest developments, answering questions about recent events, or discovering new resources. Search results include titles, URLs, content snippets, and relevance scores.
 
-**Content Extraction** (`fetch_web`): Extract and summarize content from any web page URL. Agents can read and understand specific web pages, analyze articles, extract key information, and provide insights from any online content.
+**Content Extraction** (`fetch_url`): Extract and summarize content from any web page URL. Agents can read and understand specific web pages, analyze articles, extract key information, and provide insights from any online content.
 
 **Key Advantages**:
 - **Real-Time Information**: Access current information that isn't in training data

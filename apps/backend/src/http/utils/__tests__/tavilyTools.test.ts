@@ -429,8 +429,8 @@ describe("tavilyTools", () => {
         conversationId: undefined,
         source: "tool-execution",
         supplier: "tavily",
-        tool_call: "fetch_web",
-        description: "Tavily API call: fetch_web - actual cost (free tier)",
+        tool_call: "fetch_url",
+        description: "Tavily API call: fetch_url - actual cost (free tier)",
         amountMillionthUsd: -8000, // 1 credit * 8000 = 8000, negative for debit
       });
       expect(result).toContain("Test Page");
@@ -493,7 +493,7 @@ describe("tavilyTools", () => {
         workspaceId,
         1, // actualCreditsUsed
         mockContext,
-        "fetch_web",
+        "fetch_url",
         3, // maxRetries
         undefined, // agentId
         undefined // conversationId
@@ -550,7 +550,7 @@ describe("tavilyTools", () => {
         "test-reservation-id",
         workspaceId,
         mockContext,
-        "fetch_web",
+        "fetch_url",
         3, // maxRetries
         undefined, // agentId
         undefined // conversationId
