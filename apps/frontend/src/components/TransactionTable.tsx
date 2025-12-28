@@ -1,3 +1,4 @@
+import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { lazy, Suspense, useState } from "react";
 import type { FC } from "react";
 import { Link } from "react-router-dom";
@@ -136,6 +137,16 @@ export const TransactionTable: FC<TransactionTableProps> = ({
         >
           {isRefetching ? "Refreshing..." : "Refresh"}
         </button>
+      </div>
+
+      <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
+        <div className="flex items-start gap-2">
+          <ExclamationTriangleIcon className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
+            Warning: Transaction records are automatically deleted after 1 year
+            for data retention purposes.
+          </p>
+        </div>
       </div>
 
       {transactions.length === 0 ? (

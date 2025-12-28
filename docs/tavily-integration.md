@@ -6,8 +6,8 @@ This document describes the Tavily API integration for web search and content ex
 
 Tavily provides two tools for agents:
 
-- **Tavily Search**: Search the web for current information, news, articles, and other web content
-- **Tavily Fetch**: Extract and summarize content from specific web page URLs
+- **Web search**: Search the web for current information, news, articles, and other web content
+- **Web fetch**: Extract and summarize content from specific web page URLs
 
 Both tools require agent-level configuration to enable and are subject to daily rate limits and credit-based billing.
 
@@ -18,7 +18,7 @@ Both tools require agent-level configuration to enable and are subject to daily 
 To enable Tavily tools for an agent:
 
 1. Navigate to the agent's detail page
-2. Go to the "Tavily Search Tool" or "Tavily Fetch Tool" section
+2. Go to the "Web Search Tool" or "Web Fetch Tool" section
 3. Toggle the switch to enable the desired tool
 4. Save the configuration
 
@@ -72,7 +72,7 @@ See [Environment Variables](../apps/backend/ENV.md) for configuration details.
 
 ### Web Search Tool (`search_web`)
 
-**Description**: Search the web using Tavily search API for current information.
+**Description**: Search the web for current information.
 
 **Parameters**:
 - `query` (string, required): The search query. Must be a non-empty string.

@@ -223,7 +223,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
     {
       name: "search_web",
       description:
-        "Search the web using Tavily search API. This tool allows you to find current information, news, articles, and other web content. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. Cost: $0.008 per call (first 10 calls/day free for paid tiers).",
+        "Search the web for current information, news, articles, and other web content. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. Cost: $0.008 per call (first 10 calls/day free for paid tiers).",
       alwaysAvailable: false,
       condition: hasTavilySearch
         ? "Available (web search enabled)"

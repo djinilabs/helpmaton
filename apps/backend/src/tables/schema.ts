@@ -91,8 +91,8 @@ export const tableSchemas = {
     enableMemorySearch: z.boolean().optional(), // enable memory search tool for this agent (default: false)
     enableSearchDocuments: z.boolean().optional(), // enable document search tool for this agent (default: false)
     enableSendEmail: z.boolean().optional(), // enable email sending tool for this agent (default: false, requires workspace email connection)
-    enableTavilySearch: z.boolean().optional(), // enable Tavily search tool for this agent (default: false)
-    enableTavilyFetch: z.boolean().optional(), // enable Tavily fetch tool for this agent (default: false)
+    enableTavilySearch: z.boolean().optional(), // enable Web search tool for this agent (default: false)
+    enableTavilyFetch: z.boolean().optional(), // enable Web fetch tool for this agent (default: false)
     spendingLimits: z
       .array(
         z.object({
@@ -430,6 +430,7 @@ export const tableSchemas = {
     workspaceCreditsAfterMillionthUsd: z.number().int(), // the expected credits after applying this transaction
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
+    expires: z.number().optional(), // TTL timestamp (1 year from creation)
   }),
 } as const;
 

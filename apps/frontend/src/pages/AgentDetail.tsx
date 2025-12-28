@@ -1846,14 +1846,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             </AccordionSection>
           )}
 
-          {/* Tavily Search Tool Section */}
+          {/* Web Search Tool Section */}
           {canEdit && (
             <AccordionSection
               id="tavily-search"
               title={
                 <>
                   <GlobeAltIcon className="mr-2 inline-block size-5" />
-                  TAVILY SEARCH TOOL
+                  WEB SEARCH TOOL
                 </>
               }
               isExpanded={expandedSection === "tavily-search"}
@@ -1864,7 +1864,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable the Tavily search tool to allow this agent to search
+                    Enable the Web search tool to allow this agent to search
                     the web for current information. Free tier: 10 calls/day.
                     Paid tiers: 10 free calls/day, then $0.008 per call.
                   </p>
@@ -1890,21 +1890,21 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   >
                     {updateAgent.isPending
                       ? "Saving..."
-                      : "Save Tavily Search Setting"}
+                      : "Save Web Search Setting"}
                   </button>
                 </div>
               </LazyAccordionContent>
             </AccordionSection>
           )}
 
-          {/* Tavily Fetch Tool Section */}
+          {/* Web Fetch Tool Section */}
           {canEdit && (
             <AccordionSection
               id="tavily-fetch"
               title={
                 <>
                   <LinkIcon className="mr-2 inline-block size-5" />
-                  TAVILY FETCH TOOL
+                  WEB FETCH TOOL
                 </>
               }
               isExpanded={expandedSection === "tavily-fetch"}
@@ -1915,7 +1915,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable the Tavily fetch tool to allow this agent to extract
+                    Enable the Web fetch tool to allow this agent to extract
                     and summarize content from web pages. Free tier: 10
                     calls/day. Paid tiers: 10 free calls/day, then $0.008 per
                     call.
@@ -1942,7 +1942,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   >
                     {updateAgent.isPending
                       ? "Saving..."
-                      : "Save Tavily Fetch Setting"}
+                      : "Save Web Fetch Setting"}
                   </button>
                 </div>
               </LazyAccordionContent>

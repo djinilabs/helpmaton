@@ -104,7 +104,7 @@ This document describes the environment variables required for the helpmaton bac
 ### `TAVILY_API_KEY`
 
 - **Description**: Tavily API key for web search and content extraction functionality
-- **Required**: Yes (for Tavily search and fetch tools)
+- **Required**: Yes (for Web search and fetch tools)
 - **Example**: `tvly-...`
 - **How to obtain**:
   1. Go to [Tavily Dashboard](https://tavily.com)
@@ -113,7 +113,7 @@ This document describes the environment variables required for the helpmaton bac
   4. Create a new API key
   5. Copy the key value
 - **Note**:
-  - Used for Tavily search and fetch tools available to agents
+  - Used for Web search and fetch tools available to agents
   - System-wide API key (not per-workspace)
   - Tavily API returns usage information (credits consumed) in responses
   - Pricing: $0.008 per API call (1 credit = 1 call)

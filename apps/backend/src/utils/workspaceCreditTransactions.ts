@@ -9,6 +9,14 @@ import type { DatabaseSchemaWithAtomicUpdate, TableRecord , AtomicUpdateRecordSp
 let transactionCounter = 0;
 
 /**
+ * Calculate TTL timestamp (1 year from now in seconds)
+ * Used for workspace credit transaction expiration
+ */
+function calculateTransactionTTL(): number {
+  return Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60; // 1 year
+}
+
+/**
  * Workspace credit transaction input type
  */
 export type WorkspaceCreditTransaction = {
@@ -266,6 +274,7 @@ export async function commitTransactions(
         workspaceCreditsAfterMillionthUsd: newBalance,
         version: 1,
         createdAt: new Date().toISOString(),
+        expires: calculateTransactionTTL(),
       });
     }
 

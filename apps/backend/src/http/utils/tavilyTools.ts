@@ -26,7 +26,7 @@ import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 /**
  * Create web search tool
- * Searches the web using Tavily search API
+ * Searches the web for current information
  * @param workspaceId - Workspace ID
  * @param context - Augmented Lambda context for transaction creation (optional)
  * @param agentId - Agent ID (optional, for transaction tracking)
@@ -60,7 +60,7 @@ export function createTavilySearchTool(
   type SearchArgs = z.infer<typeof searchParamsSchema>;
 
   const description =
-    "Search the web using Tavily search API. This tool allows you to find current information, news, articles, and other web content. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. CRITICAL REQUIREMENTS: (1) You MUST provide the 'query' parameter - it is REQUIRED and cannot be empty. (2) The 'query' parameter must be a non-empty string containing what you want to search for. (3) The 'max_results' parameter is optional (defaults to 5 if not provided). (4) When the user asks you to search for something, IMMEDIATELY call this tool with the required 'query' parameter. Example: If user says 'search for latest AI news', call search_web with {query: 'latest AI news'}. Example: If user wants 10 results, call search_web with {query: 'Python tutorials', max_results: 10}. The search results include titles, URLs, content snippets, and relevance scores.";
+    "Search the web for current information, news, articles, and other web content. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. CRITICAL REQUIREMENTS: (1) You MUST provide the 'query' parameter - it is REQUIRED and cannot be empty. (2) The 'query' parameter must be a non-empty string containing what you want to search for. (3) The 'max_results' parameter is optional (defaults to 5 if not provided). (4) When the user asks you to search for something, IMMEDIATELY call this tool with the required 'query' parameter. Example: If user says 'search for latest AI news', call search_web with {query: 'latest AI news'}. Example: If user wants 10 results, call search_web with {query: 'Python tutorials', max_results: 10}. The search results include titles, URLs, content snippets, and relevance scores.";
 
   return tool({
     description,
@@ -275,7 +275,7 @@ export function createTavilySearchTool(
           }
         }
 
-        const errorMessage = `Error searching with Tavily: ${
+        const errorMessage = `Error searching the web: ${
           error instanceof Error ? error.message : String(error)
         }`;
         console.error("[Tool Error] search_web", {
@@ -291,7 +291,7 @@ export function createTavilySearchTool(
 
 /**
  * Create web fetch tool
- * Extracts and summarizes content from a URL using Tavily extract API
+ * Extracts and summarizes content from a URL
  * @param workspaceId - Workspace ID
  * @param context - Augmented Lambda context for transaction creation (optional)
  * @param agentId - Agent ID (optional, for transaction tracking)
@@ -528,7 +528,7 @@ export function createTavilyFetchTool(
           }
         }
 
-        const errorMessage = `Error fetching content with Tavily: ${
+        const errorMessage = `Error fetching web content: ${
           error instanceof Error ? error.message : String(error)
         }`;
         console.error("[Tool Error] fetch_web", {

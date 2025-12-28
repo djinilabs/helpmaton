@@ -236,7 +236,7 @@ describe("tavilyTools", () => {
         max_results: 5,
       });
 
-      expect(result).toContain("Error searching with Tavily");
+      expect(result).toContain("Error searching the web");
       expect(result).toContain("Daily Tavily API call limit exceeded");
     });
 
@@ -267,7 +267,7 @@ describe("tavilyTools", () => {
         max_results: 5,
       });
 
-      expect(result).toContain("Error searching with Tavily");
+      expect(result).toContain("Error searching the web");
       expect(result).toContain("Tavily API error");
       expect(mockRefundTavilyCredits).toHaveBeenCalledWith(
         mockDb,
@@ -513,7 +513,7 @@ describe("tavilyTools", () => {
         url: "https://example.com/article",
       });
 
-      expect(result).toContain("Error fetching content with Tavily");
+      expect(result).toContain("Error fetching web content");
       expect(result).toContain("Daily Tavily API call limit exceeded");
     });
 
@@ -543,7 +543,7 @@ describe("tavilyTools", () => {
         url: "https://example.com/article",
       });
 
-      expect(result).toContain("Error fetching content with Tavily");
+      expect(result).toContain("Error fetching web content");
       expect(result).toContain("Tavily API error");
       expect(mockRefundTavilyCredits).toHaveBeenCalledWith(
         mockDb,
