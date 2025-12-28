@@ -235,11 +235,14 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
   const allTransactions: WorkspaceCreditTransactionRecord[] = [];
 
   try {
-    // Query all transactions for the target date
+    // Query all transactions for the target date using queryAsync to handle pagination
     for (const workspaceId of workspaceIds) {
       try {
         const workspacePk = `workspaces/${workspaceId}`;
-        const transactionsQuery = await db["workspace-credit-transactions"].query({
+        const workspaceToolTransactions: WorkspaceCreditTransactionRecord[] = [];
+
+        // Use queryAsync to get all transactions (handles pagination automatically)
+        for await (const transaction of db["workspace-credit-transactions"].queryAsync({
           KeyConditionExpression: "pk = :pk",
           ExpressionAttributeNames: {
             "#createdAt": "createdAt",
@@ -250,15 +253,15 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
             ":endDate": endOfDay.toISOString(),
           },
           FilterExpression: "#createdAt BETWEEN :startDate AND :endDate",
-        });
+        })) {
+          // Filter only tool-execution transactions
+          if (transaction.source === "tool-execution") {
+            workspaceToolTransactions.push(transaction);
+          }
+        }
 
-        // Filter only tool-execution transactions
-        const toolTransactions = transactionsQuery.items.filter(
-          (txn) => txn.source === "tool-execution"
-        );
-
-        if (toolTransactions.length > 0) {
-          allTransactions.push(...toolTransactions);
+        if (workspaceToolTransactions.length > 0) {
+          allTransactions.push(...workspaceToolTransactions);
         }
       } catch (workspaceError) {
         console.error(

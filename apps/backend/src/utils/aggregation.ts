@@ -414,8 +414,8 @@ async function queryTransactionsForDateRange(
   const transactions: WorkspaceCreditTransactionRecord[] = [];
 
   if (agentId) {
-    // Query by agentId using GSI
-    const query = await db["workspace-credit-transactions"].query({
+    // Query by agentId using GSI with queryAsync to handle pagination
+    for await (const transaction of db["workspace-credit-transactions"].queryAsync({
       IndexName: "byAgentId",
       KeyConditionExpression: "agentId = :agentId",
       ExpressionAttributeNames: {
@@ -427,13 +427,13 @@ async function queryTransactionsForDateRange(
         ":endDate": endDate.toISOString(),
       },
       FilterExpression: "#createdAt BETWEEN :startDate AND :endDate",
-    });
-
-    transactions.push(...query.items);
+    })) {
+      transactions.push(transaction);
+    }
   } else if (workspaceId) {
-    // Query by workspaceId using pk
+    // Query by workspaceId using pk with queryAsync to handle pagination
     const workspacePk = `workspaces/${workspaceId}`;
-    const query = await db["workspace-credit-transactions"].query({
+    for await (const transaction of db["workspace-credit-transactions"].queryAsync({
       KeyConditionExpression: "pk = :pk",
       ExpressionAttributeNames: {
         "#createdAt": "createdAt",
@@ -444,9 +444,9 @@ async function queryTransactionsForDateRange(
         ":endDate": endDate.toISOString(),
       },
       FilterExpression: "#createdAt BETWEEN :startDate AND :endDate",
-    });
-
-    transactions.push(...query.items);
+    })) {
+      transactions.push(transaction);
+    }
   }
 
   // Filter by date range (additional safety check)
