@@ -155,6 +155,7 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/usage/daily", () => {
             costUsd: 0.001,
           },
         },
+        toolExpenses: {},
       })
       .mockResolvedValueOnce({
         inputTokens: 200,

@@ -121,6 +121,21 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
               cost: stats.byByok.platform.costUsd,
             },
           },
+          toolExpenses: Object.entries(stats.toolExpenses || {}).map(
+            ([key, toolStats]) => {
+              const [toolCall, supplier] = key.split("-");
+              const stats = toolStats as {
+                costUsd: number;
+                callCount: number;
+              };
+              return {
+                toolCall,
+                supplier,
+                cost: stats.costUsd,
+                callCount: stats.callCount,
+              };
+            }
+          ),
         },
       });
     };
@@ -177,6 +192,7 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
           costUsd: 0.025,
         },
       },
+      toolExpenses: {},
     };
 
     mockQueryUsageStats.mockResolvedValue(mockStats);
@@ -252,6 +268,7 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
             cost: 0.025,
           },
         },
+        toolExpenses: [],
       },
     });
   });
@@ -283,6 +300,7 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
           costUsd: 0.025,
         },
       },
+      toolExpenses: {},
     };
 
     mockQueryUsageStats.mockResolvedValue(mockStats);
@@ -407,6 +425,7 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
           costUsd: 0.0125,
         },
       },
+      toolExpenses: {},
     };
 
     mockQueryUsageStats.mockResolvedValue(mockStats);
@@ -465,6 +484,7 @@ describe("GET /api/workspaces/:workspaceId/usage", () => {
           costUsd: 0.025,
         },
       },
+      toolExpenses: {},
     };
 
     mockQueryUsageStats.mockResolvedValue(mockStats);

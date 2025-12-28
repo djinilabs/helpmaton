@@ -381,9 +381,323 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
     merged.byByok.platform.outputTokens += stats.byByok.platform.outputTokens;
     merged.byByok.platform.totalTokens += stats.byByok.platform.totalTokens;
     merged.byByok.platform.costUsd += stats.byByok.platform.costUsd;
+
+    // Merge toolExpenses
+    for (const [key, toolStats] of Object.entries(stats.toolExpenses)) {
+      if (!merged.toolExpenses[key]) {
+        merged.toolExpenses[key] = {
+          costUsd: 0,
+          callCount: 0,
+        };
+      }
+      merged.toolExpenses[key].costUsd += toolStats.costUsd;
+      merged.toolExpenses[key].callCount += toolStats.callCount;
+    }
   }
 
   return merged;
+}
+
+/**
+ * Query transactions for a date range
+ */
+async function queryTransactionsForDateRange(
+  db: DatabaseSchema,
+  options: {
+    workspaceId?: string;
+    agentId?: string;
+    startDate: Date;
+    endDate: Date;
+  }
+): Promise<WorkspaceCreditTransactionRecord[]> {
+  const { workspaceId, agentId, startDate, endDate } = options;
+  const transactions: WorkspaceCreditTransactionRecord[] = [];
+
+  if (agentId) {
+    // Query by agentId using GSI
+    const query = await db["workspace-credit-transactions"].query({
+      IndexName: "byAgentId",
+      KeyConditionExpression: "agentId = :agentId",
+      ExpressionAttributeNames: {
+        "#createdAt": "createdAt",
+      },
+      ExpressionAttributeValues: {
+        ":agentId": agentId,
+        ":startDate": startDate.toISOString(),
+        ":endDate": endDate.toISOString(),
+      },
+      FilterExpression: "#createdAt BETWEEN :startDate AND :endDate",
+    });
+
+    transactions.push(...query.items);
+  } else if (workspaceId) {
+    // Query by workspaceId using pk
+    const workspacePk = `workspaces/${workspaceId}`;
+    const query = await db["workspace-credit-transactions"].query({
+      KeyConditionExpression: "pk = :pk",
+      ExpressionAttributeNames: {
+        "#createdAt": "createdAt",
+      },
+      ExpressionAttributeValues: {
+        ":pk": workspacePk,
+        ":startDate": startDate.toISOString(),
+        ":endDate": endDate.toISOString(),
+      },
+      FilterExpression: "#createdAt BETWEEN :startDate AND :endDate",
+    });
+
+    transactions.push(...query.items);
+  }
+
+  // Filter by date range (additional safety check)
+  const filtered = transactions.filter((txn) => {
+    const createdAt = new Date(txn.createdAt);
+    return createdAt >= startDate && createdAt <= endDate;
+  });
+
+  return filtered;
+}
+
+/**
+ * Aggregate transactions for cost (excluding tool-execution)
+ */
+function aggregateTransactions(
+  transactions: WorkspaceCreditTransactionRecord[]
+): UsageStats {
+  const stats: UsageStats = {
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+    costUsd: 0,
+    byModel: {},
+    byProvider: {},
+    byByok: {
+      byok: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+      },
+      platform: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+      },
+    },
+    toolExpenses: {},
+  };
+
+  // Filter out tool-execution transactions (they're handled separately)
+  const nonToolTransactions = transactions.filter(
+    (txn) => txn.source !== "tool-execution"
+  );
+
+  for (const txn of nonToolTransactions) {
+    const costUsd = txn.amountMillionthUsd || 0;
+
+    // Aggregate totals
+    stats.costUsd += costUsd;
+
+    // Aggregate by model
+    const modelName = txn.model || "unknown";
+    if (!stats.byModel[modelName]) {
+      stats.byModel[modelName] = {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+      };
+    }
+    stats.byModel[modelName].costUsd += costUsd;
+
+    // Aggregate by provider
+    const provider = txn.supplier || "unknown";
+    if (!stats.byProvider[provider]) {
+      stats.byProvider[provider] = {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+      };
+    }
+    stats.byProvider[provider].costUsd += costUsd;
+
+    // Aggregate by BYOK (for text-generation and embedding-generation, BYOK is determined by supplier)
+    // For now, we'll treat all transactions as platform (BYOK transactions would have different handling)
+    // This might need adjustment based on actual BYOK tracking in transactions
+    stats.byByok.platform.costUsd += costUsd;
+  }
+
+  return stats;
+}
+
+/**
+ * Aggregate tool transactions
+ */
+function aggregateToolTransactions(
+  transactions: WorkspaceCreditTransactionRecord[]
+): UsageStats {
+  const stats: UsageStats = {
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+    costUsd: 0,
+    byModel: {},
+    byProvider: {},
+    byByok: {
+      byok: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+      },
+      platform: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+      },
+    },
+    toolExpenses: {},
+  };
+
+  // Filter only tool-execution transactions
+  const toolTransactions = transactions.filter(
+    (txn) => txn.source === "tool-execution"
+  );
+
+  for (const txn of toolTransactions) {
+    const costUsd = txn.amountMillionthUsd || 0;
+    const toolCall = txn.tool_call || "unknown";
+    const supplier = txn.supplier || "unknown";
+    const key = `${toolCall}-${supplier}`;
+
+    // Aggregate totals
+    stats.costUsd += costUsd;
+
+    // Aggregate by tool
+    if (!stats.toolExpenses[key]) {
+      stats.toolExpenses[key] = {
+        costUsd: 0,
+        callCount: 0,
+      };
+    }
+    stats.toolExpenses[key].costUsd += costUsd;
+    stats.toolExpenses[key].callCount += 1;
+  }
+
+  return stats;
+}
+
+/**
+ * Query tool aggregates for a specific date
+ */
+async function queryToolAggregatesForDate(
+  db: DatabaseSchema,
+  options: {
+    workspaceId?: string;
+    agentId?: string;
+    userId?: string;
+    date: string;
+  }
+): Promise<UsageStats> {
+  const { workspaceId, agentId, userId, date } = options;
+  const aggregates: ToolUsageAggregateRecord[] = [];
+
+  if (agentId) {
+    const query = await db["tool-usage-aggregates"].query({
+      IndexName: "byAgentIdAndDate",
+      KeyConditionExpression: "agentId = :agentId AND #date = :date",
+      ExpressionAttributeNames: {
+        "#date": "date",
+      },
+      ExpressionAttributeValues: {
+        ":agentId": agentId,
+        ":date": date,
+      },
+    });
+    aggregates.push(...query.items);
+  } else if (workspaceId) {
+    const query = await db["tool-usage-aggregates"].query({
+      IndexName: "byWorkspaceIdAndDate",
+      KeyConditionExpression: "workspaceId = :workspaceId AND #date = :date",
+      ExpressionAttributeNames: {
+        "#date": "date",
+      },
+      ExpressionAttributeValues: {
+        ":workspaceId": workspaceId,
+        ":date": date,
+      },
+    });
+    aggregates.push(...query.items);
+  } else if (userId) {
+    const query = await db["tool-usage-aggregates"].query({
+      IndexName: "byUserIdAndDate",
+      KeyConditionExpression: "userId = :userId AND #date = :date",
+      ExpressionAttributeNames: {
+        "#date": "date",
+      },
+      ExpressionAttributeValues: {
+        ":userId": userId,
+        ":date": date,
+      },
+    });
+    aggregates.push(...query.items);
+  }
+
+  return aggregateToolAggregates(aggregates);
+}
+
+/**
+ * Aggregate tool aggregates
+ */
+function aggregateToolAggregates(
+  aggregates: ToolUsageAggregateRecord[]
+): UsageStats {
+  const stats: UsageStats = {
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+    costUsd: 0,
+    byModel: {},
+    byProvider: {},
+    byByok: {
+      byok: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+      },
+      platform: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+      },
+    },
+    toolExpenses: {},
+  };
+
+  for (const agg of aggregates) {
+    const costUsd = agg.costUsd || 0;
+    const key = `${agg.toolCall}-${agg.supplier}`;
+
+    // Aggregate totals
+    stats.costUsd += costUsd;
+
+    // Aggregate by tool
+    if (!stats.toolExpenses[key]) {
+      stats.toolExpenses[key] = {
+        costUsd: 0,
+        callCount: 0,
+      };
+    }
+    stats.toolExpenses[key].costUsd += costUsd;
+    stats.toolExpenses[key].callCount += agg.callCount || 0;
+  }
+
+  return stats;
 }
 
 /**
@@ -417,7 +731,7 @@ export async function queryUsageStats(
 
   const statsPromises: Promise<UsageStats>[] = [];
 
-  // Query recent conversations
+  // Query recent conversations (for tokens) and transactions (for cost)
   if (recentDates.length > 0) {
     const recentStart = new Date(
       Math.min(...recentDates.map((d) => new Date(d).getTime()))
@@ -427,6 +741,7 @@ export async function queryUsageStats(
     );
     recentEnd.setHours(23, 59, 59, 999);
 
+    // Query conversations for tokens
     statsPromises.push(
       queryConversationsForDateRange(db, {
         workspaceId,
@@ -435,13 +750,36 @@ export async function queryUsageStats(
         endDate: recentEnd,
       })
     );
+
+    // Query transactions for cost (non-tool transactions)
+    const transactions = await queryTransactionsForDateRange(db, {
+      workspaceId,
+      agentId,
+      startDate: recentStart,
+      endDate: recentEnd,
+    });
+    statsPromises.push(Promise.resolve(aggregateTransactions(transactions)));
+
+    // Query transactions for tool expenses
+    statsPromises.push(Promise.resolve(aggregateToolTransactions(transactions)));
   }
 
-  // Query old aggregates
+  // Query old aggregates (tokens and costs)
   if (oldDates.length > 0) {
     for (const dateStr of oldDates) {
+      // Query token aggregates (for tokens)
       statsPromises.push(
         queryAggregatesForDate(db, {
+          workspaceId,
+          agentId,
+          userId,
+          date: dateStr,
+        })
+      );
+
+      // Query tool aggregates (for tool costs)
+      statsPromises.push(
+        queryToolAggregatesForDate(db, {
           workspaceId,
           agentId,
           userId,

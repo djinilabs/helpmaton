@@ -116,6 +116,7 @@ describe("get-api-usage handler", () => {
           costUsd: 0.001,
         },
       },
+      toolExpenses: {},
     };
 
     const mockUsageStats2 = {
@@ -141,6 +142,7 @@ describe("get-api-usage handler", () => {
           costGbp: 0.0016,
         },
       },
+      toolExpenses: {},
     };
 
     const mockMergedStats = {
@@ -180,6 +182,7 @@ describe("get-api-usage handler", () => {
           costGbp: 0.0024,
         },
       },
+      toolExpenses: {},
     };
 
     mockRequireSession.mockResolvedValue(mockSession);
@@ -312,6 +315,7 @@ describe("get-api-usage handler", () => {
           costUsd: 0,
         },
       },
+      toolExpenses: {},
     });
 
     const event = createAPIGatewayEventV2({
@@ -405,6 +409,7 @@ describe("get-api-usage handler", () => {
           costUsd: 0.001,
         },
       },
+      toolExpenses: {},
     };
 
     mockRequireSession.mockResolvedValue(mockSession);
@@ -470,6 +475,7 @@ describe("get-api-usage handler", () => {
           costUsd: 0,
         },
       },
+      toolExpenses: {},
     };
 
     mockMergeUsageStats.mockReturnValue(emptyStats);

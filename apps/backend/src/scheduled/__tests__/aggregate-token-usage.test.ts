@@ -36,6 +36,8 @@ describe("aggregateTokenUsageForDate", () => {
   let mockAgentQuery: ReturnType<typeof vi.fn>;
   let mockConversationsQuery: ReturnType<typeof vi.fn>;
   let mockUpsert: ReturnType<typeof vi.fn>;
+  let mockTransactionsQuery: ReturnType<typeof vi.fn>;
+  let mockToolUpsert: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -46,6 +48,8 @@ describe("aggregateTokenUsageForDate", () => {
     mockAgentQuery = vi.fn().mockResolvedValue({ items: [] });
     mockConversationsQuery = vi.fn().mockResolvedValue({ items: [] });
     mockUpsert = vi.fn().mockResolvedValue({});
+    mockTransactionsQuery = vi.fn().mockResolvedValue({ items: [] });
+    mockToolUpsert = vi.fn().mockResolvedValue({});
 
     // Setup mock database
     mockDb = {
@@ -60,6 +64,12 @@ describe("aggregateTokenUsageForDate", () => {
       },
       "token-usage-aggregates": {
         upsert: mockUpsert,
+      },
+      "workspace-credit-transactions": {
+        query: mockTransactionsQuery,
+      },
+      "tool-usage-aggregates": {
+        upsert: mockToolUpsert,
       },
     } as unknown as DatabaseSchema;
 
@@ -132,7 +142,7 @@ describe("aggregateTokenUsageForDate", () => {
     expect(upsertCall.inputTokens).toBe(100);
     expect(upsertCall.outputTokens).toBe(50);
     expect(upsertCall.totalTokens).toBe(150);
-    expect(upsertCall.costUsd).toBe(0.001);
+    expect(upsertCall.costUsd).toBe(0); // Cost now comes from transactions, not conversations
   });
 
   it("should query conversations correctly using date range filters", async () => {
@@ -265,7 +275,7 @@ describe("aggregateTokenUsageForDate", () => {
     expect(upsertCall.inputTokens).toBe(300); // 100 + 200
     expect(upsertCall.outputTokens).toBe(150); // 50 + 100
     expect(upsertCall.totalTokens).toBe(450); // 150 + 300
-    expect(upsertCall.costUsd).toBe(0.003); // 0.001 + 0.002
+    expect(upsertCall.costUsd).toBe(0); // Cost now comes from transactions, not conversations
   });
 
   it("should calculate correct totals for inputTokens, outputTokens, totalTokens, and costs", async () => {
@@ -327,7 +337,7 @@ describe("aggregateTokenUsageForDate", () => {
     expect(upsertCall.inputTokens).toBe(100);
     expect(upsertCall.outputTokens).toBe(50);
     expect(upsertCall.totalTokens).toBe(150);
-    expect(upsertCall.costUsd).toBe(0.001);
+    expect(upsertCall.costUsd).toBe(0); // Cost now comes from transactions, not conversations
   });
 
   it("should create aggregate records with correct structure", async () => {
@@ -398,7 +408,7 @@ describe("aggregateTokenUsageForDate", () => {
         inputTokens: 100,
         outputTokens: 50,
         totalTokens: 150,
-        costUsd: 0.001,
+        costUsd: 0, // Cost now comes from transactions, not conversations
         createdAt: expect.any(String),
       })
     );

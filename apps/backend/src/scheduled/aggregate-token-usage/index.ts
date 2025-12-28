@@ -4,6 +4,8 @@ import { database } from "../../tables";
 import type {
   AgentConversationRecord,
   TokenUsageAggregateRecord,
+  ToolUsageAggregateRecord,
+  WorkspaceCreditTransactionRecord,
 } from "../../tables/schema";
 import { formatDate } from "../../utils/aggregation";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
@@ -27,31 +29,31 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
   // Strategy: Query all agents, then query conversations for each agent filtered by date
   const allConversations: AgentConversationRecord[] = [];
 
+  // Get all workspaces by querying the permission table
+  // We'll use a scan-like approach to get all workspace IDs
+  // Note: In production, you might want to maintain a separate list of active workspaces
+  const workspacePermissions = await db.permission.query({
+    IndexName: "byResourceTypeAndEntityId",
+    KeyConditionExpression: "resourceType = :resourceType",
+    ExpressionAttributeValues: {
+      ":resourceType": "workspaces",
+    },
+  });
+
+  // Extract unique workspace IDs from permissions
+  const workspaceIds = [
+    ...new Set(
+      workspacePermissions.items.map((p) => p.pk.replace("workspaces/", ""))
+    ),
+  ];
+
+  console.log(
+    `[Aggregate Token Usage] Found ${workspaceIds.length} workspaces to process`
+  );
+
   try {
     console.log(
       `[Aggregate Token Usage] Querying conversations for date range: ${startOfDay.toISOString()} to ${endOfDay.toISOString()}`
-    );
-
-    // Get all workspaces by querying the permission table
-    // We'll use a scan-like approach to get all workspace IDs
-    // Note: In production, you might want to maintain a separate list of active workspaces
-    const workspacePermissions = await db.permission.query({
-      IndexName: "byResourceTypeAndEntityId",
-      KeyConditionExpression: "resourceType = :resourceType",
-      ExpressionAttributeValues: {
-        ":resourceType": "workspaces",
-      },
-    });
-
-    // Extract unique workspace IDs from permissions
-    const workspaceIds = [
-      ...new Set(
-        workspacePermissions.items.map((p) => p.pk.replace("workspaces/", ""))
-      ),
-    ];
-
-    console.log(
-      `[Aggregate Token Usage] Found ${workspaceIds.length} workspaces to process`
     );
 
     // For each workspace, get all agents and query their conversations
@@ -188,10 +190,10 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
     agg.inputTokens += tokenUsage.promptTokens || 0;
     agg.outputTokens += tokenUsage.completionTokens || 0;
     agg.totalTokens += tokenUsage.totalTokens || 0;
-    agg.costUsd += conv.costUsd || 0;
+    // costUsd is no longer aggregated from conversations
   }
 
-  // Create aggregate records
+  // Create token aggregate records
   for (const [, aggData] of aggregates.entries()) {
     // Create aggregates at different levels: workspace, agent, user
     if (aggData.workspaceId) {
@@ -213,7 +215,7 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
         inputTokens: aggData.inputTokens,
         outputTokens: aggData.outputTokens,
         totalTokens: aggData.totalTokens,
-        costUsd: aggData.costUsd,
+        costUsd: 0, // Cost now comes from transactions, not conversations
         createdAt: new Date().toISOString(),
       };
 
@@ -222,7 +224,125 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
   }
 
   console.log(
-    `[Aggregate Token Usage] Created ${aggregates.size} aggregate records for ${dateStr}`
+    `[Aggregate Token Usage] Created ${aggregates.size} token aggregate records for ${dateStr}`
+  );
+
+  // Now aggregate tool expenses from transactions
+  console.log(
+    `[Aggregate Token Usage] Aggregating tool expenses from transactions for date: ${dateStr}`
+  );
+
+  const allTransactions: WorkspaceCreditTransactionRecord[] = [];
+
+  try {
+    // Query all transactions for the target date
+    for (const workspaceId of workspaceIds) {
+      try {
+        const workspacePk = `workspaces/${workspaceId}`;
+        const transactionsQuery = await db["workspace-credit-transactions"].query({
+          KeyConditionExpression: "pk = :pk",
+          ExpressionAttributeNames: {
+            "#createdAt": "createdAt",
+          },
+          ExpressionAttributeValues: {
+            ":pk": workspacePk,
+            ":startDate": startOfDay.toISOString(),
+            ":endDate": endOfDay.toISOString(),
+          },
+          FilterExpression: "#createdAt BETWEEN :startDate AND :endDate",
+        });
+
+        // Filter only tool-execution transactions
+        const toolTransactions = transactionsQuery.items.filter(
+          (txn) => txn.source === "tool-execution"
+        );
+
+        if (toolTransactions.length > 0) {
+          allTransactions.push(...toolTransactions);
+        }
+      } catch (workspaceError) {
+        console.error(
+          `[Aggregate Token Usage] Error querying transactions for workspace ${workspaceId}:`,
+          workspaceError instanceof Error
+            ? workspaceError.message
+            : String(workspaceError)
+        );
+        // Continue with other workspaces
+      }
+    }
+
+    console.log(
+      `[Aggregate Token Usage] Total tool transactions found: ${allTransactions.length}`
+    );
+  } catch (error) {
+    console.error("[Aggregate Token Usage] Error aggregating transactions:", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      date: dateStr,
+    });
+    throw error;
+  }
+
+  // Group tool transactions by workspace, agent, toolCall, and supplier
+  const toolAggregates = new Map<
+    string,
+    {
+      workspaceId?: string;
+      agentId?: string;
+      toolCall: string;
+      supplier: string;
+      costUsd: number;
+      callCount: number;
+    }
+  >();
+
+  for (const txn of allTransactions) {
+    const toolCall = txn.tool_call || "unknown";
+    const supplier = txn.supplier || "unknown";
+    const key = `${txn.workspaceId || ""}:${txn.agentId || ""}:${toolCall}:${supplier}`;
+
+    if (!toolAggregates.has(key)) {
+      toolAggregates.set(key, {
+        workspaceId: txn.workspaceId,
+        agentId: txn.agentId,
+        toolCall,
+        supplier,
+        costUsd: 0,
+        callCount: 0,
+      });
+    }
+
+    const agg = toolAggregates.get(key)!;
+    agg.costUsd += txn.amountMillionthUsd || 0;
+    agg.callCount += 1;
+  }
+
+  // Create tool aggregate records
+  for (const [, aggData] of toolAggregates.entries()) {
+    if (aggData.workspaceId) {
+      const pk = `tool-aggregates/${aggData.workspaceId}/${dateStr}`;
+      const sk = `${aggData.toolCall}:${aggData.supplier}`;
+
+      const aggregate: Omit<ToolUsageAggregateRecord, "version"> = {
+        pk,
+        sk,
+        date: dateStr,
+        aggregateType: aggData.agentId ? "agent" : "workspace",
+        workspaceId: aggData.workspaceId,
+        agentId: aggData.agentId,
+        toolCall: aggData.toolCall,
+        supplier: aggData.supplier,
+        costUsd: aggData.costUsd,
+        callCount: aggData.callCount,
+        createdAt: new Date().toISOString(),
+      };
+
+      await db["tool-usage-aggregates"].upsert(aggregate);
+    }
+  }
+
+  console.log(
+    `[Aggregate Token Usage] Created ${toolAggregates.size} tool aggregate records for ${dateStr}`
   );
 }
 

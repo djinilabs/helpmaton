@@ -186,6 +186,17 @@ export const registerGetAgentUsage = (app: express.Application) => {
               cost: stats.byByok.platform.costUsd,
             },
           },
+          toolExpenses: Object.entries(stats.toolExpenses).map(
+            ([key, toolStats]) => {
+              const [toolCall, supplier] = key.split("-");
+              return {
+                toolCall,
+                supplier,
+                cost: toolStats.costUsd,
+                callCount: toolStats.callCount,
+              };
+            }
+          ),
         },
       });
     })

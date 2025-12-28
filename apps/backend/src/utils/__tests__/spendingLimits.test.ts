@@ -97,6 +97,14 @@ describe("spendingLimits", () => {
         costUsd: 10_500_000, // 10.5 USD in millionths
         inputTokens: 1000,
         outputTokens: 200,
+        totalTokens: 1200,
+        byModel: {},
+        byProvider: {},
+        byByok: {
+          byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+          platform: { inputTokens: 1000, outputTokens: 200, totalTokens: 1200, costUsd: 10_500_000 },
+        },
+        toolExpenses: {},
       });
 
       const startDate = new Date("2024-01-01T00:00:00Z");
@@ -121,6 +129,14 @@ describe("spendingLimits", () => {
         costUsd: 5_000_000, // 5.0 USD in millionths
         inputTokens: 500,
         outputTokens: 100,
+        totalTokens: 600,
+        byModel: {},
+        byProvider: {},
+        byByok: {
+          byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+          platform: { inputTokens: 500, outputTokens: 100, totalTokens: 600, costUsd: 5_000_000 },
+        },
+        toolExpenses: {},
       });
 
       const startDate = new Date("2024-01-01T00:00:00Z");
@@ -148,6 +164,14 @@ describe("spendingLimits", () => {
         costUsd: 0,
         inputTokens: 0,
         outputTokens: 0,
+        totalTokens: 0,
+        byModel: {},
+        byProvider: {},
+        byByok: {
+          byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+          platform: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+        },
+        toolExpenses: {},
       });
 
       const startDate = new Date("2024-01-01T00:00:00Z");
@@ -174,6 +198,14 @@ describe("spendingLimits", () => {
         costUsd: 0,
         inputTokens: 0,
         outputTokens: 0,
+        totalTokens: 0,
+        byModel: {},
+        byProvider: {},
+        byByok: {
+          byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+          platform: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+        },
+        toolExpenses: {},
       });
 
       const result = await checkSpendingLimits(
@@ -203,6 +235,14 @@ describe("spendingLimits", () => {
         costUsd: 50_000_000, // 50.0 USD in millionths (current spending)
         inputTokens: 5000,
         outputTokens: 1000,
+        totalTokens: 6000,
+        byModel: {},
+        byProvider: {},
+        byByok: {
+          byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+          platform: { inputTokens: 5000, outputTokens: 1000, totalTokens: 6000, costUsd: 50_000_000 },
+        },
+        toolExpenses: {},
       });
 
       const result = await checkSpendingLimits(
@@ -232,6 +272,14 @@ describe("spendingLimits", () => {
         costUsd: 95_000_000, // 95.0 USD in millionths (current spending)
         inputTokens: 9500,
         outputTokens: 1900,
+        totalTokens: 11400,
+        byModel: {},
+        byProvider: {},
+        byByok: {
+          byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+          platform: { inputTokens: 9500, outputTokens: 1900, totalTokens: 11400, costUsd: 95_000_000 },
+        },
+        toolExpenses: {},
       });
 
       const result = await checkSpendingLimits(
@@ -321,6 +369,14 @@ describe("spendingLimits", () => {
         costUsd: 18_000_000, // 18.0 USD in millionths (current agent spending)
         inputTokens: 1800,
         outputTokens: 360,
+        totalTokens: 2160,
+        byModel: {},
+        byProvider: {},
+        byByok: {
+          byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+          platform: { inputTokens: 1800, outputTokens: 360, totalTokens: 2160, costUsd: 18_000_000 },
+        },
+        toolExpenses: {},
       });
 
       const result = await checkSpendingLimits(
@@ -406,6 +462,14 @@ describe("spendingLimits", () => {
         costUsd: 0,
         inputTokens: 0,
         outputTokens: 0,
+        totalTokens: 0,
+        byModel: {},
+        byProvider: {},
+        byByok: {
+          byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+          platform: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+        },
+        toolExpenses: {},
       });
 
       await checkSpendingLimits(mockDb, workspace, undefined, 10_000_000); // 10.0 USD in millionths
@@ -445,6 +509,14 @@ describe("spendingLimits", () => {
         costUsd: 0,
         inputTokens: 0,
         outputTokens: 0,
+        totalTokens: 0,
+        byModel: {},
+        byProvider: {},
+        byByok: {
+          byok: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+          platform: { inputTokens: 0, outputTokens: 0, totalTokens: 0, costUsd: 0 },
+        },
+        toolExpenses: {},
       });
 
       await checkSpendingLimits(mockDb, workspace, agent, 10_000_000); // 10.0 USD in millionths

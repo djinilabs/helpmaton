@@ -37,7 +37,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
     {
       name: "Free",
       plan: "free" as const,
-      price: "€0",
+      price: "$0",
       period: "forever",
       limits: freeLimits,
       features: [
@@ -56,7 +56,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
     {
       name: "Starter",
       plan: "starter" as const,
-      price: "€29",
+      price: "$29",
       period: "per month",
       limits: starterLimits,
       features: [
@@ -78,7 +78,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
     {
       name: "Pro",
       plan: "pro" as const,
-      price: "€99",
+      price: "$99",
       period: "per month",
       limits: proLimits,
       features: [

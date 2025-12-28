@@ -1301,6 +1301,12 @@ export interface UsageStats {
       cost: number;
     };
   };
+  toolExpenses?: Array<{
+    toolCall: string;
+    supplier: string;
+    cost: number; // millionths (integer)
+    callCount: number;
+  }>;
 }
 
 export interface WorkspaceUsageResponse {

@@ -137,6 +137,7 @@ export const registerGetWorkspaceUsage = (app: express.Application) => {
         costUsd: stats.costUsd,
         byModel: Object.keys(stats.byModel),
         byProvider: Object.keys(stats.byProvider),
+        toolExpenses: Object.keys(stats.toolExpenses),
       });
 
       res.json({
@@ -179,6 +180,17 @@ export const registerGetWorkspaceUsage = (app: express.Application) => {
               cost: stats.byByok.platform.costUsd,
             },
           },
+          toolExpenses: Object.entries(stats.toolExpenses).map(
+            ([key, toolStats]) => {
+              const [toolCall, supplier] = key.split("-");
+              return {
+                toolCall,
+                supplier,
+                cost: toolStats.costUsd,
+                callCount: toolStats.callCount,
+              };
+            }
+          ),
         },
       });
     })

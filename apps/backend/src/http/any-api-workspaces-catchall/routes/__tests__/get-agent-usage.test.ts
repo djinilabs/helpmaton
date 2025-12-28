@@ -131,6 +131,21 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/usage", () => {
               cost: stats.byByok.platform.costUsd,
             },
           },
+          toolExpenses: Object.entries(stats.toolExpenses || {}).map(
+            ([key, toolStats]) => {
+              const [toolCall, supplier] = key.split("-");
+              const stats = toolStats as {
+                costUsd: number;
+                callCount: number;
+              };
+              return {
+                toolCall,
+                supplier,
+                cost: stats.costUsd,
+                callCount: stats.callCount,
+              };
+            }
+          ),
         },
       });
     };
@@ -186,6 +201,7 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/usage", () => {
           costUsd: 0.005,
         },
       },
+      toolExpenses: {},
     };
 
     const mockAgentGet = vi.fn().mockResolvedValue(mockAgent);
