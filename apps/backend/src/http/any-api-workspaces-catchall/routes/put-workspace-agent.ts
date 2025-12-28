@@ -105,6 +105,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           enableSearchDocuments,
           enableSendEmail,
           enableTavilySearch,
+          searchWebProvider,
           enableTavilyFetch, // Legacy field for backward compatibility
           fetchWebProvider,
           clientTools,
@@ -388,6 +389,24 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           }
         }
 
+        // Handle searchWebProvider with backward compatibility for enableTavilySearch
+        let resolvedSearchWebProvider: "tavily" | "jina" | undefined;
+        if (searchWebProvider !== undefined) {
+          // New field takes precedence
+          if (searchWebProvider !== null && searchWebProvider !== "tavily" && searchWebProvider !== "jina") {
+            throw badRequest(
+              "searchWebProvider must be 'tavily', 'jina', or null"
+            );
+          }
+          resolvedSearchWebProvider = searchWebProvider === null ? undefined : searchWebProvider;
+        } else if (enableTavilySearch !== undefined) {
+          // Legacy field: migrate to new field
+          resolvedSearchWebProvider = enableTavilySearch === true ? "tavily" : undefined;
+        } else {
+          // Keep existing value
+          resolvedSearchWebProvider = agent.searchWebProvider;
+        }
+
         // Handle fetchWebProvider with backward compatibility for enableTavilyFetch
         let resolvedFetchWebProvider: "tavily" | "jina" | undefined;
         if (fetchWebProvider !== undefined) {
@@ -445,6 +464,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             enableTavilySearch !== undefined
               ? enableTavilySearch
               : agent.enableTavilySearch,
+          searchWebProvider: resolvedSearchWebProvider,
           fetchWebProvider: resolvedFetchWebProvider,
           clientTools:
             clientTools !== undefined ? clientTools : agent.clientTools,
@@ -515,6 +535,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           enableSearchDocuments: updated.enableSearchDocuments ?? false,
           enableSendEmail: updated.enableSendEmail ?? false,
           enableTavilySearch: updated.enableTavilySearch ?? false,
+          searchWebProvider: updated.searchWebProvider ?? null,
           fetchWebProvider: updated.fetchWebProvider ?? null,
           clientTools: updated.clientTools ?? [],
           spendingLimits: updated.spendingLimits ?? [],

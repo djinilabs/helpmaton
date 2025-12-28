@@ -192,12 +192,19 @@ export async function setupAgentAndTools(
   // Use context from options if available, otherwise use parameter
   const effectiveContext = options?.context || context;
 
-  // Add web search tool if enabled
-  if (agent.enableTavilySearch === true) {
+  // Add web search tool if enabled (based on provider selection)
+  if (agent.searchWebProvider === "tavily") {
     const { createTavilySearchTool } = await import("../../utils/tavilyTools");
     tools.search_web = createTavilySearchTool(
       workspaceId,
       effectiveContext,
+      extractedAgentId,
+      options?.conversationId
+    );
+  } else if (agent.searchWebProvider === "jina") {
+    const { createJinaSearchTool } = await import("../../utils/tavilyTools");
+    tools.search_web = createJinaSearchTool(
+      workspaceId,
       extractedAgentId,
       options?.conversationId
     );

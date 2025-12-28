@@ -103,12 +103,18 @@ Enable the `send_email` tool to allow agents to send emails using the workspace 
 
 Enable web tools to allow agents to search the web and extract content from URLs:
 
-- **Web Search** (`search_web`): Search the web for current information, news, articles, and other web content. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
-- **Web Fetch** (`fetch_url`): Extract and summarize content from specific web page URLs. Cost: $0.008 per call (first 10 calls/day free for paid tiers).
+- **Web Search** (`search_web`): Search the web for current information, news, articles, and other web content. Available providers:
+  - **Tavily**: $0.008 per call (first 10 calls/day free for paid tiers)
+  - **Jina.ai**: Free (no credits charged, rate limits may apply)
+- **Web Fetch** (`fetch_url`): Extract and summarize content from specific web page URLs. Available providers:
+  - **Tavily**: $0.008 per call (first 10 calls/day free for paid tiers)
+  - **Jina.ai**: Free (no credits charged, rate limits may apply)
 
-**Daily Limits**:
+**Daily Limits (Tavily only)**:
 - Free tier: 10 calls per 24 hours
 - Paid tiers: 10 free calls/day, then $0.008 per call (requires workspace credits)
+
+**Note**: Jina.ai is free to use but may have rate limits. Tavily requires credits after the free tier limit.
 
 See [Tavily Integration](./tavily-integration.md) for detailed documentation.
 

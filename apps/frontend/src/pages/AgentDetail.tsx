@@ -247,10 +247,19 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     () => agent?.enableSendEmail ?? false
   );
 
-  // Use agent prop directly for enableTavilySearch, with local state for editing
-  const [enableTavilySearch, setEnableTavilySearch] = useState<boolean>(
-    () => agent?.enableTavilySearch ?? false
-  );
+  // Use agent prop directly for searchWebProvider, with local state for editing
+  const [searchWebProvider, setSearchWebProvider] = useState<
+    "tavily" | "jina" | null
+  >(() => {
+    // Migrate from enableTavilySearch for backward compatibility
+    if (agent?.searchWebProvider !== undefined) {
+      return agent.searchWebProvider;
+    }
+    if (agent?.enableTavilySearch === true) {
+      return "tavily";
+    }
+    return null;
+  });
 
   // Use agent prop directly for fetchWebProvider, with local state for editing
   const [fetchWebProvider, setFetchWebProvider] = useState<
@@ -460,18 +469,25 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     }
   }, [agent?.id, agent?.enableSendEmail]);
 
-  // Synchronize enableTavilySearch state with agent prop using useEffect
-  const prevEnableTavilySearchRef = useRef<boolean | undefined>(
-    agent?.enableTavilySearch
+  // Synchronize searchWebProvider state with agent prop using useEffect
+  const prevSearchWebProviderRef = useRef<"tavily" | "jina" | null | undefined>(
+    agent?.searchWebProvider ??
+      (agent?.enableTavilySearch === true ? "tavily" : null)
   );
   useEffect(() => {
-    const currentValue = agent?.enableTavilySearch ?? false;
-    const prevValue = prevEnableTavilySearchRef.current ?? false;
-    if (currentValue !== prevValue) {
-      prevEnableTavilySearchRef.current = currentValue;
-      setEnableTavilySearch(currentValue);
+    // Migrate from enableTavilySearch for backward compatibility
+    let currentValue: "tavily" | "jina" | null = null;
+    if (agent?.searchWebProvider !== undefined) {
+      currentValue = agent.searchWebProvider;
+    } else if (agent?.enableTavilySearch === true) {
+      currentValue = "tavily";
     }
-  }, [agent?.id, agent?.enableTavilySearch]);
+    const prevValue = prevSearchWebProviderRef.current ?? null;
+    if (currentValue !== prevValue) {
+      prevSearchWebProviderRef.current = currentValue;
+      setSearchWebProvider(currentValue);
+    }
+  }, [agent?.id, agent?.searchWebProvider, agent?.enableTavilySearch]);
 
   // Synchronize fetchWebProvider state with agent prop using useEffect
   const prevFetchWebProviderRef = useRef<"tavily" | "jina" | null | undefined>(
@@ -753,22 +769,24 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     }
   };
 
-  const handleSaveTavilySearch = async () => {
+  const handleSaveSearchWebProvider = async () => {
     try {
-      const valueToSave = enableTavilySearch;
+      const valueToSave = searchWebProvider;
       // Update ref immediately to prevent useEffect from overwriting our changes
-      prevEnableTavilySearchRef.current = valueToSave;
+      prevSearchWebProviderRef.current = valueToSave;
       const updated = await updateAgent.mutateAsync({
-        enableTavilySearch: valueToSave,
+        searchWebProvider: valueToSave,
       });
       // Sync local state with updated agent data
-      const savedValue = updated.enableTavilySearch ?? false;
-      prevEnableTavilySearchRef.current = savedValue;
-      setEnableTavilySearch(savedValue);
+      const savedValue = updated.searchWebProvider ?? null;
+      prevSearchWebProviderRef.current = savedValue;
+      setSearchWebProvider(savedValue);
     } catch {
       // Error is handled by toast in the hook
       // Reset ref on error so useEffect can sync properly
-      prevEnableTavilySearchRef.current = agent?.enableTavilySearch;
+      prevSearchWebProviderRef.current =
+        agent?.searchWebProvider ??
+        (agent?.enableTavilySearch === true ? "tavily" : null);
     }
   };
 
@@ -1864,34 +1882,70 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable the Web search tool to allow this agent to search the
-                    web for current information. Free tier: 10 calls/day. Paid
-                    tiers: 10 free calls/day, then $0.008 per call.
+                    Choose a provider for the search_web tool. Tavily: $0.008
+                    per call (first 10 calls/day free for paid tiers). Jina:
+                    Free (no credits charged).
                   </p>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-                    <input
-                      type="checkbox"
-                      checked={enableTavilySearch}
-                      onChange={(e) => setEnableTavilySearch(e.target.checked)}
-                      className="mt-1 rounded border-2 border-neutral-300"
-                    />
-                    <div className="flex-1">
-                      <div className="font-bold">Enable Web Search</div>
-                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                        Allow this agent to use the search_web tool to search
-                        the web for current information. Cost: $0.008 per call
-                        (first 10 calls/day free for paid tiers).
+                  <div className="space-y-3">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                      <input
+                        type="radio"
+                        name="searchWebProvider"
+                        value=""
+                        checked={searchWebProvider === null}
+                        onChange={() => setSearchWebProvider(null)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="font-bold">None</div>
+                        <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                          Disable the search_web tool for this agent.
+                        </div>
                       </div>
-                    </div>
-                  </label>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                      <input
+                        type="radio"
+                        name="searchWebProvider"
+                        value="tavily"
+                        checked={searchWebProvider === "tavily"}
+                        onChange={() => setSearchWebProvider("tavily")}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="font-bold">Tavily</div>
+                        <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                          Use Tavily search API. Cost: $0.008 per call (first 10
+                          calls/day free for paid tiers).
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                      <input
+                        type="radio"
+                        name="searchWebProvider"
+                        value="jina"
+                        checked={searchWebProvider === "jina"}
+                        onChange={() => setSearchWebProvider("jina")}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="font-bold">Jina</div>
+                        <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                          Use Jina Search API. Free to use (no credits charged).
+                          Rate limits may apply.
+                        </div>
+                      </div>
+                    </label>
+                  </div>
                   <button
-                    onClick={handleSaveTavilySearch}
+                    onClick={handleSaveSearchWebProvider}
                     disabled={updateAgent.isPending}
                     className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {updateAgent.isPending
                       ? "Saving..."
-                      : "Save Web Search Setting"}
+                      : "Save Web Search Provider"}
                   </button>
                 </div>
               </LazyAccordionContent>

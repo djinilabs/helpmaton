@@ -106,6 +106,11 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           agent.fetchWebProvider ??
           (agent.enableTavilyFetch === true ? "tavily" : undefined);
 
+        // Migrate enableTavilySearch to searchWebProvider for backward compatibility
+        const searchWebProvider =
+          agent.searchWebProvider ??
+          (agent.enableTavilySearch === true ? "tavily" : undefined);
+
         res.json({
           id: agentId,
           name: agent.name,
@@ -117,6 +122,7 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           enableSearchDocuments: agent.enableSearchDocuments ?? false,
           enableSendEmail: agent.enableSendEmail ?? false,
           enableTavilySearch: agent.enableTavilySearch ?? false,
+          searchWebProvider: searchWebProvider ?? null,
           fetchWebProvider: fetchWebProvider ?? null,
           clientTools: agent.clientTools ?? [],
           spendingLimits: agent.spendingLimits ?? [],

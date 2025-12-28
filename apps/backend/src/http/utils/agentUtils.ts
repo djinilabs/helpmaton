@@ -663,14 +663,17 @@ async function callAgentInternal(
     );
   }
 
-  // Add web search tool if enabled
-  if (targetAgent.enableTavilySearch === true) {
+  // Add web search tool if enabled (based on provider selection)
+  if (targetAgent.searchWebProvider === "tavily") {
     const { createTavilySearchTool } = await import("./tavilyTools");
     tools.search_web = createTavilySearchTool(
       workspaceId,
       context,
       targetAgentId
     );
+  } else if (targetAgent.searchWebProvider === "jina") {
+    const { createJinaSearchTool } = await import("./tavilyTools");
+    tools.search_web = createJinaSearchTool(workspaceId, targetAgentId);
   }
 
   // Add web fetch tool if enabled (based on provider selection)

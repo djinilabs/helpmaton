@@ -7,7 +7,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { database } from "../../tables/database";
-import { jinaFetch } from "../../utils/jina";
+import { jinaFetch, jinaSearch } from "../../utils/jina";
 import {
   checkTavilyDailyLimit,
   incrementTavilyCallBucket,
@@ -642,6 +642,135 @@ export function createJinaFetchTool(
           provider: "jina",
           error: error instanceof Error ? error.message : String(error),
           arguments: { url },
+          workspaceId,
+          agentId,
+          conversationId,
+        });
+        return errorMessage;
+      }
+    },
+  });
+}
+
+/**
+ * Create web search tool using Jina DeepSearch API
+ * Searches the web for current information (free, no credits)
+ * @param workspaceId - Workspace ID
+ * @param agentId - Agent ID (optional, for logging)
+ * @param conversationId - Conversation ID (optional, for logging)
+ */
+export function createJinaSearchTool(
+  workspaceId: string,
+  agentId?: string,
+  conversationId?: string
+) {
+  const searchParamsSchema = z.object({
+    query: z
+      .string()
+      .min(1, "query is required and cannot be empty")
+      .describe(
+        "REQUIRED: The search query. This MUST be a non-empty string containing what you want to search for. Example: 'latest news about AI' or 'Python tutorial for beginners'"
+      ),
+    max_results: z
+      .number()
+      .int()
+      .min(1)
+      .max(10)
+      .optional()
+      .default(5)
+      .describe(
+        "OPTIONAL: Maximum number of search results to return (1-10, default: 5). Use a smaller number for focused searches, larger for comprehensive research."
+      ),
+  });
+
+  type SearchArgs = z.infer<typeof searchParamsSchema>;
+
+  const description =
+    "Search the web for current information, news, articles, and other web content using Jina Search API. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. CRITICAL REQUIREMENTS: (1) You MUST provide the 'query' parameter - it is REQUIRED and cannot be empty. (2) The 'query' parameter must be a non-empty string containing what you want to search for. (3) The 'max_results' parameter is optional (defaults to 5 if not provided). (4) When the user asks you to search for something, IMMEDIATELY call this tool with the required 'query' parameter. Example: If user says 'search for latest AI news', call search_web with {query: 'latest AI news'}. Example: If user wants 10 results, call search_web with {query: 'Python tutorials', max_results: 10}. The search results include titles, URLs, and content snippets. Note: This tool is free to use (no credits charged).";
+
+  return tool({
+    description,
+    parameters: searchParamsSchema,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
+    // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    execute: async (args: any) => {
+      // Validate required parameters
+      if (!args || typeof args !== "object") {
+        return "Error: search_web requires a 'query' parameter. Please provide a search query string.";
+      }
+
+      const typedArgs = args as SearchArgs;
+      const { query, max_results } = typedArgs;
+
+      // Validate query parameter
+      if (!query || typeof query !== "string" || query.trim().length === 0) {
+        return "Error: search_web requires a non-empty 'query' parameter. Please provide a search query string. Example: {query: 'latest news about AI'}";
+      }
+
+      // Log tool call
+      console.log("[Tool Call] search_web (Jina)", {
+        toolName: "search_web",
+        provider: "jina",
+        arguments: { query, max_results },
+        workspaceId,
+        agentId,
+        conversationId,
+      });
+
+      try {
+        // Make Jina API call (no credit tracking needed - Jina is free)
+        const searchResponse = await jinaSearch(query, {
+          max_results,
+        });
+
+        // Format search results
+        const results = searchResponse.results || [];
+        let resultText = `Found ${results.length} search result${
+          results.length !== 1 ? "s" : ""
+        } for "${query}":\n\n`;
+
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i];
+          resultText += `${i + 1}. **${result.title}**\n`;
+          if (result.url) {
+            resultText += `   URL: ${result.url}\n`;
+          }
+          resultText += `   ${result.content}\n`;
+          if (result.score !== undefined) {
+            resultText += `   (Relevance score: ${result.score.toFixed(2)})\n`;
+          }
+          resultText += `\n`;
+        }
+
+        // Add answer if available
+        if (searchResponse.answer) {
+          resultText += `\n**Summary Answer:**\n${searchResponse.answer}\n`;
+        }
+
+        // Jina is free, so no cost tracking
+        // No [TOOL_COST:...] tag needed
+
+        // Log tool result
+        console.log("[Tool Result] search_web (Jina)", {
+          toolName: "search_web",
+          provider: "jina",
+          resultCount: results.length,
+          workspaceId,
+          agentId,
+          conversationId,
+        });
+
+        return resultText;
+      } catch (error) {
+        const errorMessage = `Error searching the web: ${
+          error instanceof Error ? error.message : String(error)
+        }`;
+        console.error("[Tool Error] search_web (Jina)", {
+          toolName: "search_web",
+          provider: "jina",
+          error: error instanceof Error ? error.message : String(error),
+          arguments: { query, max_results },
           workspaceId,
           agentId,
           conversationId,

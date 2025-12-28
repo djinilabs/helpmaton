@@ -33,7 +33,9 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
   const hasMemorySearch = agent?.enableMemorySearch === true;
   const hasSearchDocuments = agent?.enableSearchDocuments === true;
   const hasSendEmail = agent?.enableSendEmail === true && hasEmailConnection;
-  const hasTavilySearch = agent?.enableTavilySearch === true;
+  const hasSearchWeb =
+    agent?.searchWebProvider === "tavily" || agent?.searchWebProvider === "jina";
+  const searchWebProvider = agent?.searchWebProvider;
   const hasFetchWeb =
     agent?.fetchWebProvider === "tavily" || agent?.fetchWebProvider === "jina";
   const fetchWebProvider = agent?.fetchWebProvider;
@@ -225,10 +227,16 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
     {
       name: "search_web",
       description:
-        "Search the web for current information, news, articles, and other web content. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. Cost: $0.008 per call (first 10 calls/day free for paid tiers).",
+        searchWebProvider === "tavily"
+          ? "Search the web for current information, news, articles, and other web content using Tavily search API. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. Cost: $0.008 per call (first 10 calls/day free for paid tiers)."
+          :         searchWebProvider === "jina"
+          ? "Search the web for current information, news, articles, and other web content using Jina Search API. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. Free to use (no credits charged). Rate limits may apply."
+          : "Search the web for current information, news, articles, and other web content. This tool can use either Tavily search API (costs credits) or Jina Search API (free). Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources.",
       alwaysAvailable: false,
-      condition: hasTavilySearch
-        ? "Available (web search enabled)"
+      condition: hasSearchWeb
+        ? `Available (${
+            searchWebProvider === "tavily" ? "Tavily" : "Jina"
+          } provider enabled)`
         : "Not available (web search not enabled)",
       parameters: [
         {

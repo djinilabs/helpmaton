@@ -1,6 +1,6 @@
 # Tavily Integration
 
-This document describes the Tavily API integration for web search and content extraction in Helpmaton agents.
+This document describes the Tavily API integration for web search and content extraction in Helpmaton agents. Note: Agents can also use Jina.ai as an alternative provider for both search and fetch tools (free, no credits required).
 
 ## Overview
 
@@ -147,7 +147,9 @@ Tavily API calls are tracked per workspace using hourly buckets:
 
 Web tools are conditionally added to agents based on configuration:
 
-- `enableTavilySearch === true` → Adds `search_web` tool
+- `searchWebProvider === "tavily"` → Adds `search_web` tool using Tavily
+- `searchWebProvider === "jina"` → Adds `search_web` tool using Jina.ai (free)
+- `enableTavilySearch === true` → Legacy field, migrates to `searchWebProvider === "tavily"`
 - `enableTavilyFetch === true` → Adds `fetch_url` tool
 
 ### Agent Delegation

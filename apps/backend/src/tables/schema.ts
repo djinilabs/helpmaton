@@ -91,7 +91,8 @@ export const tableSchemas = {
     enableMemorySearch: z.boolean().optional(), // enable memory search tool for this agent (default: false)
     enableSearchDocuments: z.boolean().optional(), // enable document search tool for this agent (default: false)
     enableSendEmail: z.boolean().optional(), // enable email sending tool for this agent (default: false, requires workspace email connection)
-    enableTavilySearch: z.boolean().optional(), // enable Web search tool for this agent (default: false)
+    enableTavilySearch: z.boolean().optional(), // @deprecated Use searchWebProvider instead. Legacy field for backward compatibility (default: false)
+    searchWebProvider: z.enum(["tavily", "jina"]).optional(), // Web search provider: "tavily" uses Tavily search API, "jina" uses Jina DeepSearch API (default: undefined, no search tool)
     enableTavilyFetch: z.boolean().optional(), // @deprecated Use fetchWebProvider instead. Legacy field for backward compatibility (default: false)
     fetchWebProvider: z.enum(["tavily", "jina"]).optional(), // Web fetch provider: "tavily" uses Tavily extract API, "jina" uses Jina Reader API (default: undefined, no fetch tool)
     spendingLimits: z

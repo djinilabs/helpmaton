@@ -19,6 +19,7 @@ const {
   mockAdjustTavilyCreditReservation,
   mockRefundTavilyCredits,
   mockCalculateTavilyCost,
+  mockJinaSearch,
 } = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
@@ -32,6 +33,7 @@ const {
     mockAdjustTavilyCreditReservation: vi.fn(),
     mockRefundTavilyCredits: vi.fn(),
     mockCalculateTavilyCost: vi.fn(),
+    mockJinaSearch: vi.fn(),
   };
 });
 
@@ -67,10 +69,16 @@ vi.mock("../../../utils/tavilyCredits", () => ({
   calculateTavilyCost: mockCalculateTavilyCost,
 }));
 
+// Mock Jina utilities
+vi.mock("../../../utils/jina", () => ({
+  jinaFetch: vi.fn(),
+  jinaSearch: mockJinaSearch,
+}));
+
 // Import after mocks are set up
 import type { DatabaseSchema } from "../../../tables/schema";
 import type { AugmentedContext } from "../../../utils/workspaceCreditContext";
-import { createTavilySearchTool, createTavilyFetchTool } from "../tavilyTools";
+import { createTavilySearchTool, createTavilyFetchTool, createJinaSearchTool } from "../tavilyTools";
 
 describe("tavilyTools", () => {
   let mockDb: DatabaseSchema;
@@ -610,6 +618,165 @@ describe("tavilyTools", () => {
       });
 
       expect(result).toContain("https://example.com/article");
+    });
+  });
+
+  describe("createJinaSearchTool", () => {
+    const workspaceId = "test-workspace";
+    const agentId = "test-agent";
+    const conversationId = "test-conversation";
+
+    beforeEach(() => {
+      mockJinaSearch.mockClear();
+    });
+
+    it("should successfully search with valid query", async () => {
+      const tool = createJinaSearchTool(workspaceId, agentId, conversationId);
+      const searchResponse = {
+        query: "AI news",
+        results: [
+          {
+            title: "Article 1",
+            url: "https://example.com/article1",
+            content: "Content about AI",
+            score: 0.95,
+          },
+          {
+            title: "Article 2",
+            url: "https://example.com/article2",
+            content: "Content about ML",
+            score: 0.85,
+          },
+        ],
+        answer: "Summary of AI news",
+      };
+
+      mockJinaSearch.mockResolvedValue(searchResponse);
+
+      const result = await (tool as unknown as ToolWithExecute).execute({
+        query: "AI news",
+        max_results: 5,
+      });
+
+      expect(result).toContain("Found 2 search results");
+      expect(result).toContain("Article 1");
+      expect(result).toContain("https://example.com/article1");
+      expect(result).toContain("Summary Answer");
+      expect(mockJinaSearch).toHaveBeenCalledWith("AI news", {
+        max_results: 5,
+      });
+    });
+
+    it("should use default max_results when not provided", async () => {
+      const tool = createJinaSearchTool(workspaceId);
+      const searchResponse = {
+        query: "test query",
+        results: [],
+      };
+
+      mockJinaSearch.mockResolvedValue(searchResponse);
+
+      await (tool as unknown as ToolWithExecute).execute({
+        query: "test query",
+      });
+
+      // max_results defaults to 5 in the schema, but if not provided it's undefined
+      // jinaSearch will use its own default
+      expect(mockJinaSearch).toHaveBeenCalledWith("test query", expect.any(Object));
+    });
+
+    it("should return error message for invalid query", async () => {
+      const tool = createJinaSearchTool(workspaceId);
+
+      const result = await (tool as unknown as ToolWithExecute).execute({
+        query: "",
+      });
+
+      expect(result).toContain("Error: search_web requires a non-empty 'query' parameter");
+    });
+
+    it("should return error message for missing query", async () => {
+      const tool = createJinaSearchTool(workspaceId);
+
+      const result = await (tool as unknown as ToolWithExecute).execute({});
+
+      expect(result).toContain("Error: search_web requires a non-empty 'query' parameter");
+    });
+
+    it("should handle API errors gracefully", async () => {
+      const tool = createJinaSearchTool(workspaceId);
+      const apiError = new Error("Jina API error");
+
+      mockJinaSearch.mockRejectedValue(apiError);
+
+      const result = await (tool as unknown as ToolWithExecute).execute({
+        query: "test query",
+      });
+
+      expect(result).toContain("Error searching the web");
+      expect(result).toContain("Jina API error");
+    });
+
+    it("should handle results without URLs", async () => {
+      const tool = createJinaSearchTool(workspaceId);
+      const searchResponse = {
+        query: "test query",
+        results: [
+          {
+            title: "Result without URL",
+            url: "",
+            content: "Content here",
+          },
+        ],
+      };
+
+      mockJinaSearch.mockResolvedValue(searchResponse);
+
+      const result = await (tool as unknown as ToolWithExecute).execute({
+        query: "test query",
+      });
+
+      expect(result).toContain("Result without URL");
+      expect(result).not.toContain("URL:");
+    });
+
+    it("should handle results without scores", async () => {
+      const tool = createJinaSearchTool(workspaceId);
+      const searchResponse = {
+        query: "test query",
+        results: [
+          {
+            title: "Article",
+            url: "https://example.com/article",
+            content: "Content",
+          },
+        ],
+      };
+
+      mockJinaSearch.mockResolvedValue(searchResponse);
+
+      const result = await (tool as unknown as ToolWithExecute).execute({
+        query: "test query",
+      });
+
+      expect(result).toContain("Article");
+      expect(result).not.toContain("Relevance score");
+    });
+
+    it("should handle empty results", async () => {
+      const tool = createJinaSearchTool(workspaceId);
+      const searchResponse = {
+        query: "test query",
+        results: [],
+      };
+
+      mockJinaSearch.mockResolvedValue(searchResponse);
+
+      const result = await (tool as unknown as ToolWithExecute).execute({
+        query: "test query",
+      });
+
+      expect(result).toContain("Found 0 search results");
     });
   });
 });

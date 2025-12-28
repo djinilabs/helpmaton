@@ -2,11 +2,42 @@
 
 ## Current Status
 
-**Status**: Multi-Table Atomic Update API with DynamoDB Transactions - Completed ✅
+**Status**: Web Fetch Tool Rename - Completed ✅
 
-**Latest Work**: Implemented a database-level `atomicUpdate` method that enables multi-table DynamoDB transactions with optimistic concurrency control. This allows users to atomically update multiple records across different tables with automatic retries on version conflicts.
+**Latest Work**: Renamed the `fetch_web` tool to `fetch_url` throughout the entire codebase for better clarity and consistency. The tool name now more accurately reflects its purpose of fetching content from specific URLs rather than general web content.
 
 **Recent Changes**:
+
+1. **Tool Name Rename (`fetch_web` → `fetch_url`)**:
+   - Renamed tool from `fetch_web` to `fetch_url` across all backend and frontend code
+   - Updated tool registration in agent setup and delegation logic
+   - Updated all error messages, descriptions, and documentation references
+   - Updated type definitions in `tavilyCredits.ts` to use `fetch_url`
+   - Updated schema comments to reflect new tool name
+   - Updated frontend UI components (ToolsHelpDialog, AgentDetail) with new tool name
+   - Updated all documentation files (tavily-integration.md, agent-configuration.md, README.md)
+
+**Files Modified**:
+- `apps/backend/src/http/utils/tavilyTools.ts` - All tool references and error messages
+- `apps/backend/src/tables/schema.ts` - Schema comment
+- `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup.ts` - Tool registration
+- `apps/backend/src/http/utils/agentUtils.ts` - Tool registration
+- `apps/backend/src/utils/tavilyCredits.ts` - Type definitions and comments
+- `apps/backend/src/http/utils/__tests__/tavilyTools.test.ts` - Test references
+- `apps/frontend/src/components/ToolsHelpDialog.tsx` - Tool name and descriptions
+- `apps/frontend/src/pages/AgentDetail.tsx` - UI text and descriptions
+- `docs/tavily-integration.md` - All references
+- `docs/agent-configuration.md` - Tool documentation
+- `README.md` - Feature description
+- `memory/activeContext.md` - Context documentation
+
+**Verification**: All tests passing (1902 tests), typecheck and lint clean ✅
+
+**Previous Status**: Multi-Table Atomic Update API with DynamoDB Transactions - Completed ✅
+
+**Previous Work**: Implemented a database-level `atomicUpdate` method that enables multi-table DynamoDB transactions with optimistic concurrency control. This allows users to atomically update multiple records across different tables with automatic retries on version conflicts.
+
+**Previous Changes**:
 
 1. **Multi-Table Atomic Update API**:
    - Added `atomicUpdate` method to database object for multi-table transactions
@@ -165,9 +196,9 @@
 
 1. **Web Tools**:
    - `search_web`: Web search tool for finding current information, news, articles
-   - `fetch_url`: Content extraction tool for extracting and summarizing web page content
+   - `fetch_url`: Content extraction tool for extracting and summarizing web page content (supports Tavily and Jina.ai providers)
    - Both tools require agent-level configuration to enable
-   - Cost: $0.008 per call (first 10 calls/day free for paid tiers)
+   - Cost: $0.008 per call for Tavily (first 10 calls/day free for paid tiers), Jina.ai is free
 
 2. **Daily Limits & Billing**:
    - Free tier: 10 calls per 24 hours (hard limit, requests blocked when exceeded)
