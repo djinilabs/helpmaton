@@ -51,6 +51,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
         `${freeLimits?.maxAgentKeys || 5} webhooks`,
         `${freeLimits?.maxChannels || 2} channels`,
         `${freeLimits?.maxMcpServers || 2} MCP servers`,
+        "10 web search/fetch calls/day",
       ],
     },
     {
@@ -72,6 +73,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
         `${starterLimits?.maxAgentKeys || 25} webhooks`,
         `${starterLimits?.maxChannels || 10} channels`,
         `${starterLimits?.maxMcpServers || 10} MCP servers`,
+        "10 free web search/fetch calls/day, then $0.008/call",
         "Bring Your Own Key (BYOK)",
       ],
     },
@@ -92,6 +94,7 @@ export const PlanComparison: FC<PlanComparisonProps> = ({
         `${proLimits?.maxAgentKeys || 250} webhooks`,
         `${proLimits?.maxChannels || 50} channels`,
         `${proLimits?.maxMcpServers || 50} MCP servers`,
+        "10 free web search/fetch calls/day, then $0.008/call",
         "Bring Your Own Key (BYOK)",
       ],
     },
