@@ -34,20 +34,26 @@ export async function enqueueCostVerification(
       ...(agentId && { agentId }),
     };
 
-    console.log("[enqueueCostVerification] Sending cost verification message:", {
-      queueName,
-      message,
-    });
+    console.log(
+      "[enqueueCostVerification] Sending cost verification message:",
+      {
+        queueName,
+        message,
+      }
+    );
 
     await queue.publish({
       name: queueName,
       payload: message,
     });
 
-    console.log("[enqueueCostVerification] Successfully enqueued cost verification:", {
-      reservationId,
-      openrouterGenerationId,
-    });
+    console.log(
+      "[enqueueCostVerification] Successfully enqueued cost verification:",
+      {
+        reservationId,
+        openrouterGenerationId,
+      }
+    );
   } catch (error) {
     // Log error but don't fail the request
     console.error(
@@ -103,15 +109,18 @@ function calculateActualCost(
   // If negative, log warning and clamp to 0 to prevent incorrect deductions
   const validatedCost = cost < 0 ? 0 : cost;
   if (cost < 0) {
-    console.warn("[calculateActualCost] Negative cost detected, clamping to 0:", {
-      provider,
-      modelName,
-      originalCost: cost,
-      promptTokens: tokenUsage.promptTokens || 0,
-      cachedPromptTokens: tokenUsage.cachedPromptTokens || 0,
-      completionTokens: tokenUsage.completionTokens || 0,
-      reasoningTokens: tokenUsage.reasoningTokens || 0,
-    });
+    console.warn(
+      "[calculateActualCost] Negative cost detected, clamping to 0:",
+      {
+        provider,
+        modelName,
+        originalCost: cost,
+        promptTokens: tokenUsage.promptTokens || 0,
+        cachedPromptTokens: tokenUsage.cachedPromptTokens || 0,
+        completionTokens: tokenUsage.completionTokens || 0,
+        reasoningTokens: tokenUsage.reasoningTokens || 0,
+      }
+    );
   }
 
   console.log("[calculateActualCost] Cost calculation:", {
@@ -185,10 +194,13 @@ export async function reserveCredits(
 
   // Validate estimated cost is non-negative (pricing info may be wrong)
   if (estimatedCost < 0) {
-    console.warn("[reserveCredits] Negative estimated cost detected, clamping to 0:", {
-      workspaceId,
-      estimatedCost,
-    });
+    console.warn(
+      "[reserveCredits] Negative estimated cost detected, clamping to 0:",
+      {
+        workspaceId,
+        estimatedCost,
+      }
+    );
     // Return workspace without creating reservation for zero cost
     const workspace = await db.workspace.get(workspacePk, "workspace");
     if (!workspace) {
@@ -272,7 +284,7 @@ export async function reserveCredits(
     if (context && provider !== "tavily") {
       const effectiveProvider = provider || "openrouter";
       const effectiveModel = modelName || "unknown";
-      
+
       console.log("[reserveCredits] Creating credit transaction (Step 1):", {
         workspaceId,
         reservationId,
@@ -286,17 +298,21 @@ export async function reserveCredits(
         agentId: agentId || undefined,
         conversationId: conversationId || undefined,
         source: "text-generation",
-        supplier: effectiveProvider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter for now
+        supplier:
+          effectiveProvider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter for now
         model: effectiveModel,
         description: "Initial credit reservation (Step 1)",
         amountMillionthUsd: -estimatedCost, // Negative for debit (deducting from workspace)
       });
     } else if (context && provider === "tavily") {
-      console.log("[reserveCredits] Skipping transaction creation for Tavily (will be created in adjustment step):", {
-        workspaceId,
-        reservationId,
-        estimatedCost,
-      });
+      console.log(
+        "[reserveCredits] Skipping transaction creation for Tavily (will be created in adjustment step):",
+        {
+          workspaceId,
+          reservationId,
+          estimatedCost,
+        }
+      );
     }
 
     return {
@@ -405,15 +421,19 @@ export async function adjustCreditReservation(
   // Validate token usage cost is non-negative (pricing info may be wrong)
   // calculateActualCost already validates, but double-check for safety
   if (tokenUsageBasedCost < 0) {
-    console.warn("[adjustCreditReservation] Negative token usage cost detected, clamping to 0:", {
-      workspaceId,
-      reservationId,
-      provider,
-      modelName,
-      tokenUsageBasedCost,
-    });
+    console.warn(
+      "[adjustCreditReservation] Negative token usage cost detected, clamping to 0:",
+      {
+        workspaceId,
+        reservationId,
+        provider,
+        modelName,
+        tokenUsageBasedCost,
+      }
+    );
   }
-  const validatedTokenUsageCost = tokenUsageBasedCost < 0 ? 0 : tokenUsageBasedCost;
+  const validatedTokenUsageCost =
+    tokenUsageBasedCost < 0 ? 0 : tokenUsageBasedCost;
 
   // Calculate difference between token usage cost and reserved amount
   const difference = validatedTokenUsageCost - reservation.reservedAmount;
@@ -424,21 +444,27 @@ export async function adjustCreditReservation(
   // If difference < 0, we need to refund (credit = positive)
   const transactionAmount = difference === 0 ? 0 : -difference; // Negate: positive difference becomes negative (debit), negative becomes positive (credit), avoid -0
 
-  console.log("[adjustCreditReservation] Step 2: Creating credit transaction:", {
-    workspaceId,
-    reservationId,
-    reservedAmount: reservation.reservedAmount,
-    tokenUsageBasedCost: validatedTokenUsageCost,
-    originalTokenUsageCost: tokenUsageBasedCost !== validatedTokenUsageCost ? tokenUsageBasedCost : undefined,
-    difference,
-    transactionAmount,
-    tokenUsage: {
-      promptTokens: tokenUsage.promptTokens || 0,
-      cachedPromptTokens: tokenUsage.cachedPromptTokens || 0,
-      completionTokens: tokenUsage.completionTokens || 0,
-      reasoningTokens: tokenUsage.reasoningTokens || 0,
-    },
-  });
+  console.log(
+    "[adjustCreditReservation] Step 2: Creating credit transaction:",
+    {
+      workspaceId,
+      reservationId,
+      reservedAmount: reservation.reservedAmount,
+      tokenUsageBasedCost: validatedTokenUsageCost,
+      originalTokenUsageCost:
+        tokenUsageBasedCost !== validatedTokenUsageCost
+          ? tokenUsageBasedCost
+          : undefined,
+      difference,
+      transactionAmount,
+      tokenUsage: {
+        promptTokens: tokenUsage.promptTokens || 0,
+        cachedPromptTokens: tokenUsage.cachedPromptTokens || 0,
+        completionTokens: tokenUsage.completionTokens || 0,
+        reasoningTokens: tokenUsage.reasoningTokens || 0,
+      },
+    }
+  );
 
   // Get current workspace to determine current balance for logging
   const workspace = await db.workspace.get(workspacePk, "workspace");
@@ -449,21 +475,28 @@ export async function adjustCreditReservation(
   const oldBalance = workspace.creditBalance;
   const newBalance = oldBalance + transactionAmount; // Will be applied when transaction commits (add because transactionAmount is already signed correctly)
 
-  console.log("[adjustCreditReservation] Step 2: Transaction created (will commit at end of request):", {
-    workspaceId,
-    reservationId,
-    transactionAmount,
-    oldBalance,
-    newBalance,
-    currency: workspace.currency,
-  });
+  console.log(
+    "[adjustCreditReservation] Step 2: Transaction created (will commit at end of request):",
+    {
+      workspaceId,
+      reservationId,
+      transactionAmount,
+      oldBalance,
+      newBalance,
+      currency: workspace.currency,
+    }
+  );
 
   // Get conversationId from reservation if not provided
   const effectiveConversationId = conversationId || reservation.conversationId;
 
   // Format costs for description
-  const calculatedCostFormatted = formatCurrencyMillionths(validatedTokenUsageCost);
-  const reservedAmountFormatted = formatCurrencyMillionths(reservation.reservedAmount);
+  const calculatedCostFormatted = formatCurrencyMillionths(
+    validatedTokenUsageCost
+  );
+  const reservedAmountFormatted = formatCurrencyMillionths(
+    reservation.reservedAmount
+  );
   const differenceFormatted = formatCurrencyMillionths(Math.abs(difference));
   const action = difference > 0 ? "additional charge" : "refund";
 
@@ -489,14 +522,18 @@ export async function adjustCreditReservation(
 
     // Update reservation record with token usage cost and OpenRouter generation ID
     // Don't delete yet - will be deleted in finalizeCreditReservation (step 3)
-    if (openrouterGenerationId || openrouterGenerationIds || provider === "openrouter") {
+    if (
+      openrouterGenerationId ||
+      openrouterGenerationIds ||
+      provider === "openrouter"
+    ) {
       // Determine which generation IDs to store
       const allGenerationIds =
         openrouterGenerationIds && openrouterGenerationIds.length > 0
           ? openrouterGenerationIds
           : openrouterGenerationId
-            ? [openrouterGenerationId]
-            : [];
+          ? [openrouterGenerationId]
+          : [];
 
       await db["credit-reservations"].update({
         pk: reservationPk,
@@ -514,40 +551,54 @@ export async function adjustCreditReservation(
         provider: provider || reservation.provider,
         modelName: modelName || reservation.modelName,
         // Update conversationId if provided (e.g., from webhook endpoint where it's created after LLM call)
-        conversationId: conversationId || reservation.conversationId || undefined,
+        conversationId:
+          conversationId || reservation.conversationId || undefined,
       });
-      console.log("[adjustCreditReservation] Updated reservation with generation IDs for step 3:", {
-        reservationId,
-        openrouterGenerationId: openrouterGenerationId || reservation.openrouterGenerationId,
-        openrouterGenerationIds: allGenerationIds,
-        expectedGenerationCount: allGenerationIds.length,
-        tokenUsageBasedCost: validatedTokenUsageCost,
-      });
+      console.log(
+        "[adjustCreditReservation] Updated reservation with generation IDs for step 3:",
+        {
+          reservationId,
+          openrouterGenerationId:
+            openrouterGenerationId || reservation.openrouterGenerationId,
+          openrouterGenerationIds: allGenerationIds,
+          expectedGenerationCount: allGenerationIds.length,
+          tokenUsageBasedCost: validatedTokenUsageCost,
+        }
+      );
     } else {
       // For non-OpenRouter providers, delete reservation after step 2 (no step 3 needed)
       await db["credit-reservations"].delete(reservationPk);
-      console.log("[adjustCreditReservation] Successfully deleted reservation (non-OpenRouter):", {
-        reservationId,
-      });
+      console.log(
+        "[adjustCreditReservation] Successfully deleted reservation (non-OpenRouter):",
+        {
+          reservationId,
+        }
+      );
     }
 
-    console.log("[adjustCreditReservation] Step 2 completed successfully (transaction created):", {
-      workspaceId,
-      reservationId,
-      newBalance: updated.creditBalance,
-      currency: updated.currency,
-    });
+    console.log(
+      "[adjustCreditReservation] Step 2 completed successfully (transaction created):",
+      {
+        workspaceId,
+        reservationId,
+        newBalance: updated.creditBalance,
+        currency: updated.currency,
+      }
+    );
 
     return updated;
   } catch (error) {
     // Log error but transaction has already been created
     // The transaction will be committed at end of request if no error occurs
     const lastError = error instanceof Error ? error : new Error(String(error));
-    console.error("[adjustCreditReservation] Error updating reservation record:", {
-      reservationId,
-      workspaceId,
-      error: lastError.message,
-    });
+    console.error(
+      "[adjustCreditReservation] Error updating reservation record:",
+      {
+        reservationId,
+        workspaceId,
+        error: lastError.message,
+      }
+    );
     // Rethrow to allow caller to handle
     throw lastError;
   }
@@ -620,26 +671,29 @@ export async function refundReservation(
     agentId: reservation.agentId || undefined,
     conversationId: reservation.conversationId || undefined,
     source: "text-generation",
-    supplier: reservation.provider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter
+    supplier:
+      reservation.provider === "openrouter" ? "openrouter" : "openrouter", // Default to openrouter
     model: reservation.modelName,
     description: `Refund reserved credits due to error before LLM call`,
     amountMillionthUsd: transactionAmount,
   });
 
   try {
-
     // Delete reservation record
     await db["credit-reservations"].delete(reservationPk);
     console.log("[refundReservation] Successfully deleted reservation:", {
       reservationId,
     });
 
-    console.log("[refundReservation] Successfully created refund transaction:", {
-      workspaceId,
-      reservationId,
-      newBalance,
-      currency: reservation.currency,
-    });
+    console.log(
+      "[refundReservation] Successfully created refund transaction:",
+      {
+        workspaceId,
+        reservationId,
+        newBalance,
+        currency: reservation.currency,
+      }
+    );
   } catch (error) {
     // Log error but transaction has already been created
     // The transaction will be committed at end of request if no error occurs
@@ -704,21 +758,20 @@ export async function debitCredits(
         }
 
         // Calculate actual cost from token usage (always in USD)
-        const actualCost = calculateActualCost(
-          provider,
-          modelName,
-          tokenUsage
-        );
+        const actualCost = calculateActualCost(provider, modelName, tokenUsage);
 
         // Validate actual cost is non-negative (pricing info may be wrong)
         // calculateActualCost already validates, but double-check for safety
         if (actualCost < 0) {
-          console.warn("[debitCredits] Negative actual cost detected, clamping to 0:", {
-            workspaceId,
-            provider,
-            modelName,
-            actualCost,
-          });
+          console.warn(
+            "[debitCredits] Negative actual cost detected, clamping to 0:",
+            {
+              workspaceId,
+              provider,
+              modelName,
+              actualCost,
+            }
+          );
         }
         const validatedActualCost = actualCost < 0 ? 0 : actualCost;
 
@@ -732,7 +785,8 @@ export async function debitCredits(
           reasoningTokens: tokenUsage.reasoningTokens || 0,
           currency: current.currency,
           actualCost: validatedActualCost,
-          originalActualCost: actualCost !== validatedActualCost ? actualCost : undefined,
+          originalActualCost:
+            actualCost !== validatedActualCost ? actualCost : undefined,
           oldBalance: current.creditBalance,
         });
 
@@ -820,11 +874,14 @@ export async function finalizeCreditReservation(
 
   // Validate OpenRouter cost is non-negative (pricing info may be wrong)
   if (openrouterCost < 0) {
-    console.warn("[finalizeCreditReservation] Negative OpenRouter cost detected, clamping to 0:", {
-      reservationId,
-      workspaceId,
-      openrouterCost,
-    });
+    console.warn(
+      "[finalizeCreditReservation] Negative OpenRouter cost detected, clamping to 0:",
+      {
+        reservationId,
+        workspaceId,
+        openrouterCost,
+      }
+    );
   }
   const validatedOpenrouterCost = openrouterCost < 0 ? 0 : openrouterCost;
 
@@ -849,21 +906,34 @@ export async function finalizeCreditReservation(
     const oldBalance = workspace.creditBalance;
     const newBalance = oldBalance + transactionAmount; // Will be applied when transaction commits
 
-    console.log("[finalizeCreditReservation] Step 3: Creating credit transaction (no token usage cost):", {
-      workspaceId,
-      reservationId,
-      openrouterCost: validatedOpenrouterCost,
-      reservedAmount: reservation.reservedAmount,
-      difference: transactionAmount,
-      oldBalance,
-      newBalance,
-      currency: workspace.currency,
-    });
+    // Calculate the raw difference for logging (before negation)
+    const rawDifferenceNoToken =
+      validatedOpenrouterCost - reservation.reservedAmount;
+
+    console.log(
+      "[finalizeCreditReservation] Step 3: Creating credit transaction (no token usage cost):",
+      {
+        workspaceId,
+        reservationId,
+        openrouterCost: validatedOpenrouterCost,
+        reservedAmount: reservation.reservedAmount,
+        rawDifference: rawDifferenceNoToken, // Actual difference: openrouterCost - reservedAmount
+        transactionAmount, // Negated difference for transaction: -rawDifference
+        oldBalance,
+        newBalance,
+        currency: workspace.currency,
+        note: "transactionAmount is the adjustment amount (negative = debit, positive = credit/refund). This is NOT the actual cost - use openrouterCost for actual cost.",
+      }
+    );
 
     // Format costs for description
-    const openrouterCostFormatted = formatCurrencyMillionths(validatedOpenrouterCost);
-    const differenceFormatted = formatCurrencyMillionths(Math.abs(difference));
-    const action = difference > 0 ? "additional charge" : "refund";
+    const openrouterCostFormatted = formatCurrencyMillionths(
+      validatedOpenrouterCost
+    );
+    const differenceFormatted = formatCurrencyMillionths(
+      Math.abs(rawDifferenceNoToken)
+    );
+    const action = rawDifferenceNoToken > 0 ? "additional charge" : "refund";
 
     // Create transaction in memory
     context.addWorkspaceCreditTransaction({
@@ -896,23 +966,34 @@ export async function finalizeCreditReservation(
   const oldBalance = workspace.creditBalance;
   const newBalance = oldBalance + transactionAmount; // Will be applied when transaction commits
 
-  console.log("[finalizeCreditReservation] Step 3: Creating credit transaction:", {
-    workspaceId,
-    reservationId,
-    tokenUsageBasedCost,
-    openrouterCost: validatedOpenrouterCost,
-    originalOpenrouterCost: openrouterCost !== validatedOpenrouterCost ? openrouterCost : undefined,
-    difference: transactionAmount,
-    oldBalance,
-    newBalance,
-    currency: workspace.currency,
-  });
+  // Calculate the raw difference for logging (before negation)
+  const rawDifference = validatedOpenrouterCost - tokenUsageBasedCost;
+
+  console.log(
+    "[finalizeCreditReservation] Step 3: Creating credit transaction:",
+    {
+      workspaceId,
+      reservationId,
+      tokenUsageBasedCost,
+      openrouterCost: validatedOpenrouterCost,
+      originalOpenrouterCost:
+        openrouterCost !== validatedOpenrouterCost ? openrouterCost : undefined,
+      rawDifference, // Actual difference: openrouterCost - tokenUsageBasedCost
+      transactionAmount, // Negated difference for transaction: -rawDifference
+      oldBalance,
+      newBalance,
+      currency: workspace.currency,
+      note: "transactionAmount is the adjustment amount (negative = debit, positive = credit/refund). This is NOT the actual cost - use openrouterCost for actual cost.",
+    }
+  );
 
   // Format costs for description
-  const openrouterCostFormatted = formatCurrencyMillionths(validatedOpenrouterCost);
+  const openrouterCostFormatted = formatCurrencyMillionths(
+    validatedOpenrouterCost
+  );
   const tokenUsageCostFormatted = formatCurrencyMillionths(tokenUsageBasedCost);
-  const differenceFormatted = formatCurrencyMillionths(Math.abs(transactionAmount));
-  const action = transactionAmount > 0 ? "additional charge" : "refund";
+  const differenceFormatted = formatCurrencyMillionths(Math.abs(rawDifference));
+  const action = rawDifference > 0 ? "additional charge" : "refund";
 
   // Create transaction in memory
   context.addWorkspaceCreditTransaction({
@@ -940,27 +1021,36 @@ export async function finalizeCreditReservation(
 
     // Delete reservation record
     await db["credit-reservations"].delete(reservationPk);
-    console.log("[finalizeCreditReservation] Successfully deleted reservation:", {
-      reservationId,
-    });
+    console.log(
+      "[finalizeCreditReservation] Successfully deleted reservation:",
+      {
+        reservationId,
+      }
+    );
 
-    console.log("[finalizeCreditReservation] Step 3 completed successfully (transaction created):", {
-      workspaceId,
-      reservationId,
-      newBalance: updated.creditBalance,
-      currency: updated.currency,
-    });
+    console.log(
+      "[finalizeCreditReservation] Step 3 completed successfully (transaction created):",
+      {
+        workspaceId,
+        reservationId,
+        newBalance: updated.creditBalance,
+        currency: updated.currency,
+      }
+    );
 
     return updated;
   } catch (error) {
     // Log error but transaction has already been created
     // The transaction will be committed at end of request if no error occurs
     const lastError = error instanceof Error ? error : new Error(String(error));
-    console.error("[finalizeCreditReservation] Error updating/deleting reservation record:", {
-      reservationId,
-      workspaceId,
-      error: lastError.message,
-    });
+    console.error(
+      "[finalizeCreditReservation] Error updating/deleting reservation record:",
+      {
+        reservationId,
+        workspaceId,
+        error: lastError.message,
+      }
+    );
     // Rethrow to allow caller to handle
     throw lastError;
   }

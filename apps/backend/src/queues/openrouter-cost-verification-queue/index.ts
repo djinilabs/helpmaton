@@ -323,7 +323,24 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
 
   // Fetch cost from OpenRouter API
   // This will throw an error if cost cannot be computed, which will be caught by the handler wrapper
+  // IMPORTANT: This is the ACTUAL cost from OpenRouter API (with 5.5% markup), NOT a transaction/refund amount
   const openrouterCost = await fetchOpenRouterCost(openrouterGenerationId);
+  
+  // Validate that the cost is positive and reasonable (defensive check)
+  if (openrouterCost <= 0) {
+    throw new Error(
+      `Invalid OpenRouter cost: ${openrouterCost} (must be positive). This should be the actual cost, not a transaction amount.`
+    );
+  }
+
+  console.log("[Cost Verification] Fetched OpenRouter cost (will be used for finalCostUsd):", {
+    openrouterGenerationId,
+    openrouterCost,
+    workspaceId,
+    conversationId,
+    agentId,
+    note: "This is the ACTUAL cost that will be stored in finalCostUsd, NOT a transaction/refund amount",
+  });
 
   const db = await database();
 
@@ -477,6 +494,9 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
           let messageUpdated = false;
 
           // Find and update the message with matching generation ID
+          // IMPORTANT: finalCostUsd must be the ACTUAL cost from OpenRouter API (with 5.5% markup),
+          // NOT the transaction amount (difference/refund) from finalizeCreditReservation.
+          // The transaction amount is only used for credit balance adjustments, not for message costs.
           const updatedMessages = messages.map((msg) => {
             if (
               msg.role === "assistant" &&
@@ -486,6 +506,7 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
               messageUpdated = true;
               return {
                 ...msg,
+                // Use the actual cost fetched from OpenRouter API, not any transaction/refund amount
                 finalCostUsd: openrouterCost,
               };
             }
@@ -552,8 +573,17 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
             agentId,
             workspaceId,
             openrouterGenerationId,
-            finalCostUsd: openrouterCost,
+            finalCostUsd: openrouterCost, // Actual cost from OpenRouter API (with 5.5% markup)
             totalCostUsd,
+            previousCostUsd: current.costUsd,
+            messageCount: updatedMessages.length,
+            messagesWithFinalCost: updatedMessages.filter(
+              (msg) =>
+                msg.role === "assistant" &&
+                "finalCostUsd" in msg &&
+                typeof msg.finalCostUsd === "number"
+            ).length,
+            note: "finalCostUsd is the actual cost, NOT a transaction/refund amount. Conversation costUsd is sum of all message finalCostUsd values.",
           });
 
           return {

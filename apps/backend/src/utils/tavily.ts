@@ -270,9 +270,7 @@ export async function tavilySearch(
     maxResults: options?.max_results ?? 5,
     searchDepth: options?.search_depth ?? "basic",
     includeAnswer: options?.include_answer ?? false,
-    includeRawContent: options?.include_raw_content
-      ? "text"
-      : false,
+    includeRawContent: options?.include_raw_content ? "text" : false,
     includeImages: options?.include_images ?? false,
     includeUsage: true,
   };
@@ -281,28 +279,15 @@ export async function tavilySearch(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-
       // Call library with timeout handling
-      const searchPromise = client.search(query, {
+      const searchResult = await client.search(query, {
         ...libraryOptions,
-        timeout: 30000,
+        timeout: 30, // in seconds
+        includeUsage: true,
       });
-
-      // Race against timeout
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          controller.abort();
-          reject(new Error("Tavily search API request timeout"));
-        }, 30000);
-      });
-
-      const libResponse = await Promise.race([searchPromise, timeoutPromise]);
-      clearTimeout(timeoutId);
 
       // Convert library response to our format
-      return convertSearchResponse(libResponse);
+      return convertSearchResponse(searchResult);
     } catch (error) {
       // If error message includes "Tavily search API error", it's a non-retryable API error - throw immediately
       if (
@@ -370,9 +355,7 @@ export async function tavilySearch(
           error
         );
         if (error instanceof Error) {
-          throw new Error(
-            `Tavily search API error: ${error.message}`
-          );
+          throw new Error(`Tavily search API error: ${error.message}`);
         }
         throw new Error(`Failed to call Tavily search API: ${String(error)}`);
       }
@@ -383,9 +366,7 @@ export async function tavilySearch(
 
   // If we get here, all retries were exhausted
   if (lastError) {
-    throw new Error(
-      `Tavily search API error: ${lastError.message}`
-    );
+    throw new Error(`Tavily search API error: ${lastError.message}`);
   }
   throw new Error("Failed to call Tavily search API: Unknown error");
 }
@@ -412,29 +393,18 @@ export async function tavilyExtract(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-
       // Call library with timeout handling
       // Library expects array of URLs
-      const extractPromise = client.extract([url], {
+      const extractResult = await client.extract([url], {
         ...libraryOptions,
-        timeout: 30000,
+        timeout: 30, // in seconds
+        includeUsage: true,
       });
 
-      // Race against timeout
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          controller.abort();
-          reject(new Error("Tavily extract API request timeout"));
-        }, 30000);
-      });
-
-      const libResponse = await Promise.race([extractPromise, timeoutPromise]);
-      clearTimeout(timeoutId);
+      console.log("Tavily extract API response:", extractResult);
 
       // Convert library response to our format
-      return convertExtractResponse(libResponse, url);
+      return convertExtractResponse(extractResult, url);
     } catch (error) {
       // If error message includes "Tavily extract API error", it's a non-retryable API error - throw immediately
       if (
@@ -443,6 +413,8 @@ export async function tavilyExtract(
       ) {
         throw error;
       }
+
+      console.error("Tavily extract API error:", error);
 
       // Check if it's an abort/timeout error
       if (
@@ -502,9 +474,7 @@ export async function tavilyExtract(
           error
         );
         if (error instanceof Error) {
-          throw new Error(
-            `Tavily extract API error: ${error.message}`
-          );
+          throw new Error(`Tavily extract API error: ${error.message}`);
         }
         throw new Error(`Failed to call Tavily extract API: ${String(error)}`);
       }
@@ -515,9 +485,7 @@ export async function tavilyExtract(
 
   // If we get here, all retries were exhausted
   if (lastError) {
-    throw new Error(
-      `Tavily extract API error: ${lastError.message}`
-    );
+    throw new Error(`Tavily extract API error: ${lastError.message}`);
   }
   throw new Error("Failed to call Tavily extract API: Unknown error");
 }

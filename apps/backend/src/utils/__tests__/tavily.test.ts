@@ -84,7 +84,7 @@ describe("tavily", () => {
         includeRawContent: false,
         includeImages: false,
         includeUsage: true,
-        timeout: 30000,
+        timeout: 30, // in seconds
       });
     });
 
@@ -187,7 +187,7 @@ describe("tavily", () => {
         includeRawContent: "text",
         includeImages: true,
         includeUsage: true,
-        timeout: 30000,
+        timeout: 30, // in seconds
       });
     });
 
@@ -276,15 +276,12 @@ describe("tavily", () => {
       const result = await tavilyExtract("https://example.com");
 
       expect(result).toEqual(expectedResponse);
-      expect(mockExtract).toHaveBeenCalledWith(
-        ["https://example.com"],
-        {
-          includeImages: false,
-          format: undefined,
-          includeUsage: true,
-          timeout: 30000,
-        }
-      );
+      expect(mockExtract).toHaveBeenCalledWith(["https://example.com"], {
+        includeImages: false,
+        format: undefined,
+        includeUsage: true,
+        timeout: 30, // in seconds
+      });
     });
 
     it("should throw error when API key is not set", async () => {
@@ -369,15 +366,12 @@ describe("tavily", () => {
         include_raw_content: true,
       });
 
-      expect(mockExtract).toHaveBeenCalledWith(
-        ["https://example.com"],
-        {
-          includeImages: true,
-          format: "text",
-          includeUsage: true,
-          timeout: 30000,
-        }
-      );
+      expect(mockExtract).toHaveBeenCalledWith(["https://example.com"], {
+        includeImages: true,
+        format: "text",
+        includeUsage: true,
+        timeout: 30, // in seconds
+      });
     });
 
     it("should use first result when multiple URLs provided", async () => {

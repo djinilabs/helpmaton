@@ -720,6 +720,115 @@ describe("openrouter-cost-verification-queue", () => {
       expect(updated.costUsd).toBe(3055); // 2000 + 1055
     });
 
+    it("should use actual cost from OpenRouter API, not transaction/refund amount", async () => {
+      // This test verifies that finalCostUsd uses the actual cost, not the transaction amount
+      // Scenario: OpenRouter cost is 1000, token usage cost is 1200
+      // The transaction amount would be 200 (refund), but finalCostUsd should be 1000 (actual cost)
+      
+      const mockReservation = {
+        pk: "credit-reservations/res-1",
+        workspaceId: "workspace-1",
+        openrouterGenerationId: "gen-12345",
+        expectedGenerationCount: 1,
+        verifiedGenerationIds: [],
+        verifiedCosts: [],
+        reservedAmount: 5000,
+        tokenUsageBasedCost: 1200, // Token usage cost is higher than OpenRouter cost
+      };
+
+      mockGetReservation.mockResolvedValue(mockReservation);
+      let currentReservation = { ...mockReservation };
+
+      mockAtomicUpdateReservation.mockImplementation(
+        async (_pk, _sk, updater) => {
+          const updated = await updater(currentReservation);
+          if (updated) {
+            currentReservation = updated;
+          }
+          return updated || currentReservation;
+        }
+      );
+
+      // Mock OpenRouter API to return cost of 0.001 (1000 millionths with markup = 1055)
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: {
+            total_cost: 0.001, // $0.001 USD = 1000 millionths base, 1055 with markup
+          },
+        }),
+      });
+
+      const conversationWithMessage = {
+        ...mockConversation,
+        messages: [
+          {
+            role: "assistant",
+            content: "Test response",
+            modelName: "openrouter/auto",
+            provider: "openrouter",
+            openrouterGenerationId: "gen-12345",
+            tokenUsage: {
+              promptTokens: 100,
+              completionTokens: 50,
+            },
+          },
+        ] as UIMessage[],
+      };
+
+      mockGet.mockResolvedValueOnce(conversationWithMessage);
+
+      const record: SQSRecord = {
+        messageId: "msg-1",
+        receiptHandle: "receipt-1",
+        body: JSON.stringify({
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-12345",
+          workspaceId: "workspace-1",
+          conversationId: "conv-1",
+          agentId: "agent-1",
+        }),
+        attributes: {
+          ApproximateReceiveCount: "1",
+          SentTimestamp: "1234567890000",
+          SenderId: "test-sender",
+          ApproximateFirstReceiveTimestamp: "1234567890000",
+        },
+        messageAttributes: {},
+        md5OfBody: "",
+        eventSource: "aws:sqs",
+        eventSourceARN: "",
+        awsRegion: "",
+      };
+
+      await handler({ Records: [record] });
+
+      // Verify finalizeCreditReservation was called with actual cost (1055), not transaction amount
+      expect(mockFinalizeCreditReservation).toHaveBeenCalledWith(
+        expect.anything(),
+        "res-1",
+        1055, // Actual cost from OpenRouter API (with markup), NOT the transaction amount
+        expect.anything(),
+        3
+      );
+
+      // Verify the message was updated with actual cost, not transaction amount
+      const updaterCall = mockAtomicUpdate.mock.calls[0][2];
+      const updated = await updaterCall(conversationWithMessage);
+
+      const updatedMessages = updated.messages as UIMessage[];
+      const assistantMessage = updatedMessages.find(
+        (msg) => msg.role === "assistant"
+      );
+
+      expect(assistantMessage).toBeDefined();
+      // finalCostUsd should be the actual cost (1055), NOT the transaction amount (200 refund)
+      // Transaction amount would be: -(1055 - 1200) = 145 (refund)
+      // But finalCostUsd must be the actual cost: 1055
+      expect(assistantMessage).toHaveProperty("finalCostUsd", 1055);
+      expect(updated.costUsd).toBe(1055);
+    });
+
     it("should handle backward compatibility with old API format (top-level cost)", async () => {
       // Mock reservation for single generation (backward compatibility)
       const mockReservation = {
