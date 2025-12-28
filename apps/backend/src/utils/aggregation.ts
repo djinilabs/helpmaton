@@ -494,7 +494,11 @@ function aggregateTransactions(
   );
 
   for (const txn of nonToolTransactions) {
-    const costUsd = txn.amountMillionthUsd || 0;
+    // Transaction amounts are stored as negative for debits, positive for credits
+    // For cost reporting, we want positive costs, so take absolute value of debits
+    // (negative amounts become positive, positive amounts stay positive or are excluded)
+    const rawAmount = txn.amountMillionthUsd || 0;
+    const costUsd = rawAmount < 0 ? -rawAmount : 0; // Only count debits, convert to positive
 
     // Aggregate totals
     stats.costUsd += costUsd;
@@ -509,7 +513,9 @@ function aggregateTransactions(
         costUsd: 0,
       };
     }
-    stats.byModel[modelName].costUsd += costUsd;
+    // Use the same cost calculation for model breakdown
+    const modelCostUsd = rawAmount < 0 ? -rawAmount : 0;
+    stats.byModel[modelName].costUsd += modelCostUsd;
 
     // Aggregate by provider
     const provider = txn.supplier || "unknown";
@@ -521,12 +527,16 @@ function aggregateTransactions(
         costUsd: 0,
       };
     }
-    stats.byProvider[provider].costUsd += costUsd;
+    // Use the same cost calculation for provider breakdown
+    const providerCostUsd = rawAmount < 0 ? -rawAmount : 0;
+    stats.byProvider[provider].costUsd += providerCostUsd;
 
     // Aggregate by BYOK (for text-generation and embedding-generation, BYOK is determined by supplier)
     // For now, we'll treat all transactions as platform (BYOK transactions would have different handling)
     // This might need adjustment based on actual BYOK tracking in transactions
-    stats.byByok.platform.costUsd += costUsd;
+    // Use the same cost calculation for BYOK breakdown
+    const byokCostUsd = rawAmount < 0 ? -rawAmount : 0;
+    stats.byByok.platform.costUsd += byokCostUsd;
   }
 
   return stats;
@@ -568,7 +578,10 @@ function aggregateToolTransactions(
   );
 
   for (const txn of toolTransactions) {
-    const costUsd = txn.amountMillionthUsd || 0;
+    // Transaction amounts are stored as negative for debits, positive for credits
+    // For cost reporting, we want positive costs, so take absolute value of debits
+    const rawAmount = txn.amountMillionthUsd || 0;
+    const costUsd = rawAmount < 0 ? -rawAmount : 0; // Only count debits, convert to positive
     const toolCall = txn.tool_call || "unknown";
     const supplier = txn.supplier || "unknown";
     const key = `${toolCall}-${supplier}`;
@@ -583,6 +596,7 @@ function aggregateToolTransactions(
         callCount: 0,
       };
     }
+    // Use the same cost calculation for tool expenses (already calculated above as costUsd)
     stats.toolExpenses[key].costUsd += costUsd;
     stats.toolExpenses[key].callCount += 1;
   }

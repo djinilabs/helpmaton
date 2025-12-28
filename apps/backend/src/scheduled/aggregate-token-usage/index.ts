@@ -316,7 +316,11 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
     }
 
     const agg = toolAggregates.get(key)!;
-    agg.costUsd += txn.amountMillionthUsd || 0;
+    // Transaction amounts are stored as negative for debits, positive for credits
+    // For cost reporting, we want positive costs, so take absolute value of debits
+    const rawAmount = txn.amountMillionthUsd || 0;
+    const costUsd = rawAmount < 0 ? -rawAmount : 0; // Only count debits, convert to positive
+    agg.costUsd += costUsd;
     agg.callCount += 1;
   }
 
