@@ -1979,7 +1979,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   >
                     {updateAgent.isPending
                       ? "Saving..."
-                      : "Save Web Fetch Provider"}
+                      : "Save URL Fetching Provider"}
                   </button>
                 </div>
               </LazyAccordionContent>
