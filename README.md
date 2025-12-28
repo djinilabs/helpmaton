@@ -24,6 +24,9 @@ Create workspaces to organize your AI agents and their knowledge bases. Each age
 
 - **Customer Support**: Deploy intelligent support agents that understand your product documentation
 - **Internal Knowledge Bases**: Create assistants that help teams find information quickly
+- **Research Assistants**: Build agents that can search the web for current information, find recent articles, and analyze web content
+- **News Monitoring**: Create agents that monitor news, track industry developments, and provide real-time updates
+- **Content Analysis**: Deploy agents that extract and summarize content from web pages, articles, and online resources
 - **Specialized Workflows**: Build domain-specific agents for technical documentation, legal research, or any specialized field
 - **API Integration**: Embed AI capabilities into your applications via webhook endpoints
 
@@ -45,9 +48,36 @@ Upload markdown and text documents to build knowledge bases for your agents. Org
 
 Agents remember important facts, people, and events from conversations through a stratified memory architecture. Memories are progressively summarized across temporal grains (daily, weekly, monthly, quarterly, yearly) and searchable via semantic vector search, enabling context-aware responses informed by past interactions.
 
+### Web Search & Content Extraction
+
+Give your agents access to real-time, up-to-date information beyond their training data. Enable web search and content extraction tools to make your AI assistants more capable and current.
+
+**Web Search** (`search_web`): Agents can search the web for current information, news, articles, and research. Perfect for finding the latest developments, answering questions about recent events, or discovering new resources. Search results include titles, URLs, content snippets, and relevance scores.
+
+**Content Extraction** (`fetch_web`): Extract and summarize content from any web page URL. Agents can read and understand specific web pages, analyze articles, extract key information, and provide insights from any online content.
+
+**Key Advantages**:
+- **Real-Time Information**: Access current information that isn't in training data
+- **Always Current**: Answer questions about recent events, news, and developments
+- **Cost-Effective**: Free daily allowance (10 calls/day) with transparent pay-as-you-go pricing ($0.008 per additional call)
+- **Easy Integration**: Enable per-agent with simple toggle switches
+- **Intelligent Extraction**: Automatically extracts main content, titles, and metadata from web pages
+
+**Pricing**: Free tier includes 10 calls per 24 hours. Paid tiers get 10 free calls per day, then $0.008 per additional call. Perfect for research assistants, news monitoring, and content analysis workflows.
+
 ### Tool Integration & Extensibility
 
-Agents come with built-in tools (like memory search) and can be extended with MCP (Model Context Protocol) servers to connect to external APIs and services. Configure MCP servers with custom authentication and enable them per-agent to give your AI assistants access to databases, business logic, weather APIs, and more.
+Agents come with a comprehensive set of built-in tools and can be extended with MCP (Model Context Protocol) servers to connect to external APIs and services.
+
+**Built-in Tools**:
+- **Document Search**: Semantic vector search across workspace documents
+- **Memory Search**: Recall past conversations and information from the agent's memory system
+- **Web Search**: Search the web for current information, news, and articles
+- **Web Fetch**: Extract and summarize content from any web page URL
+- **Email Sending**: Send emails using workspace email connections
+- **Agent Delegation**: Agents can delegate tasks to other agents in the workspace
+
+**Extensibility**: Configure MCP servers with custom authentication and enable them per-agent to give your AI assistants access to databases, business logic, weather APIs, and any other external services you need.
 
 ### Cost Management & Billing
 
@@ -79,9 +109,13 @@ Pro plan subscriptions support multiple managers with shared access to all works
 
 Automatic memory management with subscription plan-based retention periods. Free plans retain 48 hours of working memory and 30 days of daily summaries, while Pro plans extend to 240 hours and 120 days respectively. Old memories are automatically cleaned up to optimize storage.
 
+### Streaming Support
+
+Get real-time, streaming responses from your agents using Server-Sent Events (SSE) or Lambda Function URLs. Perfect for chat interfaces, interactive applications, and real-time user experiences. Responses stream token-by-token as they're generated, providing immediate feedback and a smooth conversational experience.
+
 ### Webhook API
 
-Every agent exposes a webhook endpoint that accepts HTTP requests. Send messages and receive AI-powered responses, making integration with your applications straightforward.
+Every agent exposes a webhook endpoint that accepts HTTP requests. Send messages and receive AI-powered responses, making integration with your applications straightforward. Supports both synchronous responses and streaming via dedicated streaming endpoints.
 
 ### Team Collaboration
 
@@ -124,8 +158,11 @@ Complete API documentation available in OpenAPI format. Generate client librarie
 ### Integration Examples
 
 - Connect agents to Slack, Discord, or other chat platforms
-- Embed AI responses in web applications
+- Embed AI responses in web applications with real-time streaming
 - Build automated workflows that leverage AI capabilities
+- Create research assistants that search the web for current information
+- Deploy news monitoring agents that track industry developments
+- Build content analysis tools that extract insights from web pages
 - Create custom interfaces for agent interactions
 - Extend agents with MCP servers for database access, external APIs, and custom business logic
 
@@ -188,6 +225,7 @@ The platform is designed for reliability, scalability, and performance, handling
 ### Integrations
 
 - [MCP Servers](./docs/mcp-servers.md) - Configure and use MCP servers for external tools
+- [Tavily Integration](./docs/tavily-integration.md) - Web search and content extraction with Tavily API
 - [Discord Setup](./docs/discord-setup.md) - Configure Discord integration for your agents
 - [Email Setup](./docs/email-setup.md) - Configure email authentication and notifications
 

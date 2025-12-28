@@ -744,11 +744,6 @@ describe("creditManagement", () => {
     });
 
     it("should successfully refund reserved credits", async () => {
-      const updatedWorkspace = {
-        ...mockWorkspace,
-        creditBalance: 110_000_000, // 100_000_000 + 10_000_000 (refund) in millionths
-      };
-
       mockGet.mockResolvedValue(mockWorkspace);
 
       await refundReservation(mockDb, reservationId, mockContext);

@@ -569,11 +569,11 @@ describe("requestTracking", () => {
       mockGetUserEmailById.mockResolvedValue("user@example.com");
       mockSendEmail.mockResolvedValue({ message: "Email sent" });
 
-      // Mock getRequestCountLast24Hours to return 2500 (at limit)
+      // Mock getRequestCountLast24Hours to return 3000 (at limit)
       mockDb["llm-request-buckets"].query.mockResolvedValue({
         items: [
           {
-            count: 2500,
+            count: 3000,
           },
         ],
       });
