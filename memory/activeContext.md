@@ -2,9 +2,47 @@
 
 ## Current Status
 
-**Status**: Web Fetch Tool Rename - Completed ✅
+**Status**: Slack Notification Channel Support - Completed ✅
 
-**Latest Work**: Renamed the `fetch_web` tool to `fetch_url` throughout the entire codebase for better clarity and consistency. The tool name now more accurately reflects its purpose of fetching content from specific URLs rather than general web content.
+**Latest Work**: Added Slack as a notification channel type alongside Discord. Backend fully supports Slack channels via webhooks, with comprehensive validation, error handling, and test coverage. Frontend UI currently supports Discord only (Slack UI was reverted).
+
+**Recent Changes**:
+
+1. **Backend Slack Support**:
+   - Created `apps/backend/src/utils/slack.ts` with `sendSlackMessage()` function for sending messages via Slack Incoming Webhooks API
+   - Updated `apps/backend/src/utils/notifications.ts` to route Slack channel types to the Slack utility
+   - Added Slack validation to channel creation endpoint (`post-workspace-channels.ts`):
+     - Validates `webhookUrl` is present and is a string
+     - Validates webhook URL format (must start with `https://hooks.slack.com/services/`)
+   - Updated OpenAPI documentation to include `"slack"` in channel type enum
+
+2. **PR Review Comments Addressed**:
+   - Removed `console.log` from Slack utility (production code should use proper logging)
+   - Simplified duplicate error handling logic in Slack utility
+   - Added JSDoc documentation for `UpdateChannelInput` type safety limitations
+
+3. **Test Coverage**:
+   - Created comprehensive unit tests for Slack utility (`slack.test.ts` - 7 tests)
+   - Created tests for notification routing with Slack (`notifications.test.ts` - 6 tests)
+   - Updated channel creation tests to include Slack scenarios
+   - All 31 tests passing
+
+**Files Modified**:
+- `apps/backend/src/utils/slack.ts` - New utility for Slack webhook messaging
+- `apps/backend/src/utils/notifications.ts` - Added Slack routing
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-workspace-channels.ts` - Added Slack validation
+- `apps/backend/src/utils/__tests__/slack.test.ts` - New test file (7 tests)
+- `apps/backend/src/utils/__tests__/notifications.test.ts` - New test file (6 tests)
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/__tests__/post-workspace-channels.test.ts` - Added Slack test cases
+- `apps/frontend/src/utils/api.ts` - Type definitions reverted to Discord-only (Slack support removed from frontend)
+
+**Note**: Frontend UI (`ChannelModal.tsx`) was reverted to Discord-only support. Backend API fully supports Slack channels, but users cannot create Slack channels through the UI at this time.
+
+**Verification**: All tests passing (31 Slack-related tests), typecheck and lint clean ✅
+
+**Previous Status**: Web Fetch Tool Rename - Completed ✅
+
+**Previous Work**: Renamed the `fetch_web` tool to `fetch_url` throughout the entire codebase for better clarity and consistency. The tool name now more accurately reflects its purpose of fetching content from specific URLs rather than general web content.
 
 **Recent Changes**:
 

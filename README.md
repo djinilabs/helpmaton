@@ -75,6 +75,7 @@ Agents come with a comprehensive set of built-in tools and can be extended with 
 - **Web Search**: Search the web for current information, news, and articles
 - **Web Fetch**: Extract and summarize content from any web page URL
 - **Email Sending**: Send emails using workspace email connections
+- **Notification Sending**: Send notifications to Discord channels (with API support for Slack)
 - **Agent Delegation**: Agents can delegate tasks to other agents in the workspace
 
 **Extensibility**: Configure MCP servers with custom authentication and enable them per-agent to give your AI assistants access to databases, business logic, weather APIs, and any other external services you need.
@@ -92,6 +93,8 @@ Agents come with a comprehensive set of built-in tools and can be extended with 
 ### Usage Analytics & Monitoring
 
 Comprehensive token usage tracking across all dimensions: prompt tokens, completion tokens, reasoning tokens, and cached tokens. View detailed usage statistics with daily and hourly aggregation, historical data with date range filtering, and per-workspace or per-agent breakdowns.
+
+**Error Tracking**: Conversations automatically persist and display errors when LLM calls fail, including detailed error messages, stack traces, provider information, and metadata. Error badges in conversation lists and detailed error views help you quickly identify and debug issues.
 
 ### Trial & Free Access
 
@@ -116,6 +119,10 @@ Get real-time, streaming responses from your agents using Server-Sent Events (SS
 ### Webhook API
 
 Every agent exposes a webhook endpoint that accepts HTTP requests. Send messages and receive AI-powered responses, making integration with your applications straightforward. Supports both synchronous responses and streaming via dedicated streaming endpoints.
+
+### Notification Channels
+
+Configure notification channels for your workspaces to enable agents to send messages to external platforms. Create Discord channels with bot tokens and channel IDs, or use Slack webhooks via the API. Agents can use the `send_notification` tool to deliver messages to configured channels, perfect for alerts, updates, and automated communications.
 
 ### Team Collaboration
 
@@ -186,7 +193,7 @@ Helpmaton is built on modern, scalable infrastructure:
 - **Storage**: S3 for document management and vector database persistence
 - **Frontend**: React with TypeScript
 - **AI**: Google Gemini API for embeddings and LLM capabilities
-- **Queue Processing**: SQS FIFO queues with message groups for serialized memory writes
+- **Queue Processing**: SQS FIFO queues with message groups for serialized memory writes and partial batch failure support for efficient error handling
 - **Deployment**: Automated CI/CD with GitHub Actions, multi-stage Docker builds for optimization
 - **Payments**: Lemon Squeezy integration for subscriptions and credit purchases
 - **Monitoring**: Comprehensive usage tracking and analytics with automated aggregation
@@ -228,6 +235,7 @@ The platform is designed for reliability, scalability, and performance, handling
 - [Tavily Integration](./docs/tavily-integration.md) - Web search and content extraction with Tavily API
 - [Discord Setup](./docs/discord-setup.md) - Configure Discord integration for your agents
 - [Email Setup](./docs/email-setup.md) - Configure email authentication and notifications
+- Notification Channels - Configure Discord and Slack webhook channels for agent notifications via the API
 
 ### Reference
 
