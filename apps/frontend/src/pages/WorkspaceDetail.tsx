@@ -364,11 +364,13 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
   const { expandedSection, toggleSection } = useAccordion("workspace-detail");
   const { data: trialStatus } = useTrialStatus(id!);
   const { data: userLimit } = useWorkspaceUserLimit(id!);
+  const { data: subscription } = useSubscription();
 
   const canEdit =
     workspace.permissionLevel &&
     workspace.permissionLevel >= PERMISSION_LEVELS.WRITE;
   const canDelete = workspace.permissionLevel === PERMISSION_LEVELS.OWNER;
+  const isFreePlan = subscription?.plan === "free";
 
   const handleEdit = () => {
     setName(workspace.name);
@@ -700,7 +702,39 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               />
               {canEdit && (
                 <div className="mt-6">
-                  <CreditPurchase workspaceId={id!} />
+                  {isFreePlan ? (
+                    <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-5 dark:border-orange-800 dark:bg-orange-950/50">
+                      <p className="mb-2 text-sm font-semibold text-orange-900 dark:text-orange-50">
+                        Credit purchases are only available for Starter and Pro
+                        plans
+                      </p>
+                      <p className="mb-3 text-sm text-orange-800 dark:text-orange-200">
+                        Upgrade your plan to purchase credits and add funds to
+                        your workspace balance.
+                      </p>
+                      <Link
+                        to="/subscription"
+                        className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored"
+                      >
+                        Upgrade Your Plan
+                        <svg
+                          className="size-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      </Link>
+                    </div>
+                  ) : (
+                    <CreditPurchase workspaceId={id!} />
+                  )}
                 </div>
               )}
             </LazyAccordionContent>

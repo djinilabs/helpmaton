@@ -9,6 +9,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { createCheckout, getVariant } from "../../../utils/lemonSqueezy";
+import { getWorkspaceSubscription } from "../../../utils/subscriptionUtils";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 export function registerPostWorkspaceCreditsPurchase(
@@ -45,6 +46,14 @@ export function registerPostWorkspaceCreditsPurchase(
       const workspace = await db.workspace.get(workspacePk, "workspace");
       if (!workspace) {
         throw badRequest("Workspace not found");
+      }
+
+      // Check if user has free plan - credit purchases are only available for Starter and Pro plans
+      const subscription = await getWorkspaceSubscription(workspaceId);
+      if (subscription && subscription.plan === "free") {
+        throw badRequest(
+          "Credit purchases are only available for Starter and Pro plans. Please upgrade your subscription to purchase credits."
+        );
       }
 
       // Get credit variant ID
