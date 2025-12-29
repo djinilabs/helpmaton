@@ -1897,10 +1897,13 @@ export async function updateConversation(
         trulyNewMessages = expandedMessages;
 
         // Calculate costs and generation times from per-message model/provider data
+        // IMPORTANT: Calculate from 0 based on ALL expanded messages
         // Use getMessageCost() helper to get best available cost for each message
+        // This prefers finalCostUsd > provisionalCostUsd > calculated from tokenUsage
+        // Also includes tool costs from tool-result content items (individual costs per tool)
         let totalCostUsd = 0;
         let totalGenerationTimeMs = 0;
-        for (const message of messagesWithRequestId) {
+        for (const message of expandedMessages) {
           // Use getMessageCost() helper to get best available cost
           const messageCost = getMessageCost(message);
 
