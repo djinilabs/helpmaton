@@ -4,7 +4,7 @@
   "description": "A fresh new Architect project!",
   "dependencies": {
     "@20minutes/s3rver": "^4.0.1",
-    "@ai-sdk/google": "^2.0.31",
+    "@ai-sdk/google": "^3.0.0",
     "@openrouter/ai-sdk-provider": "^1.0.0",
     "@architect/functions": "^8.1.6",
     "@auth/core": "^0.41.0",
