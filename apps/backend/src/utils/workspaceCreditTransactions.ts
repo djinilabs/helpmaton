@@ -234,48 +234,70 @@ export async function commitTransactions(
       });
     }
 
-    // Create transaction records
-    for (let i = 0; i < transactionRecords.length; i++) {
-      const { workspaceId, transaction, sk } = transactionRecords[i];
+    // Group transaction records by workspace and sort by SK to ensure correct order
+    const transactionsByWorkspace = new Map<string, Array<{
+      workspaceId: string;
+      transaction: WorkspaceCreditTransaction;
+      sk: string;
+    }>>();
+
+    for (const record of transactionRecords) {
+      const existing = transactionsByWorkspace.get(record.workspaceId) || [];
+      existing.push(record);
+      transactionsByWorkspace.set(record.workspaceId, existing);
+    }
+
+    // Sort transactions by SK for each workspace (SK format: timestamp-counter-uuid ensures sortability)
+    for (const [, records] of transactionsByWorkspace.entries()) {
+      records.sort((a, b) => a.sk.localeCompare(b.sk));
+    }
+
+    // Create transaction records with running balance calculation
+    for (const [workspaceId, records] of transactionsByWorkspace.entries()) {
       const workspacePk = `workspaces/${workspaceId}`;
-      
-      // Get the workspace to get current balance for this transaction
       const workspaceKey = `workspace-${workspaceId}`;
       const workspace = fetchedRecords.get(workspaceKey);
+      
       if (!workspace) {
         throw new Error(
           `Workspace ${workspaceId} not found (requestId: ${requestId})`
         );
       }
-      
-      const currentBalance = (workspace as { creditBalance: number }).creditBalance;
-      // Use the already-calculated newBalance instead of recalculating
-      const newBalance = workspaceNewBalances.get(workspaceId);
-      if (newBalance === undefined) {
-        throw new Error(
-          `New balance not calculated for workspace ${workspaceId} (requestId: ${requestId})`
-        );
+
+      // Start with initial workspace balance
+      let runningBalance = (workspace as { creditBalance: number }).creditBalance;
+
+      // Process each transaction in sorted order
+      for (const { transaction, sk } of records) {
+        // Balance before this transaction is the current running balance
+        const balanceBefore = runningBalance;
+        
+        // Apply transaction amount to get balance after
+        const balanceAfter = runningBalance + transaction.amountMillionthUsd;
+        
+        // Update running balance for next transaction
+        runningBalance = balanceAfter;
+
+        recordsToPut.push({
+          pk: workspacePk,
+          sk,
+          requestId,
+          workspaceId: transaction.workspaceId,
+          agentId: transaction.agentId,
+          conversationId: transaction.conversationId,
+          source: transaction.source,
+          supplier: transaction.supplier,
+          model: transaction.model,
+          tool_call: transaction.tool_call,
+          description: transaction.description,
+          amountMillionthUsd: transaction.amountMillionthUsd,
+          workspaceCreditsBeforeMillionthUsd: balanceBefore,
+          workspaceCreditsAfterMillionthUsd: balanceAfter,
+          version: 1,
+          createdAt: new Date().toISOString(),
+          expires: calculateTransactionTTL(),
+        });
       }
-      
-      recordsToPut.push({
-        pk: workspacePk,
-        sk,
-        requestId,
-        workspaceId: transaction.workspaceId,
-        agentId: transaction.agentId,
-        conversationId: transaction.conversationId,
-        source: transaction.source,
-        supplier: transaction.supplier,
-        model: transaction.model,
-        tool_call: transaction.tool_call,
-        description: transaction.description,
-        amountMillionthUsd: transaction.amountMillionthUsd,
-        workspaceCreditsBeforeMillionthUsd: currentBalance,
-        workspaceCreditsAfterMillionthUsd: newBalance,
-        version: 1,
-        createdAt: new Date().toISOString(),
-        expires: calculateTransactionTTL(),
-      });
     }
 
     return recordsToPut;
