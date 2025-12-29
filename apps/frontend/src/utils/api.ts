@@ -199,6 +199,12 @@ export interface CreateChannelInput {
       };
 }
 
+/**
+ * Input for updating a channel.
+ * Note: The channel type cannot be changed during updates.
+ * The config should match the existing channel type (Discord channels use botToken/discordChannelId,
+ * Slack channels use webhookUrl).
+ */
 export interface UpdateChannelInput {
   name?: string;
   config?:

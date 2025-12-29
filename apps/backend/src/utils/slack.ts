@@ -25,14 +25,12 @@ export async function sendSlackMessage(
       const errorData = JSON.parse(errorText);
       if (errorData.error) {
         errorMessage = `Slack API error: ${errorData.error}`;
-      } else if (errorText) {
+      } else {
         errorMessage = `Slack API error: ${errorText}`;
       }
     } catch {
       // If parsing fails, use the raw error text
-      if (errorText) {
-        errorMessage = `Slack API error: ${errorText}`;
-      }
+      errorMessage = `Slack API error: ${errorText}`;
     }
 
     // Handle specific error cases
@@ -49,7 +47,6 @@ export async function sendSlackMessage(
 
   // Message sent successfully
   // Slack webhooks return "ok" as plain text, not JSON
-  const result = await response.text();
-  console.log("Slack message sent successfully:", result);
+  await response.text();
 }
 
