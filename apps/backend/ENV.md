@@ -166,8 +166,6 @@ This document describes the environment variables required for the helpmaton bac
   - Pricing: Variable based on number of results (1-25 results: $5/1000 requests, 26-100: $25/1000 requests)
   - Pay-as-you-go: All requests require credits (no free tier)
   - Supports category-specific searches: company, research paper, news, pdf, github, tweet, personal site, people, financial report
-  - System-wide API key (not per-workspace)
-  - Jina Reader API is free to use (no credits charged to workspace)
 
 ### `SENTRY_DSN`
 
