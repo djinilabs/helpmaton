@@ -9,6 +9,7 @@ import type {
 } from "../../tables/schema";
 import { formatDate } from "../../utils/aggregation";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
+import { Sentry, ensureError } from "../../utils/sentry";
 
 /**
  * Aggregate token usage from conversations for a specific date
@@ -108,6 +109,12 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
                 ? agentError.message
                 : String(agentError)
             );
+            Sentry.captureException(ensureError(agentError), {
+              tags: {
+                context: "aggregation",
+                operation: "query-agent-conversations",
+              },
+            });
             // Continue with other agents
           }
         }
@@ -118,6 +125,12 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
             ? workspaceError.message
             : String(workspaceError)
         );
+        Sentry.captureException(ensureError(workspaceError), {
+          tags: {
+            context: "aggregation",
+            operation: "process-workspace-conversations",
+          },
+        });
         // Continue with other workspaces
       }
     }
@@ -270,6 +283,12 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
             ? workspaceError.message
             : String(workspaceError)
         );
+        Sentry.captureException(ensureError(workspaceError), {
+          tags: {
+            context: "aggregation",
+            operation: "query-workspace-transactions",
+          },
+        });
         // Continue with other workspaces
       }
     }

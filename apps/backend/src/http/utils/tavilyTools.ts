@@ -13,6 +13,7 @@ import {
   incrementSearchRequestBucket,
   incrementFetchRequestBucket,
 } from "../../utils/requestTracking";
+import { Sentry, ensureError } from "../../utils/sentry";
 import {
   tavilySearch,
   tavilyExtract,
@@ -149,6 +150,13 @@ export function createTavilySearchTool(
             reservationId,
             error: trackingError,
           });
+          Sentry.captureException(ensureError(trackingError), {
+            tags: {
+              context: "tavily-tools",
+              operation: "track-tavily-call",
+              tool: "search_web",
+            },
+          });
           // Continue execution - tracking failure is a logging issue, not a correctness issue
         }
 
@@ -273,6 +281,13 @@ export function createTavilySearchTool(
                 refundError instanceof Error
                   ? refundError.message
                   : String(refundError),
+            });
+            Sentry.captureException(ensureError(refundError), {
+              tags: {
+                context: "tavily-tools",
+                operation: "refund-credits",
+                tool: "search_web",
+              },
             });
           }
         }
@@ -408,6 +423,13 @@ export function createTavilyFetchTool(
             reservationId,
             error: trackingError,
           });
+          Sentry.captureException(ensureError(trackingError), {
+            tags: {
+              context: "tavily-tools",
+              operation: "track-tavily-call",
+              tool: "fetch_url",
+            },
+          });
           // Continue execution - tracking failure is a logging issue, not a correctness issue
         }
 
@@ -526,6 +548,13 @@ export function createTavilyFetchTool(
                 refundError instanceof Error
                   ? refundError.message
                   : String(refundError),
+            });
+            Sentry.captureException(ensureError(refundError), {
+              tags: {
+                context: "tavily-tools",
+                operation: "refund-credits",
+                tool: "fetch_url",
+              },
             });
           }
         }

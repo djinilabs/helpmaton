@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import type { FC } from "react";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import {
   useCreateOrUpdateEmailConnection,
   useUpdateEmailConnection,
@@ -28,6 +29,7 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
   const update = useUpdateEmailConnection(workspaceId);
   const testConnection = useTestEmailConnection(workspaceId);
   const initiateOAuth = useInitiateOAuthFlow(workspaceId);
+  const { registerDialog, unregisterDialog } = useDialogTracking();
 
   // Derive initial values from props when modal opens
   const initialValues = useMemo(() => {
@@ -108,6 +110,13 @@ export const EmailConnectionModal: FC<EmailConnectionModalProps> = ({
   };
 
   useEscapeKey(isOpen, handleClose);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isOpen, registerDialog, unregisterDialog]);
 
   const handleOAuthConnect = async (provider: "gmail" | "outlook") => {
     try {

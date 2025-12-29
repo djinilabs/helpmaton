@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { FC } from "react";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import {
   useRequestTrialCredits,
@@ -39,6 +40,7 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
 }) => {
   const requestCredits = useRequestTrialCredits();
   const { data: trialStatus } = useTrialStatus(workspaceId);
+  const { registerDialog, unregisterDialog } = useDialogTracking();
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaWidgetId = useRef<string | null>(null);
   const captchaContainerRef = useRef<HTMLDivElement>(null);
@@ -90,6 +92,13 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
   };
 
   useEscapeKey(isOpen, handleClose);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isOpen, registerDialog, unregisterDialog]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

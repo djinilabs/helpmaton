@@ -5,6 +5,7 @@ import { getWorkspaceApiKey } from "../../http/utils/agentUtils";
 import { getDefined } from "../../utils";
 import { generateEmbedding } from "../../utils/embedding";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
+import { Sentry, ensureError } from "../../utils/sentry";
 import { getDatabaseUri } from "../../utils/vectordb/paths";
 import {
   WriteOperationMessageSchema,
@@ -147,6 +148,12 @@ async function generateEmbeddingsForFacts(
             }
           : String(error)
       );
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "memory",
+          operation: "generate-embedding",
+        },
+      });
       // Continue with other facts even if one fails
     }
   }

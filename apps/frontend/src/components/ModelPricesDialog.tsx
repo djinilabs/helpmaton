@@ -1,8 +1,9 @@
 import { InformationCircleIcon } from "@heroicons/react/24/outline";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { FC } from "react";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { getModelPricing, type ModelPricing } from "../utils/api";
 
@@ -58,7 +59,15 @@ export const ModelPricesDialog: FC<ModelPricesDialogProps> = ({
     enabled: isOpen,
   });
 
+  const { registerDialog, unregisterDialog } = useDialogTracking();
   useEscapeKey(isOpen, onClose);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isOpen, registerDialog, unregisterDialog]);
 
   const filteredModels = useMemo(() => {
     if (!pricingData?.openrouter) {
