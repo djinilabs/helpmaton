@@ -147,6 +147,25 @@ This document describes the environment variables required for the helpmaton bac
   - Optional: Jina Reader API works without API key (20 requests per minute limit)
   - With API key: Rate limit increases to 200 requests per minute
   - Free tier: 1 million free tokens available
+
+### `EXA_API_KEY`
+
+- **Description**: Exa.ai API key for category-specific search functionality
+- **Required**: Yes (for Exa search tool)
+- **Example**: `exa_...`
+- **How to obtain**:
+  1. Go to [Exa.ai Dashboard](https://exa.ai)
+  2. Sign up or log in to your account
+  3. Navigate to API Keys section
+  4. Create a new API key
+  5. Copy the key value
+- **Note**:
+  - Used for Exa.ai search tool available to agents
+  - System-wide API key (not per-workspace)
+  - Exa.ai API returns cost information (`costDollars.total`) in responses
+  - Pricing: Variable based on number of results (1-25 results: $5/1000 requests, 26-100: $25/1000 requests)
+  - Pay-as-you-go: All requests require credits (no free tier)
+  - Supports category-specific searches: company, research paper, news, pdf, github, tweet, personal site, people, financial report
   - System-wide API key (not per-workspace)
   - Jina Reader API is free to use (no credits charged to workspace)
 

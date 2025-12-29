@@ -65,6 +65,7 @@ const ENV_VARS_TO_INJECT = [
   'E2E_OVERRIDE_MAX_USERS',
   'TAVILY_API_KEY',
   'JINA_API_KEY',
+  'EXA_API_KEY',
 ];
 
 /**

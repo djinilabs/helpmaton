@@ -116,6 +116,30 @@ Enable web tools to allow agents to search the web and extract content from URLs
 
 **Note**: Jina.ai is free to use but may have rate limits. Tavily requires credits after the free tier limit.
 
+### Exa.ai Search
+
+Enable the `search` tool to allow agents to perform category-specific searches using Exa.ai:
+
+- **Tool Name**: `search` (separate from `search_web`)
+- **Categories**: Supports 9 search categories:
+  - `company` - Search for company information
+  - `research paper` - Search for academic research papers
+  - `news` - Search for news articles
+  - `pdf` - Search for PDF documents
+  - `github` - Search for GitHub repositories
+  - `tweet` - Search for tweets
+  - `personal site` - Search personal websites
+  - `people` - Search for people
+  - `financial report` - Search for financial reports
+- **Parameters**:
+  - `category` (required): One of the 9 supported categories
+  - `query` (required): Search query string
+  - `num_results` (optional): Number of results to return (1-100, default: 10)
+- **Pricing**: Variable based on number of results:
+  - 1-25 results: $5 per 1,000 requests
+  - 26-100 results: $25 per 1,000 requests
+- **Note**: Pay-as-you-go pricing - all requests require credits (no free tier)
+
 See [Tavily Integration](./tavily-integration.md) for detailed documentation.
 
 ### MCP Server Tools
