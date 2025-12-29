@@ -23,7 +23,7 @@ export type WorkspaceCreditTransaction = {
   workspaceId: string;
   agentId?: string;
   conversationId?: string;
-  source: "embedding-generation" | "text-generation" | "tool-execution";
+  source: "embedding-generation" | "text-generation" | "tool-execution" | "credit-purchase";
   supplier: "openrouter" | "tavily"; // add more when we have more suppliers
   model?: string; // the model that was used when originated this charge, if any
   tool_call?: string; // the tool call that was used when originating this charge, if any

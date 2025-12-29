@@ -587,7 +587,10 @@ describe("Lemon Squeezy Webhook Handler", () => {
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
         expect.objectContaining({
           workspaceId: "ws-123",
-          amountMillionthUsd: expect.any(Number),
+          source: "credit-purchase",
+          amountMillionthUsd: 50000000, // 50.00 USD in millionths (5000 cents * 10_000)
+          supplier: "openrouter",
+          description: expect.stringContaining("Credit purchase from Lemon Squeezy order"),
         })
       );
     });

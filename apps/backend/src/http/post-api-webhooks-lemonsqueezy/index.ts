@@ -768,25 +768,25 @@ async function handleOrderCreated(
 
   // Get current workspace for logging
   const oldBalance = workspace.creditBalance;
-  const newBalance = oldBalance - (-creditAmount); // Negative amount for credit (adds to balance)
+  // Transaction system handles balance updates automatically via commitTransactions()
+  // Positive amount = credit (adds to balance), negative amount = debit (deducts from balance)
 
   console.log("[Webhook] Creating credit purchase transaction:", {
     workspaceId,
     orderId: orderData.id,
     creditAmount,
-    transactionAmount: -creditAmount, // Negative for credit
+    transactionAmount: creditAmount, // Positive for credit
     oldBalance,
-    newBalance,
     currency: workspace.currency,
   });
 
-  // Create transaction in memory (negative amount = credit)
+  // Create transaction in memory (positive amount = credit)
   context.addWorkspaceCreditTransaction({
     workspaceId,
-    source: "text-generation", // Credit purchase is for text generation
+    source: "credit-purchase",
     supplier: "openrouter", // Default supplier
     description: `Credit purchase from Lemon Squeezy order ${orderData.id}`,
-    amountMillionthUsd: -creditAmount, // Negative for credit
+    amountMillionthUsd: creditAmount, // Positive for credit
   });
 
   // Update workspace with order ID (non-credit field, can be done separately)

@@ -415,6 +415,7 @@ export const tableSchemas = {
       "embedding-generation",
       "text-generation",
       "tool-execution",
+      "credit-purchase",
     ]),
     supplier: z.enum(["openrouter", "tavily"]), // add more when we have more suppliers
     model: z.string().optional(), // the model that originated this charge, if any
