@@ -10,7 +10,8 @@ import { database } from "../../tables/database";
 import { jinaFetch, jinaSearch } from "../../utils/jina";
 import {
   checkTavilyDailyLimit,
-  incrementTavilyCallBucket,
+  incrementSearchRequestBucket,
+  incrementFetchRequestBucket,
 } from "../../utils/requestTracking";
 import {
   tavilySearch,
@@ -141,7 +142,7 @@ export function createTavilySearchTool(
         // Track the call (after successful API call - we only track successful calls)
         // If tracking fails, log error but don't fail the tool call since API succeeded
         try {
-          await incrementTavilyCallBucket(workspaceId);
+          await incrementSearchRequestBucket(workspaceId);
         } catch (trackingError) {
           console.error("[search_web] Failed to track Tavily API call usage", {
             workspaceId,
@@ -400,7 +401,7 @@ export function createTavilyFetchTool(
         // Track the call (after successful API call - we only track successful calls)
         // If tracking fails, log error but don't fail the tool call since API succeeded
         try {
-          await incrementTavilyCallBucket(workspaceId);
+          await incrementFetchRequestBucket(workspaceId);
         } catch (trackingError) {
           console.error("[fetch_url] Failed to track Tavily API call usage", {
             workspaceId,

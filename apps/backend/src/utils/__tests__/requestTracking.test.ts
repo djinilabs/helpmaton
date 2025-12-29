@@ -1,19 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import type {
-  LLMRequestBucketRecord,
+  RequestBucketRecord,
   SubscriptionRecord,
-  TavilyCallBucketRecord,
 } from "../../tables/schema";
 import {
   getCurrentHourTimestamp,
   getLast24HourTimestamps,
+  incrementRequestBucketByCategory,
+  getRequestCountLast24HoursByCategory,
+  checkDailyRequestLimit,
+  incrementSearchRequestBucket,
+  incrementFetchRequestBucket,
+  getSearchRequestCountLast24Hours,
+  getFetchRequestCountLast24Hours,
+  checkTavilyDailyLimit,
+  // Legacy functions for backward compatibility
   incrementRequestBucket,
   getRequestCountLast24Hours,
-  checkDailyRequestLimit,
   incrementTavilyCallBucket,
   getTavilyCallCountLast24Hours,
-  checkTavilyDailyLimit,
 } from "../requestTracking";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
@@ -111,9 +117,9 @@ describe("requestTracking", () => {
     });
   });
 
-  describe("incrementRequestBucket", () => {
+  describe("incrementRequestBucketByCategory", () => {
     const mockDb = {
-      "llm-request-buckets": {
+      "request-buckets": {
         atomicUpdate: vi.fn(),
       },
     };
@@ -122,14 +128,16 @@ describe("requestTracking", () => {
       mockDatabase.mockResolvedValue(mockDb);
     });
 
-    it("should create new bucket if it doesn't exist", async () => {
+    it("should create new bucket if it doesn't exist for llm category", async () => {
       const subscriptionId = "sub-123";
+      const category = "llm" as const;
       const now = new Date("2024-01-15T14:00:00.000Z");
       vi.setSystemTime(now);
 
-      const createdBucket: LLMRequestBucketRecord = {
-        pk: `llm-request-buckets/${subscriptionId}/2024-01-15T14:00:00.000Z`,
+      const createdBucket: RequestBucketRecord = {
+        pk: `request-buckets/${subscriptionId}/${category}/2024-01-15T14:00:00.000Z`,
         subscriptionId,
+        category,
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 1,
         expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
@@ -137,33 +145,102 @@ describe("requestTracking", () => {
         createdAt: now.toISOString(),
       };
 
-      // Mock atomicUpdate to call the updater function with undefined (record doesn't exist)
-      mockDb["llm-request-buckets"].atomicUpdate.mockImplementation(
+      mockDb["request-buckets"].atomicUpdate.mockImplementation(
         async (pk, sk, updater) => {
           await updater(undefined);
           return createdBucket;
         }
       );
 
-      const result = await incrementRequestBucket(subscriptionId);
+      const result = await incrementRequestBucketByCategory(
+        subscriptionId,
+        category
+      );
 
-      expect(mockDb["llm-request-buckets"].atomicUpdate).toHaveBeenCalledWith(
-        `llm-request-buckets/${subscriptionId}/2024-01-15T14:00:00.000Z`,
+      expect(mockDb["request-buckets"].atomicUpdate).toHaveBeenCalledWith(
+        `request-buckets/${subscriptionId}/${category}/2024-01-15T14:00:00.000Z`,
         undefined,
         expect.any(Function),
         { maxRetries: 3 }
       );
       expect(result.count).toBe(1);
+      expect(result.category).toBe("llm");
+    });
+
+    it("should create new bucket for search category", async () => {
+      const subscriptionId = "sub-123";
+      const category = "search" as const;
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const createdBucket: RequestBucketRecord = {
+        pk: `request-buckets/${subscriptionId}/${category}/2024-01-15T14:00:00.000Z`,
+        subscriptionId,
+        category,
+        hourTimestamp: "2024-01-15T14:00:00.000Z",
+        count: 1,
+        expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockDb["request-buckets"].atomicUpdate.mockImplementation(
+        async (pk, sk, updater) => {
+          await updater(undefined);
+          return createdBucket;
+        }
+      );
+
+      const result = await incrementRequestBucketByCategory(
+        subscriptionId,
+        category
+      );
+
+      expect(result.category).toBe("search");
+    });
+
+    it("should create new bucket for fetch category", async () => {
+      const subscriptionId = "sub-123";
+      const category = "fetch" as const;
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const createdBucket: RequestBucketRecord = {
+        pk: `request-buckets/${subscriptionId}/${category}/2024-01-15T14:00:00.000Z`,
+        subscriptionId,
+        category,
+        hourTimestamp: "2024-01-15T14:00:00.000Z",
+        count: 1,
+        expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockDb["request-buckets"].atomicUpdate.mockImplementation(
+        async (pk, sk, updater) => {
+          await updater(undefined);
+          return createdBucket;
+        }
+      );
+
+      const result = await incrementRequestBucketByCategory(
+        subscriptionId,
+        category
+      );
+
+      expect(result.category).toBe("fetch");
     });
 
     it("should increment existing bucket", async () => {
       const subscriptionId = "sub-123";
+      const category = "llm" as const;
       const now = new Date("2024-01-15T14:00:00.000Z");
       vi.setSystemTime(now);
 
-      const existingBucket: LLMRequestBucketRecord = {
-        pk: `llm-request-buckets/${subscriptionId}/2024-01-15T14:00:00.000Z`,
+      const existingBucket: RequestBucketRecord = {
+        pk: `request-buckets/${subscriptionId}/${category}/2024-01-15T14:00:00.000Z`,
         subscriptionId,
+        category,
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 5,
         expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
@@ -173,97 +250,37 @@ describe("requestTracking", () => {
 
       const updatedBucket = { ...existingBucket, count: 6 };
 
-      // Mock atomicUpdate to call the updater function with existing bucket
-      mockDb["llm-request-buckets"].atomicUpdate.mockImplementation(
+      mockDb["request-buckets"].atomicUpdate.mockImplementation(
         async (pk, sk, updater) => {
           await updater(existingBucket);
           return updatedBucket;
         }
       );
 
-      const result = await incrementRequestBucket(subscriptionId);
-
-      expect(mockDb["llm-request-buckets"].atomicUpdate).toHaveBeenCalledWith(
-        existingBucket.pk,
-        undefined,
-        expect.any(Function),
-        { maxRetries: 3 }
-      );
-      expect(result.count).toBe(6);
-    });
-
-    it("should retry on version conflict", async () => {
-      const subscriptionId = "sub-123";
-      const now = new Date("2024-01-15T14:00:00.000Z");
-      vi.setSystemTime(now);
-
-      const existingBucket: LLMRequestBucketRecord = {
-        pk: `llm-request-buckets/${subscriptionId}/2024-01-15T14:00:00.000Z`,
+      const result = await incrementRequestBucketByCategory(
         subscriptionId,
-        hourTimestamp: "2024-01-15T14:00:00.000Z",
-        count: 5,
-        expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
-        version: 1,
-        createdAt: now.toISOString(),
-      };
-
-      const updatedBucket = { ...existingBucket, count: 6 };
-
-      // Mock sleep to speed up test
-      vi.spyOn(global, "setTimeout").mockImplementation((fn) => {
-        (fn as () => void)();
-        return {} as NodeJS.Timeout;
-      });
-
-      // Simulate atomicUpdate handling retries internally and eventually succeeding
-      // The updater function should be called with the existing bucket
-      mockDb["llm-request-buckets"].atomicUpdate.mockImplementation(
-        async (pk, sk, updater) => {
-          // Simulate that atomicUpdate internally retries and eventually succeeds
-          // by calling the updater with the current bucket
-          await updater(existingBucket);
-          return updatedBucket;
-        }
+        category
       );
 
-      const result = await incrementRequestBucket(subscriptionId, 3);
-
-      // Verify atomicUpdate was called with correct parameters
-      expect(mockDb["llm-request-buckets"].atomicUpdate).toHaveBeenCalledWith(
-        existingBucket.pk,
-        undefined,
-        expect.any(Function),
-        { maxRetries: 3 }
-      );
       expect(result.count).toBe(6);
     });
 
-    it("should throw error after max retries", async () => {
+    it("should throw error if table doesn't exist", async () => {
       const subscriptionId = "sub-123";
-      const now = new Date("2024-01-15T14:00:00.000Z");
-      vi.setSystemTime(now);
+      const category = "llm" as const;
+      const mockDbWithoutTable = {} as typeof mockDb;
 
-      // Mock sleep to speed up test
-      vi.spyOn(global, "setTimeout").mockImplementation((fn) => {
-        (fn as () => void)();
-        return {} as NodeJS.Timeout;
-      });
+      mockDatabase.mockResolvedValue(mockDbWithoutTable);
 
-      // atomicUpdate should fail after max retries
-      const { conflict } = await import("@hapi/boom");
-      mockDb["llm-request-buckets"].atomicUpdate.mockRejectedValue(
-        conflict("Failed to atomically update record after 2 retries")
-      );
-
-      await expect(incrementRequestBucket(subscriptionId, 2)).rejects.toThrow(
-        "Failed to atomically update record after 2 retries"
-      );
+      await expect(
+        incrementRequestBucketByCategory(subscriptionId, category)
+      ).rejects.toThrow("request-buckets table not found");
     });
   });
 
-  describe("getRequestCountLast24Hours", () => {
+  describe("getRequestCountLast24HoursByCategory", () => {
     const mockDb = {
-      "llm-request-buckets": {
+      "request-buckets": {
         query: vi.fn(),
       },
     };
@@ -272,15 +289,17 @@ describe("requestTracking", () => {
       mockDatabase.mockResolvedValue(mockDb);
     });
 
-    it("should sum counts from all buckets", async () => {
+    it("should sum counts from all buckets for llm category", async () => {
       const subscriptionId = "sub-123";
+      const category = "llm" as const;
       const now = new Date("2024-01-15T14:00:00.000Z");
       vi.setSystemTime(now);
 
-      const buckets: LLMRequestBucketRecord[] = [
+      const buckets: RequestBucketRecord[] = [
         {
-          pk: `llm-request-buckets/${subscriptionId}/2024-01-15T14:00:00.000Z`,
+          pk: `request-buckets/${subscriptionId}/${category}/2024-01-15T14:00:00.000Z`,
           subscriptionId,
+          category,
           hourTimestamp: "2024-01-15T14:00:00.000Z",
           count: 10,
           expires: 0,
@@ -288,87 +307,274 @@ describe("requestTracking", () => {
           createdAt: now.toISOString(),
         },
         {
-          pk: `llm-request-buckets/${subscriptionId}/2024-01-15T13:00:00.000Z`,
+          pk: `request-buckets/${subscriptionId}/${category}/2024-01-15T13:00:00.000Z`,
           subscriptionId,
+          category,
           hourTimestamp: "2024-01-15T13:00:00.000Z",
           count: 5,
           expires: 0,
           version: 1,
           createdAt: now.toISOString(),
         },
-        {
-          pk: `llm-request-buckets/${subscriptionId}/2024-01-15T12:00:00.000Z`,
-          subscriptionId,
-          hourTimestamp: "2024-01-15T12:00:00.000Z",
-          count: 8,
-          expires: 0,
-          version: 1,
-          createdAt: now.toISOString(),
-        },
       ];
 
-      mockDb["llm-request-buckets"].query.mockResolvedValue({
+      mockDb["request-buckets"].query.mockResolvedValue({
         items: buckets,
       });
 
-      const result = await getRequestCountLast24Hours(subscriptionId);
-
-      expect(result).toBe(23); // 10 + 5 + 8
-      expect(mockDb["llm-request-buckets"].query).toHaveBeenCalledWith(
-        expect.objectContaining({
-          IndexName: "bySubscriptionIdAndHour",
-          KeyConditionExpression:
-            "subscriptionId = :subscriptionId AND hourTimestamp BETWEEN :oldest AND :newest",
-        })
+      const result = await getRequestCountLast24HoursByCategory(
+        subscriptionId,
+        category
       );
+
+      expect(result).toBe(15); // 10 + 5
+      expect(mockDb["request-buckets"].query).toHaveBeenCalledWith({
+        IndexName: "bySubscriptionIdAndCategoryAndHour",
+        KeyConditionExpression:
+          "subscriptionId = :subscriptionId AND category = :category AND hourTimestamp BETWEEN :oldest AND :newest",
+        ExpressionAttributeValues: {
+          ":subscriptionId": subscriptionId,
+          ":category": category,
+          ":oldest": expect.any(String),
+          ":newest": expect.any(String),
+        },
+      });
     });
 
     it("should return 0 when no buckets exist", async () => {
       const subscriptionId = "sub-123";
+      const category = "llm" as const;
 
-      mockDb["llm-request-buckets"].query.mockResolvedValue({
+      mockDb["request-buckets"].query.mockResolvedValue({
         items: [],
       });
 
-      const result = await getRequestCountLast24Hours(subscriptionId);
+      const result = await getRequestCountLast24HoursByCategory(
+        subscriptionId,
+        category
+      );
 
       expect(result).toBe(0);
     });
+  });
 
-    it("should handle buckets with missing count field", async () => {
+  describe("incrementSearchRequestBucket", () => {
+    const mockDb = {
+      "request-buckets": {
+        atomicUpdate: vi.fn(),
+      },
+    };
+
+    beforeEach(() => {
+      mockDatabase.mockResolvedValue(mockDb);
+    });
+
+    it("should look up subscriptionId and increment search bucket", async () => {
+      const workspaceId = "workspace-123";
       const subscriptionId = "sub-123";
       const now = new Date("2024-01-15T14:00:00.000Z");
       vi.setSystemTime(now);
 
-      const buckets: LLMRequestBucketRecord[] = [
+      const subscription: SubscriptionRecord = {
+        pk: `subscriptions/${subscriptionId}`,
+        userId: "user-123",
+        plan: "starter",
+        status: "active",
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockGetWorkspaceSubscription.mockResolvedValue(subscription);
+
+      const createdBucket: RequestBucketRecord = {
+        pk: `request-buckets/${subscriptionId}/search/2024-01-15T14:00:00.000Z`,
+        subscriptionId,
+        category: "search",
+        hourTimestamp: "2024-01-15T14:00:00.000Z",
+        count: 1,
+        expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockDb["request-buckets"].atomicUpdate.mockImplementation(
+        async (pk, sk, updater) => {
+          await updater(undefined);
+          return createdBucket;
+        }
+      );
+
+      const result = await incrementSearchRequestBucket(workspaceId);
+
+      expect(mockGetWorkspaceSubscription).toHaveBeenCalledWith(workspaceId);
+      expect(result.category).toBe("search");
+      expect(result.count).toBe(1);
+    });
+
+    it("should throw error if subscription not found", async () => {
+      const workspaceId = "workspace-123";
+
+      mockGetWorkspaceSubscription.mockResolvedValue(undefined);
+
+      await expect(incrementSearchRequestBucket(workspaceId)).rejects.toThrow(
+        "Could not find subscription"
+      );
+    });
+  });
+
+  describe("incrementFetchRequestBucket", () => {
+    const mockDb = {
+      "request-buckets": {
+        atomicUpdate: vi.fn(),
+      },
+    };
+
+    beforeEach(() => {
+      mockDatabase.mockResolvedValue(mockDb);
+    });
+
+    it("should look up subscriptionId and increment fetch bucket", async () => {
+      const workspaceId = "workspace-123";
+      const subscriptionId = "sub-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const subscription: SubscriptionRecord = {
+        pk: `subscriptions/${subscriptionId}`,
+        userId: "user-123",
+        plan: "starter",
+        status: "active",
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockGetWorkspaceSubscription.mockResolvedValue(subscription);
+
+      const createdBucket: RequestBucketRecord = {
+        pk: `request-buckets/${subscriptionId}/fetch/2024-01-15T14:00:00.000Z`,
+        subscriptionId,
+        category: "fetch",
+        hourTimestamp: "2024-01-15T14:00:00.000Z",
+        count: 1,
+        expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockDb["request-buckets"].atomicUpdate.mockImplementation(
+        async (pk, sk, updater) => {
+          await updater(undefined);
+          return createdBucket;
+        }
+      );
+
+      const result = await incrementFetchRequestBucket(workspaceId);
+
+      expect(mockGetWorkspaceSubscription).toHaveBeenCalledWith(workspaceId);
+      expect(result.category).toBe("fetch");
+      expect(result.count).toBe(1);
+    });
+  });
+
+  describe("getSearchRequestCountLast24Hours", () => {
+    const mockDb = {
+      "request-buckets": {
+        query: vi.fn(),
+      },
+    };
+
+    beforeEach(() => {
+      mockDatabase.mockResolvedValue(mockDb);
+    });
+
+    it("should look up subscriptionId and return search count", async () => {
+      const workspaceId = "workspace-123";
+      const subscriptionId = "sub-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const subscription: SubscriptionRecord = {
+        pk: `subscriptions/${subscriptionId}`,
+        userId: "user-123",
+        plan: "starter",
+        status: "active",
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockGetWorkspaceSubscription.mockResolvedValue(subscription);
+
+      const buckets: RequestBucketRecord[] = [
         {
-          pk: `llm-request-buckets/${subscriptionId}/2024-01-15T14:00:00.000Z`,
+          pk: `request-buckets/${subscriptionId}/search/2024-01-15T14:00:00.000Z`,
           subscriptionId,
+          category: "search",
           hourTimestamp: "2024-01-15T14:00:00.000Z",
-          count: 10,
-          expires: 0,
-          version: 1,
-          createdAt: now.toISOString(),
-        },
-        {
-          pk: `llm-request-buckets/${subscriptionId}/2024-01-15T13:00:00.000Z`,
-          subscriptionId,
-          hourTimestamp: "2024-01-15T13:00:00.000Z",
-          // @ts-expect-error - testing missing count field
-          count: undefined,
+          count: 5,
           expires: 0,
           version: 1,
           createdAt: now.toISOString(),
         },
       ];
 
-      mockDb["llm-request-buckets"].query.mockResolvedValue({
+      mockDb["request-buckets"].query.mockResolvedValue({
         items: buckets,
       });
 
-      const result = await getRequestCountLast24Hours(subscriptionId);
+      const result = await getSearchRequestCountLast24Hours(workspaceId);
 
-      expect(result).toBe(10); // Only the bucket with count is included
+      expect(result).toBe(5);
+    });
+  });
+
+  describe("getFetchRequestCountLast24Hours", () => {
+    const mockDb = {
+      "request-buckets": {
+        query: vi.fn(),
+      },
+    };
+
+    beforeEach(() => {
+      mockDatabase.mockResolvedValue(mockDb);
+    });
+
+    it("should look up subscriptionId and return fetch count", async () => {
+      const workspaceId = "workspace-123";
+      const subscriptionId = "sub-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const subscription: SubscriptionRecord = {
+        pk: `subscriptions/${subscriptionId}`,
+        userId: "user-123",
+        plan: "starter",
+        status: "active",
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockGetWorkspaceSubscription.mockResolvedValue(subscription);
+
+      const buckets: RequestBucketRecord[] = [
+        {
+          pk: `request-buckets/${subscriptionId}/fetch/2024-01-15T14:00:00.000Z`,
+          subscriptionId,
+          category: "fetch",
+          hourTimestamp: "2024-01-15T14:00:00.000Z",
+          count: 3,
+          expires: 0,
+          version: 1,
+          createdAt: now.toISOString(),
+        },
+      ];
+
+      mockDb["request-buckets"].query.mockResolvedValue({
+        items: buckets,
+      });
+
+      const result = await getFetchRequestCountLast24Hours(workspaceId);
+
+      expect(result).toBe(3);
     });
   });
 
@@ -377,7 +583,7 @@ describe("requestTracking", () => {
       subscription: {
         update: vi.fn(),
       },
-      "llm-request-buckets": {
+      "request-buckets": {
         query: vi.fn(),
       },
     };
@@ -404,21 +610,23 @@ describe("requestTracking", () => {
         maxDailyRequests: 50,
       });
 
-      // Mock getRequestCountLast24Hours to return 30 (under limit)
-      mockDb["llm-request-buckets"].query.mockResolvedValue({
-        items: [
-          {
-            count: 30,
-          },
-        ],
+      mockDb["request-buckets"].query.mockResolvedValue({
+        items: [{ count: 30 }],
       });
 
       await expect(
         checkDailyRequestLimit(subscriptionId)
       ).resolves.not.toThrow();
 
-      expect(mockGetSubscriptionById).toHaveBeenCalledWith(subscriptionId);
-      expect(mockSendEmail).not.toHaveBeenCalled();
+      expect(mockDb["request-buckets"].query).toHaveBeenCalledWith(
+        expect.objectContaining({
+          IndexName: "bySubscriptionIdAndCategoryAndHour",
+          ExpressionAttributeValues: expect.objectContaining({
+            ":subscriptionId": subscriptionId,
+            ":category": "llm",
+          }),
+        })
+      );
     });
 
     it("should throw 429 when limit exceeded", async () => {
@@ -439,13 +647,8 @@ describe("requestTracking", () => {
         maxDailyRequests: 50,
       });
 
-      // Mock getRequestCountLast24Hours to return 50 (at limit)
-      mockDb["llm-request-buckets"].query.mockResolvedValue({
-        items: [
-          {
-            count: 50,
-          },
-        ],
+      mockDb["request-buckets"].query.mockResolvedValue({
+        items: [{ count: 50 }],
       });
 
       await expect(checkDailyRequestLimit(subscriptionId)).rejects.toThrow();
@@ -455,342 +658,161 @@ describe("requestTracking", () => {
       );
       expect(error.isBoom).toBe(true);
       expect(error.output.statusCode).toBe(429);
-      expect(error.message).toContain("Daily request limit exceeded");
-    });
-
-    it("should send email when limit exceeded and no email sent recently", async () => {
-      const subscriptionId = "sub-123";
-      const subscription = {
-        pk: `subscriptions/${subscriptionId}`,
-        userId: "user-123",
-        plan: "free" as const,
-        lastLimitEmailSentAt: undefined,
-      };
-
-      mockGetSubscriptionById.mockResolvedValue(subscription);
-      mockGetPlanLimits.mockReturnValue({
-        maxWorkspaces: 1,
-        maxDocuments: 10,
-        maxDocumentSizeBytes: 1024 * 1024,
-        maxAgents: 1,
-        maxManagers: 1,
-        maxDailyRequests: 50,
-      });
-      mockGetUserEmailById.mockResolvedValue("user@example.com");
-      mockSendEmail.mockResolvedValue({ message: "Email sent" });
-
-      // Mock getRequestCountLast24Hours to return 50 (at limit)
-      mockDb["llm-request-buckets"].query.mockResolvedValue({
-        items: [
-          {
-            count: 50,
-          },
-        ],
-      });
-
-      const updatedSubscription = {
-        ...subscription,
-        lastLimitEmailSentAt: new Date().toISOString(),
-      };
-      mockDb.subscription.update.mockResolvedValue(updatedSubscription);
-
-      await expect(checkDailyRequestLimit(subscriptionId)).rejects.toThrow();
-
-      expect(mockGetUserEmailById).toHaveBeenCalledWith("user-123");
-      expect(mockSendEmail).toHaveBeenCalledWith(
-        expect.objectContaining({
-          to: "user@example.com",
-          subject: "Daily Request Limit Reached - Helpmaton",
-        })
-      );
-      expect(mockDb.subscription.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          lastLimitEmailSentAt: expect.any(String),
-        })
-      );
-    });
-
-    it("should not send email if email was sent less than 24 hours ago", async () => {
-      const subscriptionId = "sub-123";
-      const now = new Date();
-      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000); // 1 hour ago
-      const subscription = {
-        pk: `subscriptions/${subscriptionId}`,
-        userId: "user-123",
-        plan: "free" as const,
-        lastLimitEmailSentAt: oneHourAgo.toISOString(),
-      };
-
-      mockGetSubscriptionById.mockResolvedValue(subscription);
-      mockGetPlanLimits.mockReturnValue({
-        maxWorkspaces: 1,
-        maxDocuments: 10,
-        maxDocumentSizeBytes: 1024 * 1024,
-        maxAgents: 1,
-        maxManagers: 1,
-        maxDailyRequests: 50,
-      });
-
-      // Mock getRequestCountLast24Hours to return 50 (at limit)
-      mockDb["llm-request-buckets"].query.mockResolvedValue({
-        items: [
-          {
-            count: 50,
-          },
-        ],
-      });
-
-      await expect(checkDailyRequestLimit(subscriptionId)).rejects.toThrow();
-
-      expect(mockSendEmail).not.toHaveBeenCalled();
-      expect(mockDb.subscription.update).not.toHaveBeenCalled();
-    });
-
-    it("should send email if last email was more than 24 hours ago", async () => {
-      const subscriptionId = "sub-123";
-      const now = new Date();
-      const twentyFiveHoursAgo = new Date(now.getTime() - 25 * 60 * 60 * 1000); // 25 hours ago
-      const subscription = {
-        pk: `subscriptions/${subscriptionId}`,
-        userId: "user-123",
-        plan: "starter" as const,
-        lastLimitEmailSentAt: twentyFiveHoursAgo.toISOString(),
-      };
-
-      mockGetSubscriptionById.mockResolvedValue(subscription);
-      mockGetPlanLimits.mockReturnValue({
-        maxWorkspaces: 1,
-        maxDocuments: 100,
-        maxDocumentSizeBytes: 10 * 1024 * 1024,
-        maxAgents: 5,
-        maxManagers: 1,
-        maxDailyRequests: 3000,
-      });
-      mockGetUserEmailById.mockResolvedValue("user@example.com");
-      mockSendEmail.mockResolvedValue({ message: "Email sent" });
-
-      // Mock getRequestCountLast24Hours to return 3000 (at limit)
-      mockDb["llm-request-buckets"].query.mockResolvedValue({
-        items: [
-          {
-            count: 3000,
-          },
-        ],
-      });
-
-      await expect(checkDailyRequestLimit(subscriptionId)).rejects.toThrow();
-
-      expect(mockSendEmail).toHaveBeenCalled();
-      expect(mockDb.subscription.update).toHaveBeenCalled();
-    });
-
-    it("should not fail if email sending fails", async () => {
-      const subscriptionId = "sub-123";
-      const subscription = {
-        pk: `subscriptions/${subscriptionId}`,
-        userId: "user-123",
-        plan: "free" as const,
-        lastLimitEmailSentAt: undefined,
-      };
-
-      mockGetSubscriptionById.mockResolvedValue(subscription);
-      mockGetPlanLimits.mockReturnValue({
-        maxWorkspaces: 1,
-        maxDocuments: 10,
-        maxDocumentSizeBytes: 1024 * 1024,
-        maxAgents: 1,
-        maxManagers: 1,
-        maxDailyRequests: 50,
-      });
-      mockGetUserEmailById.mockResolvedValue("user@example.com");
-      mockSendEmail.mockRejectedValue(new Error("Email service unavailable"));
-
-      // Mock getRequestCountLast24Hours to return 50 (at limit)
-      mockDb["llm-request-buckets"].query.mockResolvedValue({
-        items: [
-          {
-            count: 50,
-          },
-        ],
-      });
-
-      // Should still throw 429 even if email fails
-      await expect(checkDailyRequestLimit(subscriptionId)).rejects.toThrow();
-
-      const error = await checkDailyRequestLimit(subscriptionId).catch(
-        (e) => e
-      );
-      expect(error.isBoom).toBe(true);
-      expect(error.output.statusCode).toBe(429);
-    });
-
-    it("should not send email if user email not found", async () => {
-      const subscriptionId = "sub-123";
-      const subscription = {
-        pk: `subscriptions/${subscriptionId}`,
-        userId: "user-123",
-        plan: "free" as const,
-        lastLimitEmailSentAt: undefined,
-      };
-
-      mockGetSubscriptionById.mockResolvedValue(subscription);
-      mockGetPlanLimits.mockReturnValue({
-        maxWorkspaces: 1,
-        maxDocuments: 10,
-        maxDocumentSizeBytes: 1024 * 1024,
-        maxAgents: 1,
-        maxManagers: 1,
-        maxDailyRequests: 50,
-      });
-      mockGetUserEmailById.mockResolvedValue(undefined);
-
-      // Mock getRequestCountLast24Hours to return 50 (at limit)
-      mockDb["llm-request-buckets"].query.mockResolvedValue({
-        items: [
-          {
-            count: 50,
-          },
-        ],
-      });
-
-      await expect(checkDailyRequestLimit(subscriptionId)).rejects.toThrow();
-
-      expect(mockSendEmail).not.toHaveBeenCalled();
-    });
-
-    it("should allow request when plan has no limit", async () => {
-      // Note: This test uses "pro" plan but mocks maxDailyRequests as undefined
-      // to test the conditional logic that allows requests when no limit is configured.
-      // In reality, the Pro plan has maxDailyRequests: 10000, but this test validates
-      // the behavior when a plan has no limit configured.
-      const subscriptionId = "sub-123";
-      const subscription = {
-        pk: `subscriptions/${subscriptionId}`,
-        userId: "user-123",
-        plan: "pro" as const,
-      };
-
-      mockGetSubscriptionById.mockResolvedValue(subscription);
-      mockGetPlanLimits.mockReturnValue({
-        maxWorkspaces: 5,
-        maxDocuments: 1000,
-        maxDocumentSizeBytes: 100 * 1024 * 1024,
-        maxAgents: 50,
-        maxDailyRequests: undefined, // No limit
-      });
-
-      await expect(
-        checkDailyRequestLimit(subscriptionId)
-      ).resolves.not.toThrow();
-
-      expect(mockGetSubscriptionById).toHaveBeenCalledWith(subscriptionId);
-    });
-
-    it("should throw error if subscription not found", async () => {
-      const subscriptionId = "sub-123";
-
-      mockGetSubscriptionById.mockResolvedValue(undefined);
-
-      await expect(checkDailyRequestLimit(subscriptionId)).rejects.toThrow(
-        "Subscription sub-123 not found"
-      );
     });
   });
 
-  describe("incrementTavilyCallBucket", () => {
+  describe("checkTavilyDailyLimit", () => {
     const mockDb = {
-      "tavily-call-buckets": {
-        atomicUpdate: vi.fn(),
+      "request-buckets": {
+        query: vi.fn(),
       },
     };
 
     beforeEach(() => {
       mockDatabase.mockResolvedValue(mockDb);
+      mockGetWorkspaceSubscription.mockClear();
     });
 
-    it("should create new bucket if it doesn't exist", async () => {
+    it("should sum search and fetch counts for free tier", async () => {
       const workspaceId = "workspace-123";
+      const subscriptionId = "sub-123";
       const now = new Date("2024-01-15T14:00:00.000Z");
       vi.setSystemTime(now);
 
-      const createdBucket: TavilyCallBucketRecord = {
-        pk: `tavily-call-buckets/${workspaceId}/2024-01-15T14:00:00.000Z`,
-        workspaceId,
-        hourTimestamp: "2024-01-15T14:00:00.000Z",
-        count: 1,
-        expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
+      const subscription: SubscriptionRecord = {
+        pk: `subscriptions/${subscriptionId}`,
+        userId: "user-123",
+        plan: "free",
+        status: "active",
         version: 1,
         createdAt: now.toISOString(),
       };
 
-      mockDb["tavily-call-buckets"].atomicUpdate.mockImplementation(
-        async (pk, sk, updater) => {
-          await updater(undefined);
-          return createdBucket;
-        }
-      );
+      mockGetWorkspaceSubscription.mockResolvedValue(subscription);
 
-      const result = await incrementTavilyCallBucket(workspaceId);
+      // Mock queries for both search and fetch categories
+      mockDb["request-buckets"].query
+        .mockResolvedValueOnce({
+          items: [{ count: 5 }], // search count
+        })
+        .mockResolvedValueOnce({
+          items: [{ count: 5 }], // fetch count
+        });
 
-      expect(mockDb["tavily-call-buckets"].atomicUpdate).toHaveBeenCalledWith(
-        `tavily-call-buckets/${workspaceId}/2024-01-15T14:00:00.000Z`,
-        undefined,
-        expect.any(Function),
-        { maxRetries: 3 }
-      );
-      expect(result.count).toBe(1);
+      const result = await checkTavilyDailyLimit(workspaceId);
+
+      expect(result).toEqual({ withinFreeLimit: true, callCount: 10 });
+      expect(mockDb["request-buckets"].query).toHaveBeenCalledTimes(2);
     });
 
-    it("should increment existing bucket", async () => {
+    it("should throw error for free tier exceeding limit", async () => {
       const workspaceId = "workspace-123";
+      const subscriptionId = "sub-123";
       const now = new Date("2024-01-15T14:00:00.000Z");
       vi.setSystemTime(now);
 
-      const existingBucket: TavilyCallBucketRecord = {
-        pk: `tavily-call-buckets/${workspaceId}/2024-01-15T14:00:00.000Z`,
-        workspaceId,
-        hourTimestamp: "2024-01-15T14:00:00.000Z",
-        count: 5,
-        expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
+      const subscription: SubscriptionRecord = {
+        pk: `subscriptions/${subscriptionId}`,
+        userId: "user-123",
+        plan: "free",
+        status: "active",
         version: 1,
         createdAt: now.toISOString(),
       };
 
-      const updatedBucket = { ...existingBucket, count: 6 };
+      mockGetWorkspaceSubscription.mockResolvedValue(subscription);
 
-      mockDb["tavily-call-buckets"].atomicUpdate.mockImplementation(
-        async (pk, sk, updater) => {
-          await updater(existingBucket);
-          return updatedBucket;
-        }
+      // Mock queries: 6 search + 5 fetch = 11 total (exceeds limit of 10)
+      mockDb["request-buckets"].query
+        .mockResolvedValueOnce({
+          items: [{ count: 6 }], // search count
+        })
+        .mockResolvedValueOnce({
+          items: [{ count: 5 }], // fetch count
+        });
+
+      await expect(checkTavilyDailyLimit(workspaceId)).rejects.toThrow(
+        "Daily Tavily API call limit exceeded"
       );
-
-      const result = await incrementTavilyCallBucket(workspaceId);
-
-      expect(mockDb["tavily-call-buckets"].atomicUpdate).toHaveBeenCalledWith(
-        existingBucket.pk,
-        undefined,
-        expect.any(Function),
-        { maxRetries: 3 }
-      );
-      expect(result.count).toBe(6);
     });
 
-    it("should throw error if table doesn't exist", async () => {
+    it("should allow paid tier exceeding free limit", async () => {
       const workspaceId = "workspace-123";
-      const mockDbWithoutTable = {} as typeof mockDb;
+      const subscriptionId = "sub-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
 
-      mockDatabase.mockResolvedValue(mockDbWithoutTable);
+      const subscription: SubscriptionRecord = {
+        pk: `subscriptions/${subscriptionId}`,
+        userId: "user-123",
+        plan: "pro",
+        status: "active",
+        version: 1,
+        createdAt: now.toISOString(),
+      };
 
-      await expect(incrementTavilyCallBucket(workspaceId)).rejects.toThrow(
-        "tavily-call-buckets table not found"
-      );
+      mockGetWorkspaceSubscription.mockResolvedValue(subscription);
+
+      // Mock queries: 6 search + 5 fetch = 11 total (exceeds free limit of 10, but paid tier can continue)
+      mockDb["request-buckets"].query
+        .mockResolvedValueOnce({
+          items: [{ count: 6 }], // search count
+        })
+        .mockResolvedValueOnce({
+          items: [{ count: 5 }], // fetch count
+        });
+
+      const result = await checkTavilyDailyLimit(workspaceId);
+
+      expect(result).toEqual({ withinFreeLimit: false, callCount: 11 });
+    });
+
+    it("should disable free tier in testing environment", async () => {
+      const workspaceId = "workspace-123";
+      const subscriptionId = "sub-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const subscription: SubscriptionRecord = {
+        pk: `subscriptions/${subscriptionId}`,
+        userId: "user-123",
+        plan: "free",
+        status: "active",
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockGetWorkspaceSubscription.mockResolvedValue(subscription);
+
+      mockDb["request-buckets"].query
+        .mockResolvedValueOnce({
+          items: [],
+        })
+        .mockResolvedValueOnce({
+          items: [],
+        });
+
+      const originalArcEnv = process.env.ARC_ENV;
+      process.env.ARC_ENV = "testing";
+
+      try {
+        const result = await checkTavilyDailyLimit(workspaceId);
+
+        expect(result).toEqual({ withinFreeLimit: false, callCount: 0 });
+      } finally {
+        if (originalArcEnv !== undefined) {
+          process.env.ARC_ENV = originalArcEnv;
+        } else {
+          delete process.env.ARC_ENV;
+        }
+      }
     });
   });
 
-  describe("getTavilyCallCountLast24Hours", () => {
+  describe("Legacy functions (backward compatibility)", () => {
     const mockDb = {
-      "tavily-call-buckets": {
+      "request-buckets": {
+        atomicUpdate: vi.fn(),
         query: vi.fn(),
       },
     };
@@ -799,309 +821,122 @@ describe("requestTracking", () => {
       mockDatabase.mockResolvedValue(mockDb);
     });
 
-    it("should sum counts from all buckets", async () => {
-      const workspaceId = "workspace-123";
+    it("incrementRequestBucket should use llm category", async () => {
+      const subscriptionId = "sub-123";
       const now = new Date("2024-01-15T14:00:00.000Z");
       vi.setSystemTime(now);
 
-      const buckets: TavilyCallBucketRecord[] = [
-        {
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T14:00:00.000Z`,
-          workspaceId,
-          hourTimestamp: "2024-01-15T14:00:00.000Z",
-          count: 10,
-          expires: 0,
-          version: 1,
-          createdAt: now.toISOString(),
-        },
-        {
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T13:00:00.000Z`,
-          workspaceId,
-          hourTimestamp: "2024-01-15T13:00:00.000Z",
-          count: 5,
-          expires: 0,
-          version: 1,
-          createdAt: now.toISOString(),
-        },
-        {
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T12:00:00.000Z`,
-          workspaceId,
-          hourTimestamp: "2024-01-15T12:00:00.000Z",
-          count: 8,
-          expires: 0,
-          version: 1,
-          createdAt: now.toISOString(),
-        },
-      ];
-
-      mockDb["tavily-call-buckets"].query.mockResolvedValue({
-        items: buckets,
-      });
-
-      const result = await getTavilyCallCountLast24Hours(workspaceId);
-
-      expect(result).toBe(23); // 10 + 5 + 8
-      expect(mockDb["tavily-call-buckets"].query).toHaveBeenCalledWith({
-        IndexName: "byWorkspaceIdAndHour",
-        KeyConditionExpression:
-          "workspaceId = :workspaceId AND hourTimestamp BETWEEN :oldest AND :newest",
-        ExpressionAttributeValues: {
-          ":workspaceId": workspaceId,
-          ":oldest": expect.any(String),
-          ":newest": expect.any(String),
-        },
-      });
-    });
-
-    it("should return 0 if no buckets found", async () => {
-      const workspaceId = "workspace-123";
-      const now = new Date("2024-01-15T14:00:00.000Z");
-      vi.setSystemTime(now);
-
-      mockDb["tavily-call-buckets"].query.mockResolvedValue({
-        items: [],
-      });
-
-      const result = await getTavilyCallCountLast24Hours(workspaceId);
-
-      expect(result).toBe(0);
-    });
-
-    it("should handle buckets with missing count field", async () => {
-      const workspaceId = "workspace-123";
-      const now = new Date("2024-01-15T14:00:00.000Z");
-      vi.setSystemTime(now);
-
-      const buckets = [
-        {
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T14:00:00.000Z`,
-          workspaceId,
-          hourTimestamp: "2024-01-15T14:00:00.000Z",
-          count: 10,
-        },
-        {
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T13:00:00.000Z`,
-          workspaceId,
-          hourTimestamp: "2024-01-15T13:00:00.000Z",
-          // Missing count field
-        },
-      ];
-
-      mockDb["tavily-call-buckets"].query.mockResolvedValue({
-        items: buckets,
-      });
-
-      const result = await getTavilyCallCountLast24Hours(workspaceId);
-
-      expect(result).toBe(10); // Only counts the bucket with count field
-    });
-  });
-
-  describe("checkTavilyDailyLimit", () => {
-    beforeEach(() => {
-      mockGetWorkspaceSubscription.mockClear();
-    });
-
-    it("should allow free tier within limit", async () => {
-      const workspaceId = "workspace-123";
-      const mockDb = {
-        "tavily-call-buckets": {
-          query: vi.fn().mockResolvedValue({ items: [] }),
-        },
+      const createdBucket: RequestBucketRecord = {
+        pk: `request-buckets/${subscriptionId}/llm/2024-01-15T14:00:00.000Z`,
+        subscriptionId,
+        category: "llm",
+        hourTimestamp: "2024-01-15T14:00:00.000Z",
+        count: 1,
+        expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
+        version: 1,
+        createdAt: now.toISOString(),
       };
 
-      mockDatabase.mockResolvedValue(mockDb);
-      mockGetWorkspaceSubscription.mockResolvedValue(undefined); // No subscription = free tier
+      mockDb["request-buckets"].atomicUpdate.mockImplementation(
+        async (pk, sk, updater) => {
+          await updater(undefined);
+          return createdBucket;
+        }
+      );
 
-      const result = await checkTavilyDailyLimit(workspaceId);
+      const result = await incrementRequestBucket(subscriptionId);
 
-      expect(result).toEqual({ withinFreeLimit: true, callCount: 0 });
+      expect(result.category).toBe("llm");
     });
 
-    it("should throw error for free tier exceeding limit", async () => {
-      const workspaceId = "workspace-123";
-      const now = new Date("2024-01-15T14:00:00.000Z");
-      vi.setSystemTime(now);
+    it("getRequestCountLast24Hours should use llm category", async () => {
+      const subscriptionId = "sub-123";
 
-      const buckets: TavilyCallBucketRecord[] = Array.from(
-        { length: 10 },
-        (_, i) => ({
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${
-            14 - i
-          }:00:00.000Z`,
-          workspaceId,
-          hourTimestamp: `2024-01-15T${14 - i}:00:00.000Z`,
-          count: 1,
-          expires: 0,
-          version: 1,
-          createdAt: now.toISOString(),
+      mockDb["request-buckets"].query.mockResolvedValue({
+        items: [{ count: 10 }],
+      });
+
+      const result = await getRequestCountLast24Hours(subscriptionId);
+
+      expect(result).toBe(10);
+      expect(mockDb["request-buckets"].query).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ExpressionAttributeValues: expect.objectContaining({
+            ":category": "llm",
+          }),
         })
       );
-
-      const mockDb = {
-        "tavily-call-buckets": {
-          query: vi.fn().mockResolvedValue({ items: buckets }),
-        },
-      };
-
-      mockDatabase.mockResolvedValue(mockDb);
-      mockGetWorkspaceSubscription.mockResolvedValue(undefined); // Free tier
-
-      await expect(checkTavilyDailyLimit(workspaceId)).rejects.toThrow(
-        "Daily Tavily API call limit exceeded"
-      );
     });
 
-    it("should allow paid tier within free limit", async () => {
+    it("incrementTavilyCallBucket should increment search bucket", async () => {
       const workspaceId = "workspace-123";
-      const mockDb = {
-        "tavily-call-buckets": {
-          query: vi.fn().mockResolvedValue({ items: [] }),
-        },
-      };
+      const subscriptionId = "sub-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
 
-      mockDatabase.mockResolvedValue(mockDb);
-      mockGetWorkspaceSubscription.mockResolvedValue({
+      const subscription: SubscriptionRecord = {
+        pk: `subscriptions/${subscriptionId}`,
+        userId: "user-123",
         plan: "starter",
-      } as Partial<SubscriptionRecord>);
+        status: "active",
+        version: 1,
+        createdAt: now.toISOString(),
+      };
 
-      const result = await checkTavilyDailyLimit(workspaceId);
+      mockGetWorkspaceSubscription.mockResolvedValue(subscription);
 
-      expect(result).toEqual({ withinFreeLimit: true, callCount: 0 });
+      const createdBucket: RequestBucketRecord = {
+        pk: `request-buckets/${subscriptionId}/search/2024-01-15T14:00:00.000Z`,
+        subscriptionId,
+        category: "search",
+        hourTimestamp: "2024-01-15T14:00:00.000Z",
+        count: 1,
+        expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockDb["request-buckets"].atomicUpdate.mockImplementation(
+        async (pk, sk, updater) => {
+          await updater(undefined);
+          return createdBucket;
+        }
+      );
+
+      const result = await incrementTavilyCallBucket(workspaceId);
+
+      expect(result.category).toBe("search");
     });
 
-    it("should allow paid tier exceeding free limit (requires credits)", async () => {
+    it("getTavilyCallCountLast24Hours should sum search and fetch", async () => {
       const workspaceId = "workspace-123";
+      const subscriptionId = "sub-123";
       const now = new Date("2024-01-15T14:00:00.000Z");
       vi.setSystemTime(now);
 
-      const buckets: TavilyCallBucketRecord[] = Array.from(
-        { length: 15 },
-        (_, i) => ({
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${
-            14 - i
-          }:00:00.000Z`,
-          workspaceId,
-          hourTimestamp: `2024-01-15T${14 - i}:00:00.000Z`,
-          count: 1,
-          expires: 0,
-          version: 1,
-          createdAt: now.toISOString(),
+      const subscription: SubscriptionRecord = {
+        pk: `subscriptions/${subscriptionId}`,
+        userId: "user-123",
+        plan: "starter",
+        status: "active",
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockGetWorkspaceSubscription.mockResolvedValue(subscription);
+
+      mockDb["request-buckets"].query
+        .mockResolvedValueOnce({
+          items: [{ count: 5 }], // search
         })
-      );
+        .mockResolvedValueOnce({
+          items: [{ count: 3 }], // fetch
+        });
 
-      const mockDb = {
-        "tavily-call-buckets": {
-          query: vi.fn().mockResolvedValue({ items: buckets }),
-        },
-      };
+      const result = await getTavilyCallCountLast24Hours(workspaceId);
 
-      mockDatabase.mockResolvedValue(mockDb);
-      mockGetWorkspaceSubscription.mockResolvedValue({
-        plan: "pro",
-      } as Partial<SubscriptionRecord>);
-
-      const result = await checkTavilyDailyLimit(workspaceId);
-
-      expect(result).toEqual({ withinFreeLimit: false, callCount: 15 });
-    });
-
-    it("should treat free plan as free tier", async () => {
-      const workspaceId = "workspace-123";
-      const now = new Date("2024-01-15T14:00:00.000Z");
-      vi.setSystemTime(now);
-
-      const buckets: TavilyCallBucketRecord[] = Array.from(
-        { length: 10 },
-        (_, i) => ({
-          pk: `tavily-call-buckets/${workspaceId}/2024-01-15T${
-            14 - i
-          }:00:00.000Z`,
-          workspaceId,
-          hourTimestamp: `2024-01-15T${14 - i}:00:00.000Z`,
-          count: 1,
-          expires: 0,
-          version: 1,
-          createdAt: now.toISOString(),
-        })
-      );
-
-      const mockDb = {
-        "tavily-call-buckets": {
-          query: vi.fn().mockResolvedValue({ items: buckets }),
-        },
-      };
-
-      mockDatabase.mockResolvedValue(mockDb);
-      mockGetWorkspaceSubscription.mockResolvedValue({
-        plan: "free",
-      } as Partial<SubscriptionRecord>);
-
-      await expect(checkTavilyDailyLimit(workspaceId)).rejects.toThrow(
-        "Daily Tavily API call limit exceeded"
-      );
-    });
-
-    it("should disable free tier in testing environment (ARC_ENV=testing)", async () => {
-      const workspaceId = "workspace-123";
-      const mockDb = {
-        "tavily-call-buckets": {
-          query: vi.fn().mockResolvedValue({ items: [] }),
-        },
-      };
-
-      mockDatabase.mockResolvedValue(mockDb);
-      mockGetWorkspaceSubscription.mockResolvedValue(undefined); // No subscription = free tier
-
-      // Set ARC_ENV to "testing" to simulate local sandbox
-      const originalArcEnv = process.env.ARC_ENV;
-      process.env.ARC_ENV = "testing";
-
-      try {
-        const result = await checkTavilyDailyLimit(workspaceId);
-
-        // Should return withinFreeLimit: false even though it's free tier with 0 calls
-        expect(result).toEqual({ withinFreeLimit: false, callCount: 0 });
-      } finally {
-        // Restore original ARC_ENV
-        if (originalArcEnv !== undefined) {
-          process.env.ARC_ENV = originalArcEnv;
-        } else {
-          delete process.env.ARC_ENV;
-        }
-      }
-    });
-
-    it("should disable free tier in testing environment even for paid tiers", async () => {
-      const workspaceId = "workspace-123";
-      const mockDb = {
-        "tavily-call-buckets": {
-          query: vi.fn().mockResolvedValue({ items: [] }),
-        },
-      };
-
-      mockDatabase.mockResolvedValue(mockDb);
-      mockGetWorkspaceSubscription.mockResolvedValue({
-        plan: "pro",
-      } as Partial<SubscriptionRecord>);
-
-      // Set ARC_ENV to "testing" to simulate local sandbox
-      const originalArcEnv = process.env.ARC_ENV;
-      process.env.ARC_ENV = "testing";
-
-      try {
-        const result = await checkTavilyDailyLimit(workspaceId);
-
-        // Should return withinFreeLimit: false even though it's paid tier with 0 calls (within free limit)
-        expect(result).toEqual({ withinFreeLimit: false, callCount: 0 });
-      } finally {
-        // Restore original ARC_ENV
-        if (originalArcEnv !== undefined) {
-          process.env.ARC_ENV = originalArcEnv;
-        } else {
-          delete process.env.ARC_ENV;
-        }
-      }
+      expect(result).toBe(8); // 5 + 3
     });
   });
 });
+

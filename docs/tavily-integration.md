@@ -134,12 +134,14 @@ When a paid tier workspace exceeds the free limit and has insufficient credits:
 
 ## Usage Tracking
 
-Tavily API calls are tracked per workspace using hourly buckets:
+Tavily API calls are tracked per subscription using hourly buckets in the unified `request-buckets` table:
 
-- **Tracking**: `tavily-call-buckets` table
+- **Tracking**: `request-buckets` table with categories "search" (for `search_web`) and "fetch" (for `fetch_url`)
 - **Window**: Rolling 24-hour window
 - **Granularity**: Hourly buckets with 25-hour TTL
-- **Query**: Uses GSI `byWorkspaceIdAndHour` for efficient queries
+- **Query**: Uses GSI `bySubscriptionIdAndCategoryAndHour` for efficient queries
+- **Daily Limits**: Sums counts from both "search" and "fetch" categories to determine total Tavily usage
+- **Entity Lookup**: Workspace ID is converted to subscription ID before tracking (subscription-based limits)
 
 ## Integration Points
 

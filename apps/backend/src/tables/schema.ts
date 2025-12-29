@@ -342,20 +342,12 @@ export const tableSchemas = {
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),
-  "llm-request-buckets": TableBaseSchema.extend({
-    pk: z.string(), // bucket ID (e.g., "llm-request-buckets/{subscriptionId}/{hourTimestamp}")
+  "request-buckets": TableBaseSchema.extend({
+    pk: z.string(), // bucket ID (e.g., "request-buckets/{subscriptionId}/{category}/{hourTimestamp}")
     subscriptionId: z.string(), // subscription ID for GSI queries
+    category: z.enum(["llm", "search", "fetch"]), // request category
     hourTimestamp: z.string().datetime(), // ISO timestamp truncated to hour (YYYY-MM-DDTHH:00:00.000Z)
     count: z.number().default(0), // request count for this hour
-    expires: z.number(), // TTL timestamp (25 hours from bucket hour)
-    version: z.number().default(1),
-    createdAt: z.string().datetime().default(new Date().toISOString()),
-  }),
-  "tavily-call-buckets": TableBaseSchema.extend({
-    pk: z.string(), // bucket ID (e.g., "tavily-call-buckets/{workspaceId}/{hourTimestamp}")
-    workspaceId: z.string(), // workspace ID for GSI queries
-    hourTimestamp: z.string().datetime(), // ISO timestamp truncated to hour (YYYY-MM-DDTHH:00:00.000Z)
-    count: z.number().default(0), // call count for this hour
     expires: z.number(), // TTL timestamp (25 hours from bucket hour)
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
@@ -455,8 +447,7 @@ export type TableName =
   | "mcp-server"
   | "trial-credit-requests"
   | "subscription"
-  | "llm-request-buckets"
-  | "tavily-call-buckets"
+  | "request-buckets"
   | "workspace-invite"
   | "agent-stream-servers"
   | "user-api-key"
@@ -496,11 +487,8 @@ export type TrialCreditRequestRecord = z.infer<
   (typeof tableSchemas)["trial-credit-requests"]
 >;
 export type SubscriptionRecord = z.infer<(typeof tableSchemas)["subscription"]>;
-export type LLMRequestBucketRecord = z.infer<
-  (typeof tableSchemas)["llm-request-buckets"]
->;
-export type TavilyCallBucketRecord = z.infer<
-  (typeof tableSchemas)["tavily-call-buckets"]
+export type RequestBucketRecord = z.infer<
+  (typeof tableSchemas)["request-buckets"]
 >;
 export type WorkspaceInviteRecord = z.infer<
   (typeof tableSchemas)["workspace-invite"]
@@ -630,8 +618,7 @@ export type DatabaseSchema = {
   "mcp-server": TableAPI<"mcp-server">;
   "trial-credit-requests": TableAPI<"trial-credit-requests">;
   subscription: TableAPI<"subscription">;
-  "llm-request-buckets": TableAPI<"llm-request-buckets">;
-  "tavily-call-buckets": TableAPI<"tavily-call-buckets">;
+  "request-buckets": TableAPI<"request-buckets">;
   "workspace-invite": TableAPI<"workspace-invite">;
   "agent-stream-servers": TableAPI<"agent-stream-servers">;
   "user-api-key": TableAPI<"user-api-key">;
@@ -674,8 +661,7 @@ export type TableRecord =
   | z.infer<(typeof tableSchemas)["mcp-server"]>
   | z.infer<(typeof tableSchemas)["trial-credit-requests"]>
   | z.infer<typeof tableSchemas.subscription>
-  | z.infer<(typeof tableSchemas)["llm-request-buckets"]>
-  | z.infer<(typeof tableSchemas)["tavily-call-buckets"]>
+  | z.infer<(typeof tableSchemas)["request-buckets"]>
   | z.infer<(typeof tableSchemas)["workspace-invite"]>
   | z.infer<(typeof tableSchemas)["agent-stream-servers"]>
   | z.infer<(typeof tableSchemas)["user-api-key"]>
