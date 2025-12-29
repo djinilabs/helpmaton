@@ -257,8 +257,7 @@ subscription
 
 request-buckets
   subscriptionId *String
-  category *String
-  hourTimestamp **String
+  categoryHourTimestamp **String
   name bySubscriptionIdAndCategoryAndHour
 
 workspace-invite

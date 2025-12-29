@@ -138,6 +138,7 @@ describe("requestTracking", () => {
         pk: `request-buckets/${subscriptionId}/${category}/2024-01-15T14:00:00.000Z`,
         subscriptionId,
         category,
+        categoryHourTimestamp: `${category}#2024-01-15T14:00:00.000Z`,
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 1,
         expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
@@ -177,6 +178,7 @@ describe("requestTracking", () => {
         pk: `request-buckets/${subscriptionId}/${category}/2024-01-15T14:00:00.000Z`,
         subscriptionId,
         category,
+        categoryHourTimestamp: `${category}#2024-01-15T14:00:00.000Z`,
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 1,
         expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
@@ -209,6 +211,7 @@ describe("requestTracking", () => {
         pk: `request-buckets/${subscriptionId}/${category}/2024-01-15T14:00:00.000Z`,
         subscriptionId,
         category,
+        categoryHourTimestamp: `${category}#2024-01-15T14:00:00.000Z`,
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 1,
         expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
@@ -241,6 +244,7 @@ describe("requestTracking", () => {
         pk: `request-buckets/${subscriptionId}/${category}/2024-01-15T14:00:00.000Z`,
         subscriptionId,
         category,
+        categoryHourTimestamp: `${category}#2024-01-15T14:00:00.000Z`,
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 5,
         expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
@@ -300,6 +304,7 @@ describe("requestTracking", () => {
           pk: `request-buckets/${subscriptionId}/${category}/2024-01-15T14:00:00.000Z`,
           subscriptionId,
           category,
+          categoryHourTimestamp: `${category}#2024-01-15T14:00:00.000Z`,
           hourTimestamp: "2024-01-15T14:00:00.000Z",
           count: 10,
           expires: 0,
@@ -310,6 +315,7 @@ describe("requestTracking", () => {
           pk: `request-buckets/${subscriptionId}/${category}/2024-01-15T13:00:00.000Z`,
           subscriptionId,
           category,
+          categoryHourTimestamp: `${category}#2024-01-15T13:00:00.000Z`,
           hourTimestamp: "2024-01-15T13:00:00.000Z",
           count: 5,
           expires: 0,
@@ -330,13 +336,12 @@ describe("requestTracking", () => {
       expect(result).toBe(15); // 10 + 5
       expect(mockDb["request-buckets"].query).toHaveBeenCalledWith({
         IndexName: "bySubscriptionIdAndCategoryAndHour",
-          KeyConditionExpression:
-          "subscriptionId = :subscriptionId AND category = :category AND hourTimestamp BETWEEN :oldest AND :newest",
+        KeyConditionExpression:
+          "subscriptionId = :subscriptionId AND categoryHourTimestamp BETWEEN :startKey AND :endKey",
         ExpressionAttributeValues: {
           ":subscriptionId": subscriptionId,
-          ":category": category,
-          ":oldest": expect.any(String),
-          ":newest": expect.any(String),
+          ":startKey": expect.stringMatching(new RegExp(`^${category}#`)),
+          ":endKey": expect.stringMatching(new RegExp(`^${category}#`)),
         },
       });
     });
@@ -380,21 +385,22 @@ describe("requestTracking", () => {
         userId: "user-123",
         plan: "starter",
         status: "active",
-          version: 1,
-          createdAt: now.toISOString(),
+        version: 1,
+        createdAt: now.toISOString(),
       };
 
       mockGetWorkspaceSubscription.mockResolvedValue(subscription);
 
       const createdBucket: RequestBucketRecord = {
         pk: `request-buckets/${subscriptionId}/search/2024-01-15T14:00:00.000Z`,
-          subscriptionId,
+        subscriptionId,
         category: "search",
+        categoryHourTimestamp: "search#2024-01-15T14:00:00.000Z",
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 1,
         expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
-          version: 1,
-          createdAt: now.toISOString(),
+        version: 1,
+        createdAt: now.toISOString(),
       };
 
       mockDb["request-buckets"].atomicUpdate.mockImplementation(
@@ -454,6 +460,7 @@ describe("requestTracking", () => {
         pk: `request-buckets/${subscriptionId}/fetch/2024-01-15T14:00:00.000Z`,
         subscriptionId,
         category: "fetch",
+        categoryHourTimestamp: "fetch#2024-01-15T14:00:00.000Z",
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 1,
         expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
@@ -509,6 +516,7 @@ describe("requestTracking", () => {
           pk: `request-buckets/${subscriptionId}/search/2024-01-15T14:00:00.000Z`,
           subscriptionId,
           category: "search",
+          categoryHourTimestamp: "search#2024-01-15T14:00:00.000Z",
           hourTimestamp: "2024-01-15T14:00:00.000Z",
           count: 5,
           expires: 0,
@@ -560,6 +568,7 @@ describe("requestTracking", () => {
           pk: `request-buckets/${subscriptionId}/fetch/2024-01-15T14:00:00.000Z`,
           subscriptionId,
           category: "fetch",
+          categoryHourTimestamp: "fetch#2024-01-15T14:00:00.000Z",
           hourTimestamp: "2024-01-15T14:00:00.000Z",
           count: 3,
           expires: 0,
@@ -621,9 +630,11 @@ describe("requestTracking", () => {
       expect(mockDb["request-buckets"].query).toHaveBeenCalledWith(
         expect.objectContaining({
           IndexName: "bySubscriptionIdAndCategoryAndHour",
+          KeyConditionExpression: expect.stringContaining(
+            "categoryHourTimestamp BETWEEN"
+          ),
           ExpressionAttributeValues: expect.objectContaining({
             ":subscriptionId": subscriptionId,
-            ":category": "llm",
           }),
         })
       );
@@ -747,8 +758,8 @@ describe("requestTracking", () => {
         userId: "user-123",
         plan: "pro",
         status: "active",
-          version: 1,
-          createdAt: now.toISOString(),
+        version: 1,
+        createdAt: now.toISOString(),
       };
 
       mockGetWorkspaceSubscription.mockResolvedValue(subscription);
@@ -760,7 +771,7 @@ describe("requestTracking", () => {
         })
         .mockResolvedValueOnce({
           items: [{ count: 5 }], // fetch count
-      });
+        });
 
       const result = await checkTavilyDailyLimit(workspaceId);
 
@@ -790,7 +801,7 @@ describe("requestTracking", () => {
         })
         .mockResolvedValueOnce({
           items: [],
-      });
+        });
 
       const originalArcEnv = process.env.ARC_ENV;
       process.env.ARC_ENV = "testing";
@@ -810,12 +821,12 @@ describe("requestTracking", () => {
   });
 
   describe("Legacy functions (backward compatibility)", () => {
-      const mockDb = {
+    const mockDb = {
       "request-buckets": {
         atomicUpdate: vi.fn(),
         query: vi.fn(),
-        },
-      };
+      },
+    };
 
     beforeEach(() => {
       mockDatabase.mockResolvedValue(mockDb);
@@ -830,11 +841,12 @@ describe("requestTracking", () => {
         pk: `request-buckets/${subscriptionId}/llm/2024-01-15T14:00:00.000Z`,
         subscriptionId,
         category: "llm",
+        categoryHourTimestamp: "llm#2024-01-15T14:00:00.000Z",
         hourTimestamp: "2024-01-15T14:00:00.000Z",
-          count: 1,
+        count: 1,
         expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
-          version: 1,
-          createdAt: now.toISOString(),
+        version: 1,
+        createdAt: now.toISOString(),
       };
 
       mockDb["request-buckets"].atomicUpdate.mockImplementation(
@@ -861,8 +873,12 @@ describe("requestTracking", () => {
       expect(result).toBe(10);
       expect(mockDb["request-buckets"].query).toHaveBeenCalledWith(
         expect.objectContaining({
+          IndexName: "bySubscriptionIdAndCategoryAndHour",
+          KeyConditionExpression: expect.stringContaining(
+            "categoryHourTimestamp BETWEEN"
+          ),
           ExpressionAttributeValues: expect.objectContaining({
-            ":category": "llm",
+            ":subscriptionId": subscriptionId,
           }),
         })
       );
@@ -879,8 +895,8 @@ describe("requestTracking", () => {
         userId: "user-123",
         plan: "starter",
         status: "active",
-          version: 1,
-          createdAt: now.toISOString(),
+        version: 1,
+        createdAt: now.toISOString(),
       };
 
       mockGetWorkspaceSubscription.mockResolvedValue(subscription);
@@ -889,6 +905,7 @@ describe("requestTracking", () => {
         pk: `request-buckets/${subscriptionId}/search/2024-01-15T14:00:00.000Z`,
         subscriptionId,
         category: "search",
+        categoryHourTimestamp: "search#2024-01-15T14:00:00.000Z",
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 1,
         expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
@@ -919,8 +936,8 @@ describe("requestTracking", () => {
         userId: "user-123",
         plan: "starter",
         status: "active",
-          version: 1,
-          createdAt: now.toISOString(),
+        version: 1,
+        createdAt: now.toISOString(),
       };
 
       mockGetWorkspaceSubscription.mockResolvedValue(subscription);
@@ -939,4 +956,3 @@ describe("requestTracking", () => {
     });
   });
 });
-

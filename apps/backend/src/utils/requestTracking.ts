@@ -65,6 +65,8 @@ export async function incrementRequestBucketByCategory(
   const db = await database();
   const hourTimestamp = getCurrentHourTimestamp();
   const bucketPk = `request-buckets/${subscriptionId}/${category}/${hourTimestamp}`;
+  // Composite sort key for GSI: category#hourTimestamp
+  const categoryHourTimestamp = `${category}#${hourTimestamp}`;
   // TTL: 25 hours from bucket hour (ensures 24-hour window coverage)
   // Calculate from bucket hour timestamp, not current time, so all buckets
   // created within the same hour expire at the same time
@@ -107,11 +109,11 @@ export async function incrementRequestBucketByCategory(
         console.log(
           "[incrementRequestBucketByCategory] Incrementing existing bucket:",
           {
-          subscriptionId,
+            subscriptionId,
             category,
-          hourTimestamp,
-          oldCount: current.count,
-          newCount: current.count + 1,
+            hourTimestamp,
+            oldCount: current.count,
+            newCount: current.count + 1,
             expires: existingExpires,
           }
         );
@@ -119,22 +121,21 @@ export async function incrementRequestBucketByCategory(
           pk: bucketPk,
           count: current.count + 1,
           expires: existingExpires,
+          categoryHourTimestamp, // Ensure GSI sort key is always set
         };
       } else {
         // Bucket doesn't exist, create new one
-        console.log(
-          "[incrementRequestBucketByCategory] Creating new bucket:",
-          {
+        console.log("[incrementRequestBucketByCategory] Creating new bucket:", {
           subscriptionId,
-            category,
+          category,
           hourTimestamp,
           count: 1,
-          }
-        );
+        });
         return {
           pk: bucketPk,
           subscriptionId,
           category,
+          categoryHourTimestamp, // Composite sort key for GSI
           hourTimestamp,
           count: 1,
           expires,
@@ -147,10 +148,10 @@ export async function incrementRequestBucketByCategory(
   console.log(
     "[incrementRequestBucketByCategory] Successfully updated bucket:",
     {
-    subscriptionId,
+      subscriptionId,
       category,
-    hourTimestamp,
-    count: updated.count,
+      hourTimestamp,
+      count: updated.count,
     }
   );
 
@@ -174,16 +175,18 @@ export async function getRequestCountLast24HoursByCategory(
   const newestTimestamp = timestamps[0];
 
   // Query buckets using GSI for subscriptionId and category
+  // Use composite sort key: category#hourTimestamp for efficient filtering
   // Filter by hourTimestamp range (last 24 hours)
+  const startKey = `${category}#${oldestTimestamp}`;
+  const endKey = `${category}#${newestTimestamp}`;
   const queryResult = await db["request-buckets"].query({
     IndexName: "bySubscriptionIdAndCategoryAndHour",
     KeyConditionExpression:
-      "subscriptionId = :subscriptionId AND category = :category AND hourTimestamp BETWEEN :oldest AND :newest",
+      "subscriptionId = :subscriptionId AND categoryHourTimestamp BETWEEN :startKey AND :endKey",
     ExpressionAttributeValues: {
       ":subscriptionId": subscriptionId,
-      ":category": category,
-      ":oldest": oldestTimestamp,
-      ":newest": newestTimestamp,
+      ":startKey": startKey,
+      ":endKey": endKey,
     },
   });
 
@@ -216,9 +219,7 @@ export async function incrementSearchRequestBucket(
 ): Promise<RequestBucketRecord> {
   const subscription = await getWorkspaceSubscription(workspaceId);
   if (!subscription) {
-    throw new Error(
-      `Could not find subscription for workspace ${workspaceId}`
-    );
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
   }
   // Extract subscriptionId without "subscriptions/" prefix
   const subscriptionId = subscription.pk.replace("subscriptions/", "");
@@ -238,9 +239,7 @@ export async function incrementFetchRequestBucket(
 ): Promise<RequestBucketRecord> {
   const subscription = await getWorkspaceSubscription(workspaceId);
   if (!subscription) {
-    throw new Error(
-      `Could not find subscription for workspace ${workspaceId}`
-    );
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
   }
   // Extract subscriptionId without "subscriptions/" prefix
   const subscriptionId = subscription.pk.replace("subscriptions/", "");
@@ -258,9 +257,7 @@ export async function getSearchRequestCountLast24Hours(
 ): Promise<number> {
   const subscription = await getWorkspaceSubscription(workspaceId);
   if (!subscription) {
-    throw new Error(
-      `Could not find subscription for workspace ${workspaceId}`
-    );
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
   }
   // Extract subscriptionId without "subscriptions/" prefix
   const subscriptionId = subscription.pk.replace("subscriptions/", "");
@@ -278,9 +275,7 @@ export async function getFetchRequestCountLast24Hours(
 ): Promise<number> {
   const subscription = await getWorkspaceSubscription(workspaceId);
   if (!subscription) {
-    throw new Error(
-      `Could not find subscription for workspace ${workspaceId}`
-    );
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
   }
   // Extract subscriptionId without "subscriptions/" prefix
   const subscriptionId = subscription.pk.replace("subscriptions/", "");
@@ -452,9 +447,7 @@ export async function checkTavilyDailyLimit(
   // Get subscription to determine tier and extract subscriptionId
   const subscription = await getWorkspaceSubscription(workspaceId);
   if (!subscription) {
-    throw new Error(
-      `Could not find subscription for workspace ${workspaceId}`
-    );
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
   }
   const subscriptionId = subscription.pk.replace("subscriptions/", "");
 
@@ -519,9 +512,7 @@ export async function getTavilyCallCountLast24Hours(
   // For backward compatibility, return sum of search and fetch
   const subscription = await getWorkspaceSubscription(workspaceId);
   if (!subscription) {
-    throw new Error(
-      `Could not find subscription for workspace ${workspaceId}`
-    );
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
   }
   const subscriptionId = subscription.pk.replace("subscriptions/", "");
   const [searchCount, fetchCount] = await Promise.all([
