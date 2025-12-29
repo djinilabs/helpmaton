@@ -29,26 +29,29 @@ export const ChannelModal: FC<ChannelModalProps> = ({
   const channelIdForTest = channel?.id || createdChannelId;
   const testChannel = useTestChannel(workspaceId, channelIdForTest || "");
   // Initialize state from channel prop
-  const [type, setType] = useState<"discord">("discord");
+  const [type, setType] = useState<"discord" | "slack">("discord");
   const [name, setName] = useState(channel?.name || "");
   const [botToken, setBotToken] = useState("");
   const [discordChannelId, setDiscordChannelId] = useState("");
+  const [webhookUrl, setWebhookUrl] = useState("");
 
   // Reset form when modal opens/closes or channel changes
   useEffect(() => {
     if (isOpen) {
       if (channel) {
         setName(channel.name);
-        setType(channel.type as "discord");
+        setType(channel.type as "discord" | "slack");
         // Don't populate sensitive fields when editing
         setBotToken("");
         setDiscordChannelId("");
+        setWebhookUrl("");
         setCreatedChannelId(null);
       } else {
         setName("");
         setType("discord");
         setBotToken("");
         setDiscordChannelId("");
+        setWebhookUrl("");
         setCreatedChannelId(null);
       }
     }
@@ -59,6 +62,7 @@ export const ChannelModal: FC<ChannelModalProps> = ({
     setName("");
     setBotToken("");
     setDiscordChannelId("");
+    setWebhookUrl("");
     setCreatedChannelId(null);
     onClose();
   };
@@ -71,38 +75,52 @@ export const ChannelModal: FC<ChannelModalProps> = ({
     e.preventDefault();
     if (!name.trim()) return;
 
-    // For create, both fields are required
-    if (!isEditing && (!botToken.trim() || !discordChannelId.trim())) {
-      return;
+    // For create, validate required fields based on type
+    if (!isEditing) {
+      if (type === "discord" && (!botToken.trim() || !discordChannelId.trim())) {
+        return;
+      }
+      if (type === "slack" && !webhookUrl.trim()) {
+        return;
+      }
     }
 
     try {
       if (isEditing) {
         const updateData: {
           name?: string;
-          config?: { botToken?: string; discordChannelId?: string };
+          config?: { botToken?: string; discordChannelId?: string } | { webhookUrl?: string };
         } = {
           name: name.trim(),
         };
         // Only include config fields if they were provided
-        if (botToken.trim() || discordChannelId.trim()) {
+        if (type === "discord" && (botToken.trim() || discordChannelId.trim())) {
           updateData.config = {};
           if (botToken.trim()) {
-            updateData.config.botToken = botToken.trim();
+            (updateData.config as { botToken?: string; discordChannelId?: string }).botToken = botToken.trim();
           }
           if (discordChannelId.trim()) {
-            updateData.config.discordChannelId = discordChannelId.trim();
+            (updateData.config as { botToken?: string; discordChannelId?: string }).discordChannelId = discordChannelId.trim();
           }
+        } else if (type === "slack" && webhookUrl.trim()) {
+          updateData.config = {
+            webhookUrl: webhookUrl.trim(),
+          };
         }
         await updateChannel.mutateAsync(updateData);
       } else {
+        const config = type === "discord"
+          ? {
+              botToken: botToken.trim(),
+              discordChannelId: discordChannelId.trim(),
+            }
+          : {
+              webhookUrl: webhookUrl.trim(),
+            };
         const newChannel = await createChannel.mutateAsync({
-          type: "discord",
+          type,
           name: name.trim(),
-          config: {
-            botToken: botToken.trim(),
-            discordChannelId: discordChannelId.trim(),
-          },
+          config,
         });
         setCreatedChannelId(newChannel.id);
         // Don't close immediately - allow user to test
@@ -137,12 +155,13 @@ export const ChannelModal: FC<ChannelModalProps> = ({
             <select
               id="type"
               value={type}
-              onChange={(e) => setType(e.target.value as "discord")}
+              onChange={(e) => setType(e.target.value as "discord" | "slack")}
               className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               required
               disabled={isEditing}
             >
               <option value="discord">Discord</option>
+              <option value="slack">Slack</option>
             </select>
           </div>
           <div>
@@ -162,68 +181,98 @@ export const ChannelModal: FC<ChannelModalProps> = ({
               autoFocus
             />
           </div>
-          <div>
-            <label
-              htmlFor="discordChannelId"
-              className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-            >
-              Discord Channel ID{" "}
-              {isEditing ? "(leave blank to keep current)" : "*"}
-            </label>
-            <input
-              id="discordChannelId"
-              type="text"
-              value={discordChannelId}
-              onChange={(e) => setDiscordChannelId(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-              required={!isEditing}
-              placeholder="123456789012345678"
-            />
-            <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-              Right-click the Discord channel and select &quot;Copy ID&quot;
-              (Developer Mode must be enabled). See{" "}
-              <a
-                href="/docs/discord-setup.html"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary-600 underline hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+          {type === "discord" && (
+            <>
+              <div>
+                <label
+                  htmlFor="discordChannelId"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                >
+                  Discord Channel ID{" "}
+                  {isEditing ? "(leave blank to keep current)" : "*"}
+                </label>
+                <input
+                  id="discordChannelId"
+                  type="text"
+                  value={discordChannelId}
+                  onChange={(e) => setDiscordChannelId(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  required={!isEditing && type === "discord"}
+                  placeholder="123456789012345678"
+                />
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  Right-click the Discord channel and select &quot;Copy ID&quot;
+                  (Developer Mode must be enabled). See{" "}
+                  <a
+                    href="/docs/discord-setup.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 underline hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                  >
+                    setup guide
+                  </a>{" "}
+                  for details.
+                </p>
+              </div>
+              <div>
+                <label
+                  htmlFor="botToken"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                >
+                  Bot Token {isEditing ? "(leave blank to keep current)" : "*"}
+                </label>
+                <input
+                  id="botToken"
+                  type="password"
+                  value={botToken}
+                  onChange={(e) => setBotToken(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  required={!isEditing && type === "discord"}
+                  placeholder={
+                    isEditing ? "Enter new token to update" : "MTIzNDU2..."
+                  }
+                />
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  Get this from the Discord Developer Portal. See{" "}
+                  <a
+                    href="/docs/discord-setup.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary-600 underline hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                  >
+                    setup guide
+                  </a>{" "}
+                  for details.
+                </p>
+              </div>
+            </>
+          )}
+          {type === "slack" && (
+            <div>
+              <label
+                htmlFor="webhookUrl"
+                className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
               >
-                setup guide
-              </a>{" "}
-              for details.
-            </p>
-          </div>
-          <div>
-            <label
-              htmlFor="botToken"
-              className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-            >
-              Bot Token {isEditing ? "(leave blank to keep current)" : "*"}
-            </label>
-            <input
-              id="botToken"
-              type="password"
-              value={botToken}
-              onChange={(e) => setBotToken(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-              required={!isEditing}
-              placeholder={
-                isEditing ? "Enter new token to update" : "MTIzNDU2..."
-              }
-            />
-            <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-              Get this from the Discord Developer Portal. See{" "}
-              <a
-                href="/docs/discord-setup.html"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary-600 underline hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-              >
-                setup guide
-              </a>{" "}
-              for details.
-            </p>
-          </div>
+                Webhook URL {isEditing ? "(leave blank to keep current)" : "*"}
+              </label>
+              <input
+                id="webhookUrl"
+                type="url"
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                required={!isEditing && type === "slack"}
+                placeholder="https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+              />
+              <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                Get this from your Slack App settings → Incoming Webhooks. The
+                webhook URL should start with{" "}
+                <code className="rounded bg-neutral-200 px-1 py-0.5 text-xs dark:bg-neutral-800">
+                  https://hooks.slack.com/services/
+                </code>
+              </p>
+            </div>
+          )}
           {canTest && (
             <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
               <div className="mb-2 flex items-center justify-between">
@@ -260,7 +309,9 @@ export const ChannelModal: FC<ChannelModalProps> = ({
               disabled={
                 isPending ||
                 !name.trim() ||
-                (!isEditing && (!botToken.trim() || !discordChannelId.trim()))
+                (!isEditing &&
+                  ((type === "discord" && (!botToken.trim() || !discordChannelId.trim())) ||
+                   (type === "slack" && !webhookUrl.trim())))
               }
               className="flex-1 rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
             >

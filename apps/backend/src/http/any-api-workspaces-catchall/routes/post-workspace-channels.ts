@@ -41,7 +41,7 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *             properties:
  *               type:
  *                 type: string
- *                 enum: [discord]
+ *                 enum: [discord, slack]
  *                 description: Channel type
  *               name:
  *                 type: string
@@ -56,6 +56,9 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *                   discordChannelId:
  *                     type: string
  *                     description: Discord channel ID (required for discord type)
+ *                   webhookUrl:
+ *                     type: string
+ *                     description: Slack webhook URL (required for slack type)
  *     responses:
  *       201:
  *         description: Channel created successfully
@@ -119,6 +122,16 @@ export const registerPostWorkspaceChannels = (app: express.Application) => {
           // Format: [base64].[timestamp].[hmac] - typically 59-70 characters
           if (!/^[A-Za-z0-9._-]{59,}$/.test(config.botToken)) {
             throw badRequest("Invalid Discord bot token format");
+          }
+        } else if (type === "slack") {
+          if (!config.webhookUrl || typeof config.webhookUrl !== "string") {
+            throw badRequest(
+              "config.webhookUrl is required for Slack channels"
+            );
+          }
+          // Validate webhook URL format (must be from hooks.slack.com)
+          if (!config.webhookUrl.startsWith("https://hooks.slack.com/services/")) {
+            throw badRequest("Invalid Slack webhook URL format. Must start with https://hooks.slack.com/services/");
           }
         } else {
           throw badRequest(`Unsupported channel type: ${type}`);

@@ -85,6 +85,16 @@ describe("POST /api/workspaces/:workspaceId/channels", () => {
           if (!/^[A-Za-z0-9._-]{59,}$/.test(config.botToken)) {
             throw badRequest("Invalid Discord bot token format");
           }
+        } else if (type === "slack") {
+          if (!config.webhookUrl || typeof config.webhookUrl !== "string") {
+            throw badRequest(
+              "config.webhookUrl is required for Slack channels"
+            );
+          }
+          // Validate webhook URL format (must be from hooks.slack.com)
+          if (!config.webhookUrl.startsWith("https://hooks.slack.com/services/")) {
+            throw badRequest("Invalid Slack webhook URL format. Must start with https://hooks.slack.com/services/");
+          }
         } else {
           throw badRequest(`Unsupported channel type: ${type}`);
         }
@@ -609,7 +619,89 @@ describe("POST /api/workspaces/:workspaceId/channels", () => {
     );
   });
 
-  it("should throw badRequest when channel type is unsupported", async () => {
+  it("should create a Slack channel successfully", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const workspaceId = "workspace-123";
+    const userId = "user-456";
+    const subscriptionId = "sub-789";
+    const channelId = "channel-abc-123";
+    const channelName = "My Slack Channel";
+    const webhookUrl = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX";
+
+    const mockChannel = {
+      pk: `output-channels/${workspaceId}/${channelId}`,
+      sk: "channel",
+      workspaceId,
+      channelId,
+      type: "slack",
+      name: channelName,
+      config: {
+        webhookUrl,
+      },
+      createdBy: `users/${userId}`,
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    mockRandomUUID.mockReturnValue(channelId);
+    mockEnsureWorkspaceSubscription.mockResolvedValue(subscriptionId);
+    mockCheckSubscriptionLimits.mockResolvedValue(undefined);
+
+    const mockChannelCreate = vi.fn().mockResolvedValue(mockChannel);
+    mockDb["output_channel"].create = mockChannelCreate;
+
+    const req = createMockRequest({
+      workspaceResource: `workspaces/${workspaceId}`,
+      userRef: `users/${userId}`,
+      params: {
+        workspaceId,
+      },
+      body: {
+        type: "slack",
+        name: channelName,
+        config: {
+          webhookUrl,
+        },
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockEnsureWorkspaceSubscription).toHaveBeenCalledWith(
+      workspaceId,
+      userId
+    );
+    expect(mockCheckSubscriptionLimits).toHaveBeenCalledWith(
+      subscriptionId,
+      "channel",
+      1
+    );
+    expect(mockRandomUUID).toHaveBeenCalled();
+    expect(mockChannelCreate).toHaveBeenCalledWith({
+      pk: `output-channels/${workspaceId}/${channelId}`,
+      sk: "channel",
+      workspaceId,
+      channelId,
+      type: "slack",
+      name: channelName,
+      config: {
+        webhookUrl,
+      },
+      createdBy: `users/${userId}`,
+    });
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith({
+      id: channelId,
+      name: channelName,
+      type: "slack",
+      createdAt: mockChannel.createdAt,
+    });
+  });
+
+  it("should throw badRequest when Slack webhookUrl is missing", async () => {
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
 
@@ -635,7 +727,79 @@ describe("POST /api/workspaces/:workspaceId/channels", () => {
         output: expect.objectContaining({
           statusCode: 400,
           payload: expect.objectContaining({
-            message: expect.stringContaining("Unsupported channel type: slack"),
+            message: expect.stringContaining(
+              "config.webhookUrl is required for Slack channels"
+            ),
+          }),
+        }),
+      })
+    );
+  });
+
+  it("should throw badRequest when Slack webhookUrl has invalid format", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const req = createMockRequest({
+      workspaceResource: "workspaces/workspace-123",
+      userRef: "users/user-456",
+      params: {
+        workspaceId: "workspace-123",
+      },
+      body: {
+        type: "slack",
+        name: "My Channel",
+        config: {
+          webhookUrl: "https://invalid-url.com/webhook",
+        },
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        output: expect.objectContaining({
+          statusCode: 400,
+          payload: expect.objectContaining({
+            message: expect.stringContaining(
+              "Invalid Slack webhook URL format"
+            ),
+          }),
+        }),
+      })
+    );
+  });
+
+  it("should throw badRequest when channel type is unsupported", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const req = createMockRequest({
+      workspaceResource: "workspaces/workspace-123",
+      userRef: "users/user-456",
+      params: {
+        workspaceId: "workspace-123",
+      },
+      body: {
+        type: "email",
+        name: "My Channel",
+        config: {},
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        output: expect.objectContaining({
+          statusCode: 400,
+          payload: expect.objectContaining({
+            message: expect.stringContaining("Unsupported channel type: email"),
           }),
         }),
       })

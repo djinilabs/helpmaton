@@ -187,20 +187,28 @@ export interface Channel {
 }
 
 export interface CreateChannelInput {
-  type: "discord";
+  type: "discord" | "slack";
   name: string;
-  config: {
-    botToken: string;
-    discordChannelId: string;
-  };
+  config:
+    | {
+        botToken: string;
+        discordChannelId: string;
+      }
+    | {
+        webhookUrl: string;
+      };
 }
 
 export interface UpdateChannelInput {
   name?: string;
-  config?: {
-    botToken?: string;
-    discordChannelId?: string;
-  };
+  config?:
+    | {
+        botToken?: string;
+        discordChannelId?: string;
+      }
+    | {
+        webhookUrl?: string;
+      };
 }
 
 // Token storage keys
