@@ -7,6 +7,7 @@ import type {
   ToolResultPart,
 } from "ai";
 
+import { extractToolCostFromResult } from "./toolCostExtraction";
 import type { UIMessage } from "./types";
 
 /**
@@ -113,6 +114,7 @@ export function convertAiSdkUIMessageToUIMessage(
             toolCallId: string;
             toolName: string;
             result: unknown;
+            costUsd?: number;
           }
       > = [];
 
@@ -139,16 +141,31 @@ export function convertAiSdkUIMessageToUIMessage(
             "toolCallId" in part &&
             "toolName" in part
           ) {
+            // Extract result value
+            // Prefer output over result (matches toolFormatting.ts behavior)
+            const rawResult =
+              "output" in part && part.output !== undefined
+                ? part.output
+                : "result" in part
+                ? part.result
+                : null;
+
+            // Extract cost from result string if present (format: __HM_TOOL_COST__:8000)
+            let costUsd: number | undefined;
+            let processedResult = rawResult;
+
+            if (typeof rawResult === "string") {
+              const extractionResult = extractToolCostFromResult(rawResult);
+              costUsd = extractionResult.costUsd;
+              processedResult = extractionResult.processedResult;
+            }
+
             content.push({
               type: "tool-result",
               toolCallId: part.toolCallId,
               toolName: part.toolName,
-              result:
-                "result" in part
-                  ? part.result
-                  : "output" in part
-                  ? part.output
-                  : null,
+              result: processedResult,
+              ...(costUsd !== undefined && { costUsd }),
             });
           }
         }
@@ -183,6 +200,7 @@ export function convertAiSdkUIMessageToUIMessage(
         toolCallId: string;
         toolName: string;
         result: unknown;
+        costUsd?: number;
       }> = [];
 
       for (const part of message.parts) {
@@ -194,16 +212,31 @@ export function convertAiSdkUIMessageToUIMessage(
           "toolCallId" in part &&
           "toolName" in part
         ) {
+          // Extract result value
+          // Prefer output over result (matches toolFormatting.ts behavior)
+          const rawResult =
+            "output" in part && part.output !== undefined
+              ? part.output
+              : "result" in part
+              ? part.result
+              : null;
+
+          // Extract cost from result string if present (format: __HM_TOOL_COST__:8000)
+          let costUsd: number | undefined;
+          let processedResult = rawResult;
+
+          if (typeof rawResult === "string") {
+            const extractionResult = extractToolCostFromResult(rawResult);
+            costUsd = extractionResult.costUsd;
+            processedResult = extractionResult.processedResult;
+          }
+
           content.push({
             type: "tool-result",
             toolCallId: part.toolCallId,
             toolName: part.toolName,
-            result:
-              "result" in part
-                ? part.result
-                : "output" in part
-                ? part.output
-                : null,
+            result: processedResult,
+            ...(costUsd !== undefined && { costUsd }),
           });
         }
       }

@@ -165,23 +165,26 @@ describe("formatToolResultMessage", () => {
   });
 
   describe("cost extraction", () => {
-    it("should extract cost from [TOOL_COST:8000] marker and add as costUsd", () => {
+    it("should extract cost from __HM_TOOL_COST__:8000 marker and add as costUsd", () => {
       const toolResult = {
         toolCallId: "call-123",
         toolName: "search_web",
-        output: "Found 5 search results for \"TimeClout\":\n\n1. **TimeClout**\n   URL: https://example.com\n\n[TOOL_COST:8000]",
+        output:
+          'Found 5 search results for "TimeClout":\n\n1. **TimeClout**\n   URL: https://example.com\n\n__HM_TOOL_COST__:8000',
       };
 
       const result = formatToolResultMessage(toolResult);
       expect(result.content[0].costUsd).toBe(8000);
-      expect(result.content[0].result).toBe("Found 5 search results for \"TimeClout\":\n\n1. **TimeClout**\n   URL: https://example.com");
+      expect(result.content[0].result).toBe(
+        'Found 5 search results for "TimeClout":\n\n1. **TimeClout**\n   URL: https://example.com'
+      );
     });
 
     it("should remove cost marker from result string", () => {
       const toolResult = {
         toolCallId: "call-123",
         toolName: "search_web",
-        output: "Search results here\n\n[TOOL_COST:8000]",
+        output: "Search results here\n\n__HM_TOOL_COST__:8000",
       };
 
       const result = formatToolResultMessage(toolResult);
@@ -193,7 +196,7 @@ describe("formatToolResultMessage", () => {
       const toolResult = {
         toolCallId: "call-123",
         toolName: "search_web",
-        result: "Search results here\n\n[TOOL_COST:8000]",
+        result: "Search results here\n\n__HM_TOOL_COST__:8000",
       };
 
       const result = formatToolResultMessage(toolResult);
@@ -205,7 +208,7 @@ describe("formatToolResultMessage", () => {
       const toolResult = {
         toolCallId: "call-123",
         toolName: "search_web",
-        output: "Output with cost\n\n[TOOL_COST:8000]",
+        output: "Output with cost\n\n__HM_TOOL_COST__:8000",
         result: "Result without cost",
       };
 
@@ -215,7 +218,7 @@ describe("formatToolResultMessage", () => {
     });
 
     it("should extract cost from long strings before truncation", () => {
-      const longString = "a".repeat(1500) + "\n\n[TOOL_COST:8000]";
+      const longString = "a".repeat(1500) + "\n\n__HM_TOOL_COST__:8000";
       const toolResult = {
         toolCallId: "call-123",
         toolName: "search_web",
@@ -226,14 +229,14 @@ describe("formatToolResultMessage", () => {
       expect(result.content[0].costUsd).toBe(8000);
       // Cost marker should be removed, and string should be truncated if needed
       const formattedResult = result.content[0].result as string;
-      expect(formattedResult).not.toContain("[TOOL_COST:8000]");
+      expect(formattedResult).not.toContain("__HM_TOOL_COST__:8000");
     });
 
     it("should handle cost with different values", () => {
       const toolResult = {
         toolCallId: "call-123",
         toolName: "search_web",
-        output: "Results\n\n[TOOL_COST:16000]",
+        output: "Results\n\n__HM_TOOL_COST__:16000",
       };
 
       const result = formatToolResultMessage(toolResult);
@@ -256,38 +259,135 @@ describe("formatToolResultMessage", () => {
       const toolResult = {
         toolCallId: "call-123",
         toolName: "search_web",
-        output: "Results\n\n[TOOL_COST:invalid]",
+        output: "Results\n\n__HM_TOOL_COST__:invalid",
       };
 
       const result = formatToolResultMessage(toolResult);
       expect(result.content[0].costUsd).toBeUndefined();
       // Invalid marker should remain in result
-      expect(result.content[0].result).toContain("[TOOL_COST:invalid]");
+      expect(result.content[0].result).toContain("__HM_TOOL_COST__:invalid");
     });
 
-    it("should handle cost marker in middle of string (should not extract)", () => {
+    it("should extract cost when marker appears anywhere in string (uses last occurrence)", () => {
       const toolResult = {
         toolCallId: "call-123",
         toolName: "search_web",
-        output: "Results with [TOOL_COST:8000] in the middle",
+        output:
+          "Results with __HM_TOOL_COST__:5000 in the middle and __HM_TOOL_COST__:8000 at end",
       };
 
       const result = formatToolResultMessage(toolResult);
-      // Cost marker should only be extracted if at the end with newlines
-      expect(result.content[0].costUsd).toBeUndefined();
-      expect(result.content[0].result).toContain("[TOOL_COST:8000]");
+      // Should use the last occurrence (8000)
+      expect(result.content[0].costUsd).toBe(8000);
+      // All markers should be removed
+      expect(result.content[0].result).not.toContain("__HM_TOOL_COST__");
+      expect(result.content[0].result).toBe(
+        "Results with  in the middle and  at end"
+      );
     });
 
     it("should extract cost when marker is at end without trailing newline", () => {
       const toolResult = {
         toolCallId: "call-123",
         toolName: "search_web",
-        output: "Results\n\n[TOOL_COST:8000]",
+        output: "Results__HM_TOOL_COST__:8000",
       };
 
       const result = formatToolResultMessage(toolResult);
       expect(result.content[0].costUsd).toBe(8000);
       expect(result.content[0].result).toBe("Results");
+    });
+
+    it("should handle multiple markers and use the last one", () => {
+      const toolResult = {
+        toolCallId: "call-123",
+        toolName: "search_web",
+        output:
+          "Result__HM_TOOL_COST__:1000__HM_TOOL_COST__:2000__HM_TOOL_COST__:3000",
+      };
+
+      const result = formatToolResultMessage(toolResult);
+      expect(result.content[0].costUsd).toBe(3000);
+      expect(result.content[0].result).toBe("Result");
+    });
+  });
+
+  describe("AI SDK LanguageModelV2ToolResultOutput format handling", () => {
+    it("should handle type: 'text' format with cost marker", () => {
+      const toolResult = {
+        toolCallId: "call-123",
+        toolName: "search_web",
+        output: {
+          type: "text",
+          value: "Search results__HM_TOOL_COST__:8000",
+        },
+      };
+
+      const result = formatToolResultMessage(toolResult);
+      expect(result.content[0].costUsd).toBe(8000);
+      expect(result.content[0].result).toBe("Search results");
+    });
+
+    it("should handle type: 'json' format with cost marker", () => {
+      const toolResult = {
+        toolCallId: "call-123",
+        toolName: "search_web",
+        output: {
+          type: "json",
+          value: { results: ["item1", "item2"], cost: "__HM_TOOL_COST__:8000" },
+        },
+      };
+
+      const result = formatToolResultMessage(toolResult);
+      // JSON is stringified, so cost marker should be extracted from stringified JSON
+      const resultString = result.content[0].result as string;
+      expect(result.content[0].costUsd).toBe(8000);
+      expect(resultString).not.toContain("__HM_TOOL_COST__");
+    });
+
+    it("should handle type: 'text' format without cost marker", () => {
+      const toolResult = {
+        toolCallId: "call-123",
+        toolName: "search_web",
+        output: {
+          type: "text",
+          value: "Search results",
+        },
+      };
+
+      const result = formatToolResultMessage(toolResult);
+      expect(result.content[0].costUsd).toBeUndefined();
+      expect(result.content[0].result).toBe("Search results");
+    });
+
+    it("should handle other type formats by converting to string", () => {
+      const toolResult = {
+        toolCallId: "call-123",
+        toolName: "search_web",
+        output: {
+          type: "unknown",
+          value: "Result__HM_TOOL_COST__:8000",
+        },
+      };
+
+      const result = formatToolResultMessage(toolResult);
+      expect(result.content[0].costUsd).toBe(8000);
+      expect(result.content[0].result).toBe("Result");
+    });
+
+    it("should handle nested AI SDK format with cost extraction", () => {
+      const toolResult = {
+        toolCallId: "call-123",
+        toolName: "search_web",
+        output: {
+          type: "text",
+          value: "Results with __HM_TOOL_COST__:5000 and __HM_TOOL_COST__:8000",
+        },
+      };
+
+      const result = formatToolResultMessage(toolResult);
+      expect(result.content[0].costUsd).toBe(8000); // Should use last occurrence
+      expect(result.content[0].result).not.toContain("__HM_TOOL_COST__");
     });
   });
 });

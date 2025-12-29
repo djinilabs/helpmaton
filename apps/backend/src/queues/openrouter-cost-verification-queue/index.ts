@@ -6,7 +6,7 @@ import { database } from "../../tables";
 import { getDefined } from "../../utils";
 import { finalizeCreditReservation } from "../../utils/creditManagement";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
-import { calculateConversationCosts } from "../../utils/tokenAccounting";
+import { getMessageCost } from "../../utils/messageCostCalculation";
 import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
 
 // Exponential backoff configuration for OpenRouter API retries
@@ -15,50 +15,6 @@ const BACKOFF_MAX_RETRIES = 3;
 const BACKOFF_MAX_DELAY_MS = 5000; // 5 seconds maximum
 const BACKOFF_MULTIPLIER = 2;
 
-/**
- * Extract tool costs from a message's content array
- * Tool costs are stored in tool-result content items
- * Tool results can be in assistant messages (as content items) or in tool role messages
- */
-function extractToolCostsFromMessage(message: UIMessage): number {
-  let toolCosts = 0;
-
-  // Check assistant messages with tool-result content items
-  if (message.role === "assistant" && Array.isArray(message.content)) {
-    for (const item of message.content) {
-      if (
-        typeof item === "object" &&
-        item !== null &&
-        "type" in item &&
-        item.type === "tool-result" &&
-        "costUsd" in item &&
-        typeof item.costUsd === "number"
-      ) {
-        toolCosts += item.costUsd;
-      }
-    }
-  }
-
-  // Check tool role messages (tool results are expanded into separate tool messages)
-  if (message.role === "tool") {
-    if (Array.isArray(message.content)) {
-      for (const item of message.content) {
-        if (
-          typeof item === "object" &&
-          item !== null &&
-          "type" in item &&
-          item.type === "tool-result" &&
-          "costUsd" in item &&
-          typeof item.costUsd === "number"
-        ) {
-          toolCosts += item.costUsd;
-        }
-      }
-    }
-  }
-
-  return toolCosts;
-}
 
 /**
  * Sleep for a given duration
@@ -527,45 +483,29 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
             return current;
           }
 
-          // Recalculate conversation cost from 0 using finalCostUsd from ALL messages
+          // Recalculate conversation cost from 0 using getMessageCost() helper for ALL messages
           // IMPORTANT: Always recalculate from scratch, do NOT use current.costUsd
-          // Also include tool costs from tool-result content items (in both assistant and tool role messages)
-          // Messages are already expanded when stored, so we iterate through all messages
+          // Use getMessageCost() helper to get best available cost for each message
+          // This prefers finalCostUsd > provisionalCostUsd > calculated from tokenUsage
+          // Also includes tool costs from tool-result content items (individual costs per tool)
           let totalCostUsd = 0;
           for (const msg of updatedMessages) {
-            if (msg.role === "assistant") {
-              // Prefer finalCostUsd if available, then provisionalCostUsd, then calculate from tokenUsage
-              if (
-                "finalCostUsd" in msg &&
-                typeof msg.finalCostUsd === "number"
-              ) {
-                totalCostUsd += msg.finalCostUsd;
-              } else if (
-                "provisionalCostUsd" in msg &&
-                typeof msg.provisionalCostUsd === "number"
-              ) {
-                // Fall back to provisionalCostUsd if finalCostUsd not available
-                totalCostUsd += msg.provisionalCostUsd;
-              } else if (
-                "tokenUsage" in msg &&
-                msg.tokenUsage &&
-                "modelName" in msg &&
-                typeof msg.modelName === "string" &&
-                "provider" in msg &&
-                typeof msg.provider === "string"
-              ) {
-                const messageCosts = calculateConversationCosts(
-                  msg.provider,
-                  msg.modelName,
-                  msg.tokenUsage
-                );
-                totalCostUsd += messageCosts.usd;
-              }
+            // Use getMessageCost() helper to get best available cost
+            const messageCost = getMessageCost(msg);
+
+            if (messageCost) {
+              // For assistant messages: use costUsd
+              if (messageCost.costUsd !== undefined) {
+                totalCostUsd += messageCost.costUsd;
             }
 
-            // Extract tool costs from any message (assistant or tool role)
-            const toolCosts = extractToolCostsFromMessage(msg);
-            totalCostUsd += toolCosts;
+              // For tool messages: sum individual tool costs
+              if (messageCost.toolCosts) {
+                for (const toolCost of messageCost.toolCosts) {
+                  totalCostUsd += toolCost.costUsd;
+                }
+              }
+            }
           }
 
           console.log("[Cost Verification] Updated message with final cost:", {
