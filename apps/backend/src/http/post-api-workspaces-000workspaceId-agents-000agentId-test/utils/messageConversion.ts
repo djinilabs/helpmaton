@@ -113,6 +113,7 @@ export function convertAiSdkUIMessageToUIMessage(
             toolCallId: string;
             toolName: string;
             result: unknown;
+            costUsd?: number;
           }
       > = [];
 
@@ -139,16 +140,46 @@ export function convertAiSdkUIMessageToUIMessage(
             "toolCallId" in part &&
             "toolName" in part
           ) {
+            // Extract result value
+            const rawResult =
+              "result" in part
+                ? part.result
+                : "output" in part
+                ? part.output
+                : null;
+
+            // Extract cost from result string if present (format: __HM_TOOL_COST__:8000)
+            // Use improved marker format that's less likely to conflict with content
+            let costUsd: number | undefined;
+            let processedResult = rawResult;
+
+            if (typeof rawResult === "string") {
+              // Find all cost markers, use the last one
+              const costMarkerPattern = /__HM_TOOL_COST__:(\d+)/g;
+              const allMatches = Array.from(
+                rawResult.matchAll(costMarkerPattern)
+              );
+
+              if (allMatches.length > 0) {
+                const lastMatch = allMatches[allMatches.length - 1];
+                const costValue = parseInt(lastMatch[1], 10);
+
+                if (!isNaN(costValue) && costValue >= 0) {
+                  costUsd = costValue;
+                  // Remove all cost markers from result string
+                  processedResult = rawResult
+                    .replace(costMarkerPattern, "")
+                    .trimEnd();
+                }
+              }
+            }
+
             content.push({
               type: "tool-result",
               toolCallId: part.toolCallId,
               toolName: part.toolName,
-              result:
-                "result" in part
-                  ? part.result
-                  : "output" in part
-                  ? part.output
-                  : null,
+              result: processedResult,
+              ...(costUsd !== undefined && { costUsd }),
             });
           }
         }
@@ -183,6 +214,7 @@ export function convertAiSdkUIMessageToUIMessage(
         toolCallId: string;
         toolName: string;
         result: unknown;
+        costUsd?: number;
       }> = [];
 
       for (const part of message.parts) {
@@ -194,16 +226,46 @@ export function convertAiSdkUIMessageToUIMessage(
           "toolCallId" in part &&
           "toolName" in part
         ) {
+          // Extract result value
+          const rawResult =
+            "result" in part
+              ? part.result
+              : "output" in part
+              ? part.output
+              : null;
+
+          // Extract cost from result string if present (format: __HM_TOOL_COST__:8000)
+          // Use improved marker format that's less likely to conflict with content
+          let costUsd: number | undefined;
+          let processedResult = rawResult;
+
+          if (typeof rawResult === "string") {
+            // Find all cost markers, use the last one
+            const costMarkerPattern = /__HM_TOOL_COST__:(\d+)/g;
+            const allMatches = Array.from(
+              rawResult.matchAll(costMarkerPattern)
+            );
+
+            if (allMatches.length > 0) {
+              const lastMatch = allMatches[allMatches.length - 1];
+              const costValue = parseInt(lastMatch[1], 10);
+
+              if (!isNaN(costValue) && costValue >= 0) {
+                costUsd = costValue;
+                // Remove all cost markers from result string
+                processedResult = rawResult
+                  .replace(costMarkerPattern, "")
+                  .trimEnd();
+              }
+            }
+          }
+
           content.push({
             type: "tool-result",
             toolCallId: part.toolCallId,
             toolName: part.toolName,
-            result:
-              "result" in part
-                ? part.result
-                : "output" in part
-                ? part.output
-                : null,
+            result: processedResult,
+            ...(costUsd !== undefined && { costUsd }),
           });
         }
       }

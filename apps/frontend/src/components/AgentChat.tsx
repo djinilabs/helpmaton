@@ -810,8 +810,8 @@ export const AgentChat: FC<AgentChatProps> = ({
                                     {formatCurrency(costUsd, "usd", 10)}
                                     {isFinal === true && " ✓"}
                                     {isFinal === false && " (provisional)"}
-                                  </div>
-                                )}
+                                    </div>
+                                  )}
                               </div>
                             </div>
                             {renderPart(part, partIndex)}

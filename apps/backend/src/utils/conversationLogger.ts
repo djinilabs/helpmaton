@@ -1243,6 +1243,7 @@ export function expandMessagesWithToolCalls(
         toolName: string;
         result: unknown;
         toolExecutionTimeMs?: number;
+        costUsd?: number;
       }> = [];
       const textParts: Array<{ type: "text"; text: string }> = [];
 
@@ -1280,6 +1281,7 @@ export function expandMessagesWithToolCalls(
               toolName?: string;
               result?: unknown;
               toolExecutionTimeMs?: number;
+              costUsd?: number;
             };
             if (
               toolResult.toolCallId &&
@@ -1294,6 +1296,9 @@ export function expandMessagesWithToolCalls(
                 result: toolResult.result,
                 ...(toolResult.toolExecutionTimeMs !== undefined && {
                   toolExecutionTimeMs: toolResult.toolExecutionTimeMs,
+                }),
+                ...(toolResult.costUsd !== undefined && {
+                  costUsd: toolResult.costUsd,
                 }),
               });
             }

@@ -497,7 +497,7 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
               // For assistant messages: use costUsd
               if (messageCost.costUsd !== undefined) {
                 totalCostUsd += messageCost.costUsd;
-              }
+            }
 
               // For tool messages: sum individual tool costs
               if (messageCost.toolCosts) {

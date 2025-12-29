@@ -159,7 +159,7 @@ describe("exaTools", () => {
       expect(result).toContain("Test Result");
       expect(result).toContain("https://example.com");
       expect(result).toContain("Test content");
-      expect(result).toContain("[TOOL_COST:");
+      expect(result).toContain("__HM_TOOL_COST__:");
     });
 
     it("should validate category parameter", async () => {
