@@ -689,6 +689,16 @@ async function callAgentInternal(
     tools.fetch_url = createJinaFetchTool(workspaceId, targetAgentId);
   }
 
+  // Add Exa.ai search tool if enabled
+  if (targetAgent.enableExaSearch === true) {
+    const { createExaSearchTool } = await import("./exaTools");
+    tools.search = createExaSearchTool(
+      workspaceId,
+      context,
+      targetAgentId
+    );
+  }
+
   if (targetAgent.notificationChannelId) {
     tools.send_notification = createSendNotificationTool(
       workspaceId,

@@ -81,6 +81,7 @@ export interface Agent {
   enableTavilySearch?: boolean;
   searchWebProvider?: "tavily" | "jina" | null;
   fetchWebProvider?: "tavily" | "jina" | null;
+  enableExaSearch?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
   temperature?: number;
@@ -117,6 +118,7 @@ export interface UpdateAgentInput {
   enableTavilySearch?: boolean;
   searchWebProvider?: "tavily" | "jina" | null;
   fetchWebProvider?: "tavily" | "jina" | null;
+  enableExaSearch?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
   temperature?: number | null;

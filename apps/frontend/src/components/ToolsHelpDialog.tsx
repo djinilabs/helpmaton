@@ -39,6 +39,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
   const hasFetchWeb =
     agent?.fetchWebProvider === "tavily" || agent?.fetchWebProvider === "jina";
   const fetchWebProvider = agent?.fetchWebProvider;
+  const hasExaSearch = agent?.enableExaSearch === true;
   const enabledMcpServerIds = agent?.enabledMcpServerIds || [];
   const enabledMcpServers =
     mcpServersData?.servers.filter((server) =>
@@ -276,6 +277,38 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
           required: true,
           description:
             "The URL to extract content from. This MUST be a valid URL starting with http:// or https://. Example: 'https://example.com/article'",
+        },
+      ],
+    },
+    {
+      name: "search",
+      description:
+        "Search the web using Exa.ai with category-specific search. This tool allows you to search for specific types of content (companies, research papers, news, PDFs, GitHub repos, tweets, personal sites, people, or financial reports). Use this when you need to find specialized content that matches a specific category. Charges based on usage (cost varies by number of results).",
+      alwaysAvailable: false,
+      condition: hasExaSearch
+        ? "Available (Exa search enabled)"
+        : "Not available (Exa search not enabled)",
+      parameters: [
+        {
+          name: "category",
+          type: "string (enum)",
+          required: true,
+          description:
+            "The search category. Must be one of: 'company', 'research paper', 'news', 'pdf', 'github', 'tweet', 'personal site', 'people', 'financial report'. This determines the type of content to search for.",
+        },
+        {
+          name: "query",
+          type: "string",
+          required: true,
+          description:
+            "The search query. This MUST be a non-empty string containing what you want to search for. Example: 'latest AI research' or 'Apple Inc financial reports'",
+        },
+        {
+          name: "num_results",
+          type: "number",
+          required: false,
+          description:
+            "Number of search results to return (1-100, default: 10). Use a smaller number for focused searches, larger for comprehensive research.",
         },
       ],
     },
