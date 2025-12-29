@@ -4,6 +4,7 @@ import type { UIMessage } from "../http/post-api-workspaces-000workspaceId-agent
 import type { DatabaseSchema } from "../tables/schema";
 
 import { writeToWorkingMemory } from "./memory/writeMemory";
+import { Sentry, ensureError } from "./sentry";
 import { calculateConversationCosts } from "./tokenAccounting";
 
 /**
@@ -1901,6 +1902,12 @@ export async function startConversation(
           }
         : String(error)
     );
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "memory",
+        operation: "write-working-memory",
+      },
+    });
   }
 
   return conversationId;

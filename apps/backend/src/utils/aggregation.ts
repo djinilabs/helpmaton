@@ -7,6 +7,7 @@ import type {
 } from "../tables/schema";
 
 import type { TokenUsage } from "./conversationLogger";
+import { Sentry, ensureError } from "./sentry";
 
 export type Currency = "usd";
 
@@ -123,6 +124,12 @@ export function aggregateConversations(
             error: e,
           }
         );
+        Sentry.captureException(ensureError(e), {
+          tags: {
+            context: "aggregation",
+            operation: "parse-token-usage",
+          },
+        });
         tokenUsage = undefined;
       }
     }

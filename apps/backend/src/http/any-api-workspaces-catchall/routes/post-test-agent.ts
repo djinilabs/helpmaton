@@ -150,6 +150,13 @@ async function persistConversationError(options: {
           logError instanceof Error ? logError.message : String(logError),
       }
     );
+    Sentry.captureException(ensureError(logError), {
+      tags: {
+        context: "conversation-logging",
+        operation: "persist-error",
+        handler: "test-agent",
+      },
+    });
   }
 }
 
