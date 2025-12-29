@@ -250,6 +250,113 @@ describe("workspaceCreditTransactions", () => {
       );
       expect(transactionRecords).toHaveLength(2);
     });
+
+    it("should calculate sequential balances for multiple transactions in same workspace", async () => {
+      const buffer = createTransactionBuffer();
+      const initialBalance = 10000000; // 10.00 USD in millionths
+      
+      // Create three transactions for the same workspace
+      const transaction1: WorkspaceCreditTransaction = {
+        workspaceId: "workspace-1",
+        source: "text-generation",
+        supplier: "openrouter",
+        description: "Transaction 1",
+        amountMillionthUsd: -1000000, // -1.00 USD (debit)
+      };
+      const transaction2: WorkspaceCreditTransaction = {
+        workspaceId: "workspace-1",
+        source: "tool-execution",
+        supplier: "tavily",
+        description: "Transaction 2",
+        amountMillionthUsd: -2000000, // -2.00 USD (debit)
+      };
+      const transaction3: WorkspaceCreditTransaction = {
+        workspaceId: "workspace-1",
+        source: "embedding-generation",
+        supplier: "openrouter",
+        description: "Transaction 3",
+        amountMillionthUsd: -500000, // -0.50 USD (debit)
+      };
+
+      addTransactionToBuffer(buffer, transaction1);
+      addTransactionToBuffer(buffer, transaction2);
+      addTransactionToBuffer(buffer, transaction3);
+
+      const mockWorkspace = {
+        pk: "workspaces/workspace-1",
+        sk: "workspace",
+        creditBalance: initialBalance,
+        version: 1,
+        createdAt: new Date().toISOString(),
+      };
+
+      let recordsPut: TableRecord[] = [];
+      vi.mocked(mockDb.atomicUpdate).mockImplementation(async (recordSpec, callback) => {
+        const fetchedRecords = new Map();
+        fetchedRecords.set("workspace-workspace-1", mockWorkspace);
+        recordsPut = await callback(fetchedRecords);
+        return recordsPut;
+      });
+
+      await commitTransactions(mockDb, buffer, "request-123");
+
+      // Get transaction records sorted by SK
+      const transactionRecords = recordsPut
+        .filter(
+          (r) =>
+            (r as { pk?: string }).pk === "workspaces/workspace-1" &&
+            (r as { sk?: string }).sk !== "workspace"
+        )
+        .sort((a, b) =>
+          ((a as { sk?: string }).sk || "").localeCompare(
+            (b as { sk?: string }).sk || ""
+          )
+        ) as Array<{
+        workspaceCreditsBeforeMillionthUsd?: number;
+        workspaceCreditsAfterMillionthUsd?: number;
+        amountMillionthUsd?: number;
+        description?: string;
+      }>;
+
+      expect(transactionRecords).toHaveLength(3);
+
+      // Transaction 1: should use initial balance
+      expect(transactionRecords[0].workspaceCreditsBeforeMillionthUsd).toBe(
+        initialBalance
+      );
+      expect(transactionRecords[0].workspaceCreditsAfterMillionthUsd).toBe(
+        initialBalance + transaction1.amountMillionthUsd
+      ); // 10000000 + (-1000000) = 9000000
+      expect(transactionRecords[0].amountMillionthUsd).toBe(-1000000);
+
+      // Transaction 2: should use balance after transaction 1
+      const balanceAfterT1 = initialBalance + transaction1.amountMillionthUsd;
+      expect(transactionRecords[1].workspaceCreditsBeforeMillionthUsd).toBe(
+        balanceAfterT1
+      );
+      expect(transactionRecords[1].workspaceCreditsAfterMillionthUsd).toBe(
+        balanceAfterT1 + transaction2.amountMillionthUsd
+      ); // 9000000 + (-2000000) = 7000000
+      expect(transactionRecords[1].amountMillionthUsd).toBe(-2000000);
+
+      // Transaction 3: should use balance after transaction 2
+      const balanceAfterT2 = balanceAfterT1 + transaction2.amountMillionthUsd;
+      expect(transactionRecords[2].workspaceCreditsBeforeMillionthUsd).toBe(
+        balanceAfterT2
+      );
+      expect(transactionRecords[2].workspaceCreditsAfterMillionthUsd).toBe(
+        balanceAfterT2 + transaction3.amountMillionthUsd
+      ); // 7000000 + (-500000) = 6500000
+      expect(transactionRecords[2].amountMillionthUsd).toBe(-500000);
+
+      // Verify final workspace balance
+      const workspaceUpdate = recordsPut.find(
+        (r) =>
+          (r as { pk?: string }).pk === "workspaces/workspace-1" &&
+          (r as { sk?: string }).sk === "workspace"
+      ) as { creditBalance?: number } | undefined;
+      expect(workspaceUpdate?.creditBalance).toBe(6500000); // 10000000 + (-3500000) = 6500000
+    });
   });
 });
 
