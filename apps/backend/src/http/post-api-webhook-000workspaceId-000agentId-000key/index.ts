@@ -157,7 +157,6 @@ async function persistWebhookConversationError(options: {
           : String(options.error),
       logError: logError instanceof Error ? logError.message : String(logError),
     });
-    const { Sentry, ensureError } = await import("../../utils/sentry");
     Sentry.captureException(ensureError(logError), {
       tags: {
         context: "conversation-logging",
