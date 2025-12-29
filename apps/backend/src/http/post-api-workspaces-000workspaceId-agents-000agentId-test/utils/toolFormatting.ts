@@ -24,15 +24,26 @@ export function formatToolCallMessage(
         toolCallId: toolCall.toolCallId,
         toolName: toolCall.toolName,
         args: toolCallInput,
-        ...(toolCall.toolCallStartedAt && { toolCallStartedAt: toolCall.toolCallStartedAt }),
+        ...(toolCall.toolCallStartedAt && {
+          toolCallStartedAt: toolCall.toolCallStartedAt,
+        }),
       },
     ],
   };
 }
 
+import {
+  extractToolCostFromResult,
+  TOOL_COST_MARKER_PATTERN,
+} from "./toolCostExtraction";
+
+// Re-export for use in other modules
+export { TOOL_COST_MARKER_PATTERN };
+
 /**
  * Formats tool result as UI message with truncation
- * Extracts cost from result string if present (format: [TOOL_COST:8000])
+ * Extracts cost from result string if present (format: __HM_TOOL_COST__:8000)
+ * Improved marker format that's less likely to conflict with actual content
  */
 export function formatToolResultMessage(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
@@ -48,18 +59,35 @@ export function formatToolResultMessage(
       ? toolResult.result
       : "";
 
-  // Extract cost from result string if present (format: [TOOL_COST:8000])
-  // Only extract if marker is at the end of the string (with optional newlines before it)
+  // Handle AI SDK LanguageModelV2ToolResultOutput format: { type: 'text', value: string }
+  // or { type: 'json', value: JSONValue }
+  if (
+    outputValue &&
+    typeof outputValue === "object" &&
+    "type" in outputValue &&
+    "value" in outputValue
+  ) {
+    if (outputValue.type === "text" && typeof outputValue.value === "string") {
+      outputValue = outputValue.value;
+    } else if (outputValue.type === "json") {
+      // For JSON outputs, stringify them
+      outputValue = JSON.stringify(outputValue.value);
+    } else {
+      // For other types, convert to string
+      outputValue = String(outputValue.value);
+    }
+  }
+
+  // Extract cost from result string if present (format: __HM_TOOL_COST__:8000)
+  // IMPORTANT: Extract BEFORE truncation to ensure we don't lose the marker
   let costUsd: number | undefined;
   if (typeof outputValue === "string") {
-    const costMatch = outputValue.match(/\n\n\[TOOL_COST:(\d+)\]$/);
-    if (costMatch) {
-      costUsd = parseInt(costMatch[1], 10);
-      // Remove cost marker from result string
-      outputValue = outputValue.replace(/\n\n\[TOOL_COST:\d+\]$/, "");
-    }
+    const { costUsd: extractedCost, processedResult } =
+      extractToolCostFromResult(outputValue);
+    costUsd = extractedCost;
+    outputValue = processedResult;
 
-    // Truncate if string
+    // Truncate if string (after cost extraction)
     if (outputValue.length > MAX_RESULT_LENGTH) {
       outputValue =
         outputValue.substring(0, MAX_RESULT_LENGTH) +
@@ -78,10 +106,11 @@ export function formatToolResultMessage(
         toolCallId: toolResult.toolCallId,
         toolName: toolResult.toolName,
         result: outputValue,
-        ...(toolResult.toolExecutionTimeMs !== undefined && { toolExecutionTimeMs: toolResult.toolExecutionTimeMs }),
+        ...(toolResult.toolExecutionTimeMs !== undefined && {
+          toolExecutionTimeMs: toolResult.toolExecutionTimeMs,
+        }),
         ...(costUsd !== undefined && { costUsd }),
       },
     ],
   };
 }
-

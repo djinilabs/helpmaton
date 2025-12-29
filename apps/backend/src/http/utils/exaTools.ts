@@ -211,8 +211,9 @@ export function createExaSearchTool(
         }
 
         // Calculate cost and embed in result (will be parsed out when formatting)
+        // Use improved marker format: __HM_TOOL_COST__:8000 (less likely to conflict with content)
         const costUsd = Math.ceil(actualCostDollars * 1_000_000); // Convert to millionths
-        resultText += `\n\n[TOOL_COST:${costUsd}]`;
+        resultText += `\n\n__HM_TOOL_COST__:${costUsd}`;
 
         // Log tool result
         console.log("[Tool Result] search (Exa)", {
