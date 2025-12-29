@@ -443,30 +443,35 @@ All tables are configured with `encrypt true` in `app.arc`, meaning DynamoDB enc
 - Get subscription: Get with `pk = subscriptions/{subscriptionId}`, `sk = subscription`
 - Get user subscription: Query GSI with `userId = {id}`
 
-### 17. `llm-request-buckets`
+### 17. `request-buckets`
 
-**Purpose**: Hourly request count buckets for rate limiting
+**Purpose**: Unified hourly request count buckets for rate limiting across all request categories
 
-**Partition Key**: `pk` (String) - `llm-request-buckets/{subscriptionId}/{hourTimestamp}`
+**Partition Key**: `pk` (String) - `request-buckets/{subscriptionId}/{category}/{hourTimestamp}`
 **Sort Key**: None
 
 **Fields**:
 
 - `subscriptionId` (String): Subscription ID for GSI queries
+- `category` (Enum: "llm" | "search" | "fetch"): Request category
+  - `"llm"`: LLM API requests
+  - `"search"`: Web search requests (Tavily search_web tool)
+  - `"fetch"`: Web fetch requests (Tavily fetch_url tool)
 - `hourTimestamp` (String, ISO datetime): ISO timestamp truncated to hour (YYYY-MM-DDTHH:00:00.000Z)
 - `count` (Number, default: 0): Request count for this hour
 - `expires` (Number): TTL timestamp (25 hours from bucket hour)
 
 **Global Secondary Indexes**:
 
-- **bySubscriptionIdAndHour** (`subscriptionId`, `hourTimestamp`): Find buckets for a subscription
+- **bySubscriptionIdAndCategoryAndHour** (`subscriptionId`, `category`, `hourTimestamp`): Find buckets for a subscription and category
 
 **TTL**: Yes - buckets expire after 25 hours
 
 **Access Patterns**:
 
-- Get bucket: Get with `pk = llm-request-buckets/{subscriptionId}/{hourTimestamp}`
-- List buckets for subscription: Query GSI with `subscriptionId = {id}`, `hourTimestamp BETWEEN start AND end`
+- Get bucket: Get with `pk = request-buckets/{subscriptionId}/{category}/{hourTimestamp}`
+- List buckets for subscription and category: Query GSI with `subscriptionId = {id}`, `category = {category}`, `hourTimestamp BETWEEN start AND end`
+- Sum counts across categories: Query multiple categories and sum counts (e.g., for Tavily daily limits, query both "search" and "fetch" categories)
 - Increment count: Atomic update to increment `count`
 
 ### 18. `workspace-invite`
@@ -610,7 +615,7 @@ Several tables use TTL for automatic cleanup:
 
 - `agent-conversations`: Conversation history
 - `credit-reservations`: Expired reservations (15 minutes)
-- `llm-request-buckets`: Old request buckets (25 hours)
+- `request-buckets`: Unified request buckets for all categories (25 hours)
 - `workspace-invite`: Expired invitations
 
 ### Atomic Operations

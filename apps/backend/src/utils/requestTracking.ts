@@ -2,10 +2,7 @@ import { tooManyRequests } from "@hapi/boom";
 
 import { sendEmail } from "../send-email";
 import { database } from "../tables/database";
-import type {
-  LLMRequestBucketRecord,
-  TavilyCallBucketRecord,
-} from "../tables/schema";
+import type { RequestBucketRecord } from "../tables/schema";
 
 import { getPlanLimits } from "./subscriptionPlans";
 import {
@@ -15,6 +12,8 @@ import {
 } from "./subscriptionUtils";
 
 const BASE_URL = process.env.BASE_URL || "https://app.helpmaton.com";
+
+export type RequestCategory = "llm" | "search" | "fetch";
 
 /**
  * Get current hour timestamp truncated to hour (YYYY-MM-DDTHH:00:00.000Z)
@@ -45,79 +44,98 @@ export function getLast24HourTimestamps(): string[] {
 }
 
 /**
- * Atomically increment the current hour's request bucket
+ * Atomically increment the current hour's request bucket by category
  * Uses atomicUpdate API with automatic retry on version conflicts
  * @param subscriptionId - Subscription ID (without "subscriptions/" prefix)
+ * @param category - Request category ("llm", "search", or "fetch")
  * @param maxRetries - Maximum number of retries (default: 3)
  * @returns Updated bucket record
  */
-export async function incrementRequestBucket(
+export async function incrementRequestBucketByCategory(
   subscriptionId: string,
+  category: RequestCategory,
   maxRetries: number = 3
-): Promise<LLMRequestBucketRecord> {
-  console.log("[incrementRequestBucket] Starting increment:", {
+): Promise<RequestBucketRecord> {
+  console.log("[incrementRequestBucketByCategory] Starting increment:", {
     subscriptionId,
+    category,
     maxRetries,
   });
 
   const db = await database();
   const hourTimestamp = getCurrentHourTimestamp();
-  const bucketPk = `llm-request-buckets/${subscriptionId}/${hourTimestamp}`;
+  const bucketPk = `request-buckets/${subscriptionId}/${category}/${hourTimestamp}`;
+  // Composite sort key for GSI: category#hourTimestamp
+  const categoryHourTimestamp = `${category}#${hourTimestamp}`;
   // TTL: 25 hours from bucket hour (ensures 24-hour window coverage)
   // Calculate from bucket hour timestamp, not current time, so all buckets
   // created within the same hour expire at the same time
   const bucketTime = new Date(hourTimestamp).getTime();
   const expires = Math.floor(bucketTime / 1000) + 25 * 60 * 60;
 
-  console.log("[incrementRequestBucket] Bucket details:", {
+  console.log("[incrementRequestBucketByCategory] Bucket details:", {
     subscriptionId,
+    category,
     hourTimestamp,
     bucketPk,
     expires,
   });
 
   // Verify table exists
-  if (!db["llm-request-buckets"]) {
+  if (!db["request-buckets"]) {
     const error = new Error(
-      "llm-request-buckets table not found in database. Make sure the table is defined in app.arc and the app has been restarted."
+      "request-buckets table not found in database. Make sure the table is defined in app.arc and the app has been restarted."
     );
-    console.error("[incrementRequestBucket] Table not found:", {
+    console.error("[incrementRequestBucketByCategory] Table not found:", {
       subscriptionId,
+      category,
       availableTables: Object.keys(db),
     });
     throw error;
   }
 
   console.log(
-    "[incrementRequestBucket] Table exists, proceeding with increment"
+    "[incrementRequestBucketByCategory] Table exists, proceeding with increment"
   );
 
-  const updated = await db["llm-request-buckets"].atomicUpdate(
+  const updated = await db["request-buckets"].atomicUpdate(
     bucketPk,
     undefined,
     async (current) => {
       if (current) {
         // Bucket exists, increment count
-        console.log("[incrementRequestBucket] Incrementing existing bucket:", {
-          subscriptionId,
-          hourTimestamp,
-          oldCount: current.count,
-          newCount: current.count + 1,
-        });
+        // Preserve expires field (or recalculate if missing) to ensure TTL is always set
+        const existingExpires = current.expires || expires;
+        console.log(
+          "[incrementRequestBucketByCategory] Incrementing existing bucket:",
+          {
+            subscriptionId,
+            category,
+            hourTimestamp,
+            oldCount: current.count,
+            newCount: current.count + 1,
+            expires: existingExpires,
+          }
+        );
         return {
           pk: bucketPk,
           count: current.count + 1,
+          expires: existingExpires,
+          categoryHourTimestamp, // Ensure GSI sort key is always set
         };
       } else {
         // Bucket doesn't exist, create new one
-        console.log("[incrementRequestBucket] Creating new bucket:", {
+        console.log("[incrementRequestBucketByCategory] Creating new bucket:", {
           subscriptionId,
+          category,
           hourTimestamp,
           count: 1,
         });
         return {
           pk: bucketPk,
           subscriptionId,
+          category,
+          categoryHourTimestamp, // Composite sort key for GSI
           hourTimestamp,
           count: 1,
           expires,
@@ -127,39 +145,48 @@ export async function incrementRequestBucket(
     { maxRetries }
   );
 
-  console.log("[incrementRequestBucket] Successfully updated bucket:", {
-    subscriptionId,
-    hourTimestamp,
-    count: updated.count,
-  });
+  console.log(
+    "[incrementRequestBucketByCategory] Successfully updated bucket:",
+    {
+      subscriptionId,
+      category,
+      hourTimestamp,
+      count: updated.count,
+    }
+  );
 
   return updated;
 }
 
 /**
- * Get request count for the last 24 hours (rolling window)
+ * Get request count for the last 24 hours (rolling window) by category
  * Queries hourly buckets using GSI and sums the counts
  * @param subscriptionId - Subscription ID (without "subscriptions/" prefix)
+ * @param category - Request category ("llm", "search", or "fetch")
  * @returns Total request count in last 24 hours
  */
-export async function getRequestCountLast24Hours(
-  subscriptionId: string
+export async function getRequestCountLast24HoursByCategory(
+  subscriptionId: string,
+  category: RequestCategory
 ): Promise<number> {
   const db = await database();
   const timestamps = getLast24HourTimestamps();
   const oldestTimestamp = timestamps[timestamps.length - 1];
   const newestTimestamp = timestamps[0];
 
-  // Query buckets using GSI for subscriptionId
+  // Query buckets using GSI for subscriptionId and category
+  // Use composite sort key: category#hourTimestamp for efficient filtering
   // Filter by hourTimestamp range (last 24 hours)
-  const queryResult = await db["llm-request-buckets"].query({
-    IndexName: "bySubscriptionIdAndHour",
+  const startKey = `${category}#${oldestTimestamp}`;
+  const endKey = `${category}#${newestTimestamp}`;
+  const queryResult = await db["request-buckets"].query({
+    IndexName: "bySubscriptionIdAndCategoryAndHour",
     KeyConditionExpression:
-      "subscriptionId = :subscriptionId AND hourTimestamp BETWEEN :oldest AND :newest",
+      "subscriptionId = :subscriptionId AND categoryHourTimestamp BETWEEN :startKey AND :endKey",
     ExpressionAttributeValues: {
       ":subscriptionId": subscriptionId,
-      ":oldest": oldestTimestamp,
-      ":newest": newestTimestamp,
+      ":startKey": startKey,
+      ":endKey": endKey,
     },
   });
 
@@ -169,13 +196,90 @@ export async function getRequestCountLast24Hours(
     0
   );
 
-  console.log("[getRequestCountLast24Hours] Request count:", {
+  console.log("[getRequestCountLast24HoursByCategory] Request count:", {
     subscriptionId,
+    category,
     totalCount,
     bucketsFound: queryResult.items.length,
   });
 
   return totalCount;
+}
+
+/**
+ * Atomically increment the current hour's search request bucket
+ * Looks up subscriptionId from workspaceId and calls unified function
+ * @param workspaceId - Workspace ID
+ * @param maxRetries - Maximum number of retries (default: 3)
+ * @returns Updated bucket record
+ */
+export async function incrementSearchRequestBucket(
+  workspaceId: string,
+  maxRetries: number = 3
+): Promise<RequestBucketRecord> {
+  const subscription = await getWorkspaceSubscription(workspaceId);
+  if (!subscription) {
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
+  }
+  // Extract subscriptionId without "subscriptions/" prefix
+  const subscriptionId = subscription.pk.replace("subscriptions/", "");
+  return incrementRequestBucketByCategory(subscriptionId, "search", maxRetries);
+}
+
+/**
+ * Atomically increment the current hour's fetch request bucket
+ * Looks up subscriptionId from workspaceId and calls unified function
+ * @param workspaceId - Workspace ID
+ * @param maxRetries - Maximum number of retries (default: 3)
+ * @returns Updated bucket record
+ */
+export async function incrementFetchRequestBucket(
+  workspaceId: string,
+  maxRetries: number = 3
+): Promise<RequestBucketRecord> {
+  const subscription = await getWorkspaceSubscription(workspaceId);
+  if (!subscription) {
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
+  }
+  // Extract subscriptionId without "subscriptions/" prefix
+  const subscriptionId = subscription.pk.replace("subscriptions/", "");
+  return incrementRequestBucketByCategory(subscriptionId, "fetch", maxRetries);
+}
+
+/**
+ * Get search request count for the last 24 hours (rolling window)
+ * Looks up subscriptionId from workspaceId and queries "search" category
+ * @param workspaceId - Workspace ID
+ * @returns Total search request count in last 24 hours
+ */
+export async function getSearchRequestCountLast24Hours(
+  workspaceId: string
+): Promise<number> {
+  const subscription = await getWorkspaceSubscription(workspaceId);
+  if (!subscription) {
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
+  }
+  // Extract subscriptionId without "subscriptions/" prefix
+  const subscriptionId = subscription.pk.replace("subscriptions/", "");
+  return getRequestCountLast24HoursByCategory(subscriptionId, "search");
+}
+
+/**
+ * Get fetch request count for the last 24 hours (rolling window)
+ * Looks up subscriptionId from workspaceId and queries "fetch" category
+ * @param workspaceId - Workspace ID
+ * @returns Total fetch request count in last 24 hours
+ */
+export async function getFetchRequestCountLast24Hours(
+  workspaceId: string
+): Promise<number> {
+  const subscription = await getWorkspaceSubscription(workspaceId);
+  if (!subscription) {
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
+  }
+  // Extract subscriptionId without "subscriptions/" prefix
+  const subscriptionId = subscription.pk.replace("subscriptions/", "");
+  return getRequestCountLast24HoursByCategory(subscriptionId, "fetch");
 }
 
 /**
@@ -198,7 +302,10 @@ export async function checkDailyRequestLimit(
     return;
   }
 
-  const requestCount = await getRequestCountLast24Hours(subscriptionId);
+  const requestCount = await getRequestCountLast24HoursByCategory(
+    subscriptionId,
+    "llm"
+  );
 
   if (requestCount >= limits.maxDailyRequests) {
     // Limit exceeded - check if we should send email
@@ -325,141 +432,11 @@ Visit your subscription settings to upgrade.`;
 }
 
 /**
- * Atomically increment the current hour's Tavily call bucket
- * Delegates automatic retry on version conflicts to the atomicUpdate API
- * @param workspaceId - Workspace ID
- * @param maxRetries - Maximum number of retries (default: 3)
- * @returns Updated bucket record
- */
-export async function incrementTavilyCallBucket(
-  workspaceId: string,
-  maxRetries: number = 3
-): Promise<TavilyCallBucketRecord> {
-  console.log("[incrementTavilyCallBucket] Starting increment:", {
-    workspaceId,
-    maxRetries,
-  });
-
-  const db = await database();
-  const hourTimestamp = getCurrentHourTimestamp();
-  const bucketPk = `tavily-call-buckets/${workspaceId}/${hourTimestamp}`;
-  // TTL: 25 hours from bucket hour (ensures 24-hour window coverage)
-  const bucketTime = new Date(hourTimestamp).getTime();
-  const expires = Math.floor(bucketTime / 1000) + 25 * 60 * 60;
-
-  console.log("[incrementTavilyCallBucket] Bucket details:", {
-    workspaceId,
-    hourTimestamp,
-    bucketPk,
-    expires,
-  });
-
-  // Verify table exists
-  if (!db["tavily-call-buckets"]) {
-    const error = new Error(
-      "tavily-call-buckets table not found in database. Make sure the table is defined in app.arc and the app has been restarted."
-    );
-    console.error("[incrementTavilyCallBucket] Table not found:", {
-      workspaceId,
-      availableTables: Object.keys(db),
-    });
-    throw error;
-  }
-
-  const updated = await db["tavily-call-buckets"].atomicUpdate(
-    bucketPk,
-    undefined,
-    async (current) => {
-      if (current) {
-        // Bucket exists, increment count
-        console.log(
-          "[incrementTavilyCallBucket] Incrementing existing bucket:",
-          {
-            workspaceId,
-            hourTimestamp,
-            oldCount: current.count,
-            newCount: current.count + 1,
-          }
-        );
-        return {
-          pk: bucketPk,
-          count: current.count + 1,
-        };
-      } else {
-        // Bucket doesn't exist, create new one
-        console.log("[incrementTavilyCallBucket] Creating new bucket:", {
-          workspaceId,
-          hourTimestamp,
-          count: 1,
-        });
-        return {
-          pk: bucketPk,
-          workspaceId,
-          hourTimestamp,
-          count: 1,
-          expires,
-        };
-      }
-    },
-    { maxRetries }
-  );
-
-  console.log("[incrementTavilyCallBucket] Successfully updated bucket:", {
-    workspaceId,
-    hourTimestamp,
-    count: updated.count,
-  });
-
-  return updated;
-}
-
-/**
- * Get Tavily call count for the last 24 hours (rolling window)
- * Queries hourly buckets using GSI and sums the counts
- * @param workspaceId - Workspace ID
- * @returns Total call count in last 24 hours
- */
-export async function getTavilyCallCountLast24Hours(
-  workspaceId: string
-): Promise<number> {
-  const db = await database();
-  const timestamps = getLast24HourTimestamps();
-  const oldestTimestamp = timestamps[timestamps.length - 1];
-  const newestTimestamp = timestamps[0];
-
-  // Query buckets using GSI for workspaceId
-  // Filter by hourTimestamp range (last 24 hours)
-  const queryResult = await db["tavily-call-buckets"].query({
-    IndexName: "byWorkspaceIdAndHour",
-    KeyConditionExpression:
-      "workspaceId = :workspaceId AND hourTimestamp BETWEEN :oldest AND :newest",
-    ExpressionAttributeValues: {
-      ":workspaceId": workspaceId,
-      ":oldest": oldestTimestamp,
-      ":newest": newestTimestamp,
-    },
-  });
-
-  // Sum all bucket counts
-  const totalCount = queryResult.items.reduce(
-    (sum, bucket) => sum + (bucket.count || 0),
-    0
-  );
-
-  console.log("[getTavilyCallCountLast24Hours] Call count:", {
-    workspaceId,
-    totalCount,
-    bucketsFound: queryResult.items.length,
-  });
-
-  return totalCount;
-}
-
-/**
  * Check if workspace has exceeded daily Tavily call limit
  * Free tier: max 10 calls/day
  * Paid tiers: 10 free calls/day, then require credits
  * Production Tavily API keys: No limit enforced (unlimited calls)
+ * Queries both "search" and "fetch" categories and sums them
  * @param workspaceId - Workspace ID
  * @throws HTTP 429 if limit is exceeded (free tier only)
  * @returns true if within free tier limit, false if exceeding (paid tiers can continue with credits)
@@ -467,7 +444,20 @@ export async function getTavilyCallCountLast24Hours(
 export async function checkTavilyDailyLimit(
   workspaceId: string
 ): Promise<{ withinFreeLimit: boolean; callCount: number }> {
-  const callCount = await getTavilyCallCountLast24Hours(workspaceId);
+  // Get subscription to determine tier and extract subscriptionId
+  const subscription = await getWorkspaceSubscription(workspaceId);
+  if (!subscription) {
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
+  }
+  const subscriptionId = subscription.pk.replace("subscriptions/", "");
+
+  // Query both search and fetch categories and sum them
+  const [searchCount, fetchCount] = await Promise.all([
+    getRequestCountLast24HoursByCategory(subscriptionId, "search"),
+    getRequestCountLast24HoursByCategory(subscriptionId, "fetch"),
+  ]);
+
+  const callCount = searchCount + fetchCount;
   const FREE_TIER_LIMIT = 10;
 
   // In local sandbox (testing environment), disable free tier to ensure transactions are created
@@ -475,13 +465,11 @@ export async function checkTavilyDailyLimit(
     return { withinFreeLimit: false, callCount };
   }
 
-  // Get subscription to determine tier
-  const subscription = await getWorkspaceSubscription(workspaceId);
-  const isFreeTier = !subscription || subscription.plan === "free";
+  const isFreeTier = subscription.plan === "free";
 
   if (isFreeTier) {
-    // Free tier: block if >= 10 calls/day
-    if (callCount >= FREE_TIER_LIMIT) {
+    // Free tier: allow up to 10 calls per 24 hours; block starting with the 11th call
+    if (callCount > FREE_TIER_LIMIT) {
       throw tooManyRequests(
         `Daily Tavily API call limit exceeded. Free tier allows ${FREE_TIER_LIMIT} calls per 24 hours. You've made ${callCount} calls.`
       );
@@ -490,6 +478,46 @@ export async function checkTavilyDailyLimit(
   }
 
   // Paid tiers: allow 10 free calls/day, then require credits
-  const withinFreeLimit = callCount < FREE_TIER_LIMIT;
+  const withinFreeLimit = callCount <= FREE_TIER_LIMIT;
   return { withinFreeLimit, callCount };
+}
+
+// Legacy function names for backward compatibility during migration
+// These will be removed after all call sites are updated
+export async function incrementRequestBucket(
+  subscriptionId: string,
+  maxRetries: number = 3
+): Promise<RequestBucketRecord> {
+  return incrementRequestBucketByCategory(subscriptionId, "llm", maxRetries);
+}
+
+export async function getRequestCountLast24Hours(
+  subscriptionId: string
+): Promise<number> {
+  return getRequestCountLast24HoursByCategory(subscriptionId, "llm");
+}
+
+export async function incrementTavilyCallBucket(
+  workspaceId: string,
+  maxRetries: number = 3
+): Promise<RequestBucketRecord> {
+  // For backward compatibility, increment search bucket
+  // This maintains existing behavior where both search and fetch were tracked together
+  return incrementSearchRequestBucket(workspaceId, maxRetries);
+}
+
+export async function getTavilyCallCountLast24Hours(
+  workspaceId: string
+): Promise<number> {
+  // For backward compatibility, return sum of search and fetch
+  const subscription = await getWorkspaceSubscription(workspaceId);
+  if (!subscription) {
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
+  }
+  const subscriptionId = subscription.pk.replace("subscriptions/", "");
+  const [searchCount, fetchCount] = await Promise.all([
+    getRequestCountLast24HoursByCategory(subscriptionId, "search"),
+    getRequestCountLast24HoursByCategory(subscriptionId, "fetch"),
+  ]);
+  return searchCount + fetchCount;
 }

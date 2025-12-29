@@ -90,12 +90,7 @@ subscription
   sk **String
   encrypt true
 
-llm-request-buckets
-  pk *String
-  expires TTL
-  encrypt true
-
-tavily-call-buckets
+request-buckets
   pk *String
   expires TTL
   encrypt true
@@ -260,15 +255,10 @@ subscription
   pk **String
   name byUserId
 
-llm-request-buckets
+request-buckets
   subscriptionId *String
-  hourTimestamp **String
-  name bySubscriptionIdAndHour
-
-tavily-call-buckets
-  workspaceId *String
-  hourTimestamp **String
-  name byWorkspaceIdAndHour
+  categoryHourTimestamp **String
+  name bySubscriptionIdAndCategoryAndHour
 
 workspace-invite
   workspaceId *String

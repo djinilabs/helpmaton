@@ -10,7 +10,8 @@ type ToolWithExecute = {
 const {
   mockDatabase,
   mockCheckTavilyDailyLimit,
-  mockIncrementTavilyCallBucket,
+  mockIncrementSearchRequestBucket,
+  mockIncrementFetchRequestBucket,
   mockGetWorkspaceSubscription,
   mockTavilySearch,
   mockTavilyExtract,
@@ -24,7 +25,8 @@ const {
   return {
     mockDatabase: vi.fn(),
     mockCheckTavilyDailyLimit: vi.fn(),
-    mockIncrementTavilyCallBucket: vi.fn(),
+    mockIncrementSearchRequestBucket: vi.fn(),
+    mockIncrementFetchRequestBucket: vi.fn(),
     mockGetWorkspaceSubscription: vi.fn(),
     mockTavilySearch: vi.fn(),
     mockTavilyExtract: vi.fn(),
@@ -45,7 +47,8 @@ vi.mock("../../../tables/database", () => ({
 // Mock request tracking
 vi.mock("../../../utils/requestTracking", () => ({
   checkTavilyDailyLimit: mockCheckTavilyDailyLimit,
-  incrementTavilyCallBucket: mockIncrementTavilyCallBucket,
+  incrementSearchRequestBucket: mockIncrementSearchRequestBucket,
+  incrementFetchRequestBucket: mockIncrementFetchRequestBucket,
   isTavilyApiKeyProduction: vi.fn(() => false), // Default to free tier for tests
 }));
 
@@ -125,9 +128,10 @@ describe("tavilyTools", () => {
       });
       mockTavilySearch.mockResolvedValue(searchResponse);
       mockExtractCreditsUsed.mockReturnValue(1);
-      mockIncrementTavilyCallBucket.mockResolvedValue({
-        pk: "tavily-call-buckets/test-workspace/2024-01-15T14:00:00.000Z",
-        workspaceId,
+      mockIncrementSearchRequestBucket.mockResolvedValue({
+        pk: "request-buckets/sub-123/search/2024-01-15T14:00:00.000Z",
+        subscriptionId: "sub-123",
+        category: "search",
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 6,
         expires: 0,
@@ -144,7 +148,7 @@ describe("tavilyTools", () => {
       expect(mockTavilySearch).toHaveBeenCalledWith("test query", {
         max_results: 5,
       });
-      expect(mockIncrementTavilyCallBucket).toHaveBeenCalledWith(workspaceId);
+      expect(mockIncrementSearchRequestBucket).toHaveBeenCalledWith(workspaceId);
       // Verify transaction is created for free tier users with actual cost
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith({
         workspaceId,
@@ -192,9 +196,10 @@ describe("tavilyTools", () => {
       });
       mockTavilySearch.mockResolvedValue(searchResponse);
       mockExtractCreditsUsed.mockReturnValue(1);
-      mockIncrementTavilyCallBucket.mockResolvedValue({
-        pk: "tavily-call-buckets/test-workspace/2024-01-15T14:00:00.000Z",
-        workspaceId,
+      mockIncrementSearchRequestBucket.mockResolvedValue({
+        pk: "request-buckets/sub-123/search/2024-01-15T14:00:00.000Z",
+        subscriptionId: "sub-123",
+        category: "search",
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 16,
         expires: 0,
@@ -309,7 +314,7 @@ describe("tavilyTools", () => {
       });
       mockTavilySearch.mockResolvedValue(searchResponse);
       mockExtractCreditsUsed.mockReturnValue(1);
-      mockIncrementTavilyCallBucket.mockRejectedValue(
+      mockIncrementSearchRequestBucket.mockRejectedValue(
         new Error("Tracking failed")
       );
 
@@ -335,9 +340,10 @@ describe("tavilyTools", () => {
       });
       mockTavilySearch.mockResolvedValue(searchResponse);
       mockExtractCreditsUsed.mockReturnValue(1);
-      mockIncrementTavilyCallBucket.mockResolvedValue({
-        pk: "tavily-call-buckets/test-workspace/2024-01-15T14:00:00.000Z",
-        workspaceId,
+      mockIncrementSearchRequestBucket.mockResolvedValue({
+        pk: "request-buckets/sub-123/search/2024-01-15T14:00:00.000Z",
+        subscriptionId: "sub-123",
+        category: "search",
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 6,
         expires: 0,
@@ -374,9 +380,10 @@ describe("tavilyTools", () => {
       });
       mockTavilySearch.mockResolvedValue(searchResponse);
       mockExtractCreditsUsed.mockReturnValue(1);
-      mockIncrementTavilyCallBucket.mockResolvedValue({
-        pk: "tavily-call-buckets/test-workspace/2024-01-15T14:00:00.000Z",
-        workspaceId,
+      mockIncrementSearchRequestBucket.mockResolvedValue({
+        pk: "request-buckets/sub-123/search/2024-01-15T14:00:00.000Z",
+        subscriptionId: "sub-123",
+        category: "search",
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 6,
         expires: 0,
@@ -394,6 +401,7 @@ describe("tavilyTools", () => {
   });
 
   describe("createTavilyFetchTool", () => {
+    // Fetch tool tests should use incrementFetchRequestBucket
     const workspaceId = "test-workspace";
 
     it("should successfully fetch content within free limit", async () => {
@@ -411,9 +419,10 @@ describe("tavilyTools", () => {
       });
       mockTavilyExtract.mockResolvedValue(extractResponse);
       mockExtractCreditsUsed.mockReturnValue(1);
-      mockIncrementTavilyCallBucket.mockResolvedValue({
-        pk: "tavily-call-buckets/test-workspace/2024-01-15T14:00:00.000Z",
-        workspaceId,
+      mockIncrementFetchRequestBucket.mockResolvedValue({
+        pk: "request-buckets/sub-123/fetch/2024-01-15T14:00:00.000Z",
+        subscriptionId: "sub-123",
+        category: "fetch",
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 6,
         expires: 0,
@@ -429,7 +438,7 @@ describe("tavilyTools", () => {
       expect(mockTavilyExtract).toHaveBeenCalledWith(
         "https://example.com/article"
       );
-      expect(mockIncrementTavilyCallBucket).toHaveBeenCalledWith(workspaceId);
+      expect(mockIncrementFetchRequestBucket).toHaveBeenCalledWith(workspaceId);
       // Verify transaction is created for free tier users with actual cost
       expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith({
         workspaceId,
@@ -471,9 +480,10 @@ describe("tavilyTools", () => {
       });
       mockTavilyExtract.mockResolvedValue(extractResponse);
       mockExtractCreditsUsed.mockReturnValue(1);
-      mockIncrementTavilyCallBucket.mockResolvedValue({
-        pk: "tavily-call-buckets/test-workspace/2024-01-15T14:00:00.000Z",
-        workspaceId,
+      mockIncrementFetchRequestBucket.mockResolvedValue({
+        pk: "request-buckets/sub-123/fetch/2024-01-15T14:00:00.000Z",
+        subscriptionId: "sub-123",
+        category: "fetch",
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 16,
         expires: 0,
@@ -579,7 +589,7 @@ describe("tavilyTools", () => {
       });
       mockTavilyExtract.mockResolvedValue(extractResponse);
       mockExtractCreditsUsed.mockReturnValue(1);
-      mockIncrementTavilyCallBucket.mockRejectedValue(
+      mockIncrementFetchRequestBucket.mockRejectedValue(
         new Error("Tracking failed")
       );
 
@@ -603,9 +613,10 @@ describe("tavilyTools", () => {
       });
       mockTavilyExtract.mockResolvedValue(extractResponse);
       mockExtractCreditsUsed.mockReturnValue(1);
-      mockIncrementTavilyCallBucket.mockResolvedValue({
-        pk: "tavily-call-buckets/test-workspace/2024-01-15T14:00:00.000Z",
-        workspaceId,
+      mockIncrementFetchRequestBucket.mockResolvedValue({
+        pk: "request-buckets/sub-123/fetch/2024-01-15T14:00:00.000Z",
+        subscriptionId: "sub-123",
+        category: "fetch",
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 6,
         expires: 0,
