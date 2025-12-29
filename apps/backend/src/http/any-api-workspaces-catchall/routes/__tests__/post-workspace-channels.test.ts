@@ -92,8 +92,12 @@ describe("POST /api/workspaces/:workspaceId/channels", () => {
             );
           }
           // Validate webhook URL format (must be from hooks.slack.com)
-          if (!config.webhookUrl.startsWith("https://hooks.slack.com/services/")) {
-            throw badRequest("Invalid Slack webhook URL format. Must start with https://hooks.slack.com/services/");
+          if (
+            !config.webhookUrl.startsWith("https://hooks.slack.com/services/")
+          ) {
+            throw badRequest(
+              "Invalid Slack webhook URL format. Must start with https://hooks.slack.com/services/"
+            );
           }
         } else {
           throw badRequest(`Unsupported channel type: ${type}`);
@@ -628,7 +632,8 @@ describe("POST /api/workspaces/:workspaceId/channels", () => {
     const subscriptionId = "sub-789";
     const channelId = "channel-abc-123";
     const channelName = "My Slack Channel";
-    const webhookUrl = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX";
+    const webhookUrl =
+      "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX";
 
     const mockChannel = {
       pk: `output-channels/${workspaceId}/${channelId}`,

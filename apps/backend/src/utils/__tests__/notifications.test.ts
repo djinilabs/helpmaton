@@ -33,7 +33,8 @@ describe("sendNotification", () => {
       type: "discord",
       name: "Discord Channel",
       config: {
-        botToken: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Ng",
+        botToken:
+          "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Ng",
         discordChannelId: "123456789012345678",
       },
       version: 1,
@@ -61,7 +62,8 @@ describe("sendNotification", () => {
       type: "slack",
       name: "Slack Channel",
       config: {
-        webhookUrl: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+        webhookUrl:
+          "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
       },
       version: 1,
       createdAt: "2024-01-01T00:00:00Z",
@@ -109,7 +111,8 @@ describe("sendNotification", () => {
       type: "discord",
       name: "Discord Channel",
       config: {
-        botToken: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Ng",
+        botToken:
+          "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Ng",
       },
       version: 1,
       createdAt: "2024-01-01T00:00:00Z",
@@ -162,4 +165,3 @@ describe("sendNotification", () => {
     );
   });
 });
-
