@@ -24,6 +24,8 @@ When generating a system prompt, you should:
 6. Use clear, professional language
 7. Support markdown formatting where appropriate
 
+If an existing system prompt is provided, you should build upon it, refine it, or incorporate relevant elements while addressing the user's goal. When an existing prompt is present, preserve important instructions and constraints while updating based on the new goal.
+
 The system prompt should be comprehensive enough to guide the agent's behavior effectively, but concise enough to be practical. Focus on actionable instructions rather than abstract concepts.
 
 If tools are available, you may mention them naturally in the prompt, but do not list them exhaustively - the agent will have access to tool definitions separately.
@@ -102,6 +104,7 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
 
         // Get agent information if agentId is provided (for editing existing agent)
         let agent: {
+          systemPrompt?: string;
           clientTools?: Array<{
             name: string;
             description: string;
@@ -125,6 +128,7 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
             throw badRequest("Agent does not belong to this workspace");
           }
           agent = {
+            systemPrompt: agentRecord.systemPrompt,
             clientTools: agentRecord.clientTools,
             notificationChannelId: agentRecord.notificationChannelId,
             delegatableAgentIds: agentRecord.delegatableAgentIds,
@@ -244,6 +248,12 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
               )}\n\nWhen generating the prompt, you may reference these tools naturally if they are relevant to the agent's goal, but do not list them exhaustively.`
             : "";
 
+        // Build existing prompt context if available
+        const existingPromptContext =
+          agent?.systemPrompt && agent.systemPrompt.trim().length > 0
+            ? `\n\n## Existing System Prompt\n\n${agent.systemPrompt}\n\nPlease build upon or refine this existing prompt based on the goal above.`
+            : "";
+
         // Check daily request limit before LLM call
         // Note: This is a soft limit - there's a small race condition window where
         // concurrent requests near the limit could all pass the check before incrementing.
@@ -287,7 +297,7 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
           messages: [
             {
               role: "user",
-              content: `Generate a system prompt for an AI agent with the following goal:\n\n${goal.trim()}${toolsContext}`,
+              content: `Generate a system prompt for an AI agent with the following goal:\n\n${goal.trim()}${existingPromptContext}${toolsContext}`,
             },
           ],
         });
