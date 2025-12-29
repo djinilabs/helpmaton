@@ -6,6 +6,7 @@
 import { database } from "../tables";
 import type { SubscriptionRecord } from "../tables/schema";
 
+import { Sentry, ensureError } from "./sentry";
 import { sendSubscriptionDowngradedEmail } from "./subscriptionEmails";
 import type { SubscriptionPlan } from "./subscriptionPlans";
 import { getUserEmailById } from "./subscriptionUtils";
@@ -150,6 +151,12 @@ export async function checkGracePeriod(
         `[checkGracePeriod] Failed to send downgrade email for subscription ${subscription.pk}:`,
         error
       );
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "email-notifications",
+          operation: "send-downgrade-email",
+        },
+      });
       // Don't throw - email failure shouldn't block the downgrade
     }
 

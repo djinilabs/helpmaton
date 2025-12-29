@@ -9,6 +9,7 @@ import { database } from "../../tables";
 import type { SubscriptionRecord } from "../../tables/schema";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
 import { getSubscription as getLemonSqueezySubscription } from "../../utils/lemonSqueezy";
+import { Sentry, ensureError } from "../../utils/sentry";
 import { sendGracePeriodExpiringEmail } from "../../utils/subscriptionEmails";
 import {
   checkGracePeriod,
@@ -115,6 +116,12 @@ async function syncSubscription(
             `[Sync] Failed to send grace period warning email for subscription ${subscription.pk}:`,
             error
           );
+          Sentry.captureException(ensureError(error), {
+            tags: {
+              context: "email-notifications",
+              operation: "send-grace-period-warning-email",
+            },
+          });
           // Don't throw - email failure shouldn't block sync
         }
       }
@@ -186,8 +193,3 @@ export const handler = handlingScheduledErrors(
     await syncAllSubscriptions();
   }
 );
-
-
-
-
-

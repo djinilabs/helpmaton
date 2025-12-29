@@ -1,5 +1,6 @@
-import type { FC } from "react";
+import { useEffect, type FC } from "react";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 
 interface UpgradeModalProps {
@@ -13,7 +14,15 @@ export const UpgradeModal: FC<UpgradeModalProps> = ({
   onClose,
   onUpgrade,
 }) => {
+  const { registerDialog, unregisterDialog } = useDialogTracking();
   useEscapeKey(isOpen, onClose);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isOpen, registerDialog, unregisterDialog]);
 
   if (!isOpen) return null;
 

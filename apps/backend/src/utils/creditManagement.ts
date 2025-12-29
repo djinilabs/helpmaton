@@ -8,6 +8,7 @@ import type { TokenUsage } from "./conversationLogger";
 import { formatCurrencyMillionths } from "./creditConversions";
 import { CreditDeductionError, InsufficientCreditsError } from "./creditErrors";
 import { calculateTokenCost } from "./pricing";
+import { Sentry, ensureError } from "./sentry";
 import type { AugmentedContext } from "./workspaceCreditContext";
 
 /**
@@ -66,6 +67,12 @@ export async function enqueueCostVerification(
         workspaceId,
       }
     );
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "credit-management",
+        operation: "enqueue-cost-verification",
+      },
+    });
     // Don't throw - cost verification is best-effort
   }
 }

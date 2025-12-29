@@ -12,6 +12,7 @@ import type {
   InsufficientCreditsError,
   SpendingLimitExceededError,
 } from "./creditErrors";
+import { Sentry, ensureError } from "./sentry";
 import { getSubscriptionById } from "./subscriptionUtils";
 
 const BASE_URL = process.env.BASE_URL || "https://app.helpmaton.com";
@@ -305,6 +306,12 @@ export async function sendAgentErrorNotification(
       errorType,
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
+    });
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "email-notifications",
+        operation: "send-agent-error-email",
+      },
     });
     // Don't throw - email sending should not break agent requests
   }

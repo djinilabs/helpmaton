@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { FC } from "react";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import { useCreateAgent, useUpdateAgent } from "../hooks/useAgents";
 import { useChannels } from "../hooks/useChannels";
 import { useEscapeKey } from "../hooks/useEscapeKey";
@@ -355,7 +356,15 @@ export const AgentModal: FC<AgentModalProps> = ({
     onClose();
   };
 
+  const { registerDialog, unregisterDialog } = useDialogTracking();
   useEscapeKey(isOpen, handleClose);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isOpen, registerDialog, unregisterDialog]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

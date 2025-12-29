@@ -4,6 +4,7 @@ import { sendEmail } from "../send-email";
 import { database } from "../tables/database";
 import type { RequestBucketRecord } from "../tables/schema";
 
+import { Sentry, ensureError } from "./sentry";
 import { getPlanLimits } from "./subscriptionPlans";
 import {
   getSubscriptionById,
@@ -421,6 +422,12 @@ Visit your subscription settings to upgrade.`;
           "[checkDailyRequestLimit] Error sending limit email:",
           error
         );
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            context: "email-notifications",
+            operation: "send-limit-email",
+          },
+        });
       }
     }
 

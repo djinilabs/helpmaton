@@ -1,3 +1,5 @@
+import { Sentry, ensureError } from "./sentry";
+
 /**
  * Extract OpenRouter generation ID from AI SDK response
  * OpenRouter includes generation ID in response metadata
@@ -136,6 +138,12 @@ export function extractOpenRouterGenerationId(
         stack: error instanceof Error ? error.stack : undefined,
       }
     );
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "openrouter",
+        operation: "extract-generation-id",
+      },
+    });
   }
 
   return undefined;

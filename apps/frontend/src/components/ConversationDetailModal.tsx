@@ -1,9 +1,10 @@
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { FC, JSX } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import { useAgentConversation } from "../hooks/useAgentConversations";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import type { Conversation } from "../utils/api";
@@ -30,9 +31,17 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
     agentId,
     conversation.id
   );
+  const { registerDialog, unregisterDialog } = useDialogTracking();
   const [showRawJson, setShowRawJson] = useState(false);
 
   useEscapeKey(isOpen, onClose);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isOpen, registerDialog, unregisterDialog]);
 
   if (!isOpen) return null;
 

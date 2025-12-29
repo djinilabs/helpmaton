@@ -1664,6 +1664,12 @@ const internalHandler = async (
         error:
           writeError instanceof Error ? writeError.message : String(writeError),
       });
+      Sentry.captureException(ensureError(writeError), {
+        tags: {
+          context: "stream-handler",
+          operation: "write-error-response",
+        },
+      });
     }
   } finally {
     // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)

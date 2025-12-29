@@ -5,6 +5,7 @@ import type { DatabaseSchema } from "../tables/schema";
 
 import { writeToWorkingMemory } from "./memory/writeMemory";
 import { getMessageCost } from "./messageCostCalculation";
+import { Sentry, ensureError } from "./sentry";
 
 /**
  * Type representing usage information from AI SDK
@@ -1844,6 +1845,12 @@ export async function startConversation(
           }
         : String(error)
     );
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "memory",
+        operation: "write-working-memory",
+      },
+    });
   }
 
   return conversationId;

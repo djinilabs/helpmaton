@@ -1,5 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { type FC, type PropsWithChildren } from "react";
+import { useEffect, type FC, type PropsWithChildren } from "react";
+
+import { useDialogTracking } from "../contexts/DialogContext";
+
+// Use a ref to store the current dialog count so QueryClient can access it
+const dialogCountRef = { current: 0 };
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,13 +22,23 @@ const queryClient = new QueryClient({
         // Retry once for other errors
         return failureCount < 1;
       },
-      refetchOnWindowFocus: true,
+      refetchOnWindowFocus: () => {
+        // Don't refetch if any dialogs are open
+        return dialogCountRef.current === 0;
+      },
       throwOnError: true, // Required for Suspense error boundaries
     },
   },
 });
 
 export const QueryProvider: FC<PropsWithChildren> = ({ children }) => {
+  const { dialogCount } = useDialogTracking();
+
+  // Update the ref whenever dialog count changes
+  useEffect(() => {
+    dialogCountRef.current = dialogCount;
+  }, [dialogCount]);
+
   return (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { FC } from "react";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import {
   useDocument,
   useUpdateDocument,
@@ -168,7 +169,15 @@ export const DocumentViewer: FC<DocumentViewerProps> = ({
   workspaceId,
   documentId,
 }) => {
+  const { registerDialog, unregisterDialog } = useDialogTracking();
   useEscapeKey(isOpen, onClose);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isOpen, registerDialog, unregisterDialog]);
 
   if (!isOpen) return null;
 

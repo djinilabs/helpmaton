@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { FC } from "react";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import { useGeneratePrompt } from "../hooks/useAgents";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 
@@ -24,8 +25,16 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
   const [goal, setGoal] = useState("");
   const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
   const generatePrompt = useGeneratePrompt(workspaceId);
+  const { registerDialog, unregisterDialog } = useDialogTracking();
 
   useEscapeKey(isOpen, onClose);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isOpen, registerDialog, unregisterDialog]);
 
   const handleGenerate = async () => {
     if (!goal.trim()) return;
