@@ -157,6 +157,14 @@ async function persistWebhookConversationError(options: {
           : String(options.error),
       logError: logError instanceof Error ? logError.message : String(logError),
     });
+    const { Sentry, ensureError } = await import("../../utils/sentry");
+    Sentry.captureException(ensureError(logError), {
+      tags: {
+        context: "conversation-logging",
+        operation: "persist-error",
+        handler: "webhook",
+      },
+    });
   }
 }
 
@@ -856,7 +864,11 @@ export const handler = adaptHttpHandler(
         if (context) {
           const buffer = getTransactionBuffer(context);
           if (buffer) {
-            updateTransactionBufferConversationId(buffer, conversationId, workspaceId);
+            updateTransactionBufferConversationId(
+              buffer,
+              conversationId,
+              workspaceId
+            );
           }
         }
 

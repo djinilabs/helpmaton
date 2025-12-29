@@ -14,6 +14,7 @@ import {
   getSubscription as getLemonSqueezySubscription,
   getOrder as getLemonSqueezyOrder,
 } from "../../utils/lemonSqueezy";
+import { Sentry, ensureError } from "../../utils/sentry";
 import {
   sendPaymentFailedEmail,
   sendSubscriptionCancelledEmail,
@@ -242,6 +243,13 @@ async function handleSubscriptionCreated(
       `[Webhook subscription_created] Error associating subscription ${subscriptionId} with usage plan:`,
       error
     );
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "webhook",
+        operation: "associate-usage-plan",
+        event: "subscription_created",
+      },
+    });
     // Don't throw - subscription is updated, usage plan association can be retried
   }
 
@@ -359,6 +367,13 @@ async function handleSubscriptionUpdated(
       `[Webhook] Error associating subscription ${subscriptionId} with usage plan:`,
       error
     );
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "webhook",
+        operation: "associate-usage-plan",
+        event: "subscription_updated",
+      },
+    });
     // Don't throw - subscription is updated, usage plan association can be retried
   }
 
@@ -457,6 +472,12 @@ async function handleSubscriptionPastDue(
     }
   } catch (error) {
     console.error(`[Webhook] Failed to send payment failed email:`, error);
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "email-notifications",
+        operation: "send-payment-failed-email",
+      },
+    });
     // Don't throw - email failure shouldn't block webhook processing
   }
 

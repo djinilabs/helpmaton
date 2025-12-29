@@ -5,6 +5,7 @@ import { database } from "../../tables";
 import type { CreditReservationRecord } from "../../tables/schema";
 import { refundReservation } from "../../utils/creditManagement";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
+import { Sentry, ensureError } from "../../utils/sentry";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 /**
@@ -95,6 +96,12 @@ export async function cleanupExpiredReservations(
           `[Cleanup Expired Reservations] Error querying hour bucket ${hourBucket}:`,
           { error: errorMessage }
         );
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            context: "cleanup",
+            operation: "query-hour-bucket",
+          },
+        });
         // Continue with next hour bucket - don't fail entire cleanup
       }
     }
@@ -138,6 +145,12 @@ export async function cleanupExpiredReservations(
               "[Cleanup Expired Reservations] Error deleting BYOK reservation:",
               deleteError
             );
+            Sentry.captureException(ensureError(deleteError), {
+              tags: {
+                context: "cleanup",
+                operation: "delete-reservation",
+              },
+            });
           }
           continue;
         }

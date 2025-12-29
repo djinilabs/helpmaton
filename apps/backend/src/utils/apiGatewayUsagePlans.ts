@@ -11,6 +11,8 @@ import {
 
 import { database } from "../tables/database";
 
+import { Sentry, ensureError } from "./sentry";
+
 /**
  * Global cache for usage plan IDs to avoid repeated API calls within the same Lambda execution context
  * Key format: `${stackName}-${planName}` (e.g., "HelpmatonStagingPR22-free")
@@ -188,6 +190,12 @@ export async function getOrCreateApiKeyForSubscription(
             `[apiGatewayUsagePlans] Could not verify API key ${matchingKey.id} status for subscription ${subscriptionId}, will create new key:`,
             keyError instanceof Error ? keyError.message : String(keyError)
           );
+          Sentry.captureException(ensureError(keyError), {
+            tags: {
+              context: "api-gateway",
+              operation: "verify-api-key",
+            },
+          });
           // Fall through to create a new key
         }
       }

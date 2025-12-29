@@ -13,6 +13,7 @@ import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation
 import { searchDocuments } from "../../utils/documentSearch";
 import { isCreditDeductionEnabled } from "../../utils/featureFlags";
 import { sendNotification } from "../../utils/notifications";
+import { Sentry, ensureError } from "../../utils/sentry";
 import { extractTokenUsageAndCosts } from "../utils/generationTokenExtraction";
 
 import { createMcpServerTools } from "./mcpUtils";
@@ -914,6 +915,12 @@ async function callAgentInternal(
           "[callAgentInternal] Error deleting reservation:",
           deleteError
         );
+        Sentry.captureException(ensureError(deleteError), {
+          tags: {
+            context: "credit-management",
+            operation: "delete-reservation",
+          },
+        });
       }
     }
 
@@ -952,6 +959,12 @@ async function callAgentInternal(
               refundError instanceof Error
                 ? refundError.message
                 : String(refundError),
+          });
+          Sentry.captureException(ensureError(refundError), {
+            tags: {
+              context: "credit-management",
+              operation: "refund-credits",
+            },
           });
         }
       } else {
