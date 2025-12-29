@@ -108,6 +108,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           searchWebProvider,
           enableTavilyFetch, // Legacy field for backward compatibility
           fetchWebProvider,
+          enableExaSearch,
           clientTools,
           temperature,
           topP,
@@ -466,6 +467,10 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
               : agent.enableTavilySearch,
           searchWebProvider: resolvedSearchWebProvider,
           fetchWebProvider: resolvedFetchWebProvider,
+          enableExaSearch:
+            enableExaSearch !== undefined
+              ? enableExaSearch
+              : agent.enableExaSearch,
           clientTools:
             clientTools !== undefined ? clientTools : agent.clientTools,
           spendingLimits:
@@ -537,6 +542,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           enableTavilySearch: updated.enableTavilySearch ?? false,
           searchWebProvider: updated.searchWebProvider ?? null,
           fetchWebProvider: updated.fetchWebProvider ?? null,
+          enableExaSearch: updated.enableExaSearch ?? false,
           clientTools: updated.clientTools ?? [],
           spendingLimits: updated.spendingLimits ?? [],
           temperature: updated.temperature ?? null,

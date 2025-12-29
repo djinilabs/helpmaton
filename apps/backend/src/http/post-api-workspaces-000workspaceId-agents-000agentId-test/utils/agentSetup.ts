@@ -228,6 +228,17 @@ export async function setupAgentAndTools(
     );
   }
 
+  // Add Exa.ai search tool if enabled
+  if (agent.enableExaSearch === true) {
+    const { createExaSearchTool } = await import("../../utils/exaTools");
+    tools.search = createExaSearchTool(
+      workspaceId,
+      effectiveContext,
+      extractedAgentId,
+      options?.conversationId
+    );
+  }
+
   // Add delegation tools if agent has delegatable agents configured
   if (
     agent.delegatableAgentIds &&

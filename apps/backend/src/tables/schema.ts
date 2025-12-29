@@ -95,6 +95,7 @@ export const tableSchemas = {
     searchWebProvider: z.enum(["tavily", "jina"]).optional(), // Web search provider: "tavily" uses Tavily search API, "jina" uses Jina DeepSearch API (default: undefined, no search tool)
     enableTavilyFetch: z.boolean().optional(), // @deprecated Use fetchWebProvider instead. Legacy field for backward compatibility (default: false)
     fetchWebProvider: z.enum(["tavily", "jina"]).optional(), // Web fetch provider: "tavily" uses Tavily extract API, "jina" uses Jina Reader API (default: undefined, no fetch tool)
+    enableExaSearch: z.boolean().optional(), // enable Exa.ai search tool for this agent (default: false)
     spendingLimits: z
       .array(
         z.object({
@@ -417,7 +418,7 @@ export const tableSchemas = {
       "tool-execution",
       "credit-purchase",
     ]),
-    supplier: z.enum(["openrouter", "tavily"]), // add more when we have more suppliers
+    supplier: z.enum(["openrouter", "tavily", "exa"]), // add more when we have more suppliers
     model: z.string().optional(), // the model that originated this charge, if any
     tool_call: z.string().optional(), // the tool call that was used when originating this charge, if any
     description: z.string(),

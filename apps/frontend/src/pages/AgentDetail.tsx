@@ -266,6 +266,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     "tavily" | "jina" | null
   >(() => agent?.fetchWebProvider ?? null);
 
+  // Use agent prop directly for enableExaSearch, with local state for editing
+  const [enableExaSearch, setEnableExaSearch] = useState<boolean>(
+    () => agent?.enableExaSearch ?? false
+  );
+
   // Use agent prop directly for clientTools, with local state for editing
   const [clientTools, setClientTools] = useState<ClientTool[]>(
     () => agent?.clientTools || []
@@ -501,6 +506,19 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       setFetchWebProvider(currentValue);
     }
   }, [agent?.id, agent?.fetchWebProvider]);
+
+  // Synchronize enableExaSearch state with agent prop using useEffect
+  const prevEnableExaSearchRef = useRef<boolean | undefined>(
+    agent?.enableExaSearch
+  );
+  useEffect(() => {
+    const currentValue = agent?.enableExaSearch ?? false;
+    const prevValue = prevEnableExaSearchRef.current ?? false;
+    if (currentValue !== prevValue) {
+      prevEnableExaSearchRef.current = currentValue;
+      setEnableExaSearch(currentValue);
+    }
+  }, [agent?.id, agent?.enableExaSearch]);
 
   // Synchronize clientTools state with agent prop using useEffect
   useEffect(() => {
@@ -806,6 +824,25 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       // Error is handled by toast in the hook
       // Reset ref on error so useEffect can sync properly
       prevFetchWebProviderRef.current = agent?.fetchWebProvider;
+    }
+  };
+
+  const handleSaveExaSearch = async () => {
+    try {
+      const valueToSave = enableExaSearch;
+      // Update ref immediately to prevent useEffect from overwriting our changes
+      prevEnableExaSearchRef.current = valueToSave;
+      const updated = await updateAgent.mutateAsync({
+        enableExaSearch: valueToSave,
+      });
+      // Sync local state with updated agent data
+      const savedValue = updated.enableExaSearch ?? false;
+      prevEnableExaSearchRef.current = savedValue;
+      setEnableExaSearch(savedValue);
+    } catch {
+      // Error is handled by toast in the hook
+      // Reset ref on error so useEffect can sync properly
+      prevEnableExaSearchRef.current = agent?.enableExaSearch;
     }
   };
 
@@ -2034,6 +2071,61 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     {updateAgent.isPending
                       ? "Saving..."
                       : "Save URL Fetching Provider"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
+          {/* Exa Search Tool Section */}
+          {canEdit && (
+            <AccordionSection
+              id="exa-search"
+              title={
+                <>
+                  <MagnifyingGlassIcon className="mr-2 inline-block size-5" />
+                  EXA SEARCH TOOL
+                </>
+              }
+              isExpanded={expandedSection === "exa-search"}
+              onToggle={() => toggleSection("exa-search")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "exa-search"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Enable Exa.ai search tool for category-specific searches.
+                    Supports searching for companies, research papers, news,
+                    PDFs, GitHub repos, tweets, personal sites, people, and
+                    financial reports. Charges based on usage (cost varies by
+                    number of results).
+                  </p>
+                  <div className="space-y-3">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                      <input
+                        type="checkbox"
+                        checked={enableExaSearch}
+                        onChange={(e) => setEnableExaSearch(e.target.checked)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="font-bold">Enable Exa Search</div>
+                        <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                          Enable the search tool for category-specific searches
+                          using Exa.ai. Charges apply based on usage.
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                  <button
+                    onClick={handleSaveExaSearch}
+                    disabled={updateAgent.isPending}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Exa Search Setting"}
                   </button>
                 </div>
               </LazyAccordionContent>

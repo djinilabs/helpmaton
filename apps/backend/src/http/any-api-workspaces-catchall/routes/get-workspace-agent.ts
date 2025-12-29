@@ -124,6 +124,7 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           enableTavilySearch: agent.enableTavilySearch ?? false,
           searchWebProvider: searchWebProvider ?? null,
           fetchWebProvider: fetchWebProvider ?? null,
+          enableExaSearch: agent.enableExaSearch ?? false,
           clientTools: agent.clientTools ?? [],
           spendingLimits: agent.spendingLimits ?? [],
           temperature: agent.temperature ?? null,
