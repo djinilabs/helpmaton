@@ -4,7 +4,7 @@ import type { UIMessage } from "../http/post-api-workspaces-000workspaceId-agent
 import type { DatabaseSchema } from "../tables/schema";
 
 import { writeToWorkingMemory } from "./memory/writeMemory";
-import { calculateConversationCosts } from "./tokenAccounting";
+import { getMessageCost } from "./messageCostCalculation";
 
 /**
  * Type representing usage information from AI SDK
@@ -1722,51 +1722,6 @@ export function extractTokenUsage(
 }
 
 /**
- * Extract tool costs from a message's content array
- * Tool costs are stored in tool-result content items
- * Tool results can be in assistant messages (as content items) or in tool role messages
- */
-function extractToolCostsFromMessage(message: UIMessage): number {
-  let toolCosts = 0;
-
-  // Check assistant messages with tool-result content items
-  if (message.role === "assistant" && Array.isArray(message.content)) {
-    for (const item of message.content) {
-      if (
-        typeof item === "object" &&
-        item !== null &&
-        "type" in item &&
-        item.type === "tool-result" &&
-        "costUsd" in item &&
-        typeof item.costUsd === "number"
-      ) {
-        toolCosts += item.costUsd;
-      }
-    }
-  }
-
-  // Check tool role messages (tool results are expanded into separate tool messages)
-  if (message.role === "tool") {
-    if (Array.isArray(message.content)) {
-      for (const item of message.content) {
-        if (
-          typeof item === "object" &&
-          item !== null &&
-          "type" in item &&
-          item.type === "tool-result" &&
-          "costUsd" in item &&
-          typeof item.costUsd === "number"
-        ) {
-          toolCosts += item.costUsd;
-        }
-      }
-    }
-  }
-
-  return toolCosts;
-}
-
-/**
  * Start a new conversation
  */
 export async function startConversation(
@@ -1799,44 +1754,31 @@ export async function startConversation(
 
   // Calculate costs from per-message model/provider data
   // IMPORTANT: Calculate from 0 based on ALL expanded messages
-  // Prefer finalCostUsd (from OpenRouter API verification) if available, then provisionalCostUsd, then calculate from tokenUsage
-  // Also include tool costs from tool-result content items (in both assistant and tool role messages)
-  // Use expandedMessages (after expansion) to include all tool results as separate messages
+  // Use getMessageCost() helper to get best available cost for each message
+  // This prefers finalCostUsd > provisionalCostUsd > calculated from tokenUsage
+  // Also includes tool costs from tool-result content items (individual costs per tool)
   let totalCostUsd = 0;
   let totalGenerationTimeMs = 0;
   for (const message of expandedMessages) {
-    if (message.role === "assistant") {
-      // Prefer finalCostUsd if available (from OpenRouter cost verification)
-      if (
-        "finalCostUsd" in message &&
-        typeof message.finalCostUsd === "number"
-      ) {
-        totalCostUsd += message.finalCostUsd;
-      } else if (
-        "provisionalCostUsd" in message &&
-        typeof message.provisionalCostUsd === "number"
-      ) {
-        // Fall back to provisionalCostUsd if finalCostUsd not available
-        totalCostUsd += message.provisionalCostUsd;
-      } else if ("tokenUsage" in message && message.tokenUsage) {
-        // Fall back to calculating from tokenUsage
-        const modelName =
-          "modelName" in message && typeof message.modelName === "string"
-            ? message.modelName
-            : undefined;
-        const provider =
-          "provider" in message && typeof message.provider === "string"
-            ? message.provider
-            : "google";
-        const messageCosts = calculateConversationCosts(
-          provider,
-          modelName,
-          message.tokenUsage
-        );
-        totalCostUsd += messageCosts.usd;
+    // Use getMessageCost() helper to get best available cost
+    const messageCost = getMessageCost(message);
+
+    if (messageCost) {
+      // For assistant messages: use costUsd
+      if (messageCost.costUsd !== undefined) {
+        totalCostUsd += messageCost.costUsd;
       }
 
-      // Sum generation times
+      // For tool messages: sum individual tool costs
+      if (messageCost.toolCosts) {
+        for (const toolCost of messageCost.toolCosts) {
+          totalCostUsd += toolCost.costUsd;
+        }
+      }
+    }
+
+    // Sum generation times for assistant messages
+    if (message.role === "assistant") {
       if (
         "generationTimeMs" in message &&
         typeof message.generationTimeMs === "number"
@@ -1844,10 +1786,6 @@ export async function startConversation(
         totalGenerationTimeMs += message.generationTimeMs;
       }
     }
-
-    // Extract tool costs from any message (assistant or tool role)
-    const toolCosts = extractToolCostsFromMessage(message);
-    totalCostUsd += toolCosts;
   }
 
   // Initialize awsRequestIds array if awsRequestId is provided
@@ -1954,40 +1892,29 @@ export async function updateConversation(
         trulyNewMessages = expandedMessages;
 
         // Calculate costs and generation times from per-message model/provider data
+        // Use getMessageCost() helper to get best available cost for each message
         let totalCostUsd = 0;
         let totalGenerationTimeMs = 0;
         for (const message of messagesWithRequestId) {
-          if (message.role === "assistant") {
-            // Prefer finalCostUsd if available (from OpenRouter cost verification)
-            if (
-              "finalCostUsd" in message &&
-              typeof message.finalCostUsd === "number"
-            ) {
-              totalCostUsd += message.finalCostUsd;
-            } else if (
-              "provisionalCostUsd" in message &&
-              typeof message.provisionalCostUsd === "number"
-            ) {
-              // Fall back to provisionalCostUsd if finalCostUsd not available
-              totalCostUsd += message.provisionalCostUsd;
-            } else if ("tokenUsage" in message && message.tokenUsage) {
-              // Fall back to calculating from tokenUsage
-              const msgModelName =
-                "modelName" in message && typeof message.modelName === "string"
-                  ? message.modelName
-                  : undefined;
-              const msgProvider =
-                "provider" in message && typeof message.provider === "string"
-                  ? message.provider
-                  : "google";
-              const messageCosts = calculateConversationCosts(
-                msgProvider,
-                msgModelName,
-                message.tokenUsage
-              );
-              totalCostUsd += messageCosts.usd;
+          // Use getMessageCost() helper to get best available cost
+          const messageCost = getMessageCost(message);
+
+          if (messageCost) {
+            // For assistant messages: use costUsd
+            if (messageCost.costUsd !== undefined) {
+              totalCostUsd += messageCost.costUsd;
             }
-            // Sum generation times
+
+            // For tool messages: sum individual tool costs
+            if (messageCost.toolCosts) {
+              for (const toolCost of messageCost.toolCosts) {
+                totalCostUsd += toolCost.costUsd;
+              }
+            }
+          }
+
+          // Sum generation times for assistant messages
+          if (message.role === "assistant") {
             if (
               "generationTimeMs" in message &&
               typeof message.generationTimeMs === "number"
@@ -2068,44 +1995,31 @@ export async function updateConversation(
       // Calculate costs from per-message model/provider data
       // IMPORTANT: Recalculate from 0 based on ALL deduplicated and expanded messages
       // Do NOT use existing.costUsd - always recalculate from scratch to ensure accuracy
-      // Prefer finalCostUsd (from OpenRouter API verification) if available, then provisionalCostUsd, then calculate from tokenUsage
-      // Also include tool costs from tool-result content items (in both assistant and tool role messages)
-      // Use expandedAllMessages (after deduplication and expansion) to include all tool results as separate messages
+      // Use getMessageCost() helper to get best available cost for each message
+      // This prefers finalCostUsd > provisionalCostUsd > calculated from tokenUsage
+      // Also includes tool costs from tool-result content items (individual costs per tool)
       let totalCostUsd = 0;
       let totalGenerationTimeMs = 0;
       for (const message of expandedAllMessages) {
-        if (message.role === "assistant") {
-          // Prefer finalCostUsd if available (from OpenRouter cost verification)
-          if (
-            "finalCostUsd" in message &&
-            typeof message.finalCostUsd === "number"
-          ) {
-            totalCostUsd += message.finalCostUsd;
-          } else if (
-            "provisionalCostUsd" in message &&
-            typeof message.provisionalCostUsd === "number"
-          ) {
-            // Fall back to provisionalCostUsd if finalCostUsd not available
-            totalCostUsd += message.provisionalCostUsd;
-          } else if ("tokenUsage" in message && message.tokenUsage) {
-            // Fall back to calculating from tokenUsage
-            const msgModelName =
-              "modelName" in message && typeof message.modelName === "string"
-                ? message.modelName
-                : undefined;
-            const msgProvider =
-              "provider" in message && typeof message.provider === "string"
-                ? message.provider
-                : "google";
-            const messageCosts = calculateConversationCosts(
-              msgProvider,
-              msgModelName,
-              message.tokenUsage
-            );
-            totalCostUsd += messageCosts.usd;
+        // Use getMessageCost() helper to get best available cost
+        const messageCost = getMessageCost(message);
+
+        if (messageCost) {
+          // For assistant messages: use costUsd
+          if (messageCost.costUsd !== undefined) {
+            totalCostUsd += messageCost.costUsd;
           }
 
-          // Sum generation times
+          // For tool messages: sum individual tool costs
+          if (messageCost.toolCosts) {
+            for (const toolCost of messageCost.toolCosts) {
+              totalCostUsd += toolCost.costUsd;
+            }
+          }
+        }
+
+        // Sum generation times for assistant messages
+        if (message.role === "assistant") {
           if (
             "generationTimeMs" in message &&
             typeof message.generationTimeMs === "number"
@@ -2113,10 +2027,6 @@ export async function updateConversation(
             totalGenerationTimeMs += message.generationTimeMs;
           }
         }
-
-        // Extract tool costs from any message (assistant or tool role)
-        const toolCosts = extractToolCostsFromMessage(message);
-        totalCostUsd += toolCosts;
       }
 
       // Update awsRequestIds array - append new request ID if provided

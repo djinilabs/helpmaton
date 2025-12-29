@@ -12,6 +12,7 @@ import remarkGfm from "remark-gfm";
 import { useAgent } from "../hooks/useAgents";
 import { getDefaultAvatar } from "../utils/avatarUtils";
 import { formatCurrency } from "../utils/currency";
+import { getMessageCost } from "../utils/messageCost";
 
 interface AgentChatProps {
   workspaceId: string;
@@ -713,19 +714,10 @@ export const AgentChat: FC<AgentChatProps> = ({
                   ? message.provider
                   : null;
 
-              // Extract provisionalCostUsd and finalCostUsd if available
-              const provisionalCostUsd =
-                message.role === "assistant" &&
-                "provisionalCostUsd" in message &&
-                typeof message.provisionalCostUsd === "number"
-                  ? message.provisionalCostUsd
-                  : null;
-              const finalCostUsd =
-                message.role === "assistant" &&
-                "finalCostUsd" in message &&
-                typeof message.finalCostUsd === "number"
-                  ? message.finalCostUsd
-                  : null;
+              // Use getMessageCost() helper to get best available cost
+              const messageCost = getMessageCost(message);
+              const costUsd = messageCost?.costUsd;
+              const isFinal = messageCost?.isFinal;
 
               const formatTokenUsage = (usage: {
                 promptTokens?: number;
@@ -805,20 +797,19 @@ export const AgentChat: FC<AgentChatProps> = ({
                                     {formatTokenUsage(tokenUsage)}
                                   </div>
                                 )}
-                                {provisionalCostUsd !== null &&
-                                  finalCostUsd === null && (
-                                    <div className="rounded bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800 opacity-70 dark:bg-yellow-900 dark:text-yellow-200">
-                                      {formatCurrency(
-                                        provisionalCostUsd,
-                                        "usd",
-                                        10
-                                      )}{" "}
-                                      (provisional)
-                                    </div>
-                                  )}
-                                {finalCostUsd !== null && (
-                                  <div className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800 opacity-70 dark:bg-green-900 dark:text-green-200">
-                                    {formatCurrency(finalCostUsd, "usd", 10)}
+                                {costUsd !== undefined && (
+                                  <div
+                                    className={`rounded px-2 py-1 text-xs font-medium opacity-70 ${
+                                      isFinal === true
+                                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                        : isFinal === false
+                                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                                        : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                                    }`}
+                                  >
+                                    {formatCurrency(costUsd, "usd", 10)}
+                                    {isFinal === true && " ✓"}
+                                    {isFinal === false && " (provisional)"}
                                   </div>
                                 )}
                               </div>
