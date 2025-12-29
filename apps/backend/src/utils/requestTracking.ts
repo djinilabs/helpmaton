@@ -107,11 +107,11 @@ export async function incrementRequestBucketByCategory(
         console.log(
           "[incrementRequestBucketByCategory] Incrementing existing bucket:",
           {
-            subscriptionId,
+          subscriptionId,
             category,
-            hourTimestamp,
-            oldCount: current.count,
-            newCount: current.count + 1,
+          hourTimestamp,
+          oldCount: current.count,
+          newCount: current.count + 1,
             expires: existingExpires,
           }
         );
@@ -125,10 +125,10 @@ export async function incrementRequestBucketByCategory(
         console.log(
           "[incrementRequestBucketByCategory] Creating new bucket:",
           {
-            subscriptionId,
+          subscriptionId,
             category,
-            hourTimestamp,
-            count: 1,
+          hourTimestamp,
+          count: 1,
           }
         );
         return {
@@ -147,10 +147,10 @@ export async function incrementRequestBucketByCategory(
   console.log(
     "[incrementRequestBucketByCategory] Successfully updated bucket:",
     {
-      subscriptionId,
+    subscriptionId,
       category,
-      hourTimestamp,
-      count: updated.count,
+    hourTimestamp,
+    count: updated.count,
     }
   );
 
@@ -475,7 +475,7 @@ export async function checkTavilyDailyLimit(
   const isFreeTier = subscription.plan === "free";
 
   if (isFreeTier) {
-    // Free tier: block if > 10 calls/day (10 is allowed)
+    // Free tier: allow up to 10 calls per 24 hours; block starting with the 11th call
     if (callCount > FREE_TIER_LIMIT) {
       throw tooManyRequests(
         `Daily Tavily API call limit exceeded. Free tier allows ${FREE_TIER_LIMIT} calls per 24 hours. You've made ${callCount} calls.`

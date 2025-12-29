@@ -330,7 +330,7 @@ describe("requestTracking", () => {
       expect(result).toBe(15); // 10 + 5
       expect(mockDb["request-buckets"].query).toHaveBeenCalledWith({
         IndexName: "bySubscriptionIdAndCategoryAndHour",
-        KeyConditionExpression:
+          KeyConditionExpression:
           "subscriptionId = :subscriptionId AND category = :category AND hourTimestamp BETWEEN :oldest AND :newest",
         ExpressionAttributeValues: {
           ":subscriptionId": subscriptionId,
@@ -380,21 +380,21 @@ describe("requestTracking", () => {
         userId: "user-123",
         plan: "starter",
         status: "active",
-        version: 1,
-        createdAt: now.toISOString(),
+          version: 1,
+          createdAt: now.toISOString(),
       };
 
       mockGetWorkspaceSubscription.mockResolvedValue(subscription);
 
       const createdBucket: RequestBucketRecord = {
         pk: `request-buckets/${subscriptionId}/search/2024-01-15T14:00:00.000Z`,
-        subscriptionId,
+          subscriptionId,
         category: "search",
         hourTimestamp: "2024-01-15T14:00:00.000Z",
         count: 1,
         expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
-        version: 1,
-        createdAt: now.toISOString(),
+          version: 1,
+          createdAt: now.toISOString(),
       };
 
       mockDb["request-buckets"].atomicUpdate.mockImplementation(
@@ -747,8 +747,8 @@ describe("requestTracking", () => {
         userId: "user-123",
         plan: "pro",
         status: "active",
-        version: 1,
-        createdAt: now.toISOString(),
+          version: 1,
+          createdAt: now.toISOString(),
       };
 
       mockGetWorkspaceSubscription.mockResolvedValue(subscription);
@@ -760,7 +760,7 @@ describe("requestTracking", () => {
         })
         .mockResolvedValueOnce({
           items: [{ count: 5 }], // fetch count
-        });
+      });
 
       const result = await checkTavilyDailyLimit(workspaceId);
 
@@ -790,7 +790,7 @@ describe("requestTracking", () => {
         })
         .mockResolvedValueOnce({
           items: [],
-        });
+      });
 
       const originalArcEnv = process.env.ARC_ENV;
       process.env.ARC_ENV = "testing";
@@ -810,12 +810,12 @@ describe("requestTracking", () => {
   });
 
   describe("Legacy functions (backward compatibility)", () => {
-    const mockDb = {
+      const mockDb = {
       "request-buckets": {
         atomicUpdate: vi.fn(),
         query: vi.fn(),
-      },
-    };
+        },
+      };
 
     beforeEach(() => {
       mockDatabase.mockResolvedValue(mockDb);
@@ -831,10 +831,10 @@ describe("requestTracking", () => {
         subscriptionId,
         category: "llm",
         hourTimestamp: "2024-01-15T14:00:00.000Z",
-        count: 1,
+          count: 1,
         expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
-        version: 1,
-        createdAt: now.toISOString(),
+          version: 1,
+          createdAt: now.toISOString(),
       };
 
       mockDb["request-buckets"].atomicUpdate.mockImplementation(
@@ -879,8 +879,8 @@ describe("requestTracking", () => {
         userId: "user-123",
         plan: "starter",
         status: "active",
-        version: 1,
-        createdAt: now.toISOString(),
+          version: 1,
+          createdAt: now.toISOString(),
       };
 
       mockGetWorkspaceSubscription.mockResolvedValue(subscription);
@@ -919,8 +919,8 @@ describe("requestTracking", () => {
         userId: "user-123",
         plan: "starter",
         status: "active",
-        version: 1,
-        createdAt: now.toISOString(),
+          version: 1,
+          createdAt: now.toISOString(),
       };
 
       mockGetWorkspaceSubscription.mockResolvedValue(subscription);
