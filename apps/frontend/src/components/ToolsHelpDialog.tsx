@@ -1,6 +1,7 @@
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
-import { type FC } from "react";
+import { useEffect, type FC } from "react";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import { useEmailConnection } from "../hooks/useEmailConnection";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useMcpServers } from "../hooks/useMcpServers";
@@ -21,8 +22,16 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
 }) => {
   const { data: emailConnection } = useEmailConnection(workspaceId);
   const { data: mcpServersData } = useMcpServers(workspaceId);
+  const { registerDialog, unregisterDialog } = useDialogTracking();
 
   useEscapeKey(isOpen, onClose);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isOpen, registerDialog, unregisterDialog]);
 
   if (!isOpen) return null;
 

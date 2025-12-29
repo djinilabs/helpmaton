@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { FC } from "react";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import {
   useCreateMcpServer,
@@ -66,7 +67,15 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     onClose();
   };
 
+  const { registerDialog, unregisterDialog } = useDialogTracking();
   useEscapeKey(isOpen, handleClose);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isOpen, registerDialog, unregisterDialog]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

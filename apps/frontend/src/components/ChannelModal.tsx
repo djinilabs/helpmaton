@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { FC } from "react";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import {
   useCreateChannel,
   useUpdateChannel,
@@ -63,7 +64,15 @@ export const ChannelModal: FC<ChannelModalProps> = ({
     onClose();
   };
 
+  const { registerDialog, unregisterDialog } = useDialogTracking();
   useEscapeKey(isOpen, handleClose);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isOpen, registerDialog, unregisterDialog]);
 
   const canTest = (isEditing && channel?.id) || createdChannelId;
 

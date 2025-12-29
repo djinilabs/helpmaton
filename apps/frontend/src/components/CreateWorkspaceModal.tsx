@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { FC } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useCreateWorkspace } from "../hooks/useWorkspaces";
 
@@ -16,6 +17,7 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
 }) => {
   const navigate = useNavigate();
   const createWorkspace = useCreateWorkspace();
+  const { registerDialog, unregisterDialog } = useDialogTracking();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
 
@@ -26,6 +28,13 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
   };
 
   useEscapeKey(isOpen, handleClose);
+
+  useEffect(() => {
+    if (isOpen) {
+      registerDialog();
+      return () => unregisterDialog();
+    }
+  }, [isOpen, registerDialog, unregisterDialog]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
