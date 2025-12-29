@@ -32,11 +32,13 @@ export function formatToolCallMessage(
   };
 }
 
-/**
- * Tool cost marker format: __HM_TOOL_COST__:8000
- * This format is less likely to appear in actual tool output content
- */
-const TOOL_COST_MARKER_PATTERN = /__HM_TOOL_COST__:(\d+)/g;
+import {
+  extractToolCostFromResult,
+  TOOL_COST_MARKER_PATTERN,
+} from "./toolCostExtraction";
+
+// Re-export for use in other modules
+export { TOOL_COST_MARKER_PATTERN };
 
 /**
  * Formats tool result as UI message with truncation
@@ -78,31 +80,12 @@ export function formatToolResultMessage(
 
   // Extract cost from result string if present (format: __HM_TOOL_COST__:8000)
   // IMPORTANT: Extract BEFORE truncation to ensure we don't lose the marker
-  // The marker can appear anywhere in the string, but we prefer the last occurrence
   let costUsd: number | undefined;
   if (typeof outputValue === "string") {
-    // Find all cost markers in the string
-    const allMatches = Array.from(
-      outputValue.matchAll(TOOL_COST_MARKER_PATTERN)
-    );
-
-    if (allMatches.length > 0) {
-      // Use the last match (most recent cost if multiple markers exist)
-      const lastMatch = allMatches[allMatches.length - 1];
-      const costValue = parseInt(lastMatch[1], 10);
-
-      // Validate the cost value
-      if (!isNaN(costValue) && costValue >= 0) {
-        costUsd = costValue;
-
-        // Remove ALL cost markers from the string (not just the last one)
-        // This ensures clean output even if multiple markers were accidentally added
-        outputValue = outputValue.replace(TOOL_COST_MARKER_PATTERN, "");
-
-        // Clean up any trailing whitespace/newlines left by marker removal
-        outputValue = outputValue.trimEnd();
-      }
-    }
+    const { costUsd: extractedCost, processedResult } =
+      extractToolCostFromResult(outputValue);
+    costUsd = extractedCost;
+    outputValue = processedResult;
 
     // Truncate if string (after cost extraction)
     if (outputValue.length > MAX_RESULT_LENGTH) {

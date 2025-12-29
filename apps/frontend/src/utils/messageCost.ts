@@ -25,8 +25,13 @@ export interface MessageCostResult {
  * For assistant messages: Returns the best available cost (finalCostUsd > provisionalCostUsd)
  * For tool messages: Returns individual costs for each tool result
  *
- * Note: Calculated costs from tokenUsage are handled on the backend only.
- * The frontend will display finalCostUsd or provisionalCostUsd if available.
+ * NOTE: This function intentionally omits token-based cost calculation that exists in the
+ * backend version (`apps/backend/src/utils/messageCostCalculation.ts`). Token-based costs
+ * are calculated and stored on the backend, and the frontend only displays costs that have
+ * already been calculated (finalCostUsd or provisionalCostUsd). This separation ensures:
+ * 1. Cost calculation logic stays on the backend where pricing data is available
+ * 2. Frontend remains lightweight and doesn't duplicate complex pricing logic
+ * 3. Consistency: all cost calculations use the same backend pricing tables
  *
  * @param message - The message to get cost for
  * @returns MessageCostResult with cost information, or undefined if no cost available
@@ -35,20 +40,13 @@ export function getMessageCost(
   message: ConversationDetail["messages"][number]
 ): MessageCostResult | undefined {
   // Type guard: ensure message is an object with a role property
-  if (
-    typeof message !== "object" ||
-    message === null ||
-    !("role" in message)
-  ) {
+  if (typeof message !== "object" || message === null || !("role" in message)) {
     return undefined;
   }
 
   if (message.role === "assistant") {
     // Prefer finalCostUsd if available (indicates final cost)
-    if (
-      "finalCostUsd" in message &&
-      typeof message.finalCostUsd === "number"
-    ) {
+    if ("finalCostUsd" in message && typeof message.finalCostUsd === "number") {
       return {
         costUsd: message.finalCostUsd,
         isFinal: true,
@@ -112,4 +110,3 @@ export function getMessageCost(
   // Other message types (user, system) have no costs
   return undefined;
 }
-

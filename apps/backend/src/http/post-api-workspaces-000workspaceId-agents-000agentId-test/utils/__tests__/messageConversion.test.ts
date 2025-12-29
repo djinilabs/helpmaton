@@ -9,6 +9,7 @@ import { describe, it, expect } from "vitest";
 import {
   createToolResultPart,
   convertUIMessagesToModelMessages,
+  convertAiSdkUIMessageToUIMessage,
 } from "../messageConversion";
 import type { UIMessage } from "../types";
 
@@ -225,5 +226,181 @@ describe("convertUIMessagesToModelMessages", () => {
     ) as AssistantModelMessage;
     expect(toolCallMessage).toBeDefined();
     expect(Array.isArray(toolCallMessage.content)).toBe(true);
+  });
+
+  describe("convertAiSdkUIMessageToUIMessage - cost extraction", () => {
+    it("should extract cost from assistant message with tool-result parts", () => {
+      const message = {
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-result",
+            toolCallId: "call-123",
+            toolName: "search_web",
+            result: "Search results__HM_TOOL_COST__:8000",
+          },
+        ],
+      };
+
+      const result = convertAiSdkUIMessageToUIMessage(message);
+      expect(result).not.toBeNull();
+      if (result && Array.isArray(result.content)) {
+        const toolResult = result.content.find(
+          (item) =>
+            typeof item === "object" &&
+            item !== null &&
+            "type" in item &&
+            item.type === "tool-result"
+        ) as
+          | { type: "tool-result"; costUsd?: number; result: unknown }
+          | undefined;
+        expect(toolResult?.costUsd).toBe(8000);
+        expect(toolResult?.result).toBe("Search results");
+      }
+    });
+
+    it("should extract cost from tool message with tool-result parts", () => {
+      const message = {
+        role: "tool",
+        parts: [
+          {
+            type: "tool-result",
+            toolCallId: "call-123",
+            toolName: "search_web",
+            output: "Results__HM_TOOL_COST__:8000",
+          },
+        ],
+      };
+
+      const result = convertAiSdkUIMessageToUIMessage(message);
+      expect(result).not.toBeNull();
+      if (result && result.role === "tool" && Array.isArray(result.content)) {
+        const toolResult = result.content[0] as {
+          type: "tool-result";
+          costUsd?: number;
+          result: unknown;
+        };
+        expect(toolResult.costUsd).toBe(8000);
+        expect(toolResult.result).toBe("Results");
+      }
+    });
+
+    it("should use last cost marker when multiple markers exist", () => {
+      const message = {
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-result",
+            toolCallId: "call-123",
+            toolName: "search_web",
+            result:
+              "Result__HM_TOOL_COST__:1000__HM_TOOL_COST__:2000__HM_TOOL_COST__:3000",
+          },
+        ],
+      };
+
+      const result = convertAiSdkUIMessageToUIMessage(message);
+      expect(result).not.toBeNull();
+      if (result && Array.isArray(result.content)) {
+        const toolResult = result.content.find(
+          (item) =>
+            typeof item === "object" &&
+            item !== null &&
+            "type" in item &&
+            item.type === "tool-result"
+        ) as
+          | { type: "tool-result"; costUsd?: number; result: unknown }
+          | undefined;
+        expect(toolResult?.costUsd).toBe(3000);
+        expect(toolResult?.result).toBe("Result");
+      }
+    });
+
+    it("should not extract cost when marker is missing", () => {
+      const message = {
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-result",
+            toolCallId: "call-123",
+            toolName: "search_web",
+            result: "Search results",
+          },
+        ],
+      };
+
+      const result = convertAiSdkUIMessageToUIMessage(message);
+      expect(result).not.toBeNull();
+      if (result && Array.isArray(result.content)) {
+        const toolResult = result.content.find(
+          (item) =>
+            typeof item === "object" &&
+            item !== null &&
+            "type" in item &&
+            item.type === "tool-result"
+        ) as
+          | { type: "tool-result"; costUsd?: number; result: unknown }
+          | undefined;
+        expect(toolResult?.costUsd).toBeUndefined();
+        expect(toolResult?.result).toBe("Search results");
+      }
+    });
+
+    it("should handle zero cost", () => {
+      const message = {
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-result",
+            toolCallId: "call-123",
+            toolName: "search_web",
+            result: "Free result__HM_TOOL_COST__:0",
+          },
+        ],
+      };
+
+      const result = convertAiSdkUIMessageToUIMessage(message);
+      expect(result).not.toBeNull();
+      if (result && Array.isArray(result.content)) {
+        const toolResult = result.content.find(
+          (item) =>
+            typeof item === "object" &&
+            item !== null &&
+            "type" in item &&
+            item.type === "tool-result"
+        ) as
+          | { type: "tool-result"; costUsd?: number; result: unknown }
+          | undefined;
+        expect(toolResult?.costUsd).toBe(0);
+        expect(toolResult?.result).toBe("Free result");
+      }
+    });
+
+    it("should prefer output property over result property for cost extraction", () => {
+      const message = {
+        role: "tool",
+        parts: [
+          {
+            type: "tool-result",
+            toolCallId: "call-123",
+            toolName: "search_web",
+            output: "Output with cost__HM_TOOL_COST__:8000",
+            result: "Result without cost",
+          },
+        ],
+      };
+
+      const result = convertAiSdkUIMessageToUIMessage(message);
+      expect(result).not.toBeNull();
+      if (result && result.role === "tool" && Array.isArray(result.content)) {
+        const toolResult = result.content[0] as {
+          type: "tool-result";
+          costUsd?: number;
+          result: unknown;
+        };
+        expect(toolResult.costUsd).toBe(8000);
+        expect(toolResult.result).toBe("Output with cost");
+      }
+    });
   });
 });
