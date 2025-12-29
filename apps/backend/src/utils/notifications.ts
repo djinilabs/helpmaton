@@ -1,6 +1,7 @@
 import type { OutputChannelRecord } from "../tables/schema";
 
 import { sendDiscordMessage } from "./discord";
+import { sendSlackMessage } from "./slack";
 
 /**
  * Send a notification to a channel based on its type
@@ -23,6 +24,14 @@ export async function sendNotification(
     }
 
     await sendDiscordMessage(config.botToken, config.discordChannelId, content);
+  } else if (channel.type === "slack") {
+    const config = channel.config as { webhookUrl?: string };
+    
+    if (!config.webhookUrl) {
+      throw new Error("Slack webhook URL is missing in channel configuration");
+    }
+
+    await sendSlackMessage(config.webhookUrl, content);
   } else {
     throw new Error(`Unsupported channel type: ${channel.type}`);
   }
