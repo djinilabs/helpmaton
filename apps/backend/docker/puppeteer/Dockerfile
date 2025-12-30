@@ -48,14 +48,40 @@ RUN pnpm install --prod && \
 # Install Chrome for arm64
 # @puppeteer/browsers doesn't respect --platform flag when building in x86_64 emulator
 # So we manually download the arm64 Chrome binary from Google's CDN
-ARG CHROME_VERSION=131.0.6778.85
+# Query Chrome for Testing API to get the correct download URL for latest stable arm64
 RUN mkdir -p /opt/chrome/chrome-linux-arm64 && \
     cd /opt/chrome/chrome-linux-arm64 && \
-    wget -q "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux-arm64/chrome-linux-arm64.zip" && \
+    echo "Querying Chrome for Testing API for latest stable arm64 version..." && \
+    API_RESPONSE=$(wget -qO- "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" 2>/dev/null) && \
+    CHROME_URL=$(echo "$API_RESPONSE" | grep -o "\"url\":\"[^\"]*linux-arm64[^\"]*\.zip\"" | grep -i "stable\|chrome" | head -1 | cut -d'"' -f4) && \
+    if [ -z "$CHROME_URL" ]; then \
+    echo "Could not parse URL from API, extracting version and constructing URL..." && \
+    STABLE_VERSION=$(echo "$API_RESPONSE" | grep -o "\"version\":\"[0-9.]*\"" | head -1 | cut -d'"' -f4) && \
+    echo "Latest stable version: $STABLE_VERSION" && \
+    CHROME_URL="https://storage.googleapis.com/chrome-for-testing-public/${STABLE_VERSION}/linux-arm64/chrome-linux-arm64.zip"; \
+    fi && \
+    echo "Downloading Chrome from: $CHROME_URL" && \
+    wget --tries=3 --timeout=60 "$CHROME_URL" -O chrome-linux-arm64.zip || \
+    (echo "ERROR: Failed to download Chrome (exit code: $?)" && \
+    echo "Attempted URL: $CHROME_URL" && \
+    exit 1) && \
+    if [ ! -f chrome-linux-arm64.zip ] || [ ! -s chrome-linux-arm64.zip ]; then \
+    echo "ERROR: Failed to download Chrome binary or file is empty" && \
+    ls -lh chrome-linux-arm64.zip 2>/dev/null || echo "File does not exist" && \
+    exit 1; \
+    fi && \
+    echo "Downloaded $(du -h chrome-linux-arm64.zip | cut -f1)" && \
     unzip -q chrome-linux-arm64.zip && \
+    if [ -d chrome-linux-arm64 ]; then \
     mv chrome-linux-arm64/* . && \
-    rmdir chrome-linux-arm64 && \
-    rm chrome-linux-arm64.zip && \
+    rmdir chrome-linux-arm64; \
+    fi && \
+    rm -f chrome-linux-arm64.zip && \
+    if [ ! -f chrome ]; then \
+    echo "ERROR: Chrome executable not found after extraction" && \
+    ls -la && \
+    exit 1; \
+    fi && \
     chmod +x chrome && \
     echo "Chrome installed at: /opt/chrome/chrome-linux-arm64/chrome"
 
