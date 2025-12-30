@@ -1384,36 +1384,7 @@ function createApp(): express.Application {
       // Set realistic user agent and viewport to appear more human-like
       // Use a common Windows Chrome user agent (Windows is more common than Mac)
       // The stealth plugin will also help mask automation, but we set a realistic UA here
-      await page.setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-      );
       await page.setViewport({ width: 1920, height: 1080 });
-      await page.setExtraHTTPHeaders({
-        "Accept-Language": "en-US,en;q=0.9",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Encoding": "gzip, deflate, br",
-        Connection: "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-      });
-
-      // Remove webdriver property to avoid detection
-      await page.evaluateOnNewDocument(() => {
-        // Remove webdriver property
-        Object.defineProperty(navigator, "webdriver", {
-          get: () => false,
-        });
-
-        // Override plugins to appear more realistic
-        Object.defineProperty(navigator, "plugins", {
-          get: () => [1, 2, 3, 4, 5],
-        });
-
-        // Override languages
-        Object.defineProperty(navigator, "languages", {
-          get: () => ["en-US", "en"],
-        });
-      });
 
       // Authenticate with proxy if credentials provided
       if (username && password && browser) {
@@ -1427,7 +1398,7 @@ function createApp(): express.Application {
       // Navigate to URL and wait for client-side content
       await page.goto(url, {
         waitUntil: "networkidle2",
-        timeout: 60000,
+        timeout: 300000, // 5 minutes timeout
       });
 
       // Wait for content to load BEFORE checking for CAPTCHAs or extracting AOM
