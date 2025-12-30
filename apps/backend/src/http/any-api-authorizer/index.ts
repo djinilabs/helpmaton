@@ -29,6 +29,9 @@ initSentry();
  * - /api/webhook/:workspaceId/:agentId/:key
  * - /api/workspaces/:workspaceId/...
  * - Other patterns with workspaceId parameter
+ * 
+ * Note: Paths without workspace IDs (e.g., /api/scrape) will return null,
+ * and the authorizer will fall back to user-based authentication.
  */
 function extractWorkspaceIdFromPath(path: string): string | null {
   // Pattern 1: /api/webhook/:workspaceId/:agentId/:key
