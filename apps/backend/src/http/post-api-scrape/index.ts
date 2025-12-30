@@ -342,22 +342,59 @@ function delay(ms: number): Promise<void> {
  */
 async function extractAOM(page: Page): Promise<string> {
   // Wait for initial page load
-  await delay(2000);
+  await delay(3000);
 
   // For Reddit and similar sites, wait for content to appear
+  // Reddit loads content asynchronously via faceplate-partial and JavaScript
+  // Wait for substantial content to appear (not just navigation)
   try {
-    // Wait for common content indicators (posts, articles, main content)
     await page
-      .waitForSelector(
-        "article, [class*='post'], [class*='Post'], [data-testid*='post'], main, [role='article']",
-        { timeout: 10000 }
+      .waitForFunction(
+        () => {
+          // Check if there's substantial text content (more than just navigation)
+          const bodyText = document.body?.innerText || "";
+          const hasSubstantialContent = bodyText.length > 1000;
+
+          // Check for Reddit comment/post content indicators
+          // Reddit uses various selectors for comments and posts
+          const hasCommentContent =
+            document.querySelector("[data-testid*='comment']") !== null ||
+            document.querySelector("[class*='Comment']") !== null ||
+            document.querySelector("[class*='comment']") !== null ||
+            document.querySelector("shreddit-comment") !== null ||
+            document.querySelector("faceplate-tracker[source='comments']") !==
+              null;
+
+          const hasPostContent =
+            document.querySelector("[data-testid*='post']") !== null ||
+            document.querySelector("[class*='Post']") !== null ||
+            document.querySelector("[class*='post']") !== null ||
+            document.querySelector("shreddit-post") !== null;
+
+          // For Reddit, look for specific content patterns
+          // Reddit comment pages have specific structure
+          const hasRedditStructure =
+            document.querySelector("shreddit-app") !== null &&
+            (hasCommentContent || hasPostContent || hasSubstantialContent);
+
+          return hasSubstantialContent || hasRedditStructure;
+        },
+        { timeout: 20000 }
       )
       .catch(() => {
-        // If selector doesn't appear, continue anyway
+        console.warn("[scrape] Content wait timeout, proceeding anyway");
       });
   } catch {
     // Continue if waiting fails
   }
+
+  // Additional wait for JavaScript-heavy sites like Reddit
+  // Reddit loads content in multiple phases via async requests
+  await delay(5000);
+
+  // Additional wait for JavaScript-heavy sites like Reddit
+  // Reddit loads content in multiple phases
+  await delay(5000);
 
   // Scroll page multiple times to trigger lazy-loaded content
   for (let i = 0; i < 3; i++) {
@@ -373,11 +410,115 @@ async function extractAOM(page: Page): Promise<string> {
   });
   await delay(1000);
 
+  // Debug: Print comprehensive DOM structure to console before extraction
+  const domDebug = await page.evaluate(() => {
+    // Helper to extract from Shadow DOM
+    function getShadowDOMText(element: Element): string {
+      if (element.shadowRoot) {
+        return element.shadowRoot.textContent || "";
+      }
+      return "";
+    }
+
+    // Get all body children with their structure
+    const bodyChildren = Array.from(document.body?.children || []).map(
+      (child, index) => {
+        const tagName = child.tagName.toLowerCase();
+        const hasShadow = child.shadowRoot !== null;
+        const shadowText = hasShadow ? getShadowDOMText(child) : "";
+        const regularText =
+          (child as HTMLElement).innerText || child.textContent || "";
+
+        return {
+          index,
+          tagName,
+          className: child.className || "",
+          id: child.id || "",
+          hasShadowDOM: hasShadow,
+          textLength: regularText.length,
+          shadowTextLength: shadowText.length,
+          textPreview: regularText.substring(0, 300),
+          shadowTextPreview: shadowText.substring(0, 300),
+          childrenCount: child.children.length,
+          innerHTMLPreview: child.innerHTML.substring(0, 500),
+        };
+      }
+    );
+
+    const debugInfo = {
+      title: document.title,
+      url: window.location.href,
+      bodyTextLength: document.body?.innerText?.length || 0,
+      bodyTextPreview: document.body?.innerText?.substring(0, 1000) || "",
+      bodyHTML: document.body?.innerHTML || "",
+      bodyChildrenCount: document.body?.children.length || 0,
+      bodyChildren: bodyChildren,
+      mainElements: {
+        main:
+          document.querySelector("main")?.innerText?.substring(0, 500) || null,
+        article:
+          document.querySelector("article")?.innerText?.substring(0, 500) ||
+          null,
+        shredditApp: document.querySelector("shreddit-app")
+          ? {
+              hasShadow:
+                document.querySelector("shreddit-app")?.shadowRoot !== null,
+              shadowText: getShadowDOMText(
+                document.querySelector("shreddit-app")!
+              ),
+              innerText:
+                (
+                  document.querySelector("shreddit-app") as HTMLElement
+                )?.innerText?.substring(0, 500) || "",
+            }
+          : null,
+        posts: Array.from(
+          document.querySelectorAll(
+            "[class*='post'], [class*='Post'], [data-testid*='post']"
+          )
+        )
+          .slice(0, 5)
+          .map((el) => ({
+            tagName: el.tagName,
+            className: el.className,
+            textPreview: (el as HTMLElement).innerText?.substring(0, 300) || "",
+            hasShadow: el.shadowRoot !== null,
+          })),
+      },
+    };
+    return debugInfo;
+  });
+
+  console.log("[scrape] DOM Debug Info:", JSON.stringify(domDebug, null, 2));
+
   // Enhanced extraction: Get text content, headers, and structured content
   const aom = (await page.evaluate((): Record<string, unknown> => {
-    function extractTextContent(element: Element): string {
-      // Get all text nodes recursively, excluding script/style content
+    /**
+     * Extract text from Shadow DOM recursively
+     */
+    function extractFromShadowDOM(element: Element): string {
       let text = "";
+      // Check if element has shadow root
+      if (element.shadowRoot) {
+        const shadowText = extractTextContent(
+          element.shadowRoot as unknown as Element
+        );
+        if (shadowText) {
+          text += shadowText + " ";
+        }
+        // Also process children in shadow DOM
+        for (const child of Array.from(element.shadowRoot.children)) {
+          text += extractFromShadowDOM(child) + " ";
+        }
+      }
+      return text.trim();
+    }
+
+    function extractTextContent(element: Element): string {
+      // First, try to extract from Shadow DOM if present
+      let text = extractFromShadowDOM(element);
+
+      // Get all text nodes recursively, excluding script/style content
       const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
         acceptNode: (node) => {
           // Skip text nodes inside script, style, or other non-content elements
@@ -406,7 +547,100 @@ async function extractAOM(page: Page): Promise<string> {
       return text.trim();
     }
 
+    /**
+     * Find elements in Shadow DOM
+     */
+    function findInShadowDOM(root: Element, selector: string): Element | null {
+      // Check shadow root
+      if (root.shadowRoot) {
+        const found = root.shadowRoot.querySelector(selector);
+        if (found) {
+          return found;
+        }
+        // Recursively check children
+        for (const child of Array.from(root.shadowRoot.children)) {
+          const found = findInShadowDOM(child, selector);
+          if (found) {
+            return found;
+          }
+        }
+      }
+      return null;
+    }
+
     function findMainContent(): Element | null {
+      // For Reddit, look for actual post/comment content
+      // Reddit uses various selectors for comments and posts
+      const commentSelectors = [
+        "[data-testid*='comment']",
+        "[class*='Comment']",
+        "[class*='comment']",
+        "shreddit-comment",
+        "[id*='comment']",
+      ];
+
+      const postSelectors = [
+        "[data-testid*='post']",
+        "[class*='Post']",
+        "[class*='post']",
+        "shreddit-post",
+        "[id*='post']",
+      ];
+
+      // Try to find comment content first (most specific)
+      for (const selector of commentSelectors) {
+        try {
+          const element = document.querySelector(selector);
+          if (element) {
+            const text =
+              (element as HTMLElement).innerText || element.textContent || "";
+            if (text.length > 100) {
+              return element;
+            }
+          }
+        } catch {
+          // Invalid selector, continue
+        }
+      }
+
+      // Try to find post content
+      for (const selector of postSelectors) {
+        try {
+          const element = document.querySelector(selector);
+          if (element) {
+            const text =
+              (element as HTMLElement).innerText || element.textContent || "";
+            if (text.length > 100) {
+              return element;
+            }
+          }
+        } catch {
+          // Invalid selector, continue
+        }
+      }
+
+      // For Reddit, look for shreddit-app and extract from it
+      const shredditApp = document.querySelector("shreddit-app");
+      if (shredditApp) {
+        // Try to find main content inside shreddit-app or its shadow DOM
+        const mainInShreddit =
+          shredditApp.querySelector("main") ||
+          shredditApp.querySelector("[role='main']") ||
+          findInShadowDOM(shredditApp, "main") ||
+          findInShadowDOM(shredditApp, "[role='main']");
+        if (mainInShreddit) {
+          return mainInShreddit;
+        }
+        // If no main found, use shreddit-app itself if it has substantial content
+        const shredditText =
+          (shredditApp as HTMLElement).innerText ||
+          shredditApp.textContent ||
+          "";
+        if (shredditText.length > 1000) {
+          return shredditApp;
+        }
+      }
+
       // Remove navigation, header, footer, and sidebar elements first
       const elementsToRemove = [
         "nav",
@@ -426,13 +660,19 @@ async function extractAOM(page: Page): Promise<string> {
         "[id*='header']",
         "[id*='footer']",
         "[id*='sidebar']",
+        "a[href='#main-content']", // Skip to main content link
+        "#shreddit-skip-link",
       ];
 
       elementsToRemove.forEach((selector) => {
         try {
           document.querySelectorAll(selector).forEach((el) => {
             // Don't remove if it's inside main content
-            if (!el.closest("main, article, [role='main'], [role='article']")) {
+            if (
+              !el.closest(
+                "main, article, [role='main'], [role='article'], shreddit-app"
+              )
+            ) {
               el.remove();
             }
           });
@@ -558,8 +798,10 @@ async function extractAOM(page: Page): Promise<string> {
         node.invalid = element.getAttribute("aria-invalid") === "true";
       }
 
-      // Recursively process children
+      // Recursively process children (including Shadow DOM)
       const children: Record<string, unknown>[] = [];
+
+      // Process regular children
       for (const child of Array.from(element.children)) {
         // Skip script, style, and other non-content elements
         const childTagName = child.tagName.toLowerCase();
@@ -577,6 +819,21 @@ async function extractAOM(page: Page): Promise<string> {
         ) {
           const childNode = buildAOMNode(child, includeText);
           // Only include child if it has meaningful content
+          const hasContent =
+            childNode.name ||
+            childNode.value ||
+            (Array.isArray(childNode.children) &&
+              childNode.children.length > 0);
+          if (hasContent) {
+            children.push(childNode);
+          }
+        }
+      }
+
+      // Process Shadow DOM children if present
+      if (element.shadowRoot) {
+        for (const child of Array.from(element.shadowRoot.children)) {
+          const childNode = buildAOMNode(child, includeText);
           const hasContent =
             childNode.name ||
             childNode.value ||
