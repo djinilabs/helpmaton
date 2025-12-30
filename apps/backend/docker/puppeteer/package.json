@@ -5,6 +5,8 @@
   "description": "Minimal runtime dependencies for Puppeteer Lambda container",
   "dependencies": {
     "puppeteer-core": "^23.0.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-recaptcha": "^3.6.8",
     "@puppeteer/browsers": "^2.6.1"
   },
   "pnpm": {

@@ -67,6 +67,7 @@ const ENV_VARS_TO_INJECT = [
   'JINA_API_KEY',
   'EXA_API_KEY',
   'DECODO_PROXY_URLS',
+  'TWOCAPTCHA_API_KEY',
 ];
 
 /**

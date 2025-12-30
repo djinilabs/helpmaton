@@ -11,8 +11,12 @@ import type {
 import express from "express";
 import { jwtDecrypt } from "jose";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - puppeteer-core is installed in container image
-import puppeteer, { type Browser, type Page } from "puppeteer-core";
+// @ts-ignore - puppeteer-extra is installed in container image
+import type { Browser, Page } from "puppeteer-core";
+import puppeteer from "puppeteer-extra";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - puppeteer-extra-plugin-recaptcha is installed in container image
+import RecaptchaPlugin from "puppeteer-extra-plugin-recaptcha";
 
 import { database } from "../../tables";
 import {
@@ -1170,6 +1174,35 @@ async function setupResourceBlocking(page: Page): Promise<void> {
 }
 
 /**
+ * Configure Puppeteer with reCAPTCHA plugin
+ * Uses 2Captcha as the provider for solving CAPTCHAs
+ */
+function configurePuppeteer(): void {
+  const twoCaptchaApiKey = process.env.TWOCAPTCHA_API_KEY;
+
+  if (twoCaptchaApiKey) {
+    // Configure reCAPTCHA plugin with 2Captcha
+    puppeteer.use(
+      RecaptchaPlugin({
+        provider: {
+          id: "2captcha",
+          token: twoCaptchaApiKey,
+        },
+        visualFeedback: true, // Show a notification when solving a CAPTCHA
+      })
+    );
+    console.log("[scrape] Puppeteer configured with 2Captcha reCAPTCHA solver");
+  } else {
+    console.warn(
+      "[scrape] TWOCAPTCHA_API_KEY not set - CAPTCHA solving will not be available"
+    );
+  }
+}
+
+// Configure Puppeteer on module load
+configurePuppeteer();
+
+/**
  * Create Express app for scrape endpoint
  */
 function createApp(): express.Application {
@@ -1288,6 +1321,10 @@ function createApp(): express.Application {
         ],
       });
 
+      if (!browser) {
+        throw internal("Failed to launch browser");
+      }
+
       const page = await browser.newPage();
 
       // Set realistic user agent and viewport to appear more human-like
@@ -1323,7 +1360,7 @@ function createApp(): express.Application {
       });
 
       // Authenticate with proxy if credentials provided
-      if (username && password) {
+      if (username && password && browser) {
         await page.authenticate({ username, password });
       }
 
@@ -1336,13 +1373,43 @@ function createApp(): express.Application {
         timeout: 60000,
       });
 
-      // Check for CAPTCHA before extracting AOM
+      // Wait a bit for any CAPTCHAs to be detected and solved by the plugin
+      // The puppeteer-extra-plugin-recaptcha automatically solves reCAPTCHAs when detected
+      await delay(3000);
+
+      // Check for CAPTCHA after navigation
+      // The plugin should have solved it automatically, but we check to provide feedback
       const hasCaptcha = await detectCaptcha(page);
       if (hasCaptcha) {
-        throw badRequest(
-          "The requested URL requires human verification (CAPTCHA). " +
-            "This page cannot be scraped automatically. Please try a different URL or use an alternative data source."
-        );
+        const twoCaptchaApiKey = process.env.TWOCAPTCHA_API_KEY;
+
+        if (twoCaptchaApiKey) {
+          console.log(
+            "[scrape] CAPTCHA detected, waiting for automatic solving..."
+          );
+          // Give the plugin more time to solve (it works automatically in the background)
+          // The plugin typically takes 10-30 seconds to solve a CAPTCHA
+          await delay(35000); // Wait up to 35 seconds for solving
+
+          // Re-check for CAPTCHA after waiting
+          const stillHasCaptcha = await detectCaptcha(page);
+          if (stillHasCaptcha) {
+            console.warn(
+              "[scrape] CAPTCHA solving failed or CAPTCHA still present after timeout"
+            );
+            throw badRequest(
+              "The requested URL requires human verification (CAPTCHA). " +
+                "Automatic CAPTCHA solving timed out or failed. Please try again or use an alternative data source."
+            );
+          } else {
+            console.log("[scrape] CAPTCHA solved successfully by plugin");
+          }
+        } else {
+          throw badRequest(
+            "The requested URL requires human verification (CAPTCHA). " +
+              "This page cannot be scraped automatically. Please try a different URL or use an alternative data source."
+          );
+        }
       }
 
       // Extract AOM
