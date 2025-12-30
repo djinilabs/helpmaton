@@ -4442,7 +4442,8 @@
                   "type": {
                     "type": "string",
                     "enum": [
-                      "discord"
+                      "discord",
+                      "slack"
                     ],
                     "description": "Channel type"
                   },
@@ -4461,6 +4462,10 @@
                       "discordChannelId": {
                         "type": "string",
                         "description": "Discord channel ID (required for discord type)"
+                      },
+                      "webhookUrl": {
+                        "type": "string",
+                        "description": "Slack webhook URL (required for slack type)"
                       }
                     }
                   }
@@ -6234,6 +6239,145 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/transactions": {
+      "get": {
+        "summary": "List workspace transactions",
+        "description": "Returns paginated list of credit transactions for a workspace, sorted by most recent first",
+        "tags": [
+          "Workspaces"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of transactions to return (1-100, default 50)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Pagination cursor from previous response",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of transactions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "transactions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "workspaceId": {
+                            "type": "string"
+                          },
+                          "agentId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "conversationId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "embedding-generation",
+                              "text-generation",
+                              "tool-execution"
+                            ]
+                          },
+                          "supplier": {
+                            "type": "string",
+                            "enum": [
+                              "openrouter",
+                              "tavily"
+                            ]
+                          },
+                          "model": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "tool_call": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "amountMillionthUsd": {
+                            "type": "integer"
+                          },
+                          "workspaceCreditsBeforeMillionthUsd": {
+                            "type": "integer"
+                          },
+                          "workspaceCreditsAfterMillionthUsd": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Cursor for next page of results"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/invites": {
       "get": {
         "summary": "List workspace invites",
@@ -7107,6 +7251,161 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/transactions": {
+      "get": {
+        "summary": "List agent transactions",
+        "description": "Returns paginated list of credit transactions for an agent, sorted by most recent first",
+        "tags": [
+          "Agents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of transactions to return (1-100, default 50)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Pagination cursor from previous response",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of transactions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "transactions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "workspaceId": {
+                            "type": "string"
+                          },
+                          "agentId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "conversationId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "embedding-generation",
+                              "text-generation",
+                              "tool-execution"
+                            ]
+                          },
+                          "supplier": {
+                            "type": "string",
+                            "enum": [
+                              "openrouter",
+                              "tavily"
+                            ]
+                          },
+                          "model": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "tool_call": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "amountMillionthUsd": {
+                            "type": "integer"
+                          },
+                          "workspaceCreditsBeforeMillionthUsd": {
+                            "type": "integer"
+                          },
+                          "workspaceCreditsAfterMillionthUsd": {
+                            "type": "integer"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Cursor for next page of results"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/agents/{agentId}/conversations": {
       "get": {
         "summary": "List agent conversations",
@@ -7286,18 +7585,6 @@
                       "type": "string"
                     },
                     "messages": {
-                      "type": "array",
-                      "items": {
-                        "type": "object"
-                      }
-                    },
-                    "toolCalls": {
-                      "type": "array",
-                      "items": {
-                        "type": "object"
-                      }
-                    },
-                    "toolResults": {
                       "type": "array",
                       "items": {
                         "type": "object"

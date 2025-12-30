@@ -124,6 +124,10 @@ const config = {
     '@lancedb/lancedb-linux-x64',
     '@lancedb/lancedb-win32-x64',
     '@lancedb/*',
+    // Puppeteer packages - installed in Docker container, not bundled
+    'puppeteer-core',
+    'puppeteer-extra',
+    'puppeteer-extra-plugin-recaptcha',
     // Native .node files
     '*.node',
   ],
