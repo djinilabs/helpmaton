@@ -43,23 +43,32 @@ COPY apps/backend/docker/puppeteer/package.json ./
 RUN pnpm install --prod && \
     rm -rf /root/.pnpm-store /root/.local/share/pnpm
 
-# Install Chromium for arm64
-# Chrome for Testing doesn't provide linux-arm64 builds in stable channel
-# So we install Chromium from the system package manager (Amazon Linux 2023)
-# Chromium is compatible with Puppeteer and works on arm64
-RUN dnf install -y chromium && \
-    mkdir -p /opt/chrome/chrome-linux-arm64 && \
-    if [ -f /usr/bin/chromium-browser ]; then \
-    ln -sf /usr/bin/chromium-browser /opt/chrome/chrome-linux-arm64/chrome; \
-    elif [ -f /usr/bin/chromium ]; then \
-    ln -sf /usr/bin/chromium /opt/chrome/chrome-linux-arm64/chrome; \
-    else \
-    echo "ERROR: Chromium not found after installation" && \
-    find /usr -name "*chromium*" 2>/dev/null && \
+# Install Chrome for arm64 using @puppeteer/browsers
+# Note: @puppeteer/browsers may download wrong architecture when building in x86_64 emulator
+# We'll install and then verify/error if wrong architecture
+RUN mkdir -p /opt/chrome && \
+    echo "Installing Chrome using @puppeteer/browsers with platform=linux_arm..." && \
+    echo "Build architecture: $(uname -m)" && \
+    npx @puppeteer/browsers install chrome@stable --path=/opt/chrome --platform=linux_arm && \
+    CHROME_PATH=$(find /opt/chrome -name "chrome" -type f -executable 2>/dev/null | head -1) && \
+    if [ -z "$CHROME_PATH" ]; then \
+    echo "ERROR: Chrome executable not found after installation" && \
+    find /opt/chrome -type f 2>/dev/null | head -20 && \
     exit 1; \
     fi && \
+    echo "Found Chrome at: $CHROME_PATH" && \
+    BINARY_INFO=$(file "$CHROME_PATH") && \
+    echo "Binary architecture: $BINARY_INFO" && \
+    if echo "$BINARY_INFO" | grep -q "x86-64\|x86_64"; then \
+    echo "ERROR: @puppeteer/browsers downloaded x86_64 binary instead of arm64" && \
+    echo "This is a known issue when building in x86_64 emulator" && \
+    echo "The --platform flag is not being respected" && \
+    exit 1; \
+    fi && \
+    mkdir -p /opt/chrome/chrome-linux-arm64 && \
+    ln -sf "$CHROME_PATH" /opt/chrome/chrome-linux-arm64/chrome && \
     chmod +x /opt/chrome/chrome-linux-arm64/chrome && \
-    echo "Chromium installed at: /opt/chrome/chrome-linux-arm64/chrome"
+    echo "Chrome installed at: /opt/chrome/chrome-linux-arm64/chrome"
 
 # Verify Chrome installation and architecture
 RUN if [ ! -f "/opt/chrome/chrome-linux-arm64/chrome" ]; then \
