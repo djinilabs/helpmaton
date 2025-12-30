@@ -955,9 +955,10 @@ export function createScrapeFetchTool(
         let resultText = `**Content scraped from ${url}:**\n\n`;
         resultText += `**AOM (Accessibility Object Model) XML:**\n\`\`\`xml\n${xmlContent}\n\`\`\`\n`;
 
-        // Add cost marker (0.005 USD = 5000 millionths)
-        // Note: The scrape endpoint already handles credit transactions,
-        // so we only add the cost marker for tracking/display purposes
+        // Add cost marker (0.005 USD = 5000 millionths) for tracking/display only
+        // IMPORTANT: The scrape endpoint already charges credits directly via reserveCredits(),
+        // so this marker is ONLY for cost tracking/display in the test endpoint UI.
+        // It does NOT cause additional credit deduction - credits are charged once at the endpoint level.
         resultText += `\n\n__HM_TOOL_COST__:5000`;
 
         // Log tool result

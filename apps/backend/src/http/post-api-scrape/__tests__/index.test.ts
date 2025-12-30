@@ -161,21 +161,10 @@ describe("POST /api/scrape", () => {
     });
   });
 
-  describe("Error handling", () => {
-    it("should handle Puppeteer launch failures gracefully", async () => {
-      // This would be tested in integration tests
-      // Mock would throw error in launch()
-      expect(true).toBe(true);
-    });
-
-    it("should handle page navigation timeouts", async () => {
-      // This would be tested in integration tests
-      expect(true).toBe(true);
-    });
-
-    it("should handle proxy authentication errors", async () => {
-      // This would be tested in integration tests
-      expect(true).toBe(true);
-    });
-  });
+  // Note: Error handling tests for Puppeteer launch failures, navigation timeouts,
+  // and proxy authentication errors would require integration tests with actual
+  // Puppeteer instances. These scenarios are better tested in E2E tests or
+  // integration test suites that can mock browser behavior.
+  // The current unit tests focus on utility functions (proxy parsing, AOM conversion,
+  // resource blocking logic) which can be tested in isolation.
 });

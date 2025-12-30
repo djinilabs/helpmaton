@@ -163,7 +163,6 @@ const TRACKER_DOMAINS = [
   "pusher.com",
   "pubnub.com",
   "ably.com",
-  "pusher.com",
   "stream.io",
   "getstream.io",
   "layer.com",
@@ -208,19 +207,7 @@ const TRACKER_DOMAINS = [
   "cdn.tiny.cloud",
   "cdn.quilljs.com",
   "cdn.jsdelivr.net",
-  "cdnjs.cloudflare.com",
   "unpkg.com",
-  "cdn.jsdelivr.net",
-  "cdnjs.cloudflare.com",
-  "ajax.googleapis.com",
-  "ajax.aspnetcdn.com",
-  "cdn.sstatic.net",
-  "sstatic.net",
-  "cdn.mathjax.org",
-  "cdn.rawgit.com",
-  "cdn.ckeditor.com",
-  "cdn.tiny.cloud",
-  "cdn.quilljs.com",
 ];
 
 /**
@@ -290,25 +277,25 @@ export function aomToXml(node: Record<string, unknown>, indent = 0): string {
     attributes.push(`description="${escapeXml(node.description)}"`);
   }
   if (node.checked !== undefined) {
-    attributes.push(`checked="${node.checked}"`);
+    attributes.push(`checked="${escapeXml(String(node.checked))}"`);
   }
   if (node.selected !== undefined) {
-    attributes.push(`selected="${node.selected}"`);
+    attributes.push(`selected="${escapeXml(String(node.selected))}"`);
   }
   if (node.expanded !== undefined) {
-    attributes.push(`expanded="${node.expanded}"`);
+    attributes.push(`expanded="${escapeXml(String(node.expanded))}"`);
   }
   if (node.disabled !== undefined) {
-    attributes.push(`disabled="${node.disabled}"`);
+    attributes.push(`disabled="${escapeXml(String(node.disabled))}"`);
   }
   if (node.readonly !== undefined) {
-    attributes.push(`readonly="${node.readonly}"`);
+    attributes.push(`readonly="${escapeXml(String(node.readonly))}"`);
   }
   if (node.required !== undefined) {
-    attributes.push(`required="${node.required}"`);
+    attributes.push(`required="${escapeXml(String(node.required))}"`);
   }
   if (node.invalid !== undefined) {
-    attributes.push(`invalid="${node.invalid}"`);
+    attributes.push(`invalid="${escapeXml(String(node.invalid))}"`);
   }
 
   const attrsStr = attributes.length > 0 ? ` ${attributes.join(" ")}` : "";
@@ -586,11 +573,12 @@ async function extractWorkspaceContextFromToken(req: express.Request): Promise<{
 
 /**
  * Setup resource blocking on page
+ * Note: Event listener is automatically cleaned up when page is closed
  */
 async function setupResourceBlocking(page: Page): Promise<void> {
   await page.setRequestInterception(true);
 
-  page.on("request", (request: HTTPRequest) => {
+  const requestHandler = (request: HTTPRequest) => {
     const resourceType = request.resourceType();
     const url = request.url();
 
@@ -619,7 +607,9 @@ async function setupResourceBlocking(page: Page): Promise<void> {
     }
 
     request.continue();
-  });
+  };
+
+  page.on("request", requestHandler);
 }
 
 /**
@@ -673,6 +663,11 @@ function createApp(): express.Application {
         throw badRequest("url is required and must be a string");
       }
 
+      // Validate URL length (max 2048 characters to prevent abuse)
+      if (url.length > 2048) {
+        throw badRequest("url must be 2048 characters or less");
+      }
+
       // Validate URL format
       try {
         new URL(url);
@@ -691,7 +686,7 @@ function createApp(): express.Application {
         3, // maxRetries
         false, // usesByok
         context,
-        "openrouter", // provider
+        "scrape", // provider (scraping tool)
         "scrape", // modelName (using tool name as model)
         agentId,
         conversationId

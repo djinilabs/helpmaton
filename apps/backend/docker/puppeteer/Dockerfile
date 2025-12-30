@@ -46,8 +46,10 @@ RUN pnpm install --prod && \
     rm -rf /root/.pnpm-store /root/.local/share/pnpm
 
 # Install Chrome using @puppeteer/browsers
+# Pin Chrome version for reproducible builds (update periodically for security)
 # This downloads the Chrome binary for linux-arm64
-RUN npx @puppeteer/browsers install chrome@latest --path=/opt/chrome
+ARG CHROME_VERSION=chrome@131.0.6778.85
+RUN npx @puppeteer/browsers install ${CHROME_VERSION} --path=/opt/chrome
 
 # Move to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}
