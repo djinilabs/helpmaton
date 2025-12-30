@@ -530,9 +530,9 @@
         },
         "z-ai/glm-4.6": {
           "usd": {
-            "input": 0.39,
-            "output": 1.9,
-            "cachedInput": 0.03900000000000001
+            "input": 0.35,
+            "output": 1.5,
+            "cachedInput": 0.034999999999999996
           }
         },
         "z-ai/glm-4.6:exacto": {
@@ -2500,5 +2500,5 @@
       }
     }
   },
-  "lastUpdated": "2025-12-23T16:10:07.193Z"
+  "lastUpdated": "2025-12-30T00:15:00.824Z"
 }
