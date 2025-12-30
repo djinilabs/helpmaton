@@ -46,47 +46,23 @@ COPY apps/backend/docker/puppeteer/package.json ./
 RUN pnpm install --prod && \
     rm -rf /root/.pnpm-store /root/.local/share/pnpm
 
-# Install Chrome for arm64
-# @puppeteer/browsers doesn't respect --platform flag when building in x86_64 emulator
-# So we manually download the arm64 Chrome binary from Google's CDN
-# Query Chrome for Testing API to get the correct download URL for latest stable arm64
-# Use Python to properly parse JSON and extract the download URL
-RUN mkdir -p /opt/chrome/chrome-linux-arm64 && \
-    cd /opt/chrome/chrome-linux-arm64 && \
-    echo "Querying Chrome for Testing API for latest stable arm64 version..." && \
-    CHROME_URL=$(wget -qO- "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" 2>/dev/null | \
-    python3 -c "import sys, json; d=json.load(sys.stdin); \
-    downloads = d['channels']['Stable']['downloads']['chrome']; \
-    url = next((dl['url'] for dl in downloads if dl['platform'] == 'linux-arm64'), None); \
-    print(url if url else '')") && \
-    if [ -z "$CHROME_URL" ]; then \
-    echo "ERROR: Could not extract download URL from API response" && \
+# Install Chromium for arm64
+# Chrome for Testing doesn't provide linux-arm64 builds in stable channel
+# So we install Chromium from the system package manager (Amazon Linux 2023)
+# Chromium is compatible with Puppeteer and works on arm64
+RUN dnf install -y chromium && \
+    mkdir -p /opt/chrome/chrome-linux-arm64 && \
+    if [ -f /usr/bin/chromium-browser ]; then \
+    ln -sf /usr/bin/chromium-browser /opt/chrome/chrome-linux-arm64/chrome; \
+    elif [ -f /usr/bin/chromium ]; then \
+    ln -sf /usr/bin/chromium /opt/chrome/chrome-linux-arm64/chrome; \
+    else \
+    echo "ERROR: Chromium not found after installation" && \
+    find /usr -name "*chromium*" 2>/dev/null && \
     exit 1; \
     fi && \
-    echo "Downloading Chrome from: $CHROME_URL" && \
-    wget --tries=3 --timeout=60 "$CHROME_URL" -O chrome-linux-arm64.zip || \
-    (echo "ERROR: Failed to download Chrome (exit code: $?)" && \
-    echo "Attempted URL: $CHROME_URL" && \
-    exit 1) && \
-    if [ ! -f chrome-linux-arm64.zip ] || [ ! -s chrome-linux-arm64.zip ]; then \
-    echo "ERROR: Failed to download Chrome binary or file is empty" && \
-    ls -lh chrome-linux-arm64.zip 2>/dev/null || echo "File does not exist" && \
-    exit 1; \
-    fi && \
-    echo "Downloaded $(du -h chrome-linux-arm64.zip | cut -f1)" && \
-    unzip -q chrome-linux-arm64.zip && \
-    if [ -d chrome-linux-arm64 ]; then \
-    mv chrome-linux-arm64/* . && \
-    rmdir chrome-linux-arm64; \
-    fi && \
-    rm -f chrome-linux-arm64.zip && \
-    if [ ! -f chrome ]; then \
-    echo "ERROR: Chrome executable not found after extraction" && \
-    ls -la && \
-    exit 1; \
-    fi && \
-    chmod +x chrome && \
-    echo "Chrome installed at: /opt/chrome/chrome-linux-arm64/chrome"
+    chmod +x /opt/chrome/chrome-linux-arm64/chrome && \
+    echo "Chromium installed at: /opt/chrome/chrome-linux-arm64/chrome"
 
 # Verify Chrome installation and architecture
 RUN if [ ! -f "/opt/chrome/chrome-linux-arm64/chrome" ]; then \
