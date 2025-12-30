@@ -61,31 +61,19 @@ RUN CHROME_PATH=$(find /opt/chrome -name "chrome" -type f 2>/dev/null | head -1)
     exit 1; \
     fi && \
     echo "Found Chrome at: $CHROME_PATH" && \
-    # Verify binary architecture matches (should be aarch64/arm64, not x86_64)
     BINARY_INFO=$(file "$CHROME_PATH") && \
     echo "Binary info: $BINARY_INFO" && \
-    if echo "$BINARY_INFO" | grep -q "x86-64\|x86_64\|Intel 80386"; then \
-    echo "ERROR: Chrome binary is for x86_64, but we need arm64/aarch64" && \
-    exit 1; \
-    fi && \
-    if ! echo "$BINARY_INFO" | grep -q "aarch64\|ARM\|arm64"; then \
-    echo "WARNING: Chrome binary architecture unclear: $BINARY_INFO" && \
-    fi && \
-    # Ensure execute permissions
+    (echo "$BINARY_INFO" | grep -q "x86-64\|x86_64\|Intel 80386" && echo "ERROR: Chrome binary is for x86_64, but we need arm64/aarch64" && exit 1 || true) && \
+    (echo "$BINARY_INFO" | grep -q "aarch64\|ARM\|arm64" || echo "WARNING: Chrome binary architecture unclear: $BINARY_INFO") && \
     chmod +x "$CHROME_PATH" && \
-    # Create symlink directory
     mkdir -p /opt/chrome/chrome-linux-arm64 && \
-    # Create symlink
     ln -sf "$CHROME_PATH" /opt/chrome/chrome-linux-arm64/chrome && \
-    # Verify symlink points to a valid file
     if [ ! -f "/opt/chrome/chrome-linux-arm64/chrome" ]; then \
     echo "ERROR: Failed to create Chrome symlink" && \
     ls -la /opt/chrome/chrome-linux-arm64/ && \
     exit 1; \
     fi && \
-    # Verify symlink is executable
     chmod +x /opt/chrome/chrome-linux-arm64/chrome && \
-    # Verify symlink architecture
     file /opt/chrome/chrome-linux-arm64/chrome && \
     echo "Chrome symlink created successfully at: /opt/chrome/chrome-linux-arm64/chrome"
 
