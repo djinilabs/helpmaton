@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { existsSync } from "fs";
+import { tmpdir } from "os";
 import { join } from "path";
 
 import { badRequest, boomify, internal, unauthorized } from "@hapi/boom";
@@ -1111,6 +1112,8 @@ async function detectCaptcha(page: Page): Promise<boolean> {
       // Check for common CAPTCHA iframe/container selectors
       const hasCaptchaElement = !!(
         document.querySelector("[data-sitekey]") || // reCAPTCHA
+        document.querySelector("[site-key]") || // Reddit reputation-recaptcha
+        document.querySelector("reputation-recaptcha") || // Reddit's custom reCAPTCHA element
         document.querySelector(".cf-browser-verification") || // Cloudflare
         document.querySelector("#challenge-form") || // Cloudflare
         document.querySelector('[class*="captcha"]') ||
@@ -1181,6 +1184,14 @@ function configurePuppeteer(): void {
   const twoCaptchaApiKey = process.env.TWOCAPTCHA_API_KEY;
 
   if (twoCaptchaApiKey) {
+    // Enable debug logging for puppeteer-extra plugins
+    // This will log when CAPTCHAs are detected and solved
+    if (!process.env.DEBUG) {
+      process.env.DEBUG = "puppeteer-extra,puppeteer-extra-plugin:*";
+    } else if (!process.env.DEBUG.includes("puppeteer-extra")) {
+      process.env.DEBUG = `${process.env.DEBUG},puppeteer-extra,puppeteer-extra-plugin:*`;
+    }
+
     // Configure reCAPTCHA plugin with 2Captcha
     puppeteer.use(
       RecaptchaPlugin({
@@ -1191,7 +1202,11 @@ function configurePuppeteer(): void {
         visualFeedback: true, // Show a notification when solving a CAPTCHA
       })
     );
-    console.log("[scrape] Puppeteer configured with 2Captcha reCAPTCHA solver");
+    console.log(
+      "[scrape] Puppeteer configured with 2Captcha reCAPTCHA solver (API key: " +
+        (twoCaptchaApiKey.substring(0, 8) + "...") +
+        ")"
+    );
   } else {
     console.warn(
       "[scrape] TWOCAPTCHA_API_KEY not set - CAPTCHA solving will not be available"
@@ -1317,7 +1332,11 @@ function createApp(): express.Application {
           `--proxy-server=${server}`,
           // Stealth options to reduce CAPTCHA triggers
           "--disable-blink-features=AutomationControlled", // Hide automation
-          "--disable-features=IsolateOrigins,site-per-process", // Better compatibility
+          // Disable site isolation to allow access to cross-origin iframes (needed for reCAPTCHA detection)
+          "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
+          "--flag-switches-begin",
+          "--disable-site-isolation-trials",
+          "--flag-switches-end",
         ],
       });
 
@@ -1365,7 +1384,8 @@ function createApp(): express.Application {
       }
 
       // Setup resource blocking
-      await setupResourceBlocking(page);
+      // Note: Disabled for now to ensure content renders properly for screenshots and AOM extraction
+      // await setupResourceBlocking(page);
 
       // Navigate to URL and wait for client-side content
       await page.goto(url, {
@@ -1373,43 +1393,324 @@ function createApp(): express.Application {
         timeout: 60000,
       });
 
-      // Wait a bit for any CAPTCHAs to be detected and solved by the plugin
-      // The puppeteer-extra-plugin-recaptcha automatically solves reCAPTCHAs when detected
+      // Wait for content to load BEFORE checking for CAPTCHAs or extracting AOM
+      // This is critical for JavaScript-heavy sites like Reddit that load content asynchronously
+      console.log("[scrape] Waiting for content to load...");
+
+      // Wait for initial page load
       await delay(3000);
 
-      // Check for CAPTCHA after navigation
-      // The plugin should have solved it automatically, but we check to provide feedback
-      const hasCaptcha = await detectCaptcha(page);
-      if (hasCaptcha) {
-        const twoCaptchaApiKey = process.env.TWOCAPTCHA_API_KEY;
+      // For Reddit and similar sites, wait for content to appear
+      // Reddit loads content asynchronously via faceplate-partial and JavaScript
+      // Wait for substantial content to appear (not just navigation)
+      try {
+        await page
+          .waitForFunction(
+            () => {
+              // Check if there's substantial text content (more than just navigation)
+              const bodyText = document.body?.innerText || "";
+              const hasSubstantialContent = bodyText.length > 1000;
 
-        if (twoCaptchaApiKey) {
+              // Check for Reddit comment/post content indicators
+              const hasCommentContent =
+                document.querySelector("[data-testid*='comment']") !== null ||
+                document.querySelector("[class*='Comment']") !== null ||
+                document.querySelector("[class*='comment']") !== null ||
+                document.querySelector("shreddit-comment") !== null ||
+                document.querySelector(
+                  "faceplate-tracker[source='comments']"
+                ) !== null;
+
+              const hasPostContent =
+                document.querySelector("[data-testid*='post']") !== null ||
+                document.querySelector("[class*='Post']") !== null ||
+                document.querySelector("[class*='post']") !== null ||
+                document.querySelector("shreddit-post") !== null;
+
+              // For Reddit, look for specific content patterns
+              const hasRedditStructure =
+                document.querySelector("shreddit-app") !== null &&
+                (hasCommentContent || hasPostContent || hasSubstantialContent);
+
+              return hasSubstantialContent || hasRedditStructure;
+            },
+            { timeout: 20000 }
+          )
+          .catch(() => {
+            console.warn("[scrape] Content wait timeout, proceeding anyway");
+          });
+      } catch {
+        // Continue if waiting fails
+      }
+
+      // Additional wait for JavaScript-heavy sites like Reddit
+      // Reddit loads content in multiple phases via async requests
+      await delay(5000);
+
+      // Scroll page multiple times to trigger lazy-loaded content
+      console.log("[scrape] Scrolling to trigger lazy-loaded content...");
+      for (let i = 0; i < 3; i++) {
+        await page.evaluate((scrollFraction) => {
+          window.scrollTo(0, (document.body.scrollHeight * scrollFraction) / 3);
+        }, i + 1);
+        await delay(1500);
+      }
+
+      // Scroll back to top
+      await page.evaluate(() => {
+        window.scrollTo(0, 0);
+      });
+      await delay(1000);
+
+      // Wait for async CAPTCHA elements to load (e.g., Reddit's reputation-recaptcha)
+      // These are often loaded asynchronously via web components
+      try {
+        await page
+          .waitForFunction(
+            () => {
+              // Check if reCAPTCHA iframes have loaded
+              const recaptchaIframes = document.querySelectorAll(
+                'iframe[src*="recaptcha"], iframe[src*="google.com/recaptcha"]'
+              );
+              // Check if custom CAPTCHA elements have initialized
+              const customCaptchaElements = document.querySelectorAll(
+                "reputation-recaptcha, [site-key], [data-sitekey]"
+              );
+              // Wait for at least one CAPTCHA-related element to be present
+              // or wait a bit longer for async loaders
+              return (
+                recaptchaIframes.length > 0 || customCaptchaElements.length > 0
+              );
+            },
+            { timeout: 10000 }
+          )
+          .catch(() => {
+            console.log(
+              "[scrape] No CAPTCHA iframes detected within timeout, proceeding..."
+            );
+          });
+      } catch {
+        // Continue if waiting fails
+      }
+
+      // Additional wait for async loaders to initialize (Reddit uses async loaders)
+      await delay(2000);
+
+      // Always attempt to solve CAPTCHAs if API key is available
+      // The plugin can detect CAPTCHAs that our detection function might miss
+      const twoCaptchaApiKey = process.env.TWOCAPTCHA_API_KEY;
+
+      if (twoCaptchaApiKey) {
+        // Check for CAPTCHA after navigation
+        const hasCaptcha = await detectCaptcha(page);
+
+        if (hasCaptcha) {
           console.log(
-            "[scrape] CAPTCHA detected, waiting for automatic solving..."
+            "[scrape] CAPTCHA detected via detection function, attempting to solve..."
           );
-          // Give the plugin more time to solve (it works automatically in the background)
-          // The plugin typically takes 10-30 seconds to solve a CAPTCHA
-          await delay(35000); // Wait up to 35 seconds for solving
-
-          // Re-check for CAPTCHA after waiting
-          const stillHasCaptcha = await detectCaptcha(page);
-          if (stillHasCaptcha) {
-            console.warn(
-              "[scrape] CAPTCHA solving failed or CAPTCHA still present after timeout"
-            );
-            throw badRequest(
-              "The requested URL requires human verification (CAPTCHA). " +
-                "Automatic CAPTCHA solving timed out or failed. Please try again or use an alternative data source."
-            );
-          } else {
-            console.log("[scrape] CAPTCHA solved successfully by plugin");
-          }
         } else {
+          console.log(
+            "[scrape] No CAPTCHA detected via detection function, but attempting solveRecaptchas() anyway (plugin may detect it)..."
+          );
+        }
+
+        try {
+          // First, check if there are any reCAPTCHA iframes visible
+          const captchaInfo = await page.evaluate(() => {
+            const iframes = Array.from(document.querySelectorAll("iframe")).map(
+              (iframe) => ({
+                src: iframe.src || iframe.getAttribute("src") || "",
+                id: iframe.id || "",
+                className: iframe.className || "",
+              })
+            );
+            const recaptchaIframes = iframes.filter(
+              (iframe) =>
+                iframe.src.includes("recaptcha") ||
+                iframe.src.includes("google.com/recaptcha")
+            );
+            const customElements = Array.from(
+              document.querySelectorAll(
+                "reputation-recaptcha, [site-key], [data-sitekey]"
+              )
+            ).map((el) => ({
+              tagName: el.tagName,
+              siteKey:
+                el.getAttribute("site-key") ||
+                el.getAttribute("data-sitekey") ||
+                "",
+            }));
+            return {
+              totalIframes: iframes.length,
+              recaptchaIframes: recaptchaIframes.length,
+              recaptchaIframeSrcs: recaptchaIframes.map((f) => f.src),
+              customElements: customElements.length,
+              customElementInfo: customElements,
+            };
+          });
+          console.log("[scrape] CAPTCHA detection info:", captchaInfo);
+
+          // Explicitly call solveRecaptchas() to trigger solving with logging
+          // This method is provided by puppeteer-extra-plugin-recaptcha
+          console.log("[scrape] Calling solveRecaptchas() on main frame...");
+          const mainFrameResult = await (
+            page as unknown as {
+              solveRecaptchas: () => Promise<{
+                captchas: unknown[];
+                solutions: unknown[];
+                solved: unknown[];
+                error?: string;
+              }>;
+            }
+          ).solveRecaptchas();
+
+          console.log("[scrape] Main frame solveRecaptchas() result:", {
+            captchasFound: mainFrameResult.captchas.length,
+            solutionsReceived: mainFrameResult.solutions.length,
+            solved: mainFrameResult.solved.length,
+            error: mainFrameResult.error,
+          });
+
+          // Also check child frames (CAPTCHAs are often in iframes)
+          // This is critical for reCAPTCHA detection as they're usually in iframes
+          const childFrames = page.mainFrame().childFrames();
+          console.log(
+            `[scrape] Checking ${childFrames.length} child frames for CAPTCHAs...`
+          );
+
+          let totalCaptchasInFrames = 0;
+          for (let i = 0; i < childFrames.length; i++) {
+            const frame = childFrames[i];
+            try {
+              const frameUrl = frame.url();
+              console.log(
+                `[scrape] Calling solveRecaptchas() on child frame ${
+                  i + 1
+                } (URL: ${frameUrl.substring(0, 100)})...`
+              );
+              const frameResult = await (
+                frame as unknown as {
+                  solveRecaptchas: () => Promise<{
+                    captchas: unknown[];
+                    solutions: unknown[];
+                    solved: unknown[];
+                    error?: string;
+                  }>;
+                }
+              ).solveRecaptchas();
+
+              console.log(
+                `[scrape] Child frame ${i + 1} solveRecaptchas() result:`,
+                {
+                  captchasFound: frameResult.captchas.length,
+                  solutionsReceived: frameResult.solutions.length,
+                  solved: frameResult.solved.length,
+                  error: frameResult.error,
+                }
+              );
+              totalCaptchasInFrames += frameResult.captchas.length;
+            } catch (frameError) {
+              console.warn(
+                `[scrape] Error solving CAPTCHA in child frame ${i + 1}:`,
+                frameError
+              );
+            }
+          }
+
+          // If any CAPTCHAs were found by the plugin, wait for solving to complete
+          // Only trust the plugin's detection, not our own detection function
+          const totalCaptchasFound =
+            mainFrameResult.captchas.length + totalCaptchasInFrames;
+
+          if (totalCaptchasFound > 0) {
+            // Wait for solving to complete (plugin typically takes 10-30 seconds)
+            console.log(
+              `[scrape] ${totalCaptchasFound} CAPTCHA(s) found by plugin, waiting up to 35 seconds for solving to complete...`
+            );
+            await delay(35000);
+
+            // Re-check for CAPTCHA after solving attempt
+            const stillHasCaptcha = await detectCaptcha(page);
+            if (stillHasCaptcha) {
+              console.warn(
+                "[scrape] CAPTCHA solving failed or CAPTCHA still present after timeout"
+              );
+              throw badRequest(
+                "The requested URL requires human verification (CAPTCHA). " +
+                  "Automatic CAPTCHA solving timed out or failed. Please try again or use an alternative data source."
+              );
+            } else {
+              console.log(
+                "[scrape] CAPTCHA solved successfully - no longer detected on page"
+              );
+            }
+          } else {
+            console.log(
+              "[scrape] No CAPTCHAs found by plugin, proceeding with scraping"
+            );
+          }
+        } catch (error) {
+          console.error("[scrape] Error during CAPTCHA solving:", error);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          throw badRequest(
+            `The requested URL requires human verification (CAPTCHA). ` +
+              `Automatic CAPTCHA solving encountered an error: ${errorMessage}. Please try again or use an alternative data source.`
+          );
+        }
+      } else {
+        // No API key, just check and warn
+        const hasCaptcha = await detectCaptcha(page);
+        if (hasCaptcha) {
           throw badRequest(
             "The requested URL requires human verification (CAPTCHA). " +
               "This page cannot be scraped automatically. Please try a different URL or use an alternative data source."
           );
+        } else {
+          console.log("[scrape] No CAPTCHA detected on page");
         }
+      }
+
+      // Take a screenshot for debugging right before AOM extraction
+      // Content has already been loaded and scrolled before CAPTCHA detection
+      try {
+        const screenshotPath = join(tmpdir(), `scrape-debug-${Date.now()}.png`);
+
+        // Get page dimensions to ensure we capture everything
+        const pageDimensions = await page.evaluate(() => {
+          return {
+            width: Math.max(
+              document.body.scrollWidth,
+              document.body.offsetWidth,
+              document.documentElement.clientWidth,
+              document.documentElement.scrollWidth,
+              document.documentElement.offsetWidth
+            ),
+            height: Math.max(
+              document.body.scrollHeight,
+              document.body.offsetHeight,
+              document.documentElement.clientHeight,
+              document.documentElement.scrollHeight,
+              document.documentElement.offsetHeight
+            ),
+          };
+        });
+
+        console.log(
+          `[scrape] Page dimensions: ${pageDimensions.width}x${pageDimensions.height}`
+        );
+
+        await page.screenshot({
+          path: screenshotPath,
+          fullPage: true,
+          captureBeyondViewport: true,
+        });
+        console.log(`[scrape] Debug screenshot saved to: ${screenshotPath}`);
+      } catch (screenshotError) {
+        console.warn(
+          "[scrape] Failed to take debug screenshot:",
+          screenshotError
+        );
       }
 
       // Extract AOM
