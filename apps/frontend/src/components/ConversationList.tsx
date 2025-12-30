@@ -1,6 +1,6 @@
+import { ClockIcon } from "@heroicons/react/24/outline";
 import type { FC } from "react";
 
-import { ClockIcon } from "@heroicons/react/24/outline";
 
 import { useAgentConversations } from "../hooks/useAgentConversations";
 import type { Conversation } from "../utils/api";

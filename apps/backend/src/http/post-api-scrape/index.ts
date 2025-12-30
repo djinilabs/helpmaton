@@ -942,9 +942,16 @@ function getJwtSecret(): Uint8Array {
  * - Production: Uses Docker container path
  */
 function getChromeExecutablePath(): string {
-  // If explicitly set via environment variable, use it
+  // If explicitly set via environment variable, verify it exists
   if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-    return process.env.PUPPETEER_EXECUTABLE_PATH;
+    const envPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    if (existsSync(envPath)) {
+      return envPath;
+    }
+    // If env path doesn't exist, log warning but continue to fallback logic
+    console.warn(
+      `[scrape] PUPPETEER_EXECUTABLE_PATH set to ${envPath} but file not found, trying fallback paths`
+    );
   }
 
   // Detect local development environment
@@ -1022,8 +1029,30 @@ function getChromeExecutablePath(): string {
     );
   }
 
-  // Production: Use Docker container path (Lambda environment)
-  return "/opt/chrome/chrome-linux-arm64/chrome";
+  // Lambda environment - try multiple possible paths
+  // Dockerfile installs Chrome using @puppeteer/browsers to /opt/chrome
+  const lambdaPaths = [
+    "/opt/chrome/chrome-linux-arm64/chrome", // Standard @puppeteer/browsers path
+    "/opt/chrome/chrome/chrome-linux-arm64/chrome", // Alternative structure
+    "/opt/chrome/chrome", // Direct path
+    "/usr/bin/google-chrome-stable", // System Chrome (if installed)
+    "/usr/bin/chromium-browser", // System Chromium (if installed)
+  ];
+
+  for (const path of lambdaPaths) {
+    if (existsSync(path)) {
+      console.log(`[scrape] Found Chrome at: ${path}`);
+      return path;
+    }
+  }
+
+  // If no Chrome found, throw helpful error
+  throw new Error(
+    `Chrome not found in Lambda environment. Tried paths: ${lambdaPaths.join(
+      ", "
+    )}. ` +
+      `Please verify Chrome is installed in the Docker image at /opt/chrome/chrome-linux-arm64/chrome`
+  );
 }
 
 /**
@@ -1383,8 +1412,6 @@ function createApp(): express.Application {
       const page = await browser.newPage();
 
       // Set realistic user agent and viewport to appear more human-like
-      // Use a common Windows Chrome user agent (Windows is more common than Mac)
-      // The stealth plugin will also help mask automation, but we set a realistic UA here
       await page.setViewport({ width: 1920, height: 1080 });
 
       // Authenticate with proxy if credentials provided
