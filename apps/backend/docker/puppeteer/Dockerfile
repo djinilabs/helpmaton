@@ -5,6 +5,7 @@ FROM public.ecr.aws/lambda/nodejs:20
 # Install system dependencies required for Puppeteer/Chrome
 # Amazon Linux 2023 uses dnf (not yum)
 # Note: fonts-liberation is not available in AL2023, removed from package list
+# Added file utility to verify binary architecture
 RUN dnf install -y \
     nss \
     freetype \
@@ -25,6 +26,7 @@ RUN dnf install -y \
     atk \
     cups-libs \
     gtk3 \
+    file \
     && dnf clean all
 
 # Install pnpm globally
@@ -45,17 +47,35 @@ RUN pnpm install --prod && \
 # Pin Chrome version for reproducible builds (update periodically for security)
 # This downloads the Chrome binary for linux-arm64
 # Note: @puppeteer/browsers installs to /opt/chrome/chrome/linux_arm-{VERSION}/chrome-linux64/chrome
+# We need to explicitly specify the platform to ensure arm64 binary is downloaded
 ARG CHROME_VERSION=chrome@131.0.6778.85
+# Set environment variable to force arm64 platform
+ENV PUPPETEER_PLATFORM=linux_arm64
 RUN npx @puppeteer/browsers install ${CHROME_VERSION} --path=/opt/chrome
+
 # Find the actual Chrome executable path and create symlink
-RUN CHROME_PATH=$(find /opt/chrome -name "chrome" -type f -executable 2>/dev/null | head -1) && \
+RUN CHROME_PATH=$(find /opt/chrome -name "chrome" -type f 2>/dev/null | head -1) && \
     if [ -z "$CHROME_PATH" ]; then \
     echo "ERROR: Chrome executable not found" && \
     find /opt/chrome -type f 2>/dev/null | head -20 && \
     exit 1; \
     fi && \
     echo "Found Chrome at: $CHROME_PATH" && \
+    # Verify binary architecture matches (should be aarch64/arm64, not x86_64)
+    BINARY_INFO=$(file "$CHROME_PATH") && \
+    echo "Binary info: $BINARY_INFO" && \
+    if echo "$BINARY_INFO" | grep -q "x86-64\|x86_64\|Intel 80386"; then \
+    echo "ERROR: Chrome binary is for x86_64, but we need arm64/aarch64" && \
+    exit 1; \
+    fi && \
+    if ! echo "$BINARY_INFO" | grep -q "aarch64\|ARM\|arm64"; then \
+    echo "WARNING: Chrome binary architecture unclear: $BINARY_INFO" && \
+    fi && \
+    # Ensure execute permissions
+    chmod +x "$CHROME_PATH" && \
+    # Create symlink directory
     mkdir -p /opt/chrome/chrome-linux-arm64 && \
+    # Create symlink
     ln -sf "$CHROME_PATH" /opt/chrome/chrome-linux-arm64/chrome && \
     # Verify symlink points to a valid file
     if [ ! -f "/opt/chrome/chrome-linux-arm64/chrome" ]; then \
@@ -63,6 +83,10 @@ RUN CHROME_PATH=$(find /opt/chrome -name "chrome" -type f -executable 2>/dev/nul
     ls -la /opt/chrome/chrome-linux-arm64/ && \
     exit 1; \
     fi && \
+    # Verify symlink is executable
+    chmod +x /opt/chrome/chrome-linux-arm64/chrome && \
+    # Verify symlink architecture
+    file /opt/chrome/chrome-linux-arm64/chrome && \
     echo "Chrome symlink created successfully at: /opt/chrome/chrome-linux-arm64/chrome"
 
 # Move to Lambda task root
