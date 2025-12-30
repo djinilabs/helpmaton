@@ -2,43 +2,79 @@
 
 ## Current Status
 
-**Status**: Slack Notification Channel Support - Completed ✅
+**Status**: Puppeteer Web Scraping Endpoint - Completed ✅
 
-**Latest Work**: Added Slack as a notification channel type alongside Discord. Backend fully supports Slack channels via webhooks, with comprehensive validation, error handling, and test coverage. Frontend UI currently supports Discord only (Slack UI was reverted).
+**Latest Work**: Implemented a web scraping endpoint (`POST /api/scrape`) that uses Puppeteer to scrape any URL and return the Accessibility Object Model (AOM) as XML. The endpoint uses Decodo residential proxies, blocks unnecessary resources, and charges workspace credits per successful request.
 
 **Recent Changes**:
 
-1. **Backend Slack Support**:
-   - Created `apps/backend/src/utils/slack.ts` with `sendSlackMessage()` function for sending messages via Slack Incoming Webhooks API
-   - Updated `apps/backend/src/utils/notifications.ts` to route Slack channel types to the Slack utility
-   - Added Slack validation to channel creation endpoint (`post-workspace-channels.ts`):
-     - Validates `webhookUrl` is present and is a string
-     - Validates webhook URL format (must start with `https://hooks.slack.com/services/`)
-   - Updated OpenAPI documentation to include `"slack"` in channel type enum
+1. **Puppeteer Scraping Endpoint**:
+   - Created `POST /api/scrape` endpoint that accepts a URL and returns AOM as XML
+   - Uses Puppeteer with headless Chrome to scrape web pages
+   - Waits for client-side generated content (`networkidle2`)
+   - Extracts Accessibility Object Model (AOM) using Puppeteer's accessibility snapshot API
+   - Falls back to DOM traversal if accessibility snapshot fails
+   - Converts AOM tree to XML format with proper escaping
 
-2. **PR Review Comments Addressed**:
-   - Removed `console.log` from Slack utility (production code should use proper logging)
-   - Simplified duplicate error handling logic in Slack utility
-   - Added JSDoc documentation for `UpdateChannelInput` type safety limitations
+2. **Decodo Residential Proxy Integration**:
+   - Randomly selects proxy URL from `DECODO_PROXY_URLS` environment variable (JSON array)
+   - Proxy URLs formatted as `http://username:password@gate.decodo.com:port` (ports 10001-10010)
+   - Extracts and validates proxy credentials from URL
+   - Authenticates with proxy using Puppeteer's `page.authenticate()` method
 
-3. **Test Coverage**:
-   - Created comprehensive unit tests for Slack utility (`slack.test.ts` - 7 tests)
-   - Created tests for notification routing with Slack (`notifications.test.ts` - 6 tests)
-   - Updated channel creation tests to include Slack scenarios
-   - All 31 tests passing
+3. **Resource Blocking**:
+   - Blocks images, CSS, fonts, and media files to optimize performance
+   - Blocks subframes (iframes) to prevent nested content loading
+   - Blocks known tracker domains (Google Analytics, Facebook, ad networks, etc.)
+   - Uses Puppeteer's request interception API
+
+4. **Docker Container Image**:
+   - Created `apps/backend/docker/puppeteer/Dockerfile` for Lambda container image
+   - Installs Chrome via `@puppeteer/browsers` for linux-arm64 architecture
+   - Includes all required system dependencies for headless Chrome
+   - Configured for 2048 MB memory limit
+   - Image automatically built in CI/CD workflows
+
+5. **Authentication & Authorization**:
+   - Validates encrypted JWT token from Authorization header
+   - Extracts `workspaceId`, `agentId`, and `conversationId` from token payload
+   - Uses `jwtDecrypt` from `jose` library for token decryption
+   - Validates token issuer and audience
+
+6. **Workspace Credit Charging**:
+   - Charges 0.005 USD (5000 millionths) per successful scrape request
+   - Uses workspace credit transaction system (only charges on success)
+   - Transaction committed atomically at end of request via `handlingErrors` wrapper
+   - Transaction includes workspaceId, agentId, conversationId, and URL in description
+
+7. **Error Handling & Monitoring**:
+   - Reports server errors to Sentry with full context (handler, method, path, status code)
+   - Flushes Sentry events before request completes (critical for Lambda)
+   - Reports browser cleanup errors to Sentry
+   - Comprehensive error handling with proper browser cleanup in finally block
+
+**Files Created**:
+- `apps/backend/src/http/post-api-scrape/index.ts` - Main endpoint handler
+- `apps/backend/src/http/post-api-scrape/__tests__/index.test.ts` - Unit tests
+- `apps/backend/docker/puppeteer/Dockerfile` - Docker container image
+- `apps/backend/docker/puppeteer/package.json` - Minimal runtime dependencies
 
 **Files Modified**:
-- `apps/backend/src/utils/slack.ts` - New utility for Slack webhook messaging
-- `apps/backend/src/utils/notifications.ts` - Added Slack routing
-- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-workspace-channels.ts` - Added Slack validation
-- `apps/backend/src/utils/__tests__/slack.test.ts` - New test file (7 tests)
-- `apps/backend/src/utils/__tests__/notifications.test.ts` - New test file (6 tests)
-- `apps/backend/src/http/any-api-workspaces-catchall/routes/__tests__/post-workspace-channels.test.ts` - Added Slack test cases
-- `apps/frontend/src/utils/api.ts` - Type definitions reverted to Discord-only (Slack support removed from frontend)
+- `apps/backend/app.arc` - Added route and container image configuration
+- `apps/backend/esbuild-config.cjs` - Added `DECODO_PROXY_URLS` environment variable
+- `apps/backend/src/plugins/container-images/index.js` - Configured 2048 MB memory for scrape endpoint
+- `apps/backend/ENV.md` - Documented `DECODO_PROXY_URLS` environment variable
+- `.github/workflows/deploy-pr.yml` - Added `DECODO_PROXY_URLS` to environment variables
+- `.github/workflows/deploy-prod.yml` - Added `DECODO_PROXY_URLS` to environment variables
 
-**Note**: Frontend UI (`ChannelModal.tsx`) was reverted to Discord-only support. Backend API fully supports Slack channels, but users cannot create Slack channels through the UI at this time.
+**Configuration**:
+- Route: `POST /api/scrape`
+- Container Image: `puppeteer`
+- Memory: 2048 MB
+- Timeout: 60 seconds (default)
+- Architecture: arm64 (Graviton2)
 
-**Verification**: All tests passing (31 Slack-related tests), typecheck and lint clean ✅
+**Verification**: All tests passing, typecheck and lint clean ✅
 
 **Previous Status**: Web Fetch Tool Rename - Completed ✅
 

@@ -1,17 +1,19 @@
-import { badRequest, internal } from "@hapi/boom";
+import { badRequest, boomify, internal, unauthorized } from "@hapi/boom";
 import serverlessExpress from "@vendia/serverless-express";
 import type {
   APIGatewayProxyHandlerV2,
   APIGatewayProxyResultV2,
 } from "aws-lambda";
 import express from "express";
+import { jwtDecrypt } from "jose";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - puppeteer-core is installed in container image
 import puppeteer, { type Browser, type Page } from "puppeteer-core";
 
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
-import { requireAuth } from "../any-api-workspaces-catchall/middleware";
+import { ensureError, flushSentry, Sentry } from "../../utils/sentry";
+import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { expressErrorHandler } from "../utils/errorHandler";
 
 /**
@@ -412,6 +414,72 @@ async function extractAOM(page: Page): Promise<string> {
 }
 
 /**
+ * Get JWT secret key from environment
+ */
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    throw new Error("AUTH_SECRET is required");
+  }
+  return new TextEncoder().encode(secret);
+}
+
+/**
+ * Extract and validate encrypted JWT from Authorization header
+ * Returns workspaceId, agentId, and conversationId from the token payload
+ */
+async function extractWorkspaceContextFromToken(req: express.Request): Promise<{
+  workspaceId: string;
+  agentId: string;
+  conversationId: string;
+}> {
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  if (!authHeader || typeof authHeader !== "string") {
+    throw unauthorized("Authorization header with Bearer token is required");
+  }
+
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!match) {
+    throw unauthorized(
+      "Invalid Authorization header format. Expected: Bearer <token>"
+    );
+  }
+
+  const encryptedToken = match[1];
+  const secret = getJwtSecret();
+
+  try {
+    const { payload } = await jwtDecrypt(encryptedToken, secret, {
+      issuer: "helpmaton",
+      audience: "helpmaton-api",
+    });
+
+    // Extract required fields from payload
+    const workspaceId = payload.workspaceId;
+    const agentId = payload.agentId;
+    const conversationId = payload.conversationId;
+
+    if (
+      typeof workspaceId !== "string" ||
+      typeof agentId !== "string" ||
+      typeof conversationId !== "string"
+    ) {
+      throw unauthorized(
+        "Token payload must contain workspaceId, agentId, and conversationId as strings"
+      );
+    }
+
+    return { workspaceId, agentId, conversationId };
+  } catch (error) {
+    console.error("[scrape] Error decrypting JWT token:", error);
+    if (error && typeof error === "object" && "isBoom" in error) {
+      throw error;
+    }
+    throw unauthorized("Invalid or expired encrypted token");
+  }
+}
+
+/**
  * Setup resource blocking on page
  */
 async function setupResourceBlocking(page: Page): Promise<void> {
@@ -457,10 +525,40 @@ function createApp(): express.Application {
   app.set("trust proxy", true);
   app.use(express.json());
 
-  app.post("/api/scrape", requireAuth, async (req, res, next) => {
+  app.post("/api/scrape", async (req, res, next) => {
     let browser: Browser | null = null;
 
     try {
+      // Extract and validate encrypted JWT token
+      const { workspaceId, agentId, conversationId } =
+        await extractWorkspaceContextFromToken(req);
+
+      // Get AWS request ID for context lookup
+      const awsRequestId =
+        req.headers["x-amzn-requestid"] ||
+        req.headers["X-Amzn-Requestid"] ||
+        req.headers["x-request-id"] ||
+        req.headers["X-Request-Id"] ||
+        req.apiGateway?.event?.requestContext?.requestId;
+
+      // Get context for workspace credit transactions
+      // The context is already augmented by handlingErrors wrapper with addWorkspaceCreditTransaction capability
+      const context = getContextFromRequestId(
+        Array.isArray(awsRequestId) ? awsRequestId[0] : awsRequestId
+      );
+      if (!context) {
+        throw new Error(
+          "Context not available for workspace credit transactions. Ensure the handler is wrapped with handlingErrors."
+        );
+      }
+
+      // Verify context has the addWorkspaceCreditTransaction method (type guard)
+      if (typeof context.addWorkspaceCreditTransaction !== "function") {
+        throw new Error(
+          "Context is not properly augmented with workspace credit transaction capability"
+        );
+      }
+
       const { url } = req.body;
 
       if (!url || typeof url !== "string") {
@@ -524,10 +622,45 @@ function createApp(): express.Application {
       // Extract AOM
       const aomXml = await extractAOM(page);
 
+      // Charge workspace credits (0.005 USD = 5000 millionths) only on success
+      // Transaction will be committed at the end of the request if no error occurs
+      // The context is already augmented by handlingErrors wrapper, so addWorkspaceCreditTransaction is available
+      const scrapeCostMillionthUsd = 5000; // 0.005 USD
+      context.addWorkspaceCreditTransaction({
+        workspaceId,
+        agentId,
+        conversationId,
+        source: "tool-execution",
+        supplier: "openrouter", // Using openrouter as supplier for consistency
+        tool_call: "scrape",
+        description: `Web scraping: ${url}`,
+        amountMillionthUsd: scrapeCostMillionthUsd,
+      });
+
       // Return XML response
       res.setHeader("Content-Type", "application/xml");
       res.status(200).send(aomXml);
     } catch (err) {
+      // Report server errors to Sentry before passing to error handler
+      const boomed = boomify(err as Error);
+      if (boomed.isServer) {
+        console.error("[scrape] Server error:", boomed);
+        Sentry.captureException(ensureError(err), {
+          tags: {
+            handler: "scrape-endpoint",
+            method: req.method,
+            path: req.path,
+            statusCode: boomed.output.statusCode,
+          },
+          contexts: {
+            request: {
+              method: req.method,
+              url: req.url,
+              path: req.path,
+            },
+          },
+        });
+      }
       next(err);
     } finally {
       // Cleanup browser
@@ -536,7 +669,21 @@ function createApp(): express.Application {
           await browser.close();
         } catch (closeError) {
           console.error("[scrape] Error closing browser:", closeError);
+          // Report browser cleanup errors to Sentry
+          Sentry.captureException(ensureError(closeError), {
+            tags: {
+              handler: "scrape-endpoint",
+              operation: "browser-cleanup",
+            },
+          });
         }
+      }
+
+      // Flush Sentry events before request completes (critical for Lambda)
+      try {
+        await flushSentry();
+      } catch (flushError) {
+        console.error("[scrape] Error flushing Sentry:", flushError);
       }
     }
   });
