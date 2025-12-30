@@ -44,14 +44,26 @@ RUN pnpm install --prod && \
 # Install Chrome using @puppeteer/browsers
 # Pin Chrome version for reproducible builds (update periodically for security)
 # This downloads the Chrome binary for linux-arm64
+# Note: @puppeteer/browsers installs to /opt/chrome/chrome/linux_arm-{VERSION}/chrome-linux64/chrome
 ARG CHROME_VERSION=chrome@131.0.6778.85
-RUN npx @puppeteer/browsers install ${CHROME_VERSION} --path=/opt/chrome && \
-    # Verify Chrome installation and log the actual path
-    find /opt/chrome -name "chrome" -type f -executable 2>/dev/null | head -1 && \
-    # Ensure Chrome is executable
-    chmod +x /opt/chrome/chrome-linux-arm64/chrome 2>/dev/null || true && \
-    # Verify the expected path exists
-    test -f /opt/chrome/chrome-linux-arm64/chrome || (echo "ERROR: Chrome not found at expected path" && find /opt/chrome -type f 2>/dev/null && exit 1)
+RUN npx @puppeteer/browsers install ${CHROME_VERSION} --path=/opt/chrome
+# Find the actual Chrome executable path and create symlink
+RUN CHROME_PATH=$(find /opt/chrome -name "chrome" -type f -executable 2>/dev/null | head -1) && \
+    if [ -z "$CHROME_PATH" ]; then \
+    echo "ERROR: Chrome executable not found" && \
+    find /opt/chrome -type f 2>/dev/null | head -20 && \
+    exit 1; \
+    fi && \
+    echo "Found Chrome at: $CHROME_PATH" && \
+    mkdir -p /opt/chrome/chrome-linux-arm64 && \
+    ln -sf "$CHROME_PATH" /opt/chrome/chrome-linux-arm64/chrome && \
+    # Verify symlink points to a valid file
+    if [ ! -f "/opt/chrome/chrome-linux-arm64/chrome" ]; then \
+    echo "ERROR: Failed to create Chrome symlink" && \
+    ls -la /opt/chrome/chrome-linux-arm64/ && \
+    exit 1; \
+    fi && \
+    echo "Chrome symlink created successfully at: /opt/chrome/chrome-linux-arm64/chrome"
 
 # Move to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}

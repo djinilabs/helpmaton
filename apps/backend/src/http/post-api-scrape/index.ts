@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { existsSync } from "fs";
+import { existsSync, readdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -1031,19 +1031,46 @@ function getChromeExecutablePath(): string {
 
   // Lambda environment - try multiple possible paths
   // Dockerfile installs Chrome using @puppeteer/browsers to /opt/chrome
+  // Actual path structure: /opt/chrome/chrome/linux_arm-{VERSION}/chrome-linux64/chrome
+  // Dockerfile creates symlink at: /opt/chrome/chrome-linux-arm64/chrome
   const lambdaPaths = [
-    "/opt/chrome/chrome-linux-arm64/chrome", // Standard @puppeteer/browsers path
-    "/opt/chrome/chrome/chrome-linux-arm64/chrome", // Alternative structure
-    "/opt/chrome/chrome", // Direct path
+    "/opt/chrome/chrome-linux-arm64/chrome", // Symlink created by Dockerfile
     "/usr/bin/google-chrome-stable", // System Chrome (if installed)
     "/usr/bin/chromium-browser", // System Chromium (if installed)
   ];
 
+  // Try static paths first
   for (const path of lambdaPaths) {
     if (existsSync(path)) {
       console.log(`[scrape] Found Chrome at: ${path}`);
       return path;
     }
+  }
+
+  // Try to find Chrome in the actual @puppeteer/browsers installation structure
+  // Pattern: /opt/chrome/chrome/linux_arm-*/chrome-linux64/chrome
+  try {
+    const chromeBaseDir = "/opt/chrome/chrome";
+    if (existsSync(chromeBaseDir)) {
+      const dirs = readdirSync(chromeBaseDir);
+      for (const dir of dirs) {
+        if (dir.startsWith("linux_arm-")) {
+          const chromePath = join(
+            chromeBaseDir,
+            dir,
+            "chrome-linux64",
+            "chrome"
+          );
+          if (existsSync(chromePath)) {
+            console.log(`[scrape] Found Chrome at: ${chromePath}`);
+            return chromePath;
+          }
+        }
+      }
+    }
+  } catch (error) {
+    // If filesystem operations fail, continue to error
+    console.warn("[scrape] Failed to search for Chrome:", error);
   }
 
   // If no Chrome found, throw helpful error
