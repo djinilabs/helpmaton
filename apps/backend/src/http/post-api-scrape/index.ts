@@ -1,9 +1,12 @@
 import { createHash } from "crypto";
-import { existsSync, readdirSync } from "fs";
+import { existsSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - @sparticuz/chromium is installed in container image
 import { badRequest, boomify, internal, unauthorized } from "@hapi/boom";
+import chromium from "@sparticuz/chromium";
 import serverlessExpress from "@vendia/serverless-express";
 import type {
   APIGatewayProxyHandlerV2,
@@ -939,9 +942,9 @@ function getJwtSecret(): Uint8Array {
 /**
  * Get Chrome executable path based on environment
  * - Local development: Checks common OS-specific paths for Chrome/Chromium
- * - Production: Uses Docker container path
+ * - Production: Uses @sparticuz/chromium which provides the executable path
  */
-function getChromeExecutablePath(): string {
+async function getChromeExecutablePath(): Promise<string> {
   // If explicitly set via environment variable, verify it exists
   if (process.env.PUPPETEER_EXECUTABLE_PATH) {
     const envPath = process.env.PUPPETEER_EXECUTABLE_PATH;
@@ -1029,56 +1032,47 @@ function getChromeExecutablePath(): string {
     );
   }
 
-  // Lambda environment - try multiple possible paths
-  // Dockerfile installs Chrome using @puppeteer/browsers to /opt/chrome
-  // Actual path structure: /opt/chrome/chrome/linux_arm-{VERSION}/chrome-linux64/chrome
-  // Dockerfile creates symlink at: /opt/chrome/chrome-linux-arm64/chrome
+  // Lambda environment - use @sparticuz/chromium
+  // @sparticuz/chromium provides the executable path optimized for AWS Lambda
+  try {
+    // @sparticuz/chromium provides executablePath() method that returns a Promise
+    const chromiumPath = await chromium.executablePath();
+    if (chromiumPath && existsSync(chromiumPath)) {
+      console.log(`[scrape] Found Chromium at: ${chromiumPath}`);
+      return chromiumPath;
+    }
+    // If path doesn't exist, log warning but return it anyway (chromium may handle it)
+    if (chromiumPath) {
+      console.log(
+        `[scrape] Using @sparticuz/chromium path: ${chromiumPath} (file may not exist yet, chromium will handle it)`
+      );
+      return chromiumPath;
+    }
+  } catch (error) {
+    console.warn(
+      "[scrape] Failed to get Chromium path from @sparticuz/chromium:",
+      error
+    );
+  }
+
+  // Fallback paths in case @sparticuz/chromium doesn't work
   const lambdaPaths = [
-    "/opt/chrome/chrome-linux-arm64/chrome", // Symlink created by Dockerfile
-    "/usr/bin/google-chrome-stable", // System Chrome (if installed)
     "/usr/bin/chromium-browser", // System Chromium (if installed)
+    "/usr/bin/chromium", // System Chromium (if installed)
   ];
 
-  // Try static paths first
   for (const path of lambdaPaths) {
     if (existsSync(path)) {
-      console.log(`[scrape] Found Chrome at: ${path}`);
+      console.log(`[scrape] Found Chromium at: ${path}`);
       return path;
     }
   }
 
-  // Try to find Chrome in the actual @puppeteer/browsers installation structure
-  // Pattern: /opt/chrome/chrome/linux_arm-*/chrome-linux64/chrome
-  try {
-    const chromeBaseDir = "/opt/chrome/chrome";
-    if (existsSync(chromeBaseDir)) {
-      const dirs = readdirSync(chromeBaseDir);
-      for (const dir of dirs) {
-        if (dir.startsWith("linux_arm-")) {
-          const chromePath = join(
-            chromeBaseDir,
-            dir,
-            "chrome-linux64",
-            "chrome"
-          );
-          if (existsSync(chromePath)) {
-            console.log(`[scrape] Found Chrome at: ${chromePath}`);
-            return chromePath;
-          }
-        }
-      }
-    }
-  } catch (error) {
-    // If filesystem operations fail, continue to error
-    console.warn("[scrape] Failed to search for Chrome:", error);
-  }
-
   // If no Chrome found, throw helpful error
   throw new Error(
-    `Chrome not found in Lambda environment. Tried paths: ${lambdaPaths.join(
-      ", "
-    )}. ` +
-      `Please verify Chrome is installed in the Docker image at /opt/chrome/chrome-linux-arm64/chrome`
+    `Chromium not found in Lambda environment. ` +
+      `@sparticuz/chromium should provide the executable path. ` +
+      `Please verify @sparticuz/chromium is installed in the Docker image.`
   );
 }
 
@@ -1407,7 +1401,7 @@ function createApp(): express.Application {
 
       // Launch browser with proxy
       // getChromeExecutablePath() automatically detects environment and finds Chrome
-      const executablePath = getChromeExecutablePath();
+      const executablePath = await getChromeExecutablePath();
 
       browser = await puppeteer.launch({
         headless: true,
