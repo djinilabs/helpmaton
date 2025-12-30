@@ -102,6 +102,7 @@ async function buildBackend() {
           "puppeteer-core",
           "puppeteer-extra",
           "puppeteer-extra-plugin-recaptcha",
+          "puppeteer-extra-plugin-stealth",
           // Native .node files
           "*.node",
         ],

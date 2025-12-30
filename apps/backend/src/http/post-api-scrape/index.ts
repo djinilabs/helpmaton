@@ -18,6 +18,9 @@ import puppeteer from "puppeteer-extra";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - puppeteer-extra-plugin-recaptcha is installed in container image
 import RecaptchaPlugin from "puppeteer-extra-plugin-recaptcha";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - puppeteer-extra-plugin-stealth is installed in container image
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
 import { database } from "../../tables";
 import {
@@ -1177,10 +1180,42 @@ async function setupResourceBlocking(page: Page): Promise<void> {
 }
 
 /**
- * Configure Puppeteer with reCAPTCHA plugin
- * Uses 2Captcha as the provider for solving CAPTCHAs
+ * Configure Puppeteer with stealth and reCAPTCHA plugins
+ * Stealth plugin makes the browser appear more human-like
+ * reCAPTCHA plugin uses 2Captcha as the provider for solving CAPTCHAs
  */
 function configurePuppeteer(): void {
+  // Create stealth plugin instance and explicitly enable all evasions
+  const stealthPlugin = StealthPlugin();
+
+  // By default, all evasions are enabled, but we verify and log them
+  // Get all available evasions and ensure they're all enabled
+  const availableEvasions = stealthPlugin.availableEvasions;
+  const enabledEvasions = stealthPlugin.enabledEvasions;
+
+  // Log enabled evasions for debugging
+  console.log(
+    `[scrape] Stealth plugin configured with ${enabledEvasions.size} of ${availableEvasions.size} evasions enabled:`,
+    Array.from(enabledEvasions).join(", ")
+  );
+
+  // If not all evasions are enabled by default, explicitly enable them
+  if (enabledEvasions.size < availableEvasions.size) {
+    console.warn(
+      `[scrape] Not all evasions enabled by default. Enabling all ${availableEvasions.size} evasions...`
+    );
+    // Create new plugin instance with all evasions explicitly enabled
+    const allEvasionsPlugin = StealthPlugin({
+      enabledEvasions: availableEvasions,
+    });
+    puppeteer.use(allEvasionsPlugin);
+    console.log(
+      `[scrape] All ${allEvasionsPlugin.enabledEvasions.size} evasions now enabled`
+    );
+  } else {
+    puppeteer.use(stealthPlugin);
+  }
+
   const twoCaptchaApiKey = process.env.TWOCAPTCHA_API_KEY;
 
   if (twoCaptchaApiKey) {
@@ -1347,8 +1382,10 @@ function createApp(): express.Application {
       const page = await browser.newPage();
 
       // Set realistic user agent and viewport to appear more human-like
+      // Use a common Windows Chrome user agent (Windows is more common than Mac)
+      // The stealth plugin will also help mask automation, but we set a realistic UA here
       await page.setUserAgent(
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
       );
       await page.setViewport({ width: 1920, height: 1080 });
       await page.setExtraHTTPHeaders({
