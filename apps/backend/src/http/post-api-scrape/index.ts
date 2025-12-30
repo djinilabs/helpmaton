@@ -1,4 +1,6 @@
 import { createHash } from "crypto";
+import { existsSync } from "fs";
+import { join } from "path";
 
 import { badRequest, boomify, internal, unauthorized } from "@hapi/boom";
 import serverlessExpress from "@vendia/serverless-express";
@@ -438,6 +440,96 @@ function getJwtSecret(): Uint8Array {
 }
 
 /**
+ * Get Chrome executable path based on environment
+ * - Local development: Checks common OS-specific paths for Chrome/Chromium
+ * - Production: Uses Docker container path
+ */
+function getChromeExecutablePath(): string {
+  // If explicitly set via environment variable, use it
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+
+  // Detect local development environment
+  // Lambda sets LAMBDA_TASK_ROOT, local development doesn't
+  const isLocalDevelopment =
+    process.env.ARC_ENV === "testing" ||
+    process.env.NODE_ENV === "development" ||
+    !process.env.LAMBDA_TASK_ROOT;
+
+  if (isLocalDevelopment) {
+    const os = process.platform;
+    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
+
+    if (os === "darwin") {
+      // macOS paths (most common first)
+      const macPaths = [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
+        join(
+          homeDir,
+          "Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        ),
+        join(homeDir, ".cache/puppeteer/chrome"),
+      ];
+
+      for (const path of macPaths) {
+        if (existsSync(path)) {
+          return path;
+        }
+      }
+    } else if (os === "linux") {
+      // Linux paths (most common first)
+      const linuxPaths = [
+        "/usr/bin/google-chrome-stable",
+        "/usr/bin/google-chrome",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/chromium",
+        "/snap/bin/chromium",
+        "/usr/local/bin/google-chrome-stable",
+        "/usr/local/bin/chromium-browser",
+        join(homeDir, ".cache/puppeteer/chrome"),
+      ];
+
+      for (const path of linuxPaths) {
+        if (existsSync(path)) {
+          return path;
+        }
+      }
+    } else if (os === "win32") {
+      // Windows paths (most common first)
+      const programFiles = process.env.PROGRAMFILES || "C:\\Program Files";
+      const localAppData = process.env.LOCALAPPDATA || "";
+      const winPaths = [
+        join(programFiles, "Google/Chrome/Application/chrome.exe"),
+        join(programFiles, "(x86)/Google/Chrome/Application/chrome.exe"),
+        join(localAppData, "Google/Chrome/Application/chrome.exe"),
+        join(programFiles, "Chromium/Application/chrome.exe"),
+        join(localAppData, "Chromium/Application/chrome.exe"),
+      ];
+
+      for (const path of winPaths) {
+        if (existsSync(path)) {
+          return path;
+        }
+      }
+    }
+
+    // If no Chrome found in local development, throw helpful error
+    throw new Error(
+      `Chrome/Chromium not found for local development on ${os}. ` +
+        `Please install Chrome/Chromium or set PUPPETEER_EXECUTABLE_PATH environment variable. ` +
+        `Common installation commands: ` +
+        `macOS: brew install --cask google-chrome | Linux: sudo apt-get install google-chrome-stable | Windows: Download from https://www.google.com/chrome/`
+    );
+  }
+
+  // Production: Use Docker container path (Lambda environment)
+  return "/opt/chrome/chrome-linux-arm64/chrome";
+}
+
+/**
  * Extract and validate encrypted JWT from Authorization header
  * Returns workspaceId, agentId, and conversationId from the token payload
  */
@@ -622,9 +714,8 @@ function createApp(): express.Application {
       );
 
       // Launch browser with proxy
-      const executablePath =
-        process.env.PUPPETEER_EXECUTABLE_PATH ||
-        "/opt/chrome/chrome-linux-arm64/chrome";
+      // getChromeExecutablePath() automatically detects environment and finds Chrome
+      const executablePath = getChromeExecutablePath();
 
       browser = await puppeteer.launch({
         headless: true,
