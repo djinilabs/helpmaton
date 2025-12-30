@@ -5,7 +5,7 @@ FROM public.ecr.aws/lambda/nodejs:20
 # Install system dependencies required for Puppeteer/Chrome
 # Amazon Linux 2023 uses dnf (not yum)
 # Note: fonts-liberation is not available in AL2023, removed from package list
-# Added file utility to verify binary architecture
+# Added file utility to verify binary architecture and wget/unzip for Chrome download
 RUN dnf install -y \
     nss \
     freetype \
@@ -27,6 +27,8 @@ RUN dnf install -y \
     cups-libs \
     gtk3 \
     file \
+    wget \
+    unzip \
     && dnf clean all
 
 # Install pnpm globally
@@ -43,39 +45,37 @@ COPY apps/backend/docker/puppeteer/package.json ./
 RUN pnpm install --prod && \
     rm -rf /root/.pnpm-store /root/.local/share/pnpm
 
-# Install Chrome using @puppeteer/browsers
-# Pin Chrome version for reproducible builds (update periodically for security)
-# This downloads the Chrome binary for linux-arm64
-# Note: @puppeteer/browsers installs to /opt/chrome/chrome/linux_arm-{VERSION}/chrome-linux64/chrome
-# We need to force arm64 platform since Docker build might be running in x86_64 emulator
-ARG CHROME_VERSION=chrome@131.0.6778.85
-# Install Chrome with explicit platform override
-# Use --platform=linux_arm to force arm64 binary even when building in x86_64 emulator
-RUN npx @puppeteer/browsers install ${CHROME_VERSION} --path=/opt/chrome --platform=linux_arm
+# Install Chrome for arm64
+# @puppeteer/browsers doesn't respect --platform flag when building in x86_64 emulator
+# So we manually download the arm64 Chrome binary from Google's CDN
+ARG CHROME_VERSION=131.0.6778.85
+RUN mkdir -p /opt/chrome/chrome-linux-arm64 && \
+    cd /opt/chrome/chrome-linux-arm64 && \
+    wget -q "https://storage.googleapis.com/chrome-for-testing-public/${CHROME_VERSION}/linux-arm64/chrome-linux-arm64.zip" && \
+    unzip -q chrome-linux-arm64.zip && \
+    mv chrome-linux-arm64/* . && \
+    rmdir chrome-linux-arm64 && \
+    rm chrome-linux-arm64.zip && \
+    chmod +x chrome && \
+    echo "Chrome installed at: /opt/chrome/chrome-linux-arm64/chrome"
 
-# Find the actual Chrome executable path and create symlink
-RUN CHROME_PATH=$(find /opt/chrome -name "chrome" -type f 2>/dev/null | head -1) && \
-    if [ -z "$CHROME_PATH" ]; then \
-    echo "ERROR: Chrome executable not found" && \
-    find /opt/chrome -type f 2>/dev/null | head -20 && \
-    exit 1; \
-    fi && \
-    echo "Found Chrome at: $CHROME_PATH" && \
-    BINARY_INFO=$(file "$CHROME_PATH") && \
-    echo "Binary info: $BINARY_INFO" && \
-    (echo "$BINARY_INFO" | grep -q "x86-64\|x86_64\|Intel 80386" && echo "ERROR: Chrome binary is for x86_64, but we need arm64/aarch64" && exit 1 || true) && \
-    (echo "$BINARY_INFO" | grep -q "aarch64\|ARM\|arm64" || echo "WARNING: Chrome binary architecture unclear: $BINARY_INFO") && \
-    chmod +x "$CHROME_PATH" && \
-    mkdir -p /opt/chrome/chrome-linux-arm64 && \
-    ln -sf "$CHROME_PATH" /opt/chrome/chrome-linux-arm64/chrome && \
-    if [ ! -f "/opt/chrome/chrome-linux-arm64/chrome" ]; then \
-    echo "ERROR: Failed to create Chrome symlink" && \
+# Verify Chrome installation and architecture
+RUN if [ ! -f "/opt/chrome/chrome-linux-arm64/chrome" ]; then \
+    echo "ERROR: Chrome executable not found at /opt/chrome/chrome-linux-arm64/chrome" && \
     ls -la /opt/chrome/chrome-linux-arm64/ && \
     exit 1; \
     fi && \
+    BINARY_INFO=$(file /opt/chrome/chrome-linux-arm64/chrome) && \
+    echo "Binary info: $BINARY_INFO" && \
+    if echo "$BINARY_INFO" | grep -q "x86-64\|x86_64\|Intel 80386"; then \
+    echo "ERROR: Chrome binary is for x86_64, but we need arm64/aarch64" && \
+    exit 1; \
+    fi && \
+    if ! echo "$BINARY_INFO" | grep -q "aarch64\|ARM\|arm64"; then \
+    echo "WARNING: Chrome binary architecture unclear: $BINARY_INFO"; \
+    fi && \
     chmod +x /opt/chrome/chrome-linux-arm64/chrome && \
-    file /opt/chrome/chrome-linux-arm64/chrome && \
-    echo "Chrome symlink created successfully at: /opt/chrome/chrome-linux-arm64/chrome"
+    echo "Chrome installed successfully at: /opt/chrome/chrome-linux-arm64/chrome"
 
 # Move to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}
