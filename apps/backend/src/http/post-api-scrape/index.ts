@@ -338,24 +338,40 @@ function delay(ms: number): Promise<void> {
 /**
  * Extract AOM from page with enhanced content extraction
  * Focuses on extracting actual text content, headers, and readable content
+ * Handles JavaScript-heavy sites like Reddit that load content dynamically
  */
 async function extractAOM(page: Page): Promise<string> {
-  // Wait a bit longer for dynamic content to load
+  // Wait for initial page load
   await delay(2000);
 
-  // Scroll page to trigger lazy-loaded content (common on Reddit, social media, etc.)
-  await page.evaluate(() => {
-    window.scrollTo(0, document.body.scrollHeight / 2);
-  });
-  await delay(1000);
-  await page.evaluate(() => {
-    window.scrollTo(0, document.body.scrollHeight);
-  });
-  await delay(1000);
+  // For Reddit and similar sites, wait for content to appear
+  try {
+    // Wait for common content indicators (posts, articles, main content)
+    await page
+      .waitForSelector(
+        "article, [class*='post'], [class*='Post'], [data-testid*='post'], main, [role='article']",
+        { timeout: 10000 }
+      )
+      .catch(() => {
+        // If selector doesn't appear, continue anyway
+      });
+  } catch {
+    // Continue if waiting fails
+  }
+
+  // Scroll page multiple times to trigger lazy-loaded content
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(() => {
+      window.scrollTo(0, (document.body.scrollHeight * (i + 1)) / 3);
+    });
+    await delay(1500);
+  }
+
+  // Scroll back to top
   await page.evaluate(() => {
     window.scrollTo(0, 0);
   });
-  await delay(500);
+  await delay(1000);
 
   // Enhanced extraction: Get text content, headers, and structured content
   const aom = (await page.evaluate((): Record<string, unknown> => {
@@ -391,33 +407,76 @@ async function extractAOM(page: Page): Promise<string> {
     }
 
     function findMainContent(): Element | null {
+      // Remove navigation, header, footer, and sidebar elements first
+      const elementsToRemove = [
+        "nav",
+        "header",
+        "footer",
+        "[role='navigation']",
+        "[role='banner']",
+        "[role='contentinfo']",
+        "[role='complementary']",
+        "[class*='nav']",
+        "[class*='header']",
+        "[class*='footer']",
+        "[class*='sidebar']",
+        "[class*='menu']",
+        "[class*='ad']",
+        "[id*='nav']",
+        "[id*='header']",
+        "[id*='footer']",
+        "[id*='sidebar']",
+      ];
+
+      elementsToRemove.forEach((selector) => {
+        try {
+          document.querySelectorAll(selector).forEach((el) => {
+            // Don't remove if it's inside main content
+            if (!el.closest("main, article, [role='main'], [role='article']")) {
+              el.remove();
+            }
+          });
+        } catch {
+          // Invalid selector, continue
+        }
+      });
+
       // Try to find main content area using common selectors
+      // Prioritize article/post containers
       const mainSelectors = [
-        "main",
-        "[role='main']",
         "article",
         "[role='article']",
-        ".content",
-        "#content",
+        "[data-testid*='post']",
+        "[class*='Post']",
+        "[class*='post']",
+        "[class*='post-container']",
+        "main",
+        "[role='main']",
         "[class*='content']",
         "[id*='content']",
-        "[class*='post']",
-        "[class*='article']",
         "[class*='main']",
+        "[class*='feed']",
+        "[class*='listing']",
       ];
 
       for (const selector of mainSelectors) {
         try {
           const element = document.querySelector(selector);
           if (element) {
-            return element;
+            // Verify it has substantial content
+            const text =
+              (element as HTMLElement).innerText || element.textContent || "";
+            if (text.length > 100) {
+              return element;
+            }
           }
         } catch {
           // Invalid selector, continue
         }
       }
 
-      return null;
+      // Fallback: find body but exclude removed elements
+      return document.body;
     }
 
     function buildAOMNode(
@@ -454,7 +513,15 @@ async function extractAOM(page: Page): Promise<string> {
       // For elements with substantial text content, include it in value
       if (includeText && textContent.length > 0) {
         // Only include text if it's meaningful (not just whitespace/navigation)
-        if (textContent.length > 20) {
+        // Skip if it's just repeated navigation text
+        const isNavigationText =
+          textContent.includes("Open menu") ||
+          textContent.includes("Log In") ||
+          textContent.includes("Get App") ||
+          textContent.includes("Expand user menu") ||
+          textContent.length < 20;
+
+        if (!isNavigationText && textContent.length > 20) {
           // Limit very long content to prevent XML bloat
           node.value =
             textContent.length > 5000
@@ -497,11 +564,27 @@ async function extractAOM(page: Page): Promise<string> {
         // Skip script, style, and other non-content elements
         const childTagName = child.tagName.toLowerCase();
         if (
-          !["script", "style", "noscript", "meta", "link"].includes(
-            childTagName
-          )
+          ![
+            "script",
+            "style",
+            "noscript",
+            "meta",
+            "link",
+            "svg",
+            "path",
+            "g",
+          ].includes(childTagName)
         ) {
-          children.push(buildAOMNode(child, includeText));
+          const childNode = buildAOMNode(child, includeText);
+          // Only include child if it has meaningful content
+          const hasContent =
+            childNode.name ||
+            childNode.value ||
+            (Array.isArray(childNode.children) &&
+              childNode.children.length > 0);
+          if (hasContent) {
+            children.push(childNode);
+          }
         }
       }
 
