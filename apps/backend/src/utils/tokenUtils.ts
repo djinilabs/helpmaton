@@ -1,4 +1,9 @@
-import { createHash, randomBytes, scrypt, timingSafeEqual } from "crypto";
+import {
+  createHash,
+  randomBytes,
+  scrypt,
+  timingSafeEqual,
+} from "crypto";
 import { promisify } from "util";
 
 import { unauthorized } from "@hapi/boom";
@@ -232,6 +237,11 @@ export async function generateScrapeAuthToken(
   const now = Math.floor(Date.now() / 1000);
   const EXPIRY_SECONDS = 30 * 60; // 30 minutes
 
+  // Derive a 256-bit key from the secret using SHA-256
+  // A256GCM requires exactly 32 bytes (256 bits)
+  const keyMaterial = Buffer.from(secret);
+  const derivedKey = createHash("sha256").update(keyMaterial).digest();
+
   const token = await new EncryptJWT({
     workspaceId,
     agentId,
@@ -242,7 +252,7 @@ export async function generateScrapeAuthToken(
     .setExpirationTime(now + EXPIRY_SECONDS)
     .setIssuer("helpmaton")
     .setAudience("helpmaton-api")
-    .encrypt(secret);
+    .encrypt(derivedKey);
 
   return token;
 }

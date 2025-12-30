@@ -1,3 +1,5 @@
+import { createHash } from "crypto";
+
 import { badRequest, boomify, internal, unauthorized } from "@hapi/boom";
 import serverlessExpress from "@vendia/serverless-express";
 import type {
@@ -421,13 +423,18 @@ async function extractAOM(page: Page): Promise<string> {
 
 /**
  * Get JWT secret key from environment
+ * Derives a 256-bit key from AUTH_SECRET using SHA-256 for A256GCM encryption
  */
 function getJwtSecret(): Uint8Array {
   const secret = process.env.AUTH_SECRET;
   if (!secret) {
     throw new Error("AUTH_SECRET is required");
   }
-  return new TextEncoder().encode(secret);
+  // Derive a 256-bit key from the secret using SHA-256
+  // A256GCM requires exactly 32 bytes (256 bits)
+  const keyMaterial = Buffer.from(secret, "utf-8");
+  const derivedKey = createHash("sha256").update(keyMaterial).digest();
+  return new Uint8Array(derivedKey);
 }
 
 /**
