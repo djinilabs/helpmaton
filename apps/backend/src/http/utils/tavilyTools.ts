@@ -927,12 +927,14 @@ export function createScrapeFetchTool(
           try {
             const errorJson = JSON.parse(errorText);
             if (errorJson.message) {
-              errorMessage = `Error scraping web page: ${errorJson.message}`;
+              errorMessage = `Error scraping web page (HTTP ${response.status}): ${errorJson.message}`;
+            } else if (errorJson.error) {
+              errorMessage = `Error scraping web page (HTTP ${response.status}): ${errorJson.error}`;
             }
           } catch {
             // If error response is not JSON, use the text as-is
             if (errorText) {
-              errorMessage = `Error scraping web page: ${errorText}`;
+              errorMessage = `Error scraping web page (HTTP ${response.status}): ${errorText}`;
             }
           }
           console.error("[Tool Error] fetch_url (Scrape)", {

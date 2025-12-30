@@ -23,6 +23,7 @@ import RecaptchaPlugin from "puppeteer-extra-plugin-recaptcha";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 
 import { database } from "../../tables";
+import { InsufficientCreditsError } from "../../utils/creditErrors";
 import {
   refundReservation,
   reserveCredits,
@@ -1734,6 +1735,21 @@ function createApp(): express.Application {
       res.setHeader("Content-Type", "application/xml");
       res.status(200).send(aomXml);
     } catch (err) {
+      // Handle InsufficientCreditsError - convert to Boom error with proper status code
+      if (err instanceof InsufficientCreditsError) {
+        // Don't refund credits for insufficient credits error - no reservation was created
+        const boomed = boomify(err, { statusCode: err.statusCode });
+        console.error("[scrape] Insufficient credits error:", {
+          workspaceId: err.workspaceId,
+          required: err.required,
+          available: err.available,
+          currency: err.currency,
+        });
+        // Pass the Boom error to the error handler
+        next(boomed);
+        return;
+      }
+
       // Refund reserved credits if request failed
       if (
         reservation &&
