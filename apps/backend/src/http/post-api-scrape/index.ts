@@ -631,12 +631,32 @@ async function extractAOM(page: Page): Promise<string> {
         if (mainInShreddit) {
           return mainInShreddit;
         }
-        // If no main found, use shreddit-app itself if it has substantial content
+
+        // Look for any element with substantial text content inside shreddit-app
+        // that's not navigation
+        const allElements = shredditApp.querySelectorAll("*");
+        for (const el of Array.from(allElements)) {
+          const text = (el as HTMLElement).innerText || el.textContent || "";
+          const isNav =
+            text.includes("Skip to main content") ||
+            text.includes("Get App") ||
+            text.includes("Log In") ||
+            text.includes("Expand user menu") ||
+            text.includes("Open menu") ||
+            text.length < 50;
+
+          if (!isNav && text.length > 200) {
+            return el;
+          }
+        }
+
+        // If no main found, use shreddit-app itself if it has any content
+        // Lower threshold - extract whatever is available
         const shredditText =
           (shredditApp as HTMLElement).innerText ||
           shredditApp.textContent ||
           "";
-        if (shredditText.length > 1000) {
+        if (shredditText.length > 100) {
           return shredditApp;
         }
       }
@@ -854,8 +874,31 @@ async function extractAOM(page: Page): Promise<string> {
 
     // Try to find main content area first, fallback to body
     const mainContent = findMainContent();
-    const rootElement =
-      mainContent || document.body || document.documentElement;
+    let rootElement = mainContent || document.body || document.documentElement;
+
+    // If we found shreddit-app but it has minimal content, try to extract
+    // any non-navigation text from the entire page
+    if (rootElement === document.querySelector("shreddit-app")) {
+      const allText = document.body?.textContent || "";
+      const nonNavLines = allText
+        .split("\n")
+        .filter(
+          (line) =>
+            line.trim().length > 20 &&
+            !line.includes("Skip to main content") &&
+            !line.includes("Get App") &&
+            !line.includes("Log In") &&
+            !line.includes("Expand user menu") &&
+            !line.includes("Open menu") &&
+            !line.includes("Open navigation") &&
+            !line.includes("Go to Reddit Home")
+        );
+
+      // If we found substantial non-navigation content, use body
+      if (nonNavLines.length > 0 && nonNavLines.join(" ").length > 200) {
+        rootElement = document.body;
+      }
+    }
 
     // Build AOM tree with text content included
     return buildAOMNode(rootElement, true) as Record<string, unknown>;
