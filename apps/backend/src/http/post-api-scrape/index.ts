@@ -1388,7 +1388,7 @@ function createApp(): express.Application {
       await page.setViewport({ width: 1920, height: 1080 });
 
       // Authenticate with proxy if credentials provided
-      if (username && password && browser) {
+      if (username && password) {
         await page.authenticate({ username, password });
       }
 
