@@ -47,11 +47,11 @@ RUN pnpm install --prod && \
 # Pin Chrome version for reproducible builds (update periodically for security)
 # This downloads the Chrome binary for linux-arm64
 # Note: @puppeteer/browsers installs to /opt/chrome/chrome/linux_arm-{VERSION}/chrome-linux64/chrome
-# We need to explicitly specify the platform to ensure arm64 binary is downloaded
+# We need to force arm64 platform since Docker build might be running in x86_64 emulator
 ARG CHROME_VERSION=chrome@131.0.6778.85
-# Set environment variable to force arm64 platform
-ENV PUPPETEER_PLATFORM=linux_arm64
-RUN npx @puppeteer/browsers install ${CHROME_VERSION} --path=/opt/chrome
+# Install Chrome with explicit platform override
+# Use --platform=linux_arm to force arm64 binary even when building in x86_64 emulator
+RUN npx @puppeteer/browsers install ${CHROME_VERSION} --path=/opt/chrome --platform=linux_arm
 
 # Find the actual Chrome executable path and create symlink
 RUN CHROME_PATH=$(find /opt/chrome -name "chrome" -type f 2>/dev/null | head -1) && \
