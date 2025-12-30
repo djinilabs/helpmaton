@@ -37,6 +37,7 @@
     "nanoid": "^5.0.7",
     "nodemailer": "^7.0.0",
     "posthog-node": "^5.0.0",
+    "puppeteer-core": "^23.0.0",
     "source-map-support": "^0.5.21",
     "tweetnacl": "^1.0.3",
     "zod": "^4.0.0"
@@ -50,6 +51,7 @@
     "@types/nodemailer": "^7.0.0",
     "@types/swagger-jsdoc": "^6.0.1",
     "@vitest/ui": "^4.0.9",
+    "puppeteer-core": "^23.0.0",
     "swagger-jsdoc": "^6.2.8",
     "vitest": "^4.0.9"
   },

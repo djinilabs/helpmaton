@@ -7,6 +7,7 @@ spa true
 @http
 post /api/webhooks/lemonsqueezy
 post /api/webhook/:workspaceId/:agentId/:key
+post /api/scrape
 get /api/usage
 get /api/models
 get /api/pricing
@@ -314,6 +315,7 @@ any /api/streams/:workspaceId/:agentId/:secret
 # Example: any /api/streams/:workspaceId/:agentId/:secret my-custom-image
 any /api/streams/:workspaceId/:agentId/:secret lancedb
 post /api/webhook/:workspaceId/:agentId/:key lancedb
+post /api/scrape puppeteer
 any /api/workspaces lancedb
 any /api/workspaces/* lancedb
 any /api/streams/:workspaceId/:agentId/:secret lancedb

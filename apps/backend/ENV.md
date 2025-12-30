@@ -167,6 +167,30 @@ This document describes the environment variables required for the helpmaton bac
   - Pay-as-you-go: All requests require credits (no free tier)
   - Supports category-specific searches: company, research paper, news, pdf, github, tweet, personal site, people, financial report
 
+### `DECODO_PROXY_URLS`
+
+- **Description**: JSON array of Decodo residential proxy URLs with embedded credentials for web scraping
+- **Required**: Yes (for `/api/scrape` endpoint)
+- **Example**: `["http://username1:password1@gate.decodo.com:10001", "http://username2:password2@gate.decodo.com:10002", "http://username3:password3@gate.decodo.com:10003"]`
+- **Format**: 
+  - JSON array of strings
+  - Each URL format: `http://username:password@gate.decodo.com:PORT`
+  - Port range: 10001 to 10010
+  - Username and password are embedded in each URL and must be kept as secrets
+- **How to obtain**:
+  1. Sign up for a Decodo account at [Decodo Hub](https://decodohub.com)
+  2. Navigate to your proxy settings
+  3. Create proxy endpoints with credentials
+  4. Format each proxy as: `http://username:password@gate.decodo.com:PORT`
+  5. Create a JSON array with all proxy URLs
+- **Note**:
+  - Used by the `/api/scrape` endpoint for web scraping with Puppeteer
+  - The endpoint randomly selects one proxy URL from the array for each request (load balancing)
+  - Multiple proxy URLs allow for better distribution of requests and redundancy
+  - All credentials are embedded in the URLs and must be kept secure
+  - Port numbers can range from 10001 to 10010
+  - Keep this secret secure and never commit it to version control
+
 ### `SENTRY_DSN`
 
 - **Description**: Sentry Data Source Name (DSN) for error tracking and monitoring
