@@ -2,7 +2,11 @@
 
 ## Current Status
 
-**Status**: Puppeteer Web Scraping Endpoint - Completed ✅
+**Status**: Puppeteer Dockerfile Package Manager Fix - Completed ✅
+
+**Latest Work**: Fixed Docker build failure for puppeteer container image. The Dockerfile was using `yum` (Amazon Linux 2) but the base image `public.ecr.aws/lambda/nodejs:20` uses Amazon Linux 2023 which requires `dnf`. Updated all `yum` commands to `dnf` and corrected the comment.
+
+**Previous Status**: Puppeteer Web Scraping Endpoint - Completed ✅
 
 **Latest Work**: Implemented a web scraping endpoint (`POST /api/scrape`) that uses Puppeteer to scrape any URL and return the Accessibility Object Model (AOM) as XML. The endpoint uses Decodo residential proxies, blocks unnecessary resources, and charges workspace credits per successful request.
 
@@ -12,21 +16,38 @@
    - Created `POST /api/scrape` endpoint that accepts a URL and returns AOM as XML
    - Uses Puppeteer with headless Chrome to scrape web pages
    - Waits for client-side generated content (`networkidle2`)
+   - Navigation timeout: 5 minutes (300000 ms) to handle slow-loading sites and CAPTCHA solving
    - Extracts Accessibility Object Model (AOM) using Puppeteer's accessibility snapshot API
    - Falls back to DOM traversal if accessibility snapshot fails
    - Converts AOM tree to XML format with proper escaping
+   - Enhanced content extraction for JavaScript-heavy sites (Reddit, etc.) with Shadow DOM traversal
+   - Content loading strategy: waits for substantial content, scrolls to trigger lazy-loaded content, then extracts AOM
 
-2. **Decodo Residential Proxy Integration**:
+2. **Stealth Plugin & Anti-Detection**:
+   - Integrated `puppeteer-extra-plugin-stealth` with all evasions explicitly enabled
+   - Verifies and logs all enabled evasions on startup
+   - Uses Windows Chrome user agent (more common than Mac) for better stealth
+   - Chrome launch arguments configured to reduce automation detection
+   - Disabled site isolation to allow access to cross-origin iframes (needed for reCAPTCHA)
+
+3. **CAPTCHA Solving Integration**:
+   - Integrated `puppeteer-extra-plugin-recaptcha` with 2Captcha provider
+   - Automatically detects and solves reCAPTCHAs on main frame and all child frames
+   - Supports Reddit's custom `reputation-recaptcha` element detection
+   - Waits up to 35 seconds for CAPTCHA solving to complete
+   - Comprehensive logging for CAPTCHA detection and solving process
+   - API key configured via `TWOCAPTCHA_API_KEY` environment variable
+
+4. **Decodo Residential Proxy Integration**:
    - Randomly selects proxy URL from `DECODO_PROXY_URLS` environment variable (JSON array)
    - Proxy URLs formatted as `http://username:password@gate.decodo.com:port` (ports 10001-10010)
    - Extracts and validates proxy credentials from URL
    - Authenticates with proxy using Puppeteer's `page.authenticate()` method
 
-3. **Resource Blocking**:
-   - Blocks images, CSS, fonts, and media files to optimize performance
-   - Blocks subframes (iframes) to prevent nested content loading
-   - Blocks known tracker domains (Google Analytics, Facebook, ad networks, etc.)
-   - Uses Puppeteer's request interception API
+5. **Resource Blocking** (Currently Disabled):
+   - Resource blocking temporarily disabled to ensure full page rendering for screenshots and AOM extraction
+   - Previously blocked: images, CSS, fonts, media files, subframes, and known tracker domains
+   - Can be re-enabled via `setupResourceBlocking()` function if needed
 
 4. **Docker Container Image**:
    - Created `apps/backend/docker/puppeteer/Dockerfile` for Lambda container image
@@ -61,18 +82,26 @@
 
 **Files Modified**:
 - `apps/backend/app.arc` - Added route and container image configuration
-- `apps/backend/esbuild-config.cjs` - Added `DECODO_PROXY_URLS` environment variable
+- `apps/backend/src/http/post-api-scrape/config.arc` - Configured 6-minute Lambda timeout
+- `apps/backend/src/http/post-api-scrape/index.ts` - Main handler with stealth plugin, CAPTCHA solving, enhanced content extraction
+- `apps/backend/docker/puppeteer/package.json` - Added `puppeteer-extra`, `puppeteer-extra-plugin-recaptcha`, `puppeteer-extra-plugin-stealth`
+- `apps/backend/package.json` - Added stealth and reCAPTCHA plugins to devDependencies for type checking
+- `esbuild-config.cjs` - Added `TWOCAPTCHA_API_KEY` and `DECODO_PROXY_URLS` to environment variables, externalized stealth plugin
+- `scripts/build-backend.ts` - Externalized stealth plugin in esbuild config
 - `apps/backend/src/plugins/container-images/index.js` - Configured 2048 MB memory for scrape endpoint
-- `apps/backend/ENV.md` - Documented `DECODO_PROXY_URLS` environment variable
-- `.github/workflows/deploy-pr.yml` - Added `DECODO_PROXY_URLS` to environment variables
-- `.github/workflows/deploy-prod.yml` - Added `DECODO_PROXY_URLS` to environment variables
+- `apps/backend/ENV.md` - Documented `DECODO_PROXY_URLS` and `TWOCAPTCHA_API_KEY` environment variables
+- `.github/workflows/deploy-pr.yml` - Added `DECODO_PROXY_URLS` and `TWOCAPTCHA_API_KEY` to environment variables
+- `.github/workflows/deploy-prod.yml` - Added `DECODO_PROXY_URLS` and `TWOCAPTCHA_API_KEY` to environment variables
 
 **Configuration**:
 - Route: `POST /api/scrape`
 - Container Image: `puppeteer`
 - Memory: 2048 MB
-- Timeout: 60 seconds (default)
+- Lambda Timeout: 360 seconds (6 minutes) - configured in `config.arc`
+- Navigation Timeout: 300000 ms (5 minutes) - for `page.goto()` calls
 - Architecture: arm64 (Graviton2)
+- User Agent: Windows Chrome (Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...)
+- Stealth Plugin: All evasions enabled with verification and logging
 
 **Verification**: All tests passing, typecheck and lint clean ✅
 

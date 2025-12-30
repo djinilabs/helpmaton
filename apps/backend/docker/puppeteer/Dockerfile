@@ -3,8 +3,8 @@
 FROM public.ecr.aws/lambda/nodejs:20
 
 # Install system dependencies required for Puppeteer/Chrome
-# Amazon Linux 2 uses yum
-RUN yum install -y \
+# Amazon Linux 2023 uses dnf (not yum)
+RUN dnf install -y \
     nss \
     freetype \
     freetype-devel \
@@ -29,7 +29,7 @@ RUN yum install -y \
     wqy-zenhei-fonts \
     wqy-microhei-fonts \
     thai-fonts \
-    && yum clean all
+    && dnf clean all
 
 # Install pnpm globally
 RUN npm install -g pnpm

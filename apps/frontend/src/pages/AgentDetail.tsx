@@ -2076,8 +2076,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
                           Use Puppeteer with residential proxies to scrape web
                           pages and extract Accessibility Object Model (AOM) as
-                          XML. Supports JavaScript-rendered content. Cost: $0.005
-                          per call.
+                          XML. Supports JavaScript-rendered content. Uses stealth
+                          techniques and attempts to solve captchas automatically.
+                          Note: This service can take longer to fetch content
+                          compared to other providers. Cost: $0.005 per call.
                         </div>
                       </div>
                     </label>
