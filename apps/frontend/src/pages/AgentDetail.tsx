@@ -263,7 +263,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
 
   // Use agent prop directly for fetchWebProvider, with local state for editing
   const [fetchWebProvider, setFetchWebProvider] = useState<
-    "tavily" | "jina" | null
+    "tavily" | "jina" | "scrape" | null
   >(() => agent?.fetchWebProvider ?? null);
 
   // Use agent prop directly for enableExaSearch, with local state for editing
@@ -495,9 +495,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   }, [agent?.id, agent?.searchWebProvider, agent?.enableTavilySearch]);
 
   // Synchronize fetchWebProvider state with agent prop using useEffect
-  const prevFetchWebProviderRef = useRef<"tavily" | "jina" | null | undefined>(
-    agent?.fetchWebProvider
-  );
+  const prevFetchWebProviderRef = useRef<
+    "tavily" | "jina" | "scrape" | null | undefined
+  >(agent?.fetchWebProvider);
   useEffect(() => {
     const currentValue = agent?.fetchWebProvider ?? null;
     const prevValue = prevFetchWebProviderRef.current ?? null;
@@ -2059,6 +2059,25 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
                           Use Jina Reader API. Free to use (no credits charged).
                           Rate limits may apply.
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                      <input
+                        type="radio"
+                        name="fetchWebProvider"
+                        value="scrape"
+                        checked={fetchWebProvider === "scrape"}
+                        onChange={() => setFetchWebProvider("scrape")}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="font-bold">Scrape</div>
+                        <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                          Use Puppeteer with residential proxies to scrape web
+                          pages and extract Accessibility Object Model (AOM) as
+                          XML. Supports JavaScript-rendered content. Cost: $0.005
+                          per call.
                         </div>
                       </div>
                     </label>

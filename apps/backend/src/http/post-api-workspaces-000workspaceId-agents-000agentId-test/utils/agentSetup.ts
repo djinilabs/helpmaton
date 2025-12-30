@@ -226,6 +226,14 @@ export async function setupAgentAndTools(
       extractedAgentId,
       options?.conversationId
     );
+  } else if (agent.fetchWebProvider === "scrape") {
+    const { createScrapeFetchTool } = await import("../../utils/tavilyTools");
+    tools.fetch_url = createScrapeFetchTool(
+      workspaceId,
+      effectiveContext,
+      extractedAgentId,
+      options?.conversationId
+    );
   }
 
   // Add Exa.ai search tool if enabled

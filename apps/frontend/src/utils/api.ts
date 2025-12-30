@@ -80,7 +80,7 @@ export interface Agent {
   enableSendEmail?: boolean;
   enableTavilySearch?: boolean;
   searchWebProvider?: "tavily" | "jina" | null;
-  fetchWebProvider?: "tavily" | "jina" | null;
+  fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
   enableExaSearch?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
@@ -117,7 +117,7 @@ export interface UpdateAgentInput {
   enableSendEmail?: boolean;
   enableTavilySearch?: boolean;
   searchWebProvider?: "tavily" | "jina" | null;
-  fetchWebProvider?: "tavily" | "jina" | null;
+  fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
   enableExaSearch?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];

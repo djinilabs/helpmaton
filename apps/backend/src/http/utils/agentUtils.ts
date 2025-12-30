@@ -688,6 +688,16 @@ async function callAgentInternal(
   } else if (targetAgent.fetchWebProvider === "jina") {
     const { createJinaFetchTool } = await import("./tavilyTools");
     tools.fetch_url = createJinaFetchTool(workspaceId, targetAgentId);
+  } else if (targetAgent.fetchWebProvider === "scrape") {
+    const { createScrapeFetchTool } = await import("./tavilyTools");
+    // Note: conversationId is not available in this context, so we pass undefined
+    // The tool will handle this case and return an error if conversationId is required
+    tools.fetch_url = createScrapeFetchTool(
+      workspaceId,
+      context,
+      targetAgentId,
+      undefined // conversationId not available in agent delegation context
+    );
   }
 
   // Add Exa.ai search tool if enabled
