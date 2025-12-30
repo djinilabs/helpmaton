@@ -361,9 +361,9 @@ async function extractAOM(page: Page): Promise<string> {
 
   // Scroll page multiple times to trigger lazy-loaded content
   for (let i = 0; i < 3; i++) {
-    await page.evaluate(() => {
-      window.scrollTo(0, (document.body.scrollHeight * (i + 1)) / 3);
-    });
+    await page.evaluate((scrollFraction) => {
+      window.scrollTo(0, (document.body.scrollHeight * scrollFraction) / 3);
+    }, i + 1);
     await delay(1500);
   }
 
