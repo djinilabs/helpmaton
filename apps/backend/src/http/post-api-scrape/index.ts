@@ -1391,9 +1391,8 @@ function createApp(): express.Application {
         await page.authenticate({ username, password });
       }
 
-      // Setup resource blocking
-      // Note: Disabled for now to ensure content renders properly for screenshots and AOM extraction
-      // await setupResourceBlocking(page);
+      // Setup resource blocking to optimize performance and privacy
+      await setupResourceBlocking(page);
 
       // Navigate to URL and wait for client-side content
       await page.goto(url, {
