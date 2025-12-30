@@ -329,40 +329,144 @@ export function escapeXml(str: string): string {
 }
 
 /**
- * Extract AOM from page
+ * Helper function to wait for a specified number of milliseconds
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Extract AOM from page with enhanced content extraction
+ * Focuses on extracting actual text content, headers, and readable content
  */
 async function extractAOM(page: Page): Promise<string> {
-  try {
-    // Try to use Puppeteer's accessibility snapshot
-    const snapshot = await page.accessibility.snapshot();
-    if (snapshot) {
-      // Convert SerializedAXNode to Record<string, unknown> for aomToXml
-      const snapshotRecord = snapshot as unknown as Record<string, unknown>;
-      const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<aom>\n${aomToXml(
-        snapshotRecord,
-        1
-      )}\n</aom>`;
-      return xml;
-    }
-  } catch {
-    console.warn(
-      "[scrape] Failed to get accessibility snapshot, falling back to DOM traversal"
-    );
-  }
+  // Wait a bit longer for dynamic content to load
+  await delay(2000);
 
-  // Fallback: Build AOM from DOM
+  // Scroll page to trigger lazy-loaded content (common on Reddit, social media, etc.)
+  await page.evaluate(() => {
+    window.scrollTo(0, document.body.scrollHeight / 2);
+  });
+  await delay(1000);
+  await page.evaluate(() => {
+    window.scrollTo(0, document.body.scrollHeight);
+  });
+  await delay(1000);
+  await page.evaluate(() => {
+    window.scrollTo(0, 0);
+  });
+  await delay(500);
+
+  // Enhanced extraction: Get text content, headers, and structured content
   const aom = (await page.evaluate((): Record<string, unknown> => {
-    function buildAOMNode(element: Element): Record<string, unknown> {
+    function extractTextContent(element: Element): string {
+      // Get all text nodes recursively, excluding script/style content
+      let text = "";
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, {
+        acceptNode: (node) => {
+          // Skip text nodes inside script, style, or other non-content elements
+          let parent = node.parentElement;
+          while (parent) {
+            const tagName = parent.tagName.toLowerCase();
+            if (
+              ["script", "style", "noscript", "meta", "link"].includes(tagName)
+            ) {
+              return NodeFilter.FILTER_REJECT;
+            }
+            parent = parent.parentElement;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        },
+      });
+
+      let node;
+      while ((node = walker.nextNode())) {
+        const textContent = node.textContent?.trim();
+        if (textContent && textContent.length > 0) {
+          text += textContent + " ";
+        }
+      }
+
+      return text.trim();
+    }
+
+    function findMainContent(): Element | null {
+      // Try to find main content area using common selectors
+      const mainSelectors = [
+        "main",
+        "[role='main']",
+        "article",
+        "[role='article']",
+        ".content",
+        "#content",
+        "[class*='content']",
+        "[id*='content']",
+        "[class*='post']",
+        "[class*='article']",
+        "[class*='main']",
+      ];
+
+      for (const selector of mainSelectors) {
+        try {
+          const element = document.querySelector(selector);
+          if (element) {
+            return element;
+          }
+        } catch {
+          // Invalid selector, continue
+        }
+      }
+
+      return null;
+    }
+
+    function buildAOMNode(
+      element: Element,
+      includeText = true
+    ): Record<string, unknown> {
+      const tagName = element.tagName.toLowerCase();
       const node: Record<string, unknown> = {
-        role: element.getAttribute("role") || element.tagName.toLowerCase(),
-        name:
-          element.getAttribute("aria-label") ||
-          element.getAttribute("alt") ||
-          (element as HTMLElement).innerText?.trim() ||
-          undefined,
-        value: (element as HTMLInputElement).value || undefined,
-        description: element.getAttribute("aria-description") || undefined,
+        role: element.getAttribute("role") || tagName,
       };
+
+      // Get name from various sources
+      const ariaLabel = element.getAttribute("aria-label");
+      const alt = element.getAttribute("alt");
+      const title = element.getAttribute("title");
+      const textContent = includeText ? extractTextContent(element) : "";
+
+      // For headings, use their text content as name
+      if (["h1", "h2", "h3", "h4", "h5", "h6"].includes(tagName)) {
+        const headingText = (element as HTMLElement).innerText?.trim();
+        node.name = headingText || ariaLabel || undefined;
+        node.value = headingText || undefined;
+      } else {
+        // Prioritize aria-label, then alt, then title, then text content (if short)
+        node.name =
+          ariaLabel ||
+          alt ||
+          title ||
+          (textContent.length > 0 && textContent.length < 200
+            ? textContent
+            : undefined);
+      }
+
+      // For elements with substantial text content, include it in value
+      if (includeText && textContent.length > 0) {
+        // Only include text if it's meaningful (not just whitespace/navigation)
+        if (textContent.length > 20) {
+          // Limit very long content to prevent XML bloat
+          node.value =
+            textContent.length > 5000
+              ? textContent.substring(0, 5000) + "..."
+              : textContent;
+        }
+      }
+
+      // Get other attributes
+      if (element.getAttribute("aria-description")) {
+        node.description = element.getAttribute("aria-description");
+      }
 
       // Check ARIA states
       if (element.hasAttribute("aria-checked")) {
@@ -390,8 +494,17 @@ async function extractAOM(page: Page): Promise<string> {
       // Recursively process children
       const children: Record<string, unknown>[] = [];
       for (const child of Array.from(element.children)) {
-        children.push(buildAOMNode(child));
+        // Skip script, style, and other non-content elements
+        const childTagName = child.tagName.toLowerCase();
+        if (
+          !["script", "style", "noscript", "meta", "link"].includes(
+            childTagName
+          )
+        ) {
+          children.push(buildAOMNode(child, includeText));
+        }
       }
+
       if (children.length > 0) {
         node.children = children;
       }
@@ -399,8 +512,13 @@ async function extractAOM(page: Page): Promise<string> {
       return node;
     }
 
-    const root = document.documentElement;
-    return buildAOMNode(root) as Record<string, unknown>;
+    // Try to find main content area first, fallback to body
+    const mainContent = findMainContent();
+    const rootElement =
+      mainContent || document.body || document.documentElement;
+
+    // Build AOM tree with text content included
+    return buildAOMNode(rootElement, true) as Record<string, unknown>;
   })) as Record<string, unknown>;
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<aom>\n${aomToXml(
@@ -572,6 +690,62 @@ async function extractWorkspaceContextFromToken(req: express.Request): Promise<{
 }
 
 /**
+ * Check if page contains a CAPTCHA or human verification challenge
+ * Detects common CAPTCHA indicators including text patterns and DOM elements
+ */
+async function detectCaptcha(page: Page): Promise<boolean> {
+  try {
+    // Check for common CAPTCHA indicators
+    const captchaIndicators = await page.evaluate(() => {
+      const bodyText = document.body?.innerText?.toLowerCase() || "";
+      const title = document.title?.toLowerCase() || "";
+
+      // Common CAPTCHA phrases
+      const phrases = [
+        "prove you're human",
+        "verify you're human",
+        "are you a robot",
+        "captcha",
+        "challenge",
+        "cloudflare",
+        "access denied",
+        "checking your browser",
+        "please wait",
+        "just a moment",
+        "verify you are not a robot",
+        "security check",
+      ];
+
+      // Check body text and title
+      const hasPhrase = phrases.some(
+        (phrase) => bodyText.includes(phrase) || title.includes(phrase)
+      );
+
+      // Check for common CAPTCHA iframe/container selectors
+      const hasCaptchaElement = !!(
+        document.querySelector("[data-sitekey]") || // reCAPTCHA
+        document.querySelector(".cf-browser-verification") || // Cloudflare
+        document.querySelector("#challenge-form") || // Cloudflare
+        document.querySelector('[class*="captcha"]') ||
+        document.querySelector('[id*="captcha"]') ||
+        document.querySelector('[class*="challenge"]') ||
+        document.querySelector('[id*="challenge"]') ||
+        document.querySelector('iframe[src*="recaptcha"]') ||
+        document.querySelector('iframe[src*="hcaptcha"]') ||
+        document.querySelector('iframe[src*="cloudflare"]')
+      );
+
+      return hasPhrase || hasCaptchaElement;
+    });
+
+    return captchaIndicators;
+  } catch {
+    // If evaluation fails, assume no CAPTCHA (better to try than fail)
+    return false;
+  }
+}
+
+/**
  * Setup resource blocking on page
  * Note: Event listener is automatically cleaned up when page is closed
  */
@@ -725,10 +899,45 @@ function createApp(): express.Application {
           "--single-process",
           "--disable-gpu",
           `--proxy-server=${server}`,
+          // Stealth options to reduce CAPTCHA triggers
+          "--disable-blink-features=AutomationControlled", // Hide automation
+          "--disable-features=IsolateOrigins,site-per-process", // Better compatibility
         ],
       });
 
       const page = await browser.newPage();
+
+      // Set realistic user agent and viewport to appear more human-like
+      await page.setUserAgent(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+      );
+      await page.setViewport({ width: 1920, height: 1080 });
+      await page.setExtraHTTPHeaders({
+        "Accept-Language": "en-US,en;q=0.9",
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Encoding": "gzip, deflate, br",
+        Connection: "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+      });
+
+      // Remove webdriver property to avoid detection
+      await page.evaluateOnNewDocument(() => {
+        // Remove webdriver property
+        Object.defineProperty(navigator, "webdriver", {
+          get: () => false,
+        });
+
+        // Override plugins to appear more realistic
+        Object.defineProperty(navigator, "plugins", {
+          get: () => [1, 2, 3, 4, 5],
+        });
+
+        // Override languages
+        Object.defineProperty(navigator, "languages", {
+          get: () => ["en-US", "en"],
+        });
+      });
 
       // Authenticate with proxy if credentials provided
       if (username && password) {
@@ -743,6 +952,15 @@ function createApp(): express.Application {
         waitUntil: "networkidle2",
         timeout: 60000,
       });
+
+      // Check for CAPTCHA before extracting AOM
+      const hasCaptcha = await detectCaptcha(page);
+      if (hasCaptcha) {
+        throw badRequest(
+          "The requested URL requires human verification (CAPTCHA). " +
+            "This page cannot be scraped automatically. Please try a different URL or use an alternative data source."
+        );
+      }
 
       // Extract AOM
       const aomXml = await extractAOM(page);
