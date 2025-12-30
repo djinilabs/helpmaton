@@ -1,5 +1,7 @@
 import type { FC } from "react";
 
+import { ClockIcon } from "@heroicons/react/24/outline";
+
 import { useAgentConversations } from "../hooks/useAgentConversations";
 import type { Conversation } from "../utils/api";
 import { formatCurrency } from "../utils/currency";
@@ -33,26 +35,56 @@ export const ConversationList: FC<ConversationListProps> = ({
     return new Date(dateString).toLocaleString();
   };
 
-  const formatTokenUsage = (tokenUsage: Conversation["tokenUsage"]): string => {
-    if (!tokenUsage) return "N/A";
-    const parts: string[] = [];
-    parts.push(`P: ${tokenUsage.promptTokens.toLocaleString()}`);
-    parts.push(`C: ${tokenUsage.completionTokens.toLocaleString()}`);
-    if (
-      "reasoningTokens" in tokenUsage &&
-      typeof tokenUsage.reasoningTokens === "number" &&
-      tokenUsage.reasoningTokens > 0
-    ) {
-      parts.push(`R: ${tokenUsage.reasoningTokens.toLocaleString()}`);
+  const formatGenerationTime = (ms: number | undefined): string => {
+    if (!ms) return "N/A";
+    if (ms < 1000) {
+      return `${Math.round(ms)}ms`;
     }
-    if (
-      "cachedPromptTokens" in tokenUsage &&
-      typeof tokenUsage.cachedPromptTokens === "number" &&
-      tokenUsage.cachedPromptTokens > 0
-    ) {
-      parts.push(`Cache: ${tokenUsage.cachedPromptTokens.toLocaleString()}`);
+    const seconds = ms / 1000;
+    if (seconds < 60) {
+      return `${seconds.toFixed(1)}s`;
     }
-    return `${tokenUsage.totalTokens.toLocaleString()} (${parts.join(", ")})`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+    return `${minutes}m ${remainingSeconds}s`;
+  };
+
+  // Helper function to get color classes for conversation type
+  const getConversationTypeColor = (
+    type: Conversation["conversationType"]
+  ): string => {
+    switch (type) {
+      case "test":
+        return "bg-primary-100 text-primary-700 border-primary-200 dark:bg-primary-900 dark:text-primary-300 dark:border-primary-700";
+      case "webhook":
+        return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
+      case "stream":
+        return "bg-success-100 text-success-700 border-success-200 dark:bg-success-900 dark:text-success-300 dark:border-success-700";
+      default:
+        return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700";
+    }
+  };
+
+  // Helper function to get color classes for token usage ranges
+  const getTokenUsageColor = (tokenCount: number): string => {
+    if (tokenCount < 1000) {
+      return "bg-success-100 text-success-700 border-success-200 dark:bg-success-900 dark:text-success-300 dark:border-success-700";
+    } else if (tokenCount < 10000) {
+      return "bg-primary-100 text-primary-700 border-primary-200 dark:bg-primary-900 dark:text-primary-300 dark:border-primary-700";
+    } else {
+      return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
+    }
+  };
+
+  // Helper function to get color classes for cost ranges
+  const getCostColor = (costUsd: number): string => {
+    if (costUsd < 0.01) {
+      return "bg-success-100 text-success-700 border-success-200 dark:bg-success-900 dark:text-success-300 dark:border-success-700";
+    } else if (costUsd < 0.1) {
+      return "bg-primary-100 text-primary-700 border-primary-200 dark:bg-primary-900 dark:text-primary-300 dark:border-primary-700";
+    } else {
+      return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
+    }
   };
 
   if (isLoading && !data) {
@@ -139,52 +171,115 @@ export const ConversationList: FC<ConversationListProps> = ({
               <div
                 key={conversation.id}
                 onClick={() => onConversationClick(conversation)}
-                className="transform cursor-pointer rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:border-primary-400 hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
+                className="transform cursor-pointer rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:scale-[1.01] hover:border-primary-400 hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
               >
-                <div className="mb-2 flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="rounded border border-neutral-200 bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                        {conversation.conversationType}
-                      </span>
-                      <span className="text-xs text-neutral-600 dark:text-neutral-300">
-                        {conversation.messageCount} message
-                        {conversation.messageCount !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    <div className="mb-1 text-xs text-neutral-500 dark:text-neutral-300">
-                      Started: {formatDate(conversation.startedAt)}
-                    </div>
-                    <div className="text-xs text-neutral-500 dark:text-neutral-300">
-                      Last: {formatDate(conversation.lastMessageAt)}
-                    </div>
+                {/* Header Row - Type, Message Count, Error Badge */}
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getConversationTypeColor(
+                        conversation.conversationType
+                      )}`}
+                    >
+                      {conversation.conversationType.toUpperCase()}
+                    </span>
+                    <span className="text-xs text-neutral-600 dark:text-neutral-400">
+                      {conversation.messageCount} message
+                      {conversation.messageCount !== 1 ? "s" : ""}
+                    </span>
                   </div>
-                  <div className="space-y-1 text-right">
-                    {conversation.hasError && (
-                      <div className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-800 dark:bg-red-900 dark:text-red-200">
-                        Error
-                      </div>
-                    )}
-                    <div>
-                      <div className="mb-1 text-xs font-medium text-neutral-700 dark:text-neutral-300">
-                        Tokens
-                      </div>
-                      <div className="mb-1 text-xs text-neutral-600 dark:text-neutral-300">
-                        {formatTokenUsage(conversation.tokenUsage)}
-                      </div>
+                  {conversation.hasError && (
+                    <div className="inline-flex items-center gap-1 rounded-lg border border-error-200 bg-error-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-error-800 dark:border-error-800 dark:bg-error-900 dark:text-error-200">
+                      Error
                     </div>
-                    {conversation.costUsd !== undefined && (
-                      <div>
-                        <div className="mb-1 text-xs font-medium text-neutral-700 dark:text-neutral-300">
-                          Cost
-                        </div>
-                        <div className="text-xs text-neutral-600 dark:text-neutral-300">
-                          {formatCurrency(conversation.costUsd, "usd", 10)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
+
+                {/* Second Row - Timestamps, Generation Time, and Cost */}
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-xs text-neutral-600 dark:text-neutral-400">
+                    <div className="flex items-center gap-1">
+                      <ClockIcon className="size-3" />
+                      <span>{formatDate(conversation.startedAt)}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <ClockIcon className="size-3" />
+                      <span>{formatDate(conversation.lastMessageAt)}</span>
+                    </div>
+                    {conversation.totalGenerationTimeMs !== undefined && (
+                      <div className="flex items-center gap-1">
+                        <ClockIcon className="size-3" />
+                        <span className="font-medium">
+                          {formatGenerationTime(conversation.totalGenerationTimeMs)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  {conversation.costUsd !== undefined && (
+                    <span
+                      className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
+                        conversation.costUsd
+                      )}`}
+                    >
+                      {formatCurrency(conversation.costUsd, "usd", 10)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Third Row - Token Usage Pills */}
+                {conversation.tokenUsage && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span
+                      className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                        conversation.tokenUsage.promptTokens
+                      )}`}
+                    >
+                      P: {conversation.tokenUsage.promptTokens.toLocaleString()}
+                    </span>
+                    <span
+                      className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                        conversation.tokenUsage.completionTokens
+                      )}`}
+                    >
+                      C:{" "}
+                      {conversation.tokenUsage.completionTokens.toLocaleString()}
+                    </span>
+                    {"reasoningTokens" in conversation.tokenUsage &&
+                      typeof conversation.tokenUsage.reasoningTokens ===
+                        "number" &&
+                      conversation.tokenUsage.reasoningTokens > 0 && (
+                        <span
+                          className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                            conversation.tokenUsage.reasoningTokens
+                          )}`}
+                        >
+                          R:{" "}
+                          {conversation.tokenUsage.reasoningTokens.toLocaleString()}
+                        </span>
+                      )}
+                    {"cachedPromptTokens" in conversation.tokenUsage &&
+                      typeof conversation.tokenUsage.cachedPromptTokens ===
+                        "number" &&
+                      conversation.tokenUsage.cachedPromptTokens > 0 && (
+                        <span
+                          className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                            conversation.tokenUsage.cachedPromptTokens
+                          )}`}
+                        >
+                          Cache:{" "}
+                          {conversation.tokenUsage.cachedPromptTokens.toLocaleString()}
+                        </span>
+                      )}
+                    <span
+                      className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                        conversation.tokenUsage.totalTokens
+                      )}`}
+                    >
+                      Total:{" "}
+                      {conversation.tokenUsage.totalTokens.toLocaleString()}
+                    </span>
+                  </div>
+                )}
               </div>
             ))}
           </div>
