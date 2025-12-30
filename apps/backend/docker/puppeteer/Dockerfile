@@ -40,9 +40,14 @@ COPY apps/backend/docker/puppeteer/package.json ./
 # Install Puppeteer dependencies including @sparticuz/chromium
 # @sparticuz/chromium provides Chromium optimized for AWS Lambda (arm64)
 # It's installed via pnpm and provides the executable path via its API
-# No manual installation needed - the package handles everything
 RUN pnpm install --prod && \
     rm -rf /root/.pnpm-store /root/.local/share/pnpm
+
+# Extract Chromium binary during build to avoid runtime extraction issues
+# @sparticuz/chromium extracts the binary on first use, but we do it at build time
+# Create the directory structure that chromium might need and extract to /tmp
+RUN mkdir -p /tmp /var/task/http/bin && \
+    node -e "const chromium = require('@sparticuz/chromium'); chromium.executablePath().then(path => { console.log('Chromium extracted to:', path); require('fs').access(path, require('fs').constants.F_OK, err => { if (err) { console.error('Chromium not found at:', path); process.exit(1); } else { console.log('Chromium verified at:', path); } }); }).catch(err => { console.error('Error extracting Chromium:', err); process.exit(1); });"
 
 # Move to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}
@@ -66,7 +71,9 @@ RUN chmod -R 755 ${LAMBDA_TASK_ROOT}
 
 # @sparticuz/chromium provides the executable path automatically
 # No need to set PUPPETEER_EXECUTABLE_PATH - the code will use chromium.executablePath()
+# Set extraction path to /tmp which is writable in Lambda
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV CHROMIUM_PATH=/tmp
 
 # Lambda handler is set via CMD pointing to index.handler
 # The index.js wrapper will read LAMBDA_HANDLER_PATH to route to the actual handler

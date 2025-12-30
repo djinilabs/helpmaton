@@ -1403,27 +1403,44 @@ function createApp(): express.Application {
       // getChromeExecutablePath() automatically detects environment and finds Chrome
       const executablePath = await getChromeExecutablePath();
 
+      // Use @sparticuz/chromium's recommended args if in Lambda, otherwise use custom args
+      const isLambda = !!process.env.LAMBDA_TASK_ROOT;
+      const launchArgs = isLambda
+        ? [
+            ...chromium.args,
+            `--proxy-server=${server}`,
+            // Disable site isolation to allow access to cross-origin iframes (needed for reCAPTCHA detection)
+            "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
+            "--flag-switches-begin",
+            "--disable-site-isolation-trials",
+            "--flag-switches-end",
+          ]
+        : [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-accelerated-2d-canvas",
+            "--no-first-run",
+            "--no-zygote",
+            "--single-process",
+            "--disable-gpu",
+            `--proxy-server=${server}`,
+            // Stealth options to reduce CAPTCHA triggers
+            "--disable-blink-features=AutomationControlled", // Hide automation
+            // Disable site isolation to allow access to cross-origin iframes (needed for reCAPTCHA detection)
+            "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
+            "--flag-switches-begin",
+            "--disable-site-isolation-trials",
+            "--flag-switches-end",
+          ];
+
       browser = await puppeteer.launch({
-        headless: true,
+        headless: isLambda ? chromium.headless : true,
         executablePath,
-        args: [
-          "--no-sandbox",
-          "--disable-setuid-sandbox",
-          "--disable-dev-shm-usage",
-          "--disable-accelerated-2d-canvas",
-          "--no-first-run",
-          "--no-zygote",
-          "--single-process",
-          "--disable-gpu",
-          `--proxy-server=${server}`,
-          // Stealth options to reduce CAPTCHA triggers
-          "--disable-blink-features=AutomationControlled", // Hide automation
-          // Disable site isolation to allow access to cross-origin iframes (needed for reCAPTCHA detection)
-          "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
-          "--flag-switches-begin",
-          "--disable-site-isolation-trials",
-          "--flag-switches-end",
-        ],
+        args: launchArgs,
+        defaultViewport: isLambda
+          ? chromium.defaultViewport
+          : { width: 1920, height: 1080 },
       });
 
       if (!browser) {
@@ -1433,7 +1450,10 @@ function createApp(): express.Application {
       const page = await browser.newPage();
 
       // Set realistic user agent and viewport to appear more human-like
-      await page.setViewport({ width: 1920, height: 1080 });
+      // Viewport is already set via chromium.defaultViewport in Lambda, but set it for local dev
+      if (!process.env.LAMBDA_TASK_ROOT) {
+        await page.setViewport({ width: 1920, height: 1080 });
+      }
 
       // Authenticate with proxy if credentials provided
       if (username && password) {
