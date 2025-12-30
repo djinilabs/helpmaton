@@ -4,13 +4,13 @@ FROM public.ecr.aws/lambda/nodejs:20
 
 # Install system dependencies required for Puppeteer/Chrome
 # Amazon Linux 2023 uses dnf (not yum)
+# Note: fonts-liberation is not available in AL2023, removed from package list
 RUN dnf install -y \
     nss \
     freetype \
     freetype-devel \
     harfbuzz \
     ca-certificates \
-    fonts-liberation \
     libX11 \
     libXcomposite \
     libXcursor \
@@ -25,10 +25,6 @@ RUN dnf install -y \
     atk \
     cups-libs \
     gtk3 \
-    ipa-gothic-fonts \
-    wqy-zenhei-fonts \
-    wqy-microhei-fonts \
-    thai-fonts \
     && dnf clean all
 
 # Install pnpm globally
