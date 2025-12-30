@@ -5,7 +5,7 @@ FROM public.ecr.aws/lambda/nodejs:20
 # Install system dependencies required for Puppeteer/Chrome
 # Amazon Linux 2023 uses dnf (not yum)
 # Note: fonts-liberation is not available in AL2023, removed from package list
-# Added file utility to verify binary architecture and wget/unzip for Chrome download
+# Added file utility to verify binary architecture and wget/unzip/python3 for Chrome download
 RUN dnf install -y \
     nss \
     freetype \
@@ -29,6 +29,7 @@ RUN dnf install -y \
     file \
     wget \
     unzip \
+    python3 \
     && dnf clean all
 
 # Install pnpm globally
@@ -49,16 +50,18 @@ RUN pnpm install --prod && \
 # @puppeteer/browsers doesn't respect --platform flag when building in x86_64 emulator
 # So we manually download the arm64 Chrome binary from Google's CDN
 # Query Chrome for Testing API to get the correct download URL for latest stable arm64
+# Use Python to properly parse JSON and extract the download URL
 RUN mkdir -p /opt/chrome/chrome-linux-arm64 && \
     cd /opt/chrome/chrome-linux-arm64 && \
     echo "Querying Chrome for Testing API for latest stable arm64 version..." && \
-    API_RESPONSE=$(wget -qO- "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" 2>/dev/null) && \
-    CHROME_URL=$(echo "$API_RESPONSE" | grep -o "\"url\":\"[^\"]*linux-arm64[^\"]*\.zip\"" | grep -i "stable\|chrome" | head -1 | cut -d'"' -f4) && \
+    CHROME_URL=$(wget -qO- "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" 2>/dev/null | \
+    python3 -c "import sys, json; d=json.load(sys.stdin); \
+    downloads = d['channels']['Stable']['downloads']['chrome']; \
+    url = next((dl['url'] for dl in downloads if dl['platform'] == 'linux-arm64'), None); \
+    print(url if url else '')") && \
     if [ -z "$CHROME_URL" ]; then \
-    echo "Could not parse URL from API, extracting version and constructing URL..." && \
-    STABLE_VERSION=$(echo "$API_RESPONSE" | grep -o "\"version\":\"[0-9.]*\"" | head -1 | cut -d'"' -f4) && \
-    echo "Latest stable version: $STABLE_VERSION" && \
-    CHROME_URL="https://storage.googleapis.com/chrome-for-testing-public/${STABLE_VERSION}/linux-arm64/chrome-linux-arm64.zip"; \
+    echo "ERROR: Could not extract download URL from API response" && \
+    exit 1; \
     fi && \
     echo "Downloading Chrome from: $CHROME_URL" && \
     wget --tries=3 --timeout=60 "$CHROME_URL" -O chrome-linux-arm64.zip || \
