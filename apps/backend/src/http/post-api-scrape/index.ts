@@ -1317,6 +1317,8 @@ function createApp(): express.Application {
             "--flag-switches-end",
           ];
 
+          console.log("[scrape] Chromium args:", chromiumArgs);
+
           const executablePath =
             process.env.PUPPETEER_EXECUTABLE_PATH || "/opt/chrome/chromium";
 
@@ -1327,6 +1329,7 @@ function createApp(): express.Application {
             executablePath,
           });
         } else {
+          console.log("[scrape] Falling back to custom args");
           // Fallback if chromium module not available
           browser = await puppeteer.launch({
             headless: true,
@@ -1349,6 +1352,7 @@ function createApp(): express.Application {
           });
         }
       } else {
+        console.log("[scrape] Local development - using custom args");
         // Local development - use custom args
         browser = await puppeteer.launch({
           headless: true,
