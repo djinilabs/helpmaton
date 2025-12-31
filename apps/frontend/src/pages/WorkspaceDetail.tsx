@@ -291,23 +291,18 @@ const WorkspaceDataLoader: FC<{ workspaceId: string }> = ({ workspaceId }) => {
     isLoading,
     isFetching,
     isPending,
-    error,
   } = useQuery({
     queryKey: ["workspaces", workspaceId],
     queryFn: () => getWorkspace(workspaceId),
-    refetchOnMount: "always", // Always refetch when component mounts (on navigation)
-    staleTime: 0, // Consider data stale immediately to force refetch
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 
-  // Check if we have data that matches the current workspaceId
-  // If workspace exists but doesn't match, it's stale data from a previous workspace
-  const hasMatchingData = workspace && workspace.id === workspaceId;
-
   // Show loading if:
-  // 1. We don't have matching data for the current workspaceId
-  // 2. Query is actively fetching (isFetching) - shows loading even with cached data
-  // 3. Query is pending or loading
-  // This ensures loading shows during navigation even if there's cached data for a different workspace
+  // 1. We don't have data for the current workspaceId
+  // 2. Data exists but doesn't match the current workspaceId (stale data from previous workspace)
+  // 3. Query is actively fetching or pending
+  const hasMatchingData = workspace && workspace.id === workspaceId;
   const shouldShowLoading =
     !hasMatchingData || isLoading || isPending || isFetching;
 
@@ -315,27 +310,8 @@ const WorkspaceDataLoader: FC<{ workspaceId: string }> = ({ workspaceId }) => {
     return <LoadingScreen message="Loading workspace..." />;
   }
 
-  if (error || !workspace) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-soft p-8 dark:bg-gradient-soft-dark">
-        <div className="w-full max-w-2xl rounded-2xl border border-error-200 bg-white p-8 shadow-large dark:border-error-700 dark:bg-neutral-900 lg:p-10">
-          <h1 className="mb-4 text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
-            Error
-          </h1>
-          <p className="mb-6 text-xl font-semibold text-error-600 dark:text-error-400">
-            {error instanceof Error
-              ? error.message
-              : "Failed to load workspace"}
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="rounded-xl bg-gradient-primary px-6 py-3 font-semibold text-white transition-all duration-200 hover:shadow-colored"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
+  if (!workspace) {
+    return null;
   }
 
   return <WorkspaceDetailContent workspace={workspace} />;
@@ -1088,7 +1064,7 @@ const WorkspaceDetail: FC = () => {
         </div>
       )}
     >
-      <WorkspaceDataLoader workspaceId={id!} />
+      <WorkspaceDataLoader workspaceId={id!} key={id} />
     </ErrorBoundary>
   );
 };
