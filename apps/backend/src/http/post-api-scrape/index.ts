@@ -1315,6 +1315,10 @@ function createApp(): express.Application {
             "--flag-switches-begin",
             "--disable-site-isolation-trials",
             "--flag-switches-end",
+            "--disable-gpu",
+            "--disable-dev-shm-usage",
+            "--disable-accelerated-2d-canvas",
+            "--no-first-run",
           ];
 
           console.log("[scrape] Chromium args:", chromiumArgs);
