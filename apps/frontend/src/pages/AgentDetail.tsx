@@ -214,6 +214,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   const systemPromptRef = useRef<HTMLDivElement>(null);
 
   const { expandedSection, toggleSection } = useAccordion("agent-detail");
+  const [chatClearKey, setChatClearKey] = useState(0);
 
   useEscapeKey(isStreamTestModalOpen, () => setIsStreamTestModalOpen(false));
 
@@ -1289,7 +1290,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             onToggle={() => toggleSection("test")}
           >
             <LazyAccordionContent isExpanded={expandedSection === "test"}>
-              <AgentChat workspaceId={workspaceId} agentId={agentId} />
+              <AgentChat
+                key={chatClearKey}
+                workspaceId={workspaceId}
+                agentId={agentId}
+                onClear={() => setChatClearKey((prev) => prev + 1)}
+              />
             </LazyAccordionContent>
           </AccordionSection>
 
@@ -2084,7 +2090,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               title={
                 <>
                   <MagnifyingGlassIcon className="mr-2 inline-block size-5" />
-                  EXA SEARCH TOOL
+                  ADVANCED SEARCH TOOL
                 </>
               }
               isExpanded={expandedSection === "exa-search"}
@@ -2150,8 +2156,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               >
                 <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
                   Define client-side tools that will be executed in the browser.
-                  These tools are available to the AI model, but execution
-                  happens on the client side.
+                  These tools should be made available to the AI model by the
+                  client.
                 </p>
                 <div className="space-y-4">
                   <ClientToolEditor
