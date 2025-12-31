@@ -1,5 +1,5 @@
 # Optimized for arm64 architecture
-FROM public.ecr.aws/lambda/nodejs:20
+FROM public.ecr.aws/lambda/nodejs:22
 
 # 1. Install required system dependencies (excluding chromium)
 # We also install 'tar' and 'brotli' to decompress the binary
