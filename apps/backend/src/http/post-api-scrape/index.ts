@@ -1412,19 +1412,15 @@ function createApp(): express.Application {
 
       // Launch browser with proxy
       // getChromeExecutablePath() automatically detects environment and finds Chrome
-      // Ensure extraction directories exist for @sparticuz/chromium if in Lambda
+      // Ensure /tmp exists for @sparticuz/chromium extraction (it's writable in Lambda)
       if (process.env.LAMBDA_TASK_ROOT) {
         try {
-          mkdirSync("/var/task/http/bin", { recursive: true });
           mkdirSync("/tmp", { recursive: true });
           console.log(
-            "[scrape] Created extraction directories for @sparticuz/chromium"
+            "[scrape] Ensured /tmp directory exists for Chromium extraction"
           );
         } catch (mkdirError) {
-          console.warn(
-            "[scrape] Failed to create extraction directories:",
-            mkdirError
-          );
+          console.warn("[scrape] Failed to create /tmp directory:", mkdirError);
         }
       }
       const executablePath = await getChromeExecutablePath();
