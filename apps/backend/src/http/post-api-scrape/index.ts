@@ -1039,7 +1039,8 @@ async function getChromeExecutablePath(): Promise<string> {
       "[scrape] Attempting to get Chromium path from @sparticuz/chromium..."
     );
     // @sparticuz/chromium provides executablePath() method that returns a Promise
-    const chromiumPath = await chromium.executablePath();
+    // Pass /tmp as the extraction path since /var/task is read-only in Lambda
+    const chromiumPath = await chromium.executablePath("/tmp");
     console.log(`[scrape] chromium.executablePath() returned: ${chromiumPath}`);
 
     if (!chromiumPath) {
