@@ -1430,9 +1430,20 @@ function createApp(): express.Application {
 
       // Use @sparticuz/chromium's recommended args if in Lambda, otherwise use custom args
       const isLambda = !!process.env.LAMBDA_TASK_ROOT;
+
+      if (isLambda) {
+        // Optional: Disable graphics mode for better performance in Lambda
+        chromium.setGraphicsMode = false;
+      }
+
       const launchArgs = isLambda
         ? [
-            ...chromium.args,
+            // Use puppeteer.defaultArgs to merge chromium.args with puppeteer defaults
+            // This matches the @sparticuz/chromium README example
+            ...puppeteer.defaultArgs({
+              args: chromium.args,
+              headless: "shell",
+            }),
             `--proxy-server=${server}`,
             // Disable site isolation to allow access to cross-origin iframes (needed for reCAPTCHA detection)
             "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
@@ -1460,7 +1471,7 @@ function createApp(): express.Application {
           ];
 
       browser = await puppeteer.launch({
-        headless: isLambda ? chromium.headless : true,
+        headless: isLambda ? "shell" : true,
         executablePath,
         args: launchArgs,
         defaultViewport: isLambda
