@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { existsSync, mkdirSync } from "fs";
+import { mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -960,152 +960,6 @@ function getJwtSecret(): Uint8Array {
 }
 
 /**
- * Get Chrome executable path based on environment
- * - Local development: Checks common OS-specific paths for Chrome/Chromium
- * - Production: Uses @sparticuz/chromium which provides the executable path
- */
-async function getChromeExecutablePath(): Promise<string> {
-  // If explicitly set via environment variable, verify it exists
-  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-    const envPath = process.env.PUPPETEER_EXECUTABLE_PATH;
-    if (existsSync(envPath)) {
-      return envPath;
-    }
-    // If env path doesn't exist, log warning but continue to fallback logic
-    console.warn(
-      `[scrape] PUPPETEER_EXECUTABLE_PATH set to ${envPath} but file not found, trying fallback paths`
-    );
-  }
-
-  // Detect local development environment
-  // Lambda sets LAMBDA_TASK_ROOT, local development doesn't
-  const isLocalDevelopment =
-    process.env.ARC_ENV === "testing" ||
-    process.env.NODE_ENV === "development" ||
-    !process.env.LAMBDA_TASK_ROOT;
-
-  if (isLocalDevelopment) {
-    const os = process.platform;
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-
-    if (os === "darwin") {
-      // macOS paths (most common first)
-      const macPaths = [
-        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-        "/Applications/Chromium.app/Contents/MacOS/Chromium",
-        "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
-        join(
-          homeDir,
-          "Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-        ),
-        join(homeDir, ".cache/puppeteer/chrome"),
-      ];
-
-      for (const path of macPaths) {
-        if (existsSync(path)) {
-          return path;
-        }
-      }
-    } else if (os === "linux") {
-      // Linux paths (most common first)
-      const linuxPaths = [
-        "/usr/bin/google-chrome-stable",
-        "/usr/bin/google-chrome",
-        "/usr/bin/chromium-browser",
-        "/usr/bin/chromium",
-        "/snap/bin/chromium",
-        "/usr/local/bin/google-chrome-stable",
-        "/usr/local/bin/chromium-browser",
-        join(homeDir, ".cache/puppeteer/chrome"),
-      ];
-
-      for (const path of linuxPaths) {
-        if (existsSync(path)) {
-          return path;
-        }
-      }
-    } else if (os === "win32") {
-      // Windows paths (most common first)
-      const programFiles = process.env.PROGRAMFILES || "C:\\Program Files";
-      const localAppData = process.env.LOCALAPPDATA || "";
-      const winPaths = [
-        join(programFiles, "Google/Chrome/Application/chrome.exe"),
-        join(programFiles, "(x86)/Google/Chrome/Application/chrome.exe"),
-        join(localAppData, "Google/Chrome/Application/chrome.exe"),
-        join(programFiles, "Chromium/Application/chrome.exe"),
-        join(localAppData, "Chromium/Application/chrome.exe"),
-      ];
-
-      for (const path of winPaths) {
-        if (existsSync(path)) {
-          return path;
-        }
-      }
-    }
-
-    // If no Chrome found in local development, throw helpful error
-    throw new Error(
-      `Chrome/Chromium not found for local development on ${os}. ` +
-        `Please install Chrome/Chromium or set PUPPETEER_EXECUTABLE_PATH environment variable. ` +
-        `Common installation commands: ` +
-        `macOS: brew install --cask google-chrome | Linux: sudo apt-get install google-chrome-stable | Windows: Download from https://www.google.com/chrome/`
-    );
-  }
-
-  // Lambda environment - use @sparticuz/chromium
-  // @sparticuz/chromium provides the executable path optimized for AWS Lambda
-  try {
-    const chromiumModule = getChromium();
-    if (!chromiumModule) {
-      throw new Error("@sparticuz/chromium module not available");
-    }
-    console.log(
-      "[scrape] Attempting to get Chromium path from @sparticuz/chromium..."
-    );
-
-    // Point strictly to the location where Docker installed the node_modules
-    const chromiumPath = await chromiumModule.executablePath(
-      "/var/task/node_modules/@sparticuz/chromium/bin"
-    );
-    console.log(`[scrape] chromium.executablePath() returned: ${chromiumPath}`);
-
-    if (!chromiumPath) {
-      console.error(
-        "[scrape] chromium.executablePath() returned null/undefined"
-      );
-      throw new Error("chromium.executablePath() returned null or undefined");
-    }
-
-    // Check if path exists
-    if (existsSync(chromiumPath)) {
-      console.log(`[scrape] Found Chromium at: ${chromiumPath}`);
-      return chromiumPath;
-    }
-
-    // If path doesn't exist, log detailed info but return it anyway
-    // @sparticuz/chromium may extract it on first use
-    console.warn(
-      `[scrape] Chromium path from @sparticuz/chromium does not exist: ${chromiumPath}`
-    );
-    console.warn(
-      `[scrape] Attempting to use path anyway - @sparticuz/chromium may extract it on first use`
-    );
-
-    return chromiumPath;
-  } catch (error) {
-    console.error(
-      "[scrape] Failed to get Chromium path from @sparticuz/chromium:",
-      error
-    );
-    if (error instanceof Error) {
-      console.error("[scrape] Error message:", error.message);
-      console.error("[scrape] Error stack:", error.stack);
-    }
-    throw error; // Re-throw to fall through to fallback paths
-  }
-}
-
-/**
  * Extract and validate encrypted JWT from Authorization header
  * Returns workspaceId, agentId, and conversationId from the token payload
  */
@@ -1441,7 +1295,6 @@ function createApp(): express.Application {
           console.warn("[scrape] Failed to create /tmp directory:", mkdirError);
         }
       }
-      const executablePath = await getChromeExecutablePath();
 
       // Use @sparticuz/chromium's recommended args if in Lambda, otherwise use custom args
       const isLambda = !!process.env.LAMBDA_TASK_ROOT;
@@ -1467,14 +1320,12 @@ function createApp(): express.Application {
           browser = await puppeteer.launch({
             args: chromiumArgs,
             defaultViewport: chromiumModule.defaultViewport,
-            executablePath,
             headless: chromiumModule.headless,
           });
         } else {
           // Fallback if chromium module not available
           browser = await puppeteer.launch({
             headless: true,
-            executablePath,
             args: [
               "--no-sandbox",
               "--disable-setuid-sandbox",
@@ -1497,7 +1348,6 @@ function createApp(): express.Application {
         // Local development - use custom args
         browser = await puppeteer.launch({
           headless: true,
-          executablePath,
           args: [
             "--no-sandbox",
             "--disable-setuid-sandbox",
