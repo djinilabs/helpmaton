@@ -1769,7 +1769,7 @@ function createApp(): express.Application {
       }
 
       // Report server errors to Sentry before passing to error handler
-      const boomed = boomify(err as Error);
+      const boomed = boomify(ensureError(err));
       if (boomed.isServer) {
         console.error("[scrape] Server error:", boomed);
         Sentry.captureException(ensureError(err), {
@@ -1788,7 +1788,7 @@ function createApp(): express.Application {
           },
         });
       }
-      next(err);
+      next(boomed);
     } finally {
       // Cleanup browser
       if (browser) {
