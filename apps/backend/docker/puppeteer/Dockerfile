@@ -38,6 +38,11 @@ COPY apps/backend/docker/puppeteer/package.json ./
 RUN pnpm install --prod && \
     rm -rf /root/.pnpm-store /root/.local/share/pnpm
 
+# 4a. Extract Chromium binary at build time to avoid runtime extraction issues
+# This pre-extracts the binary so it's ready to use in Lambda
+RUN mkdir -p /tmp && \
+    node -e "const chromium = require('@sparticuz/chromium'); chromium.executablePath('/tmp').then(path => { console.log('Chromium extracted to:', path); require('fs').access(path, require('fs').constants.F_OK, err => { if (err) { console.error('Chromium not found at:', path); process.exit(1); } else { console.log('Chromium verified at:', path); } }); }).catch(err => { console.error('Error extracting Chromium:', err); process.exit(1); });"
+
 # 5. Move to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}
 
