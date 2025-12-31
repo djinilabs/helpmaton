@@ -1317,10 +1317,14 @@ function createApp(): express.Application {
             "--flag-switches-end",
           ];
 
+          const executablePath =
+            process.env.PUPPETEER_EXECUTABLE_PATH || "/opt/chrome/chromium";
+
           browser = await puppeteer.launch({
             args: chromiumArgs,
             defaultViewport: chromiumModule.defaultViewport,
             headless: true,
+            executablePath,
           });
         } else {
           // Fallback if chromium module not available
