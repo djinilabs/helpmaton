@@ -34,10 +34,13 @@ RUN npm install -g pnpm
 # We use the @sparticuz/chromium release which is built for Lambda
 # We explicitly grab the 'arm64' version to bypass QEMU architecture detection issues
 WORKDIR /opt/chrome
-RUN curl -Lo chromium.tar \
-    https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.arm64.tar && \
+
+# Download v143.0.0 ARM64 pack
+# curl -f ensures we fail immediately if the URL is wrong
+RUN curl -fLo chromium.tar \
+    https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.arm64.tar && \
     tar -xf chromium.tar && \
-    # Decompress the binary (it comes as chromium.br)
+    # The pack contains 'chromium.br', we must decompress it
     brotli -d chromium.br && \
     chmod +x chromium && \
     # Cleanup to save space
