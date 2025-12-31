@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
-import { existsSync } from "fs";
+import { existsSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { dirname, join } from "path";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - @sparticuz/chromium is installed in container image
@@ -1035,45 +1035,55 @@ async function getChromeExecutablePath(): Promise<string> {
   // Lambda environment - use @sparticuz/chromium
   // @sparticuz/chromium provides the executable path optimized for AWS Lambda
   try {
+    console.log(
+      "[scrape] Attempting to get Chromium path from @sparticuz/chromium..."
+    );
     // @sparticuz/chromium provides executablePath() method that returns a Promise
     const chromiumPath = await chromium.executablePath();
-    if (chromiumPath && existsSync(chromiumPath)) {
+    console.log(`[scrape] chromium.executablePath() returned: ${chromiumPath}`);
+
+    if (!chromiumPath) {
+      console.error(
+        "[scrape] chromium.executablePath() returned null/undefined"
+      );
+      throw new Error("chromium.executablePath() returned null or undefined");
+    }
+
+    // Check if path exists
+    if (existsSync(chromiumPath)) {
       console.log(`[scrape] Found Chromium at: ${chromiumPath}`);
       return chromiumPath;
     }
-    // If path doesn't exist, log warning but return it anyway (chromium may handle it)
-    if (chromiumPath) {
-      console.log(
-        `[scrape] Using @sparticuz/chromium path: ${chromiumPath} (file may not exist yet, chromium will handle it)`
-      );
-      return chromiumPath;
-    }
-  } catch (error) {
+
+    // If path doesn't exist, log detailed info but return it anyway
+    // @sparticuz/chromium may extract it on first use
     console.warn(
+      `[scrape] Chromium path from @sparticuz/chromium does not exist: ${chromiumPath}`
+    );
+    console.warn(
+      `[scrape] Attempting to use path anyway - @sparticuz/chromium may extract it on first use`
+    );
+
+    // Check if parent directory exists
+    const parentDir = dirname(chromiumPath);
+    if (existsSync(parentDir)) {
+      console.log(`[scrape] Parent directory exists: ${parentDir}`);
+    } else {
+      console.warn(`[scrape] Parent directory does not exist: ${parentDir}`);
+    }
+
+    return chromiumPath;
+  } catch (error) {
+    console.error(
       "[scrape] Failed to get Chromium path from @sparticuz/chromium:",
       error
     );
-  }
-
-  // Fallback paths in case @sparticuz/chromium doesn't work
-  const lambdaPaths = [
-    "/usr/bin/chromium-browser", // System Chromium (if installed)
-    "/usr/bin/chromium", // System Chromium (if installed)
-  ];
-
-  for (const path of lambdaPaths) {
-    if (existsSync(path)) {
-      console.log(`[scrape] Found Chromium at: ${path}`);
-      return path;
+    if (error instanceof Error) {
+      console.error("[scrape] Error message:", error.message);
+      console.error("[scrape] Error stack:", error.stack);
     }
+    throw error; // Re-throw to fall through to fallback paths
   }
-
-  // If no Chrome found, throw helpful error
-  throw new Error(
-    `Chromium not found in Lambda environment. ` +
-      `@sparticuz/chromium should provide the executable path. ` +
-      `Please verify @sparticuz/chromium is installed in the Docker image.`
-  );
 }
 
 /**
@@ -1401,6 +1411,21 @@ function createApp(): express.Application {
 
       // Launch browser with proxy
       // getChromeExecutablePath() automatically detects environment and finds Chrome
+      // Ensure extraction directories exist for @sparticuz/chromium if in Lambda
+      if (process.env.LAMBDA_TASK_ROOT) {
+        try {
+          mkdirSync("/var/task/http/bin", { recursive: true });
+          mkdirSync("/tmp", { recursive: true });
+          console.log(
+            "[scrape] Created extraction directories for @sparticuz/chromium"
+          );
+        } catch (mkdirError) {
+          console.warn(
+            "[scrape] Failed to create extraction directories:",
+            mkdirError
+          );
+        }
+      }
       const executablePath = await getChromeExecutablePath();
 
       // Use @sparticuz/chromium's recommended args if in Lambda, otherwise use custom args
