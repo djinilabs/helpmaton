@@ -1320,7 +1320,7 @@ function createApp(): express.Application {
           browser = await puppeteer.launch({
             args: chromiumArgs,
             defaultViewport: chromiumModule.defaultViewport,
-            headless: chromiumModule.headless,
+            headless: true,
           });
         } else {
           // Fallback if chromium module not available
