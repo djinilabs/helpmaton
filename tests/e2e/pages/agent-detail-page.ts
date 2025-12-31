@@ -23,8 +23,8 @@ export class AgentDetailPage extends BasePage {
     this.backButton = page.locator('button:has-text("Back")').first();
 
     // Chat interface locators
-    // Note: AgentChat uses an input element, not textarea
-    this.chatInput = page.locator('input[placeholder="Type your message..."]');
+    // Note: AgentChat uses a textarea element
+    this.chatInput = page.locator('textarea[placeholder="Type your message..."]');
     this.chatSubmitButton = page.locator(
       'button[type="submit"]:has-text("Send")'
     );
@@ -97,11 +97,21 @@ export class AgentDetailPage extends BasePage {
   async sendMessage(message: string): Promise<void> {
     await this.expandTestSection();
 
-    // Wait for chat input to be visible
-    await this.waitForElement(this.chatInput);
+    // Wait for accordion content area to be visible (ensures expansion is complete)
+    const accordionContent = this.page.locator('[id="accordion-content-test"]');
+    await accordionContent.waitFor({ state: "visible", timeout: 10000 });
 
-    // Fill and submit
-    await this.fillInput(this.chatInput, message);
+    // Wait for the form to appear (more reliable than waiting for textarea directly)
+    // This handles lazy loading and ensures the component has rendered
+    const chatForm = this.page.locator('form:has(textarea)');
+    await chatForm.waitFor({ state: "visible", timeout: 60000 });
+
+    // Now find the textarea within the form (should be immediate since form is visible)
+    const textareaInForm = chatForm.locator('textarea[placeholder="Type your message..."]');
+    await textareaInForm.waitFor({ state: "visible", timeout: 10000 });
+
+    // Fill and submit using the form-scoped locator
+    await textareaInForm.fill(message);
     await this.clickElement(this.chatSubmitButton);
   }
 
