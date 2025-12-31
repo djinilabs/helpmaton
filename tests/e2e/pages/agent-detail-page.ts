@@ -97,21 +97,25 @@ export class AgentDetailPage extends BasePage {
   async sendMessage(message: string): Promise<void> {
     await this.expandTestSection();
 
+    // Wait for accordion content area to be visible first (confirms accordion expanded)
+    const accordionContent = this.page.locator('[id="accordion-content-test"]');
+    await this.waitForElement(accordionContent, 10000);
+
+    // Small delay to allow React to start lazy loading the component
+    await this.page.waitForTimeout(500);
+
     // Wait for lazy-loaded AgentChat component to finish loading
-    // First, wait for the loading screen to disappear (if present)
+    // The component uses Suspense, so wait for loading screen to disappear
     const loadingScreen = this.page.locator('text=/Loading|Assembling|Loading.../i');
     try {
-      await loadingScreen.waitFor({ state: "hidden", timeout: 5000 });
+      await loadingScreen.waitFor({ state: "hidden", timeout: 20000 });
     } catch {
       // Loading screen might not appear or already gone, continue
     }
 
-    // Wait for the form element to appear (indicates AgentChat has loaded)
-    const chatForm = this.page.locator('form:has(input[placeholder="Type your message..."])');
-    await this.waitForElement(chatForm, 30000); // 30s timeout for lazy loading
-
-    // Wait for chat input to be visible
-    await this.waitForElement(this.chatInput, 30000); // 30s timeout for lazy loading
+    // Wait for chat input to be visible (this will wait for AgentChat to fully load)
+    // Use a longer timeout to account for lazy loading, code splitting, and network requests
+    await this.waitForElement(this.chatInput, 60000); // 60s timeout for lazy loading
 
     // Fill and submit
     await this.fillInput(this.chatInput, message);
@@ -148,20 +152,23 @@ export class AgentDetailPage extends BasePage {
   async verifyStreamingResponse(message: string): Promise<boolean> {
     await this.expandTestSection();
 
+    // Wait for accordion content area to be visible first (confirms accordion expanded)
+    const accordionContent = this.page.locator('[id="accordion-content-test"]');
+    await this.waitForElement(accordionContent, 10000);
+
+    // Small delay to allow React to start lazy loading the component
+    await this.page.waitForTimeout(500);
+
     // Wait for lazy-loaded AgentChat component to finish loading
     const loadingScreen = this.page.locator('text=/Loading|Assembling|Loading.../i');
     try {
-      await loadingScreen.waitFor({ state: "hidden", timeout: 5000 });
+      await loadingScreen.waitFor({ state: "hidden", timeout: 20000 });
     } catch {
       // Loading screen might not appear or already gone, continue
     }
 
-    // Wait for the form element to appear (indicates AgentChat has loaded)
-    const chatForm = this.page.locator('form:has(input[placeholder="Type your message..."])');
-    await this.waitForElement(chatForm, 30000); // 30s timeout for lazy loading
-
-    // Wait for chat input to be visible
-    await this.waitForElement(this.chatInput, 30000); // 30s timeout for lazy loading
+    // Wait for chat input to be visible (this will wait for AgentChat to fully load)
+    await this.waitForElement(this.chatInput, 60000); // 60s timeout for lazy loading
 
     await this.fillInput(this.chatInput, message);
     await this.clickElement(this.chatSubmitButton);
