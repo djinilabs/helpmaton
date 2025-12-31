@@ -198,17 +198,17 @@ export class AgentDetailPage extends BasePage {
 
     // Wait for either conversations or the empty state message to appear
     await this.page.waitForSelector(
-      'div.border-2.border-neutral-300.rounded-xl.p-6.bg-white.cursor-pointer, p:has-text("No conversations yet")',
+      'div.border-2.border-neutral-300.rounded-xl.p-4.bg-white.cursor-pointer, p:has-text("No conversations yet")',
       { timeout: 15000 }
     );
 
     // Count conversation items by looking for the conversation card structure
-    // Conversations are rendered as divs with specific styling classes
+    // Conversations are rendered as divs with specific styling classes (p-4, not p-6)
     // Note: The selector matches conversation cards within the conversations section
     const conversations = this.page
       .locator('[id="accordion-content-conversations"]')
       .locator(
-        "div.border-2.border-neutral-300.rounded-xl.p-6.bg-white.cursor-pointer"
+        "div.border-2.border-neutral-300.rounded-xl.p-4.bg-white.cursor-pointer"
       );
 
     return await conversations.count();
