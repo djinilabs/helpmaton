@@ -3,10 +3,30 @@ import { existsSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 
+import { badRequest, boomify, internal, unauthorized } from "@hapi/boom";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - @sparticuz/chromium is installed in container image
-import { badRequest, boomify, internal, unauthorized } from "@hapi/boom";
-import chromium from "@sparticuz/chromium";
+// Lazy-load chromium to avoid import errors in test environments
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let chromium: any = null;
+function getChromium(): any {
+  if (!chromium) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      chromium = require("@sparticuz/chromium");
+    } catch (error) {
+      // In test environments, @sparticuz/chromium might not be available
+      // This is fine - the code will use local Chrome paths instead
+      console.warn(
+        "[scrape] @sparticuz/chromium not available, will use local Chrome paths:",
+        error instanceof Error ? error.message : String(error)
+      );
+      // Return null to indicate module is not available
+      return null;
+    }
+  }
+  return chromium;
+}
 import serverlessExpress from "@vendia/serverless-express";
 import type {
   APIGatewayProxyHandlerV2,
@@ -1035,12 +1055,17 @@ async function getChromeExecutablePath(): Promise<string> {
   // Lambda environment - use @sparticuz/chromium
   // @sparticuz/chromium provides the executable path optimized for AWS Lambda
   try {
+    const chromiumModule = getChromium();
+    if (!chromiumModule) {
+      throw new Error("@sparticuz/chromium module not available");
+    }
     console.log(
       "[scrape] Attempting to get Chromium path from @sparticuz/chromium..."
     );
     // @sparticuz/chromium provides executablePath() method that returns a Promise
-    // Pass /tmp as the extraction path since /var/task is read-only in Lambda
-    const chromiumPath = await chromium.executablePath("/tmp");
+    // It automatically extracts to /tmp (writable in Lambda) by default
+    // Don't pass a path parameter - it will find chromium.br in node_modules and extract to /tmp
+    const chromiumPath = await chromiumModule.executablePath();
     console.log(`[scrape] chromium.executablePath() returned: ${chromiumPath}`);
 
     if (!chromiumPath) {
@@ -1429,25 +1454,50 @@ function createApp(): express.Application {
       const isLambda = !!process.env.LAMBDA_TASK_ROOT;
 
       if (isLambda) {
-        // Optional: Disable graphics mode for better performance in Lambda
-        chromium.setGraphicsMode = false;
+        const chromiumModule = getChromium();
+        if (chromiumModule) {
+          // Optional: Disable graphics mode for better performance in Lambda
+          chromiumModule.setGraphicsMode = false;
+        }
       }
 
       const launchArgs = isLambda
-        ? [
-            // Use puppeteer.defaultArgs to merge chromium.args with puppeteer defaults
-            // This matches the @sparticuz/chromium README example
-            ...puppeteer.defaultArgs({
-              args: chromium.args,
-              headless: "shell",
-            }),
-            `--proxy-server=${server}`,
-            // Disable site isolation to allow access to cross-origin iframes (needed for reCAPTCHA detection)
-            "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
-            "--flag-switches-begin",
-            "--disable-site-isolation-trials",
-            "--flag-switches-end",
-          ]
+        ? (() => {
+            const chromiumModule = getChromium();
+            if (chromiumModule) {
+              // Use puppeteer.defaultArgs to merge chromium.args with puppeteer defaults
+              // This matches the @sparticuz/chromium README example
+              return [
+                ...puppeteer.defaultArgs({
+                  args: chromiumModule.args,
+                  headless: "shell",
+                }),
+                `--proxy-server=${server}`,
+                // Disable site isolation to allow access to cross-origin iframes (needed for reCAPTCHA detection)
+                "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
+                "--flag-switches-begin",
+                "--disable-site-isolation-trials",
+                "--flag-switches-end",
+              ];
+            } else {
+              // Fallback if chromium module not available
+              return [
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-accelerated-2d-canvas",
+                "--no-first-run",
+                "--no-zygote",
+                "--single-process",
+                "--disable-gpu",
+                `--proxy-server=${server}`,
+                "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
+                "--flag-switches-begin",
+                "--disable-site-isolation-trials",
+                "--flag-switches-end",
+              ];
+            }
+          })()
         : [
             "--no-sandbox",
             "--disable-setuid-sandbox",
@@ -1472,7 +1522,12 @@ function createApp(): express.Application {
         executablePath,
         args: launchArgs,
         defaultViewport: isLambda
-          ? chromium.defaultViewport
+          ? (() => {
+              const chromiumModule = getChromium();
+              return (
+                chromiumModule?.defaultViewport ?? { width: 1920, height: 1080 }
+              );
+            })()
           : { width: 1920, height: 1080 },
       });
 
