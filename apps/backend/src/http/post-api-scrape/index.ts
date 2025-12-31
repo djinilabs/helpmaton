@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
 import { existsSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
-import { dirname, join } from "path";
+import { join } from "path";
 
 import { badRequest, boomify, internal, unauthorized } from "@hapi/boom";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -1062,10 +1062,11 @@ async function getChromeExecutablePath(): Promise<string> {
     console.log(
       "[scrape] Attempting to get Chromium path from @sparticuz/chromium..."
     );
-    // @sparticuz/chromium provides executablePath() method that returns a Promise
-    // In version 143+, it automatically extracts to /tmp by default
-    // Don't pass a path parameter - it will find chromium.br in node_modules and extract to /tmp
-    const chromiumPath = await chromiumModule.executablePath();
+
+    // Point strictly to the location where Docker installed the node_modules
+    const chromiumPath = await chromiumModule.executablePath(
+      "/var/task/node_modules/@sparticuz/chromium/bin"
+    );
     console.log(`[scrape] chromium.executablePath() returned: ${chromiumPath}`);
 
     if (!chromiumPath) {
@@ -1089,14 +1090,6 @@ async function getChromeExecutablePath(): Promise<string> {
     console.warn(
       `[scrape] Attempting to use path anyway - @sparticuz/chromium may extract it on first use`
     );
-
-    // Check if parent directory exists
-    const parentDir = dirname(chromiumPath);
-    if (existsSync(parentDir)) {
-      console.log(`[scrape] Parent directory exists: ${parentDir}`);
-    } else {
-      console.warn(`[scrape] Parent directory does not exist: ${parentDir}`);
-    }
 
     return chromiumPath;
   } catch (error) {
@@ -1458,47 +1451,54 @@ function createApp(): express.Application {
         if (chromiumModule) {
           // Optional: Disable graphics mode for better performance in Lambda
           chromiumModule.setGraphicsMode = false;
-        }
-      }
 
-      const launchArgs = isLambda
-        ? (() => {
-            const chromiumModule = getChromium();
-            if (chromiumModule) {
-              // Use puppeteer.defaultArgs to merge chromium.args with puppeteer defaults
-              // This matches the @sparticuz/chromium README example
-              return [
-                ...puppeteer.defaultArgs({
-                  args: chromiumModule.args,
-                  headless: "shell",
-                }),
-                `--proxy-server=${server}`,
-                // Disable site isolation to allow access to cross-origin iframes (needed for reCAPTCHA detection)
-                "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
-                "--flag-switches-begin",
-                "--disable-site-isolation-trials",
-                "--flag-switches-end",
-              ];
-            } else {
-              // Fallback if chromium module not available
-              return [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-accelerated-2d-canvas",
-                "--no-first-run",
-                "--no-zygote",
-                "--single-process",
-                "--disable-gpu",
-                `--proxy-server=${server}`,
-                "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
-                "--flag-switches-begin",
-                "--disable-site-isolation-trials",
-                "--flag-switches-end",
-              ];
-            }
-          })()
-        : [
+          // Use @sparticuz/chromium's recommended configuration
+          // Add proxy and site isolation args to chromium's default args
+          const chromiumArgs = [
+            ...chromiumModule.args,
+            `--proxy-server=${server}`,
+            // Disable site isolation to allow access to cross-origin iframes (needed for reCAPTCHA detection)
+            "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
+            "--flag-switches-begin",
+            "--disable-site-isolation-trials",
+            "--flag-switches-end",
+          ];
+
+          browser = await puppeteer.launch({
+            args: chromiumArgs,
+            defaultViewport: chromiumModule.defaultViewport,
+            executablePath,
+            headless: chromiumModule.headless,
+          });
+        } else {
+          // Fallback if chromium module not available
+          browser = await puppeteer.launch({
+            headless: true,
+            executablePath,
+            args: [
+              "--no-sandbox",
+              "--disable-setuid-sandbox",
+              "--disable-dev-shm-usage",
+              "--disable-accelerated-2d-canvas",
+              "--no-first-run",
+              "--no-zygote",
+              "--single-process",
+              "--disable-gpu",
+              `--proxy-server=${server}`,
+              "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
+              "--flag-switches-begin",
+              "--disable-site-isolation-trials",
+              "--flag-switches-end",
+            ],
+            defaultViewport: { width: 1920, height: 1080 },
+          });
+        }
+      } else {
+        // Local development - use custom args
+        browser = await puppeteer.launch({
+          headless: true,
+          executablePath,
+          args: [
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
@@ -1515,21 +1515,10 @@ function createApp(): express.Application {
             "--flag-switches-begin",
             "--disable-site-isolation-trials",
             "--flag-switches-end",
-          ];
-
-      browser = await puppeteer.launch({
-        headless: isLambda ? "shell" : true,
-        executablePath,
-        args: launchArgs,
-        defaultViewport: isLambda
-          ? (() => {
-              const chromiumModule = getChromium();
-              return (
-                chromiumModule?.defaultViewport ?? { width: 1920, height: 1080 }
-              );
-            })()
-          : { width: 1920, height: 1080 },
-      });
+          ],
+          defaultViewport: { width: 1920, height: 1080 },
+        });
+      }
 
       if (!browser) {
         throw internal("Failed to launch browser");
