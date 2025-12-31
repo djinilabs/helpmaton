@@ -1063,9 +1063,9 @@ async function getChromeExecutablePath(): Promise<string> {
       "[scrape] Attempting to get Chromium path from @sparticuz/chromium..."
     );
     // @sparticuz/chromium provides executablePath() method that returns a Promise
-    // Pass /tmp explicitly as the extraction path since /var/task is read-only in Lambda
-    // The chromium.br file is in node_modules, but extraction must happen to /tmp
-    const chromiumPath = await chromiumModule.executablePath("/tmp");
+    // In version 143+, it automatically extracts to /tmp by default
+    // Don't pass a path parameter - it will find chromium.br in node_modules and extract to /tmp
+    const chromiumPath = await chromiumModule.executablePath();
     console.log(`[scrape] chromium.executablePath() returned: ${chromiumPath}`);
 
     if (!chromiumPath) {

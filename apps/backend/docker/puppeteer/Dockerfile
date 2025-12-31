@@ -35,13 +35,9 @@ COPY apps/backend/docker/puppeteer/package.json ./
 
 # 4. Install dependencies
 # We use puppeteer-core + @sparticuz/chromium, so no huge download happens here
+# The chromium.br file is included in the npm package and will be extracted at runtime
 RUN pnpm install --prod && \
     rm -rf /root/.pnpm-store /root/.local/share/pnpm
-
-# 4a. Extract Chromium binary at build time to avoid runtime extraction issues
-# This pre-extracts the binary so it's ready to use in Lambda
-RUN mkdir -p /tmp && \
-    node -e "const chromium = require('@sparticuz/chromium'); chromium.executablePath('/tmp').then(path => { console.log('Chromium extracted to:', path); require('fs').access(path, require('fs').constants.F_OK, err => { if (err) { console.error('Chromium not found at:', path); process.exit(1); } else { console.log('Chromium verified at:', path); } }); }).catch(err => { console.error('Error extracting Chromium:', err); process.exit(1); });"
 
 # 5. Move to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}
@@ -63,5 +59,7 @@ RUN chmod -R 755 ${LAMBDA_TASK_ROOT}
 # We don't need PUPPETEER_EXECUTABLE_PATH here because we set it dynamically in code
 # effectively disabling the internal downloader of puppeteer (if you accidentally used 'puppeteer' pkg)
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+# Tell @sparticuz/chromium to extract to /tmp (writable in Lambda)
+ENV CHROMIUM_PATH=/tmp
 
 CMD [ "index.handler" ]
