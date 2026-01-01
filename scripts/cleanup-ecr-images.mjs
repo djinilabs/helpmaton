@@ -14,7 +14,7 @@
  * Options:
  *   --dry-run              Run without deleting images (default: true)
  *   --execute              Actually delete images (disables dry-run)
- *   --retention <number>   Number of production images to keep (default: 15)
+ *   --retention <number>   Number of production images to keep (default: 5)
  *   --min-age <hours>      Minimum image age in hours (default: 24)
  *   --region <region>      AWS region (default: eu-west-2)
  */
@@ -52,7 +52,7 @@ const CONFIG = {
   ECR_REPOSITORY_NAME: process.env.ECR_REPOSITORY_NAME || 'helpmaton-lambda-images',
   PRODUCTION_STACK_NAME: process.env.PRODUCTION_STACK_NAME || 'HelpmatonProduction',
   PR_STACK_PREFIX: process.env.PR_STACK_PREFIX || 'HelpmatonStagingPR',
-  PRODUCTION_IMAGE_RETENTION_COUNT: parseInt(process.env.PRODUCTION_IMAGE_RETENTION_COUNT || '15', 10),
+  PRODUCTION_IMAGE_RETENTION_COUNT: parseInt(process.env.PRODUCTION_IMAGE_RETENTION_COUNT || '5', 10),
   MIN_IMAGE_AGE_HOURS: parseInt(process.env.MIN_IMAGE_AGE_HOURS || '24', 10),
   AWS_REGION: process.env.AWS_REGION || 'eu-west-2',
   GITHUB_TOKEN: process.env.GITHUB_TOKEN,
@@ -90,7 +90,7 @@ Usage: node scripts/cleanup-ecr-images.mjs [options]
 Options:
   --dry-run              Run without deleting images (default: true)
   --execute              Actually delete images (disables dry-run)
-  --retention <number>   Number of production images to keep (default: 15)
+  --retention <number>   Number of production images to keep (default: 5)
   --min-age <hours>      Minimum image age in hours (default: 24)
   --region <region>      AWS region (default: eu-west-2)
   --help, -h             Show this help message

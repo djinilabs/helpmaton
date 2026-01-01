@@ -144,7 +144,20 @@ export class AgentDetailPage extends BasePage {
    */
   async verifyStreamingResponse(message: string): Promise<boolean> {
     await this.expandTestSection();
-    await this.fillInput(this.chatInput, message);
+
+    // Wait for accordion content area to be visible (ensures expansion is complete)
+    const accordionContent = this.page.locator('[id="accordion-content-test"]');
+    await accordionContent.waitFor({ state: "visible", timeout: 10000 });
+
+    // Wait for the form to appear (more reliable than waiting for textarea directly)
+    const chatForm = this.page.locator('form:has(textarea)');
+    await chatForm.waitFor({ state: "visible", timeout: 60000 });
+
+    // Now find the textarea within the form
+    const textareaInForm = chatForm.locator('textarea[placeholder="Type your message..."]');
+    await textareaInForm.waitFor({ state: "visible", timeout: 10000 });
+
+    await textareaInForm.fill(message);
     await this.clickElement(this.chatSubmitButton);
 
     // Check if response appears gradually (streaming indicator)
@@ -185,17 +198,17 @@ export class AgentDetailPage extends BasePage {
 
     // Wait for either conversations or the empty state message to appear
     await this.page.waitForSelector(
-      'div.border-2.border-neutral-300.rounded-xl.p-6.bg-white.cursor-pointer, p:has-text("No conversations yet")',
+      'div.border-2.border-neutral-300.rounded-xl.p-4.bg-white.cursor-pointer, p:has-text("No conversations yet")',
       { timeout: 15000 }
     );
 
     // Count conversation items by looking for the conversation card structure
-    // Conversations are rendered as divs with specific styling classes
+    // Conversations are rendered as divs with specific styling classes (p-4, not p-6)
     // Note: The selector matches conversation cards within the conversations section
     const conversations = this.page
       .locator('[id="accordion-content-conversations"]')
       .locator(
-        "div.border-2.border-neutral-300.rounded-xl.p-6.bg-white.cursor-pointer"
+        "div.border-2.border-neutral-300.rounded-xl.p-4.bg-white.cursor-pointer"
       );
 
     return await conversations.count();

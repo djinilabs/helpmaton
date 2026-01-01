@@ -173,7 +173,7 @@ export const ConversationList: FC<ConversationListProps> = ({
                 onClick={() => onConversationClick(conversation)}
                 className="transform cursor-pointer rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:scale-[1.01] hover:border-primary-400 hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
               >
-                {/* Header Row - Type, Message Count, Error Badge */}
+                {/* Header Row - Type, Message Count, Error Badge, and Cost */}
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span
@@ -188,15 +188,26 @@ export const ConversationList: FC<ConversationListProps> = ({
                       {conversation.messageCount !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  {conversation.hasError && (
-                    <div className="inline-flex items-center gap-1 rounded-lg border border-error-200 bg-error-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-error-800 dark:border-error-800 dark:bg-error-900 dark:text-error-200">
-                      Error
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {conversation.hasError && (
+                      <div className="inline-flex items-center gap-1 rounded-lg border border-error-200 bg-error-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-error-800 dark:border-error-800 dark:bg-error-900 dark:text-error-200">
+                        Error
+                      </div>
+                    )}
+                    {conversation.costUsd !== undefined && (
+                      <span
+                        className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
+                          conversation.costUsd
+                        )}`}
+                      >
+                        {formatCurrency(conversation.costUsd, "usd", 10)}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {/* Second Row - Timestamps, Generation Time, and Cost */}
-                <div className="mb-2 flex items-center justify-between">
+                {/* Second Row - Timestamps, Generation Time, and Token Usage */}
+                <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-4 text-xs text-neutral-600 dark:text-neutral-400">
                     <div className="flex items-center gap-1">
                       <ClockIcon className="size-3" />
@@ -215,71 +226,60 @@ export const ConversationList: FC<ConversationListProps> = ({
                       </div>
                     )}
                   </div>
-                  {conversation.costUsd !== undefined && (
-                    <span
-                      className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
-                        conversation.costUsd
-                      )}`}
-                    >
-                      {formatCurrency(conversation.costUsd, "usd", 10)}
-                    </span>
+                  {conversation.tokenUsage && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span
+                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                          conversation.tokenUsage.promptTokens
+                        )}`}
+                      >
+                        P: {conversation.tokenUsage.promptTokens.toLocaleString()}
+                      </span>
+                      <span
+                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                          conversation.tokenUsage.completionTokens
+                        )}`}
+                      >
+                        C:{" "}
+                        {conversation.tokenUsage.completionTokens.toLocaleString()}
+                      </span>
+                      {"reasoningTokens" in conversation.tokenUsage &&
+                        typeof conversation.tokenUsage.reasoningTokens ===
+                          "number" &&
+                        conversation.tokenUsage.reasoningTokens > 0 && (
+                          <span
+                            className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                              conversation.tokenUsage.reasoningTokens
+                            )}`}
+                          >
+                            R:{" "}
+                            {conversation.tokenUsage.reasoningTokens.toLocaleString()}
+                          </span>
+                        )}
+                      {"cachedPromptTokens" in conversation.tokenUsage &&
+                        typeof conversation.tokenUsage.cachedPromptTokens ===
+                          "number" &&
+                        conversation.tokenUsage.cachedPromptTokens > 0 && (
+                          <span
+                            className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                              conversation.tokenUsage.cachedPromptTokens
+                            )}`}
+                          >
+                            Cache:{" "}
+                            {conversation.tokenUsage.cachedPromptTokens.toLocaleString()}
+                          </span>
+                        )}
+                      <span
+                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                          conversation.tokenUsage.totalTokens
+                        )}`}
+                      >
+                        Total:{" "}
+                        {conversation.tokenUsage.totalTokens.toLocaleString()}
+                      </span>
+                    </div>
                   )}
                 </div>
-
-                {/* Third Row - Token Usage Pills */}
-                {conversation.tokenUsage && (
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span
-                      className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
-                        conversation.tokenUsage.promptTokens
-                      )}`}
-                    >
-                      P: {conversation.tokenUsage.promptTokens.toLocaleString()}
-                    </span>
-                    <span
-                      className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
-                        conversation.tokenUsage.completionTokens
-                      )}`}
-                    >
-                      C:{" "}
-                      {conversation.tokenUsage.completionTokens.toLocaleString()}
-                    </span>
-                    {"reasoningTokens" in conversation.tokenUsage &&
-                      typeof conversation.tokenUsage.reasoningTokens ===
-                        "number" &&
-                      conversation.tokenUsage.reasoningTokens > 0 && (
-                        <span
-                          className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
-                            conversation.tokenUsage.reasoningTokens
-                          )}`}
-                        >
-                          R:{" "}
-                          {conversation.tokenUsage.reasoningTokens.toLocaleString()}
-                        </span>
-                      )}
-                    {"cachedPromptTokens" in conversation.tokenUsage &&
-                      typeof conversation.tokenUsage.cachedPromptTokens ===
-                        "number" &&
-                      conversation.tokenUsage.cachedPromptTokens > 0 && (
-                        <span
-                          className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
-                            conversation.tokenUsage.cachedPromptTokens
-                          )}`}
-                        >
-                          Cache:{" "}
-                          {conversation.tokenUsage.cachedPromptTokens.toLocaleString()}
-                        </span>
-                      )}
-                    <span
-                      className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
-                        conversation.tokenUsage.totalTokens
-                      )}`}
-                    >
-                      Total:{" "}
-                      {conversation.tokenUsage.totalTokens.toLocaleString()}
-                    </span>
-                  </div>
-                )}
               </div>
             ))}
           </div>

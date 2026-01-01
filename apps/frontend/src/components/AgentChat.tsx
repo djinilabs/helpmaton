@@ -1,5 +1,5 @@
 import { useChat } from "@ai-sdk/react";
-import { ChartBarIcon } from "@heroicons/react/24/outline";
+import { ChartBarIcon, TrashIcon } from "@heroicons/react/24/outline";
 import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
@@ -18,6 +18,7 @@ interface AgentChatProps {
   workspaceId: string;
   agentId: string;
   api?: string; // Optional custom API endpoint URL
+  onClear?: () => void; // Callback when conversation is cleared
 }
 
 /**
@@ -41,9 +42,11 @@ export const AgentChat: FC<AgentChatProps> = ({
   workspaceId,
   agentId,
   api,
+  onClear,
 }) => {
   const { data: agent } = useAgent(workspaceId, agentId);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
 
   // Generate and memoize conversation ID for this chat instance
@@ -69,35 +72,62 @@ export const AgentChat: FC<AgentChatProps> = ({
     };
   }, [conversationId]);
 
-  const { messages, sendMessage, status, error, addToolOutput } = useChat({
-    transport: new DefaultChatTransport({
-      api: api || `/api/workspaces/${workspaceId}/agents/${agentId}/test`,
-      credentials: api ? "omit" : "include", // Lambda Function URLs don't use cookies
-      // Use custom fetch that includes X-Conversation-Id header
-      fetch: fetchWithConversationId,
-    }),
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    onToolCall: async ({ toolCall }) => {
-      console.log("[AgentChat] Tool call:", toolCall);
-      // Immediately respond with error for any tool call
-      addToolOutput({
-        tool: toolCall.toolName,
-        toolCallId: toolCall.toolCallId,
-        state: "output-error",
-        errorText: `Tool '${toolCall.toolName}' is not defined on the client`,
-      });
-    },
-    onError: (error) => {
-      console.error("Chat error:", error);
-    },
-  });
+  const { messages, sendMessage, status, error, addToolOutput, setMessages } =
+    useChat({
+      transport: new DefaultChatTransport({
+        api: api || `/api/workspaces/${workspaceId}/agents/${agentId}/test`,
+        credentials: api ? "omit" : "include", // Lambda Function URLs don't use cookies
+        // Use custom fetch that includes X-Conversation-Id header
+        fetch: fetchWithConversationId,
+      }),
+      sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+      onToolCall: async ({ toolCall }) => {
+        console.log("[AgentChat] Tool call:", toolCall);
+        // Immediately respond with error for any tool call
+        addToolOutput({
+          tool: toolCall.toolName,
+          toolCallId: toolCall.toolCallId,
+          state: "output-error",
+          errorText: `Tool '${toolCall.toolName}' is not defined on the client`,
+        });
+      },
+      onError: (error) => {
+        console.error("Chat error:", error);
+      },
+    });
 
   const isLoading = status === "submitted" || status === "streaming";
+
+  const adjustTextareaHeight = () => {
+    if (textareaRef.current) {
+      // Reset height to auto to get the correct scrollHeight
+      textareaRef.current.style.height = "auto";
+      // Set height based on scrollHeight, with min and max constraints
+      const maxHeight = 200; // Maximum height in pixels (about 8-10 lines)
+      const minHeight = 56; // Minimum height (matches padding + one line)
+      const newHeight = Math.min(
+        Math.max(textareaRef.current.scrollHeight, minHeight),
+        maxHeight
+      );
+      textareaRef.current.style.height = `${newHeight}px`;
+    }
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     setInput(e.target.value);
+    // Adjust height after state update
+    setTimeout(adjustTextareaHeight, 0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // If Enter is pressed without Shift modifier, submit the form
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+    // If Enter is pressed with Shift, allow default behavior (new line)
   };
 
   const handleSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
@@ -105,6 +135,14 @@ export const AgentChat: FC<AgentChatProps> = ({
     if (!input.trim() || isLoading) return;
     sendMessage({ text: input });
     setInput("");
+    // Reset textarea height after clearing input
+    setTimeout(adjustTextareaHeight, 0);
+  };
+
+  const handleClearConversation = () => {
+    setMessages([]);
+    // Notify parent to remount component, which will clear errors
+    onClear?.();
   };
 
   // Auto-scroll to bottom when messages or loading state changes
@@ -120,14 +158,45 @@ export const AgentChat: FC<AgentChatProps> = ({
     }
   }, [messages, isLoading]);
 
+  // Auto-focus textarea when component mounts (when Test Agent section is expanded)
+  useEffect(() => {
+    // Small delay to ensure textarea is fully rendered
+    const timeoutId = setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        adjustTextareaHeight();
+      }
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, []);
+
+  // Adjust textarea height when input changes
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [input]);
+
   return (
     <div className="flex h-[600px] flex-col rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900">
       <div className="rounded-t-2xl border-b-2 border-neutral-300 bg-neutral-100 p-5 dark:border-neutral-700 dark:bg-neutral-800">
-        <p className="text-base font-bold text-neutral-800 dark:text-neutral-200">
-          Test your agent by having a conversation. This chat interface lets you
-          interact with the agent in real-time to verify its behavior and
-          responses before deploying it.
-        </p>
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-base font-bold text-neutral-800 dark:text-neutral-200">
+            Test your agent by having a conversation. This chat interface lets
+            you interact with the agent in real-time to verify its behavior and
+            responses before deploying it.
+          </p>
+          {messages.length > 0 && (
+            <button
+              onClick={handleClearConversation}
+              disabled={isLoading}
+              className="flex shrink-0 items-center gap-2 rounded-lg border-2 border-neutral-300 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+              title="Clear conversation"
+            >
+              <TrashIcon className="size-4" />
+              <span className="hidden sm:inline">Clear</span>
+            </button>
+          )}
+        </div>
       </div>
       {/* Messages Container */}
       <div
@@ -775,13 +844,14 @@ export const AgentChat: FC<AgentChatProps> = ({
                           >
                             <div className="mb-2 flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                {message.role === "assistant" && agent?.avatar && (
-                                  <img
-                                    src={agent.avatar || getDefaultAvatar()}
-                                    alt="Agent avatar"
-                                    className="size-6 rounded object-contain"
-                                  />
-                                )}
+                                {message.role === "assistant" &&
+                                  agent?.avatar && (
+                                    <img
+                                      src={agent.avatar || getDefaultAvatar()}
+                                      alt="Agent avatar"
+                                      className="size-6 rounded object-contain"
+                                    />
+                                  )}
                                 <div className="text-xs font-medium opacity-80">
                                   {getRoleLabel()}
                                 </div>
@@ -810,8 +880,8 @@ export const AgentChat: FC<AgentChatProps> = ({
                                     {formatCurrency(costUsd, "usd", 10)}
                                     {isFinal === true && " ✓"}
                                     {isFinal === false && " (provisional)"}
-                                    </div>
-                                  )}
+                                  </div>
+                                )}
                               </div>
                             </div>
                             {renderPart(part, partIndex)}
@@ -886,12 +956,15 @@ export const AgentChat: FC<AgentChatProps> = ({
         onSubmit={handleSubmit}
         className="flex gap-4 rounded-b-2xl border-t-2 border-neutral-300 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900"
       >
-        <input
-          type="text"
+        <textarea
+          ref={textareaRef}
           value={input}
           onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           placeholder="Type your message..."
-          className="flex-1 rounded-xl border-2 border-neutral-300 bg-white p-4 text-base font-medium text-neutral-900 transition-all duration-200 focus:border-primary-600 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+          rows={1}
+          className="flex-1 resize-none overflow-hidden rounded-xl border-2 border-neutral-300 bg-white p-4 text-base font-medium text-neutral-900 transition-all duration-200 focus:border-primary-600 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+          style={{ minHeight: "56px", maxHeight: "200px" }}
         />
         <button
           type="submit"

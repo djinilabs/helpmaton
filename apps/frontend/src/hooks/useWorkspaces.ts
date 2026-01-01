@@ -26,6 +26,8 @@ export function useWorkspace(id: string) {
   return useSuspenseQuery({
     queryKey: ["workspaces", id],
     queryFn: () => getWorkspace(id),
+    refetchOnMount: "always", // Always refetch when component mounts (on navigation)
+    staleTime: 0, // Consider data stale immediately to force refetch
   });
 }
 
