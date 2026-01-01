@@ -9,6 +9,9 @@ import {
   createSendEmailTool,
   createListAgentsTool,
   createCallAgentTool,
+  createCallAgentAsyncTool,
+  createCheckDelegationStatusTool,
+  createCancelDelegationTool,
   getWorkspaceApiKey,
   validateWorkspaceAndAgent,
   type WorkspaceAndAgent,
@@ -261,8 +264,22 @@ export async function setupAgentAndTools(
       agentId,
       callDepth,
       maxDepth,
-      options?.context
+      options?.context,
+      options?.conversationId
     );
+
+    // Add async delegation tools
+    tools.call_agent_async = createCallAgentAsyncTool(
+      workspaceId,
+      agent.delegatableAgentIds,
+      agentId,
+      callDepth,
+      maxDepth,
+      options?.context,
+      options?.conversationId
+    );
+    tools.check_delegation_status = createCheckDelegationStatusTool(workspaceId);
+    tools.cancel_delegation = createCancelDelegationTool(workspaceId);
   }
 
   // Add MCP server tools if agent has enabled MCP servers

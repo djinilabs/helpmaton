@@ -1857,6 +1857,79 @@ export async function startConversation(
 }
 
 /**
+ * Track a delegation call in conversation metadata
+ */
+export async function trackDelegation(
+  db: DatabaseSchema,
+  workspaceId: string,
+  agentId: string,
+  conversationId: string,
+  delegation: {
+    callingAgentId: string;
+    targetAgentId: string;
+    taskId?: string;
+    status: "completed" | "failed" | "cancelled";
+  }
+): Promise<void> {
+  try {
+    const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
+
+    // Check if conversation exists first
+    const existing = await db["agent-conversations"].get(pk);
+    if (!existing) {
+      console.warn(
+        "[Delegation Tracking] Conversation not found, skipping delegation tracking:",
+        { workspaceId, agentId, conversationId }
+      );
+      return;
+    }
+
+    await db["agent-conversations"].atomicUpdate(
+      pk,
+      undefined,
+      async (current) => {
+        if (!current) {
+          // This shouldn't happen since we checked above, but handle gracefully
+          return existing;
+        }
+
+        const existingDelegations =
+          (
+            current as {
+              delegations?: Array<{
+                callingAgentId: string;
+                targetAgentId: string;
+                taskId?: string;
+                timestamp: string;
+                status: "completed" | "failed" | "cancelled";
+              }>;
+            }
+          ).delegations || [];
+
+        const newDelegation = {
+          ...delegation,
+          timestamp: new Date().toISOString(),
+        };
+
+        return {
+          pk: current.pk,
+          delegations: [...existingDelegations, newDelegation],
+        };
+      }
+    );
+  } catch (error) {
+    // Log but don't fail - delegation tracking is best-effort
+    console.error("[Delegation Tracking] Error tracking delegation:", {
+      error: error instanceof Error ? error.message : String(error),
+      workspaceId,
+      agentId,
+      conversationId,
+      delegation,
+    });
+  }
+}
+
+/**
  * Update an existing conversation with new messages and token usage
  * Uses atomicUpdate to ensure thread-safe updates
  */

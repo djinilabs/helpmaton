@@ -43,7 +43,8 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
   const hasSearchDocuments = agent?.enableSearchDocuments === true;
   const hasSendEmail = agent?.enableSendEmail === true && hasEmailConnection;
   const hasSearchWeb =
-    agent?.searchWebProvider === "tavily" || agent?.searchWebProvider === "jina";
+    agent?.searchWebProvider === "tavily" ||
+    agent?.searchWebProvider === "jina";
   const searchWebProvider = agent?.searchWebProvider;
   const hasFetchWeb =
     agent?.fetchWebProvider === "tavily" || agent?.fetchWebProvider === "jina";
@@ -195,7 +196,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
     {
       name: "list_agents",
       description:
-        "List all agents that this agent can delegate to. Returns agent names and IDs. You MUST call this tool FIRST before calling call_agent.",
+        "List all agents that this agent can delegate to. Returns agent names, IDs, descriptions, capabilities, and model information. Use this to discover which agents are available and what they can do.",
       alwaysAvailable: false,
       condition: hasDelegation
         ? "Available (delegation configured)"
@@ -205,7 +206,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
     {
       name: "call_agent",
       description:
-        "Delegate a task to another agent by calling it with a message. The target agent will process the request and return a response. You MUST call list_agents FIRST to get the available agent IDs.",
+        "Delegate a task to another agent synchronously. The target agent will process the request and return a response immediately. You can identify the target agent by agentId/agent_id or by query (semantic description like 'agent that can search documents'). Use this when you need an immediate response.",
       alwaysAvailable: false,
       condition: hasDelegation
         ? "Available (delegation configured)"
@@ -216,14 +217,21 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
           type: "string",
           required: false,
           description:
-            "The exact agent ID to delegate to (alternative to agent_id). You MUST call list_agents FIRST to get the available agent IDs.",
+            "The exact agent ID to delegate to (alternative to agent_id). Get this from list_agents or use the query parameter instead.",
         },
         {
           name: "agent_id",
           type: "string",
           required: false,
           description:
-            "The exact agent ID to delegate to (alternative to agentId). You MUST call list_agents FIRST to get the available agent IDs.",
+            "The exact agent ID to delegate to (alternative to agentId). Get this from list_agents or use the query parameter instead.",
+        },
+        {
+          name: "query",
+          type: "string",
+          required: false,
+          description:
+            "Semantic query to find an agent (e.g., 'find an agent that can search documents'). The system will automatically match your query to the best agent. Mutually exclusive with agentId/agent_id.",
         },
         {
           name: "message",
@@ -235,11 +243,84 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
       ],
     },
     {
+      name: "call_agent_async",
+      description:
+        "Delegate a task to another agent asynchronously (fire-and-forget). Returns immediately with a taskId that you can use to check status later. Use this when you don't need an immediate response. You can identify the target agent by agentId/agent_id or by query (semantic description).",
+      alwaysAvailable: false,
+      condition: hasDelegation
+        ? "Available (delegation configured)"
+        : "Not available (no delegatable agents configured)",
+      parameters: [
+        {
+          name: "agentId",
+          type: "string",
+          required: false,
+          description:
+            "The exact agent ID to delegate to (alternative to agent_id). Get this from list_agents or use the query parameter instead.",
+        },
+        {
+          name: "agent_id",
+          type: "string",
+          required: false,
+          description:
+            "The exact agent ID to delegate to (alternative to agentId). Get this from list_agents or use the query parameter instead.",
+        },
+        {
+          name: "query",
+          type: "string",
+          required: false,
+          description:
+            "Semantic query to find an agent (e.g., 'find an agent that can search documents'). The system will automatically match your query to the best agent. Mutually exclusive with agentId/agent_id.",
+        },
+        {
+          name: "message",
+          type: "string",
+          required: true,
+          description:
+            "The message or query to send to the delegated agent. This will be processed asynchronously.",
+        },
+      ],
+    },
+    {
+      name: "check_delegation_status",
+      description:
+        "Check the status of an async delegation task. Returns the current status (pending, running, completed, failed, cancelled) and the result if completed, or error message if failed.",
+      alwaysAvailable: false,
+      condition: hasDelegation
+        ? "Available (delegation configured)"
+        : "Not available (no delegatable agents configured)",
+      parameters: [
+        {
+          name: "taskId",
+          type: "string",
+          required: true,
+          description: "The task ID returned by call_agent_async.",
+        },
+      ],
+    },
+    {
+      name: "cancel_delegation",
+      description:
+        "Cancel a pending or running async delegation task. Tasks that are already completed or failed cannot be cancelled.",
+      alwaysAvailable: false,
+      condition: hasDelegation
+        ? "Available (delegation configured)"
+        : "Not available (no delegatable agents configured)",
+      parameters: [
+        {
+          name: "taskId",
+          type: "string",
+          required: true,
+          description: "The task ID returned by call_agent_async.",
+        },
+      ],
+    },
+    {
       name: "search_web",
       description:
         searchWebProvider === "tavily"
           ? "Search the web for current information, news, articles, and other web content using Tavily search API. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. Cost: $0.008 per call (first 10 calls/day free for paid tiers)."
-          :         searchWebProvider === "jina"
+          : searchWebProvider === "jina"
           ? "Search the web for current information, news, articles, and other web content using Jina Search API. Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources. Free to use (no credits charged). Rate limits may apply."
           : "Search the web for current information, news, articles, and other web content. This tool can use either Tavily search API (costs credits) or Jina Search API (free). Use this when you need up-to-date information that isn't in your training data or when you need to find specific websites or resources.",
       alwaysAvailable: false,

@@ -1,10 +1,13 @@
+import { randomUUID } from "crypto";
+
+import { queues } from "@architect/functions";
 import { resourceGone } from "@hapi/boom";
 import type { ModelMessage } from "ai";
 import { generateText, tool, stepCountIs } from "ai";
 import { z } from "zod";
 
 import { database } from "../../tables";
-import { extractTokenUsage } from "../../utils/conversationLogger";
+import { extractTokenUsage, trackDelegation } from "../../utils/conversationLogger";
 import {
   adjustCreditReservation,
   refundReservation,
@@ -21,6 +24,60 @@ import { createModel } from "./modelFactory";
 import type { Provider } from "./modelFactory";
 
 export const MODEL_NAME = "google/gemini-2.5-flash";
+
+/**
+ * Cache for agent metadata to avoid repeated database queries
+ * Key: `${workspaceId}:${agentId}`, Value: { agent, timestamp }
+ * TTL: 5 minutes
+ */
+type CachedAgent = {
+  pk: string;
+  name: string;
+  systemPrompt: string;
+  modelName?: string;
+  provider?: string;
+  enableSearchDocuments?: boolean;
+  enableMemorySearch?: boolean;
+  searchWebProvider?: "tavily" | "jina" | null;
+  fetchWebProvider?: "tavily" | "jina" | null;
+  enableSendEmail?: boolean;
+  notificationChannelId?: string;
+  enabledMcpServerIds?: string[];
+  clientTools?: Array<{ name: string }>;
+  [key: string]: unknown;
+};
+
+const agentMetadataCache = new Map<
+  string,
+  { agent: CachedAgent; timestamp: number }
+>();
+
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function getCachedAgent(
+  workspaceId: string,
+  agentId: string
+): CachedAgent | null {
+  const key = `${workspaceId}:${agentId}`;
+  const cached = agentMetadataCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.agent;
+  }
+  // Remove expired entry
+  if (cached) {
+    agentMetadataCache.delete(key);
+  }
+  return null;
+}
+
+function setCachedAgent(
+  workspaceId: string,
+  agentId: string,
+  agent: CachedAgent
+): void {
+  const key = `${workspaceId}:${agentId}`;
+  agentMetadataCache.set(key, { agent, timestamp: Date.now() });
+}
 
 export interface WorkspaceAndAgent {
   workspace: {
@@ -584,8 +641,9 @@ export function createSendEmailTool(workspaceId: string) {
 /**
  * Internal function to call an agent with a message
  * Used for agent delegation
+ * Exported for use in queue processors
  */
-async function callAgentInternal(
+export async function callAgentInternal(
   workspaceId: string,
   targetAgentId: string,
   message: string,
@@ -595,7 +653,8 @@ async function callAgentInternal(
     ReturnType<
       typeof import("../../utils/workspaceCreditContext").getContextFromRequestId
     >
-  >
+  >,
+  timeoutMs: number = 60000 // Default 60 seconds
 ): Promise<string> {
   // Check depth limit
   if (callDepth >= maxDepth) {
@@ -766,6 +825,16 @@ async function callAgentInternal(
       maxDepth,
       context
     );
+    tools.call_agent_async = createCallAgentAsyncTool(
+      workspaceId,
+      targetAgent.delegatableAgentIds,
+      targetAgentId,
+      callDepth + 1,
+      maxDepth,
+      context
+    );
+    tools.check_delegation_status = createCheckDelegationStatusTool(workspaceId);
+    tools.cancel_delegation = createCancelDelegationTool(workspaceId);
   }
 
   // Convert message to ModelMessage format
@@ -834,13 +903,26 @@ async function callAgentInternal(
     }
     // Track generation time
     const generationStartTime = Date.now();
-    result = await generateText({
-      model: model as unknown as Parameters<typeof generateText>[0]["model"],
-      system: targetAgent.systemPrompt,
-      messages: modelMessages,
-      tools,
-      ...generateOptions,
+    
+    // Create timeout promise
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`Delegation timeout: Agent call exceeded ${timeoutMs}ms`));
+      }, timeoutMs);
     });
+
+    // Race between generateText and timeout
+    result = await Promise.race([
+      generateText({
+        model: model as unknown as Parameters<typeof generateText>[0]["model"],
+        system: targetAgent.systemPrompt,
+        messages: modelMessages,
+        tools,
+        ...generateOptions,
+      }),
+      timeoutPromise,
+    ]);
+    
     // Generation time tracked but not currently used in agent delegation
     void (Date.now() - generationStartTime);
     // LLM call succeeded - mark as attempted
@@ -1065,6 +1147,162 @@ async function callAgentInternal(
 }
 
 /**
+ * Build a list of agent capabilities from agent configuration
+ */
+function buildAgentCapabilities(agent: CachedAgent): string[] {
+  const capabilities: string[] = [];
+
+  if (agent.enableSearchDocuments === true) {
+    capabilities.push("search_documents");
+  }
+
+  if (agent.enableMemorySearch === true) {
+    capabilities.push("search_memory");
+  }
+
+  if (agent.searchWebProvider === "tavily" || agent.searchWebProvider === "jina") {
+    capabilities.push("search_web");
+  }
+
+  if (agent.fetchWebProvider === "tavily" || agent.fetchWebProvider === "jina") {
+    capabilities.push("fetch_url");
+  }
+
+  if (agent.enableSendEmail === true) {
+    capabilities.push("send_email");
+  }
+
+  if (agent.notificationChannelId) {
+    capabilities.push("send_notification");
+  }
+
+  if (agent.enabledMcpServerIds && agent.enabledMcpServerIds.length > 0) {
+    capabilities.push(`mcp_tools (${agent.enabledMcpServerIds.length} servers)`);
+  }
+
+  if (agent.clientTools && agent.clientTools.length > 0) {
+    capabilities.push(`client_tools (${agent.clientTools.length} tools)`);
+  }
+
+  return capabilities;
+}
+
+/**
+ * Find an agent by semantic query using keyword matching
+ * Matches against agent name, system prompt, and capabilities
+ * Exported for use in async tools
+ */
+export async function findAgentByQuery(
+  workspaceId: string,
+  query: string,
+  delegatableAgentIds: string[]
+): Promise<{ agentId: string; agentName: string } | null> {
+  const db = await database();
+  const queryLower = query.toLowerCase();
+
+  // Get all delegatable agents
+  const agents = await Promise.all(
+    delegatableAgentIds.map(async (agentId): Promise<CachedAgent | null> => {
+      const cached = getCachedAgent(workspaceId, agentId);
+      if (cached) {
+        return cached;
+      }
+
+      const agentPk = `agents/${workspaceId}/${agentId}`;
+      const agent = await db.agent.get(agentPk, "agent");
+
+      if (agent) {
+        const cachedAgent: CachedAgent = {
+          pk: agent.pk,
+          name: agent.name,
+          systemPrompt: agent.systemPrompt,
+          modelName: agent.modelName,
+          provider: agent.provider,
+          enableSearchDocuments: agent.enableSearchDocuments,
+          enableMemorySearch: agent.enableMemorySearch,
+          searchWebProvider: agent.searchWebProvider,
+          fetchWebProvider: agent.fetchWebProvider,
+          enableSendEmail: agent.enableSendEmail,
+          notificationChannelId: agent.notificationChannelId,
+          enabledMcpServerIds: agent.enabledMcpServerIds,
+          clientTools: agent.clientTools,
+        };
+        setCachedAgent(workspaceId, agentId, cachedAgent);
+        return cachedAgent;
+      }
+
+      return null;
+    })
+  );
+
+  const validAgents = agents.filter(
+    (agent): agent is CachedAgent => agent !== null
+  );
+
+  if (validAgents.length === 0) {
+    return null;
+  }
+
+  // Score each agent based on keyword matches
+  const scoredAgents = validAgents.map((agent) => {
+    const agentId = agent.pk.replace(`agents/${workspaceId}/`, "");
+    let score = 0;
+
+    // Match against agent name
+    if (agent.name.toLowerCase().includes(queryLower)) {
+      score += 10;
+    }
+
+    // Match against system prompt (first 500 chars for performance)
+    const promptLower = agent.systemPrompt.substring(0, 500).toLowerCase();
+    const promptMatches = (promptLower.match(new RegExp(queryLower, "g")) || [])
+      .length;
+    score += promptMatches * 2;
+
+    // Match against capabilities
+    const capabilities = buildAgentCapabilities(agent);
+    const capabilitiesStr = capabilities.join(" ").toLowerCase();
+    if (capabilitiesStr.includes(queryLower)) {
+      score += 5;
+    }
+
+    // Check for specific capability keywords
+    const capabilityKeywords: Record<string, string[]> = {
+      document: ["search_documents", "documents"],
+      memory: ["search_memory", "memory"],
+      web: ["search_web", "fetch_url", "web"],
+      email: ["send_email", "email"],
+      notification: ["send_notification", "notification"],
+    };
+
+    for (const [keyword, relatedCapabilities] of Object.entries(
+      capabilityKeywords
+    )) {
+      if (queryLower.includes(keyword)) {
+        for (const cap of relatedCapabilities) {
+          if (capabilitiesStr.includes(cap)) {
+            score += 3;
+          }
+        }
+      }
+    }
+
+    return { agent, agentId, score };
+  });
+
+  // Sort by score (highest first) and return best match
+  scoredAgents.sort((a, b) => b.score - a.score);
+
+  const bestMatch = scoredAgents[0];
+  if (bestMatch.score > 0) {
+    const agentName = bestMatch.agent.name;
+    return { agentId: bestMatch.agentId, agentName };
+  }
+
+  return null;
+}
+
+/**
  * Create the list_agents tool for listing delegatable agents
  */
 export function createListAgentsTool(
@@ -1086,31 +1324,78 @@ export function createListAgentsTool(
       try {
         const db = await database();
 
-        // Get all delegatable agents
+        // Get all delegatable agents (with caching)
         const agents = await Promise.all(
-          delegatableAgentIds.map(async (agentId) => {
+          delegatableAgentIds.map(async (agentId): Promise<CachedAgent | null> => {
+            // Check cache first
+            const cached = getCachedAgent(workspaceId, agentId);
+            if (cached) {
+              return cached;
+            }
+
+            // Fetch from database
             const agentPk = `agents/${workspaceId}/${agentId}`;
             const agent = await db.agent.get(agentPk, "agent");
-            return agent;
+
+            // Cache if found
+            if (agent) {
+              const cachedAgent: CachedAgent = {
+                pk: agent.pk,
+                name: agent.name,
+                systemPrompt: agent.systemPrompt,
+                modelName: agent.modelName,
+                provider: agent.provider,
+                enableSearchDocuments: agent.enableSearchDocuments,
+                enableMemorySearch: agent.enableMemorySearch,
+                searchWebProvider: agent.searchWebProvider,
+                fetchWebProvider: agent.fetchWebProvider,
+                enableSendEmail: agent.enableSendEmail,
+                notificationChannelId: agent.notificationChannelId,
+                enabledMcpServerIds: agent.enabledMcpServerIds,
+                clientTools: agent.clientTools,
+              };
+              setCachedAgent(workspaceId, agentId, cachedAgent);
+              return cachedAgent;
+            }
+
+            return null;
           })
         );
 
         // Filter out any null results (agents that don't exist)
         const validAgents = agents.filter(
-          (agent): agent is NonNullable<typeof agent> => agent !== null
+          (agent): agent is CachedAgent => agent !== null
         );
 
         if (validAgents.length === 0) {
           return "No delegatable agents found.";
         }
 
-        // Format agent list - only name and ID
+        // Format agent list with enhanced information
         const agentList = validAgents
           .map((agent) => {
             const agentId = agent.pk.replace(`agents/${workspaceId}/`, "");
-            return `- ${agent.name} (ID: ${agentId})`;
+            const capabilities = buildAgentCapabilities(agent);
+            const description =
+              agent.systemPrompt.length > 200
+                ? `${agent.systemPrompt.substring(0, 200)}...`
+                : agent.systemPrompt;
+            const modelInfo = agent.modelName
+              ? `${agent.modelName}`
+              : "default";
+            const providerInfo = agent.provider || "openrouter";
+
+            let agentInfo = `- ${agent.name} (ID: ${agentId})\n  Description: ${description}\n  Model: ${modelInfo} (${providerInfo})`;
+
+            if (capabilities.length > 0) {
+              agentInfo += `\n  Capabilities: ${capabilities.join(", ")}`;
+            } else {
+              agentInfo += `\n  Capabilities: none`;
+            }
+
+            return agentInfo;
           })
-          .join("\n");
+          .join("\n\n");
 
         return `Available agents for delegation (${validAgents.length}):\n\n${agentList}`;
       } catch (error) {
@@ -1136,35 +1421,58 @@ export function createCallAgentTool(
     ReturnType<
       typeof import("../../utils/workspaceCreditContext").getContextFromRequestId
     >
-  >
+  >,
+  conversationId?: string
 ) {
-  const callAgentParamsSchema = z.object({
-    agentId: z
-      .string()
-      .min(1, "agentId parameter is required")
-      .optional()
-      .describe(
-        "The exact agent ID to delegate to. You MUST call list_agents FIRST to get the available agent IDs. Do not guess or make up agent IDs - you must use the exact ID returned by list_agents."
-      ),
-    agent_id: z
-      .string()
-      .min(1, "agent_id parameter is required")
-      .optional()
-      .describe(
-        "The exact agent ID to delegate to (alternative to agentId). You MUST call list_agents FIRST to get the available agent IDs. Do not guess or make up agent IDs - you must use the exact ID returned by list_agents."
-      ),
-    message: z
-      .string()
-      .min(1, "message parameter is required")
-      .describe(
-        "The message or query to send to the delegated agent. This should be the specific task or question you want the other agent to handle."
-      ),
-  });
+  const callAgentParamsSchema = z
+    .object({
+      agentId: z
+        .string()
+        .min(1, "agentId parameter is required")
+        .optional()
+        .describe(
+          "The exact agent ID to delegate to. You can get this by calling list_agents first, or use the query parameter to find an agent by description."
+        ),
+      agent_id: z
+        .string()
+        .min(1, "agent_id parameter is required")
+        .optional()
+        .describe(
+          "The exact agent ID to delegate to (alternative to agentId). You can get this by calling list_agents first, or use the query parameter to find an agent by description."
+        ),
+      query: z
+        .string()
+        .min(1, "query parameter is required")
+        .optional()
+        .describe(
+          "Semantic query to find an agent (e.g., 'find an agent that can search documents' or 'agent that handles email'). Mutually exclusive with agentId/agent_id. The system will match your query against agent names, descriptions, and capabilities."
+        ),
+      message: z
+        .string()
+        .min(1, "message parameter is required")
+        .describe(
+          "The message or query to send to the delegated agent. This should be the specific task or question you want the other agent to handle."
+        ),
+    })
+    .refine(
+      (data) => data.agentId || data.agent_id || data.query,
+      {
+        message:
+          "Must provide either agentId/agent_id or query parameter to identify the target agent.",
+      }
+    )
+    .refine(
+      (data) => !((data.agentId || data.agent_id) && data.query),
+      {
+        message:
+          "Cannot provide both agentId/agent_id and query - use one or the other.",
+      }
+    );
 
   type CallAgentArgs = z.infer<typeof callAgentParamsSchema>;
 
   const description =
-    "Delegate a task to another agent in the workspace. CRITICAL REQUIREMENTS: (1) You MUST call list_agents FIRST to see which agents are available and get their exact IDs. (2) Do NOT call this tool without first calling list_agents - you cannot guess agent IDs. (3) Provide the exact agent ID from the list_agents output and the message/query you want to send. (4) The delegated agent will process the request and return a response. You can only delegate to agents that have been configured as delegatable. Example workflow: First call list_agents to see available agents, then use one of the returned agent IDs to call this tool.";
+    "Delegate a task to another agent in the workspace. You can identify the target agent in two ways: (1) Provide the exact agentId/agent_id (get this by calling list_agents first), or (2) Use the query parameter to describe what kind of agent you need (e.g., 'agent that can search documents'). The system will automatically find the best matching agent. The delegated agent will process your message and return a response. Example: call_agent({query: 'agent that searches documents', message: 'Find information about X'}) or call_agent({agentId: 'agent-123', message: 'Your question here'}).";
 
   return tool({
     description,
@@ -1175,8 +1483,9 @@ export function createCallAgentTool(
     execute: async (args: any) => {
       const typedArgs = args as CallAgentArgs;
       // Normalize: accept both agentId and agent_id, prefer agentId
-      const agentId = typedArgs.agentId || typedArgs.agent_id;
-      const { message } = typedArgs;
+      let agentId = typedArgs.agentId || typedArgs.agent_id;
+      const { message, query } = typedArgs;
+      let matchedAgentName: string | undefined;
 
       // Log tool call with arguments
       console.log("[Tool Call] call_agent", {
@@ -1184,6 +1493,7 @@ export function createCallAgentTool(
         arguments: {
           ...typedArgs,
           agentId, // Normalized agentId (from either agentId or agent_id)
+          query,
           message: message
             ? `${message.substring(0, 100)}${message.length > 100 ? "..." : ""}`
             : undefined,
@@ -1194,16 +1504,55 @@ export function createCallAgentTool(
         maxDepth,
       });
 
+      // If query provided, resolve agentId using semantic matching
+      if (query && typeof query === "string" && query.trim().length > 0) {
+        try {
+          const match = await findAgentByQuery(
+            workspaceId,
+            query,
+            delegatableAgentIds
+          );
+          if (match) {
+            agentId = match.agentId;
+            matchedAgentName = match.agentName;
+            console.log("[Tool Call] call_agent - Query matched", {
+              query,
+              matchedAgentId: agentId,
+              matchedAgentName,
+            });
+          } else {
+            const errorMessage = `Error: No agent found matching query "${query}". Please call list_agents to see available agents and their capabilities, then use an agentId or try a different query.`;
+            console.error("[Tool Error] call_agent", {
+              toolName: "call_agent",
+              error: "No agent matched query",
+              query,
+            });
+            return errorMessage;
+          }
+        } catch (error) {
+          const errorMessage = `Error finding agent by query: ${
+            error instanceof Error ? error.message : String(error)
+          }`;
+          console.error("[Tool Error] call_agent", {
+            toolName: "call_agent",
+            error: "Query matching failed",
+            query,
+            errorMessage,
+          });
+          return errorMessage;
+        }
+      }
+
       // Validate agentId is a string
       if (!agentId || typeof agentId !== "string") {
         const errorMessage =
           agentId === undefined || agentId === null
-            ? "Error: This tool call requires you to pass either the agentId or agent_id parameter, which you can get by listing the agents using the list_agents tool. Please call list_agents first to see available agents and their IDs, then use one of those IDs in the call_agent tool."
+            ? "Error: This tool call requires you to pass either the agentId/agent_id parameter or the query parameter. Use query to find an agent by description, or call list_agents first to get exact agent IDs."
             : `Error: The agentId/agent_id parameter must be a non-empty string. Received: ${
                 typeof agentId === "object"
                   ? JSON.stringify(agentId)
                   : String(agentId)
-              }. Use list_agents to see available agents and their IDs.`;
+              }. Use list_agents to see available agents and their IDs, or use the query parameter.`;
         console.error("[Tool Error] call_agent", {
           toolName: "call_agent",
           error:
@@ -1212,6 +1561,7 @@ export function createCallAgentTool(
               : "Invalid agentId type",
           arguments: {
             agentId,
+            query,
             message: message
               ? `${message.substring(0, 100)}${
                   message.length > 100 ? "..." : ""
@@ -1290,7 +1640,10 @@ export function createCallAgentTool(
         );
 
         // Wrap response with metadata
-        const result = `Agent ${targetAgentName} responded: ${response}`;
+        let result = `Agent ${targetAgentName} responded: ${response}`;
+        if (matchedAgentName && query) {
+          result = `Matched query "${query}" to agent ${targetAgentName} (ID: ${agentId}). ${result}`;
+        }
 
         // Log tool result
         console.log("[Tool Result] call_agent", {
@@ -1301,6 +1654,26 @@ export function createCallAgentTool(
           targetAgentId: agentId,
           targetAgentName,
         });
+
+        // Log delegation metrics
+        console.log("[Delegation Metrics]", {
+          type: "sync",
+          workspaceId,
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId,
+          callDepth,
+          status: "completed",
+          timestamp: new Date().toISOString(),
+        });
+
+        // Track delegation in conversation metadata
+        if (conversationId) {
+          await trackDelegation(db, workspaceId, currentAgentId, conversationId, {
+            callingAgentId: currentAgentId,
+            targetAgentId: agentId,
+            status: "completed",
+          });
+        }
 
         return result;
       } catch (error) {
@@ -1319,8 +1692,350 @@ export function createCallAgentTool(
               : undefined,
           },
         });
+
+        // Log delegation metrics (failed)
+        console.log("[Delegation Metrics]", {
+          type: "sync",
+          workspaceId,
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId || "unknown",
+          callDepth,
+          status: "failed",
+          error: error instanceof Error ? error.message : String(error),
+          timestamp: new Date().toISOString(),
+        });
+
+        // Track failed delegation
+        if (conversationId) {
+          const db = await database();
+          await trackDelegation(db, workspaceId, currentAgentId, conversationId, {
+            callingAgentId: currentAgentId,
+            targetAgentId: agentId || "unknown",
+            status: "failed",
+          });
+        }
+
         return errorMessage;
       }
     },
   });
 }
+
+/**
+ * Create the call_agent_async tool for async delegation
+ */
+export function createCallAgentAsyncTool(
+  workspaceId: string,
+  delegatableAgentIds: string[],
+  currentAgentId: string,
+  callDepth: number,
+  maxDepth: number = 3,
+  context?: Awaited<
+    ReturnType<
+      typeof import("../../utils/workspaceCreditContext").getContextFromRequestId
+    >
+  >,
+  conversationId?: string
+) {
+  const callAgentAsyncParamsSchema = z
+    .object({
+      agentId: z.string().optional(),
+      agent_id: z.string().optional(),
+      query: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "Semantic query to find an agent (e.g., 'find an agent that can search documents'). Mutually exclusive with agentId/agent_id."
+        ),
+      message: z
+        .string()
+        .min(1, "message parameter is required")
+        .describe(
+          "The message or query to send to the delegated agent. This will be processed asynchronously."
+        ),
+    })
+    .refine(
+      (data) => data.agentId || data.agent_id || data.query,
+      {
+        message:
+          "Must provide either agentId/agent_id or query parameter to identify the target agent.",
+      }
+    )
+    .refine(
+      (data) => !((data.agentId || data.agent_id) && data.query),
+      {
+        message:
+          "Cannot provide both agentId/agent_id and query - use one or the other.",
+      }
+    );
+
+  type CallAgentAsyncArgs = z.infer<typeof callAgentAsyncParamsSchema>;
+
+  const description =
+    "Delegate a task to another agent asynchronously (fire-and-forget). Returns immediately with a taskId that you can use to check status later. Use this when you don't need an immediate response. You can identify the target agent by agentId/agent_id or by query (semantic description). Example: call_agent_async({query: 'agent that searches documents', message: 'Find information about X'}) returns a taskId immediately.";
+
+  return tool({
+    description,
+    parameters: callAgentAsyncParamsSchema,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    execute: async (args: any) => {
+      const typedArgs = args as CallAgentAsyncArgs;
+      let agentId = typedArgs.agentId || typedArgs.agent_id;
+      const { message, query } = typedArgs;
+
+      // If query provided, resolve agentId using semantic matching
+      if (query && typeof query === "string" && query.trim().length > 0) {
+        try {
+          const match = await findAgentByQuery(
+            workspaceId,
+            query,
+            delegatableAgentIds
+          );
+          if (match) {
+            agentId = match.agentId;
+            console.log("[Tool Call] call_agent_async - Query matched", {
+              query,
+              matchedAgentId: agentId,
+            });
+          } else {
+            return `Error: No agent found matching query "${query}". Please call list_agents to see available agents, then use an agentId or try a different query.`;
+          }
+        } catch (error) {
+          return `Error finding agent by query: ${
+            error instanceof Error ? error.message : String(error)
+          }`;
+        }
+      }
+
+      if (!agentId || typeof agentId !== "string") {
+        return "Error: Must provide either agentId/agent_id or query parameter.";
+      }
+
+      if (!delegatableAgentIds.includes(agentId)) {
+        return `Error: Agent ID "${agentId}" is not in the list of delegatable agents.`;
+      }
+
+      if (
+        !message ||
+        typeof message !== "string" ||
+        message.trim().length === 0
+      ) {
+        return "Error: The message parameter is required and must be a non-empty string.";
+      }
+
+      try {
+        const db = await database();
+        const taskId = randomUUID();
+
+        // Calculate TTL (7 days from now)
+        const ttl = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+
+        // Create task record
+        const taskPk = `delegation-tasks/${taskId}`;
+        const gsi1pk = `workspace/${workspaceId}/agent/${currentAgentId}`;
+        const gsi1sk = new Date().toISOString();
+
+        await db["agent-delegation-tasks"].create({
+          pk: taskPk,
+          sk: "task",
+          workspaceId,
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId,
+          message: message.trim(),
+          status: "pending",
+          ttl,
+          gsi1pk,
+          gsi1sk,
+        });
+
+        // Enqueue to delegation queue
+        const queueName = "agent-delegation-queue";
+        await queues.publish({
+          name: queueName,
+          payload: {
+            taskId,
+            workspaceId,
+            callingAgentId: currentAgentId,
+            targetAgentId: agentId,
+            message: message.trim(),
+            callDepth,
+            maxDepth,
+          },
+        });
+
+        console.log("[Tool Call] call_agent_async - Task created", {
+          taskId,
+          workspaceId,
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId,
+        });
+
+        // Log delegation metrics
+        console.log("[Delegation Metrics]", {
+          type: "async",
+          workspaceId,
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId,
+          taskId,
+          callDepth,
+          status: "pending",
+          timestamp: new Date().toISOString(),
+        });
+
+        // Track delegation in conversation metadata (pending status)
+        if (conversationId) {
+          await trackDelegation(db, workspaceId, currentAgentId, conversationId, {
+            callingAgentId: currentAgentId,
+            targetAgentId: agentId,
+            taskId,
+            status: "completed", // Will be updated by queue processor when done
+          });
+        }
+
+        return `Delegation task created successfully. Task ID: ${taskId}. Use check_delegation_status(${taskId}) to check the status and get results when ready.`;
+      } catch (error) {
+        const errorMessage = `Error creating async delegation task: ${
+          error instanceof Error ? error.message : String(error)
+        }`;
+        console.error("[Tool Error] call_agent_async", {
+          error: error instanceof Error ? error.message : String(error),
+          arguments: { agentId, query, message },
+        });
+        return errorMessage;
+      }
+    },
+  });
+}
+
+/**
+ * Create the check_delegation_status tool
+ */
+export function createCheckDelegationStatusTool(workspaceId: string) {
+  const checkStatusParamsSchema = z.object({
+    taskId: z
+      .string()
+      .min(1, "taskId parameter is required")
+      .describe("The task ID returned by call_agent_async"),
+  });
+
+  const description =
+    "Check the status of an async delegation task. Returns the current status (pending, running, completed, failed, cancelled) and the result if completed, or error message if failed.";
+
+  return tool({
+    description,
+    parameters: checkStatusParamsSchema,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    execute: async (args: any) => {
+      const { taskId } = args as z.infer<typeof checkStatusParamsSchema>;
+
+      try {
+        const db = await database();
+        const taskPk = `delegation-tasks/${taskId}`;
+        const task = await db["agent-delegation-tasks"].get(taskPk, "task");
+
+        if (!task) {
+          return `Error: Task ${taskId} not found. Make sure you're using the correct task ID.`;
+        }
+
+        // Verify task belongs to this workspace
+        if (task.workspaceId !== workspaceId) {
+          return `Error: Task ${taskId} does not belong to this workspace.`;
+        }
+
+        let statusMessage = `Task ${taskId} status: ${task.status}`;
+
+        if (task.status === "completed" && task.result) {
+          statusMessage += `\n\nResult: ${task.result}`;
+        } else if (task.status === "failed" && task.error) {
+          statusMessage += `\n\nError: ${task.error}`;
+        } else if (task.status === "cancelled") {
+          statusMessage += "\n\nTask was cancelled.";
+        } else if (task.status === "pending" || task.status === "running") {
+          statusMessage += "\n\nTask is still processing. Check again later.";
+        }
+
+        if (task.completedAt) {
+          statusMessage += `\nCompleted at: ${task.completedAt}`;
+        }
+
+        return statusMessage;
+      } catch (error) {
+        return `Error checking task status: ${
+          error instanceof Error ? error.message : String(error)
+        }`;
+      }
+    },
+  });
+}
+
+/**
+ * Create the cancel_delegation tool
+ */
+export function createCancelDelegationTool(workspaceId: string) {
+  const cancelDelegationParamsSchema = z.object({
+    taskId: z
+      .string()
+      .min(1, "taskId parameter is required")
+      .describe("The task ID returned by call_agent_async"),
+  });
+
+  const description =
+    "Cancel a pending or running async delegation task. Tasks that are already completed or failed cannot be cancelled.";
+
+  return tool({
+    description,
+    parameters: cancelDelegationParamsSchema,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    execute: async (args: any) => {
+      const { taskId } = args as z.infer<typeof cancelDelegationParamsSchema>;
+
+      try {
+        const db = await database();
+        const taskPk = `delegation-tasks/${taskId}`;
+        const task = await db["agent-delegation-tasks"].get(taskPk, "task");
+
+        if (!task) {
+          return `Error: Task ${taskId} not found.`;
+        }
+
+        // Verify task belongs to this workspace
+        if (task.workspaceId !== workspaceId) {
+          return `Error: Task ${taskId} does not belong to this workspace.`;
+        }
+
+        if (task.status === "completed" || task.status === "failed") {
+          return `Error: Cannot cancel task ${taskId} - it is already ${task.status}.`;
+        }
+
+        if (task.status === "cancelled") {
+          return `Task ${taskId} is already cancelled.`;
+        }
+
+        // Update status to cancelled
+        await db["agent-delegation-tasks"].update({
+          ...task,
+          status: "cancelled",
+          completedAt: new Date().toISOString(),
+        });
+
+        console.log("[Tool Call] cancel_delegation - Task cancelled", {
+          taskId,
+        });
+
+        return `Task ${taskId} has been cancelled successfully.`;
+      } catch (error) {
+        return `Error cancelling task: ${
+          error instanceof Error ? error.message : String(error)
+        }`;
+      }
+    },
+  });
+}
+

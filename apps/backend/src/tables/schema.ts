@@ -206,6 +206,17 @@ export const tableSchemas = {
     costUsd: z.number().int().optional(), // cost in USD in millionths
     totalGenerationTimeMs: z.number().optional(), // sum of all generation times in milliseconds
     awsRequestIds: z.array(z.string()).optional(), // array of AWS Lambda/API Gateway request IDs that added messages to this conversation
+    delegations: z
+      .array(
+        z.object({
+          callingAgentId: z.string(),
+          targetAgentId: z.string(),
+          taskId: z.string().optional(),
+          timestamp: z.string().datetime(),
+          status: z.enum(["completed", "failed", "cancelled"]),
+        })
+      )
+      .optional(), // array of delegation calls made during this conversation
     startedAt: z.string().datetime(), // when conversation started
     lastMessageAt: z.string().datetime(), // when last message was added
     expires: z.number(), // TTL timestamp
@@ -429,6 +440,22 @@ export const tableSchemas = {
     createdAt: z.string().datetime().default(new Date().toISOString()),
     expires: z.number().optional(), // TTL timestamp (1 year from creation)
   }),
+  "agent-delegation-tasks": TableBaseSchema.extend({
+    pk: z.string(), // "delegation-tasks/{taskId}"
+    sk: z.string(), // "task"
+    workspaceId: z.string(),
+    callingAgentId: z.string(),
+    targetAgentId: z.string(),
+    message: z.string(),
+    status: z.enum(["pending", "running", "completed", "failed", "cancelled"]),
+    result: z.string().optional(),
+    error: z.string().optional(),
+    createdAt: z.string().datetime(),
+    completedAt: z.string().datetime().optional(),
+    ttl: z.number().optional(), // 7 days TTL timestamp
+    gsi1pk: z.string(), // "workspace/{workspaceId}/agent/{callingAgentId}"
+    gsi1sk: z.string(), // "{createdAt}"
+  }),
 } as const;
 
 export type TableBaseSchemaType = z.infer<typeof TableBaseSchema>;
@@ -455,7 +482,8 @@ export type TableName =
   | "agent-stream-servers"
   | "user-api-key"
   | "user-refresh-token"
-  | "workspace-credit-transactions";
+  | "workspace-credit-transactions"
+  | "agent-delegation-tasks";
 
 export type WorkspaceRecord = z.infer<typeof tableSchemas.workspace>;
 export type PermissionRecord = z.infer<typeof tableSchemas.permission>;
@@ -627,6 +655,7 @@ export type DatabaseSchema = {
   "user-api-key": TableAPI<"user-api-key">;
   "user-refresh-token": TableAPI<"user-refresh-token">;
   "workspace-credit-transactions": TableAPI<"workspace-credit-transactions">;
+  "agent-delegation-tasks": TableAPI<"agent-delegation-tasks">;
 };
 
 /**
