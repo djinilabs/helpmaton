@@ -17,7 +17,9 @@ export function initSentry(): void {
 
   // Only initialize if DSN is provided
   if (!dsn) {
-    console.warn("[Sentry] SENTRY_DSN not provided, Sentry will not be initialized");
+    console.warn(
+      "[Sentry] SENTRY_DSN not provided, Sentry will not be initialized"
+    );
     return;
   }
 
@@ -26,10 +28,10 @@ export function initSentry(): void {
     process.env.ARC_ENV === "production"
       ? "production"
       : process.env.ARC_ENV === "staging"
-        ? "staging"
-        : process.env.NODE_ENV === "production"
-          ? "production"
-          : "development";
+      ? "staging"
+      : process.env.NODE_ENV === "production"
+      ? "production"
+      : "development";
 
   Sentry.init({
     dsn,
@@ -55,7 +57,14 @@ export function initSentry(): void {
  * Helper function to ensure error is an Error instance
  */
 export function ensureError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error));
+  if (error instanceof Error) {
+    return error;
+  }
+  if (typeof error === "string") {
+    return new Error(error);
+  }
+  console.warn("[Sentry] Unknown error type:", typeof error, error);
+  return new Error(String(error));
 }
 
 /**
@@ -75,4 +84,3 @@ export async function flushSentry(timeoutMs = 2000): Promise<void> {
 
 // Export Sentry for direct use
 export { Sentry };
-
