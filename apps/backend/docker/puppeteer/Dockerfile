@@ -1,8 +1,8 @@
-# Optimized for arm64 architecture
-FROM public.ecr.aws/lambda/nodejs:22
+# 1. Switch platform to linux/amd64 (x86)
+FROM --platform=linux/amd64 public.ecr.aws/lambda/nodejs:22
 
-# 1. Install required system dependencies (excluding chromium)
-# We also install 'tar' and 'brotli' to decompress the binary
+# 2. Install system dependencies for Chromium on x86
+# This list is standard for Amazon Linux 2023 on x86
 RUN dnf install -y \
     atk \
     cups-libs \
@@ -23,50 +23,28 @@ RUN dnf install -y \
     mesa-libgbm \
     unzip \
     ca-certificates \
-    tar \
-    brotli \
     && dnf clean all
 
-# 2. Install pnpm
+# 3. Install pnpm
 RUN npm install -g pnpm
 
-# 3. Manually Download & Install Chromium (ARM64)
-# We use the @sparticuz/chromium release which is built for Lambda
-# We explicitly grab the 'arm64' version to bypass QEMU architecture detection issues
-WORKDIR /opt/chrome
-
-# Download v143.0.0 ARM64 pack
-# curl -f ensures we fail immediately if the URL is wrong
-RUN curl -fLo chromium.tar \
-    https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.arm64.tar && \
-    tar -xf chromium.tar && \
-    # The pack contains 'chromium.br', we must decompress it
-    brotli -d chromium.br && \
-    chmod +x chromium && \
-    # Cleanup to save space
-    rm chromium.tar chromium.br
-
-# 4. Setup build context for Node App
+# 4. Install Dependencies
 WORKDIR /tmp/build
 COPY apps/backend/docker/puppeteer/package.json ./
 
-# 5. Install Node dependencies
+# The @sparticuz/chromium package contains the x86 binary inside it.
+# We just install it like a normal package.
 RUN pnpm install --prod && \
     rm -rf /root/.pnpm-store /root/.local/share/pnpm
 
-# 6. Move to Lambda task root
+# 5. Move to Task Root
 WORKDIR ${LAMBDA_TASK_ROOT}
 RUN cp -r /tmp/build/node_modules ./node_modules && \
     rm -rf /tmp/build
 
-# 7. Copy code
+# 6. Copy Code
 COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
 COPY apps/backend/docker/lancedb/index.js ${LAMBDA_TASK_ROOT}/index.js
-
-# 8. CRITICAL ENV VARS
-# Point Puppeteer to the binary we just decompressed in /opt/chrome
-ENV PUPPETEER_EXECUTABLE_PATH=/opt/chrome/chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 # Ensure permissions
 RUN chmod -R 755 ${LAMBDA_TASK_ROOT}

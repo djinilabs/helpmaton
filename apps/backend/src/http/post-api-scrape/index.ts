@@ -1311,48 +1311,32 @@ function createApp(): express.Application {
             ...chromiumModule.args,
             `--proxy-server=${server}`,
             // Disable site isolation to allow access to cross-origin iframes (needed for reCAPTCHA detection)
-            "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
-            "--flag-switches-begin",
-            "--disable-site-isolation-trials",
-            "--flag-switches-end",
-            "--disable-gpu",
-            "--disable-dev-shm-usage",
-            "--disable-accelerated-2d-canvas",
-            "--no-first-run",
+            // "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
+            // "--flag-switches-begin",
+            // "--disable-site-isolation-trials",
+            // "--flag-switches-end",
+            // "--disable-gpu",
+            // "--disable-dev-shm-usage",
+            // "--disable-accelerated-2d-canvas",
+            // "--no-first-run",
           ];
 
           console.log("[scrape] Chromium args:", chromiumArgs);
 
-          const executablePath =
-            process.env.PUPPETEER_EXECUTABLE_PATH || "/opt/chrome/chromium";
+          // 1. Point to the binary inside node_modules
+          // Since we are in Docker, we know the path is fixed at /var/task/...
+          const executablePath = await chromiumModule.executablePath(
+            "/var/task/node_modules/@sparticuz/chromium/bin"
+          );
 
           browser = await puppeteer.launch({
             args: chromiumArgs,
             defaultViewport: chromiumModule.defaultViewport,
+            headless: chromiumModule.headless,
             executablePath,
           });
         } else {
-          console.log("[scrape] Falling back to custom args");
-          // Fallback if chromium module not available
-          browser = await puppeteer.launch({
-            headless: true,
-            args: [
-              "--no-sandbox",
-              "--disable-setuid-sandbox",
-              "--disable-dev-shm-usage",
-              "--disable-accelerated-2d-canvas",
-              "--no-first-run",
-              "--no-zygote",
-              "--single-process",
-              "--disable-gpu",
-              `--proxy-server=${server}`,
-              "--disable-features=IsolateOrigins,site-per-process,SitePerProcess",
-              "--flag-switches-begin",
-              "--disable-site-isolation-trials",
-              "--flag-switches-end",
-            ],
-            defaultViewport: { width: 1920, height: 1080 },
-          });
+          throw internal("Failed to load @sparticuz/chromium module");
         }
       } else {
         console.log("[scrape] Local development - using custom args");
