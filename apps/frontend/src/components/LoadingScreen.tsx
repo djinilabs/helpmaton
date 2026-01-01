@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import type { FC } from "react";
 
+import { LockSpinner } from "./LockSpinner";
+
 const FUNNY_MESSAGES = [
   "Calibrating neural pathways...",
   "Teaching robots to dance...",
@@ -70,7 +72,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
         <div
           className={`flex items-center justify-center gap-3 py-8 ${className}`}
         >
-          <div className="size-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+          <LockSpinner size="small" />
           <div className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
             {message || "Loading..."}
           </div>
@@ -83,7 +85,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
         className={`flex min-h-screen items-center justify-center bg-gradient-soft dark:bg-gradient-soft-dark ${className}`}
       >
         <div className="flex items-center gap-3">
-          <div className="size-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"></div>
+          <LockSpinner size="small" />
           <div className="text-xl font-medium text-neutral-600 dark:text-neutral-300">
             {message || "Loading..."}
           </div>
@@ -98,19 +100,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
       <div
         className={`flex items-center justify-center gap-3 py-8 ${className}`}
       >
-        <div className="relative size-12">
-          <div
-            className="absolute inset-0 animate-spin rounded-full border-2 border-primary-500 border-t-transparent"
-            style={{ animationDuration: "1s" }}
-          ></div>
-          <div className="absolute inset-2 flex items-center justify-center bg-transparent">
-            <img
-              src="/images/helpmaton_logo.svg"
-              alt="Helpmaton Logo"
-              className="size-full opacity-80"
-            />
-          </div>
-        </div>
+        <LockSpinner size="medium" />
         <div className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
           {currentMessage}
         </div>
@@ -123,44 +113,7 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
       className={`flex min-h-screen flex-col items-center justify-center bg-gradient-soft dark:bg-gradient-soft-dark ${className}`}
     >
       <div className="relative mb-8">
-        {/* Animated logo container */}
-        <div className="relative size-32">
-          {/* Rotating outer ring with gradient */}
-          <div
-            className="absolute inset-0 animate-spin rounded-full border-4 border-primary-200 border-t-primary-500"
-            style={{ animationDuration: "2s" }}
-          ></div>
-
-          {/* Logo */}
-          <div className="absolute inset-4 flex items-center justify-center">
-            <div className="relative">
-              <img
-                src="/images/helpmaton_logo.svg"
-                alt="Helpmaton Logo"
-                className="size-full opacity-90"
-              />
-            </div>
-          </div>
-
-          {/* Subtle pulsing dots around the logo */}
-          <div className="absolute inset-0">
-            {[0, 1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="absolute size-2 rounded-full bg-primary-400"
-                style={{
-                  top: "50%",
-                  left: "50%",
-                  transform: `translate(-50%, -50%) rotate(${
-                    i * 90
-                  }deg) translateY(-60px)`,
-                  animation: `pulse-dot-${i} 2s ease-in-out infinite`,
-                  animationDelay: `${i * 0.2}s`,
-                }}
-              />
-            ))}
-          </div>
-        </div>
+        <LockSpinner size="large" />
       </div>
 
       {/* Status message */}
@@ -195,46 +148,6 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
       </div>
 
       <style>{`
-        @keyframes pulse-dot-0 {
-          0%, 100% {
-            opacity: 0.3;
-            transform: translate(-50%, -50%) rotate(0deg) translateY(-60px) scale(1);
-          }
-          50% {
-            opacity: 0.7;
-            transform: translate(-50%, -50%) rotate(0deg) translateY(-65px) scale(1.3);
-          }
-        }
-        @keyframes pulse-dot-1 {
-          0%, 100% {
-            opacity: 0.3;
-            transform: translate(-50%, -50%) rotate(90deg) translateY(-60px) scale(1);
-          }
-          50% {
-            opacity: 0.7;
-            transform: translate(-50%, -50%) rotate(90deg) translateY(-65px) scale(1.3);
-          }
-        }
-        @keyframes pulse-dot-2 {
-          0%, 100% {
-            opacity: 0.3;
-            transform: translate(-50%, -50%) rotate(180deg) translateY(-60px) scale(1);
-          }
-          50% {
-            opacity: 0.7;
-            transform: translate(-50%, -50%) rotate(180deg) translateY(-65px) scale(1.3);
-          }
-        }
-        @keyframes pulse-dot-3 {
-          0%, 100% {
-            opacity: 0.3;
-            transform: translate(-50%, -50%) rotate(270deg) translateY(-60px) scale(1);
-          }
-          50% {
-            opacity: 0.7;
-            transform: translate(-50%, -50%) rotate(270deg) translateY(-65px) scale(1.3);
-          }
-        }
         @keyframes pulse {
           0%, 100% {
             opacity: 0.4;
