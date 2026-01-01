@@ -28,6 +28,8 @@ import {
 import { generateScrapeAuthToken } from "../../utils/tokenUtils";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
+import { getScrapeFunctionUrl } from "./scrapeUrl";
+
 /**
  * Create web search tool
  * Searches the web for current information
@@ -815,20 +817,6 @@ export function createJinaSearchTool(
 }
 
 /**
- * Get API base URL for internal API calls
- * Uses BASE_URL environment variable or defaults to localhost for development
- */
-function getApiBaseUrl(): string {
-  const baseUrl = process.env.BASE_URL;
-  if (baseUrl) {
-    // Remove trailing slash if present
-    return baseUrl.replace(/\/+$/, "");
-  }
-  // Default to localhost for local development
-  return "http://localhost:3333";
-}
-
-/**
  * Create web fetch tool using Puppeteer scrape endpoint
  * Scrapes web pages using Puppeteer with residential proxies and returns AOM as XML
  * @param workspaceId - Workspace ID
@@ -906,9 +894,8 @@ export function createScrapeFetchTool(
           conversationId
         );
 
-        // Get API base URL
-        const apiBaseUrl = getApiBaseUrl();
-        const scrapeUrl = `${apiBaseUrl}/api/scrape`;
+        // Get scrape URL (Function URL in deployed environments, API Gateway URL in local dev)
+        const scrapeUrl = await getScrapeFunctionUrl();
 
         // Make POST request to scrape endpoint
         const response = await fetch(scrapeUrl, {

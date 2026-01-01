@@ -309,6 +309,7 @@ pro
 
 @lambda-urls
 any /api/streams/:workspaceId/:agentId/:secret
+post /api/scrape
 
 @container-images
 # Format: method route image-name
