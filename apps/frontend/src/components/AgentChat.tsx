@@ -10,7 +10,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { useAgent } from "../hooks/useAgents";
-import { useTestAgentUrl } from "../hooks/useTestAgentUrl";
 import { getAccessToken } from "../utils/api";
 import { getDefaultAvatar } from "../utils/avatarUtils";
 import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
@@ -48,7 +47,6 @@ export const AgentChat: FC<AgentChatProps> = ({
   onClear,
 }) => {
   const { data: agent } = useAgent(workspaceId, agentId);
-  const { data: testAgentUrlData } = useTestAgentUrl();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
@@ -57,27 +55,18 @@ export const AgentChat: FC<AgentChatProps> = ({
   const conversationId = useMemo(() => generateUUID(), []);
 
   // Determine the API endpoint URL
-  // Priority: 1. Custom api prop, 2. Function URL (if available), 3. API Gateway URL
+  // If api prop is provided (Function URL), use it; otherwise fall back to API Gateway
   const apiUrl = useMemo(() => {
-    // If custom API is provided, use it
     if (api) {
-      console.log("[AgentChat] Using custom API URL:", api);
+      console.log("[AgentChat] Using provided API URL:", api);
       return api;
     }
 
-    // If Function URL is available, use it with the full path
-    if (testAgentUrlData?.url) {
-      const baseUrl = testAgentUrlData.url.replace(/\/+$/, "");
-      const functionUrl = `${baseUrl}/api/workspaces/${workspaceId}/agents/${agentId}/test`;
-      console.log("[AgentChat] Using Function URL:", functionUrl);
-      return functionUrl;
-    }
-
-    // Fallback to API Gateway URL (used initially or if Function URL not available)
+    // Fallback to API Gateway URL
     const gatewayUrl = `/api/workspaces/${workspaceId}/agents/${agentId}/test`;
     console.log("[AgentChat] Using API Gateway URL:", gatewayUrl);
     return gatewayUrl;
-  }, [api, testAgentUrlData, workspaceId, agentId]);
+  }, [api, workspaceId, agentId]);
 
   // Create a custom fetch function that adds the X-Conversation-Id header
   // and Authorization header for cross-origin Function URL requests
@@ -131,16 +120,16 @@ export const AgentChat: FC<AgentChatProps> = ({
   }, [conversationId]);
 
   // Determine credentials based on whether we're using a Function URL
+  // Lambda Function URLs don't use cookies, so omit credentials
+  // API Gateway uses cookies, so include credentials
   const useCredentials = useMemo(() => {
-    // Lambda Function URLs don't use cookies, so omit credentials
-    // API Gateway uses cookies, so include credentials
-    if (api) {
-      // Custom API - assume it's a Function URL if it's a full URL
-      return api.startsWith("http") ? "omit" : "include";
+    // If api prop is provided and it's a full URL (starts with http), it's a Function URL
+    if (api && api.startsWith("http")) {
+      return "omit";
     }
-    // Use Function URL if available, otherwise API Gateway
-    return testAgentUrlData?.url ? "omit" : "include";
-  }, [api, testAgentUrlData]);
+    // Otherwise, it's API Gateway (relative URL or undefined)
+    return "include";
+  }, [api]);
 
   const { messages, sendMessage, status, error, addToolOutput, setMessages } =
     useChat({
