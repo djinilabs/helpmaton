@@ -12,6 +12,7 @@ get /api/usage
 get /api/models
 get /api/pricing
 get /api/streams/url
+get /api/test-agent/url
 any /api/discord
 any /api/auth
 any /api/auth/*
@@ -310,6 +311,7 @@ pro
 @lambda-urls
 any /api/streams/:workspaceId/:agentId/:secret
 post /api/scrape
+any /api/workspaces/*
 
 @container-images
 # Format: method route image-name

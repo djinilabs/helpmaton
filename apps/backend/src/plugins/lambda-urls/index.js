@@ -266,6 +266,8 @@ function createFunctionUrl(resources, outputs, functionId, route, stage = "stagi
   const isStreamingRoute = route.includes("/api/streams/");
   // Check if this is a scrape route (needed for output ID determination)
   const isScrapeRoute = route.includes("/api/scrape");
+  // Check if this is a test agent route (needed for output ID determination)
+  const isTestAgentRoute = route.includes("/api/workspaces");
 
   // Create Lambda Function URL resource
   // Note: No need to prefix with stack name - CloudFormation resource IDs are already unique within a stack
@@ -341,12 +343,15 @@ function createFunctionUrl(resources, outputs, functionId, route, stage = "stagi
   // Add output for the Function URL
   // For backward compatibility, use "StreamingFunctionUrl" for the streaming route
   // Use "ScrapeFunctionUrl" for the scrape route for consistency
+  // Use "TestAgentFunctionUrl" for the test agent route (workspaces catchall)
   // Otherwise, use a sanitized route name
   const outputId = isStreamingRoute
     ? "StreamingFunctionUrl"
     : isScrapeRoute
       ? "ScrapeFunctionUrl"
-      : `${functionId.replace(/[^a-zA-Z0-9]/g, "")}FunctionUrl`;
+      : isTestAgentRoute
+        ? "TestAgentFunctionUrl"
+        : `${functionId.replace(/[^a-zA-Z0-9]/g, "")}FunctionUrl`;
 
   if (!outputs[outputId]) {
     outputs[outputId] = {
@@ -360,9 +365,11 @@ function createFunctionUrl(resources, outputs, functionId, route, stage = "stagi
             ? "${AWS::StackName}-streaming-function-url"
             : isScrapeRoute
               ? "${AWS::StackName}-scrape-function-url"
-              : `\${AWS::StackName}-${functionId
-                  .replace(/[^a-zA-Z0-9]/g, "")
-                  .toLowerCase()}-function-url`,
+              : isTestAgentRoute
+                ? "${AWS::StackName}-test-agent-function-url"
+                : `\${AWS::StackName}-${functionId
+                    .replace(/[^a-zA-Z0-9]/g, "")
+                    .toLowerCase()}-function-url`,
         },
       },
     };

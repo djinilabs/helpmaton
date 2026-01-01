@@ -110,13 +110,71 @@ export const createApp: () => express.Application = () => {
 
     // If we found a requestId and it's not already in headers, add it
     if (requestId && typeof requestId === "string") {
-      if (!req.headers["x-amzn-requestid"] && !req.headers["X-Amzn-Requestid"]) {
+      if (
+        !req.headers["x-amzn-requestid"] &&
+        !req.headers["X-Amzn-Requestid"]
+      ) {
         req.headers["x-amzn-requestid"] = requestId;
       }
       if (!req.headers["x-request-id"] && !req.headers["X-Request-Id"]) {
         req.headers["x-request-id"] = requestId;
       }
     }
+    next();
+  });
+
+  // CORS support for Function URL access
+  // Get allowed origin from FRONTEND_URL environment variable
+  // If FRONTEND_URL is not set, allow all origins (wildcard)
+  const frontendUrl = process.env.FRONTEND_URL;
+  const allowAllOrigins = !frontendUrl;
+
+  // Handle OPTIONS preflight requests
+  app.options("*", (req, res) => {
+    const origin = req.headers.origin;
+
+    if (allowAllOrigins) {
+      // If FRONTEND_URL is not set, allow all origins
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    } else if (origin === frontendUrl) {
+      // If FRONTEND_URL is set, only allow that specific origin
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    }
+
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    );
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
+    );
+    res.setHeader("Access-Control-Max-Age", "86400"); // 24 hours
+
+    res.status(204).end();
+  });
+
+  // Add CORS headers to all responses
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+
+    if (allowAllOrigins) {
+      // If FRONTEND_URL is not set, allow all origins
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    } else if (origin === frontendUrl) {
+      // If FRONTEND_URL is set, only allow that specific origin
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    }
+
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    );
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
+    );
+
     next();
   });
 

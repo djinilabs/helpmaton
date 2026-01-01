@@ -1956,6 +1956,31 @@ export async function getStreamUrl(): Promise<{ url: string } | null> {
   return response.json();
 }
 
+export async function getTestAgentUrl(): Promise<{ url: string } | null> {
+  const response = await apiFetch(`/api/test-agent/url`, {
+    method: "GET",
+  });
+
+  if (!response.ok) {
+    // For 404 errors (not found), return null instead of throwing
+    // This happens when the Lambda Function URL is not deployed yet (e.g., local development)
+    if (response.status === 404) {
+      return null;
+    }
+
+    let errorMessage = response.statusText;
+    try {
+      const error = await response.json();
+      errorMessage = error.message || error.error || errorMessage;
+    } catch {
+      // If response is not JSON, use status text
+    }
+    throw new Error(errorMessage);
+  }
+
+  return response.json();
+}
+
 export async function getStreamServer(
   workspaceId: string,
   agentId: string

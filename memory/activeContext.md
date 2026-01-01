@@ -2,9 +2,56 @@
 
 ## Current Status
 
-**Status**: Puppeteer Dockerfile Package Manager Fix - Completed ✅
+**Status**: Scrape Endpoint Lambda Function URL Conversion - Completed ✅
 
-**Latest Work**: Fixed Docker build failure for puppeteer container image. The Dockerfile was using `yum` (Amazon Linux 2) but the base image `public.ecr.aws/lambda/nodejs:20` uses Amazon Linux 2023 which requires `dnf`. Updated all `yum` commands to `dnf` and corrected the comment.
+**Latest Work**: Converted `/api/scrape` endpoint from API Gateway to Lambda Function URLs to support the full 6-minute timeout. API Gateway has a hard 29-second timeout limit that was causing early connection terminations even though the Lambda continued running. The endpoint now uses Lambda Function URLs which support up to 15 minutes, allowing the full 6-minute timeout to work correctly. Implemented dynamic URL discovery with caching to minimize AWS API calls, and added local development support that automatically uses API Gateway URL in sandbox environments.
+
+**Recent Changes**:
+
+1. **Lambda Function URL Integration**:
+   - Added `post /api/scrape` to `@lambda-urls` pragma in `app.arc`
+   - Lambda Function URLs support up to 15 minutes (exceeds 6-minute Lambda timeout)
+   - Created `ScrapeFunctionUrl` CloudFormation output (consistent with `StreamingFunctionUrl`)
+   - Updated lambda-urls plugin to recognize scrape route and use clean output naming
+
+2. **Dynamic URL Discovery with Caching**:
+   - Created `apps/backend/src/http/utils/scrapeUrl.ts` utility module
+   - `getScrapeFunctionUrl()`: Main function with 5-minute cache TTL
+   - `getScrapeFunctionUrlFromCloudFormation()`: Queries CloudFormation stack outputs
+   - Environment variable support: `SCRAPE_FUNCTION_URL` for explicit configuration
+   - Graceful fallback to API Gateway URL if Function URL unavailable
+
+3. **Local Development Support**:
+   - Automatically detects local sandbox (`ARC_ENV === "testing"`)
+   - Bypasses Function URL discovery in local development
+   - Uses API Gateway URL directly (`getApiBaseUrl() + "/api/scrape"`)
+   - No caching needed for local dev (always uses localhost)
+   - Function URLs in deployed environments include `/api/scrape` path automatically
+
+4. **Tool Integration**:
+   - Updated `createScrapeFetchTool()` in `tavilyTools.ts` to use `getScrapeFunctionUrl()`
+   - Removed unused `getApiBaseUrl()` function from `tavilyTools.ts`
+   - Tool automatically adapts to environment (Function URL in deployed, API Gateway in local)
+
+**Files Created**:
+- `apps/backend/src/http/utils/scrapeUrl.ts` - Function URL utility with caching and local dev support
+
+**Files Modified**:
+- `apps/backend/app.arc` - Added `post /api/scrape` to `@lambda-urls` pragma
+- `apps/backend/src/http/utils/tavilyTools.ts` - Updated to use `getScrapeFunctionUrl()`, removed unused `getApiBaseUrl()`
+- `apps/backend/src/plugins/lambda-urls/index.js` - Added special case for scrape route with `ScrapeFunctionUrl` output name
+
+**Configuration**:
+- Function URL Output: `ScrapeFunctionUrl` (CloudFormation output)
+- Cache TTL: 5 minutes (same as streaming URL)
+- Local Development: Uses API Gateway URL (`http://localhost:3333/api/scrape`)
+- Fallback: API Gateway URL if Function URL unavailable
+
+**Verification**: All tests passing, typecheck and lint clean ✅
+
+**Previous Status**: Puppeteer Dockerfile Package Manager Fix - Completed ✅
+
+**Previous Work**: Fixed Docker build failure for puppeteer container image. The Dockerfile was using `yum` (Amazon Linux 2) but the base image `public.ecr.aws/lambda/nodejs:20` uses Amazon Linux 2023 which requires `dnf`. Updated all `yum` commands to `dnf` and corrected the comment.
 
 **Previous Status**: Puppeteer Web Scraping Endpoint - Completed ✅
 

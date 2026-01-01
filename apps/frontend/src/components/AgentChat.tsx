@@ -10,6 +10,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { useAgent } from "../hooks/useAgents";
+import { useTestAgentUrl } from "../hooks/useTestAgentUrl";
 import { getDefaultAvatar } from "../utils/avatarUtils";
 import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
@@ -46,12 +47,30 @@ export const AgentChat: FC<AgentChatProps> = ({
   onClear,
 }) => {
   const { data: agent } = useAgent(workspaceId, agentId);
+  const { data: testAgentUrlData } = useTestAgentUrl();
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
 
   // Generate and memoize conversation ID for this chat instance
   const conversationId = useMemo(() => generateUUID(), []);
+
+  // Determine the API endpoint URL
+  // Priority: 1. Custom api prop, 2. Function URL (if available), 3. API Gateway URL
+  const apiUrl = useMemo(() => {
+    if (api) {
+      return api;
+    }
+    
+    // If Function URL is available, use it with the full path
+    if (testAgentUrlData?.url) {
+      const baseUrl = testAgentUrlData.url.replace(/\/+$/, "");
+      return `${baseUrl}/api/workspaces/${workspaceId}/agents/${agentId}/test`;
+    }
+    
+    // Fallback to API Gateway URL
+    return `/api/workspaces/${workspaceId}/agents/${agentId}/test`;
+  }, [api, testAgentUrlData?.url, workspaceId, agentId]);
 
   // Create a custom fetch function that adds the X-Conversation-Id header
   const fetchWithConversationId = useMemo(() => {
@@ -76,8 +95,8 @@ export const AgentChat: FC<AgentChatProps> = ({
   const { messages, sendMessage, status, error, addToolOutput, setMessages } =
     useChat({
       transport: new DefaultChatTransport({
-        api: api || `/api/workspaces/${workspaceId}/agents/${agentId}/test`,
-        credentials: api ? "omit" : "include", // Lambda Function URLs don't use cookies
+        api: apiUrl,
+        credentials: api || testAgentUrlData?.url ? "omit" : "include", // Lambda Function URLs don't use cookies
         // Use custom fetch that includes X-Conversation-Id header
         fetch: fetchWithConversationId,
       }),
