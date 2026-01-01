@@ -6,6 +6,10 @@ import {
   aomToXml,
   escapeXml,
 } from "../index";
+// These are re-exported from index.ts for backward compatibility
+// They are actually implemented in:
+// - parseProxyUrl, getRandomProxyUrl: apps/backend/src/utils/proxyUtils.ts
+// - aomToXml, escapeXml: apps/backend/src/utils/aomUtils.ts
 
 // Mock environment variables
 const originalEnv = process.env;
