@@ -1,5 +1,6 @@
 import type { FC } from "react";
 
+import { getBalanceColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
 
 interface CreditBalanceProps {
@@ -19,6 +20,9 @@ export const CreditBalance: FC<CreditBalanceProps> = ({
   // Always use USD
   const formattedBalance = formatCurrency(numericBalance, "usd", 10);
 
+  // Get color classes based on balance level
+  const balanceColorClasses = getBalanceColor(numericBalance);
+
   return (
     <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
       <div className="mb-4 flex items-center justify-between">
@@ -30,8 +34,10 @@ export const CreditBalance: FC<CreditBalanceProps> = ({
         maintain a positive balance.
       </p>
 
-      <div className="flex items-baseline gap-4">
-        <span className="text-4xl font-semibold text-neutral-900 dark:text-neutral-50">
+      <div className="flex items-center gap-4">
+        <span
+          className={`rounded-lg border px-4 py-2 text-4xl font-semibold ${balanceColorClasses}`}
+        >
           {formattedBalance}
         </span>
         <span className="text-lg font-medium text-neutral-600 dark:text-neutral-300">
@@ -39,9 +45,14 @@ export const CreditBalance: FC<CreditBalanceProps> = ({
         </span>
       </div>
       {numericBalance < 0 && (
-        <p className="mt-4 font-semibold text-red-700 dark:text-red-400">
-          Warning: Negative Balance
-        </p>
+        <div className="dark:bg-error-950 mt-4 rounded-lg border border-error-200 bg-error-50 p-3 dark:border-error-800">
+          <p className="text-sm font-semibold text-error-800 dark:text-error-200">
+            Warning: Negative Balance
+          </p>
+          <p className="mt-1 text-xs text-error-700 dark:text-error-300">
+            Your balance is negative. Add credits to continue using agents.
+          </p>
+        </div>
       )}
     </div>
   );

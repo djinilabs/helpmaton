@@ -1,6 +1,7 @@
 import type { FC } from "react";
 
 import type { UsageStats as UsageStatsType } from "../utils/api";
+import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
 
 interface UsageStatsProps {
@@ -25,21 +26,21 @@ export const UsageStats: FC<UsageStatsProps> = ({
       </p>
 
       <div className="mb-8 grid grid-cols-2 gap-4">
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-5 dark:border-neutral-700 dark:bg-neutral-800/50">
+        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.inputTokens).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
           <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Input Tokens</div>
           <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.inputTokens)}</div>
         </div>
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-5 dark:border-neutral-700 dark:bg-neutral-800/50">
+        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.outputTokens).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
           <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Output Tokens</div>
           <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.outputTokens)}</div>
         </div>
-        <div className="rounded-xl border border-neutral-200 bg-neutral-50/50 p-5 dark:border-neutral-700 dark:bg-neutral-800/50">
+        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.totalTokens).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
           <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Total Tokens</div>
           <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.totalTokens)}</div>
         </div>
-        <div className="bg-gradient-primary/10 rounded-xl border border-primary-300 p-5 dark:border-primary-700 dark:bg-primary-950/50">
-          <div className="mb-2 text-sm font-semibold text-primary-700 dark:text-primary-300">Total Cost</div>
-          <div className="text-3xl font-bold text-primary-900 dark:text-primary-100">{formatCurrency(stats.cost, currency, 10)}</div>
+        <div className={`rounded-xl border p-5 ${getCostColor(stats.cost).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
+          <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Total Cost</div>
+          <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatCurrency(stats.cost, currency, 10)}</div>
         </div>
       </div>
 
@@ -54,13 +55,21 @@ export const UsageStats: FC<UsageStatsProps> = ({
               >
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-neutral-900 dark:text-neutral-50">{model.model}</span>
-                  <div className="text-right">
-                    <div className="text-sm text-neutral-600 dark:text-neutral-300">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getTokenUsageColor(
+                        model.totalTokens
+                      )}`}
+                    >
                       {formatNumber(model.totalTokens)} tokens
-                    </div>
-                    <div className="font-bold text-neutral-900 dark:text-neutral-50">
+                    </span>
+                    <span
+                      className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
+                        model.cost
+                      )}`}
+                    >
                       {formatCurrency(model.cost, currency, 10)}
-                    </div>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -80,13 +89,21 @@ export const UsageStats: FC<UsageStatsProps> = ({
               >
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-neutral-900 dark:text-neutral-50">{provider.provider}</span>
-                  <div className="text-right">
-                    <div className="text-sm text-neutral-600 dark:text-neutral-300">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getTokenUsageColor(
+                        provider.totalTokens
+                      )}`}
+                    >
                       {formatNumber(provider.totalTokens)} tokens
-                    </div>
-                    <div className="font-bold text-neutral-900 dark:text-neutral-50">
+                    </span>
+                    <span
+                      className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
+                        provider.cost
+                      )}`}
+                    >
                       {formatCurrency(provider.cost, currency, 10)}
-                    </div>
+                    </span>
                   </div>
                 </div>
               </div>

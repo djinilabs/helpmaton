@@ -4,6 +4,10 @@ import type { FC } from "react";
 
 import { useAgentConversations } from "../hooks/useAgentConversations";
 import type { Conversation } from "../utils/api";
+import {
+  getTokenUsageColor,
+  getCostColor,
+} from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
 
 interface ConversationListProps {
@@ -65,27 +69,6 @@ export const ConversationList: FC<ConversationListProps> = ({
     }
   };
 
-  // Helper function to get color classes for token usage ranges
-  const getTokenUsageColor = (tokenCount: number): string => {
-    if (tokenCount < 1000) {
-      return "bg-success-100 text-success-700 border-success-200 dark:bg-success-900 dark:text-success-300 dark:border-success-700";
-    } else if (tokenCount < 10000) {
-      return "bg-primary-100 text-primary-700 border-primary-200 dark:bg-primary-900 dark:text-primary-300 dark:border-primary-700";
-    } else {
-      return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
-    }
-  };
-
-  // Helper function to get color classes for cost ranges
-  const getCostColor = (costUsd: number): string => {
-    if (costUsd < 0.01) {
-      return "bg-success-100 text-success-700 border-success-200 dark:bg-success-900 dark:text-success-300 dark:border-success-700";
-    } else if (costUsd < 0.1) {
-      return "bg-primary-100 text-primary-700 border-primary-200 dark:bg-primary-900 dark:text-primary-300 dark:border-primary-700";
-    } else {
-      return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
-    }
-  };
 
   if (isLoading && !data) {
     return (

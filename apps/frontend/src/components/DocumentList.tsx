@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { FC } from "react";
 
 import {
@@ -7,6 +7,7 @@ import {
   useFolders,
   useSearchDocuments,
 } from "../hooks/useDocuments";
+import { getSizeColor, getAgeColor, getPercentageColor } from "../utils/colorUtils";
 
 import { DocumentViewer } from "./DocumentViewer";
 
@@ -30,6 +31,15 @@ export const DocumentList: FC<DocumentListProps> = ({
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearchQuery, setActiveSearchQuery] = useState("");
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+  
+  // Update current time every minute for age calculations
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const { data: searchResults = [], isLoading: isSearching } =
     useSearchDocuments(workspaceId, activeSearchQuery);
@@ -249,7 +259,11 @@ export const DocumentList: FC<DocumentListProps> = ({
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="rounded-lg bg-primary-100 px-3 py-1 text-sm font-semibold text-primary-700 dark:bg-primary-900 dark:text-primary-200">
+                        <span
+                          className={`rounded-lg border px-3 py-1 text-sm font-semibold ${getPercentageColor(
+                            similarityPercent
+                          )}`}
+                        >
                           {similarityPercent}% match
                         </span>
                       </div>
@@ -286,9 +300,24 @@ export const DocumentList: FC<DocumentListProps> = ({
                     >
                       {document.name}
                     </button>
-                    <div className="mt-1 text-sm text-neutral-500">
-                      {formatSize(document.size)} •{" "}
-                      {new Date(document.createdAt).toLocaleDateString()}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span
+                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getSizeColor(
+                          document.size
+                        )}`}
+                      >
+                        {formatSize(document.size)}
+                      </span>
+                      <span
+                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getAgeColor(
+                          Math.floor(
+                            (currentTime - new Date(document.createdAt).getTime()) /
+                              (1000 * 60 * 60 * 24)
+                          )
+                        )}`}
+                      >
+                        {new Date(document.createdAt).toLocaleDateString()}
+                      </span>
                     </div>
                   </div>
                   {canEdit && (

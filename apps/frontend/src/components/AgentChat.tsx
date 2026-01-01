@@ -11,6 +11,7 @@ import remarkGfm from "remark-gfm";
 
 import { useAgent } from "../hooks/useAgents";
 import { getDefaultAvatar } from "../utils/avatarUtils";
+import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
 import { getMessageCost } from "../utils/messageCost";
 
@@ -788,42 +789,6 @@ export const AgentChat: FC<AgentChatProps> = ({
               const costUsd = messageCost?.costUsd;
               const isFinal = messageCost?.isFinal;
 
-              const formatTokenUsage = (usage: {
-                promptTokens?: number;
-                completionTokens?: number;
-                totalTokens?: number;
-                reasoningTokens?: number;
-                cachedPromptTokens?: number;
-              }): string => {
-                const parts: string[] = [];
-                if (typeof usage.promptTokens === "number") {
-                  parts.push(`P: ${usage.promptTokens.toLocaleString()}`);
-                }
-                if (typeof usage.completionTokens === "number") {
-                  parts.push(`C: ${usage.completionTokens.toLocaleString()}`);
-                }
-                if (
-                  typeof usage.reasoningTokens === "number" &&
-                  usage.reasoningTokens > 0
-                ) {
-                  parts.push(`R: ${usage.reasoningTokens.toLocaleString()}`);
-                }
-                if (
-                  typeof usage.cachedPromptTokens === "number" &&
-                  usage.cachedPromptTokens > 0
-                ) {
-                  parts.push(
-                    `Cache: ${usage.cachedPromptTokens.toLocaleString()}`
-                  );
-                }
-                const total =
-                  typeof usage.totalTokens === "number"
-                    ? usage.totalTokens.toLocaleString()
-                    : "0";
-                return parts.length > 0
-                  ? `${total} (${parts.join(", ")})`
-                  : total;
-              };
 
               return (
                 <div key={message.id} className="space-y-2">
@@ -863,24 +828,66 @@ export const AgentChat: FC<AgentChatProps> = ({
                                   </div>
                                 )}
                                 {tokenUsage && (
-                                  <div className="rounded bg-black bg-opacity-10 px-2 py-1 font-mono text-xs opacity-70">
-                                    {formatTokenUsage(tokenUsage)}
+                                  <div className="flex flex-wrap items-center gap-1">
+                                    {typeof tokenUsage.promptTokens === "number" && (
+                                      <span
+                                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                                          tokenUsage.promptTokens
+                                        )}`}
+                                      >
+                                        P: {tokenUsage.promptTokens.toLocaleString()}
+                                      </span>
+                                    )}
+                                    {typeof tokenUsage.completionTokens === "number" && (
+                                      <span
+                                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                                          tokenUsage.completionTokens
+                                        )}`}
+                                      >
+                                        C: {tokenUsage.completionTokens.toLocaleString()}
+                                      </span>
+                                    )}
+                                    {typeof tokenUsage.reasoningTokens === "number" &&
+                                      tokenUsage.reasoningTokens > 0 && (
+                                        <span
+                                          className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                                            tokenUsage.reasoningTokens
+                                          )}`}
+                                        >
+                                          R: {tokenUsage.reasoningTokens.toLocaleString()}
+                                        </span>
+                                      )}
+                                    {typeof tokenUsage.cachedPromptTokens === "number" &&
+                                      tokenUsage.cachedPromptTokens > 0 && (
+                                        <span
+                                          className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                                            tokenUsage.cachedPromptTokens
+                                          )}`}
+                                        >
+                                          Cache: {tokenUsage.cachedPromptTokens.toLocaleString()}
+                                        </span>
+                                      )}
+                                    {typeof tokenUsage.totalTokens === "number" && (
+                                      <span
+                                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                                          tokenUsage.totalTokens
+                                        )}`}
+                                      >
+                                        Total: {tokenUsage.totalTokens.toLocaleString()}
+                                      </span>
+                                    )}
                                   </div>
                                 )}
                                 {costUsd !== undefined && (
-                                  <div
-                                    className={`rounded px-2 py-1 text-xs font-medium opacity-70 ${
-                                      isFinal === true
-                                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                        : isFinal === false
-                                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                                        : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
-                                    }`}
+                                  <span
+                                    className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
+                                      costUsd
+                                    )}`}
                                   >
                                     {formatCurrency(costUsd, "usd", 10)}
                                     {isFinal === true && " ✓"}
                                     {isFinal === false && " (provisional)"}
-                                  </div>
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -916,8 +923,54 @@ export const AgentChat: FC<AgentChatProps> = ({
                             </div>
                           )}
                           {tokenUsage && (
-                            <div className="rounded bg-black bg-opacity-10 px-2 py-1 font-mono text-xs opacity-70">
-                              {formatTokenUsage(tokenUsage)}
+                            <div className="flex flex-wrap items-center gap-1">
+                              {typeof tokenUsage.promptTokens === "number" && (
+                                <span
+                                  className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                                    tokenUsage.promptTokens
+                                  )}`}
+                                >
+                                  P: {tokenUsage.promptTokens.toLocaleString()}
+                                </span>
+                              )}
+                              {typeof tokenUsage.completionTokens === "number" && (
+                                <span
+                                  className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                                    tokenUsage.completionTokens
+                                  )}`}
+                                >
+                                  C: {tokenUsage.completionTokens.toLocaleString()}
+                                </span>
+                              )}
+                              {typeof tokenUsage.reasoningTokens === "number" &&
+                                tokenUsage.reasoningTokens > 0 && (
+                                  <span
+                                    className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                                      tokenUsage.reasoningTokens
+                                    )}`}
+                                  >
+                                    R: {tokenUsage.reasoningTokens.toLocaleString()}
+                                  </span>
+                                )}
+                              {typeof tokenUsage.cachedPromptTokens === "number" &&
+                                tokenUsage.cachedPromptTokens > 0 && (
+                                  <span
+                                    className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                                      tokenUsage.cachedPromptTokens
+                                    )}`}
+                                  >
+                                    Cache: {tokenUsage.cachedPromptTokens.toLocaleString()}
+                                  </span>
+                                )}
+                              {typeof tokenUsage.totalTokens === "number" && (
+                                <span
+                                  className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                                    tokenUsage.totalTokens
+                                  )}`}
+                                >
+                                  Total: {tokenUsage.totalTokens.toLocaleString()}
+                                </span>
+                              )}
                             </div>
                           )}
                         </div>

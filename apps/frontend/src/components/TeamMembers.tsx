@@ -34,8 +34,8 @@ const getPermissionColor = (level: number): string => {
   if (level === PERMISSION_LEVELS.OWNER)
     return "bg-gradient-primary text-white";
   if (level === PERMISSION_LEVELS.WRITE)
-    return "bg-accent-100 text-accent-700 border-accent-200";
-  return "bg-neutral-100 text-neutral-700 border-neutral-200";
+    return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
+  return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700";
 };
 
 export const TeamMembers: FC<TeamMembersProps> = ({
@@ -184,8 +184,8 @@ export const TeamMembers: FC<TeamMembersProps> = ({
                         {" • "}
                         Expires {expiresAt.toLocaleDateString()}
                         {isExpiringSoon && (
-                          <span className="ml-1 font-medium text-error-600 dark:text-error-400">
-                            (expiring soon)
+                          <span className="ml-2 inline-block rounded-lg border border-error-200 bg-error-100 px-2 py-0.5 text-xs font-semibold text-error-800 dark:border-error-800 dark:bg-error-900 dark:text-error-200">
+                            Expiring Soon
                           </span>
                         )}
                       </div>
