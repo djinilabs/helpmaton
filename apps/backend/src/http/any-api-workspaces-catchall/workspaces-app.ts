@@ -188,6 +188,13 @@ export const createApp: () => express.Application = () => {
       // Set the specific origin (not wildcard) for security
       // Browsers require the exact origin in Access-Control-Allow-Origin
       res.setHeader("Access-Control-Allow-Origin", origin!);
+      console.log(
+        `[CORS Middleware] Set CORS header for origin: ${origin}, FRONTEND_URL: ${frontendUrl}, isHelpmatonDomain: ${isHelpmatonDomain}`
+      );
+    } else {
+      console.warn(
+        `[CORS Middleware] Origin not allowed: ${origin}, FRONTEND_URL: ${frontendUrl}, isHelpmatonDomain: ${isHelpmatonDomain}, allowAllOrigins: ${allowAllOrigins}`
+      );
     }
 
     res.setHeader(

@@ -1392,12 +1392,18 @@ export const registerPostTestAgent = (app: express.Application) => {
         return false;
       };
       
+      // Always set CORS headers if origin is allowed (critical for Function URLs)
+      // The middleware sets these, but we need to ensure they're preserved after setting other headers
       if (isOriginAllowed(origin)) {
         // Set the specific origin (not wildcard) for security
         // Browsers require the exact origin in Access-Control-Allow-Origin
         res.setHeader("Access-Control-Allow-Origin", origin!);
+        console.log(`[Agent Test Handler] Set CORS header for origin: ${origin}`);
+      } else {
+        console.warn(`[Agent Test Handler] Origin not allowed: ${origin}, FRONTEND_URL: ${frontendUrl}, isHelpmatonDomain: ${isHelpmatonDomain}`);
       }
       
+      // Always set these CORS headers (they're safe to set even if origin is not allowed)
       res.setHeader(
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, DELETE, PATCH, OPTIONS"
