@@ -125,10 +125,11 @@ export async function getScrapeFunctionUrl(): Promise<string> {
     const normalizedUrl = functionUrl.replace(/\/+$/, "");
     cachedFunctionUrl = normalizedUrl;
     cacheExpiry = Date.now() + CACHE_TTL;
+    const urlWithPath = `${normalizedUrl}/api/scrape`;
     console.log(
-      `[scrape-url] Retrieved Function URL from CloudFormation: ${functionUrl} (normalized: ${normalizedUrl})`
+      `[scrape-url] Retrieved Function URL from CloudFormation: ${functionUrl} (normalized: ${normalizedUrl}) with path: ${urlWithPath}`
     );
-    return normalizedUrl;
+    return urlWithPath;
   }
 
   // Fallback to API Gateway URL if function URL not available
