@@ -1329,7 +1329,6 @@ function createApp(): express.Application {
           browser = await puppeteer.launch({
             args: chromiumArgs,
             defaultViewport: chromiumModule.defaultViewport,
-            headless: true,
             executablePath,
           });
         } else {
