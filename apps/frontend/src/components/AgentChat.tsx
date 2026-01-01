@@ -70,7 +70,7 @@ export const AgentChat: FC<AgentChatProps> = ({
     
     // Fallback to API Gateway URL
     return `/api/workspaces/${workspaceId}/agents/${agentId}/test`;
-  }, [api, testAgentUrlData?.url, workspaceId, agentId]);
+  }, [api, testAgentUrlData, workspaceId, agentId]);
 
   // Create a custom fetch function that adds the X-Conversation-Id header
   const fetchWithConversationId = useMemo(() => {

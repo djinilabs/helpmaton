@@ -128,36 +128,39 @@ export const createApp: () => express.Application = () => {
   // If FRONTEND_URL is not set, allow all origins (wildcard)
   const frontendUrl = process.env.FRONTEND_URL;
   const allowAllOrigins = !frontendUrl;
-
-  // Handle OPTIONS preflight requests
-  app.options("*", (req, res) => {
-    const origin = req.headers.origin;
-
-    if (allowAllOrigins) {
-      // If FRONTEND_URL is not set, allow all origins
-      res.setHeader("Access-Control-Allow-Origin", "*");
-    } else if (origin === frontendUrl) {
-      // If FRONTEND_URL is set, only allow that specific origin
-      res.setHeader("Access-Control-Allow-Origin", origin);
-    }
-
-    res.setHeader(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-    );
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
-    );
-    res.setHeader("Access-Control-Max-Age", "86400"); // 24 hours
-
-    res.status(204).end();
-  });
-
-  // Add CORS headers to all responses
+  
+  // Handle OPTIONS preflight requests for all routes
+  // Express doesn't support "*" as a route pattern, so we use a middleware that runs before routes
   app.use((req, res, next) => {
+    // Handle OPTIONS preflight requests
+    if (req.method === "OPTIONS") {
+      const origin = req.headers.origin;
+      
+      if (allowAllOrigins) {
+        // If FRONTEND_URL is not set, allow all origins
+        res.setHeader("Access-Control-Allow-Origin", "*");
+      } else if (origin === frontendUrl) {
+        // If FRONTEND_URL is set, only allow that specific origin
+        res.setHeader("Access-Control-Allow-Origin", origin);
+      }
+      
+      res.setHeader(
+        "Access-Control-Allow-Methods",
+        "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+      );
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
+      );
+      res.setHeader("Access-Control-Max-Age", "86400"); // 24 hours
+      
+      res.status(204).end();
+      return;
+    }
+    
+    // Add CORS headers to all non-OPTIONS responses
     const origin = req.headers.origin;
-
+    
     if (allowAllOrigins) {
       // If FRONTEND_URL is not set, allow all origins
       res.setHeader("Access-Control-Allow-Origin", "*");
@@ -165,7 +168,7 @@ export const createApp: () => express.Application = () => {
       // If FRONTEND_URL is set, only allow that specific origin
       res.setHeader("Access-Control-Allow-Origin", origin);
     }
-
+    
     res.setHeader(
       "Access-Control-Allow-Methods",
       "GET, POST, PUT, DELETE, PATCH, OPTIONS"
@@ -174,7 +177,7 @@ export const createApp: () => express.Application = () => {
       "Access-Control-Allow-Headers",
       "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
     );
-
+    
     next();
   });
 
