@@ -123,59 +123,6 @@ export const createApp: () => express.Application = () => {
     next();
   });
 
-  // CORS support for Function URL access
-  // Always set CORS headers using FRONTEND_URL as the allowed origin
-  // This is required for Function URLs to work properly
-  const frontendUrl = process.env.FRONTEND_URL;
-
-  // Handle OPTIONS preflight requests for all routes
-  // Express doesn't support "*" as a route pattern, so we use a middleware that runs before routes
-  app.use((req, res, next) => {
-    // Handle OPTIONS preflight requests
-    if (req.method === "OPTIONS") {
-      // Always set Access-Control-Allow-Origin to FRONTEND_URL
-      if (frontendUrl) {
-        res.setHeader("Access-Control-Allow-Origin", frontendUrl);
-      }
-
-      res.setHeader(
-        "Access-Control-Allow-Methods",
-        "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-      );
-      res.setHeader(
-        "Access-Control-Allow-Headers",
-        "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
-      );
-      res.setHeader("Access-Control-Max-Age", "86400"); // 24 hours
-
-      res.status(204).end();
-      return;
-    }
-
-    // Add CORS headers to all non-OPTIONS responses
-    // Note: We don't set Content-Type here to allow route handlers to set it
-    // (especially important for streaming responses which need text/event-stream)
-
-    // Always set Access-Control-Allow-Origin to FRONTEND_URL
-    if (frontendUrl) {
-      res.setHeader("Access-Control-Allow-Origin", frontendUrl);
-    }
-
-    res.setHeader(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-    );
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
-    );
-
-    // Don't set Content-Type here - let route handlers set it
-    // This is especially important for streaming responses (text/event-stream)
-
-    next();
-  });
-
   // Register all routes
   registerGetWorkspaces(app);
   registerPostWorkspaces(app);

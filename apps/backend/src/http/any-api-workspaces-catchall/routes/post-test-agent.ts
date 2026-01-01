@@ -257,6 +257,37 @@ async function persistConversationError(options: {
  *         $ref: '#/components/responses/InternalServerError'
  */
 export const registerPostTestAgent = (app: express.Application) => {
+  // Handle OPTIONS preflight requests for CORS
+  app.options(
+    "/api/workspaces/:workspaceId/agents/:agentId/test",
+    (req, res) => {
+      console.log(
+        "[Agent Test Handler] OPTIONS request - setting CORS headers:",
+        {
+          frontendUrl: process.env.FRONTEND_URL,
+        }
+      );
+      const frontendUrl = process.env.FRONTEND_URL;
+
+      // Always set Access-Control-Allow-Origin to FRONTEND_URL
+      if (frontendUrl) {
+        res.setHeader("Access-Control-Allow-Origin", frontendUrl);
+      }
+
+      res.setHeader(
+        "Access-Control-Allow-Methods",
+        "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+      );
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
+      );
+      res.setHeader("Access-Control-Max-Age", "86400"); // 24 hours
+
+      res.status(204).end();
+    }
+  );
+
   app.post(
     "/api/workspaces/:workspaceId/agents/:agentId/test",
     requireAuth,
@@ -288,7 +319,9 @@ export const registerPostTestAgent = (app: express.Application) => {
         req.headers["x-request-id"] ||
         req.headers["X-Request-Id"] ||
         req.apiGateway?.event?.requestContext?.requestId;
-      const awsRequestId = Array.isArray(awsRequestIdRaw) ? awsRequestIdRaw[0] : awsRequestIdRaw;
+      const awsRequestId = Array.isArray(awsRequestIdRaw)
+        ? awsRequestIdRaw[0]
+        : awsRequestIdRaw;
 
       // Get context for workspace credit transactions
       const context = getContextFromRequestId(awsRequestId);
@@ -306,7 +339,9 @@ export const registerPostTestAgent = (app: express.Application) => {
             "X-Request-Id": req.headers["X-Request-Id"],
           },
         });
-        throw new Error("Context not available for workspace credit transactions");
+        throw new Error(
+          "Context not available for workspace credit transactions"
+        );
       }
 
       // Validate subscription and limits
@@ -619,12 +654,19 @@ export const registerPostTestAgent = (app: express.Application) => {
                                   : undefined,
                             });
 
-                            // End the stream before sending error response
-                            res.end();
-                            return res.status(400).json({
-                              error:
-                                "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
-                            });
+                            // If we've already started streaming, we can't send a JSON error response
+                            // Just end the stream
+                            if (!res.headersSent) {
+                              // Headers haven't been sent yet, we can send an error response
+                              return res.status(400).json({
+                                error:
+                                  "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+                              });
+                            } else {
+                              // Headers already sent, just end the stream
+                              res.end();
+                              return;
+                            }
                           }
                         }
                       }
@@ -676,13 +718,19 @@ export const registerPostTestAgent = (app: express.Application) => {
             error: streamError, // This is the original AI_APICallError with data.error.message
           });
 
-          // End the stream before sending error response
-          res.end();
-          // Return specific error message for BYOK authentication issues
-          return res.status(400).json({
-            error:
-              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
-          });
+          // If we've already started streaming, we can't send a JSON error response
+          // Just end the stream
+          if (!res.headersSent) {
+            // Headers haven't been sent yet, we can send an error response
+            return res.status(400).json({
+              error:
+                "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+            });
+          } else {
+            // Headers already sent, just end the stream
+            res.end();
+            return;
+          }
         }
 
         // Re-throw other stream errors
@@ -1152,7 +1200,9 @@ export const registerPostTestAgent = (app: express.Application) => {
         openrouterGenerationIds,
         provisionalCostUsd,
       } = extractTokenUsageAndCosts(
-        result as unknown as GenerateTextResultWithTotalUsage | StreamTextResultWithResolvedUsage,
+        result as unknown as
+          | GenerateTextResultWithTotalUsage
+          | StreamTextResultWithResolvedUsage,
         usage,
         finalModelName,
         "test"
@@ -1355,46 +1405,52 @@ export const registerPostTestAgent = (app: express.Application) => {
       // where each event is separated by two newlines
       // IMPORTANT: Set headers BEFORE starting to write chunks
       // This ensures Content-Type: text/event-stream is set correctly for streaming
-      const responseHeaders = streamResponse.headers;
-      for (const [key, value] of responseHeaders.entries()) {
-        // Skip CORS headers - we'll set them after to ensure they're correct
-        // This is especially important for Content-Type which must be text/event-stream
-        if (
-          key.toLowerCase() !== "access-control-allow-origin" &&
-          key.toLowerCase() !== "access-control-allow-methods" &&
-          key.toLowerCase() !== "access-control-allow-headers"
-        ) {
-          res.setHeader(key, value);
+      // Check if headers have already been sent (shouldn't happen, but safety check)
+      if (!res.headersSent) {
+        const responseHeaders = streamResponse.headers;
+        for (const [key, value] of responseHeaders.entries()) {
+          // Skip CORS headers - we'll set them after to ensure they're correct
+          // This is especially important for Content-Type which must be text/event-stream
+          if (
+            key.toLowerCase() !== "access-control-allow-origin" &&
+            key.toLowerCase() !== "access-control-allow-methods" &&
+            key.toLowerCase() !== "access-control-allow-headers"
+          ) {
+            res.setHeader(key, value);
+          }
         }
+
+        // Set CORS headers AFTER setting other headers to ensure they're preserved
+        // Always set CORS headers using FRONTEND_URL as the allowed origin
+        // The middleware sets these, but we need to ensure they're preserved after setting other headers
+        const frontendUrl = process.env.FRONTEND_URL;
+
+        // Always set Access-Control-Allow-Origin to FRONTEND_URL
+        if (frontendUrl) {
+          res.setHeader("Access-Control-Allow-Origin", frontendUrl);
+        }
+
+        // Always set these CORS headers
+        res.setHeader(
+          "Access-Control-Allow-Methods",
+          "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+        );
+        res.setHeader(
+          "Access-Control-Allow-Headers",
+          "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
+        );
+
+        // Set status code before starting to write chunks
+        res.status(streamResponse.status);
       }
 
-      // Set CORS headers AFTER setting other headers to ensure they're preserved
-      // Always set CORS headers using FRONTEND_URL as the allowed origin
-      // The middleware sets these, but we need to ensure they're preserved after setting other headers
-      const frontendUrl = process.env.FRONTEND_URL;
-      
-      // Always set Access-Control-Allow-Origin to FRONTEND_URL
-      if (frontendUrl) {
-        res.setHeader("Access-Control-Allow-Origin", frontendUrl);
-      }
-      
-      // Always set these CORS headers
-      res.setHeader(
-        "Access-Control-Allow-Methods",
-        "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+      console.log(
+        "[Agent Test Handler] Starting to stream response with headers:",
+        {
+          contentType: res.getHeader("Content-Type"),
+          status: streamResponse.status,
+        }
       );
-      res.setHeader(
-        "Access-Control-Allow-Headers",
-        "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
-      );
-
-      // Set status code before starting to write chunks
-      res.status(streamResponse.status);
-
-      console.log("[Agent Test Handler] Starting to stream response with headers:", {
-        contentType: res.getHeader("Content-Type"),
-        status: streamResponse.status,
-      });
     })
   );
 };
