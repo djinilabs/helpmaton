@@ -11,6 +11,7 @@ import {
 } from "../hooks/useSpendingLimits";
 import { useUpdateWorkspace } from "../hooks/useWorkspaces";
 import type { SpendingLimit } from "../utils/api";
+import { getTimeFrameColor } from "../utils/colorUtils";
 import { formatCurrency, fromMillionths, toMillionths } from "../utils/currency";
 
 interface SpendingLimitsManagerProps {
@@ -260,9 +261,15 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
               {editingLimit === limit.timeFrame ? (
                 <div className="flex flex-1 items-center gap-4">
                   <div className="flex-1">
-                    <div className="mb-2 text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                      {TIME_FRAMES.find((tf) => tf.value === limit.timeFrame)
-                        ?.label || limit.timeFrame.toUpperCase()}
+                    <div className="mb-2">
+                      <span
+                        className={`rounded-lg border px-3 py-1.5 text-sm font-semibold ${getTimeFrameColor(
+                          limit.timeFrame
+                        )}`}
+                      >
+                        {TIME_FRAMES.find((tf) => tf.value === limit.timeFrame)
+                          ?.label || limit.timeFrame.toUpperCase()}
+                      </span>
                     </div>
                     <input
                       type="number"
@@ -296,12 +303,16 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                 </div>
               ) : (
                 <>
-                  <div>
-                    <div className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`rounded-lg border px-3 py-1.5 text-sm font-semibold ${getTimeFrameColor(
+                        limit.timeFrame
+                      )}`}
+                    >
                       {TIME_FRAMES.find((tf) => tf.value === limit.timeFrame)
                         ?.label || limit.timeFrame.toUpperCase()}
-                    </div>
-                    <div className="mt-1 text-lg text-neutral-700 dark:text-neutral-300">
+                    </span>
+                    <div className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
                       {formatCurrency(limit.amount, "usd", 10)}
                     </div>
                   </div>

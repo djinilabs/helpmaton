@@ -8,6 +8,10 @@ import {
   useWorkspaceTransactions,
 } from "../hooks/useTransactions";
 import type { Conversation, Transaction } from "../utils/api";
+import {
+  getTransactionTypeColor,
+  getCostColor,
+} from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
 
 const ConversationDetailModal = lazy(() =>
@@ -210,8 +214,14 @@ export const TransactionTable: FC<TransactionTableProps> = ({
                           : transaction.description}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
-                      {formatSource(transaction.source)}
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getTransactionTypeColor(
+                          transaction.source
+                        )}`}
+                      >
+                        {formatSource(transaction.source)}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                       {transaction.supplier}
@@ -255,8 +265,14 @@ export const TransactionTable: FC<TransactionTableProps> = ({
                     <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-400">
                       {transaction.model || "-"}
                     </td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-neutral-900 dark:text-neutral-50">
-                      {formatCurrency(transaction.amountMillionthUsd, "usd")}
+                    <td className="px-4 py-3 text-right">
+                      <span
+                        className={`inline-block rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
+                          transaction.amountMillionthUsd / 1_000_000
+                        )}`}
+                      >
+                        {formatCurrency(transaction.amountMillionthUsd, "usd")}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-neutral-600 dark:text-neutral-400">
                       {formatCurrency(
