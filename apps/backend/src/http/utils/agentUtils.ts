@@ -1147,6 +1147,96 @@ export async function callAgentInternal(
 }
 
 /**
+ * Minimum score threshold for accepting an agent match
+ * Default: 2.0 - allows for lenient matching while preventing false positives
+ */
+const MATCH_THRESHOLD = 2.0;
+
+/**
+ * Calculate a simple similarity score between two strings
+ * Returns a value between 0 and 1 based on how much of the query appears in the target
+ */
+function calculateStringSimilarity(query: string, target: string): number {
+  const queryLower = query.toLowerCase();
+  const targetLower = target.toLowerCase();
+
+  // Exact match
+  if (targetLower === queryLower) {
+    return 1.0;
+  }
+
+  // Contains full query
+  if (targetLower.includes(queryLower)) {
+    return 0.8;
+  }
+
+  // Token-based matching
+  const queryTokens = queryLower.split(/\s+/).filter((t) => t.length > 0);
+  const targetTokens = targetLower.split(/\s+|_/).filter((t) => t.length > 0);
+
+  if (queryTokens.length === 0) {
+    return 0;
+  }
+
+  let matchedTokens = 0;
+  for (const queryToken of queryTokens) {
+    // Check if any target token contains this query token (or vice versa)
+    for (const targetToken of targetTokens) {
+      if (targetToken.includes(queryToken) || queryToken.includes(targetToken)) {
+        matchedTokens++;
+        break; // Count each query token only once
+      }
+    }
+  }
+
+  return (matchedTokens / queryTokens.length) * 0.6; // Partial credit for token matches
+}
+
+/**
+ * Expanded keyword mapping with synonyms and variations
+ * Maps common keywords to related capabilities
+ */
+function getCapabilityKeywords(): Record<string, string[]> {
+  return {
+    // Document search variations
+    document: ["search_documents", "documents", "doc", "file", "content"],
+    doc: ["search_documents", "documents", "document"],
+    file: ["search_documents", "documents", "document"],
+    content: ["search_documents", "documents", "document"],
+
+    // Memory search variations
+    memory: ["search_memory", "memory", "remember", "recall", "past"],
+    remember: ["search_memory", "memory"],
+    recall: ["search_memory", "memory"],
+    past: ["search_memory", "memory"],
+    history: ["search_memory", "memory"],
+
+    // Web search variations
+    web: ["search_web", "fetch_url", "web", "internet", "online", "browse"],
+    internet: ["search_web", "fetch_url", "web"],
+    online: ["search_web", "fetch_url", "web"],
+    browse: ["search_web", "fetch_url", "web"],
+    url: ["fetch_url", "search_web"],
+    link: ["fetch_url", "search_web"],
+
+    // Email variations
+    email: ["send_email", "email", "mail", "send", "message"],
+    mail: ["send_email", "email"],
+    send: ["send_email", "email"],
+
+    // Notification variations
+    notification: ["send_notification", "notification", "notify", "alert"],
+    notify: ["send_notification", "notification"],
+    alert: ["send_notification", "notification"],
+
+    // Search variations (general)
+    search: ["search_web", "search_documents", "search_memory", "search"],
+    find: ["search_web", "search_documents", "search_memory", "search"],
+    lookup: ["search_web", "search_documents", "search_memory"],
+  };
+}
+
+/**
  * Build a list of agent capabilities from agent configuration
  */
 function buildAgentCapabilities(agent: CachedAgent): string[] {
@@ -1188,19 +1278,24 @@ function buildAgentCapabilities(agent: CachedAgent): string[] {
 }
 
 /**
- * Find an agent by semantic query using keyword matching
- * Matches against agent name, system prompt, and capabilities
+ * Find an agent by semantic query using fuzzy keyword matching
+ * Matches against agent name, system prompt, and capabilities with lenient scoring
  * Exported for use in async tools
  */
 export async function findAgentByQuery(
   workspaceId: string,
   query: string,
   delegatableAgentIds: string[]
-): Promise<{ agentId: string; agentName: string } | null> {
+): Promise<{ agentId: string; agentName: string; score: number } | null> {
   const db = await database();
-  const queryLower = query.toLowerCase();
+  const queryLower = query.toLowerCase().trim();
 
-  // Get all delegatable agents
+  // Early return for empty or whitespace-only queries
+  if (queryLower.length === 0) {
+    return null;
+  }
+
+  // Get all delegatable agents (with caching)
   const agents = await Promise.all(
     delegatableAgentIds.map(async (agentId): Promise<CachedAgent | null> => {
       const cached = getCachedAgent(workspaceId, agentId);
@@ -1243,46 +1338,69 @@ export async function findAgentByQuery(
     return null;
   }
 
-  // Score each agent based on keyword matches
+  // Score each agent based on fuzzy keyword matches
   const scoredAgents = validAgents.map((agent) => {
     const agentId = agent.pk.replace(`agents/${workspaceId}/`, "");
     let score = 0;
 
-    // Match against agent name
-    if (agent.name.toLowerCase().includes(queryLower)) {
-      score += 10;
+    // 1. Fuzzy match against agent name (weighted heavily)
+    const nameSimilarity = calculateStringSimilarity(queryLower, agent.name);
+    score += nameSimilarity * 15; // Up to 15 points
+
+    // 2. Fuzzy match against system prompt (first 500 chars for performance)
+    const promptLower = agent.systemPrompt.substring(0, 500).toLowerCase();
+    const promptSimilarity = calculateStringSimilarity(queryLower, promptLower);
+    score += promptSimilarity * 8; // Up to 8 points
+
+    // Also count individual token matches in prompt
+    const queryTokens = queryLower.split(/\s+/).filter((t) => t.length > 2);
+    for (const token of queryTokens) {
+      const tokenMatches = (promptLower.match(new RegExp(token, "g")) || [])
+        .length;
+      score += tokenMatches * 1.5; // 1.5 points per token match
     }
 
-    // Match against system prompt (first 500 chars for performance)
-    const promptLower = agent.systemPrompt.substring(0, 500).toLowerCase();
-    const promptMatches = (promptLower.match(new RegExp(queryLower, "g")) || [])
-      .length;
-    score += promptMatches * 2;
-
-    // Match against capabilities
+    // 3. Match against capabilities with fuzzy matching
     const capabilities = buildAgentCapabilities(agent);
     const capabilitiesStr = capabilities.join(" ").toLowerCase();
-    if (capabilitiesStr.includes(queryLower)) {
-      score += 5;
-    }
+    const capabilitiesSimilarity = calculateStringSimilarity(
+      queryLower,
+      capabilitiesStr
+    );
+    score += capabilitiesSimilarity * 10; // Up to 10 points
 
-    // Check for specific capability keywords
-    const capabilityKeywords: Record<string, string[]> = {
-      document: ["search_documents", "documents"],
-      memory: ["search_memory", "memory"],
-      web: ["search_web", "fetch_url", "web"],
-      email: ["send_email", "email"],
-      notification: ["send_notification", "notification"],
-    };
+    // 4. Expanded keyword mapping with fuzzy matching
+    const capabilityKeywords = getCapabilityKeywords();
+    const queryTokensForKeywords = queryLower
+      .split(/\s+/)
+      .filter((t) => t.length > 0);
 
-    for (const [keyword, relatedCapabilities] of Object.entries(
-      capabilityKeywords
-    )) {
-      if (queryLower.includes(keyword)) {
-        for (const cap of relatedCapabilities) {
-          if (capabilitiesStr.includes(cap)) {
-            score += 3;
+    for (const queryToken of queryTokensForKeywords) {
+      // Check exact keyword matches
+      for (const [keyword, relatedCapabilities] of Object.entries(
+        capabilityKeywords
+      )) {
+        if (
+          queryToken === keyword ||
+          queryToken.includes(keyword) ||
+          keyword.includes(queryToken)
+        ) {
+          for (const cap of relatedCapabilities) {
+            if (capabilitiesStr.includes(cap)) {
+              score += 4; // Points for keyword-capability match
+            }
           }
+        }
+      }
+
+      // Also check if query token partially matches capability names
+      for (const cap of capabilities) {
+        const capLower = cap.toLowerCase();
+        if (
+          capLower.includes(queryToken) ||
+          queryToken.includes(capLower.replace(/_/g, " "))
+        ) {
+          score += 3; // Points for direct capability match
         }
       }
     }
@@ -1294,12 +1412,103 @@ export async function findAgentByQuery(
   scoredAgents.sort((a, b) => b.score - a.score);
 
   const bestMatch = scoredAgents[0];
-  if (bestMatch.score > 0) {
+  // Apply threshold - only return match if score meets minimum threshold
+  if (bestMatch.score >= MATCH_THRESHOLD) {
     const agentName = bestMatch.agent.name;
-    return { agentId: bestMatch.agentId, agentName };
+    return { agentId: bestMatch.agentId, agentName, score: bestMatch.score };
   }
 
   return null;
+}
+
+/**
+ * Format a list of agents into a consistent string format
+ * Reusable in both list_agents tool and error messages
+ */
+function formatAgentList(
+  agents: CachedAgent[],
+  workspaceId: string
+): string {
+  if (agents.length === 0) {
+    return "No delegatable agents found.";
+  }
+
+  const agentList = agents
+    .map((agent) => {
+      const agentId = agent.pk.replace(`agents/${workspaceId}/`, "");
+      const capabilities = buildAgentCapabilities(agent);
+      const description =
+        agent.systemPrompt.length > 200
+          ? `${agent.systemPrompt.substring(0, 200)}...`
+          : agent.systemPrompt;
+      const modelInfo = agent.modelName ? `${agent.modelName}` : "default";
+      const providerInfo = agent.provider || "openrouter";
+
+      let agentInfo = `- ${agent.name} (ID: ${agentId})\n  Description: ${description}\n  Model: ${modelInfo} (${providerInfo})`;
+
+      if (capabilities.length > 0) {
+        agentInfo += `\n  Capabilities: ${capabilities.join(", ")}`;
+      } else {
+        agentInfo += `\n  Capabilities: none`;
+      }
+
+      return agentInfo;
+    })
+    .join("\n\n");
+
+  return `Available agents for delegation (${agents.length}):\n\n${agentList}`;
+}
+
+/**
+ * Helper function to fetch all delegatable agents (with caching)
+ * Reusable in both list_agents tool and error handling
+ */
+async function fetchDelegatableAgents(
+  workspaceId: string,
+  delegatableAgentIds: string[]
+): Promise<CachedAgent[]> {
+  const db = await database();
+
+  // Get all delegatable agents (with caching)
+  const agents = await Promise.all(
+    delegatableAgentIds.map(async (agentId): Promise<CachedAgent | null> => {
+      // Check cache first
+      const cached = getCachedAgent(workspaceId, agentId);
+      if (cached) {
+        return cached;
+      }
+
+      // Fetch from database
+      const agentPk = `agents/${workspaceId}/${agentId}`;
+      const agent = await db.agent.get(agentPk, "agent");
+
+      // Cache if found
+      if (agent) {
+        const cachedAgent: CachedAgent = {
+          pk: agent.pk,
+          name: agent.name,
+          systemPrompt: agent.systemPrompt,
+          modelName: agent.modelName,
+          provider: agent.provider,
+          enableSearchDocuments: agent.enableSearchDocuments,
+          enableMemorySearch: agent.enableMemorySearch,
+          searchWebProvider: agent.searchWebProvider,
+          fetchWebProvider: agent.fetchWebProvider,
+          enableSendEmail: agent.enableSendEmail,
+          notificationChannelId: agent.notificationChannelId,
+          enabledMcpServerIds: agent.enabledMcpServerIds,
+          clientTools: agent.clientTools,
+        };
+        setCachedAgent(workspaceId, agentId, cachedAgent);
+        return cachedAgent;
+      }
+
+      return null;
+    })
+  );
+
+  // Filter out any null results (agents that don't exist)
+  return agents.filter((agent): agent is CachedAgent => agent !== null);
 }
 
 /**
@@ -1322,82 +1531,12 @@ export function createListAgentsTool(
 
     execute: async () => {
       try {
-        const db = await database();
-
-        // Get all delegatable agents (with caching)
-        const agents = await Promise.all(
-          delegatableAgentIds.map(async (agentId): Promise<CachedAgent | null> => {
-            // Check cache first
-            const cached = getCachedAgent(workspaceId, agentId);
-            if (cached) {
-              return cached;
-            }
-
-            // Fetch from database
-            const agentPk = `agents/${workspaceId}/${agentId}`;
-            const agent = await db.agent.get(agentPk, "agent");
-
-            // Cache if found
-            if (agent) {
-              const cachedAgent: CachedAgent = {
-                pk: agent.pk,
-                name: agent.name,
-                systemPrompt: agent.systemPrompt,
-                modelName: agent.modelName,
-                provider: agent.provider,
-                enableSearchDocuments: agent.enableSearchDocuments,
-                enableMemorySearch: agent.enableMemorySearch,
-                searchWebProvider: agent.searchWebProvider,
-                fetchWebProvider: agent.fetchWebProvider,
-                enableSendEmail: agent.enableSendEmail,
-                notificationChannelId: agent.notificationChannelId,
-                enabledMcpServerIds: agent.enabledMcpServerIds,
-                clientTools: agent.clientTools,
-              };
-              setCachedAgent(workspaceId, agentId, cachedAgent);
-              return cachedAgent;
-            }
-
-            return null;
-          })
+        const validAgents = await fetchDelegatableAgents(
+          workspaceId,
+          delegatableAgentIds
         );
 
-        // Filter out any null results (agents that don't exist)
-        const validAgents = agents.filter(
-          (agent): agent is CachedAgent => agent !== null
-        );
-
-        if (validAgents.length === 0) {
-          return "No delegatable agents found.";
-        }
-
-        // Format agent list with enhanced information
-        const agentList = validAgents
-          .map((agent) => {
-            const agentId = agent.pk.replace(`agents/${workspaceId}/`, "");
-            const capabilities = buildAgentCapabilities(agent);
-            const description =
-              agent.systemPrompt.length > 200
-                ? `${agent.systemPrompt.substring(0, 200)}...`
-                : agent.systemPrompt;
-            const modelInfo = agent.modelName
-              ? `${agent.modelName}`
-              : "default";
-            const providerInfo = agent.provider || "openrouter";
-
-            let agentInfo = `- ${agent.name} (ID: ${agentId})\n  Description: ${description}\n  Model: ${modelInfo} (${providerInfo})`;
-
-            if (capabilities.length > 0) {
-              agentInfo += `\n  Capabilities: ${capabilities.join(", ")}`;
-            } else {
-              agentInfo += `\n  Capabilities: none`;
-            }
-
-            return agentInfo;
-          })
-          .join("\n\n");
-
-        return `Available agents for delegation (${validAgents.length}):\n\n${agentList}`;
+        return formatAgentList(validAgents, workspaceId);
       } catch (error) {
         console.error("Error in list_agents tool:", error);
         return `Error listing agents: ${
@@ -1519,9 +1658,16 @@ export function createCallAgentTool(
               query,
               matchedAgentId: agentId,
               matchedAgentName,
+              score: match.score,
             });
           } else {
-            const errorMessage = `Error: No agent found matching query "${query}". Please call list_agents to see available agents and their capabilities, then use an agentId or try a different query.`;
+            // No match found above threshold - fetch and include agent list in error
+            const validAgents = await fetchDelegatableAgents(
+              workspaceId,
+              delegatableAgentIds
+            );
+            const formattedAgentList = formatAgentList(validAgents, workspaceId);
+            const errorMessage = `Error: No agent found matching query "${query}" with sufficient confidence. Available agents:\n\n${formattedAgentList}\n\nPlease use an agentId from the list above or try a more specific query.`;
             console.error("[Tool Error] call_agent", {
               toolName: "call_agent",
               error: "No agent matched query",
@@ -1799,9 +1945,16 @@ export function createCallAgentAsyncTool(
             console.log("[Tool Call] call_agent_async - Query matched", {
               query,
               matchedAgentId: agentId,
+              score: match.score,
             });
           } else {
-            return `Error: No agent found matching query "${query}". Please call list_agents to see available agents, then use an agentId or try a different query.`;
+            // No match found above threshold - fetch and include agent list in error
+            const validAgents = await fetchDelegatableAgents(
+              workspaceId,
+              delegatableAgentIds
+            );
+            const formattedAgentList = formatAgentList(validAgents, workspaceId);
+            return `Error: No agent found matching query "${query}" with sufficient confidence. Available agents:\n\n${formattedAgentList}\n\nPlease use an agentId from the list above or try a more specific query.`;
           }
         } catch (error) {
           return `Error finding agent by query: ${
