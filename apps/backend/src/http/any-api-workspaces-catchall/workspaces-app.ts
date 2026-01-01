@@ -126,22 +126,40 @@ export const createApp: () => express.Application = () => {
   // CORS support for Function URL access
   // Get allowed origin from FRONTEND_URL environment variable
   // If FRONTEND_URL is not set, allow all origins (wildcard)
+  // If FRONTEND_URL is set to a *.helpmaton.com URL, allow any *.helpmaton.com origin (for PR deployments)
+  // Otherwise, only allow the exact FRONTEND_URL origin
   const frontendUrl = process.env.FRONTEND_URL;
   const allowAllOrigins = !frontendUrl;
+  
+  // Check if FRONTEND_URL is a *.helpmaton.com URL (for PR deployments)
+  // PR deployments use URLs like https://99.helpmaton.com
+  const isHelpmatonDomain = frontendUrl
+    ? /^https:\/\/[\d\w-]+\.helpmaton\.com$/.test(frontendUrl)
+    : false;
+  
+  // Helper function to check if an origin should be allowed
+  const isOriginAllowed = (origin: string | undefined): boolean => {
+    if (!origin) return false;
+    if (allowAllOrigins) return true;
+    if (origin === frontendUrl) return true;
+    // If FRONTEND_URL is a *.helpmaton.com URL, allow any *.helpmaton.com origin
+    if (isHelpmatonDomain && /^https:\/\/[\d\w-]+\.helpmaton\.com$/.test(origin)) {
+      return true;
+    }
+    return false;
+  };
   
   // Handle OPTIONS preflight requests for all routes
   // Express doesn't support "*" as a route pattern, so we use a middleware that runs before routes
   app.use((req, res, next) => {
     // Handle OPTIONS preflight requests
     if (req.method === "OPTIONS") {
-      const origin = req.headers.origin;
+      const origin = req.headers.origin as string | undefined;
       
-      if (allowAllOrigins) {
-        // If FRONTEND_URL is not set, allow all origins
-        res.setHeader("Access-Control-Allow-Origin", "*");
-      } else if (origin === frontendUrl) {
-        // If FRONTEND_URL is set, only allow that specific origin
-        res.setHeader("Access-Control-Allow-Origin", origin);
+      if (isOriginAllowed(origin)) {
+        // Set the specific origin (not wildcard) for security
+        // Browsers require the exact origin in Access-Control-Allow-Origin
+        res.setHeader("Access-Control-Allow-Origin", origin!);
       }
       
       res.setHeader(
@@ -161,14 +179,12 @@ export const createApp: () => express.Application = () => {
     // Add CORS headers to all non-OPTIONS responses
     // Note: We don't set Content-Type here to allow route handlers to set it
     // (especially important for streaming responses which need text/event-stream)
-    const origin = req.headers.origin;
+    const origin = req.headers.origin as string | undefined;
     
-    if (allowAllOrigins) {
-      // If FRONTEND_URL is not set, allow all origins
-      res.setHeader("Access-Control-Allow-Origin", "*");
-    } else if (origin === frontendUrl) {
-      // If FRONTEND_URL is set, only allow that specific origin
-      res.setHeader("Access-Control-Allow-Origin", origin);
+    if (isOriginAllowed(origin)) {
+      // Set the specific origin (not wildcard) for security
+      // Browsers require the exact origin in Access-Control-Allow-Origin
+      res.setHeader("Access-Control-Allow-Origin", origin!);
     }
     
     res.setHeader(
