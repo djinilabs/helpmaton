@@ -46,6 +46,28 @@ import { extractTokenUsageAndCosts } from "../../utils/generationTokenExtraction
 import { extractUserId } from "../../utils/session";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
+/**
+ * Sets CORS headers for the test agent endpoint
+ * Uses FRONTEND_URL as the allowed origin
+ */
+function setCorsHeaders(res: express.Response): void {
+  const frontendUrl = process.env.FRONTEND_URL;
+
+  // Always set Access-Control-Allow-Origin to FRONTEND_URL
+  if (frontendUrl) {
+    res.setHeader("Access-Control-Allow-Origin", frontendUrl);
+  }
+
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
+  );
+}
+
 async function persistConversationError(options: {
   db: Awaited<ReturnType<typeof database>>;
   workspaceId: string;
@@ -267,21 +289,8 @@ export const registerPostTestAgent = (app: express.Application) => {
           frontendUrl: process.env.FRONTEND_URL,
         }
       );
-      const frontendUrl = process.env.FRONTEND_URL;
 
-      // Always set Access-Control-Allow-Origin to FRONTEND_URL
-      if (frontendUrl) {
-        res.setHeader("Access-Control-Allow-Origin", frontendUrl);
-      }
-
-      res.setHeader(
-        "Access-Control-Allow-Methods",
-        "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-      );
-      res.setHeader(
-        "Access-Control-Allow-Headers",
-        "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
-      );
+      setCorsHeaders(res);
       res.setHeader("Access-Control-Max-Age", "86400"); // 24 hours
 
       res.status(204).end();
@@ -293,6 +302,9 @@ export const registerPostTestAgent = (app: express.Application) => {
     requireAuth,
     requirePermission(PERMISSION_LEVELS.READ),
     asyncHandler(async (req, res) => {
+      // Set CORS headers at the beginning of the request
+      setCorsHeaders(res);
+
       const { workspaceId, agentId } = req.params;
       const { messages } = req.body;
 
@@ -1421,24 +1433,8 @@ export const registerPostTestAgent = (app: express.Application) => {
         }
 
         // Set CORS headers AFTER setting other headers to ensure they're preserved
-        // Always set CORS headers using FRONTEND_URL as the allowed origin
-        // The middleware sets these, but we need to ensure they're preserved after setting other headers
-        const frontendUrl = process.env.FRONTEND_URL;
-
-        // Always set Access-Control-Allow-Origin to FRONTEND_URL
-        if (frontendUrl) {
-          res.setHeader("Access-Control-Allow-Origin", frontendUrl);
-        }
-
-        // Always set these CORS headers
-        res.setHeader(
-          "Access-Control-Allow-Methods",
-          "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-        );
-        res.setHeader(
-          "Access-Control-Allow-Headers",
-          "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
-        );
+        // This ensures CORS headers are not overwritten by streamResponse headers
+        setCorsHeaders(res);
 
         // Set status code before starting to write chunks
         res.status(streamResponse.status);
