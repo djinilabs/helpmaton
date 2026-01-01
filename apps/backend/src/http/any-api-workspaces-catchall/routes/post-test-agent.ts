@@ -538,8 +538,8 @@ export const registerPostTestAgent = (app: express.Application) => {
         throw streamError;
       }
 
-      // Buffer the stream as it's generated
-      const chunks: Uint8Array[] = [];
+      // Stream the response directly to the client instead of buffering
+      // This ensures the browser can process it as a true stream
       const reader = streamResponse.body?.getReader();
       if (!reader) {
         throw new Error("Stream response body is null");
@@ -553,7 +553,9 @@ export const registerPostTestAgent = (app: express.Application) => {
           const { done, value } = await reader.read();
           if (done) break;
           if (value) {
-            chunks.push(value);
+            // Write chunk immediately to response for true streaming
+            // Convert Uint8Array to Buffer for Express
+            res.write(Buffer.from(value));
 
             // Decode and check for error messages in the stream (for BYOK errors)
             if (usesByok) {
@@ -617,6 +619,8 @@ export const registerPostTestAgent = (app: express.Application) => {
                                   : undefined,
                             });
 
+                            // End the stream before sending error response
+                            res.end();
                             return res.status(400).json({
                               error:
                                 "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
@@ -672,6 +676,8 @@ export const registerPostTestAgent = (app: express.Application) => {
             error: streamError, // This is the original AI_APICallError with data.error.message
           });
 
+          // End the stream before sending error response
+          res.end();
           // Return specific error message for BYOK authentication issues
           return res.status(400).json({
             error:
@@ -685,80 +691,8 @@ export const registerPostTestAgent = (app: express.Application) => {
         reader.releaseLock();
       }
 
-      // Combine all chunks into a single buffer
-      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-      const combined = new Uint8Array(totalLength);
-      let offset = 0;
-      for (const chunk of chunks) {
-        combined.set(chunk, offset);
-        offset += chunk.length;
-      }
-
-      const body = new TextDecoder().decode(combined);
-
-      // Check the decoded stream body for error messages (for BYOK errors)
-      if (usesByok && body) {
-        const lines = body.split("\n");
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const jsonStr = line.substring(6);
-              const parsed = JSON.parse(jsonStr);
-              // Check for error messages in the stream
-              if (parsed.type === "error" || parsed.error) {
-                const errorMessage = parsed.error || parsed.message;
-                if (errorMessage && typeof errorMessage === "string") {
-                  // Check if it's an authentication error
-                  if (
-                    errorMessage.toLowerCase().includes("api key") ||
-                    errorMessage.toLowerCase().includes("authentication") ||
-                    errorMessage.toLowerCase().includes("unauthorized") ||
-                    errorMessage.toLowerCase().includes("cookie auth")
-                  ) {
-                    console.log(
-                      "[Agent Test Handler] Found authentication error in decoded stream body:",
-                      errorMessage
-                    );
-                    // Create an error object with the message from the stream
-                    const streamError = new Error(errorMessage);
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    (streamError as any).data = {
-                      error: {
-                        message: errorMessage,
-                        code: parsed.code || 401,
-                      },
-                    };
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    (streamError as any).statusCode = parsed.code || 401;
-
-                    await persistConversationError({
-                      db,
-                      workspaceId,
-                      agentId,
-                      conversationId,
-                      messages: convertedMessages,
-                      usesByok,
-                      finalModelName,
-                      error: streamError,
-                      awsRequestId:
-                        typeof awsRequestId === "string"
-                          ? awsRequestId
-                          : undefined,
-                    });
-
-                    return res.status(400).json({
-                      error:
-                        "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
-                    });
-                  }
-                }
-              }
-            } catch {
-              // Not JSON or parsing failed, continue
-            }
-          }
-        }
-      }
+      // Note: Error checking for BYOK is done during streaming above
+      // No need to check the decoded body after streaming since we check chunks as they arrive
 
       // // Convert UI message stream format to data stream format expected by useChat
       // // toUIMessageStreamResponse() returns SSE format with UI message chunks
@@ -1419,14 +1353,43 @@ export const registerPostTestAgent = (app: express.Application) => {
       // Use headers from the Response object (includes proper SSE Content-Type)
       // toUIMessageStreamResponse() automatically formats the response as SSE
       // where each event is separated by two newlines
+      // IMPORTANT: Set headers BEFORE starting to write chunks
+      // This ensures Content-Type: text/event-stream is set correctly for streaming
       const responseHeaders = streamResponse.headers;
       for (const [key, value] of responseHeaders.entries()) {
+        // Overwrite any headers that might have been set by middleware (like CORS)
+        // This is especially important for Content-Type which must be text/event-stream
         res.setHeader(key, value);
       }
 
-      console.log("[Agent Test Handler] Response body:", body);
+      // Ensure CORS headers are still present (they were set by middleware)
+      // But don't overwrite Content-Type which was set from streamResponse
+      const origin = req.headers.origin;
+      const frontendUrl = process.env.FRONTEND_URL;
+      const allowAllOrigins = !frontendUrl;
+      
+      if (allowAllOrigins) {
+        res.setHeader("Access-Control-Allow-Origin", "*");
+      } else if (origin === frontendUrl) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+      }
+      
+      res.setHeader(
+        "Access-Control-Allow-Methods",
+        "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+      );
+      res.setHeader(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
+      );
 
-      res.status(streamResponse.status).send(body);
+      // Set status code before starting to write chunks
+      res.status(streamResponse.status);
+
+      console.log("[Agent Test Handler] Starting to stream response with headers:", {
+        contentType: res.getHeader("Content-Type"),
+        status: streamResponse.status,
+      });
     })
   );
 };

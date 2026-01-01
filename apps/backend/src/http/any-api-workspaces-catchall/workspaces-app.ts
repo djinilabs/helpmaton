@@ -159,6 +159,8 @@ export const createApp: () => express.Application = () => {
     }
     
     // Add CORS headers to all non-OPTIONS responses
+    // Note: We don't set Content-Type here to allow route handlers to set it
+    // (especially important for streaming responses which need text/event-stream)
     const origin = req.headers.origin;
     
     if (allowAllOrigins) {
@@ -177,6 +179,9 @@ export const createApp: () => express.Application = () => {
       "Access-Control-Allow-Headers",
       "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
     );
+    
+    // Don't set Content-Type here - let route handlers set it
+    // This is especially important for streaming responses (text/event-stream)
     
     next();
   });
