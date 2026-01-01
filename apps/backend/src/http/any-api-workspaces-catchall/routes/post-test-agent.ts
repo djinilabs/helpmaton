@@ -1357,21 +1357,45 @@ export const registerPostTestAgent = (app: express.Application) => {
       // This ensures Content-Type: text/event-stream is set correctly for streaming
       const responseHeaders = streamResponse.headers;
       for (const [key, value] of responseHeaders.entries()) {
-        // Overwrite any headers that might have been set by middleware (like CORS)
+        // Skip CORS headers - we'll set them after to ensure they're correct
         // This is especially important for Content-Type which must be text/event-stream
-        res.setHeader(key, value);
+        if (
+          key.toLowerCase() !== "access-control-allow-origin" &&
+          key.toLowerCase() !== "access-control-allow-methods" &&
+          key.toLowerCase() !== "access-control-allow-headers"
+        ) {
+          res.setHeader(key, value);
+        }
       }
 
-      // Ensure CORS headers are still present (they were set by middleware)
-      // But don't overwrite Content-Type which was set from streamResponse
-      const origin = req.headers.origin;
+      // Set CORS headers AFTER setting other headers to ensure they're preserved
+      // Use the same logic as the middleware to handle PR deployment URLs
+      const origin = req.headers.origin as string | undefined;
       const frontendUrl = process.env.FRONTEND_URL;
       const allowAllOrigins = !frontendUrl;
       
-      if (allowAllOrigins) {
-        res.setHeader("Access-Control-Allow-Origin", "*");
-      } else if (origin === frontendUrl) {
-        res.setHeader("Access-Control-Allow-Origin", origin);
+      // Check if FRONTEND_URL is a *.helpmaton.com URL (for PR deployments)
+      // PR deployments use URLs like https://99.helpmaton.com
+      const isHelpmatonDomain = frontendUrl
+        ? /^https:\/\/[\d\w-]+\.helpmaton\.com$/.test(frontendUrl)
+        : false;
+      
+      // Helper function to check if an origin should be allowed (same logic as middleware)
+      const isOriginAllowed = (originToCheck: string | undefined): boolean => {
+        if (!originToCheck) return false;
+        if (allowAllOrigins) return true;
+        if (originToCheck === frontendUrl) return true;
+        // If FRONTEND_URL is a *.helpmaton.com URL, allow any *.helpmaton.com origin
+        if (isHelpmatonDomain && /^https:\/\/[\d\w-]+\.helpmaton\.com$/.test(originToCheck)) {
+          return true;
+        }
+        return false;
+      };
+      
+      if (isOriginAllowed(origin)) {
+        // Set the specific origin (not wildcard) for security
+        // Browsers require the exact origin in Access-Control-Allow-Origin
+        res.setHeader("Access-Control-Allow-Origin", origin!);
       }
       
       res.setHeader(

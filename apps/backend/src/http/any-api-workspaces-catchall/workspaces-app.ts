@@ -130,38 +130,41 @@ export const createApp: () => express.Application = () => {
   // Otherwise, only allow the exact FRONTEND_URL origin
   const frontendUrl = process.env.FRONTEND_URL;
   const allowAllOrigins = !frontendUrl;
-  
+
   // Check if FRONTEND_URL is a *.helpmaton.com URL (for PR deployments)
   // PR deployments use URLs like https://99.helpmaton.com
   const isHelpmatonDomain = frontendUrl
     ? /^https:\/\/[\d\w-]+\.helpmaton\.com$/.test(frontendUrl)
     : false;
-  
+
   // Helper function to check if an origin should be allowed
   const isOriginAllowed = (origin: string | undefined): boolean => {
     if (!origin) return false;
     if (allowAllOrigins) return true;
     if (origin === frontendUrl) return true;
     // If FRONTEND_URL is a *.helpmaton.com URL, allow any *.helpmaton.com origin
-    if (isHelpmatonDomain && /^https:\/\/[\d\w-]+\.helpmaton\.com$/.test(origin)) {
+    if (
+      isHelpmatonDomain &&
+      /^https:\/\/[\d\w-]+\.helpmaton\.com$/.test(origin)
+    ) {
       return true;
     }
     return false;
   };
-  
+
   // Handle OPTIONS preflight requests for all routes
   // Express doesn't support "*" as a route pattern, so we use a middleware that runs before routes
   app.use((req, res, next) => {
     // Handle OPTIONS preflight requests
     if (req.method === "OPTIONS") {
       const origin = req.headers.origin as string | undefined;
-      
+
       if (isOriginAllowed(origin)) {
         // Set the specific origin (not wildcard) for security
         // Browsers require the exact origin in Access-Control-Allow-Origin
         res.setHeader("Access-Control-Allow-Origin", origin!);
       }
-      
+
       res.setHeader(
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, DELETE, PATCH, OPTIONS"
@@ -171,22 +174,22 @@ export const createApp: () => express.Application = () => {
         "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
       );
       res.setHeader("Access-Control-Max-Age", "86400"); // 24 hours
-      
+
       res.status(204).end();
       return;
     }
-    
+
     // Add CORS headers to all non-OPTIONS responses
     // Note: We don't set Content-Type here to allow route handlers to set it
     // (especially important for streaming responses which need text/event-stream)
     const origin = req.headers.origin as string | undefined;
-    
+
     if (isOriginAllowed(origin)) {
       // Set the specific origin (not wildcard) for security
       // Browsers require the exact origin in Access-Control-Allow-Origin
       res.setHeader("Access-Control-Allow-Origin", origin!);
     }
-    
+
     res.setHeader(
       "Access-Control-Allow-Methods",
       "GET, POST, PUT, DELETE, PATCH, OPTIONS"
@@ -195,10 +198,10 @@ export const createApp: () => express.Application = () => {
       "Access-Control-Allow-Headers",
       "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
     );
-    
+
     // Don't set Content-Type here - let route handlers set it
     // This is especially important for streaming responses (text/event-stream)
-    
+
     next();
   });
 
