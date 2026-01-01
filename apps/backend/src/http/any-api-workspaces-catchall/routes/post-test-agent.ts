@@ -1369,41 +1369,16 @@ export const registerPostTestAgent = (app: express.Application) => {
       }
 
       // Set CORS headers AFTER setting other headers to ensure they're preserved
-      // Use the same logic as the middleware to handle PR deployment URLs
-      const origin = req.headers.origin as string | undefined;
-      const frontendUrl = process.env.FRONTEND_URL;
-      const allowAllOrigins = !frontendUrl;
-      
-      // Check if FRONTEND_URL is a *.helpmaton.com URL (for PR deployments)
-      // PR deployments use URLs like https://99.helpmaton.com
-      const isHelpmatonDomain = frontendUrl
-        ? /^https:\/\/[\d\w-]+\.helpmaton\.com$/.test(frontendUrl)
-        : false;
-      
-      // Helper function to check if an origin should be allowed (same logic as middleware)
-      const isOriginAllowed = (originToCheck: string | undefined): boolean => {
-        if (!originToCheck) return false;
-        if (allowAllOrigins) return true;
-        if (originToCheck === frontendUrl) return true;
-        // If FRONTEND_URL is a *.helpmaton.com URL, allow any *.helpmaton.com origin
-        if (isHelpmatonDomain && /^https:\/\/[\d\w-]+\.helpmaton\.com$/.test(originToCheck)) {
-          return true;
-        }
-        return false;
-      };
-      
-      // Always set CORS headers if origin is allowed (critical for Function URLs)
+      // Always set CORS headers using FRONTEND_URL as the allowed origin
       // The middleware sets these, but we need to ensure they're preserved after setting other headers
-      if (isOriginAllowed(origin)) {
-        // Set the specific origin (not wildcard) for security
-        // Browsers require the exact origin in Access-Control-Allow-Origin
-        res.setHeader("Access-Control-Allow-Origin", origin!);
-        console.log(`[Agent Test Handler] Set CORS header for origin: ${origin}`);
-      } else {
-        console.warn(`[Agent Test Handler] Origin not allowed: ${origin}, FRONTEND_URL: ${frontendUrl}, isHelpmatonDomain: ${isHelpmatonDomain}`);
+      const frontendUrl = process.env.FRONTEND_URL;
+      
+      // Always set Access-Control-Allow-Origin to FRONTEND_URL
+      if (frontendUrl) {
+        res.setHeader("Access-Control-Allow-Origin", frontendUrl);
       }
       
-      // Always set these CORS headers (they're safe to set even if origin is not allowed)
+      // Always set these CORS headers
       res.setHeader(
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, DELETE, PATCH, OPTIONS"
