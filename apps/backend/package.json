@@ -51,7 +51,7 @@
     "@types/nodemailer": "^7.0.0",
     "@types/swagger-jsdoc": "^6.0.1",
     "@vitest/ui": "^4.0.9",
-    "@sparticuz/chromium": "^141.0.0",
+    "@sparticuz/chromium": "^143.0.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-recaptcha": "^3.6.8",
     "puppeteer-extra-plugin-stealth": "^2.11.2",

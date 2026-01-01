@@ -38,7 +38,7 @@ WORKDIR /opt/chrome
 # Download v143.0.0 ARM64 pack
 # curl -f ensures we fail immediately if the URL is wrong
 RUN curl -fLo chromium.tar \
-    https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.arm64.tar && \
+    https://github.com/Sparticuz/chromium/releases/download/v143.0.0/chromium-v143.0.0-pack.arm64.tar && \
     tar -xf chromium.tar && \
     # The pack contains 'chromium.br', we must decompress it
     brotli -d chromium.br && \
