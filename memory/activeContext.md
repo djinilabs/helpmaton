@@ -2,13 +2,35 @@
 
 ## Current Status
 
-**Status**: Streaming Endpoints Unification & URL Endpoint Consolidation - Completed ✅
+**Status**: Lambda Function URL Streaming Fix & CloudFormation IAM Permissions - Completed ✅
 
-**Latest Work**: Consolidated the `GET /api/streams/url` handler into the unified `/api/streams/*` catchall handler. The URL endpoint functionality (retrieving the streaming Lambda Function URL) is now handled by the same unified handler that processes test and stream endpoints. This consolidation eliminates code duplication and simplifies the routing structure. The unified handler supports both Lambda Function URL (true streaming) and API Gateway (buffered streaming) invocations, with conditional authentication (JWT for test endpoint, secret for stream endpoint) and CORS headers. All utilities have been relocated from `post-api-workspaces-000workspaceId-agents-000agentId-test/utils/` to shared locations for better code organization and reusability.
+**Latest Work**: Fixed two critical issues with Lambda Function URLs in streaming mode:
+
+1. **502 Error Fix**: Fixed 502 internal server errors by ensuring all responses properly wrap the response stream with headers using `HttpResponseStream.from()` before writing any data. Lambda Function URLs in `RESPONSE_STREAM` mode require the stream to be wrapped with status code and headers before writing. Updated `/api/streams/url` endpoint and error handling paths to properly wrap streams.
+
+2. **CloudFormation IAM Permissions**: Fixed `AccessDenied` errors when Lambda functions query CloudFormation stack outputs. Updated the `lambda-urls` plugin to add CloudFormation `DescribeStacks` permissions to all Lambda functions that have Function URLs (not just a hardcoded function name). The plugin now automatically grants permissions to all functions in the `@lambda-urls` pragma.
+
+**Previous Work**: Consolidated the `GET /api/streams/url` handler into the unified `/api/streams/*` catchall handler. The URL endpoint functionality (retrieving the streaming Lambda Function URL) is now handled by the same unified handler that processes test and stream endpoints. This consolidation eliminates code duplication and simplifies the routing structure. The unified handler supports both Lambda Function URL (true streaming) and API Gateway (buffered streaming) invocations, with conditional authentication (JWT for test endpoint, secret for stream endpoint) and CORS headers. All utilities have been relocated from `post-api-workspaces-000workspaceId-agents-000agentId-test/utils/` to shared locations for better code organization and reusability.
 
 **Recent Changes**:
 
-1. **URL Endpoint Consolidation**:
+1. **Lambda Function URL Streaming Fix** (Latest):
+
+   - Fixed 502 errors by wrapping response stream with `HttpResponseStream.from()` before writing
+   - Updated `/api/streams/url` endpoint to wrap stream with headers (status code 200/404, Content-Type: application/json)
+   - Fixed early error handling to wrap stream before writing invalid path parameter errors
+   - Updated catch block to wrap stream with appropriate headers before writing errors
+   - All responses now properly formatted for Lambda Function URLs in RESPONSE_STREAM mode
+
+2. **CloudFormation IAM Permissions Fix** (Latest):
+
+   - Updated `lambda-urls` plugin to add CloudFormation permissions to all functions with Function URLs
+   - Refactored `addIamPermissionsForStreamUrlLookup()` to accept array of function IDs instead of hardcoded name
+   - Plugin now automatically grants `cloudformation:DescribeStacks` and `cloudformation:DescribeStackResources` permissions
+   - Each function gets its own IAM policy (scoped to current CloudFormation stack)
+   - Permissions added to all functions in `@lambda-urls` pragma automatically
+
+3. **URL Endpoint Consolidation**:
 
    - Consolidated `GET /api/streams/url` handler into unified `/api/streams/*` catchall handler
    - Removed separate route from `app.arc` (was `get /api/streams/url`)
@@ -74,7 +96,12 @@
 
 - None (consolidated into existing unified handler)
 
-**Files Modified**:
+**Files Modified** (Latest):
+
+- `apps/backend/src/http/any-api-streams-catchall/index.ts` - Fixed response stream wrapping for `/api/streams/url` endpoint and error handling paths; all responses now properly wrap stream with headers before writing
+- `apps/backend/src/plugins/lambda-urls/index.js` - Refactored IAM permissions function to accept multiple function IDs; automatically grants CloudFormation permissions to all functions with Function URLs
+
+**Files Modified** (Previous):
 
 - `apps/backend/app.arc` - Removed `get /api/streams/url` route (now handled by catch-all `any /api/streams/*`)
 - `apps/backend/src/http/any-api-streams-catchall/index.ts` - Added URL endpoint handling with CloudFormation lookup, caching, and environment variable support; added `"url"` endpoint type; integrated URL endpoint into both Lambda Function URL and API Gateway paths
@@ -115,7 +142,9 @@
 - Local Development: Automatic detection, uses appropriate streaming method
 - URL Discovery: Supports `STREAMING_FUNCTION_URL` env var, CloudFormation stack outputs, with 5-minute cache TTL
 
-**Verification**: All tests passing (12 tests in unified handler, 2066+ total), typecheck and lint clean ✅
+**Verification**: All tests passing (19 tests in unified handler, 2066+ total), typecheck and lint clean ✅
+
+**Latest Verification**: Typecheck, lint, and all handler tests passing after streaming and IAM permission fixes ✅
 
 **Previous Status**: Scrape Endpoint Lambda Function URL Conversion - Completed ✅
 

@@ -1671,7 +1671,7 @@ const internalHandler = async (
     const errorResponse = JSON.stringify({
       error: "Invalid path parameters",
     });
-    responseStream.write(errorResponse);
+    await writeChunkToStream(responseStream, errorResponse);
     responseStream.end();
     return;
   }
@@ -1839,7 +1839,7 @@ const internalHandler = async (
       const errorResponse = JSON.stringify({
         error: "Only GET method is allowed for /api/streams/url",
       });
-      responseStream.write(errorResponse);
+      await writeChunkToStream(responseStream, errorResponse);
       responseStream.end();
       return;
     }
@@ -1877,7 +1877,7 @@ const internalHandler = async (
         error:
           "Streaming function URL not configured. The Lambda Function URL may not be deployed yet, or the URL could not be found in CloudFormation stack outputs.",
       });
-      responseStream.write(errorResponse);
+      await writeChunkToStream(responseStream, errorResponse);
       responseStream.end();
       return;
     }
@@ -1889,7 +1889,7 @@ const internalHandler = async (
     const successResponse = JSON.stringify({
       url: streamingFunctionUrl,
     });
-    responseStream.write(successResponse);
+    await writeChunkToStream(responseStream, successResponse);
     responseStream.end();
     return;
   }
@@ -1957,7 +1957,7 @@ const internalHandler = async (
   try {
     // Handle OPTIONS preflight request
     if (httpV2Event.requestContext.http.method === "OPTIONS") {
-      responseStream.write("");
+      await writeChunkToStream(responseStream, "");
       responseStream.end();
       return;
     }

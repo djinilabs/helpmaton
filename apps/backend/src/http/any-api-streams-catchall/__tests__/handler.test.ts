@@ -620,8 +620,13 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       // Simulate scenario where Lambda has both Function URL and API Gateway
       // awslambda is available, but request comes through API Gateway
       // Create a mock response stream for internalHandler
+      // write must call the callback to allow writeChunkToStream to resolve
       const mockResponseStream = {
-        write: vi.fn(),
+        write: vi.fn((chunk, callback) => {
+          if (callback) {
+            callback(null);
+          }
+        }),
         end: vi.fn(),
       };
 
@@ -690,7 +695,11 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       // Simulate scenario where API Gateway event has malformed structure
       // (missing requestContext.http, which can happen with streamifyResponse)
       const mockResponseStream = {
-        write: vi.fn(),
+        write: vi.fn((chunk, callback) => {
+          if (callback) {
+            callback(null);
+          }
+        }),
         end: vi.fn(),
       };
 
@@ -758,7 +767,11 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
 
       // Simulate scenario where requestContext exists but http property is missing
       const mockResponseStream = {
-        write: vi.fn(),
+        write: vi.fn((chunk, callback) => {
+          if (callback) {
+            callback(null);
+          }
+        }),
         end: vi.fn(),
       };
 
@@ -832,7 +845,11 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       // Simulate scenario where Lambda has both Function URL and API Gateway REST API
       // awslambda is available, but request comes through REST API (v1)
       const mockResponseStream = {
-        write: vi.fn(),
+        write: vi.fn((chunk, callback) => {
+          if (callback) {
+            callback(null);
+          }
+        }),
         end: vi.fn(),
       };
 
@@ -907,7 +924,11 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
 
       // Simulate REST API v1 event with catchall route
       const mockResponseStream = {
-        write: vi.fn(),
+        write: vi.fn((chunk, callback) => {
+          if (callback) {
+            callback(null);
+          }
+        }),
         end: vi.fn(),
       };
 
