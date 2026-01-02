@@ -73,6 +73,41 @@ function setCorsHeaders(
   next();
 }
 
+/**
+ * Sets CORS headers on a response object
+ * Used to ensure CORS headers are present before sending responses
+ */
+function applyCorsHeaders(res: express.Response): void {
+  const frontendUrl = process.env.FRONTEND_URL;
+
+  // Always set Access-Control-Allow-Origin to FRONTEND_URL
+  if (frontendUrl) {
+    res.setHeader("Access-Control-Allow-Origin", frontendUrl);
+  }
+
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
+  );
+}
+
+/**
+ * Sets CORS headers and sends a JSON response
+ * Used for error responses to ensure CORS headers are always present
+ */
+function sendJsonResponseWithCors(
+  res: express.Response,
+  statusCode: number,
+  data: object
+): void {
+  applyCorsHeaders(res);
+  res.status(statusCode).json(data);
+}
+
 async function persistConversationError(options: {
   db: Awaited<ReturnType<typeof database>>;
   workspaceId: string;
@@ -287,8 +322,6 @@ export const registerPostTestAgent = (app: express.Application) => {
   app.options(
     "/api/workspaces/:workspaceId/agents/:agentId/test",
     setCorsHeaders,
-    requireAuth,
-    requirePermission(PERMISSION_LEVELS.READ),
     asyncHandler(async (req, res) => {
       res.status(200).end();
     })
@@ -495,11 +528,13 @@ export const registerPostTestAgent = (app: express.Application) => {
 
         // Check if this is a BYOK authentication error FIRST
         if (isByokAuthenticationError(error, usesByok)) {
+          applyCorsHeaders(res);
           handleByokAuthenticationErrorExpress(res, "test");
           return;
         }
 
         // Handle credit errors
+        applyCorsHeaders(res);
         const creditErrorHandled = await handleCreditErrorsExpress(
           error,
           workspaceId,
@@ -572,7 +607,7 @@ export const registerPostTestAgent = (app: express.Application) => {
             }
           );
 
-          return res.status(400).json({
+          return sendJsonResponseWithCors(res, 400, {
             error:
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           });
@@ -659,7 +694,7 @@ export const registerPostTestAgent = (app: express.Application) => {
                                   : undefined,
                             });
 
-                            return res.status(400).json({
+                            return sendJsonResponseWithCors(res, 400, {
                               error:
                                 "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
                             });
@@ -715,7 +750,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           });
 
           // Return specific error message for BYOK authentication issues
-          return res.status(400).json({
+          return sendJsonResponseWithCors(res, 400, {
             error:
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           });
@@ -788,7 +823,7 @@ export const registerPostTestAgent = (app: express.Application) => {
                           : undefined,
                     });
 
-                    return res.status(400).json({
+                    return sendJsonResponseWithCors(res, 400, {
                       error:
                         "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
                     });
@@ -1010,7 +1045,7 @@ export const registerPostTestAgent = (app: express.Application) => {
               typeof awsRequestId === "string" ? awsRequestId : undefined,
           });
 
-          return res.status(400).json({
+          return sendJsonResponseWithCors(res, 400, {
             error:
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           });
@@ -1231,7 +1266,7 @@ export const registerPostTestAgent = (app: express.Application) => {
             error: errorToLog,
           });
 
-          return res.status(400).json({
+          return sendJsonResponseWithCors(res, 400, {
             error:
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           });
