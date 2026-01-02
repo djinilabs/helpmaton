@@ -2,10 +2,20 @@
 // We now use direct write() and end() on ResponseStream
 // Using AWS's native streamifyResponse for Lambda Function URLs with RESPONSE_STREAM mode
 
-import { badRequest, boomify, notAcceptable, unauthorized } from "@hapi/boom";
+import {
+  badRequest,
+  boomify,
+  forbidden,
+  notAcceptable,
+  unauthorized,
+} from "@hapi/boom";
 import type { ModelMessage } from "ai";
 import { convertToModelMessages, streamText } from "ai";
-import type { Context } from "aws-lambda";
+import type {
+  APIGatewayProxyEventV2,
+  APIGatewayProxyResultV2,
+  Context,
+} from "aws-lambda";
 
 // Declare global awslambda for Lambda Function URL streaming
 // With RESPONSE_STREAM mode, awslambda.streamifyResponse provides the HttpResponseStream directly
@@ -49,6 +59,7 @@ import {
 } from "../../http/utils/generationRequestTracking";
 import { extractTokenUsageAndCosts } from "../../http/utils/generationTokenExtraction";
 import { database } from "../../tables";
+import { isUserAuthorized } from "../../tables/permissions";
 import {
   updateConversation,
   buildConversationErrorInfo,
@@ -56,6 +67,7 @@ import {
   type TokenUsage,
 } from "../../utils/conversationLogger";
 import {
+  adaptHttpHandler,
   transformLambdaUrlToHttpV2Event,
   type LambdaUrlEvent,
 } from "../../utils/httpEventAdapter";
@@ -71,6 +83,7 @@ import {
   getAllowedOrigins,
   validateSecret,
 } from "../../utils/streamServerUtils";
+import { verifyAccessToken } from "../../utils/tokenUtils";
 import {
   getContextFromRequestId,
   augmentContextWithCreditTransactions,
@@ -95,12 +108,18 @@ import { getDefined } from "@/utils";
 initSentry();
 
 /**
+ * Endpoint type: test (JWT auth) or stream (secret auth)
+ */
+type EndpointType = "test" | "stream";
+
+/**
  * Path parameters extracted from the request
  */
 interface PathParameters {
   workspaceId: string;
   agentId: string;
-  secret: string;
+  secret?: string; // Optional for test endpoint
+  endpointType: EndpointType;
 }
 
 /**
@@ -109,7 +128,8 @@ interface PathParameters {
 interface StreamRequestContext {
   workspaceId: string;
   agentId: string;
-  secret: string;
+  secret?: string; // Optional for test endpoint
+  endpointType: EndpointType;
   conversationId: string;
   origin: string | undefined;
   allowedOrigins: string[] | null;
@@ -125,6 +145,7 @@ interface StreamRequestContext {
   reservationId: string | undefined;
   finalModelName: string;
   awsRequestId?: string;
+  userId?: string; // For test endpoint
 }
 
 async function persistConversationError(
@@ -172,7 +193,7 @@ async function persistConversationError(
     const errorInfo = buildConversationErrorInfo(error, {
       provider: "openrouter",
       modelName: context.finalModelName,
-      endpoint: "stream",
+      endpoint: context.endpointType,
       metadata: {
         usesByok: context.usesByok,
       },
@@ -198,7 +219,7 @@ async function persistConversationError(
       context.usesByok,
       errorInfo,
       context.awsRequestId,
-      "stream"
+      context.endpointType
     );
   } catch (logError) {
     console.error("[Stream Handler] Failed to persist conversation error:", {
@@ -214,9 +235,32 @@ async function persistConversationError(
 const DEFAULT_CONTENT_TYPE = "text/event-stream; charset=utf-8";
 
 /**
- * Get CORS headers based on allowed origins
+ * Detects if handler is invoked via Lambda Function URL
+ */
+function isLambdaFunctionUrlInvocation(): boolean {
+  return (
+    typeof awslambda !== "undefined" &&
+    typeof awslambda.streamifyResponse === "function"
+  );
+}
+
+/**
+ * Detects endpoint type based on path pattern
+ */
+function detectEndpointType(path: string): EndpointType {
+  // Pattern: /api/streams/{workspaceId}/{agentId}/test
+  if (path.match(/^\/api\/streams\/[^/]+\/[^/]+\/test$/)) {
+    return "test";
+  }
+  // Pattern: /api/streams/{workspaceId}/{agentId}/{secret}
+  return "stream";
+}
+
+/**
+ * Get CORS headers based on endpoint type and allowed origins
  */
 function getResponseHeaders(
+  endpointType: EndpointType,
   origin: string | undefined,
   allowedOrigins: string[] | null
 ): Record<string, string> {
@@ -224,6 +268,20 @@ function getResponseHeaders(
     "Content-Type": DEFAULT_CONTENT_TYPE,
   };
 
+  if (endpointType === "test") {
+    // Test endpoint: Always use FRONTEND_URL
+    const frontendUrl = process.env.FRONTEND_URL;
+    headers["Access-Control-Allow-Origin"] = frontendUrl || "*";
+    headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
+    headers["Access-Control-Allow-Headers"] =
+      "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id";
+    if (frontendUrl) {
+      headers["Access-Control-Allow-Credentials"] = "true";
+    }
+    return headers;
+  }
+
+  // Stream endpoint: Use agent streaming server configuration
   if (!allowedOrigins || allowedOrigins.length === 0) {
     // No CORS configuration - allow all origins (default permissive behavior)
     headers["Access-Control-Allow-Origin"] = "*";
@@ -253,56 +311,120 @@ function getResponseHeaders(
 }
 
 /**
- * Extracts path parameters from the Lambda URL event
+ * Extracts path parameters from the event (supports both Lambda Function URL and API Gateway)
  */
-function extractPathParameters(event: LambdaUrlEvent): PathParameters | null {
-  const httpV2Event = transformLambdaUrlToHttpV2Event(event);
+function extractPathParameters(
+  event: LambdaUrlEvent | APIGatewayProxyEventV2
+): PathParameters | null {
+  // Normalize to HTTP v2 event format
+  const httpV2Event =
+    "rawPath" in event && "requestContext" in event
+      ? transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent)
+      : (event as APIGatewayProxyEventV2);
+
+  const rawPath = httpV2Event.rawPath || "";
+  const normalizedPath = rawPath.replace(/^\/+/, "/");
+
+  // Detect endpoint type
+  const endpointType = detectEndpointType(normalizedPath);
 
   let workspaceId = httpV2Event.pathParameters?.workspaceId;
   let agentId = httpV2Event.pathParameters?.agentId;
-  let secret = httpV2Event.pathParameters?.secret;
+  let secret: string | undefined;
 
-  // Fallback: extract from rawPath if pathParameters not populated
-  // Handle both /api/streams/... and //api/streams/... (double slash)
-  // Note: secret can contain slashes, so we need to match everything after agentId
-  if (!workspaceId || !agentId || !secret) {
-    // Normalize path by removing leading slashes and handling double slashes
-    const normalizedPath = (event.rawPath || "").replace(/^\/+/, "/");
-    // Match: /api/streams/{workspaceId}/{agentId}/{secret}
-    // Secret can contain slashes, so we match everything after agentId/
-    const pathMatch = normalizedPath.match(
-      /^\/api\/streams\/([^/]+)\/([^/]+)\/(.+)$/
+  // Extract based on endpoint type
+  if (endpointType === "test") {
+    // Pattern: /api/streams/{workspaceId}/{agentId}/test
+    const testMatch = normalizedPath.match(
+      /^\/api\/streams\/([^/]+)\/([^/]+)\/test$/
     );
-    if (pathMatch) {
-      workspaceId = pathMatch[1];
-      agentId = pathMatch[2];
-      secret = pathMatch[3]; // This can contain slashes
-    } else {
-      // Log for debugging
-      console.log("[Stream Handler] Path extraction failed:", {
-        rawPath: event.rawPath,
-        normalizedPath,
-        pathParameters: httpV2Event.pathParameters,
-      });
+    if (testMatch) {
+      workspaceId = testMatch[1];
+      agentId = testMatch[2];
+    }
+  } else {
+    // Pattern: /api/streams/{workspaceId}/{agentId}/{secret}
+    // Secret can contain slashes, so we match everything after agentId
+    secret = httpV2Event.pathParameters?.secret;
+    if (!workspaceId || !agentId || !secret) {
+      const streamMatch = normalizedPath.match(
+        /^\/api\/streams\/([^/]+)\/([^/]+)\/(.+)$/
+      );
+      if (streamMatch) {
+        workspaceId = streamMatch[1];
+        agentId = streamMatch[2];
+        secret = streamMatch[3]; // This can contain slashes
+      }
     }
   }
 
-  if (!workspaceId || !agentId || !secret) {
+  if (!workspaceId || !agentId) {
+    console.log("[Stream Handler] Path extraction failed:", {
+      rawPath,
+      normalizedPath,
+      pathParameters: httpV2Event.pathParameters,
+      endpointType,
+    });
     return null;
   }
 
-  return { workspaceId, agentId, secret };
+  // For stream endpoint, secret is required
+  if (endpointType === "stream" && !secret) {
+    console.log("[Stream Handler] Secret missing for stream endpoint:", {
+      rawPath,
+      normalizedPath,
+      pathParameters: httpV2Event.pathParameters,
+    });
+    return null;
+  }
+
+  return { workspaceId, agentId, secret, endpointType };
 }
 
 /**
- * Validates the request secret against the stored secret
+ * Authenticates request based on endpoint type
+ * Test endpoint: JWT Bearer token authentication
+ * Stream endpoint: Secret validation
  */
-async function validateRequestSecret(
+async function authenticateRequest(
+  endpointType: EndpointType,
+  event: LambdaUrlEvent | APIGatewayProxyEventV2,
   workspaceId: string,
   agentId: string,
-  secret: string
-): Promise<boolean> {
-  return await validateSecret(workspaceId, agentId, secret);
+  secret?: string
+): Promise<{ authenticated: boolean; userId?: string }> {
+  if (endpointType === "test") {
+    // Extract and verify JWT token
+    const authHeader =
+      event.headers["authorization"] || event.headers["Authorization"];
+    if (!authHeader?.startsWith("Bearer ")) {
+      throw unauthorized("Missing or invalid Authorization header");
+    }
+    const token = authHeader.substring(7);
+    // Verify token
+    const tokenPayload = await verifyAccessToken(token);
+
+    // Verify workspace access (similar to Express middleware)
+    const userRef = `users/${tokenPayload.userId}`;
+    const resource = `workspaces/${workspaceId}`;
+    const [authorized] = await isUserAuthorized(userRef, resource, 1); // READ permission
+
+    if (!authorized) {
+      throw forbidden("Insufficient permissions to access this workspace");
+    }
+
+    return { authenticated: true, userId: tokenPayload.userId };
+  } else {
+    // Validate secret
+    if (!secret) {
+      throw unauthorized("Missing secret");
+    }
+    const isValid = await validateSecret(workspaceId, agentId, secret);
+    if (!isValid) {
+      throw unauthorized("Invalid secret");
+    }
+    return { authenticated: true };
+  }
 }
 
 /**
@@ -310,9 +432,10 @@ async function validateRequestSecret(
  * Note: This is a wrapper around the shared utility for backward compatibility
  */
 async function validateSubscriptionAndLimitsStream(
-  workspaceId: string
+  workspaceId: string,
+  endpointType: EndpointType = "stream"
 ): Promise<string | undefined> {
-  return await validateSubscriptionAndLimits(workspaceId, "stream");
+  return await validateSubscriptionAndLimits(workspaceId, endpointType);
 }
 
 /**
@@ -372,7 +495,9 @@ async function setupAgentContext(
 /**
  * Extracts and decodes the request body
  */
-function extractRequestBody(event: LambdaUrlEvent): string {
+function extractRequestBody(
+  event: LambdaUrlEvent | APIGatewayProxyEventV2
+): string {
   if (!event.body) {
     return "";
   }
@@ -515,6 +640,7 @@ async function validateCreditsAndReserveBeforeLLM(
   modelMessages: ModelMessage[],
   tools: Awaited<ReturnType<typeof setupAgentAndTools>>["tools"],
   usesByok: boolean,
+  endpointType: EndpointType,
   context?: Awaited<ReturnType<typeof getContextFromRequestId>>,
   conversationId?: string
 ): Promise<string | undefined> {
@@ -532,7 +658,7 @@ async function validateCreditsAndReserveBeforeLLM(
     agent.systemPrompt,
     tools,
     usesByok,
-    "stream",
+    endpointType,
     context,
     conversationId
   );
@@ -706,7 +832,8 @@ async function adjustCreditsAfterStream(
   usesByok: boolean,
   streamResult?: Awaited<ReturnType<typeof streamText>>,
   conversationId?: string,
-  awsRequestId?: string
+  awsRequestId?: string,
+  endpointType: EndpointType = "stream"
 ): Promise<void> {
   // Extract all OpenRouter generation IDs for cost verification
   const openrouterGenerationIds = streamResult
@@ -733,7 +860,7 @@ async function adjustCreditsAfterStream(
     usesByok,
     openrouterGenerationId,
     openrouterGenerationIds, // New parameter
-    "stream",
+    endpointType,
     lambdaContext,
     conversationId
   );
@@ -746,7 +873,7 @@ async function adjustCreditsAfterStream(
     reservationId,
     conversationId,
     agentId,
-    "stream"
+    endpointType
   );
 }
 
@@ -757,10 +884,16 @@ async function adjustCreditsAfterStream(
 async function trackRequestUsage(
   subscriptionId: string | undefined,
   workspaceId: string,
-  agentId: string
+  agentId: string,
+  endpointType: EndpointType = "stream"
 ): Promise<void> {
   // Track successful request using shared utility
-  await trackSuccessfulRequest(subscriptionId, workspaceId, agentId, "stream");
+  await trackSuccessfulRequest(
+    subscriptionId,
+    workspaceId,
+    agentId,
+    endpointType
+  );
 }
 
 /**
@@ -779,7 +912,8 @@ async function logConversation(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- streamText result type is complex
   streamResult: any,
   awsRequestId?: string,
-  generationTimeMs?: number
+  generationTimeMs?: number,
+  endpointType: EndpointType = "stream"
 ): Promise<void> {
   if (!tokenUsage) {
     return Promise.resolve();
@@ -1083,7 +1217,7 @@ async function logConversation(
       usesByok,
       undefined,
       awsRequestId,
-      "stream"
+      endpointType
     ).catch((error) => {
       // Log error but don't fail the request
       console.error("[Stream Handler] Error logging conversation:", {
@@ -1095,7 +1229,7 @@ async function logConversation(
       // Report to Sentry
       Sentry.captureException(ensureError(error), {
         tags: {
-          endpoint: "stream",
+          endpoint: endpointType,
           operation: "conversation_logging",
         },
         extra: {
@@ -1115,7 +1249,7 @@ async function logConversation(
     // Report to Sentry
     Sentry.captureException(ensureError(error), {
       tags: {
-        endpoint: "stream",
+        endpoint: endpointType,
         operation: "conversation_logging",
       },
       extra: {
@@ -1205,10 +1339,11 @@ async function writeErrorResponse(
  * Builds the complete request context for processing the stream
  */
 async function buildRequestContext(
-  event: LambdaUrlEvent,
-  pathParams: PathParameters
+  event: LambdaUrlEvent | APIGatewayProxyEventV2,
+  pathParams: PathParameters,
+  authResult: { authenticated: boolean; userId?: string }
 ): Promise<StreamRequestContext> {
-  const { workspaceId, agentId, secret } = pathParams;
+  const { workspaceId, agentId, secret, endpointType } = pathParams;
 
   // Read and validate X-Conversation-Id header
   const conversationId =
@@ -1217,12 +1352,18 @@ async function buildRequestContext(
     throw badRequest("X-Conversation-Id header is required");
   }
 
-  // Get allowed origins for CORS
-  const allowedOrigins = await getAllowedOrigins(workspaceId, agentId);
+  // Get allowed origins for CORS (only for stream endpoint)
+  let allowedOrigins: string[] | null = null;
+  if (endpointType === "stream") {
+    allowedOrigins = await getAllowedOrigins(workspaceId, agentId);
+  }
   const origin = event.headers["origin"] || event.headers["Origin"];
 
   // Validate subscription and limits
-  const subscriptionId = await validateSubscriptionAndLimitsStream(workspaceId);
+  const subscriptionId = await validateSubscriptionAndLimitsStream(
+    workspaceId,
+    endpointType
+  );
 
   // Setup database connection
   const db = await database();
@@ -1306,17 +1447,19 @@ async function buildRequestContext(
     modelMessages,
     tools,
     usesByok,
+    endpointType,
     lambdaContext,
     conversationId
   );
 
-  // Extract request ID from Lambda Function URL event (for context access)
+  // Extract request ID from event (for context access)
   const requestIdForContext = event.requestContext?.requestId;
 
   return {
     workspaceId,
     agentId,
     secret,
+    endpointType,
     conversationId,
     origin,
     allowedOrigins,
@@ -1332,11 +1475,12 @@ async function buildRequestContext(
     reservationId,
     finalModelName,
     awsRequestId: requestIdForContext,
+    userId: authResult.userId,
   };
 }
 
 /**
- * Internal handler function that processes the request
+ * Internal handler function that processes the request for Lambda Function URL streaming
  * This is wrapped by awslambda.streamifyResponse for streaming support
  * With RESPONSE_STREAM mode, responseStream is already an HttpResponseStream
  */
@@ -1348,7 +1492,6 @@ const internalHandler = async (
   if (!pathParams) {
     throw notAcceptable("Invalid path parameters");
   }
-  let allowedOrigins: string[] | null = null;
   let context: StreamRequestContext | undefined;
 
   // Extract requestId from event for context setup
@@ -1377,28 +1520,29 @@ const internalHandler = async (
     };
 
     // Augment context with workspace credit transaction capability
-    const augmentedContext = augmentContextWithCreditTransactions(
-      syntheticContext
-    );
+    const augmentedContext =
+      augmentContextWithCreditTransactions(syntheticContext);
 
     // Store context in module-level map so buildRequestContext can retrieve it
     setCurrentHTTPContext(awsRequestId, augmentedContext);
   }
 
-  // Fetch allowed origins from database based on stream server configuration
-  allowedOrigins = await getAllowedOrigins(
-    pathParams.workspaceId,
-    pathParams.agentId
-  );
-  console.log("[Stream Handler] OPTIONS request - fetched allowed origins:", {
-    workspaceId: pathParams.workspaceId,
-    agentId: pathParams.agentId,
-    allowedOrigins,
-  });
+  // Get allowed origins for CORS (only for stream endpoint)
+  let allowedOrigins: string[] | null = null;
+  if (pathParams.endpointType === "stream") {
+    allowedOrigins = await getAllowedOrigins(
+      pathParams.workspaceId,
+      pathParams.agentId
+    );
+  }
 
-  // Build CORS headers based on database configuration (or default if not available)
+  // Build CORS headers based on endpoint type
   const origin = event.headers["origin"] || event.headers["Origin"];
-  const responseHeaders = getResponseHeaders(origin, allowedOrigins);
+  const responseHeaders = getResponseHeaders(
+    pathParams.endpointType,
+    origin,
+    allowedOrigins
+  );
 
   responseStream = getDefined(
     awslambda,
@@ -1422,20 +1566,20 @@ const internalHandler = async (
       rawPath: event.rawPath,
       path: event.requestContext?.http?.path,
       method: event.requestContext?.http?.method,
+      endpointType: pathParams.endpointType,
     });
 
-    context = await buildRequestContext(event, pathParams);
-
-    // Set status code and headers directly
-    // Validate secret
-    const isValidSecret = await validateRequestSecret(
+    // Authenticate request based on endpoint type
+    const authResult = await authenticateRequest(
+      pathParams.endpointType,
+      event,
       pathParams.workspaceId,
       pathParams.agentId,
       pathParams.secret
     );
-    if (!isValidSecret) {
-      throw unauthorized("Invalid secret");
-    }
+
+    // Build request context
+    context = await buildRequestContext(event, pathParams, authResult);
 
     console.log("[Stream Handler] Building request context...");
     console.log("[Stream Handler] Request context built successfully");
@@ -1474,7 +1618,7 @@ const internalHandler = async (
         workspaceId: context.workspaceId,
         agentId: context.agentId,
         usesByok: context.usesByok,
-        endpoint: "stream",
+        endpoint: context.endpointType,
       });
 
       // Normalize BYOK error if needed
@@ -1497,7 +1641,7 @@ const internalHandler = async (
       const creditErrorResult = await handleCreditErrors(
         error,
         context.workspaceId,
-        "stream"
+        context.endpointType
       );
       if (creditErrorResult.handled && creditErrorResult.response) {
         await persistConversationError(context, error);
@@ -1529,7 +1673,7 @@ const internalHandler = async (
             error,
             llmCallAttempted,
             context.usesByok,
-            "stream",
+            context.endpointType,
             lambdaContext
           );
         } else {
@@ -1601,7 +1745,7 @@ const internalHandler = async (
       { totalUsage } as unknown as StreamTextResultWithResolvedUsage,
       usage,
       context.finalModelName,
-      "stream"
+      context.endpointType
     );
 
     // DIAGNOSTIC: Log token usage extraction
@@ -1624,7 +1768,8 @@ const internalHandler = async (
         context.usesByok,
         streamResult,
         context.conversationId,
-        context.awsRequestId
+        context.awsRequestId,
+        context.endpointType
       );
     } catch (error) {
       // Log error but don't fail the request
@@ -1642,7 +1787,7 @@ const internalHandler = async (
       // Report to Sentry
       Sentry.captureException(ensureError(error), {
         tags: {
-          endpoint: "stream",
+          endpoint: context.endpointType,
           operation: "credit_adjustment",
         },
         extra: {
@@ -1657,7 +1802,8 @@ const internalHandler = async (
     await trackRequestUsage(
       context.subscriptionId,
       context.workspaceId,
-      context.agentId
+      context.agentId,
+      context.endpointType
     );
 
     await logConversation(
@@ -1672,7 +1818,8 @@ const internalHandler = async (
       context.finalModelName,
       streamResult,
       context.awsRequestId,
-      generationTimeMs
+      generationTimeMs,
+      context.endpointType
     );
   } catch (error) {
     const boomed = boomify(error as Error);
@@ -1726,14 +1873,354 @@ const internalHandler = async (
 };
 
 /**
- * Streaming Lambda handler for agent interactions
- * Wrapped with awslambda.streamifyResponse for Lambda Function URLs with RESPONSE_STREAM mode
+ * Handles streaming for API Gateway (buffered approach)
+ * Buffers all stream chunks and returns complete response
  */
+async function handleApiGatewayStreaming(
+  event: APIGatewayProxyEventV2,
+  context: Context
+): Promise<APIGatewayProxyResultV2> {
+  const pathParams = extractPathParameters(event);
+  if (!pathParams) {
+    return {
+      statusCode: 406,
+      body: JSON.stringify({ error: "Invalid path parameters" }),
+    };
+  }
+
+  // Extract requestId from event for context setup
+  const awsRequestId = event.requestContext?.requestId;
+
+  // Store context in module-level map so buildRequestContext can retrieve it
+  if (awsRequestId) {
+    const augmentedContext = augmentContextWithCreditTransactions(context);
+    setCurrentHTTPContext(awsRequestId, augmentedContext);
+  }
+
+  // Get allowed origins for CORS (only for stream endpoint)
+  let allowedOrigins: string[] | null = null;
+  if (pathParams.endpointType === "stream") {
+    allowedOrigins = await getAllowedOrigins(
+      pathParams.workspaceId,
+      pathParams.agentId
+    );
+  }
+
+  // Build CORS headers based on endpoint type
+  const origin = event.headers["origin"] || event.headers["Origin"];
+  const responseHeaders = getResponseHeaders(
+    pathParams.endpointType,
+    origin,
+    allowedOrigins
+  );
+
+  try {
+    // Handle OPTIONS preflight request
+    if (event.requestContext.http.method === "OPTIONS") {
+      return {
+        statusCode: 200,
+        headers: responseHeaders,
+        body: "",
+      };
+    }
+
+    // Authenticate request based on endpoint type
+    const authResult = await authenticateRequest(
+      pathParams.endpointType,
+      event,
+      pathParams.workspaceId,
+      pathParams.agentId,
+      pathParams.secret
+    );
+
+    // Build request context
+    const streamContext = await buildRequestContext(
+      event,
+      pathParams,
+      authResult
+    );
+
+    // Buffer stream chunks
+    const chunks: Uint8Array[] = [];
+    let fullStreamedText = "";
+    let llmCallAttempted = false;
+    let streamResult: Awaited<ReturnType<typeof streamText>> | undefined;
+
+    // Create a mock response stream that collects chunks
+    const mockStream: HttpResponseStream = {
+      write: (
+        chunk: string | Uint8Array,
+        callback?: (error?: Error) => void
+      ) => {
+        const bytes =
+          typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
+        chunks.push(bytes);
+        if (typeof chunk === "string") {
+          fullStreamedText += chunk;
+        }
+        if (callback) {
+          callback();
+        }
+      },
+      end: (callback?: (error?: Error) => void) => {
+        if (callback) {
+          callback();
+        }
+      },
+    };
+
+    let generationStartTime: number | undefined;
+    let generationTimeMs: number | undefined;
+
+    try {
+      console.log("[Stream Handler] Starting AI stream (API Gateway)...");
+      generationStartTime = Date.now();
+      streamResult = await streamAIResponse(
+        streamContext.agent,
+        streamContext.model,
+        streamContext.modelMessages,
+        streamContext.tools,
+        mockStream,
+        (textDelta) => {
+          fullStreamedText += textDelta;
+        }
+      );
+      if (generationStartTime !== undefined) {
+        generationTimeMs = Date.now() - generationStartTime;
+      }
+      llmCallAttempted = true;
+      console.log("[Stream Handler] AI stream completed (API Gateway)");
+    } catch (error) {
+      logErrorDetails(error, {
+        workspaceId: streamContext.workspaceId,
+        agentId: streamContext.agentId,
+        usesByok: streamContext.usesByok,
+        endpoint: pathParams.endpointType,
+      });
+
+      const errorToLog = normalizeByokError(error);
+
+      if (isByokAuthenticationError(error, streamContext.usesByok)) {
+        await persistConversationError(streamContext, errorToLog);
+        return {
+          statusCode: 400,
+          headers: responseHeaders,
+          body: JSON.stringify({
+            error:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          }),
+        };
+      }
+
+      const creditErrorResult = await handleCreditErrors(
+        error,
+        streamContext.workspaceId,
+        pathParams.endpointType
+      );
+      if (creditErrorResult.handled && creditErrorResult.response) {
+        await persistConversationError(streamContext, error);
+        const response = creditErrorResult.response;
+        if (
+          typeof response === "object" &&
+          response !== null &&
+          "body" in response
+        ) {
+          return {
+            statusCode: (response as { statusCode?: number }).statusCode || 400,
+            headers: responseHeaders,
+            body: (response as { body: string }).body,
+          };
+        }
+      }
+
+      if (
+        streamContext.reservationId &&
+        streamContext.reservationId !== "byok"
+      ) {
+        const lambdaContext = getContextFromRequestId(
+          streamContext.awsRequestId
+        );
+        if (lambdaContext) {
+          await cleanupReservationOnError(
+            streamContext.db,
+            streamContext.reservationId,
+            streamContext.workspaceId,
+            streamContext.agentId,
+            "openrouter",
+            streamContext.finalModelName,
+            error,
+            llmCallAttempted,
+            streamContext.usesByok,
+            pathParams.endpointType,
+            lambdaContext
+          );
+        }
+      }
+
+      throw error;
+    }
+
+    if (!streamResult) {
+      throw new Error("LLM call succeeded but result is undefined");
+    }
+
+    // Extract text and usage
+    let responseText: string;
+    let usage: unknown;
+
+    try {
+      [responseText, usage] = await Promise.all([
+        Promise.resolve(streamResult.text).then((t) => t || ""),
+        Promise.resolve(streamResult.usage),
+      ]);
+    } catch (resultError) {
+      if (isByokAuthenticationError(resultError, streamContext.usesByok)) {
+        const errorToLog = normalizeByokError(resultError);
+        await persistConversationError(streamContext, errorToLog);
+        return {
+          statusCode: 400,
+          headers: responseHeaders,
+          body: JSON.stringify({
+            error:
+              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+          }),
+        };
+      }
+      await persistConversationError(streamContext, resultError);
+      throw resultError;
+    }
+
+    const finalResponseText = responseText || fullStreamedText;
+
+    // Extract token usage
+    const totalUsage = await streamResult.totalUsage;
+    const { tokenUsage } = extractTokenUsageAndCosts(
+      { totalUsage } as unknown as StreamTextResultWithResolvedUsage,
+      usage,
+      streamContext.finalModelName,
+      pathParams.endpointType
+    );
+
+    // Post-processing
+    try {
+      await adjustCreditsAfterStream(
+        streamContext.db,
+        streamContext.workspaceId,
+        streamContext.agentId,
+        streamContext.reservationId,
+        streamContext.finalModelName,
+        tokenUsage,
+        streamContext.usesByok,
+        streamResult,
+        streamContext.conversationId,
+        streamContext.awsRequestId,
+        pathParams.endpointType
+      );
+    } catch (error) {
+      console.error(
+        "[Stream Handler] Error adjusting credit reservation after stream:",
+        {
+          error: error instanceof Error ? error.message : String(error),
+          workspaceId: streamContext.workspaceId,
+          agentId: streamContext.agentId,
+        }
+      );
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          endpoint: pathParams.endpointType,
+          operation: "credit_adjustment",
+        },
+      });
+    }
+
+    await trackRequestUsage(
+      streamContext.subscriptionId,
+      streamContext.workspaceId,
+      streamContext.agentId,
+      pathParams.endpointType
+    );
+
+    await logConversation(
+      streamContext.db,
+      streamContext.workspaceId,
+      streamContext.agentId,
+      streamContext.conversationId,
+      streamContext.convertedMessages,
+      finalResponseText,
+      tokenUsage,
+      streamContext.usesByok,
+      streamContext.finalModelName,
+      streamResult,
+      streamContext.awsRequestId,
+      generationTimeMs,
+      pathParams.endpointType
+    );
+
+    // Combine chunks and return as complete response
+    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const combined = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      combined.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    const body = new TextDecoder().decode(combined);
+
+    return {
+      statusCode: 200,
+      headers: responseHeaders,
+      body,
+    };
+  } catch (error) {
+    const boomed = boomify(error as Error);
+    console.error("[Stream Handler] Unhandled error (API Gateway):", boomed);
+    if (boomed.isServer) {
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          handler: "Stream Handler (API Gateway)",
+          statusCode: boomed.output.statusCode,
+        },
+      });
+    }
+
+    return {
+      statusCode: boomed.output.statusCode,
+      headers: responseHeaders,
+      body: JSON.stringify({
+        error: boomed.message,
+      }),
+    };
+  } finally {
+    // Clean up context
+    if (awsRequestId) {
+      clearCurrentHTTPContext(awsRequestId);
+    }
+
+    await Promise.all([flushPostHog(), flushSentry()]).catch((flushErrors) => {
+      console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+    });
+  }
+}
+
+/**
+ * Dual handler wrapper that supports both Lambda Function URL and API Gateway
+ */
+const createHandler = () => {
+  // Detect if awslambda is available (Lambda Function URL)
+  if (isLambdaFunctionUrlInvocation()) {
+    // Lambda Function URL: Use streaming wrapper
+    return getDefined(awslambda, "awslambda is not defined").streamifyResponse(
+      internalHandler
+    );
+  } else {
+    // API Gateway: Use standard handler with buffering
+    return adaptHttpHandler(handleApiGatewayStreaming);
+  }
+};
+
 /**
  * Streaming Lambda handler for agent interactions
- * Wrapped with awslambda.streamifyResponse for Lambda Function URLs with RESPONSE_STREAM mode
+ * Supports both Lambda Function URL (true streaming) and API Gateway (buffered)
  */
-export const handler = getDefined(
-  awslambda,
-  "awslambda is not defined"
-).streamifyResponse(internalHandler);
+export const handler = createHandler();

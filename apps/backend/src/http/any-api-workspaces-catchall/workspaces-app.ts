@@ -58,7 +58,6 @@ import { registerPostEmailConnection } from "./routes/post-email-connection";
 import { registerPostGeneratePrompt } from "./routes/post-generate-prompt";
 import { registerPostMcpServer } from "./routes/post-mcp-server";
 import { registerPostStreamServers } from "./routes/post-stream-servers";
-import { registerPostTestAgent } from "./routes/post-test-agent";
 import { registerPostTestChannel } from "./routes/post-test-channel";
 import { registerPostTestEmailConnection } from "./routes/post-test-email-connection";
 import { registerPostTrialCreditRequest } from "./routes/post-trial-credit-request";
@@ -197,7 +196,6 @@ export const createApp: () => express.Application = () => {
   registerPostMcpServer(app);
   registerPutMcpServer(app);
   registerDeleteMcpServer(app);
-  registerPostTestAgent(app);
   registerPostStreamServers(app);
   registerGetStreamServers(app);
   registerPutStreamServers(app);

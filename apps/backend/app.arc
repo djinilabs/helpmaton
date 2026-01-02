@@ -23,7 +23,7 @@ any /api/user/*
 any /api/workspaces
 any /api/workspaces/*
 any /api/authorizer
-any /api/streams/:workspaceId/:agentId/:secret
+any /api/streams/*
 any /*
 
 @tables
@@ -309,19 +309,18 @@ pro
   burstLimit 4000
 
 @lambda-urls
-any /api/streams/:workspaceId/:agentId/:secret
+any /api/streams/*
 post /api/scrape
 any /api/workspaces/*
 
 @container-images
 # Format: method route image-name
-# Example: any /api/streams/:workspaceId/:agentId/:secret my-custom-image
-any /api/streams/:workspaceId/:agentId/:secret lancedb
+# Example: any /api/streams/* my-custom-image
+any /api/streams/* lancedb
 post /api/webhook/:workspaceId/:agentId/:key lancedb
 post /api/scrape puppeteer
 any /api/workspaces lancedb
 any /api/workspaces/* lancedb
-any /api/streams/:workspaceId/:agentId/:secret lancedb
 
 scheduled summarize-memory-daily lancedb
 scheduled summarize-memory-weekly lancedb
