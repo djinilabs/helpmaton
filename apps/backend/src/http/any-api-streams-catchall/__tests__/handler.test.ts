@@ -614,6 +614,91 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       expect(mockCloudFormationSend).not.toHaveBeenCalled();
     });
 
+    it("should handle API Gateway HTTP API v2 event (explicit API Gateway path test)", async () => {
+      process.env.STREAMING_FUNCTION_URL = "https://api-gateway.example.com/stream";
+
+      // Ensure awslambda is undefined to test API Gateway path
+      // @ts-expect-error - We're explicitly setting it to undefined for testing
+      global.awslambda = undefined;
+
+      // Clear module cache and re-import to ensure handler uses API Gateway path
+      vi.resetModules();
+      const handlerModule = await import("../index");
+      const apiGatewayHandler = handlerModule.handler;
+
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+
+      const result = (await (
+        apiGatewayHandler as (
+          event: APIGatewayProxyEventV2,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(200);
+      expect(result.headers["Content-Type"]).toBe("application/json");
+      const body = JSON.parse(result.body);
+      expect(body.url).toBe("https://api-gateway.example.com/stream");
+      expect(mockCloudFormationSend).not.toHaveBeenCalled();
+    });
+
+    it("should handle API Gateway REST API v1 event (explicit API Gateway path test)", async () => {
+      process.env.STREAMING_FUNCTION_URL = "https://rest-api.example.com/stream";
+
+      // Ensure awslambda is undefined to test API Gateway path
+      // @ts-expect-error - We're explicitly setting it to undefined for testing
+      global.awslambda = undefined;
+
+      // Clear module cache and re-import to ensure handler uses API Gateway path
+      vi.resetModules();
+      const handlerModule = await import("../index");
+      const apiGatewayHandler = handlerModule.handler;
+
+      // Create REST API v1 event (has httpMethod at top level, not requestContext.http.method)
+      const baseEvent = createAPIGatewayEvent();
+      const event: APIGatewayProxyEvent = {
+        ...baseEvent,
+        resource: "/api/streams/{proxy+}",
+        path: "/api/streams/url",
+        httpMethod: "GET",
+        pathParameters: {
+          proxy: "url",
+        },
+        requestContext: {
+          ...baseEvent.requestContext,
+          path: "/api/streams/url",
+          httpMethod: "GET",
+          resourcePath: "/api/streams/{proxy+}",
+        },
+      };
+
+      const result = (await (
+        apiGatewayHandler as (
+          event: APIGatewayProxyEvent,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(200);
+      expect(result.headers["Content-Type"]).toBe("application/json");
+      const body = JSON.parse(result.body);
+      expect(body.url).toBe("https://rest-api.example.com/stream");
+      expect(mockCloudFormationSend).not.toHaveBeenCalled();
+    });
+
     it("should handle API Gateway event when awslambda is available (Function URL + API Gateway scenario)", async () => {
       process.env.STREAMING_FUNCTION_URL = "https://example.com/stream";
 

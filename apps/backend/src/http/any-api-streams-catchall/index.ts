@@ -14,6 +14,7 @@ import type {
   APIGatewayProxyEventV2,
   APIGatewayProxyResultV2,
   Context,
+  Callback,
 } from "aws-lambda";
 
 // Declare global awslambda for Lambda Function URL streaming
@@ -1638,6 +1639,116 @@ async function buildRequestContext(
 }
 
 /**
+ * Handles the URL endpoint (Function URL discovery) - returns JSON, not streaming
+ * This endpoint always uses standard API Gateway response format
+ */
+async function handleUrlEndpoint(
+  event: APIGatewayProxyEventV2
+): Promise<APIGatewayProxyResultV2> {
+  // Ensure requestContext.http exists (construct if missing)
+  if (!event.requestContext?.http) {
+    const eventAny = event as {
+      requestContext?: {
+        http?: { method?: string; path?: string };
+        httpMethod?: string;
+        path?: string;
+      };
+      rawPath?: string;
+    };
+    const method =
+      eventAny.requestContext?.http?.method ||
+      eventAny.requestContext?.httpMethod ||
+      "GET";
+    const path =
+      eventAny.requestContext?.http?.path ||
+      eventAny.requestContext?.path ||
+      eventAny.rawPath ||
+      "/api/streams/url";
+    if (!event.requestContext) {
+      event.requestContext = {
+        accountId: "",
+        apiId: "",
+        domainName: "",
+        domainPrefix: "",
+        http: {
+          method: method,
+          path: path,
+          protocol: "HTTP/1.1",
+          sourceIp: "",
+          userAgent: "",
+        },
+        requestId: "",
+        routeKey: `${method} ${path}`,
+        stage: "$default",
+        time: new Date().toISOString(),
+        timeEpoch: Date.now(),
+      };
+    } else {
+      event.requestContext.http = {
+        method: method,
+        path: path,
+        protocol: "HTTP/1.1",
+        sourceIp: "",
+        userAgent: "",
+      };
+    }
+  }
+
+  // Only allow GET requests for URL endpoint
+  if (event.requestContext.http.method !== "GET") {
+    return {
+      statusCode: 406,
+      body: JSON.stringify({
+        error: "Only GET method is allowed for /api/streams/url",
+      }),
+    };
+  }
+
+  console.log("[streams-handler] Handler invoked for URL endpoint");
+  console.log(
+    `[streams-handler] Environment variables: STREAMING_FUNCTION_URL=${
+      process.env.STREAMING_FUNCTION_URL || "not set"
+    }, AWS_STACK_NAME=${
+      process.env.AWS_STACK_NAME || "not set"
+    }, ARC_STACK_NAME=${process.env.ARC_STACK_NAME || "not set"}, STACK_NAME=${
+      process.env.STACK_NAME || "not set"
+    }`
+  );
+
+  const streamingFunctionUrl = await getStreamingFunctionUrl();
+
+  if (!streamingFunctionUrl) {
+    console.error(
+      "[streams-handler] Failed to get streaming function URL. Returning 404."
+    );
+    return {
+      statusCode: 404,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        error:
+          "Streaming function URL not configured. The Lambda Function URL may not be deployed yet, or the URL could not be found in CloudFormation stack outputs.",
+      }),
+    };
+  }
+
+  console.log(
+    `[streams-handler] Successfully retrieved streaming function URL: ${streamingFunctionUrl}`
+  );
+
+  return {
+    statusCode: 200,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      url: streamingFunctionUrl,
+    }),
+  };
+}
+
+/**
  * Internal handler function that processes the request for Lambda Function URL streaming
  * This is wrapped by awslambda.streamifyResponse for streaming support
  * With RESPONSE_STREAM mode, responseStream is already an HttpResponseStream
@@ -1820,78 +1931,12 @@ const internalHandler = async (
     }
   }
 
-  const httpMethod = httpV2Event.requestContext.http.method;
-
-  // Handle URL endpoint (Function URL discovery) - returns JSON, not streaming
+  // URL endpoint is handled by the wrapper, not here
+  // This handler only processes streaming endpoints (test and stream)
   if (pathParams.endpointType === "url") {
-    // Only allow GET requests for URL endpoint
-    if (httpMethod !== "GET") {
-      // Wrap stream with error headers before writing error
-      responseStream = getDefined(
-        awslambda,
-        "awslambda is not defined"
-      ).HttpResponseStream.from(responseStream, {
-        statusCode: 406,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      const errorResponse = JSON.stringify({
-        error: "Only GET method is allowed for /api/streams/url",
-      });
-      await writeChunkToStream(responseStream, errorResponse);
-      responseStream.end();
-      return;
-    }
-
-    console.log("[streams-handler] Handler invoked for URL endpoint");
-    console.log(
-      `[streams-handler] Environment variables: STREAMING_FUNCTION_URL=${
-        process.env.STREAMING_FUNCTION_URL || "not set"
-      }, AWS_STACK_NAME=${
-        process.env.AWS_STACK_NAME || "not set"
-      }, ARC_STACK_NAME=${
-        process.env.ARC_STACK_NAME || "not set"
-      }, STACK_NAME=${process.env.STACK_NAME || "not set"}`
+    throw new Error(
+      "URL endpoint should be handled by the wrapper, not internalHandler"
     );
-
-    const streamingFunctionUrl = await getStreamingFunctionUrl();
-
-    // Wrap response stream with headers before writing
-    // This is required for Lambda Function URLs in RESPONSE_STREAM mode
-    responseStream = getDefined(
-      awslambda,
-      "awslambda is not defined"
-    ).HttpResponseStream.from(responseStream, {
-      statusCode: streamingFunctionUrl ? 200 : 404,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!streamingFunctionUrl) {
-      console.error(
-        "[streams-handler] Failed to get streaming function URL. Returning 404."
-      );
-      const errorResponse = JSON.stringify({
-        error:
-          "Streaming function URL not configured. The Lambda Function URL may not be deployed yet, or the URL could not be found in CloudFormation stack outputs.",
-      });
-      await writeChunkToStream(responseStream, errorResponse);
-      responseStream.end();
-      return;
-    }
-
-    console.log(
-      `[streams-handler] Successfully retrieved streaming function URL: ${streamingFunctionUrl}`
-    );
-
-    const successResponse = JSON.stringify({
-      url: streamingFunctionUrl,
-    });
-    await writeChunkToStream(responseStream, successResponse);
-    responseStream.end();
-    return;
   }
 
   let context: StreamRequestContext | undefined;
@@ -2686,18 +2731,243 @@ async function handleApiGatewayStreaming(
 }
 
 /**
+ * Extracts the path from an event (handles multiple event types)
+ */
+function extractPathFromEvent(
+  event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent
+): string {
+  // Transform REST API v1 events to v2 format if needed
+  if ("httpMethod" in event && event.httpMethod !== undefined) {
+    // API Gateway REST API v1 event - transform it to v2 format
+    const httpV2Event = transformRestToHttpV2Event(
+      event as APIGatewayProxyEvent
+    );
+    return httpV2Event.rawPath || httpV2Event.requestContext.http.path || "";
+  }
+
+  // For Lambda Function URL events, transform to get the path
+  // But only if requestContext.http exists (Lambda Function URL events have this)
+  if (
+    "rawPath" in event &&
+    "requestContext" in event &&
+    (event as { requestContext?: { http?: unknown } }).requestContext?.http
+  ) {
+    const httpV2Event = transformLambdaUrlToHttpV2Event(
+      event as LambdaUrlEvent
+    );
+    return httpV2Event.rawPath || "";
+  }
+
+  // For API Gateway v2 events, use rawPath directly
+  if ("rawPath" in event && "version" in event) {
+    return (event as unknown as APIGatewayProxyEventV2).rawPath || "";
+  }
+
+  // Fallback: try to get path from requestContext
+  const eventAny = event as { requestContext?: { http?: { path?: string } } };
+  return eventAny.requestContext?.http?.path || "";
+}
+
+/**
  * Dual handler wrapper that supports both Lambda Function URL and API Gateway
+ * Routes /api/streams/url to non-streaming handler, others to streaming/buffered handlers
  */
 const createHandler = () => {
-  // Detect if awslambda is available (Lambda Function URL)
+  // Create a handler that checks the path first
+  // This handles the standard Lambda signature (event, context, callback) used by API Gateway
+  const standardHandler = async (
+    event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent,
+    context: Context,
+    callback: Callback
+  ): Promise<APIGatewayProxyResultV2> => {
+    // Extract path from event
+    const path = extractPathFromEvent(event);
+
+    // Normalize path (remove leading/trailing slashes for comparison)
+    const normalizedPath = path.replace(/^\/+/, "/");
+
+    // Route URL endpoint to non-streaming handler (always via API Gateway)
+    if (normalizedPath === "/api/streams/url") {
+      // Normalize event to APIGatewayProxyEventV2
+      let httpV2Event: APIGatewayProxyEventV2;
+      if ("httpMethod" in event && event.httpMethod !== undefined) {
+        // REST API v1 event - transform it
+        httpV2Event = transformRestToHttpV2Event(event as APIGatewayProxyEvent);
+      } else if ("rawPath" in event && "requestContext" in event) {
+        // Lambda Function URL event - transform it
+        httpV2Event = transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent);
+      } else {
+        // Already APIGatewayProxyEventV2
+        httpV2Event = event as unknown as APIGatewayProxyEventV2;
+      }
+
+      // Handle URL endpoint with non-streaming handler
+      return await handleUrlEndpoint(httpV2Event);
+    }
+
+    // For all other endpoints, use the buffered handler (API Gateway)
+    const bufferedHandler = adaptHttpHandler(handleApiGatewayStreaming);
+    return await bufferedHandler(event, context, callback);
+  };
+
+  // If awslambda is available, we need to handle streaming endpoints
+  // But the URL endpoint should always go through the standard handler (non-streaming)
   if (isLambdaFunctionUrlInvocation()) {
-    // Lambda Function URL: Use streaming wrapper
-    return getDefined(awslambda, "awslambda is not defined").streamifyResponse(
-      internalHandler
-    );
+    // Create a streaming handler that excludes the URL endpoint
+    const streamingHandler = getDefined(
+      awslambda,
+      "awslambda is not defined"
+    ).streamifyResponse(internalHandler);
+
+    // Return a handler that routes based on path
+    // URL endpoint -> standard handler (non-streaming)
+    // Other endpoints -> streaming handler
+    return async (
+      event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent,
+      contextOrStream: Context | HttpResponseStream,
+      callback?: Callback
+    ): Promise<APIGatewayProxyResultV2 | void> => {
+      // Extract path to determine routing
+      const path = extractPathFromEvent(event);
+      const normalizedPath = path.replace(/^\/+/, "/");
+
+      // URL endpoint always uses non-streaming handler
+      // When awslambda is available, streamifyResponse wraps the handler,
+      // so we receive (event, responseStream) even for API Gateway requests
+      // In this case, we need to write the JSON response to the stream
+      if (normalizedPath === "/api/streams/url") {
+        // Check if this is a streaming invocation (responseStream) or standard (Context)
+        if (
+          contextOrStream &&
+          typeof contextOrStream === "object" &&
+          "write" in contextOrStream &&
+          typeof (contextOrStream as HttpResponseStream).write === "function"
+        ) {
+          // Streaming invocation (when awslambda is available, even API Gateway goes through streamifyResponse)
+          // Normalize event to APIGatewayProxyEventV2
+          let httpV2Event: APIGatewayProxyEventV2;
+          if ("httpMethod" in event && event.httpMethod !== undefined) {
+            // REST API v1 event - transform it
+            httpV2Event = transformRestToHttpV2Event(
+              event as APIGatewayProxyEvent
+            );
+          } else if (
+            "rawPath" in event &&
+            "requestContext" in event &&
+            (event as { requestContext?: { http?: unknown } }).requestContext
+              ?.http
+          ) {
+            // Lambda Function URL event - transform it (only if requestContext.http exists)
+            httpV2Event = transformLambdaUrlToHttpV2Event(
+              event as LambdaUrlEvent
+            );
+          } else if ("rawPath" in event && "version" in event) {
+            // Already APIGatewayProxyEventV2 (or has version field)
+            httpV2Event = event as unknown as APIGatewayProxyEventV2;
+          } else {
+            // Fallback: try to construct from available data
+            // This handles cases where requestContext.http is missing
+            const eventAny = event as {
+              rawPath?: string;
+              requestContext?: {
+                http?: { method?: string; path?: string };
+                httpMethod?: string;
+                path?: string;
+              };
+            };
+            const method =
+              eventAny.requestContext?.http?.method ||
+              eventAny.requestContext?.httpMethod ||
+              "GET";
+            const path =
+              eventAny.requestContext?.http?.path ||
+              eventAny.requestContext?.path ||
+              eventAny.rawPath ||
+              "/api/streams/url";
+            httpV2Event = {
+              version: "2.0",
+              routeKey: `${method} ${path}`,
+              rawPath: eventAny.rawPath || path,
+              rawQueryString: "",
+              headers: {},
+              requestContext: {
+                accountId: "",
+                apiId: "",
+                domainName: "",
+                domainPrefix: "",
+                http: {
+                  method: method,
+                  path: path,
+                  protocol: "HTTP/1.1",
+                  sourceIp: "",
+                  userAgent: "",
+                },
+                requestId: "",
+                routeKey: `${method} ${path}`,
+                stage: "$default",
+                time: new Date().toISOString(),
+                timeEpoch: Date.now(),
+              },
+              body: undefined,
+              isBase64Encoded: false,
+            };
+          }
+
+          // Get the result from handleUrlEndpoint
+          const result = await handleUrlEndpoint(httpV2Event);
+
+          // Write the result to the stream (non-streaming JSON response)
+          // Type assertion needed because TypeScript infers the wrong type
+          const apiResult = result as {
+            statusCode: number;
+            headers?: Record<string, string>;
+            body: string;
+          };
+          let responseStream = contextOrStream as HttpResponseStream;
+          responseStream = getDefined(
+            awslambda,
+            "awslambda is not defined"
+          ).HttpResponseStream.from(responseStream, {
+            statusCode: apiResult.statusCode,
+            headers: apiResult.headers || {},
+          });
+          await writeChunkToStream(responseStream, apiResult.body || "");
+          responseStream.end();
+          return;
+        } else {
+          // Standard invocation (API Gateway without awslambda)
+          return await standardHandler(
+            event,
+            contextOrStream as Context,
+            callback as Callback
+          );
+        }
+      }
+
+      // For other endpoints, check if this is a streaming invocation
+      if (
+        contextOrStream &&
+        typeof contextOrStream === "object" &&
+        "write" in contextOrStream &&
+        typeof (contextOrStream as HttpResponseStream).write === "function"
+      ) {
+        // Streaming invocation (Function URL) - use streaming handler
+        return await streamingHandler(
+          event,
+          contextOrStream as HttpResponseStream
+        );
+      } else {
+        // Standard invocation (API Gateway) - use standard handler
+        return await standardHandler(
+          event,
+          contextOrStream as Context,
+          callback as Callback
+        );
+      }
+    };
   } else {
-    // API Gateway: Use standard handler with buffering
-    return adaptHttpHandler(handleApiGatewayStreaming);
+    // No streaming support - use the standard handler directly
+    return standardHandler;
   }
 };
 
