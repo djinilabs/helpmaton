@@ -437,12 +437,26 @@ function extractPathParameters(
   event: LambdaUrlEvent | APIGatewayProxyEventV2
 ): PathParameters | null {
   // Normalize to HTTP v2 event format
+  // If event already has version "2.0", it's already an APIGatewayProxyEventV2, don't transform
   const httpV2Event =
-    "rawPath" in event && "requestContext" in event
-      ? transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent)
-      : (event as APIGatewayProxyEventV2);
+    "version" in event && event.version === "2.0"
+      ? (event as APIGatewayProxyEventV2)
+      : "rawPath" in event && "requestContext" in event
+        ? transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent)
+        : (event as APIGatewayProxyEventV2);
 
-  const rawPath = httpV2Event.rawPath || "";
+  let rawPath = httpV2Event.rawPath || "";
+  
+  // For API Gateway catchall routes, the path might be in pathParameters.proxy
+  // Reconstruct the full path if rawPath is empty or doesn't start with /api/streams
+  if (!rawPath || !rawPath.startsWith("/api/streams")) {
+    const proxy = httpV2Event.pathParameters?.proxy;
+    if (proxy) {
+      // Reconstruct the full path: /api/streams/{proxy}
+      rawPath = `/api/streams/${proxy}`;
+    }
+  }
+  
   const normalizedPath = rawPath.replace(/^\/+/, "/");
 
   // Detect endpoint type

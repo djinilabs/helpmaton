@@ -538,5 +538,74 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       const body = JSON.parse(result.body);
       expect(body.error).toContain("Only GET method is allowed");
     });
+
+    it("should handle API Gateway catchall route with path in pathParameters.proxy", async () => {
+      process.env.STREAMING_FUNCTION_URL = "https://example.com/stream";
+
+      // Simulate API Gateway catchall route where rawPath is empty
+      // and the path is captured in pathParameters.proxy
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/{proxy+}",
+        rawPath: "", // Empty rawPath simulates catchall route behavior
+      });
+      // Explicitly set pathParameters after creation to ensure it's set
+      event.pathParameters = {
+        proxy: "url", // Path captured in proxy parameter
+      };
+      // Update requestContext path separately to avoid overriding the entire object
+      event.requestContext.http.path = "/api/streams/url";
+      event.requestContext.http.method = "GET";
+
+      const result = (await (
+        handler as (
+          event: APIGatewayProxyEventV2,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(200);
+      const body = JSON.parse(result.body);
+      expect(body.url).toBe("https://example.com/stream");
+      expect(mockCloudFormationSend).not.toHaveBeenCalled();
+    });
+
+    it("should handle API Gateway catchall route with path in pathParameters.proxy when rawPath doesn't start with /api/streams", async () => {
+      process.env.STREAMING_FUNCTION_URL = "https://example.com/stream";
+
+      // Simulate edge case where rawPath exists but doesn't match expected pattern
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/{proxy+}",
+        rawPath: "/streams/url", // Missing /api prefix
+      });
+      // Explicitly set pathParameters after creation to ensure it's set
+      event.pathParameters = {
+        proxy: "url", // Path captured in proxy parameter
+      };
+      // Update requestContext path separately to avoid overriding the entire object
+      event.requestContext.http.path = "/api/streams/url";
+      event.requestContext.http.method = "GET";
+
+      const result = (await (
+        handler as (
+          event: APIGatewayProxyEventV2,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(200);
+      const body = JSON.parse(result.body);
+      expect(body.url).toBe("https://example.com/stream");
+      expect(mockCloudFormationSend).not.toHaveBeenCalled();
+    });
   });
 });
