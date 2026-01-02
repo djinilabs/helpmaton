@@ -2,9 +2,80 @@
 
 ## Current Status
 
-**Status**: Scrape Endpoint Lambda Function URL Conversion - Completed ✅
+**Status**: Test Agent Endpoint Streaming Conversion - Completed ✅
 
-**Latest Work**: Converted `/api/scrape` endpoint from API Gateway to Lambda Function URLs to support the full 6-minute timeout. API Gateway has a hard 29-second timeout limit that was causing early connection terminations even though the Lambda continued running. The endpoint now uses Lambda Function URLs which support up to 15 minutes, allowing the full 6-minute timeout to work correctly. Implemented dynamic URL discovery with caching to minimize AWS API calls, and added local development support that automatically uses API Gateway URL in sandbox environments.
+**Latest Work**: Converted the test agent endpoint (`POST /api/workspaces/:workspaceId/agents/:agentId/test`) from Express-based handler to a direct Lambda Function URL handler with streaming support using `awslambda.streamifyResponse`. The new handler streams responses directly to clients without buffering, similar to the existing streaming handler pattern. Includes mock `awslambda` implementation for local sandbox development that buffers chunks and returns complete response at end. All business logic preserved including credit validation, conversation logging, token usage extraction, and BYOK error handling.
+
+**Recent Changes**:
+
+1. **New Streaming Handler Created**:
+   - Created `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/index.ts`
+   - Uses `awslambda.streamifyResponse` wrapper for Lambda Function URL streaming
+   - Implements true streaming (writes chunks as they arrive, no buffering)
+   - Includes mock `awslambda` implementation for local sandbox compatibility
+
+2. **Authentication & Authorization**:
+   - Extracts Bearer token from Lambda URL event headers
+   - Verifies JWT using `verifyAccessToken()`
+   - Checks workspace permissions using `isUserAuthorized()`
+   - Returns 401/403 errors with CORS headers if authentication/authorization fails
+
+3. **CORS Headers**:
+   - All responses include CORS headers using `FRONTEND_URL` environment variable
+   - `getResponseHeaders()` function generates headers for all response types
+   - OPTIONS preflight requests handled with CORS headers
+
+4. **Streaming Implementation**:
+   - `streamAIResponse()` streams AI SDK response directly to `HttpResponseStream`
+   - Writes chunks immediately as they arrive (no buffering)
+   - Includes BYOK error detection in stream body
+   - Handles stream errors gracefully with proper cleanup
+
+5. **Error Handling**:
+   - BYOK authentication error detection in multiple places (stream body, result object, etc.)
+   - Credit error handling with proper SSE formatting
+   - `writeErrorResponse()` sends SSE-formatted errors with CORS headers
+   - All error paths include CORS headers
+
+6. **Business Logic Preservation**:
+   - Credit validation and reservation
+   - Conversation logging with error persistence
+   - Token usage extraction and cost verification
+   - Tool call/result processing
+   - All logic from Express handler preserved
+
+7. **Context Management**:
+   - Sets up synthetic Lambda context for workspace credit transactions
+   - Uses `getContextFromRequestId()` for context retrieval
+   - Cleans up context in `finally` block
+
+8. **Local Sandbox Support**:
+   - Mock `awslambda.streamifyResponse` implementation
+   - Buffers all chunks in memory during local development
+   - Returns standard API Gateway response format at end
+   - Automatically detects local environment (`ARC_ENV === "testing"`)
+
+**Files Created**:
+- `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/index.ts` - New streaming handler (1557 lines)
+
+**Files Modified**:
+- None (new handler created, old Express handler remains as fallback)
+
+**Configuration**:
+- Route: `POST /api/workspaces/:workspaceId/agents/:agentId/test`
+- Handler: Direct Lambda Function URL (not yet wired up in `app.arc`)
+- CORS: Uses `FRONTEND_URL` environment variable
+- Local Development: Mock implementation buffers chunks, returns complete response
+
+**Note**: The new streaming handler is created but not yet active. The route `any /api/workspaces/*` in `app.arc` still routes to the Express catch-all handler. To activate the new handler, either:
+1. Add specific route in `app.arc`: `post /api/workspaces/:workspaceId/agents/:agentId/test` with `@lambda-urls` pragma
+2. Or remove/disable the Express route for this endpoint
+
+**Verification**: All tests passing (2076 tests), typecheck and lint clean ✅
+
+**Previous Status**: Scrape Endpoint Lambda Function URL Conversion - Completed ✅
+
+**Previous Work**: Converted `/api/scrape` endpoint from API Gateway to Lambda Function URLs to support the full 6-minute timeout. API Gateway has a hard 29-second timeout limit that was causing early connection terminations even though the Lambda continued running. The endpoint now uses Lambda Function URLs which support up to 15 minutes, allowing the full 6-minute timeout to work correctly. Implemented dynamic URL discovery with caching to minimize AWS API calls, and added local development support that automatically uses API Gateway URL in sandbox environments.
 
 **Recent Changes**:
 
