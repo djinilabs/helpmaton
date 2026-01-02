@@ -16,6 +16,7 @@ import {
 import type { ModelMessage } from "ai";
 import { convertToModelMessages, streamText } from "ai";
 import type {
+  APIGatewayProxyEvent,
   APIGatewayProxyEventV2,
   APIGatewayProxyResultV2,
   Context,
@@ -74,6 +75,7 @@ import {
   adaptHttpHandler,
   transformLambdaUrlToHttpV2Event,
   type LambdaUrlEvent,
+  transformRestToHttpV2Event,
 } from "../../utils/httpEventAdapter";
 import type { UIMessage } from "../../utils/messageTypes";
 import { extractAllOpenRouterGenerationIds } from "../../utils/openrouterUtils";
@@ -1648,57 +1650,67 @@ async function buildRequestContext(
  * Note: This can also receive API Gateway events when awslambda is available
  */
 const internalHandler = async (
-  event: LambdaUrlEvent | APIGatewayProxyEventV2,
+  event: LambdaUrlEvent | APIGatewayProxyEventV2 | APIGatewayProxyEvent,
   responseStream: HttpResponseStream
 ): Promise<void> => {
-  const pathParams = extractPathParameters(event);
+  // Transform REST API v1 events to v2 format if needed
+  let normalizedEvent: LambdaUrlEvent | APIGatewayProxyEventV2;
+  if ("httpMethod" in event && event.httpMethod !== undefined) {
+    // API Gateway REST API v1 event - transform it to v2 format
+    normalizedEvent = transformRestToHttpV2Event(event as APIGatewayProxyEvent);
+  } else {
+    normalizedEvent = event as LambdaUrlEvent | APIGatewayProxyEventV2;
+  }
+
+  const pathParams = extractPathParameters(normalizedEvent);
   if (!pathParams) {
     throw notAcceptable("Invalid path parameters");
   }
 
-  // Normalize event to get HTTP method safely (handles both LambdaUrlEvent and APIGatewayProxyEventV2)
+  // Normalize event to get HTTP method safely (handles LambdaUrlEvent, APIGatewayProxyEventV2, and APIGatewayProxyEvent)
+  // At this point, normalizedEvent is either LambdaUrlEvent or APIGatewayProxyEventV2 (REST events already transformed)
   // Check for requestContext.http first - this is the key property we need
   let httpV2Event: APIGatewayProxyEventV2;
-  const eventWithContext = event as { requestContext?: { http?: { method?: string } } };
+  const eventWithContext = normalizedEvent as { requestContext?: { http?: { method?: string } } };
   
   if (eventWithContext.requestContext?.http?.method) {
     // Event already has requestContext.http - use it directly or transform if needed
-    if ("version" in event && event.version === "2.0") {
+    if ("version" in normalizedEvent && normalizedEvent.version === "2.0") {
       // Already a properly formatted APIGatewayProxyEventV2
-      httpV2Event = event as APIGatewayProxyEventV2;
-    } else if ("rawPath" in event) {
+      httpV2Event = normalizedEvent as APIGatewayProxyEventV2;
+    } else if ("rawPath" in normalizedEvent) {
       // Lambda Function URL event - transform it
-      httpV2Event = transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent);
+      httpV2Event = transformLambdaUrlToHttpV2Event(normalizedEvent as LambdaUrlEvent);
     } else {
       // Has requestContext.http but unclear format - try to use as-is
-      httpV2Event = event as APIGatewayProxyEventV2;
+      httpV2Event = normalizedEvent as APIGatewayProxyEventV2;
     }
-  } else if ("version" in event && event.version === "2.0") {
+  } else if ("version" in normalizedEvent && normalizedEvent.version === "2.0") {
     // API Gateway event (has version 2.0) but missing requestContext.http
     // This can happen with streamifyResponse - construct http from available data
-    httpV2Event = event as APIGatewayProxyEventV2;
-  } else if ("rawPath" in event && "requestContext" in event && (event as LambdaUrlEvent).requestContext?.http) {
+    httpV2Event = normalizedEvent as APIGatewayProxyEventV2;
+  } else if ("rawPath" in normalizedEvent && "requestContext" in normalizedEvent && (normalizedEvent as LambdaUrlEvent).requestContext?.http) {
     // Lambda Function URL event with http property - transform it
-    httpV2Event = transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent);
+    httpV2Event = transformLambdaUrlToHttpV2Event(normalizedEvent as LambdaUrlEvent);
   } else {
     // Fallback: try to use as-is, but log for debugging
     console.error("[internalHandler] Unexpected event structure:", {
-      hasVersion: "version" in event,
-      version: "version" in event ? (event as { version?: string }).version : undefined,
-      hasRequestContext: "requestContext" in event,
-      hasRawPath: "rawPath" in event,
-      requestContextKeys: "requestContext" in event ? Object.keys((event as { requestContext?: unknown }).requestContext || {}) : [],
-      eventKeys: Object.keys(event),
+      hasVersion: "version" in normalizedEvent,
+      version: "version" in normalizedEvent ? (normalizedEvent as { version?: string }).version : undefined,
+      hasRequestContext: "requestContext" in normalizedEvent,
+      hasRawPath: "rawPath" in normalizedEvent,
+      requestContextKeys: "requestContext" in normalizedEvent ? Object.keys((normalizedEvent as { requestContext?: unknown }).requestContext || {}) : [],
+      eventKeys: Object.keys(normalizedEvent),
     });
     // Try to cast as APIGatewayProxyEventV2 as last resort
-    httpV2Event = event as APIGatewayProxyEventV2;
+    httpV2Event = normalizedEvent as APIGatewayProxyEventV2;
   }
   
   // Safety check: ensure requestContext.http exists, construct if missing
   if (!httpV2Event.requestContext?.http) {
     // Try to construct requestContext.http from available data
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const eventAny = event as any;
+    const eventAny = normalizedEvent as any;
     if (eventAny.requestContext) {
       // Try to extract method from various possible locations
       const method =

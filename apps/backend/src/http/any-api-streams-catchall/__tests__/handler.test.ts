@@ -1,7 +1,13 @@
-import type { APIGatewayProxyEventV2, Callback, Context } from "aws-lambda";
+import type {
+  APIGatewayProxyEvent,
+  APIGatewayProxyEventV2,
+  Callback,
+  Context,
+} from "aws-lambda";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  createAPIGatewayEvent,
   createAPIGatewayEventV2,
   createMockCallback,
   createMockContext,
@@ -800,6 +806,157 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       await (
         handlerWithAwslambda as (
           event: APIGatewayProxyEventV2,
+          responseStream: typeof mockResponseStream
+        ) => Promise<void>
+      )(event, mockResponseStream);
+
+      // Verify that the response stream was written to
+      expect(mockResponseStream.write).toHaveBeenCalled();
+      expect(mockResponseStream.end).toHaveBeenCalled();
+
+      // Verify the written content contains the URL
+      const writeCalls = mockResponseStream.write.mock.calls;
+      const writtenContent = writeCalls.map((call) => call[0]).join("");
+      const parsedContent = JSON.parse(writtenContent);
+      expect(parsedContent.url).toBe("https://example.com/stream");
+      expect(mockCloudFormationSend).not.toHaveBeenCalled();
+
+      // Clean up
+      // @ts-expect-error - We're explicitly setting it to undefined for testing
+      global.awslambda = undefined;
+    });
+
+    it("should handle API Gateway REST API v1 event when awslambda is available", async () => {
+      process.env.STREAMING_FUNCTION_URL = "https://example.com/stream";
+
+      // Simulate scenario where Lambda has both Function URL and API Gateway REST API
+      // awslambda is available, but request comes through REST API (v1)
+      const mockResponseStream = {
+        write: vi.fn(),
+        end: vi.fn(),
+      };
+
+      mockStreamifyResponse.mockImplementation((handlerFn) => {
+        return async (event: unknown, responseStream: unknown) => {
+          await handlerFn(event, responseStream);
+        };
+      });
+
+      mockHttpResponseStreamFrom.mockReturnValue(mockResponseStream);
+
+      // Set up awslambda
+      // Using 'as any' to bypass type checking for test mock
+      global.awslambda = {
+        streamifyResponse: mockStreamifyResponse,
+        HttpResponseStream: {
+          from: mockHttpResponseStreamFrom,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any;
+
+      // Clear module cache and re-import
+      vi.resetModules();
+      const handlerModule = await import("../index");
+      const handlerWithAwslambda = handlerModule.handler;
+
+      // Create REST API v1 event (has httpMethod at top level, not requestContext.http.method)
+      const baseEvent = createAPIGatewayEvent();
+      const event: APIGatewayProxyEvent = {
+        ...baseEvent,
+        resource: "/api/streams/{proxy+}",
+        path: "/api/streams/url",
+        httpMethod: "GET",
+        pathParameters: {
+          proxy: "url",
+        },
+        requestContext: {
+          ...baseEvent.requestContext,
+          path: "/api/streams/url",
+          httpMethod: "GET",
+          resourcePath: "/api/streams/{proxy+}",
+        },
+      };
+
+      // Call handler - it should transform REST v1 event to v2 format
+      await (
+        handlerWithAwslambda as (
+          event: APIGatewayProxyEvent,
+          responseStream: typeof mockResponseStream
+        ) => Promise<void>
+      )(event, mockResponseStream);
+
+      // Verify that the response stream was written to
+      expect(mockResponseStream.write).toHaveBeenCalled();
+      expect(mockResponseStream.end).toHaveBeenCalled();
+
+      // Verify the written content contains the URL
+      const writeCalls = mockResponseStream.write.mock.calls;
+      const writtenContent = writeCalls.map((call) => call[0]).join("");
+      const parsedContent = JSON.parse(writtenContent);
+      expect(parsedContent.url).toBe("https://example.com/stream");
+      expect(mockCloudFormationSend).not.toHaveBeenCalled();
+
+      // Clean up
+      // @ts-expect-error - We're explicitly setting it to undefined for testing
+      global.awslambda = undefined;
+    });
+
+    it("should handle API Gateway REST API v1 event with catchall path when awslambda is available", async () => {
+      process.env.STREAMING_FUNCTION_URL = "https://example.com/stream";
+
+      // Simulate REST API v1 event with catchall route
+      const mockResponseStream = {
+        write: vi.fn(),
+        end: vi.fn(),
+      };
+
+      mockStreamifyResponse.mockImplementation((handlerFn) => {
+        return async (event: unknown, responseStream: unknown) => {
+          await handlerFn(event, responseStream);
+        };
+      });
+
+      mockHttpResponseStreamFrom.mockReturnValue(mockResponseStream);
+
+      // Set up awslambda
+      // Using 'as any' to bypass type checking for test mock
+      global.awslambda = {
+        streamifyResponse: mockStreamifyResponse,
+        HttpResponseStream: {
+          from: mockHttpResponseStreamFrom,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any;
+
+      // Clear module cache and re-import
+      vi.resetModules();
+      const handlerModule = await import("../index");
+      const handlerWithAwslambda = handlerModule.handler;
+
+      // Create REST API v1 event with path in pathParameters.proxy (catchall route)
+      const baseEvent = createAPIGatewayEvent();
+      const event: APIGatewayProxyEvent = {
+        ...baseEvent,
+        resource: "/api/streams/{proxy+}",
+        path: "/api/streams/url",
+        httpMethod: "GET",
+        pathParameters: {
+          proxy: "url",
+        },
+        requestContext: {
+          ...baseEvent.requestContext,
+          path: "/api/streams/url",
+          httpMethod: "GET",
+          resourcePath: "/api/streams/{proxy+}",
+        },
+      };
+
+      // Call handler - it should transform REST v1 event to v2 format and handle catchall path
+      await (
+        handlerWithAwslambda as (
+          event: APIGatewayProxyEvent,
           responseStream: typeof mockResponseStream
         ) => Promise<void>
       )(event, mockResponseStream);

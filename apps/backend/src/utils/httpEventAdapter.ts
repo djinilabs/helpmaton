@@ -193,7 +193,7 @@ function buildRawQueryString(
 /**
  * Transforms a REST API Gateway event into an HTTP v2 event format.
  */
-function transformRestToHttpV2Event(
+export function transformRestToHttpV2Event(
   event: APIGatewayProxyEvent
 ): APIGatewayProxyEventV2 {
   const restContext = event.requestContext;
