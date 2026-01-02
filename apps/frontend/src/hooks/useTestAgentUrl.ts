@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getTestAgentUrl } from "../utils/api";
+import { getStreamUrl } from "../utils/api";
 
 export function useTestAgentUrl() {
   return useQuery({
     queryKey: ["test-agent-url"],
     queryFn: async () => {
       try {
-        return await getTestAgentUrl();
+        return await getStreamUrl();
       } catch (error) {
         // If there's any error (network, parsing, etc.), return null instead of throwing
         // This prevents the error boundary from catching it
