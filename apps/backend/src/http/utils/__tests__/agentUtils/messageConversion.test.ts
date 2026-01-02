@@ -6,12 +6,12 @@ import type {
 } from "ai";
 import { describe, it, expect } from "vitest";
 
+import type { UIMessage } from "../../../../utils/messageTypes";
 import {
   createToolResultPart,
   convertUIMessagesToModelMessages,
   convertAiSdkUIMessageToUIMessage,
-} from "../messageConversion";
-import type { UIMessage } from "../types";
+} from "../../messageConversion";
 
 describe("createToolResultPart", () => {
   it("should create a ToolResultPart with string output formatted as text", () => {

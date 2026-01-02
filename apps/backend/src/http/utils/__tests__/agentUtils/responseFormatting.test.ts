@@ -4,7 +4,7 @@ import {
   formatTextChunk,
   formatToolCallChunk,
   formatAssistantResponse,
-} from "../responseFormatting";
+} from "../../responseFormatting";
 
 describe("responseFormatting", () => {
   describe("formatTextChunk", () => {

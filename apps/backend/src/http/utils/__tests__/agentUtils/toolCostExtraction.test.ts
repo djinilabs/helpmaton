@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   extractToolCostFromResult,
   TOOL_COST_MARKER_PATTERN,
-} from "../toolCostExtraction";
+} from "../../toolCostExtraction";
 
 describe("toolCostExtraction", () => {
   describe("TOOL_COST_MARKER_PATTERN", () => {

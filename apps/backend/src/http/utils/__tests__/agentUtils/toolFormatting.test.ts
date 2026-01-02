@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   formatToolCallMessage,
   formatToolResultMessage,
-} from "../toolFormatting";
+} from "../../toolFormatting";
 
 describe("formatToolCallMessage", () => {
   it("should format tool call with args", () => {

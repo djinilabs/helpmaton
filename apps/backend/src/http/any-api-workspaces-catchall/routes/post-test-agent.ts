@@ -13,15 +13,10 @@ import {
   type StreamTextResultWithResolvedUsage,
 } from "../../../utils/conversationLogger";
 import { isAuthenticationError } from "../../../utils/handlingErrors";
+import type { UIMessage } from "../../../utils/messageTypes";
 import { Sentry, ensureError } from "../../../utils/sentry";
 import { getContextFromRequestId } from "../../../utils/workspaceCreditContext";
-import { setupAgentAndTools } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
-import { convertAiSdkUIMessagesToUIMessages } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion";
-import {
-  formatToolCallMessage,
-  formatToolResultMessage,
-} from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/toolFormatting";
-import type { UIMessage } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
+import { setupAgentAndTools } from "../../utils/agentSetup";
 import { MODEL_NAME } from "../../utils/agentUtils";
 import {
   adjustCreditsAfterLLMCall,
@@ -43,7 +38,12 @@ import {
   trackSuccessfulRequest,
 } from "../../utils/generationRequestTracking";
 import { extractTokenUsageAndCosts } from "../../utils/generationTokenExtraction";
+import { convertAiSdkUIMessagesToUIMessages } from "../../utils/messageConversion";
 import { extractUserId } from "../../utils/session";
+import {
+  formatToolCallMessage,
+  formatToolResultMessage,
+} from "../../utils/toolFormatting";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**

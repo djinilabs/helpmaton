@@ -14,8 +14,8 @@ const { mockWriteHead, mockOn } = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../utils/responseStream", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../utils/responseStream")>();
+vi.mock("../../responseStream", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../responseStream")>();
   
   // Create the mock function inside the factory to avoid hoisting issues
   const mockEnhanceResponseStream = vi.fn((stream) => {
@@ -41,7 +41,7 @@ vi.mock("../../utils/responseStream", async (importOriginal) => {
   };
 });
 
-import { setupResponseStream, extractTextDelta } from "../responseStream";
+import { setupResponseStream, extractTextDelta } from "../../responseStreamSetup";
 
 describe("extractTextDelta", () => {
   it("should extract textDelta from chunk", () => {

@@ -74,7 +74,7 @@ vi.mock("../../../tables/schema", () => ({
 import {
   validateRequest,
   authenticateAndAuthorize,
-} from "../requestValidation";
+} from "../../requestValidation";
 
 describe("validateRequest", () => {
   it("should validate POST request with valid parameters", () => {

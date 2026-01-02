@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { buildContinuationInstructions } from "../continuation";
+import { buildContinuationInstructions } from "../../continuation";
 
 describe("buildContinuationInstructions", () => {
   it("should return empty string when no tool results", () => {

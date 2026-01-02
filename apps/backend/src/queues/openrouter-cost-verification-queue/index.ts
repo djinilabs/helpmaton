@@ -1,12 +1,12 @@
 import type { SQSEvent, SQSRecord } from "aws-lambda";
 import { z } from "zod";
 
-import type { UIMessage } from "../../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 import { database } from "../../tables";
 import { getDefined } from "../../utils";
 import { finalizeCreditReservation } from "../../utils/creditManagement";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
 import { getMessageCost } from "../../utils/messageCostCalculation";
+import type { UIMessage } from "../../utils/messageTypes";
 import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
 
 // Exponential backoff configuration for OpenRouter API retries

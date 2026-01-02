@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "crypto";
 
-import type { UIMessage } from "../../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
+import type { UIMessage } from "../../utils/messageTypes";
 import { sendWriteOperation } from "../vectordb/queueClient";
 import type { FactRecord, TemporalGrain } from "../vectordb/types";
 
