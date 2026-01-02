@@ -125,6 +125,33 @@ vi.mock("ai", () => ({
   streamText: vi.fn(),
 }));
 
+// Mock workspaceCreditContext module
+const mockContext = {
+  callbackWaitsForEmptyEventLoop: false,
+  awsRequestId: "test-request-id",
+  functionName: "test-function",
+  functionVersion: "$LATEST",
+  invokedFunctionArn: "arn:aws:lambda:us-east-1:123456789012:function:test",
+  memoryLimitInMB: "512",
+  getRemainingTimeInMillis: () => 300000,
+  logGroupName: "/aws/lambda/test",
+  logStreamName: "2024/01/01/[$LATEST]test",
+  done: vi.fn(),
+  fail: vi.fn(),
+  succeed: vi.fn(),
+  addWorkspaceCreditTransaction: vi.fn(),
+};
+
+vi.mock("../../utils/workspaceCreditContext", () => ({
+  getContextFromRequestId: vi.fn(() => mockContext),
+  augmentContextWithCreditTransactions: vi.fn((context) => ({
+    ...context,
+    addWorkspaceCreditTransaction: vi.fn(),
+  })),
+  setCurrentHTTPContext: vi.fn(),
+  clearCurrentHTTPContext: vi.fn(),
+}));
+
 // Mock getDefined to return the awslambda object
 vi.mock("@/utils", () => ({
   getDefined: mockGetDefined,

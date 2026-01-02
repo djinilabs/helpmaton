@@ -5,6 +5,7 @@
 import { badRequest, boomify, notAcceptable, unauthorized } from "@hapi/boom";
 import type { ModelMessage } from "ai";
 import { convertToModelMessages, streamText } from "ai";
+import type { Context } from "aws-lambda";
 
 // Declare global awslambda for Lambda Function URL streaming
 // With RESPONSE_STREAM mode, awslambda.streamifyResponse provides the HttpResponseStream directly
@@ -70,7 +71,12 @@ import {
   getAllowedOrigins,
   validateSecret,
 } from "../../utils/streamServerUtils";
-import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
+import {
+  getContextFromRequestId,
+  augmentContextWithCreditTransactions,
+  setCurrentHTTPContext,
+  clearCurrentHTTPContext,
+} from "../../utils/workspaceCreditContext";
 import { setupAgentAndTools } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
 import {
   convertAiSdkUIMessagesToUIMessages,
@@ -1345,6 +1351,40 @@ const internalHandler = async (
   let allowedOrigins: string[] | null = null;
   let context: StreamRequestContext | undefined;
 
+  // Extract requestId from event for context setup
+  const awsRequestId = event.requestContext?.requestId;
+
+  // Create synthetic Lambda context for workspace credit transactions
+  // streamifyResponse doesn't provide Context, so we create one
+  if (awsRequestId) {
+    const syntheticContext: Context = {
+      callbackWaitsForEmptyEventLoop: false,
+      awsRequestId,
+      functionName: process.env.AWS_LAMBDA_FUNCTION_NAME || "stream-handler",
+      functionVersion: process.env.AWS_LAMBDA_FUNCTION_VERSION || "$LATEST",
+      invokedFunctionArn: process.env.AWS_LAMBDA_FUNCTION_ARN || "",
+      memoryLimitInMB: process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE || "512",
+      getRemainingTimeInMillis: () => {
+        // Return a large value since we don't have access to actual remaining time
+        // This is only used for logging/debugging, not for actual timeout logic
+        return 300000; // 5 minutes default
+      },
+      logGroupName: process.env.AWS_LAMBDA_LOG_GROUP_NAME || "",
+      logStreamName: process.env.AWS_LAMBDA_LOG_STREAM_NAME || "",
+      done: () => {},
+      fail: () => {},
+      succeed: () => {},
+    };
+
+    // Augment context with workspace credit transaction capability
+    const augmentedContext = augmentContextWithCreditTransactions(
+      syntheticContext
+    );
+
+    // Store context in module-level map so buildRequestContext can retrieve it
+    setCurrentHTTPContext(awsRequestId, augmentedContext);
+  }
+
   // Fetch allowed origins from database based on stream server configuration
   allowedOrigins = await getAllowedOrigins(
     pathParams.workspaceId,
@@ -1672,6 +1712,11 @@ const internalHandler = async (
       });
     }
   } finally {
+    // Clean up context from module-level map
+    if (awsRequestId) {
+      clearCurrentHTTPContext(awsRequestId);
+    }
+
     // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
     // This ensures flushing happens on both success and error paths
     await Promise.all([flushPostHog(), flushSentry()]).catch((flushErrors) => {
