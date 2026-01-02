@@ -99,21 +99,15 @@ vi.mock("../../utils/subscriptionUtils", () => ({
   getWorkspaceSubscription: vi.fn(),
 }));
 
-vi.mock(
-  "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup",
-  () => ({
-    logToolDefinitions: vi.fn(),
-    setupAgentAndTools: vi.fn(),
-  })
-);
+vi.mock("../utils/agentSetup", () => ({
+  logToolDefinitions: vi.fn(),
+  setupAgentAndTools: vi.fn(),
+}));
 
-vi.mock(
-  "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion",
-  () => ({
-    convertTextToUIMessage: vi.fn(),
-    convertUIMessagesToModelMessages: vi.fn(),
-  })
-);
+vi.mock("../utils/messageConversion", () => ({
+  convertTextToUIMessage: vi.fn(),
+  convertUIMessagesToModelMessages: vi.fn(),
+}));
 
 vi.mock("../../http/utils/agentUtils", () => ({
   MODEL_NAME: "test-model",

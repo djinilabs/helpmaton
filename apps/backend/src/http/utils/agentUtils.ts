@@ -756,9 +756,7 @@ async function callAgentInternal(
     targetAgent.clientTools.length > 0
   ) {
     // Import createClientTools dynamically to avoid circular dependency
-    const { createClientTools } = await import(
-      "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup"
-    );
+    const { createClientTools } = await import("./agentSetup");
     const clientTools = createClientTools(targetAgent.clientTools);
     // Merge client tools into tools object
     Object.assign(tools, clientTools);
@@ -843,9 +841,7 @@ async function callAgentInternal(
     });
     // Log tool definitions before LLM call
     if (tools) {
-      const { logToolDefinitions } = await import(
-        "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup"
-      );
+      const { logToolDefinitions } = await import("./agentSetup");
       logToolDefinitions(tools, "Agent Delegation", targetAgent);
     }
     // Track generation time
