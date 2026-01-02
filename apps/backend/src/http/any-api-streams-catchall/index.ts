@@ -3,6 +3,10 @@
 // Using AWS's native streamifyResponse for Lambda Function URLs with RESPONSE_STREAM mode
 
 import {
+  CloudFormationClient,
+  DescribeStacksCommand,
+} from "@aws-sdk/client-cloudformation";
+import {
   badRequest,
   boomify,
   forbidden,
@@ -107,10 +111,122 @@ import { getDefined } from "@/utils";
 // Initialize Sentry when this module is loaded (before any handlers are called)
 initSentry();
 
+// Cache the Function URL to avoid repeated API calls
+let cachedFunctionUrl: string | null = null;
+let cacheExpiry: number = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
- * Endpoint type: test (JWT auth) or stream (secret auth)
+ * Gets the streaming Lambda Function URL from CloudFormation stack outputs.
+ * This is the most reliable method since the plugin creates a CloudFormation output.
  */
-type EndpointType = "test" | "stream";
+async function getFunctionUrlFromCloudFormation(): Promise<string | null> {
+  const stackName =
+    process.env.AWS_STACK_NAME ||
+    process.env.ARC_STACK_NAME ||
+    process.env.STACK_NAME;
+
+  if (!stackName) {
+    console.error(
+      "[streams-handler] Stack name not found. Checked AWS_STACK_NAME, ARC_STACK_NAME, STACK_NAME"
+    );
+    return null;
+  }
+
+  console.log(
+    `[streams-handler] Looking up Function URL for stack: ${stackName}`
+  );
+
+  try {
+    const cfClient = new CloudFormationClient({});
+    const command = new DescribeStacksCommand({ StackName: stackName });
+    const response = await cfClient.send(command);
+
+    const stack = response.Stacks?.[0];
+    if (!stack) {
+      console.error(`[streams-handler] Stack ${stackName} not found`);
+      return null;
+    }
+
+    console.log(
+      `[streams-handler] Stack found. Available outputs: ${
+        stack.Outputs?.map((o) => o.OutputKey).join(", ") || "none"
+      }`
+    );
+
+    // Check if stack has no outputs at all
+    if (!stack.Outputs || stack.Outputs.length === 0) {
+      console.error(`[streams-handler] Stack ${stackName} has no outputs`);
+      return null;
+    }
+
+    // Look for StreamingFunctionUrl output (created by lambda-urls plugin)
+    const output = stack.Outputs.find(
+      (o: { OutputKey?: string }) => o.OutputKey === "StreamingFunctionUrl"
+    );
+
+    if (output?.OutputValue) {
+      const functionUrl = output.OutputValue as string;
+      // Normalize URL: remove trailing slash to avoid double slashes when appending paths
+      const normalizedUrl = functionUrl.replace(/\/+$/, "");
+      console.log(
+        `[streams-handler] Found StreamingFunctionUrl output: ${functionUrl} (normalized: ${normalizedUrl})`
+      );
+      return normalizedUrl;
+    } else {
+      console.error(
+        `[streams-handler] StreamingFunctionUrl output not found in stack ${stackName}`
+      );
+    }
+  } catch (error) {
+    console.error(
+      "[streams-handler] Error getting Function URL from CloudFormation:",
+      error instanceof Error ? error.message : String(error),
+      error instanceof Error ? error.stack : undefined
+    );
+  }
+
+  return null;
+}
+
+/**
+ * Gets the streaming Lambda Function URL by finding the function and getting its URL.
+ * Falls back to CloudFormation stack output if direct lookup fails.
+ */
+async function getStreamingFunctionUrl(): Promise<string | null> {
+  // First, check if environment variable is set
+  const envFunctionUrl = process.env.STREAMING_FUNCTION_URL;
+
+  if (envFunctionUrl) {
+    // Normalize URL: remove trailing slash to avoid double slashes when appending paths
+    return envFunctionUrl.replace(/\/+$/, "");
+  }
+
+  // Return cached Function URL if still valid
+  if (cachedFunctionUrl && Date.now() < cacheExpiry) {
+    return cachedFunctionUrl;
+  }
+
+  // Try to get from CloudFormation stack outputs
+  const functionUrl = await getFunctionUrlFromCloudFormation();
+  if (functionUrl) {
+    // Normalize URL: remove trailing slash to avoid double slashes when appending paths
+    const normalizedUrl = functionUrl.replace(/\/+$/, "");
+    cachedFunctionUrl = normalizedUrl;
+    cacheExpiry = Date.now() + CACHE_TTL;
+    console.log(
+      `[streams-handler] Retrieved Function URL from CloudFormation: ${functionUrl} (normalized: ${normalizedUrl})`
+    );
+    return normalizedUrl;
+  }
+
+  return null;
+}
+
+/**
+ * Endpoint type: test (JWT auth), stream (secret auth), or url (Function URL discovery)
+ */
+type EndpointType = "test" | "stream" | "url";
 
 /**
  * Path parameters extracted from the request
@@ -219,7 +335,7 @@ async function persistConversationError(
       context.usesByok,
       errorInfo,
       context.awsRequestId,
-      context.endpointType
+      context.endpointType as "test" | "stream"
     );
   } catch (logError) {
     console.error("[Stream Handler] Failed to persist conversation error:", {
@@ -248,6 +364,10 @@ function isLambdaFunctionUrlInvocation(): boolean {
  * Detects endpoint type based on path pattern
  */
 function detectEndpointType(path: string): EndpointType {
+  // Pattern: /api/streams/url (exact match for URL discovery endpoint)
+  if (path === "/api/streams/url") {
+    return "url";
+  }
   // Pattern: /api/streams/{workspaceId}/{agentId}/test
   if (path.match(/^\/api\/streams\/[^/]+\/[^/]+\/test$/)) {
     return "test";
@@ -327,6 +447,15 @@ function extractPathParameters(
 
   // Detect endpoint type
   const endpointType = detectEndpointType(normalizedPath);
+
+  // URL endpoint doesn't need path parameters
+  if (endpointType === "url") {
+    return {
+      workspaceId: "",
+      agentId: "",
+      endpointType: "url",
+    };
+  }
 
   let workspaceId = httpV2Event.pathParameters?.workspaceId;
   let agentId = httpV2Event.pathParameters?.agentId;
@@ -435,7 +564,14 @@ async function validateSubscriptionAndLimitsStream(
   workspaceId: string,
   endpointType: EndpointType = "stream"
 ): Promise<string | undefined> {
-  return await validateSubscriptionAndLimits(workspaceId, endpointType);
+  // URL endpoint doesn't need subscription validation (returns early)
+  if (endpointType === "url") {
+    return undefined;
+  }
+  return await validateSubscriptionAndLimits(
+    workspaceId,
+    endpointType as "test" | "stream"
+  );
 }
 
 /**
@@ -648,6 +784,10 @@ async function validateCreditsAndReserveBeforeLLM(
   const finalModelName =
     typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
 
+  // URL endpoint doesn't need credit validation (returns early)
+  if (endpointType === "url") {
+    return undefined;
+  }
   return await validateAndReserveCredits(
     db,
     workspaceId,
@@ -658,7 +798,7 @@ async function validateCreditsAndReserveBeforeLLM(
     agent.systemPrompt,
     tools,
     usesByok,
-    endpointType,
+    endpointType as "test" | "stream",
     context,
     conversationId
   );
@@ -700,6 +840,7 @@ async function streamAIResponse(
   onTextChunk: (text: string) => void
 ): Promise<Awaited<ReturnType<typeof streamText>>> {
   // Prepare LLM call (logging and generate options)
+  // URL endpoint doesn't call this (returns early), so we can safely use "stream"
   const generateOptions = prepareLLMCall(
     agent,
     tools,
@@ -849,6 +990,7 @@ async function adjustCreditsAfterStream(
   }
 
   // Adjust credits using shared utility
+  // URL endpoint doesn't call this (returns early), so we can safely cast
   await adjustCreditsAfterLLMCall(
     db,
     workspaceId,
@@ -860,7 +1002,7 @@ async function adjustCreditsAfterStream(
     usesByok,
     openrouterGenerationId,
     openrouterGenerationIds, // New parameter
-    endpointType,
+    endpointType as "test" | "stream",
     lambdaContext,
     conversationId
   );
@@ -873,7 +1015,7 @@ async function adjustCreditsAfterStream(
     reservationId,
     conversationId,
     agentId,
-    endpointType
+    endpointType as "test" | "stream"
   );
 }
 
@@ -887,12 +1029,16 @@ async function trackRequestUsage(
   agentId: string,
   endpointType: EndpointType = "stream"
 ): Promise<void> {
+  // URL endpoint doesn't need request tracking (returns early)
+  if (endpointType === "url") {
+    return;
+  }
   // Track successful request using shared utility
   await trackSuccessfulRequest(
     subscriptionId,
     workspaceId,
     agentId,
-    endpointType
+    endpointType as "test" | "stream"
   );
 }
 
@@ -998,7 +1144,7 @@ async function logConversation(
       toolResults: toolResultsFromResult,
       toolCallsFromStepsCount: toolCallsFromSteps.length,
       toolResultsFromStepsCount: toolResultsFromSteps.length,
-      streamResultKeys: streamResult ? Object.keys(streamResult) : [],
+      streamResultKeys: Object.keys(streamResult),
       hasToolCalls: streamResult && "toolCalls" in streamResult,
       hasToolResults: streamResult && "toolResults" in streamResult,
       hasSteps: streamResult && "_steps" in streamResult,
@@ -1090,7 +1236,7 @@ async function logConversation(
       role: "assistant",
       content:
         assistantContent.length > 0 ? assistantContent : finalResponseText,
-      ...(tokenUsage && { tokenUsage }),
+      ...{ tokenUsage },
       modelName: finalModelName,
       provider: "openrouter",
       ...(openrouterGenerationId && { openrouterGenerationId }),
@@ -1207,6 +1353,7 @@ async function logConversation(
     );
 
     // Update existing conversation
+    // URL endpoint doesn't call this (returns early), so we can safely cast
     await updateConversation(
       db,
       workspaceId,
@@ -1217,7 +1364,7 @@ async function logConversation(
       usesByok,
       undefined,
       awsRequestId,
-      endpointType
+      endpointType as "test" | "stream"
     ).catch((error) => {
       // Log error but don't fail the request
       console.error("[Stream Handler] Error logging conversation:", {
@@ -1360,6 +1507,7 @@ async function buildRequestContext(
   const origin = event.headers["origin"] || event.headers["Origin"];
 
   // Validate subscription and limits
+  // URL endpoint doesn't need this (returns early), but we call it for type safety
   const subscriptionId = await validateSubscriptionAndLimitsStream(
     workspaceId,
     endpointType
@@ -1492,6 +1640,52 @@ const internalHandler = async (
   if (!pathParams) {
     throw notAcceptable("Invalid path parameters");
   }
+
+  // Handle URL endpoint (Function URL discovery) - returns JSON, not streaming
+  if (pathParams.endpointType === "url") {
+    // Only allow GET requests for URL endpoint
+    if (event.requestContext.http.method !== "GET") {
+      throw notAcceptable("Only GET method is allowed for /api/streams/url");
+    }
+
+    console.log("[streams-handler] Handler invoked for URL endpoint");
+    console.log(
+      `[streams-handler] Environment variables: STREAMING_FUNCTION_URL=${
+        process.env.STREAMING_FUNCTION_URL || "not set"
+      }, AWS_STACK_NAME=${
+        process.env.AWS_STACK_NAME || "not set"
+      }, ARC_STACK_NAME=${
+        process.env.ARC_STACK_NAME || "not set"
+      }, STACK_NAME=${process.env.STACK_NAME || "not set"}`
+    );
+
+    const streamingFunctionUrl = await getStreamingFunctionUrl();
+
+    if (!streamingFunctionUrl) {
+      console.error(
+        "[streams-handler] Failed to get streaming function URL. Returning 404."
+      );
+      const errorResponse = JSON.stringify({
+        error:
+          "Streaming function URL not configured. The Lambda Function URL may not be deployed yet, or the URL could not be found in CloudFormation stack outputs.",
+      });
+      responseStream.write(errorResponse);
+      responseStream.end();
+      return;
+    }
+
+    console.log(
+      `[streams-handler] Successfully retrieved streaming function URL: ${streamingFunctionUrl}`
+    );
+
+    const successResponse = JSON.stringify({
+      url: streamingFunctionUrl,
+    });
+    responseStream.write(successResponse);
+    responseStream.end();
+    return;
+  }
+
   let context: StreamRequestContext | undefined;
 
   // Extract requestId from event for context setup
@@ -1618,7 +1812,7 @@ const internalHandler = async (
         workspaceId: context.workspaceId,
         agentId: context.agentId,
         usesByok: context.usesByok,
-        endpoint: context.endpointType,
+        endpoint: context.endpointType as "test" | "stream",
       });
 
       // Normalize BYOK error if needed
@@ -1638,10 +1832,11 @@ const internalHandler = async (
       }
 
       // Handle credit errors (for streaming, we write SSE format)
+      // URL endpoint doesn't call this (returns early), so we can safely cast
       const creditErrorResult = await handleCreditErrors(
         error,
         context.workspaceId,
-        context.endpointType
+        context.endpointType as "test" | "stream"
       );
       if (creditErrorResult.handled && creditErrorResult.response) {
         await persistConversationError(context, error);
@@ -1663,6 +1858,7 @@ const internalHandler = async (
         // Get context for workspace credit transactions
         const lambdaContext = getContextFromRequestId(context.awsRequestId);
         if (lambdaContext) {
+          // URL endpoint doesn't call this (returns early), so we can safely cast
           await cleanupReservationOnError(
             context.db,
             context.reservationId,
@@ -1673,7 +1869,7 @@ const internalHandler = async (
             error,
             llmCallAttempted,
             context.usesByok,
-            context.endpointType,
+            context.endpointType as "test" | "stream",
             lambdaContext
           );
         } else {
@@ -1745,7 +1941,7 @@ const internalHandler = async (
       { totalUsage } as unknown as StreamTextResultWithResolvedUsage,
       usage,
       context.finalModelName,
-      context.endpointType
+      context.endpointType as "test" | "stream"
     );
 
     // DIAGNOSTIC: Log token usage extraction
@@ -1753,7 +1949,7 @@ const internalHandler = async (
       tokenUsage,
       usage,
       hasUsage: !!usage,
-      streamResultKeys: streamResult ? Object.keys(streamResult) : [],
+      streamResultKeys: Object.keys(streamResult),
     });
 
     // Post-processing: adjust credit reservation, track usage, log conversation
@@ -1888,6 +2084,62 @@ async function handleApiGatewayStreaming(
     };
   }
 
+  // Handle URL endpoint (Function URL discovery) - returns JSON, not streaming
+  if (pathParams.endpointType === "url") {
+    // Only allow GET requests for URL endpoint
+    if (event.requestContext.http.method !== "GET") {
+      return {
+        statusCode: 406,
+        body: JSON.stringify({
+          error: "Only GET method is allowed for /api/streams/url",
+        }),
+      };
+    }
+
+    console.log("[streams-handler] Handler invoked for URL endpoint");
+    console.log(
+      `[streams-handler] Environment variables: STREAMING_FUNCTION_URL=${
+        process.env.STREAMING_FUNCTION_URL || "not set"
+      }, AWS_STACK_NAME=${
+        process.env.AWS_STACK_NAME || "not set"
+      }, ARC_STACK_NAME=${
+        process.env.ARC_STACK_NAME || "not set"
+      }, STACK_NAME=${process.env.STACK_NAME || "not set"}`
+    );
+
+    const streamingFunctionUrl = await getStreamingFunctionUrl();
+
+    if (!streamingFunctionUrl) {
+      console.error(
+        "[streams-handler] Failed to get streaming function URL. Returning 404."
+      );
+      return {
+        statusCode: 404,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          error:
+            "Streaming function URL not configured. The Lambda Function URL may not be deployed yet, or the URL could not be found in CloudFormation stack outputs.",
+        }),
+      };
+    }
+
+    console.log(
+      `[streams-handler] Successfully retrieved streaming function URL: ${streamingFunctionUrl}`
+    );
+
+    return {
+      statusCode: 200,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url: streamingFunctionUrl,
+      }),
+    };
+  }
+
   // Extract requestId from event for context setup
   const awsRequestId = event.requestContext?.requestId;
 
@@ -2012,10 +2264,11 @@ async function handleApiGatewayStreaming(
         };
       }
 
+      // URL endpoint doesn't call this (returns early), so we can safely cast
       const creditErrorResult = await handleCreditErrors(
         error,
         streamContext.workspaceId,
-        pathParams.endpointType
+        pathParams.endpointType as "test" | "stream"
       );
       if (creditErrorResult.handled && creditErrorResult.response) {
         await persistConversationError(streamContext, error);

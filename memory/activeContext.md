@@ -2,76 +2,120 @@
 
 ## Current Status
 
-**Status**: Test Agent Endpoint Streaming Conversion - Completed ✅
+**Status**: Streaming Endpoints Unification & URL Endpoint Consolidation - Completed ✅
 
-**Latest Work**: Converted the test agent endpoint (`POST /api/workspaces/:workspaceId/agents/:agentId/test`) from Express-based handler to a direct Lambda Function URL handler with streaming support using `awslambda.streamifyResponse`. The new handler streams responses directly to clients without buffering, similar to the existing streaming handler pattern. Includes mock `awslambda` implementation for local sandbox development that buffers chunks and returns complete response at end. All business logic preserved including credit validation, conversation logging, token usage extraction, and BYOK error handling.
+**Latest Work**: Consolidated the `GET /api/streams/url` handler into the unified `/api/streams/*` catchall handler. The URL endpoint functionality (retrieving the streaming Lambda Function URL) is now handled by the same unified handler that processes test and stream endpoints. This consolidation eliminates code duplication and simplifies the routing structure. The unified handler supports both Lambda Function URL (true streaming) and API Gateway (buffered streaming) invocations, with conditional authentication (JWT for test endpoint, secret for stream endpoint) and CORS headers. All utilities have been relocated from `post-api-workspaces-000workspaceId-agents-000agentId-test/utils/` to shared locations for better code organization and reusability.
 
 **Recent Changes**:
 
-1. **New Streaming Handler Created**:
-   - Created `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/index.ts`
-   - Uses `awslambda.streamifyResponse` wrapper for Lambda Function URL streaming
-   - Implements true streaming (writes chunks as they arrive, no buffering)
-   - Includes mock `awslambda` implementation for local sandbox compatibility
+1. **URL Endpoint Consolidation**:
 
-2. **Authentication & Authorization**:
-   - Extracts Bearer token from Lambda URL event headers
-   - Verifies JWT using `verifyAccessToken()`
-   - Checks workspace permissions using `isUserAuthorized()`
-   - Returns 401/403 errors with CORS headers if authentication/authorization fails
+   - Consolidated `GET /api/streams/url` handler into unified `/api/streams/*` catchall handler
+   - Removed separate route from `app.arc` (was `get /api/streams/url`)
+   - Added `"url"` endpoint type to `EndpointType` union
+   - Moved URL retrieval functions (`getStreamingFunctionUrl`, `getFunctionUrlFromCloudFormation`) with caching logic into unified handler
+   - URL endpoint now handled in both Lambda Function URL and API Gateway paths
+   - Added 10 comprehensive tests for URL endpoint functionality
+   - Fixed test cache clearing using `vi.resetModules()` and dynamic imports
+   - Deleted old handler files (`get-api-streams-url/index.ts` and test file)
 
-3. **CORS Headers**:
-   - All responses include CORS headers using `FRONTEND_URL` environment variable
-   - `getResponseHeaders()` function generates headers for all response types
-   - OPTIONS preflight requests handled with CORS headers
+2. **Streaming Endpoints Unification** (Previous):
 
-4. **Streaming Implementation**:
-   - `streamAIResponse()` streams AI SDK response directly to `HttpResponseStream`
-   - Writes chunks immediately as they arrive (no buffering)
-   - Includes BYOK error detection in stream body
-   - Handles stream errors gracefully with proper cleanup
+   - Updated `app.arc` to use catch-all route `any /api/streams/*` for both endpoints
+   - Unified handler supports both `/api/streams/:workspaceId/:agentId/test` (JWT auth) and `/api/streams/:workspaceId/:agentId/:secret` (secret auth)
+   - Added endpoint type detection based on path pattern
+   - Supports both Lambda Function URL (true streaming) and API Gateway (buffered streaming) invocations
+   - Created dual handler wrapper that automatically detects invocation method
 
-5. **Error Handling**:
-   - BYOK authentication error detection in multiple places (stream body, result object, etc.)
-   - Credit error handling with proper SSE formatting
-   - `writeErrorResponse()` sends SSE-formatted errors with CORS headers
-   - All error paths include CORS headers
+3. **Authentication & Authorization**:
 
-6. **Business Logic Preservation**:
-   - Credit validation and reservation
-   - Conversation logging with error persistence
-   - Token usage extraction and cost verification
-   - Tool call/result processing
-   - All logic from Express handler preserved
+   - Test endpoint: JWT Bearer token authentication with workspace permission checks
+   - Stream endpoint: Secret validation from path parameters
+   - Conditional authentication logic based on detected endpoint type
+   - Both authentication methods work with both invocation types (Lambda Function URL and API Gateway)
 
-7. **Context Management**:
-   - Sets up synthetic Lambda context for workspace credit transactions
-   - Uses `getContextFromRequestId()` for context retrieval
-   - Cleans up context in `finally` block
+4. **CORS Headers**:
 
-8. **Local Sandbox Support**:
-   - Mock `awslambda.streamifyResponse` implementation
-   - Buffers all chunks in memory during local development
-   - Returns standard API Gateway response format at end
-   - Automatically detects local environment (`ARC_ENV === "testing"`)
+   - Test endpoint: Uses `FRONTEND_URL` environment variable for CORS headers
+   - Stream endpoint: Uses agent's streaming server configuration (allowed origins from database)
+   - Conditional CORS header generation based on endpoint type
+   - All responses include appropriate CORS headers
+
+5. **Streaming Implementation**:
+
+   - Lambda Function URL: True streaming using `awslambda.streamifyResponse` (writes chunks as they arrive)
+   - API Gateway: Buffered streaming (collects all chunks, returns complete response)
+   - Automatic detection of invocation method
+   - Same business logic for both streaming approaches
+
+6. **Utility Relocation**:
+
+   - Moved `types.ts` → `src/utils/messageTypes.ts` (used by non-HTTP utils)
+   - Moved utilities to `src/http/utils/`:
+     - `agentSetup.ts`, `messageConversion.ts`, `toolFormatting.ts`, `requestValidation.ts`
+     - `streaming.ts`, `responseFormatting.ts`, `continuation.ts`, `toolCostExtraction.ts`
+     - `responseStream.ts` → `responseStreamSetup.ts` (renamed to avoid conflict)
+   - Moved all test files to `src/http/utils/__tests__/agentUtils/`
+   - Updated all imports across the codebase (12+ files)
+
+7. **Express Handler Cleanup**:
+
+   - Removed `registerPostTestAgent` from Express app
+   - Old Express route handler deprecated (still exists but not registered)
+   - All test agent requests now go through unified streaming handler
+
+8. **Error Handling**:
+   - BYOK authentication error detection preserved
+   - Credit error handling with proper formatting
+   - Error responses include appropriate CORS headers based on endpoint type
+   - All error paths properly handled for both invocation methods
 
 **Files Created**:
-- `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/index.ts` - New streaming handler (1557 lines)
+
+- None (consolidated into existing unified handler)
 
 **Files Modified**:
-- None (new handler created, old Express handler remains as fallback)
+
+- `apps/backend/app.arc` - Removed `get /api/streams/url` route (now handled by catch-all `any /api/streams/*`)
+- `apps/backend/src/http/any-api-streams-catchall/index.ts` - Added URL endpoint handling with CloudFormation lookup, caching, and environment variable support; added `"url"` endpoint type; integrated URL endpoint into both Lambda Function URL and API Gateway paths
+- `apps/backend/src/http/any-api-streams-catchall/__tests__/handler.test.ts` - Added 10 tests for URL endpoint (environment variable, CloudFormation lookup, error handling, method validation); fixed cache clearing between tests using `vi.resetModules()` and dynamic imports
+- `apps/frontend/src/utils/api.ts` - Updated `getStreamUrl()` to call unified `/api/streams/url` endpoint
+- `docs/streaming-system.md` - Updated documentation to reflect URL endpoint consolidation
+
+**Files Removed**:
+
+- `apps/backend/src/http/get-api-streams-url/index.ts` - Handler functionality moved to unified handler
+- `apps/backend/src/http/get-api-streams-url/__tests__/handler.test.ts` - Tests moved to unified handler test file
+- `apps/backend/src/http/utils/agentSetup.ts` - Moved from old location, updated imports
+- `apps/backend/src/http/utils/messageConversion.ts` - Moved from old location, updated imports
+- `apps/backend/src/http/utils/toolFormatting.ts` - Moved from old location, updated imports
+- `apps/backend/src/http/utils/requestValidation.ts` - Moved from old location, updated imports
+- `apps/backend/src/http/utils/streaming.ts` - Moved from old location, updated imports
+- `apps/backend/src/http/utils/responseFormatting.ts` - Moved from old location, updated imports
+- `apps/backend/src/http/utils/continuation.ts` - Moved from old location, updated imports
+- `apps/backend/src/http/utils/toolCostExtraction.ts` - Moved from old location, updated imports
+- `apps/backend/src/http/utils/responseStreamSetup.ts` - Moved and renamed from old location, updated imports
+- `apps/backend/src/utils/messageTypes.ts` - Moved from old location (was `types.ts`)
+- `apps/backend/src/http/utils/__tests__/agentUtils/*.test.ts` - Moved all test files, updated imports
+- `apps/backend/src/http/any-api-workspaces-catchall/workspaces-app.ts` - Removed `registerPostTestAgent` registration
+- Updated 12+ files with new import paths for relocated utilities
+
+**Files Removed**:
+
+- `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/__tests__/` - Test files moved to new location
 
 **Configuration**:
-- Route: `POST /api/workspaces/:workspaceId/agents/:agentId/test`
-- Handler: Direct Lambda Function URL (not yet wired up in `app.arc`)
-- CORS: Uses `FRONTEND_URL` environment variable
-- Local Development: Mock implementation buffers chunks, returns complete response
 
-**Note**: The new streaming handler is created but not yet active. The route `any /api/workspaces/*` in `app.arc` still routes to the Express catch-all handler. To activate the new handler, either:
-1. Add specific route in `app.arc`: `post /api/workspaces/:workspaceId/agents/:agentId/test` with `@lambda-urls` pragma
-2. Or remove/disable the Express route for this endpoint
+- Route: `any /api/streams/*` (catch-all for all streaming endpoints)
+- Test endpoint: `/api/streams/:workspaceId/:agentId/test` (JWT auth, FRONTEND_URL CORS)
+- Stream endpoint: `/api/streams/:workspaceId/:agentId/:secret` (secret auth, agent config CORS)
+- URL endpoint: `/api/streams/url` (GET only, returns streaming Function URL, no auth required)
+- Handler: Unified Lambda handler supporting both Lambda Function URL and API Gateway
+- CORS: Conditional based on endpoint type
+- Local Development: Automatic detection, uses appropriate streaming method
+- URL Discovery: Supports `STREAMING_FUNCTION_URL` env var, CloudFormation stack outputs, with 5-minute cache TTL
 
-**Verification**: All tests passing (2076 tests), typecheck and lint clean ✅
+**Verification**: All tests passing (12 tests in unified handler, 2066+ total), typecheck and lint clean ✅
 
 **Previous Status**: Scrape Endpoint Lambda Function URL Conversion - Completed ✅
 
@@ -80,12 +124,14 @@
 **Recent Changes**:
 
 1. **Lambda Function URL Integration**:
+
    - Added `post /api/scrape` to `@lambda-urls` pragma in `app.arc`
    - Lambda Function URLs support up to 15 minutes (exceeds 6-minute Lambda timeout)
    - Created `ScrapeFunctionUrl` CloudFormation output (consistent with `StreamingFunctionUrl`)
    - Updated lambda-urls plugin to recognize scrape route and use clean output naming
 
 2. **Dynamic URL Discovery with Caching**:
+
    - Created `apps/backend/src/http/utils/scrapeUrl.ts` utility module
    - `getScrapeFunctionUrl()`: Main function with 5-minute cache TTL
    - `getScrapeFunctionUrlFromCloudFormation()`: Queries CloudFormation stack outputs
@@ -93,6 +139,7 @@
    - Graceful fallback to API Gateway URL if Function URL unavailable
 
 3. **Local Development Support**:
+
    - Automatically detects local sandbox (`ARC_ENV === "testing"`)
    - Bypasses Function URL discovery in local development
    - Uses API Gateway URL directly (`getApiBaseUrl() + "/api/scrape"`)
@@ -105,14 +152,17 @@
    - Tool automatically adapts to environment (Function URL in deployed, API Gateway in local)
 
 **Files Created**:
+
 - `apps/backend/src/http/utils/scrapeUrl.ts` - Function URL utility with caching and local dev support
 
 **Files Modified**:
+
 - `apps/backend/app.arc` - Added `post /api/scrape` to `@lambda-urls` pragma
 - `apps/backend/src/http/utils/tavilyTools.ts` - Updated to use `getScrapeFunctionUrl()`, removed unused `getApiBaseUrl()`
 - `apps/backend/src/plugins/lambda-urls/index.js` - Added special case for scrape route with `ScrapeFunctionUrl` output name
 
 **Configuration**:
+
 - Function URL Output: `ScrapeFunctionUrl` (CloudFormation output)
 - Cache TTL: 5 minutes (same as streaming URL)
 - Local Development: Uses API Gateway URL (`http://localhost:3333/api/scrape`)
@@ -131,6 +181,7 @@
 **Recent Changes**:
 
 1. **Puppeteer Scraping Endpoint**:
+
    - Created `POST /api/scrape` endpoint that accepts a URL and returns AOM as XML
    - Uses Puppeteer with headless Chrome to scrape web pages
    - Waits for client-side generated content (`networkidle2`)
@@ -142,6 +193,7 @@
    - Content loading strategy: waits for substantial content, scrolls to trigger lazy-loaded content, then extracts AOM
 
 2. **Stealth Plugin & Anti-Detection**:
+
    - Integrated `puppeteer-extra-plugin-stealth` with all evasions explicitly enabled
    - Verifies and logs all enabled evasions on startup
    - Uses Windows Chrome user agent (more common than Mac) for better stealth
@@ -149,6 +201,7 @@
    - Disabled site isolation to allow access to cross-origin iframes (needed for reCAPTCHA)
 
 3. **CAPTCHA Solving Integration**:
+
    - Integrated `puppeteer-extra-plugin-recaptcha` with 2Captcha provider
    - Automatically detects and solves reCAPTCHAs on main frame and all child frames
    - Supports Reddit's custom `reputation-recaptcha` element detection
@@ -157,48 +210,55 @@
    - API key configured via `TWOCAPTCHA_API_KEY` environment variable
 
 4. **Decodo Residential Proxy Integration**:
+
    - Randomly selects proxy URL from `DECODO_PROXY_URLS` environment variable (JSON array)
    - Proxy URLs formatted as `http://username:password@gate.decodo.com:port` (ports 10001-10010)
    - Extracts and validates proxy credentials from URL
    - Authenticates with proxy using Puppeteer's `page.authenticate()` method
 
 5. **Resource Blocking** (Currently Disabled):
+
    - Resource blocking temporarily disabled to ensure full page rendering for screenshots and AOM extraction
    - Previously blocked: images, CSS, fonts, media files, subframes, and known tracker domains
    - Can be re-enabled via `setupResourceBlocking()` function if needed
 
-4. **Docker Container Image**:
+6. **Docker Container Image**:
+
    - Created `apps/backend/docker/puppeteer/Dockerfile` for Lambda container image
    - Installs Chrome via `@puppeteer/browsers` for linux-arm64 architecture
    - Includes all required system dependencies for headless Chrome
    - Configured for 2048 MB memory limit
    - Image automatically built in CI/CD workflows
 
-5. **Authentication & Authorization**:
+7. **Authentication & Authorization**:
+
    - Validates encrypted JWT token from Authorization header
    - Extracts `workspaceId`, `agentId`, and `conversationId` from token payload
    - Uses `jwtDecrypt` from `jose` library for token decryption
    - Validates token issuer and audience
 
-6. **Workspace Credit Charging**:
+8. **Workspace Credit Charging**:
+
    - Charges 0.005 USD (5000 millionths) per successful scrape request
    - Uses workspace credit transaction system (only charges on success)
    - Transaction committed atomically at end of request via `handlingErrors` wrapper
    - Transaction includes workspaceId, agentId, conversationId, and URL in description
 
-7. **Error Handling & Monitoring**:
+9. **Error Handling & Monitoring**:
    - Reports server errors to Sentry with full context (handler, method, path, status code)
    - Flushes Sentry events before request completes (critical for Lambda)
    - Reports browser cleanup errors to Sentry
    - Comprehensive error handling with proper browser cleanup in finally block
 
 **Files Created**:
+
 - `apps/backend/src/http/post-api-scrape/index.ts` - Main endpoint handler
 - `apps/backend/src/http/post-api-scrape/__tests__/index.test.ts` - Unit tests
 - `apps/backend/docker/puppeteer/Dockerfile` - Docker container image
 - `apps/backend/docker/puppeteer/package.json` - Minimal runtime dependencies
 
 **Files Modified**:
+
 - `apps/backend/app.arc` - Added route and container image configuration
 - `apps/backend/src/http/post-api-scrape/config.arc` - Configured 6-minute Lambda timeout
 - `apps/backend/src/http/post-api-scrape/index.ts` - Main handler with stealth plugin, CAPTCHA solving, enhanced content extraction
@@ -212,6 +272,7 @@
 - `.github/workflows/deploy-prod.yml` - Added `DECODO_PROXY_URLS` and `TWOCAPTCHA_API_KEY` to environment variables
 
 **Configuration**:
+
 - Route: `POST /api/scrape`
 - Container Image: `puppeteer`
 - Memory: 2048 MB
@@ -239,6 +300,7 @@
    - Updated all documentation files (tavily-integration.md, agent-configuration.md, README.md)
 
 **Files Modified**:
+
 - `apps/backend/src/http/utils/tavilyTools.ts` - All tool references and error messages
 - `apps/backend/src/tables/schema.ts` - Schema comment
 - `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup.ts` - Tool registration
@@ -261,6 +323,7 @@
 **Previous Changes**:
 
 1. **Multi-Table Atomic Update API**:
+
    - Added `atomicUpdate` method to database object for multi-table transactions
    - Supports fetching multiple records, passing them to a callback function, and executing a DynamoDB transaction
    - Implements optimistic concurrency control with version number checks
@@ -269,6 +332,7 @@
    - Support for both create and update operations in the same transaction
 
 2. **Type Definitions**:
+
    - Added `RecordSpec` type for specifying records to fetch (table, pk, optional sk)
    - Added `AtomicUpdateRecordSpec` type (Map of record specs keyed by string identifiers)
    - Added `AtomicUpdateCallback` type for user-provided callback functions
@@ -276,6 +340,7 @@
    - Extended `DatabaseSchema` with `DatabaseSchemaWithAtomicUpdate` type
 
 3. **Implementation Details**:
+
    - Fetch phase: Retrieves all specified records (passes `undefined` if not found)
    - Callback phase: Calls user-provided function with Map of fetched records
    - Validation phase: Validates each returned record against its table schema
@@ -297,6 +362,7 @@
    - Non-conditional error handling
 
 **Files Modified**:
+
 - `apps/backend/src/tables/schema.ts` - Added type definitions (RecordSpec, AtomicUpdateRecordSpec, AtomicUpdateCallback, TableRecord, DatabaseSchemaWithAtomicUpdate)
 - `apps/backend/src/tables/database.ts` - Implemented atomicUpdate method with fetch, callback, validation, transaction building, and retry logic
 - `apps/backend/src/tables/__tests__/database.test.ts` - Created comprehensive test suite (12 tests)
@@ -310,6 +376,7 @@
 **Recent Changes**:
 
 1. **OpenRouter Cost Verification Retry Logic**:
+
    - Added exponential backoff retry mechanism to `fetchOpenRouterCost()` function
    - Configuration: Initial delay 500ms, max 3 retries (4 total attempts), max delay 5 seconds, multiplier 2x
    - Retries on: Server errors (5xx), rate limits (429), and network errors (fetch failures, connection refused, timeouts)
@@ -318,6 +385,7 @@
    - Comprehensive logging for each retry attempt with delay and error details
 
 2. **Error Handling Improvements**:
+
    - Changed `fetchOpenRouterCost()` return type from `Promise<number | null>` to `Promise<number>` - always returns cost or throws error
    - 404 errors now throw errors instead of returning null (cannot compute cost if generation not found)
    - Missing cost field in response now throws error instead of returning null (cannot compute cost without data)
@@ -332,6 +400,7 @@
    - All 1,835 tests passing
 
 **Files Modified**:
+
 - `apps/backend/src/queues/openrouter-cost-verification-queue/index.ts` - Added retry logic with exponential backoff, changed error handling to throw instead of return null
 - `apps/backend/src/queues/openrouter-cost-verification-queue/__tests__/index.test.ts` - Updated tests for new error-throwing behavior, added reservation mocks, fixed cost calculations
 - `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Fixed variable scope for openrouterGenerationIds
@@ -347,6 +416,7 @@
 **Previous Changes**:
 
 1. **Message Storage Simplification**:
+
    - Removed `toolCalls` and `toolResults` fields from `agent-conversations` schema
    - Tool calls and results are now stored only as messages within the `messages` array
    - Removed empty message filtering (keeps all messages including empty ones to prevent bugs)
@@ -354,7 +424,8 @@
    - Updated frontend types and UI components to remove references to deprecated fields
    - Updated database schema documentation
 
-2. **Tool Call Extraction from _steps**:
+2. **Tool Call Extraction from \_steps**:
+
    - Updated test endpoint to use `_steps` as source of truth for tool calls/results
    - When tools execute server-side, the AI SDK stores them in `result._steps.status.value`
    - Test endpoint now extracts from `_steps` first, falls back to direct properties if needed
@@ -362,6 +433,7 @@
    - Fixed issue where server-side tool executions weren't being recorded
 
 3. **Tool Call Duplication Fix**:
+
    - Fixed `expandMessagesWithToolCalls()` to prevent duplicate tool calls/results
    - Previously created separate messages AND kept original message with all content
    - Now creates separate messages for tool calls/results, and text-only message if text exists
@@ -376,9 +448,10 @@
    - Visual distinction between tool calls, tool results, and text content
 
 **Files Modified**:
+
 - `apps/backend/src/tables/schema.ts` - Removed toolCalls/toolResults from schema
 - `apps/backend/src/utils/conversationLogger.ts` - Removed filtering, fixed expandMessagesWithToolCalls duplication
-- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-test-agent.ts` - Extract from _steps, removed filtering
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-test-agent.ts` - Extract from \_steps, removed filtering
 - `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Removed filtering
 - `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Removed filtering
 - `apps/backend/src/http/utils/modelFactory.ts` - Added diagnostic logging for API key usage
@@ -394,18 +467,21 @@
 **Latest Fix**: Fixed Tavily extract API request format to use `urls` (array) instead of `url` (singular). The Tavily API requires `urls` as an array parameter, even for a single URL. Updated request body and response handling to support array responses.
 
 **Changes Made**:
+
 - Updated `tavilyExtract()` function in `apps/backend/src/utils/tavily.ts` to send `urls: [url]` instead of `url: url`
 - Added response handling to support both array and single object responses (extracts first element if array)
 - Updated tests to verify new request format and added test case for array response handling
 - All tests passing, typecheck and lint clean
 
 **Files Modified**:
+
 - `apps/backend/src/utils/tavily.ts` - Fixed request body to use `urls` array, added array response handling
 - `apps/backend/src/utils/__tests__/tavily.test.ts` - Updated tests to verify `urls` parameter and added array response test
 
 **Previous Status**: Tavily Integration with Comprehensive Test Coverage - Completed ✅
 
 **Changes Made**:
+
 - Integrated Tavily API as both search and fetch tools for agents
 - Implemented daily API call limits (10 calls/day for free tier, 10 free + pay-as-you-go for paid tiers)
 - Added credit-based billing system ($0.008 per API call = 8,000 millionths)
@@ -416,29 +492,34 @@
 **Key Features Implemented**:
 
 1. **Web Tools**:
+
    - `search_web`: Web search tool for finding current information, news, articles
    - `fetch_url`: Content extraction tool for extracting and summarizing web page content (supports Tavily and Jina.ai providers)
    - Both tools require agent-level configuration to enable
    - Cost: $0.008 per call for Tavily (first 10 calls/day free for paid tiers), Jina.ai is free
 
 2. **Daily Limits & Billing**:
+
    - Free tier: 10 calls per 24 hours (hard limit, requests blocked when exceeded)
    - Paid tiers: 10 free calls/day, then $0.008 per call (requires workspace credits)
    - Rolling 24-hour window tracking using hourly buckets in DynamoDB
    - Credit reservation and adjustment based on actual API usage
 
 3. **Request Tracking**:
+
    - `tavily-call-buckets` DynamoDB table with GSI for efficient queries
    - Hourly bucket tracking with 25-hour TTL for 24-hour window coverage
    - Functions: `incrementTavilyCallBucket()`, `getTavilyCallCountLast24Hours()`, `checkTavilyDailyLimit()`
 
 4. **Credit Management**:
+
    - `calculateTavilyCost()`: Cost calculation (8,000 millionths per call)
    - `reserveTavilyCredits()`: Credit reservation before API calls
    - `adjustTavilyCreditReservation()`: Adjustment based on actual usage from API response
    - `refundTavilyCredits()`: Automatic refund on API errors
 
 5. **Error Handling**:
+
    - Network errors retried with exponential backoff (max 3 retries)
    - Automatic credit refunds on API failures
    - Tracking failures logged but don't fail tool execution
@@ -450,6 +531,7 @@
    - Fixed state synchronization issues when navigating between agents
 
 **Files Created**:
+
 - `apps/backend/src/utils/tavily.ts` - Tavily API client with retry logic
 - `apps/backend/src/utils/tavilyCredits.ts` - Credit management utilities
 - `apps/backend/src/http/utils/tavilyTools.ts` - Tool creation functions
@@ -459,6 +541,7 @@
 - `docs/tavily-integration.md` - Comprehensive documentation
 
 **Files Modified**:
+
 - `esbuild-config.cjs` - Added `TAVILY_API_KEY` to environment variable injection
 - `apps/backend/app.arc` - Added `tavily-call-buckets` table and GSI
 - `apps/backend/src/config/pricing.json` - Added Tavily pricing ($0.008 per request)
@@ -476,6 +559,7 @@
 - `docs/agent-configuration.md` - Added Tavily tools section
 
 **PR Review Comments Addressed**:
+
 1. Fixed comment about atomicUpdate retry handling (clarified delegation)
 2. Fixed terminology confusion (credit vs Tavily API call) in comments and docs
 3. Fixed sleep function abort signal race condition in tavily.ts
@@ -485,6 +569,7 @@
 7. Fixed frontend state synchronization issues (removed inconsistent early return checks)
 
 **Test Coverage**:
+
 - 59 total tests across 3 test files
 - 11 tests for Tavily API client (search, extract, error handling, retries)
 - 15 tests for credit management (reservation, adjustment, refund, edge cases)
@@ -497,6 +582,7 @@
 **Previous Status**: Conversation Error Logging & UI Signals - Completed ✅
 
 **Changes Made**:
+
 - Added conversation-level error schema (message, stack, provider/model, endpoint, metadata) and serialization helpers.
 - Persist LLM/provider errors for stream/test/webhook endpoints even when calls fail; conversations now store errors alongside messages.
 - API responses expose error details and error flags; conversation list shows error badge, detail view shows full message/stack and metadata.
@@ -504,6 +590,7 @@
 - Added unit tests for error persistence; typecheck and lint pass.
 
 **Files Modified**:
+
 - `apps/backend/src/utils/conversationLogger.ts` - Added error info builder, error persistence in start/update.
 - `apps/backend/src/tables/schema.ts` - Added `error` field to `agent-conversations` schema.
 - `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Persist errors on stream failures.
@@ -523,6 +610,7 @@
 Fixed two critical issues in the cost verification and credit management system:
 
 1. **OpenRouter API Response Structure Fix**:
+
    - Fixed cost extraction from OpenRouter API response - was checking `data.data.data.total_cost` (three levels) but actual structure is `data.data.total_cost` (two levels)
    - Updated type definitions and cost extraction logic to match actual API response structure
    - Updated all test mocks to use correct two-level structure
@@ -537,6 +625,7 @@ Fixed two critical issues in the cost verification and credit management system:
    - Updated tests to reflect new behavior and added test for validation disabled but deduction enabled scenario
 
 **Changes Made**:
+
 - Fixed OpenRouter response parsing in `apps/backend/src/queues/openrouter-cost-verification-queue/index.ts`
 - Updated credit validation logic in `apps/backend/src/utils/creditValidation.ts` to separate validation from deduction
 - Added `isCreditDeductionEnabled` import and usage
@@ -544,6 +633,7 @@ Fixed two critical issues in the cost verification and credit management system:
 - Improved logging in cost verification queue and stream handler
 
 **Files Modified**:
+
 - `apps/backend/src/queues/openrouter-cost-verification-queue/index.ts` - Fixed response structure parsing, improved logging
 - `apps/backend/src/utils/creditValidation.ts` - Separated validation from deduction logic
 - `apps/backend/src/http/any-api-streams-000workspaceId-000agentId-000secret/index.ts` - Added logging for missing reservations
@@ -557,11 +647,13 @@ Fixed two critical issues in the cost verification and credit management system:
 Fixed cost display in the UI to always round up (never down) to ensure costs are never understated. Updated `formatCurrency()` function to use `Math.ceil()` instead of `toFixed()` which could round down.
 
 **Changes Made**:
+
 - Modified `formatCurrency()` in `apps/frontend/src/utils/currency.ts` to always round up using `Math.ceil()`
 - Applied to all cost displays across the UI (conversation costs, usage stats, credit balance, etc.)
 - Ensures users always see accurate costs that are never rounded down
 
 **Files Modified**:
+
 - `apps/frontend/src/utils/currency.ts` - Updated `formatCurrency()` to use `Math.ceil()` for rounding up
 
 **Verification**: Type checking and linting passed successfully
@@ -573,17 +665,20 @@ Implemented tracking of OpenRouter generation IDs on assistant messages and auto
 **Key Features Implemented**:
 
 1. **Generation ID Tracking**:
+
    - Extended `UIMessage` type to include `openrouterGenerationId` and `finalCostUsd` fields
    - Store generation ID on assistant messages when creating/updating conversations
    - Generation IDs are extracted from OpenRouter API responses and stored on messages
 
 2. **Cost Verification Queue Enhancement**:
+
    - Extended queue message schema to include optional `conversationId` and `agentId` for message updates
    - Queue processor finds messages by generation ID and updates them with `finalCostUsd`
    - Updates conversation-level `costUsd` to reflect final verified costs
    - Backward compatible (optional fields, graceful handling of missing data)
 
 3. **Cost Calculation Preference**:
+
    - `conversationLogger` now prefers `finalCostUsd` from messages when calculating total conversation cost
    - Falls back to calculated cost from `tokenUsage` when `finalCostUsd` not available
    - Supports mixing messages with and without final costs
@@ -615,6 +710,7 @@ Successfully integrated OpenRouter as the primary LLM provider while maintaining
 **Key Features Implemented**:
 
 1. **OpenRouter Integration**:
+
    - Added `@openrouter/ai-sdk-provider` package
    - Extended Provider type to include `"openrouter"` in both backend and frontend
    - Implemented OpenRouter model factory with auto-selection support (using `"auto"` model name)
@@ -623,6 +719,7 @@ Successfully integrated OpenRouter as the primary LLM provider while maintaining
    - Updated `/api/models` endpoint to include OpenRouter provider and models
 
 2. **3-Step Pricing Process**:
+
    - **Step 1**: Estimate cost and reserve credits from workspace balance
    - **Step 2**: Calculate actual cost based on token usage and adjust balance
    - **Step 3**: Background job queries OpenRouter API for actual cost and makes final adjustment
@@ -631,12 +728,14 @@ Successfully integrated OpenRouter as the primary LLM provider while maintaining
    - All costs use `Math.ceil()` for rounding to ensure we never undercharge
 
 3. **5.5% OpenRouter Markup**:
+
    - Applied 5.5% markup to all OpenRouter costs to account for credit purchase fee
    - Markup applied in `calculateTokenCost()` for steps 1 and 2
    - Markup applied in cost verification queue for step 3
    - Ensures accurate billing that covers OpenRouter's fees
 
 4. **BYOK (Bring Your Own Key) Support**:
+
    - OpenRouter BYOK keys can be stored and retrieved (code supports it)
    - When workspace has OpenRouter API key, it's used automatically and credit deduction is skipped
    - Provider-specific keys (Google, OpenAI, Anthropic) can be stored for direct provider access
@@ -739,6 +838,7 @@ Fixed three issues where the auto-merge workflow was not working correctly:
 3. **Default branch trigger**: The workflow was being triggered by workflow runs on the default branch (`main`), which don't have PRs to merge. Added early skip when head branch is the default branch to avoid unnecessary processing.
 
 **Changes**:
+
 - Removed `mergeable_state !== 'clean'` check from auto-merge workflow
 - Added `web-flow` to allowed committers (alongside Renovate bot identifiers)
 - Added early skip when workflow_run head branch is the default branch (no PRs to merge)
@@ -747,6 +847,7 @@ Fixed three issues where the auto-merge workflow was not working correctly:
 - Workflow now relies on: `mergeable === true`, all checks passed, Renovate bot author, only Renovate/web-flow commits
 
 **Files Modified**:
+
 - `.github/workflows/auto-merge.yml` - Removed redundant `mergeable_state` check, added `web-flow` to allowed committers, added default branch skip
 
 **Verification**: Type checking and linting passed (lint warnings are false positives about GitHub Actions context)

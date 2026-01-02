@@ -1,20 +1,39 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { APIGatewayProxyEventV2, Callback, Context } from "aws-lambda";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  createAPIGatewayEventV2,
+  createMockCallback,
+  createMockContext,
+} from "../../utils/__tests__/test-helpers";
+
+// Mock dependencies using vi.hoisted to ensure they're set up before imports
+const mockCloudFormationModule = vi.hoisted(() => {
+  const mockSend = vi.fn();
+  return {
+    mockCloudFormationSend: mockSend,
+    CloudFormationClientClass: class {
+      send = mockSend;
+    },
+    DescribeStacksCommandClass: class {
+      input: unknown;
+      constructor(input: unknown) {
+        this.input = input;
+      }
+    },
+  };
+});
 
 // Mock awslambda using vi.hoisted to ensure it's available before module imports
+// For URL endpoint tests, we want to test the API Gateway path, so we don't set up awslambda
 const { mockGetDefined, mockStreamifyResponse, mockHttpResponseStreamFrom } =
   vi.hoisted(() => {
     const mockStreamifyResponseFn = vi.fn((handler) => handler);
     const mockHttpResponseStreamFromFn = vi.fn((stream) => stream);
 
-    const mockAwslambdaObj = {
-      streamifyResponse: mockStreamifyResponseFn,
-      HttpResponseStream: {
-        from: mockHttpResponseStreamFromFn,
-      },
-    } as unknown as typeof global.awslambda;
-
-    // Set up global awslambda mock
-    global.awslambda = mockAwslambdaObj;
+    // Don't set up global awslambda for URL endpoint tests - we want to test API Gateway path
+    // Only set it up if needed for other tests
+    // global.awslambda = undefined; // Explicitly undefined for API Gateway tests
 
     return {
       mockStreamifyResponse: mockStreamifyResponseFn,
@@ -29,6 +48,15 @@ const { mockGetDefined, mockStreamifyResponse, mockHttpResponseStreamFrom } =
       }),
     };
   });
+
+// Mock CloudFormationClient
+vi.mock("@aws-sdk/client-cloudformation", () => ({
+  CloudFormationClient: mockCloudFormationModule.CloudFormationClientClass,
+  DescribeStacksCommand: mockCloudFormationModule.DescribeStacksCommandClass,
+}));
+
+// Export the mock send function for use in tests
+const { mockCloudFormationSend } = mockCloudFormationModule;
 
 // Mock all the complex dependencies
 vi.mock("../../tables", () => ({
@@ -151,14 +179,29 @@ vi.mock("@/utils", () => ({
   getDefined: mockGetDefined,
 }));
 
-// Import the handler after mocks are set up
-import { handler } from "../index";
+// Import handler dynamically to allow cache clearing between tests
+let handler: typeof import("../index")["handler"];
 
 describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     mockStreamifyResponse.mockImplementation((handler) => handler);
     mockHttpResponseStreamFrom.mockImplementation((stream) => stream);
+    mockCloudFormationSend.mockClear();
+    // Reset environment variables
+    delete process.env.STREAMING_FUNCTION_URL;
+    delete process.env.AWS_STACK_NAME;
+    delete process.env.ARC_STACK_NAME;
+    delete process.env.STACK_NAME;
+    // Ensure awslambda is undefined for API Gateway tests (URL endpoint tests)
+    // @ts-expect-error - We're explicitly setting it to undefined for testing
+    global.awslambda = undefined;
+    // Clear module cache to reset cachedFunctionUrl and cacheExpiry
+    // This is needed because the URL endpoint caches the Function URL
+    vi.resetModules();
+    // Re-import handler after resetting modules to get fresh cache state
+    const handlerModule = await import("../index");
+    handler = handlerModule.handler;
   });
 
   it("should export a handler function", () => {
@@ -176,5 +219,324 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
     // Verify streamifyResponse mock exists and is a function
     expect(mockStreamifyResponse).toBeDefined();
     expect(typeof mockStreamifyResponse).toBe("function");
+  });
+
+  describe("GET /api/streams/url endpoint", () => {
+    let mockContext: ReturnType<typeof createMockContext>;
+    let mockCallback: ReturnType<typeof createMockCallback>;
+
+    beforeEach(() => {
+      mockContext = createMockContext();
+      mockCallback = createMockCallback();
+    });
+
+    it("should return streaming function URL from environment variable", async () => {
+      process.env.STREAMING_FUNCTION_URL = "https://example.com/stream";
+
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+
+      const result = (await (
+        handler as (
+          event: APIGatewayProxyEventV2,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(200);
+      const body = JSON.parse(result.body);
+      expect(body.url).toBe("https://example.com/stream");
+      expect(mockCloudFormationSend).not.toHaveBeenCalled();
+    });
+
+    it("should normalize URL by removing trailing slash", async () => {
+      process.env.STREAMING_FUNCTION_URL = "https://example.com/stream/";
+
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+
+      const result = (await (
+        handler as (
+          event: APIGatewayProxyEventV2,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(200);
+      const body = JSON.parse(result.body);
+      expect(body.url).toBe("https://example.com/stream");
+    });
+
+    it("should return URL from CloudFormation stack output", async () => {
+      process.env.AWS_STACK_NAME = "test-stack";
+
+      const mockStackOutput = {
+        Stacks: [
+          {
+            Outputs: [
+              {
+                OutputKey: "StreamingFunctionUrl",
+                OutputValue: "https://stream.example.com",
+              },
+            ],
+          },
+        ],
+      };
+
+      mockCloudFormationSend.mockResolvedValue(mockStackOutput);
+
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+
+      const result = (await (
+        handler as (
+          event: APIGatewayProxyEventV2,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(200);
+      const body = JSON.parse(result.body);
+      expect(body.url).toBe("https://stream.example.com");
+      expect(mockCloudFormationSend).toHaveBeenCalled();
+    });
+
+    it("should use ARC_STACK_NAME if AWS_STACK_NAME is not set", async () => {
+      process.env.ARC_STACK_NAME = "arc-stack";
+
+      const mockStackOutput = {
+        Stacks: [
+          {
+            Outputs: [
+              {
+                OutputKey: "StreamingFunctionUrl",
+                OutputValue: "https://arc-stream.example.com",
+              },
+            ],
+          },
+        ],
+      };
+
+      mockCloudFormationSend.mockResolvedValue(mockStackOutput);
+
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+
+      const result = (await (
+        handler as (
+          event: APIGatewayProxyEventV2,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(200);
+      const body = JSON.parse(result.body);
+      expect(body.url).toBe("https://arc-stream.example.com");
+    });
+
+    it("should use STACK_NAME if other stack name env vars are not set", async () => {
+      process.env.STACK_NAME = "fallback-stack";
+
+      const mockStackOutput = {
+        Stacks: [
+          {
+            Outputs: [
+              {
+                OutputKey: "StreamingFunctionUrl",
+                OutputValue: "https://fallback-stream.example.com",
+              },
+            ],
+          },
+        ],
+      };
+
+      mockCloudFormationSend.mockResolvedValue(mockStackOutput);
+
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+
+      const result = (await (
+        handler as (
+          event: APIGatewayProxyEventV2,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(200);
+      const body = JSON.parse(result.body);
+      expect(body.url).toBe("https://fallback-stream.example.com");
+    });
+
+    it("should return 404 when no URL is found", async () => {
+      // No environment variables set
+      mockCloudFormationSend.mockResolvedValue({
+        Stacks: [
+          {
+            Outputs: [],
+          },
+        ],
+      });
+
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+
+      const result = (await (
+        handler as (
+          event: APIGatewayProxyEventV2,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(404);
+      const body = JSON.parse(result.body);
+      expect(body.error).toContain("Streaming function URL not configured");
+    });
+
+    it("should return 404 when stack name is not found", async () => {
+      // No stack name environment variables set
+
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+
+      const result = (await (
+        handler as (
+          event: APIGatewayProxyEventV2,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(404);
+      const body = JSON.parse(result.body);
+      expect(body.error).toContain("Streaming function URL not configured");
+      expect(mockCloudFormationSend).not.toHaveBeenCalled();
+    });
+
+    it("should return 404 when CloudFormation call fails", async () => {
+      process.env.AWS_STACK_NAME = "test-stack";
+      mockCloudFormationSend.mockRejectedValue(new Error("Stack not found"));
+
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+
+      const result = (await (
+        handler as (
+          event: APIGatewayProxyEventV2,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(404);
+      const body = JSON.parse(result.body);
+      expect(body.error).toContain("Streaming function URL not configured");
+    });
+
+    it("should return 404 when stack has no outputs", async () => {
+      process.env.AWS_STACK_NAME = "test-stack";
+      mockCloudFormationSend.mockResolvedValue({
+        Stacks: [{}],
+      });
+
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+
+      const result = (await (
+        handler as (
+          event: APIGatewayProxyEventV2,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(404);
+      const body = JSON.parse(result.body);
+      expect(body.error).toContain("Streaming function URL not configured");
+    });
+
+    it("should reject non-GET methods", async () => {
+      const event = createAPIGatewayEventV2({
+        routeKey: "POST /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+      // Override the method in requestContext
+      event.requestContext.http.method = "POST";
+
+      const result = (await (
+        handler as (
+          event: APIGatewayProxyEventV2,
+          context: Context,
+          callback: Callback
+        ) => Promise<unknown>
+      )(event, mockContext, mockCallback)) as {
+        statusCode: number;
+        headers: Record<string, string>;
+        body: string;
+      };
+
+      expect(result.statusCode).toBe(406);
+      const body = JSON.parse(result.body);
+      expect(body.error).toContain("Only GET method is allowed");
+    });
   });
 });
