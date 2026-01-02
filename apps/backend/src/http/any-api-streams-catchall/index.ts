@@ -1645,9 +1645,10 @@ async function buildRequestContext(
  * Internal handler function that processes the request for Lambda Function URL streaming
  * This is wrapped by awslambda.streamifyResponse for streaming support
  * With RESPONSE_STREAM mode, responseStream is already an HttpResponseStream
+ * Note: This can also receive API Gateway events when awslambda is available
  */
 const internalHandler = async (
-  event: LambdaUrlEvent,
+  event: LambdaUrlEvent | APIGatewayProxyEventV2,
   responseStream: HttpResponseStream
 ): Promise<void> => {
   const pathParams = extractPathParameters(event);
@@ -1655,10 +1656,19 @@ const internalHandler = async (
     throw notAcceptable("Invalid path parameters");
   }
 
+  // Normalize event to get HTTP method safely (handles both LambdaUrlEvent and APIGatewayProxyEventV2)
+  const httpV2Event =
+    "version" in event && event.version === "2.0"
+      ? (event as APIGatewayProxyEventV2)
+      : "rawPath" in event && "requestContext" in event
+        ? transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent)
+        : (event as APIGatewayProxyEventV2);
+  const httpMethod = httpV2Event.requestContext.http.method;
+
   // Handle URL endpoint (Function URL discovery) - returns JSON, not streaming
   if (pathParams.endpointType === "url") {
     // Only allow GET requests for URL endpoint
-    if (event.requestContext.http.method !== "GET") {
+    if (httpMethod !== "GET") {
       throw notAcceptable("Only GET method is allowed for /api/streams/url");
     }
 
@@ -1702,8 +1712,8 @@ const internalHandler = async (
 
   let context: StreamRequestContext | undefined;
 
-  // Extract requestId from event for context setup
-  const awsRequestId = event.requestContext?.requestId;
+  // Extract requestId from event for context setup (handles both event types)
+  const awsRequestId = httpV2Event.requestContext.requestId;
 
   // Create synthetic Lambda context for workspace credit transactions
   // streamifyResponse doesn't provide Context, so we create one
@@ -1745,7 +1755,7 @@ const internalHandler = async (
   }
 
   // Build CORS headers based on endpoint type
-  const origin = event.headers["origin"] || event.headers["Origin"];
+  const origin = httpV2Event.headers["origin"] || httpV2Event.headers["Origin"];
   const responseHeaders = getResponseHeaders(
     pathParams.endpointType,
     origin,
@@ -1762,7 +1772,7 @@ const internalHandler = async (
 
   try {
     // Handle OPTIONS preflight request
-    if (event.requestContext.http.method === "OPTIONS") {
+    if (httpV2Event.requestContext.http.method === "OPTIONS") {
       responseStream.write("");
       responseStream.end();
       return;
@@ -1771,23 +1781,23 @@ const internalHandler = async (
     // Extract and validate path parameters
     // Log the path for debugging
     console.log("[Stream Handler] Path extraction:", {
-      rawPath: event.rawPath,
-      path: event.requestContext?.http?.path,
-      method: event.requestContext?.http?.method,
+      rawPath: httpV2Event.rawPath,
+      path: httpV2Event.requestContext.http.path,
+      method: httpV2Event.requestContext.http.method,
       endpointType: pathParams.endpointType,
     });
 
     // Authenticate request based on endpoint type
     const authResult = await authenticateRequest(
       pathParams.endpointType,
-      event,
+      httpV2Event,
       pathParams.workspaceId,
       pathParams.agentId,
       pathParams.secret
     );
 
     // Build request context
-    context = await buildRequestContext(event, pathParams, authResult);
+    context = await buildRequestContext(httpV2Event, pathParams, authResult);
 
     console.log("[Stream Handler] Building request context...");
     console.log("[Stream Handler] Request context built successfully");

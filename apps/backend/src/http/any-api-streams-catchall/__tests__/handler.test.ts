@@ -607,5 +607,75 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       expect(body.url).toBe("https://example.com/stream");
       expect(mockCloudFormationSend).not.toHaveBeenCalled();
     });
+
+    it("should handle API Gateway event when awslambda is available (Function URL + API Gateway scenario)", async () => {
+      process.env.STREAMING_FUNCTION_URL = "https://example.com/stream";
+
+      // Simulate scenario where Lambda has both Function URL and API Gateway
+      // awslambda is available, but request comes through API Gateway
+      // Create a mock response stream for internalHandler
+      const mockResponseStream = {
+        write: vi.fn(),
+        end: vi.fn(),
+      };
+
+      // Mock streamifyResponse to call the handler with the response stream
+      mockStreamifyResponse.mockImplementation((handlerFn) => {
+        return async (event: unknown, responseStream: unknown) => {
+          // Call the internal handler directly with the event and response stream
+          await handlerFn(event, responseStream);
+        };
+      });
+
+      // Mock HttpResponseStream.from to return the mock stream
+      mockHttpResponseStreamFrom.mockReturnValue(mockResponseStream);
+
+      // Set up awslambda
+      // Using 'as any' to bypass type checking for test mock
+      global.awslambda = {
+        streamifyResponse: mockStreamifyResponse,
+        HttpResponseStream: {
+          from: mockHttpResponseStreamFrom,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any;
+
+      // Clear module cache and re-import to get handler with awslambda available
+      vi.resetModules();
+      const handlerModule = await import("../index");
+      const handlerWithAwslambda = handlerModule.handler;
+
+      // Create API Gateway event
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+
+      // When awslambda is available, streamifyResponse wraps internalHandler
+      // The wrapped handler signature is (event, responseStream), not (event, context, callback)
+      // So we need to call it with the event and a response stream
+      await (
+        handlerWithAwslambda as (
+          event: APIGatewayProxyEventV2,
+          responseStream: typeof mockResponseStream
+        ) => Promise<void>
+      )(event, mockResponseStream);
+
+      // Verify that the response stream was written to (internalHandler writes JSON response)
+      expect(mockResponseStream.write).toHaveBeenCalled();
+      expect(mockResponseStream.end).toHaveBeenCalled();
+
+      // Verify the written content contains the URL
+      const writeCalls = mockResponseStream.write.mock.calls;
+      const writtenContent = writeCalls.map((call) => call[0]).join("");
+      const parsedContent = JSON.parse(writtenContent);
+      expect(parsedContent.url).toBe("https://example.com/stream");
+      expect(mockCloudFormationSend).not.toHaveBeenCalled();
+
+      // Clean up - reset awslambda to undefined for other tests
+      // @ts-expect-error - We're explicitly setting it to undefined for testing
+      global.awslambda = undefined;
+    });
   });
 });
