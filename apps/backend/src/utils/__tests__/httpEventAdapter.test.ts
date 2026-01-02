@@ -1281,7 +1281,80 @@ describe("adaptHttpHandler", () => {
       });
     });
 
-    it("should handle path that doesn't match stream pattern", () => {
+    it("should extract path parameters from test agent route pattern", () => {
+      const lambdaEvent: LambdaUrlEvent = {
+        version: "2.0",
+        routeKey: "POST /api/workspaces/workspace-123/agents/agent-456/test",
+        rawPath: "/api/workspaces/workspace-123/agents/agent-456/test",
+        rawQueryString: "",
+        headers: {},
+        requestContext: {
+          http: {
+            method: "POST",
+            path: "/api/workspaces/workspace-123/agents/agent-456/test",
+            protocol: "HTTP/1.1",
+            sourceIp: "127.0.0.1",
+            userAgent: "test",
+          },
+          requestId: "test",
+          accountId: "",
+          apiId: "",
+          domainName: "",
+          domainPrefix: "",
+          stage: "",
+          time: "",
+          timeEpoch: 0,
+        },
+        body: "",
+        isBase64Encoded: false,
+      };
+
+      const result = transformLambdaUrlToHttpV2Event(lambdaEvent);
+
+      expect(result.pathParameters).toEqual({
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+      });
+    });
+
+    it("should handle stream route with secret containing slashes", () => {
+      const lambdaEvent: LambdaUrlEvent = {
+        version: "2.0",
+        routeKey: "POST /api/streams/workspace-123/agent-456/secret/with/slashes",
+        rawPath: "/api/streams/workspace-123/agent-456/secret/with/slashes",
+        rawQueryString: "",
+        headers: {},
+        requestContext: {
+          http: {
+            method: "POST",
+            path: "/api/streams/workspace-123/agent-456/secret/with/slashes",
+            protocol: "HTTP/1.1",
+            sourceIp: "127.0.0.1",
+            userAgent: "test",
+          },
+          requestId: "test",
+          accountId: "",
+          apiId: "",
+          domainName: "",
+          domainPrefix: "",
+          stage: "",
+          time: "",
+          timeEpoch: 0,
+        },
+        body: "",
+        isBase64Encoded: false,
+      };
+
+      const result = transformLambdaUrlToHttpV2Event(lambdaEvent);
+
+      expect(result.pathParameters).toEqual({
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        secret: "secret/with/slashes",
+      });
+    });
+
+    it("should handle path that doesn't match any known pattern", () => {
       const lambdaEvent: LambdaUrlEvent = {
         version: "2.0",
         routeKey: "GET /api/other/route",
@@ -1536,6 +1609,246 @@ describe("adaptHttpHandler", () => {
       expect(result.headers["content-type"]).toBe("application/json");
       expect(result.headers["x-undefined"]).toBeUndefined();
       expect(result.headers["x-empty"]).toBe("");
+    });
+
+    it("should construct routeKey from method and path when routeKey is missing", () => {
+      const lambdaEvent: LambdaUrlEvent = {
+        version: "2.0",
+        routeKey: "", // Missing routeKey
+        rawPath: "/api/workspaces/workspace-123/agents/agent-456/test",
+        rawQueryString: "",
+        headers: {},
+        requestContext: {
+          http: {
+            method: "POST",
+            path: "/api/workspaces/workspace-123/agents/agent-456/test",
+            protocol: "HTTP/1.1",
+            sourceIp: "127.0.0.1",
+            userAgent: "test",
+          },
+          requestId: "test",
+          accountId: "",
+          apiId: "",
+          domainName: "",
+          domainPrefix: "",
+          stage: "",
+          time: "",
+          timeEpoch: 0,
+        },
+        body: "",
+        isBase64Encoded: false,
+      };
+
+      const result = transformLambdaUrlToHttpV2Event(lambdaEvent);
+
+      expect(result.routeKey).toBe("POST /api/workspaces/workspace-123/agents/agent-456/test");
+    });
+  });
+
+  describe("adaptHttpHandler with Function URL events", () => {
+    it("should transform Function URL event to HTTP v2 format", async () => {
+      const mockHandler = vi.fn<APIGatewayProxyHandlerV2>().mockResolvedValue({
+        statusCode: 200,
+        body: "OK",
+      });
+
+      const lambdaEvent: LambdaUrlEvent = {
+        version: "2.0",
+        routeKey: "POST /api/workspaces/workspace-123/agents/agent-456/test",
+        rawPath: "/api/workspaces/workspace-123/agents/agent-456/test",
+        rawQueryString: "foo=bar",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer token123",
+          "Cookie": "session=abc123",
+        },
+        requestContext: {
+          http: {
+            method: "POST",
+            path: "/api/workspaces/workspace-123/agents/agent-456/test",
+            protocol: "HTTP/1.1",
+            sourceIp: "192.168.1.1",
+            userAgent: "test-agent/1.0",
+          },
+          requestId: "lambda-request-id",
+          accountId: "123456789012",
+          apiId: "lambda-url-api",
+          domainName: "abc123.lambda-url.eu-west-2.on.aws",
+          domainPrefix: "abc123",
+          stage: "$default",
+          time: "12/Mar/2024:19:03:58 +0000",
+          timeEpoch: 1710273838000,
+        },
+        body: JSON.stringify({ message: "test" }),
+        isBase64Encoded: false,
+      };
+
+      const adaptedHandler = adaptHttpHandler(mockHandler);
+      await adaptedHandler(lambdaEvent, mockContext, mockCallback);
+
+      expect(mockHandler).toHaveBeenCalledTimes(1);
+      const calledEvent = mockHandler.mock.calls[0][0] as APIGatewayProxyEventV2;
+
+      expect(calledEvent.version).toBe("2.0");
+      expect(calledEvent.routeKey).toBe("POST /api/workspaces/workspace-123/agents/agent-456/test");
+      expect(calledEvent.rawPath).toBe("/api/workspaces/workspace-123/agents/agent-456/test");
+      expect(calledEvent.rawQueryString).toBe("foo=bar");
+      expect(calledEvent.body).toBe(JSON.stringify({ message: "test" }));
+      expect(calledEvent.isBase64Encoded).toBe(false);
+      
+      // Headers should be normalized to lowercase
+      expect(calledEvent.headers["content-type"]).toBe("application/json");
+      expect(calledEvent.headers["authorization"]).toBe("Bearer token123");
+      expect(calledEvent.headers["cookie"]).toBeUndefined(); // Cookie header removed, converted to cookies array
+      
+      // Cookies should be extracted
+      expect(calledEvent.cookies).toEqual(["session=abc123"]);
+      
+      // Query string parameters should be parsed
+      expect(calledEvent.queryStringParameters).toEqual({ foo: "bar" });
+      
+      // Path parameters should be extracted
+      expect(calledEvent.pathParameters).toEqual({
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+      });
+      
+      // Request context should be preserved
+      expect(calledEvent.requestContext.requestId).toBe("lambda-request-id");
+      expect(calledEvent.requestContext.accountId).toBe("123456789012");
+      expect(calledEvent.requestContext.apiId).toBe("lambda-url-api");
+      expect(calledEvent.requestContext.http.method).toBe("POST");
+      expect(calledEvent.requestContext.http.sourceIp).toBe("192.168.1.1");
+    });
+
+    it("should handle Function URL event with stream route pattern", async () => {
+      const mockHandler = vi.fn<APIGatewayProxyHandlerV2>().mockResolvedValue({
+        statusCode: 200,
+        body: "OK",
+      });
+
+      const lambdaEvent: LambdaUrlEvent = {
+        version: "2.0",
+        routeKey: "POST /api/streams/workspace-123/agent-456/secret-789",
+        rawPath: "/api/streams/workspace-123/agent-456/secret-789",
+        rawQueryString: "",
+        headers: {},
+        requestContext: {
+          http: {
+            method: "POST",
+            path: "/api/streams/workspace-123/agent-456/secret-789",
+            protocol: "HTTP/1.1",
+            sourceIp: "127.0.0.1",
+            userAgent: "test",
+          },
+          requestId: "test",
+          accountId: "",
+          apiId: "",
+          domainName: "",
+          domainPrefix: "",
+          stage: "",
+          time: "",
+          timeEpoch: 0,
+        },
+        body: "",
+        isBase64Encoded: false,
+      };
+
+      const adaptedHandler = adaptHttpHandler(mockHandler);
+      await adaptedHandler(lambdaEvent, mockContext, mockCallback);
+
+      const calledEvent = mockHandler.mock.calls[0][0] as APIGatewayProxyEventV2;
+      expect(calledEvent.pathParameters).toEqual({
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+        secret: "secret-789",
+      });
+    });
+
+    it("should return handler result for Function URL events", async () => {
+      const expectedResult: APIGatewayProxyResultV2 = {
+        statusCode: 200,
+        body: "OK",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      };
+
+      const mockHandler = vi
+        .fn<APIGatewayProxyHandlerV2>()
+        .mockResolvedValue(expectedResult);
+
+      const lambdaEvent: LambdaUrlEvent = {
+        version: "2.0",
+        routeKey: "GET /test",
+        rawPath: "/test",
+        rawQueryString: "",
+        headers: {},
+        requestContext: {
+          http: {
+            method: "GET",
+            path: "/test",
+            protocol: "HTTP/1.1",
+            sourceIp: "127.0.0.1",
+            userAgent: "test",
+          },
+          requestId: "test",
+          accountId: "",
+          apiId: "",
+          domainName: "",
+          domainPrefix: "",
+          stage: "",
+          time: "",
+          timeEpoch: 0,
+        },
+        body: "",
+        isBase64Encoded: false,
+      };
+
+      const adaptedHandler = adaptHttpHandler(mockHandler);
+      const result = await adaptedHandler(lambdaEvent, mockContext, mockCallback);
+
+      expect(result).toEqual(expectedResult);
+    });
+
+    it("should propagate errors from handler for Function URL events", async () => {
+      const error = new Error("Handler error");
+      const mockHandler = vi
+        .fn<APIGatewayProxyHandlerV2>()
+        .mockRejectedValue(error);
+
+      const lambdaEvent: LambdaUrlEvent = {
+        version: "2.0",
+        routeKey: "GET /test",
+        rawPath: "/test",
+        rawQueryString: "",
+        headers: {},
+        requestContext: {
+          http: {
+            method: "GET",
+            path: "/test",
+            protocol: "HTTP/1.1",
+            sourceIp: "127.0.0.1",
+            userAgent: "test",
+          },
+          requestId: "test",
+          accountId: "",
+          apiId: "",
+          domainName: "",
+          domainPrefix: "",
+          stage: "",
+          time: "",
+          timeEpoch: 0,
+        },
+        body: "",
+        isBase64Encoded: false,
+      };
+
+      const adaptedHandler = adaptHttpHandler(mockHandler);
+
+      await expect(
+        adaptedHandler(lambdaEvent, mockContext, mockCallback)
+      ).rejects.toThrow("Handler error");
     });
   });
 });

@@ -50,7 +50,11 @@ import { asyncHandler, requireAuth, requirePermission } from "../middleware";
  * Sets CORS headers for the test agent endpoint
  * Uses FRONTEND_URL as the allowed origin
  */
-function setCorsHeaders(res: express.Response): void {
+function setCorsHeaders(
+  _req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+): void {
   const frontendUrl = process.env.FRONTEND_URL;
 
   // Always set Access-Control-Allow-Origin to FRONTEND_URL
@@ -66,6 +70,7 @@ function setCorsHeaders(res: express.Response): void {
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
   );
+  next();
 }
 
 async function persistConversationError(options: {
@@ -281,22 +286,20 @@ async function persistConversationError(options: {
 export const registerPostTestAgent = (app: express.Application) => {
   app.options(
     "/api/workspaces/:workspaceId/agents/:agentId/test",
+    setCorsHeaders,
     requireAuth,
     requirePermission(PERMISSION_LEVELS.READ),
     asyncHandler(async (req, res) => {
-      setCorsHeaders(res);
       res.status(200).end();
     })
   );
 
   app.post(
     "/api/workspaces/:workspaceId/agents/:agentId/test",
+    setCorsHeaders,
     requireAuth,
     requirePermission(PERMISSION_LEVELS.READ),
     asyncHandler(async (req, res) => {
-      // Set CORS headers first to ensure they're preserved throughout the request
-      setCorsHeaders(res);
-
       const { workspaceId, agentId } = req.params;
       const { messages } = req.body;
 
