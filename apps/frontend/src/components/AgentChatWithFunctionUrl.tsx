@@ -40,7 +40,10 @@ export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
 
   // Construct the full Function URL if available
   const functionUrl = testAgentUrlData?.url
-    ? `${testAgentUrlData.url.replace(/\/+$/, "")}/api/workspaces/${workspaceId}/agents/${agentId}/test`
+    ? `${testAgentUrlData.url.replace(
+        /\/+$/,
+        ""
+      )}/api/workspaces/${workspaceId}/agents/${agentId}/test`
     : undefined;
 
   // Show loading while fetching the Function URL
@@ -58,4 +61,3 @@ export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
     />
   );
 };
-

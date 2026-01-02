@@ -677,5 +677,147 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       // @ts-expect-error - We're explicitly setting it to undefined for testing
       global.awslambda = undefined;
     });
+
+    it("should handle API Gateway event with missing requestContext.http when awslambda is available", async () => {
+      process.env.STREAMING_FUNCTION_URL = "https://example.com/stream";
+
+      // Simulate scenario where API Gateway event has malformed structure
+      // (missing requestContext.http, which can happen with streamifyResponse)
+      const mockResponseStream = {
+        write: vi.fn(),
+        end: vi.fn(),
+      };
+
+      mockStreamifyResponse.mockImplementation((handlerFn) => {
+        return async (event: unknown, responseStream: unknown) => {
+          await handlerFn(event, responseStream);
+        };
+      });
+
+      mockHttpResponseStreamFrom.mockReturnValue(mockResponseStream);
+
+      // Set up awslambda
+      // Using 'as any' to bypass type checking for test mock
+      global.awslambda = {
+        streamifyResponse: mockStreamifyResponse,
+        HttpResponseStream: {
+          from: mockHttpResponseStreamFrom,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any;
+
+      // Clear module cache and re-import
+      vi.resetModules();
+      const handlerModule = await import("../index");
+      const handlerWithAwslambda = handlerModule.handler;
+
+      // Create API Gateway event with missing requestContext.http
+      // This simulates the malformed event structure that can occur
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+
+      // Remove requestContext.http to simulate the error condition
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (event as any).requestContext.http;
+
+      // Call handler - it should construct requestContext.http from available data
+      await (
+        handlerWithAwslambda as (
+          event: APIGatewayProxyEventV2,
+          responseStream: typeof mockResponseStream
+        ) => Promise<void>
+      )(event, mockResponseStream);
+
+      // Verify that the response stream was written to (handler should construct http and succeed)
+      expect(mockResponseStream.write).toHaveBeenCalled();
+      expect(mockResponseStream.end).toHaveBeenCalled();
+
+      // Verify the written content contains the URL
+      const writeCalls = mockResponseStream.write.mock.calls;
+      const writtenContent = writeCalls.map((call) => call[0]).join("");
+      const parsedContent = JSON.parse(writtenContent);
+      expect(parsedContent.url).toBe("https://example.com/stream");
+      expect(mockCloudFormationSend).not.toHaveBeenCalled();
+
+      // Clean up
+      // @ts-expect-error - We're explicitly setting it to undefined for testing
+      global.awslambda = undefined;
+    });
+
+    it("should handle API Gateway event with requestContext but no http property when awslambda is available", async () => {
+      process.env.STREAMING_FUNCTION_URL = "https://example.com/stream";
+
+      // Simulate scenario where requestContext exists but http property is missing
+      const mockResponseStream = {
+        write: vi.fn(),
+        end: vi.fn(),
+      };
+
+      mockStreamifyResponse.mockImplementation((handlerFn) => {
+        return async (event: unknown, responseStream: unknown) => {
+          await handlerFn(event, responseStream);
+        };
+      });
+
+      mockHttpResponseStreamFrom.mockReturnValue(mockResponseStream);
+
+      // Set up awslambda
+      // Using 'as any' to bypass type checking for test mock
+      global.awslambda = {
+        streamifyResponse: mockStreamifyResponse,
+        HttpResponseStream: {
+          from: mockHttpResponseStreamFrom,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any;
+
+      // Clear module cache and re-import
+      vi.resetModules();
+      const handlerModule = await import("../index");
+      const handlerWithAwslambda = handlerModule.handler;
+
+      // Create API Gateway event
+      const event = createAPIGatewayEventV2({
+        routeKey: "GET /api/streams/url",
+        rawPath: "/api/streams/url",
+      });
+
+      // Remove only the http property from requestContext (keep requestContext itself)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((event as any).requestContext) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        delete (event as any).requestContext.http;
+        // Add httpMethod to requestContext to test fallback extraction
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (event as any).requestContext.httpMethod = "GET";
+      }
+
+      // Call handler - it should construct requestContext.http from httpMethod
+      await (
+        handlerWithAwslambda as (
+          event: APIGatewayProxyEventV2,
+          responseStream: typeof mockResponseStream
+        ) => Promise<void>
+      )(event, mockResponseStream);
+
+      // Verify that the response stream was written to
+      expect(mockResponseStream.write).toHaveBeenCalled();
+      expect(mockResponseStream.end).toHaveBeenCalled();
+
+      // Verify the written content contains the URL
+      const writeCalls = mockResponseStream.write.mock.calls;
+      const writtenContent = writeCalls.map((call) => call[0]).join("");
+      const parsedContent = JSON.parse(writtenContent);
+      expect(parsedContent.url).toBe("https://example.com/stream");
+      expect(mockCloudFormationSend).not.toHaveBeenCalled();
+
+      // Clean up
+      // @ts-expect-error - We're explicitly setting it to undefined for testing
+      global.awslambda = undefined;
+    });
   });
 });

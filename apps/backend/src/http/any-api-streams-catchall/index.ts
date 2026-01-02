@@ -1657,12 +1657,107 @@ const internalHandler = async (
   }
 
   // Normalize event to get HTTP method safely (handles both LambdaUrlEvent and APIGatewayProxyEventV2)
-  const httpV2Event =
-    "version" in event && event.version === "2.0"
-      ? (event as APIGatewayProxyEventV2)
-      : "rawPath" in event && "requestContext" in event
-        ? transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent)
-        : (event as APIGatewayProxyEventV2);
+  // Check for requestContext.http first - this is the key property we need
+  let httpV2Event: APIGatewayProxyEventV2;
+  const eventWithContext = event as { requestContext?: { http?: { method?: string } } };
+  
+  if (eventWithContext.requestContext?.http?.method) {
+    // Event already has requestContext.http - use it directly or transform if needed
+    if ("version" in event && event.version === "2.0") {
+      // Already a properly formatted APIGatewayProxyEventV2
+      httpV2Event = event as APIGatewayProxyEventV2;
+    } else if ("rawPath" in event) {
+      // Lambda Function URL event - transform it
+      httpV2Event = transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent);
+    } else {
+      // Has requestContext.http but unclear format - try to use as-is
+      httpV2Event = event as APIGatewayProxyEventV2;
+    }
+  } else if ("version" in event && event.version === "2.0") {
+    // API Gateway event (has version 2.0) but missing requestContext.http
+    // This can happen with streamifyResponse - construct http from available data
+    httpV2Event = event as APIGatewayProxyEventV2;
+  } else if ("rawPath" in event && "requestContext" in event && (event as LambdaUrlEvent).requestContext?.http) {
+    // Lambda Function URL event with http property - transform it
+    httpV2Event = transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent);
+  } else {
+    // Fallback: try to use as-is, but log for debugging
+    console.error("[internalHandler] Unexpected event structure:", {
+      hasVersion: "version" in event,
+      version: "version" in event ? (event as { version?: string }).version : undefined,
+      hasRequestContext: "requestContext" in event,
+      hasRawPath: "rawPath" in event,
+      requestContextKeys: "requestContext" in event ? Object.keys((event as { requestContext?: unknown }).requestContext || {}) : [],
+      eventKeys: Object.keys(event),
+    });
+    // Try to cast as APIGatewayProxyEventV2 as last resort
+    httpV2Event = event as APIGatewayProxyEventV2;
+  }
+  
+  // Safety check: ensure requestContext.http exists, construct if missing
+  if (!httpV2Event.requestContext?.http) {
+    // Try to construct requestContext.http from available data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const eventAny = event as any;
+    if (eventAny.requestContext) {
+      // Try to extract method from various possible locations
+      const method =
+        eventAny.requestContext.http?.method ||
+        eventAny.requestContext.httpMethod ||
+        eventAny.httpMethod ||
+        eventAny.method ||
+        "GET"; // Default to GET for URL endpoint
+      
+      const path =
+        eventAny.requestContext.http?.path ||
+        eventAny.requestContext.path ||
+        eventAny.path ||
+        httpV2Event.rawPath ||
+        "/";
+      
+      // Construct requestContext.http if missing
+      if (!httpV2Event.requestContext) {
+        httpV2Event.requestContext = {
+          accountId: eventAny.requestContext?.accountId || "",
+          apiId: eventAny.requestContext?.apiId || "",
+          domainName: eventAny.requestContext?.domainName || "",
+          domainPrefix: eventAny.requestContext?.domainPrefix || "",
+          http: {
+            method: method,
+            path: path,
+            protocol: eventAny.requestContext.http?.protocol || "HTTP/1.1",
+            sourceIp: eventAny.requestContext.http?.sourceIp || eventAny.requestContext?.identity?.sourceIp || "",
+            userAgent: eventAny.requestContext.http?.userAgent || eventAny.requestContext?.identity?.userAgent || "",
+          },
+          requestId: eventAny.requestContext?.requestId || "",
+          routeKey: eventAny.requestContext?.routeKey || `${method} ${path}`,
+          stage: eventAny.requestContext?.stage || "$default",
+          time: eventAny.requestContext?.time || new Date().toISOString(),
+          timeEpoch: eventAny.requestContext?.timeEpoch || Date.now(),
+        };
+      } else {
+        // requestContext exists but http is missing - add it
+        httpV2Event.requestContext.http = {
+          method: method,
+          path: path,
+          protocol: eventAny.requestContext.http?.protocol || "HTTP/1.1",
+          sourceIp: eventAny.requestContext.http?.sourceIp || eventAny.requestContext?.identity?.sourceIp || "",
+          userAgent: eventAny.requestContext.http?.userAgent || eventAny.requestContext?.identity?.userAgent || "",
+        };
+      }
+    } else {
+      console.error("[internalHandler] Invalid event structure after normalization:", {
+        hasRequestContext: !!httpV2Event.requestContext,
+        requestContextKeys: httpV2Event.requestContext ? Object.keys(httpV2Event.requestContext) : [],
+        hasVersion: "version" in httpV2Event,
+        version: "version" in httpV2Event ? httpV2Event.version : undefined,
+        eventKeys: Object.keys(httpV2Event),
+        originalEventKeys: Object.keys(event),
+      });
+      throw new Error("Invalid event structure: requestContext.http is missing and cannot be constructed");
+    }
+  }
+  
   const httpMethod = httpV2Event.requestContext.http.method;
 
   // Handle URL endpoint (Function URL discovery) - returns JSON, not streaming
