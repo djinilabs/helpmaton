@@ -279,22 +279,14 @@ async function persistConversationError(options: {
  *         $ref: '#/components/responses/InternalServerError'
  */
 export const registerPostTestAgent = (app: express.Application) => {
-  // Handle OPTIONS preflight requests for CORS
   app.options(
     "/api/workspaces/:workspaceId/agents/:agentId/test",
-    (req, res) => {
-      console.log(
-        "[Agent Test Handler] OPTIONS request - setting CORS headers:",
-        {
-          frontendUrl: process.env.FRONTEND_URL,
-        }
-      );
-
+    requireAuth,
+    requirePermission(PERMISSION_LEVELS.READ),
+    asyncHandler(async (req, res) => {
       setCorsHeaders(res);
-      res.setHeader("Access-Control-Max-Age", "86400"); // 24 hours
-
-      res.status(204).end();
-    }
+      res.status(200).end();
+    })
   );
 
   app.post(
@@ -302,7 +294,7 @@ export const registerPostTestAgent = (app: express.Application) => {
     requireAuth,
     requirePermission(PERMISSION_LEVELS.READ),
     asyncHandler(async (req, res) => {
-      // Set CORS headers at the beginning of the request
+      // Set CORS headers first to ensure they're preserved throughout the request
       setCorsHeaders(res);
 
       const { workspaceId, agentId } = req.params;
@@ -592,12 +584,92 @@ export const registerPostTestAgent = (app: express.Application) => {
         throw new Error("Stream response body is null");
       }
 
+      const decoder = new TextDecoder();
+      let streamBuffer = "";
+
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           if (value) {
             chunks.push(value);
+
+            // Decode and check for error messages in the stream (for BYOK errors)
+            if (usesByok) {
+              const chunk = decoder.decode(value, { stream: true });
+              streamBuffer += chunk;
+
+              // Check if we have a complete line with an error
+              if (streamBuffer.includes("\n")) {
+                const lines = streamBuffer.split("\n");
+                streamBuffer = lines.pop() || ""; // Keep incomplete line
+
+                for (const line of lines) {
+                  if (line.startsWith("data: ")) {
+                    try {
+                      const jsonStr = line.substring(6);
+                      const parsed = JSON.parse(jsonStr);
+                      // Check for error messages in the stream
+                      if (parsed.type === "error" || parsed.error) {
+                        const errorMessage = parsed.error || parsed.message;
+                        if (errorMessage && typeof errorMessage === "string") {
+                          // Check if it's an authentication error
+                          if (
+                            errorMessage.toLowerCase().includes("api key") ||
+                            errorMessage
+                              .toLowerCase()
+                              .includes("authentication") ||
+                            errorMessage
+                              .toLowerCase()
+                              .includes("unauthorized") ||
+                            errorMessage.toLowerCase().includes("cookie auth")
+                          ) {
+                            console.log(
+                              "[Agent Test Handler] Found authentication error in stream body:",
+                              errorMessage
+                            );
+                            // Create an error object with the message from the stream
+                            const streamError = new Error(errorMessage);
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (streamError as any).data = {
+                              error: {
+                                message: errorMessage,
+                                code: parsed.code || 401,
+                              },
+                            };
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            (streamError as any).statusCode =
+                              parsed.code || 401;
+
+                            await persistConversationError({
+                              db,
+                              workspaceId,
+                              agentId,
+                              conversationId,
+                              messages: convertedMessages,
+                              usesByok,
+                              finalModelName,
+                              error: streamError,
+                              awsRequestId:
+                                typeof awsRequestId === "string"
+                                  ? awsRequestId
+                                  : undefined,
+                            });
+
+                            return res.status(400).json({
+                              error:
+                                "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+                            });
+                          }
+                        }
+                      }
+                    } catch {
+                      // Not JSON or parsing failed, continue
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       } catch (streamError) {
@@ -639,6 +711,7 @@ export const registerPostTestAgent = (app: express.Application) => {
             error: streamError, // This is the original AI_APICallError with data.error.message
           });
 
+          // Return specific error message for BYOK authentication issues
           return res.status(400).json({
             error:
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
@@ -651,8 +724,84 @@ export const registerPostTestAgent = (app: express.Application) => {
         reader.releaseLock();
       }
 
-      // Convert chunks to a single buffer
-      const body = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)));
+      // Combine all chunks into a single buffer
+      const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+      const combined = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        combined.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      const body = new TextDecoder().decode(combined);
+
+      // Check the decoded stream body for error messages (for BYOK errors)
+      if (usesByok && body) {
+        const lines = body.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const jsonStr = line.substring(6);
+              const parsed = JSON.parse(jsonStr);
+              // Check for error messages in the stream
+              if (parsed.type === "error" || parsed.error) {
+                const errorMessage = parsed.error || parsed.message;
+                if (errorMessage && typeof errorMessage === "string") {
+                  // Check if it's an authentication error
+                  if (
+                    errorMessage.toLowerCase().includes("api key") ||
+                    errorMessage.toLowerCase().includes("authentication") ||
+                    errorMessage.toLowerCase().includes("unauthorized") ||
+                    errorMessage.toLowerCase().includes("cookie auth")
+                  ) {
+                    console.log(
+                      "[Agent Test Handler] Found authentication error in decoded stream body:",
+                      errorMessage
+                    );
+                    // Create an error object with the message from the stream
+                    const streamError = new Error(errorMessage);
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (streamError as any).data = {
+                      error: {
+                        message: errorMessage,
+                        code: parsed.code || 401,
+                      },
+                    };
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (streamError as any).statusCode = parsed.code || 401;
+
+                    await persistConversationError({
+                      db,
+                      workspaceId,
+                      agentId,
+                      conversationId,
+                      messages: convertedMessages,
+                      usesByok,
+                      finalModelName,
+                      error: streamError,
+                      awsRequestId:
+                        typeof awsRequestId === "string"
+                          ? awsRequestId
+                          : undefined,
+                    });
+
+                    return res.status(400).json({
+                      error:
+                        "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
+                    });
+                  }
+                }
+              }
+            } catch {
+              // Not JSON or parsing failed, continue
+            }
+          }
+        }
+      }
+
+      // // Convert UI message stream format to data stream format expected by useChat
+      // // toUIMessageStreamResponse() returns SSE format with UI message chunks
+      // // useChat expects data stream format: 0:${JSON.stringify(text)}\n or 1:${JSON.stringify(toolCall)}\n
       // const lines = body.split("\n");
       // const dataStreamLines: string[] = [];
 
@@ -1313,19 +1462,12 @@ export const registerPostTestAgent = (app: express.Application) => {
       // where each event is separated by two newlines
       const responseHeaders = streamResponse.headers;
       for (const [key, value] of responseHeaders.entries()) {
-        // Skip CORS headers - they're already set at the beginning
-        if (
-          key.toLowerCase() !== "access-control-allow-origin" &&
-          key.toLowerCase() !== "access-control-allow-methods" &&
-          key.toLowerCase() !== "access-control-allow-headers"
-        ) {
-          res.setHeader(key, value);
-        }
+        res.setHeader(key, value);
       }
 
-      // Set status code and send the buffered body
-      res.status(streamResponse.status);
-      res.send(body);
+      console.log("[Agent Test Handler] Response body:", body);
+
+      res.status(streamResponse.status).send(body);
     })
   );
 };
