@@ -88,6 +88,7 @@ import {
   useDeleteStreamServer,
 } from "../hooks/useStreamServer";
 import { useStreamUrl } from "../hooks/useStreamUrl";
+import { useToast } from "../hooks/useToast";
 import { useAgentUsage, useAgentDailyUsage } from "../hooks/useUsage";
 import { useWorkspace } from "../hooks/useWorkspaces";
 import type { ClientTool, Conversation } from "../utils/api";
@@ -197,7 +198,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   const createStreamServer = useCreateStreamServer(workspaceId, agentId);
   const updateStreamServer = useUpdateStreamServer(workspaceId, agentId);
   const deleteStreamServer = useDeleteStreamServer(workspaceId, agentId);
-  const { data: streamUrlData } = useStreamUrl();
+  const { data: streamUrlData, error: streamUrlError } = useStreamUrl();
 
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -220,8 +221,22 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
 
   const { expandedSection, toggleSection } = useAccordion("agent-detail");
   const [chatClearKey, setChatClearKey] = useState(0);
+  const toast = useToast();
 
   useEscapeKey(isStreamTestModalOpen, () => setIsStreamTestModalOpen(false));
+
+  // Display error toast when stream URL fetch fails (non-404 errors)
+  useEffect(() => {
+    if (streamUrlError) {
+      const errorMessage =
+        streamUrlError instanceof Error
+          ? streamUrlError.message
+          : "Failed to fetch streaming function URL";
+      toast.error(
+        `Unable to fetch streaming function URL: ${errorMessage}. Stream server features may be unavailable.`
+      );
+    }
+  }, [streamUrlError, toast]);
 
   const canEdit = !!(
     workspace.permissionLevel &&

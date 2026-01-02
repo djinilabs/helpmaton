@@ -1,6 +1,7 @@
-import type { FC } from "react";
+import { useEffect, type FC } from "react";
 
 import { useTestAgentUrl } from "../hooks/useTestAgentUrl";
+import { useToast } from "../hooks/useToast";
 
 import { AgentChat } from "./AgentChat";
 import { LoadingScreen } from "./LoadingScreen";
@@ -21,7 +22,21 @@ export const AgentChatWithFunctionUrl: FC<AgentChatWithFunctionUrlProps> = ({
   agentId,
   onClear,
 }) => {
-  const { data: testAgentUrlData, isLoading } = useTestAgentUrl();
+  const toast = useToast();
+  const { data: testAgentUrlData, isLoading, error } = useTestAgentUrl();
+
+  // Display error toast when stream URL fetch fails (non-404 errors)
+  useEffect(() => {
+    if (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch streaming function URL";
+      toast.error(
+        `Unable to connect to streaming service: ${errorMessage}. Falling back to API Gateway.`
+      );
+    }
+  }, [error, toast]);
 
   // Construct the full Function URL if available
   const functionUrl = testAgentUrlData?.url
