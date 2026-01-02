@@ -6,13 +6,7 @@ import {
   CloudFormationClient,
   DescribeStacksCommand,
 } from "@aws-sdk/client-cloudformation";
-import {
-  badRequest,
-  boomify,
-  forbidden,
-  notAcceptable,
-  unauthorized,
-} from "@hapi/boom";
+import { badRequest, boomify, forbidden, unauthorized } from "@hapi/boom";
 import type { ModelMessage } from "ai";
 import { convertToModelMessages, streamText } from "ai";
 import type {
@@ -444,11 +438,11 @@ function extractPathParameters(
     "version" in event && event.version === "2.0"
       ? (event as APIGatewayProxyEventV2)
       : "rawPath" in event && "requestContext" in event
-        ? transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent)
-        : (event as APIGatewayProxyEventV2);
+      ? transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent)
+      : (event as APIGatewayProxyEventV2);
 
   let rawPath = httpV2Event.rawPath || "";
-  
+
   // For API Gateway catchall routes, the path might be in pathParameters.proxy
   // Reconstruct the full path if rawPath is empty or doesn't start with /api/streams
   if (!rawPath || !rawPath.startsWith("/api/streams")) {
@@ -458,7 +452,7 @@ function extractPathParameters(
       rawPath = `/api/streams/${proxy}`;
     }
   }
-  
+
   const normalizedPath = rawPath.replace(/^\/+/, "/");
 
   // Detect endpoint type
@@ -1664,15 +1658,32 @@ const internalHandler = async (
 
   const pathParams = extractPathParameters(normalizedEvent);
   if (!pathParams) {
-    throw notAcceptable("Invalid path parameters");
+    // Wrap stream with error headers before throwing/writing error
+    responseStream = getDefined(
+      awslambda,
+      "awslambda is not defined"
+    ).HttpResponseStream.from(responseStream, {
+      statusCode: 406,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    const errorResponse = JSON.stringify({
+      error: "Invalid path parameters",
+    });
+    responseStream.write(errorResponse);
+    responseStream.end();
+    return;
   }
 
   // Normalize event to get HTTP method safely (handles LambdaUrlEvent, APIGatewayProxyEventV2, and APIGatewayProxyEvent)
   // At this point, normalizedEvent is either LambdaUrlEvent or APIGatewayProxyEventV2 (REST events already transformed)
   // Check for requestContext.http first - this is the key property we need
   let httpV2Event: APIGatewayProxyEventV2;
-  const eventWithContext = normalizedEvent as { requestContext?: { http?: { method?: string } } };
-  
+  const eventWithContext = normalizedEvent as {
+    requestContext?: { http?: { method?: string } };
+  };
+
   if (eventWithContext.requestContext?.http?.method) {
     // Event already has requestContext.http - use it directly or transform if needed
     if ("version" in normalizedEvent && normalizedEvent.version === "2.0") {
@@ -1680,32 +1691,52 @@ const internalHandler = async (
       httpV2Event = normalizedEvent as APIGatewayProxyEventV2;
     } else if ("rawPath" in normalizedEvent) {
       // Lambda Function URL event - transform it
-      httpV2Event = transformLambdaUrlToHttpV2Event(normalizedEvent as LambdaUrlEvent);
+      httpV2Event = transformLambdaUrlToHttpV2Event(
+        normalizedEvent as LambdaUrlEvent
+      );
     } else {
       // Has requestContext.http but unclear format - try to use as-is
       httpV2Event = normalizedEvent as APIGatewayProxyEventV2;
     }
-  } else if ("version" in normalizedEvent && normalizedEvent.version === "2.0") {
+  } else if (
+    "version" in normalizedEvent &&
+    normalizedEvent.version === "2.0"
+  ) {
     // API Gateway event (has version 2.0) but missing requestContext.http
     // This can happen with streamifyResponse - construct http from available data
     httpV2Event = normalizedEvent as APIGatewayProxyEventV2;
-  } else if ("rawPath" in normalizedEvent && "requestContext" in normalizedEvent && (normalizedEvent as LambdaUrlEvent).requestContext?.http) {
+  } else if (
+    "rawPath" in normalizedEvent &&
+    "requestContext" in normalizedEvent &&
+    (normalizedEvent as LambdaUrlEvent).requestContext?.http
+  ) {
     // Lambda Function URL event with http property - transform it
-    httpV2Event = transformLambdaUrlToHttpV2Event(normalizedEvent as LambdaUrlEvent);
+    httpV2Event = transformLambdaUrlToHttpV2Event(
+      normalizedEvent as LambdaUrlEvent
+    );
   } else {
     // Fallback: try to use as-is, but log for debugging
     console.error("[internalHandler] Unexpected event structure:", {
       hasVersion: "version" in normalizedEvent,
-      version: "version" in normalizedEvent ? (normalizedEvent as { version?: string }).version : undefined,
+      version:
+        "version" in normalizedEvent
+          ? (normalizedEvent as { version?: string }).version
+          : undefined,
       hasRequestContext: "requestContext" in normalizedEvent,
       hasRawPath: "rawPath" in normalizedEvent,
-      requestContextKeys: "requestContext" in normalizedEvent ? Object.keys((normalizedEvent as { requestContext?: unknown }).requestContext || {}) : [],
+      requestContextKeys:
+        "requestContext" in normalizedEvent
+          ? Object.keys(
+              (normalizedEvent as { requestContext?: unknown })
+                .requestContext || {}
+            )
+          : [],
       eventKeys: Object.keys(normalizedEvent),
     });
     // Try to cast as APIGatewayProxyEventV2 as last resort
     httpV2Event = normalizedEvent as APIGatewayProxyEventV2;
   }
-  
+
   // Safety check: ensure requestContext.http exists, construct if missing
   if (!httpV2Event.requestContext?.http) {
     // Try to construct requestContext.http from available data
@@ -1719,14 +1750,14 @@ const internalHandler = async (
         eventAny.httpMethod ||
         eventAny.method ||
         "GET"; // Default to GET for URL endpoint
-      
+
       const path =
         eventAny.requestContext.http?.path ||
         eventAny.requestContext.path ||
         eventAny.path ||
         httpV2Event.rawPath ||
         "/";
-      
+
       // Construct requestContext.http if missing
       if (!httpV2Event.requestContext) {
         httpV2Event.requestContext = {
@@ -1738,8 +1769,14 @@ const internalHandler = async (
             method: method,
             path: path,
             protocol: eventAny.requestContext.http?.protocol || "HTTP/1.1",
-            sourceIp: eventAny.requestContext.http?.sourceIp || eventAny.requestContext?.identity?.sourceIp || "",
-            userAgent: eventAny.requestContext.http?.userAgent || eventAny.requestContext?.identity?.userAgent || "",
+            sourceIp:
+              eventAny.requestContext.http?.sourceIp ||
+              eventAny.requestContext?.identity?.sourceIp ||
+              "",
+            userAgent:
+              eventAny.requestContext.http?.userAgent ||
+              eventAny.requestContext?.identity?.userAgent ||
+              "",
           },
           requestId: eventAny.requestContext?.requestId || "",
           routeKey: eventAny.requestContext?.routeKey || `${method} ${path}`,
@@ -1753,30 +1790,58 @@ const internalHandler = async (
           method: method,
           path: path,
           protocol: eventAny.requestContext.http?.protocol || "HTTP/1.1",
-          sourceIp: eventAny.requestContext.http?.sourceIp || eventAny.requestContext?.identity?.sourceIp || "",
-          userAgent: eventAny.requestContext.http?.userAgent || eventAny.requestContext?.identity?.userAgent || "",
+          sourceIp:
+            eventAny.requestContext.http?.sourceIp ||
+            eventAny.requestContext?.identity?.sourceIp ||
+            "",
+          userAgent:
+            eventAny.requestContext.http?.userAgent ||
+            eventAny.requestContext?.identity?.userAgent ||
+            "",
         };
       }
     } else {
-      console.error("[internalHandler] Invalid event structure after normalization:", {
-        hasRequestContext: !!httpV2Event.requestContext,
-        requestContextKeys: httpV2Event.requestContext ? Object.keys(httpV2Event.requestContext) : [],
-        hasVersion: "version" in httpV2Event,
-        version: "version" in httpV2Event ? httpV2Event.version : undefined,
-        eventKeys: Object.keys(httpV2Event),
-        originalEventKeys: Object.keys(event),
-      });
-      throw new Error("Invalid event structure: requestContext.http is missing and cannot be constructed");
+      console.error(
+        "[internalHandler] Invalid event structure after normalization:",
+        {
+          hasRequestContext: !!httpV2Event.requestContext,
+          requestContextKeys: httpV2Event.requestContext
+            ? Object.keys(httpV2Event.requestContext)
+            : [],
+          hasVersion: "version" in httpV2Event,
+          version: "version" in httpV2Event ? httpV2Event.version : undefined,
+          eventKeys: Object.keys(httpV2Event),
+          originalEventKeys: Object.keys(event),
+        }
+      );
+      throw new Error(
+        "Invalid event structure: requestContext.http is missing and cannot be constructed"
+      );
     }
   }
-  
+
   const httpMethod = httpV2Event.requestContext.http.method;
 
   // Handle URL endpoint (Function URL discovery) - returns JSON, not streaming
   if (pathParams.endpointType === "url") {
     // Only allow GET requests for URL endpoint
     if (httpMethod !== "GET") {
-      throw notAcceptable("Only GET method is allowed for /api/streams/url");
+      // Wrap stream with error headers before writing error
+      responseStream = getDefined(
+        awslambda,
+        "awslambda is not defined"
+      ).HttpResponseStream.from(responseStream, {
+        statusCode: 406,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      const errorResponse = JSON.stringify({
+        error: "Only GET method is allowed for /api/streams/url",
+      });
+      responseStream.write(errorResponse);
+      responseStream.end();
+      return;
     }
 
     console.log("[streams-handler] Handler invoked for URL endpoint");
@@ -1791,6 +1856,18 @@ const internalHandler = async (
     );
 
     const streamingFunctionUrl = await getStreamingFunctionUrl();
+
+    // Wrap response stream with headers before writing
+    // This is required for Lambda Function URLs in RESPONSE_STREAM mode
+    responseStream = getDefined(
+      awslambda,
+      "awslambda is not defined"
+    ).HttpResponseStream.from(responseStream, {
+      statusCode: streamingFunctionUrl ? 200 : 404,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     if (!streamingFunctionUrl) {
       console.error(
@@ -2171,6 +2248,27 @@ const internalHandler = async (
       await persistConversationError(context, errorToLog);
     }
     try {
+      // Ensure response stream is wrapped with headers before writing error
+      // This is required for Lambda Function URLs in RESPONSE_STREAM mode
+      // Check if stream needs wrapping by checking if awslambda is available
+      if (typeof awslambda !== "undefined" && awslambda) {
+        // Wrap stream with error headers if not already wrapped
+        // Use SSE format for streaming endpoints, JSON for URL endpoint
+        // Check endpoint type as string to handle all cases including "url"
+        const endpointTypeStr = pathParams?.endpointType as string | undefined;
+        const contentType =
+          endpointTypeStr === "url"
+            ? "application/json"
+            : "text/event-stream; charset=utf-8";
+
+        responseStream = awslambda.HttpResponseStream.from(responseStream, {
+          statusCode: boomed.output?.statusCode || 500,
+          headers: {
+            "Content-Type": contentType,
+          },
+        });
+      }
+
       await writeErrorResponse(responseStream, error);
       responseStream.end();
     } catch (writeError) {
