@@ -462,9 +462,11 @@ const createHandler = () => {
     contextOrStream: Context | HttpResponseStream,
     callback?: Callback
   ): Promise<APIGatewayProxyResultV2 | void> => {
+    console.log("[Stream Handler] Event:", event);
     const path = extractPathFromEvent(event);
     const normalizedPath = path.replace(/^\/+/, "/");
     const endpointType = detectEndpointType(normalizedPath);
+    console.log("[Stream Handler] Endpoint type:", endpointType);
 
     // URL endpoint always uses non-streaming handler
     if (endpointType === "url") {
@@ -511,6 +513,7 @@ const createHandler = () => {
         responseStream.end();
         return;
       } else {
+        console.log("[Stream Handler] Standard invocation");
         // Standard invocation
         return await standardHandler(
           event,
@@ -527,12 +530,14 @@ const createHandler = () => {
       "write" in contextOrStream &&
       typeof (contextOrStream as HttpResponseStream).write === "function"
     ) {
+      console.log("[Stream Handler] Streaming invocation");
       // Streaming invocation (Function URL or lambda-stream polyfill)
       return await streamingHandler(
         event,
         contextOrStream as HttpResponseStream
       );
     } else {
+      console.log("[Stream Handler] Standard invocation (API Gateway)");
       // Standard invocation (API Gateway)
       return await standardHandler(
         event,
