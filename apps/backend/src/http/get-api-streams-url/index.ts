@@ -2,12 +2,13 @@ import {
   CloudFormationClient,
   DescribeStacksCommand,
 } from "@aws-sdk/client-cloudformation";
-import type {
-  APIGatewayProxyEventV2,
-  APIGatewayProxyResultV2,
-} from "aws-lambda";
+import type { APIGatewayProxyEventV2 } from "aws-lambda";
 
 import { computeCorsHeaders } from "../utils/streamCorsHeaders";
+import {
+  createResponseStream,
+  HttpResponseStream,
+} from "../utils/streamResponseStream";
 
 // Cache the Function URL to avoid repeated API calls
 let cachedFunctionUrl: string | null = null;
@@ -127,11 +128,17 @@ async function getStreamingFunctionUrl(): Promise<string | null> {
  * This endpoint always uses standard API Gateway response format
  */
 export async function handleUrlEndpoint(
-  event: APIGatewayProxyEventV2
-): Promise<APIGatewayProxyResultV2> {
+  event: APIGatewayProxyEventV2,
+  responseStream: HttpResponseStream
+): Promise<void> {
   console.log("[handleUrlEndpoint] Event:", event);
   const origin = event.headers["origin"] || event.headers["Origin"];
   const headers = computeCorsHeaders("url", origin, null);
+
+  responseStream = createResponseStream(responseStream, {
+    "Content-Type": "application/json",
+    ...headers,
+  });
 
   // Ensure requestContext.http exists (construct if missing)
   if (!event.requestContext?.http) {
@@ -183,22 +190,20 @@ export async function handleUrlEndpoint(
   }
 
   if (event.requestContext.http.method === "OPTIONS") {
-    return {
-      statusCode: 200,
-      headers,
-      body: "",
-    };
+    responseStream.write("");
+    responseStream.end();
+    return;
   }
 
   // Only allow GET requests for URL endpoint
   if (event.requestContext.http.method !== "GET") {
-    return {
-      statusCode: 406,
-      body: JSON.stringify({
+    responseStream.write(
+      JSON.stringify({
         error: `Only GET method is allowed for /api/streams/url and we got a ${event.requestContext.http.method} request`,
-      }),
-      headers,
-    };
+      })
+    );
+    responseStream.end();
+    return;
   }
 
   console.log("[streams-url-handler] Handler invoked for URL endpoint");
@@ -214,35 +219,30 @@ export async function handleUrlEndpoint(
 
   const streamingFunctionUrl = await getStreamingFunctionUrl();
 
+  responseStream = createResponseStream(responseStream, headers);
+
   if (!streamingFunctionUrl) {
     console.error(
       "[streams-url-handler] Failed to get streaming function URL. Returning 404."
     );
-    return {
-      statusCode: 404,
-      headers: {
-        "Content-Type": "application/json",
-        ...headers,
-      },
-      body: JSON.stringify({
+    responseStream.write(
+      JSON.stringify({
         error:
           "Streaming function URL not configured. The Lambda Function URL may not be deployed yet, or the URL could not be found in CloudFormation stack outputs.",
-      }),
-    };
+      })
+    );
+    responseStream.end();
+    return;
   }
 
   console.log(
     `[streams-url-handler] Successfully retrieved streaming function URL: ${streamingFunctionUrl}`
   );
 
-  return {
-    statusCode: 200,
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    },
-    body: JSON.stringify({
+  responseStream.write(
+    JSON.stringify({
       url: streamingFunctionUrl,
-    }),
-  };
+    })
+  );
+  responseStream.end();
 }

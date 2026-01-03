@@ -69,16 +69,14 @@ initSentry();
  * Internal handler function that processes the request for Lambda Function URL streaming
  */
 const internalHandler = async (
-  event: LambdaUrlEvent | APIGatewayProxyEventV2 | APIGatewayProxyEvent,
+  event: APIGatewayProxyEventV2,
   responseStream: HttpResponseStream
 ): Promise<void> => {
   console.log("[Stream Handler] Internal handler called", {
     event,
     responseStream,
   });
-  // Normalize event
-  const normalizedEvent = normalizeEventToHttpV2(event);
-  const pathParams = extractStreamPathParameters(normalizedEvent);
+  const pathParams = extractStreamPathParameters(event);
 
   if (!pathParams) {
     // Use awslambda.HttpResponseStream.from if available, otherwise stream is already ready
@@ -113,7 +111,7 @@ const internalHandler = async (
       ?.requestId || undefined;
 
   // Ensure requestContext.http exists
-  const httpV2Event = ensureRequestContextHttp(normalizedEvent);
+  const httpV2Event = ensureRequestContextHttp(event);
   // Use request ID from normalized event, or fall back to original, or generate one
   const awsRequestId =
     httpV2Event.requestContext.requestId ||
@@ -256,45 +254,48 @@ const internalHandler = async (
  * Dual handler wrapper that supports both Lambda Function URL and API Gateway
  */
 const createHandler = () => {
-  const streamingHandler = streamifyResponse(internalHandler);
+  return streamifyResponse(
+    async (
+      event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent,
+      responseStream: HttpResponseStream
+    ): Promise<APIGatewayProxyResultV2 | void> => {
+      console.log("[Stream Handler] Handler called", { event, responseStream });
+      const path = extractPathFromEvent(event);
+      const normalizedPath = path.replace(/^\/+/, "/");
+      const endpointType = detectEndpointType(normalizedPath);
+      console.log("[Stream Handler] Endpoint type:", endpointType);
 
-  return async (
-    event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent,
-    responseStream: HttpResponseStream
-  ): Promise<APIGatewayProxyResultV2 | void> => {
-    console.log("[Stream Handler] Handler called", { event, responseStream });
-    const path = extractPathFromEvent(event);
-    const normalizedPath = path.replace(/^\/+/, "/");
-    const endpointType = detectEndpointType(normalizedPath);
-    console.log("[Stream Handler] Endpoint type:", endpointType);
-
-    const httpV2Event = normalizeEventToHttpV2(event);
-    // URL endpoint always uses non-streaming handler
-    if (endpointType === "url") {
-      console.log("[Stream Handler] URL endpoint");
-      return handleUrlEndpoint(httpV2Event);
-    } else {
-      console.log("[Stream Handler] Standard invocation");
-      let mockResponseStream = false;
-      if (typeof responseStream.write !== "function") {
-        console.log("[Stream Handler] Mocking response stream");
-        mockResponseStream = true;
-        responseStream = new ResponseStream();
-        console.log("[Stream Handler] Mocked response stream:", responseStream);
-      }
-      // Standard invocation
-      await streamingHandler(httpV2Event, responseStream);
-      if (mockResponseStream) {
-        return {
-          statusCode: 200,
-          headers: {
-            "Content-Type": "text/event-stream; charset=utf-8",
-          },
-          body: responseStream.getBufferedData().toString("utf-8"),
-        };
+      const httpV2Event = normalizeEventToHttpV2(event);
+      // URL endpoint always uses non-streaming handler
+      if (endpointType === "url") {
+        console.log("[Stream Handler] URL endpoint");
+        return handleUrlEndpoint(httpV2Event, responseStream);
+      } else {
+        console.log("[Stream Handler] Standard invocation");
+        let mockResponseStream = false;
+        if (typeof responseStream.write !== "function") {
+          console.log("[Stream Handler] Mocking response stream");
+          mockResponseStream = true;
+          responseStream = new ResponseStream();
+          console.log(
+            "[Stream Handler] Mocked response stream:",
+            responseStream
+          );
+        }
+        // Standard invocation
+        await internalHandler(httpV2Event, responseStream);
+        if (mockResponseStream) {
+          return {
+            statusCode: 200,
+            headers: {
+              "Content-Type": "text/event-stream; charset=utf-8",
+            },
+            body: responseStream.getBufferedData().toString("utf-8"),
+          };
+        }
       }
     }
-  };
+  );
 };
 
 /**
