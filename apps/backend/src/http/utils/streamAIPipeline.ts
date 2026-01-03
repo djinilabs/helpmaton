@@ -64,13 +64,18 @@ export async function pipeAIStreamToResponse(
       if (done) break;
       if (value) {
         hasWrittenData = true;
+
         // Write the raw chunk immediately to responseStream for true streaming
         // Don't buffer - write as soon as we receive it
         await writeChunkToStream(responseStream, value);
 
-        // Also decode for text extraction (for tracking purposes only)
+        // Decode for text extraction (for tracking purposes only)
         // This doesn't affect streaming performance
         const chunk = decoder.decode(value, { stream: true });
+
+        // Log the chunk (convert buffer to UTF-8 string for logging)
+        console.log("[Stream Handler] Received chunk:", chunk);
+
         textBuffer += chunk;
 
         // Try to extract text deltas from complete lines for tracking
@@ -90,6 +95,7 @@ export async function pipeAIStreamToResponse(
                   onTextChunk(parsed.text);
                 }
               } catch {
+                console.error("[Stream Handler] Error parsing JSON:", line);
                 // Not JSON or parsing failed, skip text extraction
               }
             }
@@ -115,6 +121,10 @@ export async function pipeAIStreamToResponse(
     console.log("[Stream Handler] All chunks written, ending stream");
     responseStream.end();
   } catch (streamError) {
+    console.error(
+      "[Stream Handler] Error in pipeAIStreamToResponse:",
+      streamError
+    );
     // Release the reader lock before re-throwing
     reader.releaseLock();
     // Don't end the stream here - let the outer error handler do it

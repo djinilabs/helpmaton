@@ -7,10 +7,12 @@ import {
 
 import { extractTokenUsageAndCosts } from "./generationTokenExtraction";
 import { pipeAIStreamToResponse } from "./streamAIPipeline";
-import { handleStreamingError, handleResultExtractionError } from "./streamErrorHandling";
+import {
+  handleStreamingError,
+  handleResultExtractionError,
+} from "./streamErrorHandling";
 import type { StreamRequestContext } from "./streamRequestContext";
 import type { HttpResponseStream } from "./streamResponseStream";
-
 
 /**
  * Result of executing a stream
@@ -53,18 +55,18 @@ export async function executeStream(
       generationTimeMs = Date.now() - generationStartTime;
     }
     llmCallAttempted = true;
-    } catch (error) {
-      const handled = await handleStreamingError(
-        error,
-        context,
-        responseStream,
-        llmCallAttempted
-      );
-      if (handled === true) {
-        return null;
-      }
-      throw error;
+  } catch (error) {
+    const handled = await handleStreamingError(
+      error,
+      context,
+      responseStream,
+      llmCallAttempted
+    );
+    if (handled === true) {
+      return null;
     }
+    throw error;
+  }
 
   if (!streamResult) {
     throw new Error("LLM call succeeded but result is undefined");
@@ -92,6 +94,8 @@ export async function executeStream(
   }
 
   const finalResponseText = responseText || fullStreamedText;
+
+  console.log("[Stream Execution] Final response text:", finalResponseText);
 
   // Extract token usage
   const totalUsage = await streamResult.totalUsage;
@@ -161,4 +165,3 @@ export async function executeStreamForApiGateway(
     generationTimeMs,
   };
 }
-
