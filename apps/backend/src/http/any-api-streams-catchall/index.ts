@@ -1,14 +1,5 @@
-// Removed unused imports: Readable and pipeline
-// We now use direct write() and end() on ResponseStream
-// Using AWS's native streamifyResponse for Lambda Function URLs with RESPONSE_STREAM mode
-
-import {
-  CloudFormationClient,
-  DescribeStacksCommand,
-} from "@aws-sdk/client-cloudformation";
-import { badRequest, boomify, forbidden, unauthorized } from "@hapi/boom";
-import type { ModelMessage } from "ai";
-import { convertToModelMessages, streamText } from "ai";
+// Refactored streaming handler - simplified and using specialized utilities
+import { boomify } from "@hapi/boom";
 import type {
   APIGatewayProxyEvent,
   APIGatewayProxyEventV2,
@@ -17,8 +8,61 @@ import type {
   Callback,
 } from "aws-lambda";
 
+import {
+  adaptHttpHandler,
+  transformLambdaUrlToHttpV2Event,
+  type LambdaUrlEvent,
+  transformRestToHttpV2Event,
+} from "../../utils/httpEventAdapter";
+import { flushPostHog } from "../../utils/posthog";
+import {
+  initSentry,
+  Sentry,
+  flushSentry,
+  ensureError,
+} from "../../utils/sentry";
+import { getAllowedOrigins } from "../../utils/streamServerUtils";
+import { clearCurrentHTTPContext } from "../../utils/workspaceCreditContext";
+import { handleUrlEndpoint } from "../get-api-streams-url";
+import { authenticateStreamRequest } from "../utils/streamAuthentication";
+import {
+  computeCorsHeaders,
+  handleOptionsRequest,
+} from "../utils/streamCorsHeaders";
+import {
+  detectEndpointType,
+  extractPathFromEvent,
+} from "../utils/streamEndpointDetection";
+import {
+  writeErrorResponse,
+  persistConversationError,
+  handleStreamingErrorForApiGateway,
+} from "../utils/streamErrorHandling";
+import {
+  normalizeEventToHttpV2,
+  ensureRequestContextHttp,
+  setupWorkspaceCreditContext,
+} from "../utils/streamEventNormalization";
+import {
+  executeStream,
+  executeStreamForApiGateway,
+} from "../utils/streamExecution";
+import { extractStreamPathParameters } from "../utils/streamPathExtraction";
+import { performPostProcessing } from "../utils/streamPostProcessing";
+import {
+  buildStreamRequestContext,
+  type StreamRequestContext,
+} from "../utils/streamRequestContext";
+import {
+  createResponseStream,
+  createMockResponseStream,
+  writeChunkToStream,
+  type HttpResponseStream,
+} from "../utils/streamResponseStream";
+
+import { getDefined } from "@/utils";
+
 // Declare global awslambda for Lambda Function URL streaming
-// With RESPONSE_STREAM mode, awslambda.streamifyResponse provides the HttpResponseStream directly
 declare const awslambda:
   | {
       streamifyResponse: <TEvent, TStream extends HttpResponseStream>(
@@ -33,319 +77,8 @@ declare const awslambda:
     }
   | undefined;
 
-// Type for AWS Lambda HttpResponseStream (available in RESPONSE_STREAM mode)
-interface HttpResponseStream {
-  write(chunk: string | Uint8Array, callback?: (error?: Error) => void): void;
-  end(callback?: (error?: Error) => void): void;
-}
-
-import { MODEL_NAME } from "../../http/utils/agentUtils";
-import {
-  adjustCreditsAfterLLMCall,
-  cleanupReservationOnError,
-  enqueueCostVerificationIfNeeded,
-  validateAndReserveCredits,
-} from "../../http/utils/generationCreditManagement";
-import {
-  isByokAuthenticationError,
-  normalizeByokError,
-  logErrorDetails,
-  handleCreditErrors,
-} from "../../http/utils/generationErrorHandling";
-import { prepareLLMCall } from "../../http/utils/generationLLMSetup";
-import {
-  validateSubscriptionAndLimits,
-  trackSuccessfulRequest,
-} from "../../http/utils/generationRequestTracking";
-import { extractTokenUsageAndCosts } from "../../http/utils/generationTokenExtraction";
-import { database } from "../../tables";
-import { isUserAuthorized } from "../../tables/permissions";
-import {
-  updateConversation,
-  buildConversationErrorInfo,
-  type StreamTextResultWithResolvedUsage,
-  type TokenUsage,
-} from "../../utils/conversationLogger";
-import {
-  adaptHttpHandler,
-  transformLambdaUrlToHttpV2Event,
-  type LambdaUrlEvent,
-  transformRestToHttpV2Event,
-} from "../../utils/httpEventAdapter";
-import type { UIMessage } from "../../utils/messageTypes";
-import { extractAllOpenRouterGenerationIds } from "../../utils/openrouterUtils";
-import { flushPostHog } from "../../utils/posthog";
-import {
-  initSentry,
-  Sentry,
-  flushSentry,
-  ensureError,
-} from "../../utils/sentry";
-import {
-  getAllowedOrigins,
-  validateSecret,
-} from "../../utils/streamServerUtils";
-import { verifyAccessToken } from "../../utils/tokenUtils";
-import {
-  getContextFromRequestId,
-  augmentContextWithCreditTransactions,
-  setCurrentHTTPContext,
-  clearCurrentHTTPContext,
-} from "../../utils/workspaceCreditContext";
-import { setupAgentAndTools } from "../utils/agentSetup";
-import {
-  convertAiSdkUIMessagesToUIMessages,
-  convertTextToUIMessage,
-  convertUIMessagesToModelMessages,
-} from "../utils/messageConversion";
-import {
-  formatToolCallMessage,
-  formatToolResultMessage,
-} from "../utils/toolFormatting";
-
-import { getDefined } from "@/utils";
-
 // Initialize Sentry when this module is loaded (before any handlers are called)
 initSentry();
-
-// Cache the Function URL to avoid repeated API calls
-let cachedFunctionUrl: string | null = null;
-let cacheExpiry: number = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
-/**
- * Gets the streaming Lambda Function URL from CloudFormation stack outputs.
- * This is the most reliable method since the plugin creates a CloudFormation output.
- */
-async function getFunctionUrlFromCloudFormation(): Promise<string | null> {
-  const stackName =
-    process.env.AWS_STACK_NAME ||
-    process.env.ARC_STACK_NAME ||
-    process.env.STACK_NAME;
-
-  if (!stackName) {
-    console.error(
-      "[streams-handler] Stack name not found. Checked AWS_STACK_NAME, ARC_STACK_NAME, STACK_NAME"
-    );
-    return null;
-  }
-
-  console.log(
-    `[streams-handler] Looking up Function URL for stack: ${stackName}`
-  );
-
-  try {
-    const cfClient = new CloudFormationClient({});
-    const command = new DescribeStacksCommand({ StackName: stackName });
-    const response = await cfClient.send(command);
-
-    const stack = response.Stacks?.[0];
-    if (!stack) {
-      console.error(`[streams-handler] Stack ${stackName} not found`);
-      return null;
-    }
-
-    console.log(
-      `[streams-handler] Stack found. Available outputs: ${
-        stack.Outputs?.map((o) => o.OutputKey).join(", ") || "none"
-      }`
-    );
-
-    // Check if stack has no outputs at all
-    if (!stack.Outputs || stack.Outputs.length === 0) {
-      console.error(`[streams-handler] Stack ${stackName} has no outputs`);
-      return null;
-    }
-
-    // Look for StreamingFunctionUrl output (created by lambda-urls plugin)
-    const output = stack.Outputs.find(
-      (o: { OutputKey?: string }) => o.OutputKey === "StreamingFunctionUrl"
-    );
-
-    if (output?.OutputValue) {
-      const functionUrl = output.OutputValue as string;
-      // Normalize URL: remove trailing slash to avoid double slashes when appending paths
-      const normalizedUrl = functionUrl.replace(/\/+$/, "");
-      console.log(
-        `[streams-handler] Found StreamingFunctionUrl output: ${functionUrl} (normalized: ${normalizedUrl})`
-      );
-      return normalizedUrl;
-    } else {
-      console.error(
-        `[streams-handler] StreamingFunctionUrl output not found in stack ${stackName}`
-      );
-    }
-  } catch (error) {
-    console.error(
-      "[streams-handler] Error getting Function URL from CloudFormation:",
-      error instanceof Error ? error.message : String(error),
-      error instanceof Error ? error.stack : undefined
-    );
-  }
-
-  return null;
-}
-
-/**
- * Gets the streaming Lambda Function URL by finding the function and getting its URL.
- * Falls back to CloudFormation stack output if direct lookup fails.
- */
-async function getStreamingFunctionUrl(): Promise<string | null> {
-  // First, check if environment variable is set
-  const envFunctionUrl = process.env.STREAMING_FUNCTION_URL;
-
-  if (envFunctionUrl) {
-    // Normalize URL: remove trailing slash to avoid double slashes when appending paths
-    return envFunctionUrl.replace(/\/+$/, "");
-  }
-
-  // Return cached Function URL if still valid
-  if (cachedFunctionUrl && Date.now() < cacheExpiry) {
-    return cachedFunctionUrl;
-  }
-
-  // Try to get from CloudFormation stack outputs
-  const functionUrl = await getFunctionUrlFromCloudFormation();
-  if (functionUrl) {
-    // Normalize URL: remove trailing slash to avoid double slashes when appending paths
-    const normalizedUrl = functionUrl.replace(/\/+$/, "");
-    cachedFunctionUrl = normalizedUrl;
-    cacheExpiry = Date.now() + CACHE_TTL;
-    console.log(
-      `[streams-handler] Retrieved Function URL from CloudFormation: ${functionUrl} (normalized: ${normalizedUrl})`
-    );
-    return normalizedUrl;
-  }
-
-  return null;
-}
-
-/**
- * Endpoint type: test (JWT auth), stream (secret auth), or url (Function URL discovery)
- */
-type EndpointType = "test" | "stream" | "url";
-
-/**
- * Path parameters extracted from the request
- */
-interface PathParameters {
-  workspaceId: string;
-  agentId: string;
-  secret?: string; // Optional for test endpoint
-  endpointType: EndpointType;
-}
-
-/**
- * Request context for processing the stream
- */
-interface StreamRequestContext {
-  workspaceId: string;
-  agentId: string;
-  secret?: string; // Optional for test endpoint
-  endpointType: EndpointType;
-  conversationId: string;
-  origin: string | undefined;
-  allowedOrigins: string[] | null;
-  subscriptionId: string | undefined;
-  db: Awaited<ReturnType<typeof database>>;
-  uiMessage: UIMessage;
-  convertedMessages: UIMessage[];
-  modelMessages: ModelMessage[];
-  agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"];
-  model: Awaited<ReturnType<typeof setupAgentAndTools>>["model"];
-  tools: Awaited<ReturnType<typeof setupAgentAndTools>>["tools"];
-  usesByok: boolean;
-  reservationId: string | undefined;
-  finalModelName: string;
-  awsRequestId?: string;
-  userId?: string; // For test endpoint
-}
-
-async function persistConversationError(
-  context: StreamRequestContext | undefined,
-  error: unknown
-): Promise<void> {
-  if (!context) return;
-
-  try {
-    // Log error structure before extraction (especially for BYOK)
-    if (context.usesByok) {
-      type ErrorWithCustomFields = Error & {
-        data?: { error?: { message?: string } };
-        statusCode?: number;
-        response?: { data?: { error?: { message?: string } } };
-      };
-      const errorAny =
-        error instanceof Error ? (error as ErrorWithCustomFields) : undefined;
-
-      const causeAny =
-        error instanceof Error && error.cause instanceof Error
-          ? (error.cause as ErrorWithCustomFields)
-          : undefined;
-      console.log("[Stream Handler] BYOK error before extraction:", {
-        errorType:
-          error instanceof Error ? error.constructor.name : typeof error,
-        errorName: error instanceof Error ? error.name : "N/A",
-        errorMessage: error instanceof Error ? error.message : String(error),
-        hasData: !!errorAny?.data,
-        dataError: errorAny?.data?.error,
-        dataErrorMessage: errorAny?.data?.error?.message,
-        hasCause: error instanceof Error && !!error.cause,
-        causeType:
-          error instanceof Error && error.cause instanceof Error
-            ? error.cause.constructor.name
-            : undefined,
-        causeMessage:
-          error instanceof Error && error.cause instanceof Error
-            ? error.cause.message
-            : undefined,
-        causeData: causeAny?.data?.error?.message,
-      });
-    }
-
-    const errorInfo = buildConversationErrorInfo(error, {
-      provider: "openrouter",
-      modelName: context.finalModelName,
-      endpoint: context.endpointType,
-      metadata: {
-        usesByok: context.usesByok,
-      },
-    });
-
-    // Log extracted error info (especially for BYOK)
-    if (context.usesByok) {
-      console.log("[Stream Handler] BYOK error after extraction:", {
-        message: errorInfo.message,
-        name: errorInfo.name,
-        code: errorInfo.code,
-        statusCode: errorInfo.statusCode,
-      });
-    }
-
-    await updateConversation(
-      context.db,
-      context.workspaceId,
-      context.agentId,
-      context.conversationId,
-      context.convertedMessages ?? [],
-      undefined,
-      context.usesByok,
-      errorInfo,
-      context.awsRequestId,
-      context.endpointType as "test" | "stream"
-    );
-  } catch (logError) {
-    console.error("[Stream Handler] Failed to persist conversation error:", {
-      originalError: error instanceof Error ? error.message : String(error),
-      logError: logError instanceof Error ? logError.message : String(logError),
-      workspaceId: context.workspaceId,
-      agentId: context.agentId,
-      conversationId: context.conversationId,
-    });
-  }
-}
-
-const DEFAULT_CONTENT_TYPE = "text/event-stream; charset=utf-8";
 
 /**
  * Detects if handler is invoked via Lambda Function URL
@@ -358,1418 +91,17 @@ function isLambdaFunctionUrlInvocation(): boolean {
 }
 
 /**
- * Detects endpoint type based on path pattern
- */
-function detectEndpointType(path: string): EndpointType {
-  // Pattern: /api/streams/url (exact match for URL discovery endpoint)
-  if (path === "/api/streams/url") {
-    return "url";
-  }
-  // Pattern: /api/streams/{workspaceId}/{agentId}/test
-  if (path.match(/^\/api\/streams\/[^/]+\/[^/]+\/test$/)) {
-    return "test";
-  }
-  // Pattern: /api/streams/{workspaceId}/{agentId}/{secret}
-  return "stream";
-}
-
-/**
- * Get CORS headers based on endpoint type and allowed origins
- */
-function getResponseHeaders(
-  endpointType: EndpointType,
-  origin: string | undefined,
-  allowedOrigins: string[] | null
-): Record<string, string> {
-  const headers: Record<string, string> = {
-    "Content-Type": DEFAULT_CONTENT_TYPE,
-  };
-
-  if (endpointType === "test") {
-    // Test endpoint: Always use FRONTEND_URL
-    const frontendUrl = process.env.FRONTEND_URL;
-    headers["Access-Control-Allow-Origin"] = frontendUrl || "*";
-    headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
-    headers["Access-Control-Allow-Headers"] =
-      "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id";
-    if (frontendUrl) {
-      headers["Access-Control-Allow-Credentials"] = "true";
-    }
-    return headers;
-  }
-
-  // Stream endpoint: Use agent streaming server configuration
-  if (!allowedOrigins || allowedOrigins.length === 0) {
-    // No CORS configuration - allow all origins (default permissive behavior)
-    headers["Access-Control-Allow-Origin"] = "*";
-    headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
-    headers["Access-Control-Allow-Headers"] =
-      "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id";
-    return headers;
-  }
-
-  // Check if wildcard is allowed
-  if (allowedOrigins.includes("*")) {
-    headers["Access-Control-Allow-Origin"] = "*";
-  } else if (origin && allowedOrigins.includes(origin)) {
-    // Only allow if origin is explicitly in the allowed list
-    headers["Access-Control-Allow-Origin"] = origin;
-    headers["Access-Control-Allow-Credentials"] = "true";
-  }
-  // If origin doesn't match and no wildcard, no Access-Control-Allow-Origin header is set
-  // This will cause the browser to reject the CORS request
-
-  headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
-  headers["Access-Control-Allow-Headers"] =
-    "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id";
-
-  console.log("[Stream Handler] Response headers:", headers);
-  return headers;
-}
-
-/**
- * Extracts path parameters from the event (supports both Lambda Function URL and API Gateway)
- */
-function extractPathParameters(
-  event: LambdaUrlEvent | APIGatewayProxyEventV2
-): PathParameters | null {
-  // Normalize to HTTP v2 event format
-  // If event already has version "2.0", it's already an APIGatewayProxyEventV2, don't transform
-  const httpV2Event =
-    "version" in event && event.version === "2.0"
-      ? (event as APIGatewayProxyEventV2)
-      : "rawPath" in event && "requestContext" in event
-      ? transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent)
-      : (event as APIGatewayProxyEventV2);
-
-  let rawPath = httpV2Event.rawPath || "";
-
-  // For API Gateway catchall routes, the path might be in pathParameters.proxy
-  // Reconstruct the full path if rawPath is empty or doesn't start with /api/streams
-  if (!rawPath || !rawPath.startsWith("/api/streams")) {
-    const proxy = httpV2Event.pathParameters?.proxy;
-    if (proxy) {
-      // Reconstruct the full path: /api/streams/{proxy}
-      rawPath = `/api/streams/${proxy}`;
-    }
-  }
-
-  const normalizedPath = rawPath.replace(/^\/+/, "/");
-
-  // Detect endpoint type
-  const endpointType = detectEndpointType(normalizedPath);
-
-  // URL endpoint doesn't need path parameters
-  if (endpointType === "url") {
-    return {
-      workspaceId: "",
-      agentId: "",
-      endpointType: "url",
-    };
-  }
-
-  let workspaceId = httpV2Event.pathParameters?.workspaceId;
-  let agentId = httpV2Event.pathParameters?.agentId;
-  let secret: string | undefined;
-
-  // Extract based on endpoint type
-  if (endpointType === "test") {
-    // Pattern: /api/streams/{workspaceId}/{agentId}/test
-    const testMatch = normalizedPath.match(
-      /^\/api\/streams\/([^/]+)\/([^/]+)\/test$/
-    );
-    if (testMatch) {
-      workspaceId = testMatch[1];
-      agentId = testMatch[2];
-    }
-  } else {
-    // Pattern: /api/streams/{workspaceId}/{agentId}/{secret}
-    // Secret can contain slashes, so we match everything after agentId
-    secret = httpV2Event.pathParameters?.secret;
-    if (!workspaceId || !agentId || !secret) {
-      const streamMatch = normalizedPath.match(
-        /^\/api\/streams\/([^/]+)\/([^/]+)\/(.+)$/
-      );
-      if (streamMatch) {
-        workspaceId = streamMatch[1];
-        agentId = streamMatch[2];
-        secret = streamMatch[3]; // This can contain slashes
-      }
-    }
-  }
-
-  if (!workspaceId || !agentId) {
-    console.log("[Stream Handler] Path extraction failed:", {
-      rawPath,
-      normalizedPath,
-      pathParameters: httpV2Event.pathParameters,
-      endpointType,
-    });
-    return null;
-  }
-
-  // For stream endpoint, secret is required
-  if (endpointType === "stream" && !secret) {
-    console.log("[Stream Handler] Secret missing for stream endpoint:", {
-      rawPath,
-      normalizedPath,
-      pathParameters: httpV2Event.pathParameters,
-    });
-    return null;
-  }
-
-  return { workspaceId, agentId, secret, endpointType };
-}
-
-/**
- * Authenticates request based on endpoint type
- * Test endpoint: JWT Bearer token authentication
- * Stream endpoint: Secret validation
- */
-async function authenticateRequest(
-  endpointType: EndpointType,
-  event: LambdaUrlEvent | APIGatewayProxyEventV2,
-  workspaceId: string,
-  agentId: string,
-  secret?: string
-): Promise<{ authenticated: boolean; userId?: string }> {
-  if (endpointType === "test") {
-    // Extract and verify JWT token
-    const authHeader =
-      event.headers["authorization"] || event.headers["Authorization"];
-    if (!authHeader?.startsWith("Bearer ")) {
-      throw unauthorized("Missing or invalid Authorization header");
-    }
-    const token = authHeader.substring(7);
-    // Verify token
-    const tokenPayload = await verifyAccessToken(token);
-
-    // Verify workspace access (similar to Express middleware)
-    const userRef = `users/${tokenPayload.userId}`;
-    const resource = `workspaces/${workspaceId}`;
-    const [authorized] = await isUserAuthorized(userRef, resource, 1); // READ permission
-
-    if (!authorized) {
-      throw forbidden("Insufficient permissions to access this workspace");
-    }
-
-    return { authenticated: true, userId: tokenPayload.userId };
-  } else {
-    // Validate secret
-    if (!secret) {
-      throw unauthorized("Missing secret");
-    }
-    const isValid = await validateSecret(workspaceId, agentId, secret);
-    if (!isValid) {
-      throw unauthorized("Invalid secret");
-    }
-    return { authenticated: true };
-  }
-}
-
-/**
- * Validates subscription and plan limits
- * Note: This is a wrapper around the shared utility for backward compatibility
- */
-async function validateSubscriptionAndLimitsStream(
-  workspaceId: string,
-  endpointType: EndpointType = "stream"
-): Promise<string | undefined> {
-  // URL endpoint doesn't need subscription validation (returns early)
-  if (endpointType === "url") {
-    return undefined;
-  }
-  return await validateSubscriptionAndLimits(
-    workspaceId,
-    endpointType as "test" | "stream"
-  );
-}
-
-/**
- * Sets up the agent, model, and tools for the request
- */
-async function setupAgentContext(
-  workspaceId: string,
-  agentId: string,
-  modelReferer: string,
-  context?: Awaited<ReturnType<typeof getContextFromRequestId>>,
-  conversationId?: string
-): Promise<{
-  agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"];
-  model: Awaited<ReturnType<typeof setupAgentAndTools>>["model"];
-  tools: Awaited<ReturnType<typeof setupAgentAndTools>>["tools"];
-  usesByok: boolean;
-}> {
-  const result = await setupAgentAndTools(
-    workspaceId,
-    agentId,
-    [], // No conversation history for streaming endpoint
-    {
-      modelReferer,
-      callDepth: 0,
-      maxDelegationDepth: 3,
-      context,
-      conversationId,
-      searchDocumentsOptions: {
-        description:
-          "Search workspace documents using semantic vector search. Returns the most relevant document snippets based on the query.",
-        queryDescription:
-          "The search query or prompt to find relevant document snippets",
-        formatResults: (results) => {
-          return results
-            .map(
-              (result, index) =>
-                `[${index + 1}] Document: ${result.documentName}${
-                  result.folderPath ? ` (${result.folderPath})` : ""
-                }\nSimilarity: ${(result.similarity * 100).toFixed(
-                  1
-                )}%\nContent:\n${result.snippet}\n`
-            )
-            .join("\n---\n\n");
-        },
-      },
-    }
-  );
-
-  return {
-    agent: result.agent,
-    model: result.model,
-    tools: result.tools,
-    usesByok: result.usesByok,
-  };
-}
-
-/**
- * Extracts and decodes the request body
- */
-function extractRequestBody(
-  event: LambdaUrlEvent | APIGatewayProxyEventV2
-): string {
-  if (!event.body) {
-    return "";
-  }
-
-  const decodedBody = event.isBase64Encoded
-    ? Buffer.from(event.body, "base64").toString()
-    : event.body;
-
-  return decodedBody.trim();
-}
-
-/**
- * Converts the request body to model messages
- * Supports both plain text and JSON message arrays (for tool results)
- * When messages are from useChat, they are in ai-sdk UIMessage format
- */
-function convertRequestBodyToMessages(bodyText: string): {
-  uiMessage: UIMessage;
-  modelMessages: ModelMessage[];
-  convertedMessages: UIMessage[];
-} {
-  // Try to parse as JSON first (for messages with tool results)
-  let messages: UIMessage[] | null = null;
-  try {
-    const parsed = JSON.parse(bodyText);
-
-    // Check if it's an array of messages (from useChat)
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      // Validate that it looks like UIMessage array
-      const firstMessage = parsed[0];
-      if (
-        typeof firstMessage === "object" &&
-        firstMessage !== null &&
-        "role" in firstMessage &&
-        "content" in firstMessage
-      ) {
-        messages = parsed as UIMessage[];
-      }
-    }
-    // Check if it's an object with a 'messages' property (from useChat with full state)
-    else if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "messages" in parsed &&
-      Array.isArray(parsed.messages) &&
-      parsed.messages.length > 0
-    ) {
-      // Extract the messages array from the object
-      const messagesArray = parsed.messages;
-      const firstMessage = messagesArray[0];
-      if (
-        typeof firstMessage === "object" &&
-        firstMessage !== null &&
-        "role" in firstMessage
-      ) {
-        messages = messagesArray as UIMessage[];
-      }
-    }
-  } catch {
-    // Not JSON, treat as plain text
-  }
-
-  // If we have parsed messages, use them; otherwise treat as plain text
-  if (messages && messages.length > 0) {
-    // Check if messages are in ai-sdk format (have 'parts' property)
-    // Messages from useChat will have 'parts', our local format has 'content'
-    const firstMsg = messages[0];
-    const isAiSdkFormat =
-      firstMsg &&
-      typeof firstMsg === "object" &&
-      "parts" in firstMsg &&
-      Array.isArray(firstMsg.parts);
-
-    // Convert all messages from AI SDK format to our format if needed
-    let convertedMessages: UIMessage[] = messages;
-    if (isAiSdkFormat) {
-      convertedMessages = convertAiSdkUIMessagesToUIMessages(messages);
-    }
-
-    // Get the last user message for uiMessage (for logging)
-    // Use converted messages to ensure proper format
-    const lastUserMessage = convertedMessages
-      .slice()
-      .reverse()
-      .find((msg) => msg.role === "user");
-    const uiMessage: UIMessage =
-      lastUserMessage ||
-      convertedMessages[convertedMessages.length - 1] ||
-      convertTextToUIMessage(bodyText);
-
-    let modelMessages: ModelMessage[];
-    try {
-      if (isAiSdkFormat) {
-        // Messages from useChat are in ai-sdk UIMessage format with 'parts'
-        // Use convertToModelMessages from ai-sdk
-        modelMessages = convertToModelMessages(
-          messages as unknown as Array<Omit<import("ai").UIMessage, "id">>
-        );
-      } else {
-        // Messages are in our local UIMessage format with 'content'
-        // Use our local converter with converted messages
-        modelMessages = convertUIMessagesToModelMessages(convertedMessages);
-      }
-    } catch (error) {
-      console.error("[Stream Handler] Error converting messages:", {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        isAiSdkFormat,
-        messageCount: messages.length,
-        firstMessageKeys:
-          firstMsg && typeof firstMsg === "object"
-            ? Object.keys(firstMsg)
-            : "N/A",
-      });
-      throw error;
-    }
-
-    return { uiMessage, modelMessages, convertedMessages };
-  }
-
-  // Fallback to plain text handling
-  const uiMessage = convertTextToUIMessage(bodyText);
-  // For plain text, use our local converter since it's in our UIMessage format
-  const modelMessages: ModelMessage[] = convertUIMessagesToModelMessages([
-    uiMessage,
-  ]);
-
-  return { uiMessage, modelMessages, convertedMessages: [uiMessage] };
-}
-
-/**
- * Validates credits, spending limits, and reserves credits before the LLM call
- * Returns the reservation ID if credits were reserved
- */
-async function validateCreditsAndReserveBeforeLLM(
-  db: Awaited<ReturnType<typeof database>>,
-  workspaceId: string,
-  agentId: string,
-  agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"],
-  modelMessages: ModelMessage[],
-  tools: Awaited<ReturnType<typeof setupAgentAndTools>>["tools"],
-  usesByok: boolean,
-  endpointType: EndpointType,
-  context?: Awaited<ReturnType<typeof getContextFromRequestId>>,
-  conversationId?: string
-): Promise<string | undefined> {
-  // Derive the model name from the agent's modelName if set, otherwise use default
-  const finalModelName =
-    typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
-
-  // URL endpoint doesn't need credit validation (returns early)
-  if (endpointType === "url") {
-    return undefined;
-  }
-  return await validateAndReserveCredits(
-    db,
-    workspaceId,
-    agentId,
-    "openrouter", // provider
-    finalModelName,
-    modelMessages,
-    agent.systemPrompt,
-    tools,
-    usesByok,
-    endpointType as "test" | "stream",
-    context,
-    conversationId
-  );
-}
-
-/**
- * Writes a chunk to the response stream
- * Returns a Promise that resolves when the chunk is written
- * Accepts both string and Uint8Array for flexibility
- */
-function writeChunkToStream(
-  responseStream: HttpResponseStream,
-  chunk: string | Uint8Array
-): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    responseStream.write(chunk, (error) => {
-      if (error) {
-        console.error("[Stream Handler] Error writing chunk:", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-        reject(error);
-      } else {
-        resolve();
-      }
-    });
-  });
-}
-
-/**
- * Streams the AI response to the client using toUIMessageStreamResponse() format
- * Reads from the UI message stream and writes chunks to responseStream as they arrive
- */
-async function streamAIResponse(
-  agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"],
-  model: Awaited<ReturnType<typeof setupAgentAndTools>>["model"],
-  modelMessages: ModelMessage[],
-  tools: Awaited<ReturnType<typeof setupAgentAndTools>>["tools"],
-  responseStream: HttpResponseStream,
-  onTextChunk: (text: string) => void
-): Promise<Awaited<ReturnType<typeof streamText>>> {
-  // Prepare LLM call (logging and generate options)
-  // URL endpoint doesn't call this (returns early), so we can safely use "stream"
-  const generateOptions = prepareLLMCall(
-    agent,
-    tools,
-    modelMessages,
-    "stream",
-    "stream",
-    "stream"
-  );
-
-  const streamResult = streamText({
-    model: model as unknown as Parameters<typeof streamText>[0]["model"],
-    system: agent.systemPrompt,
-    messages: modelMessages,
-    tools,
-    ...generateOptions,
-  });
-
-  // Get the UI message stream response from streamText result
-  // This might throw NoOutputGeneratedError if there was an error during streaming
-  // This returns SSE format (Server-Sent Events) that useChat expects
-  // Errors will be caught by the outer handler which has access to usesByok
-  const streamResponse = streamResult.toUIMessageStreamResponse();
-
-  // Read from the stream and write chunks to responseStream immediately as they arrive
-  // This ensures true streaming without buffering
-  const reader = streamResponse.body?.getReader();
-  if (!reader) {
-    throw new Error("Stream response body is null");
-  }
-
-  const decoder = new TextDecoder();
-  let textBuffer = ""; // Buffer for extracting text deltas (for logging/tracking only)
-  let streamCompletedSuccessfully = false; // Track if stream completed without error
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (value) {
-        // Write the raw chunk immediately to responseStream for true streaming
-        // Don't buffer - write as soon as we receive it
-        await writeChunkToStream(responseStream, value);
-
-        // Also decode for text extraction (for tracking purposes only)
-        // This doesn't affect streaming performance
-        const chunk = decoder.decode(value, { stream: true });
-        textBuffer += chunk;
-
-        // Try to extract text deltas from complete lines for tracking
-        // Only process if we have complete lines (ending with \n)
-        if (chunk.includes("\n")) {
-          const lines = textBuffer.split("\n");
-          textBuffer = lines.pop() || ""; // Keep incomplete line
-
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              try {
-                const jsonStr = line.substring(6); // Remove "data: " prefix
-                const parsed = JSON.parse(jsonStr);
-                if (parsed.type === "text-delta" && parsed.textDelta) {
-                  onTextChunk(parsed.textDelta);
-                } else if (parsed.type === "text" && parsed.text) {
-                  onTextChunk(parsed.text);
-                }
-              } catch {
-                // Not JSON or parsing failed, skip text extraction
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Write any remaining buffered text (should be minimal)
-    if (textBuffer) {
-      const remainingBytes = new TextEncoder().encode(textBuffer);
-      await writeChunkToStream(responseStream, remainingBytes);
-    }
-
-    // Mark as successfully completed before ending stream
-    streamCompletedSuccessfully = true;
-
-    // End the stream after all chunks are written successfully
-    console.log("[Stream Handler] All chunks written, ending stream");
-    responseStream.end();
-  } catch (streamError) {
-    // Release the reader lock before re-throwing
-    reader.releaseLock();
-    // Don't end the stream here - let the outer error handler do it
-    // Re-throw to let outer handler catch it (which has access to usesByok and responseStream)
-    throw streamError;
-  } finally {
-    reader.releaseLock();
-    // Only end stream here if it completed successfully but wasn't ended above
-    // (This is a safety net for edge cases)
-    if (streamCompletedSuccessfully) {
-      try {
-        // Check if stream is still writable before ending
-        // If it's already ended, this will throw, which we'll catch and ignore
-        responseStream.end();
-      } catch (endError) {
-        // Stream might already be ended, ignore
-        console.warn(
-          "[Stream Handler] Stream already ended (expected in normal flow):",
-          {
-            error:
-              endError instanceof Error ? endError.message : String(endError),
-          }
-        );
-      }
-    }
-    // If streamCompletedSuccessfully is false, there was an error - don't end stream here
-    // Let the error handler do it
-  }
-
-  return streamResult;
-}
-
-/**
- * Adjusts credit reservation after the stream completes
- * Uses adjustCreditReservation instead of direct debit
- */
-async function adjustCreditsAfterStream(
-  db: Awaited<ReturnType<typeof database>>,
-  workspaceId: string,
-  agentId: string,
-  reservationId: string | undefined,
-  finalModelName: string,
-  tokenUsage: TokenUsage | undefined,
-  usesByok: boolean,
-  streamResult?: Awaited<ReturnType<typeof streamText>>,
-  conversationId?: string,
-  awsRequestId?: string,
-  endpointType: EndpointType = "stream"
-): Promise<void> {
-  // Extract all OpenRouter generation IDs for cost verification
-  const openrouterGenerationIds = streamResult
-    ? extractAllOpenRouterGenerationIds(streamResult)
-    : [];
-  const openrouterGenerationId =
-    openrouterGenerationIds.length > 0 ? openrouterGenerationIds[0] : undefined;
-
-  // Get context for workspace credit transactions
-  const lambdaContext = getContextFromRequestId(awsRequestId);
-  if (!lambdaContext) {
-    throw new Error("Context not available for workspace credit transactions");
-  }
-
-  // Adjust credits using shared utility
-  // URL endpoint doesn't call this (returns early), so we can safely cast
-  await adjustCreditsAfterLLMCall(
-    db,
-    workspaceId,
-    agentId,
-    reservationId,
-    "openrouter",
-    finalModelName,
-    tokenUsage,
-    usesByok,
-    openrouterGenerationId,
-    openrouterGenerationIds, // New parameter
-    endpointType as "test" | "stream",
-    lambdaContext,
-    conversationId
-  );
-
-  // Enqueue cost verification (Step 3) if we have generation IDs
-  await enqueueCostVerificationIfNeeded(
-    openrouterGenerationId, // Keep for backward compat
-    openrouterGenerationIds, // New parameter
-    workspaceId,
-    reservationId,
-    conversationId,
-    agentId,
-    endpointType as "test" | "stream"
-  );
-}
-
-/**
- * Tracks the successful LLM request
- * Note: This is a wrapper around the shared utility for backward compatibility
- */
-async function trackRequestUsage(
-  subscriptionId: string | undefined,
-  workspaceId: string,
-  agentId: string,
-  endpointType: EndpointType = "stream"
-): Promise<void> {
-  // URL endpoint doesn't need request tracking (returns early)
-  if (endpointType === "url") {
-    return;
-  }
-  // Track successful request using shared utility
-  await trackSuccessfulRequest(
-    subscriptionId,
-    workspaceId,
-    agentId,
-    endpointType as "test" | "stream"
-  );
-}
-
-/**
- * Logs the conversation
- */
-async function logConversation(
-  db: Awaited<ReturnType<typeof database>>,
-  workspaceId: string,
-  agentId: string,
-  conversationId: string,
-  convertedMessages: UIMessage[],
-  finalResponseText: string,
-  tokenUsage: TokenUsage | undefined,
-  usesByok: boolean,
-  finalModelName: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- streamText result type is complex
-  streamResult: any,
-  awsRequestId?: string,
-  generationTimeMs?: number,
-  endpointType: EndpointType = "stream"
-): Promise<void> {
-  if (!tokenUsage) {
-    return Promise.resolve();
-  }
-
-  try {
-    // Extract tool calls and tool results from streamText result
-    // streamText result properties are promises that need to be awaited
-    // For streamText, tool calls/results may be in _steps array or directly on result
-    const [toolCallsFromResultRaw, toolResultsFromResultRaw, stepsValue] =
-      await Promise.all([
-        Promise.resolve(streamResult?.toolCalls).then((tc) => tc || []),
-        Promise.resolve(streamResult?.toolResults).then((tr) => tr || []),
-        Promise.resolve(streamResult?._steps?.status?.value).then(
-          (s) => s || []
-        ),
-      ]);
-
-    // Extract tool calls and results from _steps if they exist
-    const toolCallsFromSteps: unknown[] = [];
-    const toolResultsFromSteps: unknown[] = [];
-
-    if (Array.isArray(stepsValue)) {
-      for (const step of stepsValue) {
-        if (step?.content && Array.isArray(step.content)) {
-          for (const contentItem of step.content) {
-            if (
-              typeof contentItem === "object" &&
-              contentItem !== null &&
-              "type" in contentItem
-            ) {
-              if (contentItem.type === "tool-call") {
-                // Convert AI SDK tool-call format to our format
-                toolCallsFromSteps.push({
-                  toolCallId: contentItem.toolCallId,
-                  toolName: contentItem.toolName,
-                  args: contentItem.input || contentItem.args || {},
-                });
-              } else if (contentItem.type === "tool-result") {
-                // Convert AI SDK tool-result format to our format
-                toolResultsFromSteps.push({
-                  toolCallId: contentItem.toolCallId,
-                  toolName: contentItem.toolName,
-                  output:
-                    contentItem.output?.value ||
-                    contentItem.output ||
-                    contentItem.result,
-                  result:
-                    contentItem.output?.value ||
-                    contentItem.output ||
-                    contentItem.result,
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // Use tool calls/results from _steps if available, otherwise fall back to direct properties
-    // Ensure toolCalls and toolResults are always arrays
-    let toolCallsFromResult = Array.isArray(toolCallsFromResultRaw)
-      ? toolCallsFromResultRaw
-      : [];
-    let toolResultsFromResult = Array.isArray(toolResultsFromResultRaw)
-      ? toolResultsFromResultRaw
-      : [];
-
-    // Prefer tool calls/results from _steps if we found any
-    if (toolCallsFromSteps.length > 0) {
-      toolCallsFromResult = toolCallsFromSteps;
-    }
-    if (toolResultsFromSteps.length > 0) {
-      toolResultsFromResult = toolResultsFromSteps;
-    }
-
-    // DIAGNOSTIC: Log tool calls and results extracted from stream result
-    console.log("[Stream Handler] Tool calls extracted from stream result:", {
-      toolCallsCount: toolCallsFromResult.length,
-      toolCalls: toolCallsFromResult,
-      toolResultsCount: toolResultsFromResult.length,
-      toolResults: toolResultsFromResult,
-      toolCallsFromStepsCount: toolCallsFromSteps.length,
-      toolResultsFromStepsCount: toolResultsFromSteps.length,
-      streamResultKeys: Object.keys(streamResult),
-      hasToolCalls: streamResult && "toolCalls" in streamResult,
-      hasToolResults: streamResult && "toolResults" in streamResult,
-      hasSteps: streamResult && "_steps" in streamResult,
-      stepsCount: Array.isArray(stepsValue) ? stepsValue.length : 0,
-    });
-
-    // FIX: If tool calls are missing but tool results exist, reconstruct tool calls from results
-    // This can happen when tools execute synchronously and the AI SDK doesn't populate toolCalls
-    if (toolCallsFromResult.length === 0 && toolResultsFromResult.length > 0) {
-      console.log(
-        "[Stream Handler] Tool calls missing but tool results exist, reconstructing tool calls from results"
-      );
-      // Reconstruct tool calls from tool results - cast to any since we're creating a compatible structure
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
-      toolCallsFromResult = toolResultsFromResult.map((toolResult: any) => ({
-        toolCallId:
-          toolResult.toolCallId ||
-          `call-${Math.random().toString(36).substring(7)}`,
-        toolName: toolResult.toolName || "unknown",
-        args: toolResult.args || toolResult.input || {},
-      })) as unknown as typeof toolCallsFromResult;
-      console.log(
-        "[Stream Handler] Reconstructed tool calls:",
-        toolCallsFromResult
-      );
-    }
-
-    // Format tool calls and results as UI messages
-    const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
-    const toolResultMessages = toolResultsFromResult.map(
-      formatToolResultMessage
-    );
-
-    // Build assistant response message with tool calls, results, and text
-    const assistantContent: Array<
-      | { type: "text"; text: string }
-      | {
-          type: "tool-call";
-          toolCallId: string;
-          toolName: string;
-          args: unknown;
-        }
-      | {
-          type: "tool-result";
-          toolCallId: string;
-          toolName: string;
-          result: unknown;
-        }
-    > = [];
-
-    // Add tool calls
-    for (const toolCallMsg of toolCallMessages) {
-      if (Array.isArray(toolCallMsg.content)) {
-        assistantContent.push(...toolCallMsg.content);
-      }
-    }
-
-    // Add tool results
-    for (const toolResultMsg of toolResultMessages) {
-      if (Array.isArray(toolResultMsg.content)) {
-        assistantContent.push(...toolResultMsg.content);
-      }
-    }
-
-    // Add text response if present
-    // finalResponseText includes the complete final response including continuation responses after tool execution
-    if (finalResponseText && finalResponseText.trim().length > 0) {
-      assistantContent.push({ type: "text", text: finalResponseText });
-    }
-
-    // Extract token usage, generation ID, and costs
-    // streamResult.totalUsage is a Promise, so we need to await it
-    const totalUsage = await streamResult.totalUsage;
-    // Pass totalUsage directly - extractTokenUsage handles field name variations
-    // (LanguageModelV2Usage may use different field names than our LanguageModelUsage)
-    const {
-      openrouterGenerationId,
-      provisionalCostUsd: extractedProvisionalCostUsd,
-    } = extractTokenUsageAndCosts(
-      { totalUsage } as unknown as StreamTextResultWithResolvedUsage,
-      undefined,
-      finalModelName,
-      "stream"
-    );
-    const provisionalCostUsd = extractedProvisionalCostUsd;
-
-    // Create assistant message with token usage, modelName, provider, costs, and generation time
-    const assistantMessage: UIMessage = {
-      role: "assistant",
-      content:
-        assistantContent.length > 0 ? assistantContent : finalResponseText,
-      ...{ tokenUsage },
-      modelName: finalModelName,
-      provider: "openrouter",
-      ...(openrouterGenerationId && { openrouterGenerationId }),
-      ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
-      ...(generationTimeMs !== undefined && { generationTimeMs }),
-    };
-
-    // DIAGNOSTIC: Log assistant message structure
-    console.log("[Stream Handler] Assistant message created:", {
-      role: assistantMessage.role,
-      contentType: typeof assistantMessage.content,
-      isArray: Array.isArray(assistantMessage.content),
-      contentLength: Array.isArray(assistantMessage.content)
-        ? assistantMessage.content.length
-        : "N/A",
-      content: Array.isArray(assistantMessage.content)
-        ? assistantMessage.content
-        : assistantMessage.content,
-      hasToolCallsInContent: Array.isArray(assistantMessage.content)
-        ? assistantMessage.content.some(
-            (item) =>
-              typeof item === "object" &&
-              item !== null &&
-              "type" in item &&
-              item.type === "tool-call"
-          )
-        : false,
-      hasToolResultsInContent: Array.isArray(assistantMessage.content)
-        ? assistantMessage.content.some(
-            (item) =>
-              typeof item === "object" &&
-              item !== null &&
-              "type" in item &&
-              item.type === "tool-result"
-          )
-        : false,
-      toolCallsInContent: Array.isArray(assistantMessage.content)
-        ? assistantMessage.content.filter(
-            (item) =>
-              typeof item === "object" &&
-              item !== null &&
-              "type" in item &&
-              item.type === "tool-call"
-          )
-        : [],
-      toolResultsInContent: Array.isArray(assistantMessage.content)
-        ? assistantMessage.content.filter(
-            (item) =>
-              typeof item === "object" &&
-              item !== null &&
-              "type" in item &&
-              item.type === "tool-result"
-          )
-        : [],
-    });
-
-    // Combine all converted messages and assistant message for logging
-    // Deduplication will happen in updateConversation (same as test endpoint)
-    const messagesForLogging: UIMessage[] = [
-      ...convertedMessages,
-      assistantMessage,
-    ];
-
-    // Get valid messages for logging (filter out any invalid ones, but keep empty messages)
-    const validMessages: UIMessage[] = messagesForLogging.filter(
-      (msg): msg is UIMessage =>
-        msg != null &&
-        typeof msg === "object" &&
-        "role" in msg &&
-        typeof msg.role === "string" &&
-        (msg.role === "user" ||
-          msg.role === "assistant" ||
-          msg.role === "system" ||
-          msg.role === "tool") &&
-        "content" in msg
-    );
-
-    // DIAGNOSTIC: Log messages being passed to updateConversation
-    console.log(
-      "[Stream Handler] Messages being passed to updateConversation:",
-      {
-        messagesForLoggingCount: messagesForLogging.length,
-        validMessagesCount: validMessages.length,
-        assistantMessageInValid: validMessages.some(
-          (msg) => msg.role === "assistant"
-        ),
-        messages: validMessages.map((msg) => ({
-          role: msg.role,
-          contentType: typeof msg.content,
-          isArray: Array.isArray(msg.content),
-          contentLength: Array.isArray(msg.content)
-            ? msg.content.length
-            : "N/A",
-          hasToolCalls: Array.isArray(msg.content)
-            ? msg.content.some(
-                (item) =>
-                  typeof item === "object" &&
-                  item !== null &&
-                  "type" in item &&
-                  item.type === "tool-call"
-              )
-            : false,
-          hasToolResults: Array.isArray(msg.content)
-            ? msg.content.some(
-                (item) =>
-                  typeof item === "object" &&
-                  item !== null &&
-                  "type" in item &&
-                  item.type === "tool-result"
-              )
-            : false,
-        })),
-      }
-    );
-
-    // Update existing conversation
-    // URL endpoint doesn't call this (returns early), so we can safely cast
-    await updateConversation(
-      db,
-      workspaceId,
-      agentId,
-      conversationId,
-      validMessages,
-      tokenUsage,
-      usesByok,
-      undefined,
-      awsRequestId,
-      endpointType as "test" | "stream"
-    ).catch((error) => {
-      // Log error but don't fail the request
-      console.error("[Stream Handler] Error logging conversation:", {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        workspaceId,
-        agentId,
-      });
-      // Report to Sentry
-      Sentry.captureException(ensureError(error), {
-        tags: {
-          endpoint: endpointType,
-          operation: "conversation_logging",
-        },
-        extra: {
-          workspaceId,
-          agentId,
-        },
-      });
-    });
-  } catch (error) {
-    // Log error but don't fail the request
-    console.error("[Stream Handler] Error preparing conversation log:", {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      workspaceId,
-      agentId,
-    });
-    // Report to Sentry
-    Sentry.captureException(ensureError(error), {
-      tags: {
-        endpoint: endpointType,
-        operation: "conversation_logging",
-      },
-      extra: {
-        workspaceId,
-        agentId,
-      },
-    });
-  }
-}
-
-/**
- * Writes an error response to the stream in SSE format
- * Uses direct write/end methods on the HttpResponseStream
- * Format: "data: {...}\n\n" (SSE format)
- */
-async function writeErrorResponse(
-  responseStream: HttpResponseStream,
-  error: unknown
-): Promise<void> {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  // Use SSE format: data: {...}\n\n
-  const errorChunk = `data: ${JSON.stringify({
-    type: "error",
-    error: errorMessage,
-  })}\n\n`;
-
-  console.log("[Stream Handler] Writing error response:", {
-    errorMessage,
-    errorChunk,
-    errorChunkLength: errorChunk.length,
-  });
-
-  try {
-    // Write error body directly to the original stream
-    // Check if stream is writable before writing
-    await writeChunkToStream(responseStream, errorChunk);
-
-    // End the stream only if it's not already ended
-    try {
-      responseStream.end();
-      console.log("[Stream Handler] Error response written and stream ended");
-    } catch (endError) {
-      // Stream might already be ended, log but don't throw
-      console.warn(
-        "[Stream Handler] Stream already ended when trying to end after error:",
-        {
-          error:
-            endError instanceof Error ? endError.message : String(endError),
-          originalError: errorMessage,
-        }
-      );
-    }
-  } catch (writeError) {
-    // If we can't write to the stream (e.g., already ended), just log the error
-    // Don't throw - the original error is more important
-    console.error(
-      "[Stream Handler] Error writing error response (stream may already be ended):",
-      {
-        writeError:
-          writeError instanceof Error ? writeError.message : String(writeError),
-        writeErrorType: writeError?.constructor?.name,
-        originalError: errorMessage,
-        isStreamWriteAfterEnd:
-          writeError instanceof Error &&
-          writeError.message.includes("write after end"),
-      }
-    );
-    // Try to end the stream even if write failed, but don't throw if it fails
-    try {
-      responseStream.end();
-    } catch (endError) {
-      // Stream already ended or in error state - this is expected, just log
-      console.warn(
-        "[Stream Handler] Stream already ended when trying to end after write failure:",
-        {
-          endError:
-            endError instanceof Error ? endError.message : String(endError),
-          originalError: errorMessage,
-        }
-      );
-    }
-    // Don't re-throw writeError - we want the original error to be logged, not the stream error
-  }
-}
-
-/**
- * Builds the complete request context for processing the stream
- */
-async function buildRequestContext(
-  event: LambdaUrlEvent | APIGatewayProxyEventV2,
-  pathParams: PathParameters,
-  authResult: { authenticated: boolean; userId?: string }
-): Promise<StreamRequestContext> {
-  const { workspaceId, agentId, secret, endpointType } = pathParams;
-
-  // Read and validate X-Conversation-Id header
-  const conversationId =
-    event.headers["x-conversation-id"] || event.headers["X-Conversation-Id"];
-  if (!conversationId || typeof conversationId !== "string") {
-    throw badRequest("X-Conversation-Id header is required");
-  }
-
-  // Get allowed origins for CORS (only for stream endpoint)
-  let allowedOrigins: string[] | null = null;
-  if (endpointType === "stream") {
-    allowedOrigins = await getAllowedOrigins(workspaceId, agentId);
-  }
-  const origin = event.headers["origin"] || event.headers["Origin"];
-
-  // Validate subscription and limits
-  // URL endpoint doesn't need this (returns early), but we call it for type safety
-  const subscriptionId = await validateSubscriptionAndLimitsStream(
-    workspaceId,
-    endpointType
-  );
-
-  // Setup database connection
-  const db = await database();
-
-  // Get context for workspace credit transactions
-  const awsRequestId = event.requestContext?.requestId;
-  const lambdaContext = getContextFromRequestId(awsRequestId);
-  if (!lambdaContext) {
-    throw new Error("Context not available for workspace credit transactions");
-  }
-
-  // Setup agent context
-  // Always use "https://app.helpmaton.com" as the Referer header for LLM provider calls
-  const modelReferer = "https://app.helpmaton.com";
-  const { agent, model, tools, usesByok } = await setupAgentContext(
-    workspaceId,
-    agentId,
-    modelReferer,
-    lambdaContext,
-    conversationId
-  );
-
-  // Extract and convert request body
-  const bodyText = extractRequestBody(event);
-  if (!bodyText) {
-    throw new Error("Request body is required");
-  }
-
-  const { uiMessage, modelMessages, convertedMessages } =
-    convertRequestBodyToMessages(bodyText);
-
-  // Derive the model name from the agent's modelName if set, otherwise use default
-  const finalModelName =
-    typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
-
-  // Log client-side tool results if present
-  // Get list of client-side tool names from agent configuration
-  const clientToolNames = new Set<string>();
-  if (
-    agent.clientTools &&
-    Array.isArray(agent.clientTools) &&
-    agent.clientTools.length > 0
-  ) {
-    for (const clientTool of agent.clientTools) {
-      if (clientTool.name) {
-        clientToolNames.add(clientTool.name);
-      }
-    }
-  }
-
-  // Check for tool result messages (role: "tool")
-  for (const msg of modelMessages) {
-    if (
-      msg &&
-      typeof msg === "object" &&
-      "role" in msg &&
-      msg.role === "tool" &&
-      "toolCallId" in msg &&
-      "toolName" in msg
-    ) {
-      const toolName = (msg as { toolName?: string }).toolName;
-      const toolCallId = (msg as { toolCallId?: string }).toolCallId;
-      const toolResult = (msg as { result?: unknown }).result;
-
-      if (toolName && clientToolNames.has(toolName)) {
-        console.log("[Stream Handler] Client-side tool result received:", {
-          toolName,
-          toolCallId,
-          result: toolResult,
-        });
-      }
-    }
-  }
-
-  // Validate credits, spending limits, and reserve credits before LLM call
-  const reservationId = await validateCreditsAndReserveBeforeLLM(
-    db,
-    workspaceId,
-    agentId,
-    agent,
-    modelMessages,
-    tools,
-    usesByok,
-    endpointType,
-    lambdaContext,
-    conversationId
-  );
-
-  // Extract request ID from event (for context access)
-  const requestIdForContext = event.requestContext?.requestId;
-
-  return {
-    workspaceId,
-    agentId,
-    secret,
-    endpointType,
-    conversationId,
-    origin,
-    allowedOrigins,
-    subscriptionId,
-    db,
-    uiMessage,
-    convertedMessages,
-    modelMessages,
-    agent,
-    model,
-    tools,
-    usesByok,
-    reservationId,
-    finalModelName,
-    awsRequestId: requestIdForContext,
-    userId: authResult.userId,
-  };
-}
-
-/**
- * Handles the URL endpoint (Function URL discovery) - returns JSON, not streaming
- * This endpoint always uses standard API Gateway response format
- */
-async function handleUrlEndpoint(
-  event: APIGatewayProxyEventV2
-): Promise<APIGatewayProxyResultV2> {
-  // Ensure requestContext.http exists (construct if missing)
-  if (!event.requestContext?.http) {
-    const eventAny = event as {
-      requestContext?: {
-        http?: { method?: string; path?: string };
-        httpMethod?: string;
-        path?: string;
-      };
-      rawPath?: string;
-    };
-    const method =
-      eventAny.requestContext?.http?.method ||
-      eventAny.requestContext?.httpMethod ||
-      "GET";
-    const path =
-      eventAny.requestContext?.http?.path ||
-      eventAny.requestContext?.path ||
-      eventAny.rawPath ||
-      "/api/streams/url";
-    if (!event.requestContext) {
-      event.requestContext = {
-        accountId: "",
-        apiId: "",
-        domainName: "",
-        domainPrefix: "",
-        http: {
-          method: method,
-          path: path,
-          protocol: "HTTP/1.1",
-          sourceIp: "",
-          userAgent: "",
-        },
-        requestId: "",
-        routeKey: `${method} ${path}`,
-        stage: "$default",
-        time: new Date().toISOString(),
-        timeEpoch: Date.now(),
-      };
-    } else {
-      event.requestContext.http = {
-        method: method,
-        path: path,
-        protocol: "HTTP/1.1",
-        sourceIp: "",
-        userAgent: "",
-      };
-    }
-  }
-
-  // Only allow GET requests for URL endpoint
-  if (event.requestContext.http.method !== "GET") {
-    return {
-      statusCode: 406,
-      body: JSON.stringify({
-        error: "Only GET method is allowed for /api/streams/url",
-      }),
-    };
-  }
-
-  console.log("[streams-handler] Handler invoked for URL endpoint");
-  console.log(
-    `[streams-handler] Environment variables: STREAMING_FUNCTION_URL=${
-      process.env.STREAMING_FUNCTION_URL || "not set"
-    }, AWS_STACK_NAME=${
-      process.env.AWS_STACK_NAME || "not set"
-    }, ARC_STACK_NAME=${process.env.ARC_STACK_NAME || "not set"}, STACK_NAME=${
-      process.env.STACK_NAME || "not set"
-    }`
-  );
-
-  const streamingFunctionUrl = await getStreamingFunctionUrl();
-
-  if (!streamingFunctionUrl) {
-    console.error(
-      "[streams-handler] Failed to get streaming function URL. Returning 404."
-    );
-    return {
-      statusCode: 404,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        error:
-          "Streaming function URL not configured. The Lambda Function URL may not be deployed yet, or the URL could not be found in CloudFormation stack outputs.",
-      }),
-    };
-  }
-
-  console.log(
-    `[streams-handler] Successfully retrieved streaming function URL: ${streamingFunctionUrl}`
-  );
-
-  return {
-    statusCode: 200,
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      url: streamingFunctionUrl,
-    }),
-  };
-}
-
-/**
  * Internal handler function that processes the request for Lambda Function URL streaming
- * This is wrapped by awslambda.streamifyResponse for streaming support
- * With RESPONSE_STREAM mode, responseStream is already an HttpResponseStream
- * Note: This can also receive API Gateway events when awslambda is available
  */
 const internalHandler = async (
   event: LambdaUrlEvent | APIGatewayProxyEventV2 | APIGatewayProxyEvent,
   responseStream: HttpResponseStream
 ): Promise<void> => {
-  // Transform REST API v1 events to v2 format if needed
-  let normalizedEvent: LambdaUrlEvent | APIGatewayProxyEventV2;
-  if ("httpMethod" in event && event.httpMethod !== undefined) {
-    // API Gateway REST API v1 event - transform it to v2 format
-    normalizedEvent = transformRestToHttpV2Event(event as APIGatewayProxyEvent);
-  } else {
-    normalizedEvent = event as LambdaUrlEvent | APIGatewayProxyEventV2;
-  }
+  // Normalize event
+  const normalizedEvent = normalizeEventToHttpV2(event);
+  const pathParams = extractStreamPathParameters(normalizedEvent);
 
-  const pathParams = extractPathParameters(normalizedEvent);
   if (!pathParams) {
-    // Wrap stream with error headers before throwing/writing error
     responseStream = getDefined(
       awslambda,
       "awslambda is not defined"
@@ -1787,152 +119,7 @@ const internalHandler = async (
     return;
   }
 
-  // Normalize event to get HTTP method safely (handles LambdaUrlEvent, APIGatewayProxyEventV2, and APIGatewayProxyEvent)
-  // At this point, normalizedEvent is either LambdaUrlEvent or APIGatewayProxyEventV2 (REST events already transformed)
-  // Check for requestContext.http first - this is the key property we need
-  let httpV2Event: APIGatewayProxyEventV2;
-  const eventWithContext = normalizedEvent as {
-    requestContext?: { http?: { method?: string } };
-  };
-
-  if (eventWithContext.requestContext?.http?.method) {
-    // Event already has requestContext.http - use it directly or transform if needed
-    if ("version" in normalizedEvent && normalizedEvent.version === "2.0") {
-      // Already a properly formatted APIGatewayProxyEventV2
-      httpV2Event = normalizedEvent as APIGatewayProxyEventV2;
-    } else if ("rawPath" in normalizedEvent) {
-      // Lambda Function URL event - transform it
-      httpV2Event = transformLambdaUrlToHttpV2Event(
-        normalizedEvent as LambdaUrlEvent
-      );
-    } else {
-      // Has requestContext.http but unclear format - try to use as-is
-      httpV2Event = normalizedEvent as APIGatewayProxyEventV2;
-    }
-  } else if (
-    "version" in normalizedEvent &&
-    normalizedEvent.version === "2.0"
-  ) {
-    // API Gateway event (has version 2.0) but missing requestContext.http
-    // This can happen with streamifyResponse - construct http from available data
-    httpV2Event = normalizedEvent as APIGatewayProxyEventV2;
-  } else if (
-    "rawPath" in normalizedEvent &&
-    "requestContext" in normalizedEvent &&
-    (normalizedEvent as LambdaUrlEvent).requestContext?.http
-  ) {
-    // Lambda Function URL event with http property - transform it
-    httpV2Event = transformLambdaUrlToHttpV2Event(
-      normalizedEvent as LambdaUrlEvent
-    );
-  } else {
-    // Fallback: try to use as-is, but log for debugging
-    console.error("[internalHandler] Unexpected event structure:", {
-      hasVersion: "version" in normalizedEvent,
-      version:
-        "version" in normalizedEvent
-          ? (normalizedEvent as { version?: string }).version
-          : undefined,
-      hasRequestContext: "requestContext" in normalizedEvent,
-      hasRawPath: "rawPath" in normalizedEvent,
-      requestContextKeys:
-        "requestContext" in normalizedEvent
-          ? Object.keys(
-              (normalizedEvent as { requestContext?: unknown })
-                .requestContext || {}
-            )
-          : [],
-      eventKeys: Object.keys(normalizedEvent),
-    });
-    // Try to cast as APIGatewayProxyEventV2 as last resort
-    httpV2Event = normalizedEvent as APIGatewayProxyEventV2;
-  }
-
-  // Safety check: ensure requestContext.http exists, construct if missing
-  if (!httpV2Event.requestContext?.http) {
-    // Try to construct requestContext.http from available data
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const eventAny = normalizedEvent as any;
-    if (eventAny.requestContext) {
-      // Try to extract method from various possible locations
-      const method =
-        eventAny.requestContext.http?.method ||
-        eventAny.requestContext.httpMethod ||
-        eventAny.httpMethod ||
-        eventAny.method ||
-        "GET"; // Default to GET for URL endpoint
-
-      const path =
-        eventAny.requestContext.http?.path ||
-        eventAny.requestContext.path ||
-        eventAny.path ||
-        httpV2Event.rawPath ||
-        "/";
-
-      // Construct requestContext.http if missing
-      if (!httpV2Event.requestContext) {
-        httpV2Event.requestContext = {
-          accountId: eventAny.requestContext?.accountId || "",
-          apiId: eventAny.requestContext?.apiId || "",
-          domainName: eventAny.requestContext?.domainName || "",
-          domainPrefix: eventAny.requestContext?.domainPrefix || "",
-          http: {
-            method: method,
-            path: path,
-            protocol: eventAny.requestContext.http?.protocol || "HTTP/1.1",
-            sourceIp:
-              eventAny.requestContext.http?.sourceIp ||
-              eventAny.requestContext?.identity?.sourceIp ||
-              "",
-            userAgent:
-              eventAny.requestContext.http?.userAgent ||
-              eventAny.requestContext?.identity?.userAgent ||
-              "",
-          },
-          requestId: eventAny.requestContext?.requestId || "",
-          routeKey: eventAny.requestContext?.routeKey || `${method} ${path}`,
-          stage: eventAny.requestContext?.stage || "$default",
-          time: eventAny.requestContext?.time || new Date().toISOString(),
-          timeEpoch: eventAny.requestContext?.timeEpoch || Date.now(),
-        };
-      } else {
-        // requestContext exists but http is missing - add it
-        httpV2Event.requestContext.http = {
-          method: method,
-          path: path,
-          protocol: eventAny.requestContext.http?.protocol || "HTTP/1.1",
-          sourceIp:
-            eventAny.requestContext.http?.sourceIp ||
-            eventAny.requestContext?.identity?.sourceIp ||
-            "",
-          userAgent:
-            eventAny.requestContext.http?.userAgent ||
-            eventAny.requestContext?.identity?.userAgent ||
-            "",
-        };
-      }
-    } else {
-      console.error(
-        "[internalHandler] Invalid event structure after normalization:",
-        {
-          hasRequestContext: !!httpV2Event.requestContext,
-          requestContextKeys: httpV2Event.requestContext
-            ? Object.keys(httpV2Event.requestContext)
-            : [],
-          hasVersion: "version" in httpV2Event,
-          version: "version" in httpV2Event ? httpV2Event.version : undefined,
-          eventKeys: Object.keys(httpV2Event),
-          originalEventKeys: Object.keys(event),
-        }
-      );
-      throw new Error(
-        "Invalid event structure: requestContext.http is missing and cannot be constructed"
-      );
-    }
-  }
-
-  // URL endpoint is handled by the wrapper, not here
-  // This handler only processes streaming endpoints (test and stream)
+  // URL endpoint should not reach here (handled by wrapper)
   if (pathParams.endpointType === "url") {
     throw new Error(
       "URL endpoint should be handled by the wrapper, not internalHandler"
@@ -1941,38 +128,12 @@ const internalHandler = async (
 
   let context: StreamRequestContext | undefined;
 
-  // Extract requestId from event for context setup (handles both event types)
+  // Ensure requestContext.http exists
+  const httpV2Event = ensureRequestContextHttp(normalizedEvent);
   const awsRequestId = httpV2Event.requestContext.requestId;
 
-  // Create synthetic Lambda context for workspace credit transactions
-  // streamifyResponse doesn't provide Context, so we create one
-  if (awsRequestId) {
-    const syntheticContext: Context = {
-      callbackWaitsForEmptyEventLoop: false,
-      awsRequestId,
-      functionName: process.env.AWS_LAMBDA_FUNCTION_NAME || "stream-handler",
-      functionVersion: process.env.AWS_LAMBDA_FUNCTION_VERSION || "$LATEST",
-      invokedFunctionArn: process.env.AWS_LAMBDA_FUNCTION_ARN || "",
-      memoryLimitInMB: process.env.AWS_LAMBDA_FUNCTION_MEMORY_SIZE || "512",
-      getRemainingTimeInMillis: () => {
-        // Return a large value since we don't have access to actual remaining time
-        // This is only used for logging/debugging, not for actual timeout logic
-        return 300000; // 5 minutes default
-      },
-      logGroupName: process.env.AWS_LAMBDA_LOG_GROUP_NAME || "",
-      logStreamName: process.env.AWS_LAMBDA_LOG_STREAM_NAME || "",
-      done: () => {},
-      fail: () => {},
-      succeed: () => {},
-    };
-
-    // Augment context with workspace credit transaction capability
-    const augmentedContext =
-      augmentContextWithCreditTransactions(syntheticContext);
-
-    // Store context in module-level map so buildRequestContext can retrieve it
-    setCurrentHTTPContext(awsRequestId, augmentedContext);
-  }
+  // Setup workspace credit context
+  setupWorkspaceCreditContext(awsRequestId);
 
   // Get allowed origins for CORS (only for stream endpoint)
   let allowedOrigins: string[] | null = null;
@@ -1983,21 +144,15 @@ const internalHandler = async (
     );
   }
 
-  // Build CORS headers based on endpoint type
+  // Build CORS headers
   const origin = httpV2Event.headers["origin"] || httpV2Event.headers["Origin"];
-  const responseHeaders = getResponseHeaders(
+  const responseHeaders = computeCorsHeaders(
     pathParams.endpointType,
     origin,
     allowedOrigins
   );
 
-  responseStream = getDefined(
-    awslambda,
-    "awslambda is not defined"
-  ).HttpResponseStream.from(responseStream, {
-    statusCode: 200,
-    headers: responseHeaders,
-  });
+  responseStream = createResponseStream(responseStream, responseHeaders);
 
   try {
     // Handle OPTIONS preflight request
@@ -2007,17 +162,8 @@ const internalHandler = async (
       return;
     }
 
-    // Extract and validate path parameters
-    // Log the path for debugging
-    console.log("[Stream Handler] Path extraction:", {
-      rawPath: httpV2Event.rawPath,
-      path: httpV2Event.requestContext.http.path,
-      method: httpV2Event.requestContext.http.method,
-      endpointType: pathParams.endpointType,
-    });
-
-    // Authenticate request based on endpoint type
-    const authResult = await authenticateRequest(
+    // Authenticate request
+    const authResult = await authenticateStreamRequest(
       pathParams.endpointType,
       httpV2Event,
       pathParams.workspaceId,
@@ -2026,294 +172,51 @@ const internalHandler = async (
     );
 
     // Build request context
-    context = await buildRequestContext(httpV2Event, pathParams, authResult);
-
-    console.log("[Stream Handler] Building request context...");
-    console.log("[Stream Handler] Request context built successfully");
-
-    // Stream the AI response
-    // Always write to the original responseStream passed to this function
-    let fullStreamedText = "";
-    let llmCallAttempted = false;
-    let streamResult: Awaited<ReturnType<typeof streamText>> | undefined;
-
-    let generationStartTime: number | undefined;
-    let generationTimeMs: number | undefined;
-    try {
-      console.log("[Stream Handler] Starting AI stream...");
-      generationStartTime = Date.now();
-      streamResult = await streamAIResponse(
-        context.agent,
-        context.model,
-        context.modelMessages,
-        context.tools,
-        responseStream, // Use original stream
-        (textDelta) => {
-          fullStreamedText += textDelta;
-        }
-      );
-      // Calculate generation time when stream completes
-      if (generationStartTime !== undefined) {
-        generationTimeMs = Date.now() - generationStartTime;
-      }
-      // LLM call succeeded - mark as attempted
-      llmCallAttempted = true;
-      console.log("[Stream Handler] AI stream completed");
-    } catch (error) {
-      // Comprehensive error logging for debugging
-      logErrorDetails(error, {
-        workspaceId: context.workspaceId,
-        agentId: context.agentId,
-        usesByok: context.usesByok,
-        endpoint: context.endpointType as "test" | "stream",
-      });
-
-      // Normalize BYOK error if needed
-      const errorToLog = normalizeByokError(error);
-
-      // Check if this is a BYOK authentication error FIRST
-      if (isByokAuthenticationError(error, context.usesByok)) {
-        await persistConversationError(context, errorToLog);
-        // Use writeErrorResponse which handles stream state properly
-        await writeErrorResponse(
-          responseStream,
-          new Error(
-            "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions."
-          )
-        );
-        return;
-      }
-
-      // Handle credit errors (for streaming, we write SSE format)
-      // URL endpoint doesn't call this (returns early), so we can safely cast
-      const creditErrorResult = await handleCreditErrors(
-        error,
-        context.workspaceId,
-        context.endpointType as "test" | "stream"
-      );
-      if (creditErrorResult.handled && creditErrorResult.response) {
-        await persistConversationError(context, error);
-        const response = creditErrorResult.response;
-        if (
-          typeof response === "object" &&
-          response !== null &&
-          "body" in response
-        ) {
-          const body = JSON.parse((response as { body: string }).body);
-          // Use writeErrorResponse which handles stream state properly
-          await writeErrorResponse(responseStream, new Error(body.error));
-          return;
-        }
-      }
-
-      // Error after reservation but before or during LLM call
-      if (context.reservationId && context.reservationId !== "byok") {
-        // Get context for workspace credit transactions
-        const lambdaContext = getContextFromRequestId(context.awsRequestId);
-        if (lambdaContext) {
-          // URL endpoint doesn't call this (returns early), so we can safely cast
-          await cleanupReservationOnError(
-            context.db,
-            context.reservationId,
-            context.workspaceId,
-            context.agentId,
-            "openrouter",
-            context.finalModelName,
-            error,
-            llmCallAttempted,
-            context.usesByok,
-            context.endpointType as "test" | "stream",
-            lambdaContext
-          );
-        } else {
-          console.warn(
-            "[Stream Handler] Context not available for cleanup, skipping transaction creation"
-          );
-        }
-      }
-
-      // Re-throw error to be handled by error handler
-      throw error;
-    }
-
-    // If we get here, the LLM call succeeded
-    if (!streamResult) {
-      throw new Error("LLM call succeeded but result is undefined");
-    }
-
-    // Extract text, tool calls, tool results, and usage from streamText result
-    // streamText result properties are promises that need to be awaited
-    // (same as test endpoint)
-    // streamResult.text includes the complete final response including continuation responses after tool execution
-    // These might throw NoOutputGeneratedError if there was an error during streaming
-    let responseText: string;
-    let usage: unknown;
-
-    try {
-      [responseText, usage] = await Promise.all([
-        Promise.resolve(streamResult.text).then((t) => t || ""),
-        Promise.resolve(streamResult.usage),
-      ]);
-    } catch (resultError) {
-      // Check if this is a BYOK authentication error
-      if (isByokAuthenticationError(resultError, context.usesByok)) {
-        const errorToLog = normalizeByokError(resultError);
-        await persistConversationError(context, errorToLog);
-        // Use writeErrorResponse which handles stream state properly
-        await writeErrorResponse(
-          responseStream,
-          new Error(
-            "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions."
-          )
-        );
-        return;
-      }
-      // For non-authentication errors when accessing result properties, still log the conversation
-      await persistConversationError(context, resultError);
-      throw resultError;
-    }
-
-    // Use responseText (complete final text) instead of fullStreamedText
-    // responseText includes continuation responses after tool execution
-    const finalResponseText = responseText || fullStreamedText;
-
-    // DIAGNOSTIC: Log text extraction
-    console.log("[Stream Handler] Extracted response text:", {
-      responseTextLength: responseText?.length || 0,
-      fullStreamedTextLength: fullStreamedText.length,
-      usingResponseText: !!responseText && responseText.length > 0,
-      responseTextPreview: responseText?.substring(0, 100),
-    });
-
-    // Extract token usage, generation ID, and costs
-    // streamResult.totalUsage is a Promise, so we need to await it
-    const totalUsage = await streamResult.totalUsage;
-    // Pass totalUsage directly - extractTokenUsage handles field name variations
-    // (LanguageModelV2Usage may use different field names than our LanguageModelUsage)
-    const { tokenUsage } = extractTokenUsageAndCosts(
-      { totalUsage } as unknown as StreamTextResultWithResolvedUsage,
-      usage,
-      context.finalModelName,
-      context.endpointType as "test" | "stream"
+    context = await buildStreamRequestContext(
+      httpV2Event,
+      pathParams,
+      authResult
     );
 
-    // DIAGNOSTIC: Log token usage extraction
-    console.log("[Stream Handler] Extracted token usage:", {
-      tokenUsage,
-      usage,
-      hasUsage: !!usage,
-      streamResultKeys: Object.keys(streamResult),
-    });
-
-    // Post-processing: adjust credit reservation, track usage, log conversation
-    try {
-      await adjustCreditsAfterStream(
-        context.db,
-        context.workspaceId,
-        context.agentId,
-        context.reservationId,
-        context.finalModelName,
-        tokenUsage,
-        context.usesByok,
-        streamResult,
-        context.conversationId,
-        context.awsRequestId,
-        context.endpointType
-      );
-    } catch (error) {
-      // Log error but don't fail the request
-      console.error(
-        "[Stream Handler] Error adjusting credit reservation after stream:",
-        {
-          error: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-          workspaceId: context.workspaceId,
-          agentId: context.agentId,
-          reservationId: context.reservationId,
-          tokenUsage,
-        }
-      );
-      // Report to Sentry
-      Sentry.captureException(ensureError(error), {
-        tags: {
-          endpoint: context.endpointType,
-          operation: "credit_adjustment",
-        },
-        extra: {
-          workspaceId: context.workspaceId,
-          agentId: context.agentId,
-          reservationId: context.reservationId,
-          tokenUsage,
-        },
-      });
+    // Execute stream
+    const executionResult = await executeStream(context, responseStream);
+    if (!executionResult) {
+      // Error was handled in executeStream
+      return;
     }
 
-    await trackRequestUsage(
-      context.subscriptionId,
-      context.workspaceId,
-      context.agentId,
-      context.endpointType
-    );
-
-    await logConversation(
-      context.db,
-      context.workspaceId,
-      context.agentId,
-      context.conversationId,
-      context.convertedMessages,
-      finalResponseText,
-      tokenUsage,
-      context.usesByok,
-      context.finalModelName,
-      streamResult,
-      context.awsRequestId,
-      generationTimeMs,
-      context.endpointType
+    // Post-processing
+    await performPostProcessing(
+      context,
+      executionResult.finalResponseText,
+      executionResult.tokenUsage,
+      executionResult.streamResult,
+      executionResult.generationTimeMs
     );
   } catch (error) {
     const boomed = boomify(error as Error);
-    // Handle errors that occur before streaming starts
     console.error("[Stream Handler] Unhandled error:", boomed);
     if (boomed.isServer) {
-      // Report 500 errors to Sentry
-      console.error("[Stream Handler] Server error details:", boomed);
       Sentry.captureException(ensureError(error), {
         tags: {
           handler: "Stream Handler",
           statusCode: boomed.output.statusCode,
         },
       });
-    } else {
-      console.error("[Stream Handler] Client error:", boomed);
     }
 
-    // Normalize BYOK error if needed
-    const errorToLog = context ? normalizeByokError(error) : error;
     if (context) {
-      await persistConversationError(context, errorToLog);
+      await persistConversationError(context, error);
     }
     try {
-      // Ensure response stream is wrapped with headers before writing error
-      // This is required for Lambda Function URLs in RESPONSE_STREAM mode
-      // Check if stream needs wrapping by checking if awslambda is available
       if (typeof awslambda !== "undefined" && awslambda) {
-        // Wrap stream with error headers if not already wrapped
-        // Use SSE format for streaming endpoints, JSON for URL endpoint
-        // Check endpoint type as string to handle all cases including "url"
-        const endpointTypeStr = pathParams?.endpointType as string | undefined;
-        const contentType =
-          endpointTypeStr === "url"
-            ? "application/json"
-            : "text/event-stream; charset=utf-8";
-
         responseStream = awslambda.HttpResponseStream.from(responseStream, {
           statusCode: boomed.output?.statusCode || 500,
           headers: {
-            "Content-Type": contentType,
+            "Content-Type": "text/event-stream; charset=utf-8",
           },
         });
       }
-
       await writeErrorResponse(responseStream, error);
       responseStream.end();
     } catch (writeError) {
@@ -2329,28 +232,29 @@ const internalHandler = async (
       });
     }
   } finally {
-    // Clean up context from module-level map
     if (awsRequestId) {
       clearCurrentHTTPContext(awsRequestId);
     }
-
-    // Flush Sentry and PostHog events before Lambda terminates (critical for Lambda)
-    // This ensures flushing happens on both success and error paths
     await Promise.all([flushPostHog(), flushSentry()]).catch((flushErrors) => {
       console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+      Sentry.captureException(ensureError(flushErrors), {
+        tags: {
+          context: "stream-handler",
+          operation: "flush-events",
+        },
+      });
     });
   }
 };
 
 /**
  * Handles streaming for API Gateway (buffered approach)
- * Buffers all stream chunks and returns complete response
  */
 async function handleApiGatewayStreaming(
   event: APIGatewayProxyEventV2,
   context: Context
 ): Promise<APIGatewayProxyResultV2> {
-  const pathParams = extractPathParameters(event);
+  const pathParams = extractStreamPathParameters(event);
   if (!pathParams) {
     return {
       statusCode: 406,
@@ -2358,70 +262,15 @@ async function handleApiGatewayStreaming(
     };
   }
 
-  // Handle URL endpoint (Function URL discovery) - returns JSON, not streaming
+  // Route URL endpoint to separate handler
   if (pathParams.endpointType === "url") {
-    // Only allow GET requests for URL endpoint
-    if (event.requestContext.http.method !== "GET") {
-      return {
-        statusCode: 406,
-        body: JSON.stringify({
-          error: "Only GET method is allowed for /api/streams/url",
-        }),
-      };
-    }
-
-    console.log("[streams-handler] Handler invoked for URL endpoint");
-    console.log(
-      `[streams-handler] Environment variables: STREAMING_FUNCTION_URL=${
-        process.env.STREAMING_FUNCTION_URL || "not set"
-      }, AWS_STACK_NAME=${
-        process.env.AWS_STACK_NAME || "not set"
-      }, ARC_STACK_NAME=${
-        process.env.ARC_STACK_NAME || "not set"
-      }, STACK_NAME=${process.env.STACK_NAME || "not set"}`
-    );
-
-    const streamingFunctionUrl = await getStreamingFunctionUrl();
-
-    if (!streamingFunctionUrl) {
-      console.error(
-        "[streams-handler] Failed to get streaming function URL. Returning 404."
-      );
-      return {
-        statusCode: 404,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          error:
-            "Streaming function URL not configured. The Lambda Function URL may not be deployed yet, or the URL could not be found in CloudFormation stack outputs.",
-        }),
-      };
-    }
-
-    console.log(
-      `[streams-handler] Successfully retrieved streaming function URL: ${streamingFunctionUrl}`
-    );
-
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url: streamingFunctionUrl,
-      }),
-    };
+    return await handleUrlEndpoint(event);
   }
 
-  // Extract requestId from event for context setup
   const awsRequestId = event.requestContext?.requestId;
 
-  // Store context in module-level map so buildRequestContext can retrieve it
-  if (awsRequestId) {
-    const augmentedContext = augmentContextWithCreditTransactions(context);
-    setCurrentHTTPContext(awsRequestId, augmentedContext);
-  }
+  // Setup workspace credit context
+  setupWorkspaceCreditContext(awsRequestId, context);
 
   // Get allowed origins for CORS (only for stream endpoint)
   let allowedOrigins: string[] | null = null;
@@ -2432,9 +281,9 @@ async function handleApiGatewayStreaming(
     );
   }
 
-  // Build CORS headers based on endpoint type
+  // Build CORS headers
   const origin = event.headers["origin"] || event.headers["Origin"];
-  const responseHeaders = getResponseHeaders(
+  const responseHeaders = computeCorsHeaders(
     pathParams.endpointType,
     origin,
     allowedOrigins
@@ -2443,15 +292,11 @@ async function handleApiGatewayStreaming(
   try {
     // Handle OPTIONS preflight request
     if (event.requestContext.http.method === "OPTIONS") {
-      return {
-        statusCode: 200,
-        headers: responseHeaders,
-        body: "",
-      };
+      return handleOptionsRequest(responseHeaders);
     }
 
-    // Authenticate request based on endpoint type
-    const authResult = await authenticateRequest(
+    // Authenticate request
+    const authResult = await authenticateStreamRequest(
       pathParams.endpointType,
       event,
       pathParams.workspaceId,
@@ -2460,239 +305,47 @@ async function handleApiGatewayStreaming(
     );
 
     // Build request context
-    const streamContext = await buildRequestContext(
+    const streamContext = await buildStreamRequestContext(
       event,
       pathParams,
       authResult
     );
 
-    // Buffer stream chunks
-    const chunks: Uint8Array[] = [];
-    let fullStreamedText = "";
-    let llmCallAttempted = false;
-    let streamResult: Awaited<ReturnType<typeof streamText>> | undefined;
+    // Create mock response stream for buffering
+    const { stream: mockStream, getBody } = createMockResponseStream();
 
-    // Create a mock response stream that collects chunks
-    const mockStream: HttpResponseStream = {
-      write: (
-        chunk: string | Uint8Array,
-        callback?: (error?: Error) => void
-      ) => {
-        const bytes =
-          typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
-        chunks.push(bytes);
-        if (typeof chunk === "string") {
-          fullStreamedText += chunk;
-        }
-        if (callback) {
-          callback();
-        }
-      },
-      end: (callback?: (error?: Error) => void) => {
-        if (callback) {
-          callback();
-        }
-      },
-    };
-
-    let generationStartTime: number | undefined;
-    let generationTimeMs: number | undefined;
-
+    // Execute stream
+    let executionResult;
     try {
-      console.log("[Stream Handler] Starting AI stream (API Gateway)...");
-      generationStartTime = Date.now();
-      streamResult = await streamAIResponse(
-        streamContext.agent,
-        streamContext.model,
-        streamContext.modelMessages,
-        streamContext.tools,
-        mockStream,
-        (textDelta) => {
-          fullStreamedText += textDelta;
-        }
+      executionResult = await executeStreamForApiGateway(
+        streamContext,
+        mockStream
       );
-      if (generationStartTime !== undefined) {
-        generationTimeMs = Date.now() - generationStartTime;
-      }
-      llmCallAttempted = true;
-      console.log("[Stream Handler] AI stream completed (API Gateway)");
     } catch (error) {
-      logErrorDetails(error, {
-        workspaceId: streamContext.workspaceId,
-        agentId: streamContext.agentId,
-        usesByok: streamContext.usesByok,
-        endpoint: pathParams.endpointType,
-      });
-
-      const errorToLog = normalizeByokError(error);
-
-      if (isByokAuthenticationError(error, streamContext.usesByok)) {
-        await persistConversationError(streamContext, errorToLog);
-        return {
-          statusCode: 400,
-          headers: responseHeaders,
-          body: JSON.stringify({
-            error:
-              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
-          }),
-        };
-      }
-
-      // URL endpoint doesn't call this (returns early), so we can safely cast
-      const creditErrorResult = await handleCreditErrors(
+      // Handle streaming errors for API Gateway
+      const errorResponse = await handleStreamingErrorForApiGateway(
         error,
-        streamContext.workspaceId,
-        pathParams.endpointType as "test" | "stream"
+        streamContext,
+        responseHeaders,
+        false // llmCallAttempted - we don't track this in executeStreamForApiGateway
       );
-      if (creditErrorResult.handled && creditErrorResult.response) {
-        await persistConversationError(streamContext, error);
-        const response = creditErrorResult.response;
-        if (
-          typeof response === "object" &&
-          response !== null &&
-          "body" in response
-        ) {
-          return {
-            statusCode: (response as { statusCode?: number }).statusCode || 400,
-            headers: responseHeaders,
-            body: (response as { body: string }).body,
-          };
-        }
+      if (errorResponse) {
+        return errorResponse;
       }
-
-      if (
-        streamContext.reservationId &&
-        streamContext.reservationId !== "byok"
-      ) {
-        const lambdaContext = getContextFromRequestId(
-          streamContext.awsRequestId
-        );
-        if (lambdaContext) {
-          await cleanupReservationOnError(
-            streamContext.db,
-            streamContext.reservationId,
-            streamContext.workspaceId,
-            streamContext.agentId,
-            "openrouter",
-            streamContext.finalModelName,
-            error,
-            llmCallAttempted,
-            streamContext.usesByok,
-            pathParams.endpointType,
-            lambdaContext
-          );
-        }
-      }
-
       throw error;
     }
 
-    if (!streamResult) {
-      throw new Error("LLM call succeeded but result is undefined");
-    }
-
-    // Extract text and usage
-    let responseText: string;
-    let usage: unknown;
-
-    try {
-      [responseText, usage] = await Promise.all([
-        Promise.resolve(streamResult.text).then((t) => t || ""),
-        Promise.resolve(streamResult.usage),
-      ]);
-    } catch (resultError) {
-      if (isByokAuthenticationError(resultError, streamContext.usesByok)) {
-        const errorToLog = normalizeByokError(resultError);
-        await persistConversationError(streamContext, errorToLog);
-        return {
-          statusCode: 400,
-          headers: responseHeaders,
-          body: JSON.stringify({
-            error:
-              "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
-          }),
-        };
-      }
-      await persistConversationError(streamContext, resultError);
-      throw resultError;
-    }
-
-    const finalResponseText = responseText || fullStreamedText;
-
-    // Extract token usage
-    const totalUsage = await streamResult.totalUsage;
-    const { tokenUsage } = extractTokenUsageAndCosts(
-      { totalUsage } as unknown as StreamTextResultWithResolvedUsage,
-      usage,
-      streamContext.finalModelName,
-      pathParams.endpointType
-    );
-
     // Post-processing
-    try {
-      await adjustCreditsAfterStream(
-        streamContext.db,
-        streamContext.workspaceId,
-        streamContext.agentId,
-        streamContext.reservationId,
-        streamContext.finalModelName,
-        tokenUsage,
-        streamContext.usesByok,
-        streamResult,
-        streamContext.conversationId,
-        streamContext.awsRequestId,
-        pathParams.endpointType
-      );
-    } catch (error) {
-      console.error(
-        "[Stream Handler] Error adjusting credit reservation after stream:",
-        {
-          error: error instanceof Error ? error.message : String(error),
-          workspaceId: streamContext.workspaceId,
-          agentId: streamContext.agentId,
-        }
-      );
-      Sentry.captureException(ensureError(error), {
-        tags: {
-          endpoint: pathParams.endpointType,
-          operation: "credit_adjustment",
-        },
-      });
-    }
-
-    await trackRequestUsage(
-      streamContext.subscriptionId,
-      streamContext.workspaceId,
-      streamContext.agentId,
-      pathParams.endpointType
+    await performPostProcessing(
+      streamContext,
+      executionResult.finalResponseText,
+      executionResult.tokenUsage,
+      executionResult.streamResult,
+      executionResult.generationTimeMs
     );
 
-    await logConversation(
-      streamContext.db,
-      streamContext.workspaceId,
-      streamContext.agentId,
-      streamContext.conversationId,
-      streamContext.convertedMessages,
-      finalResponseText,
-      tokenUsage,
-      streamContext.usesByok,
-      streamContext.finalModelName,
-      streamResult,
-      streamContext.awsRequestId,
-      generationTimeMs,
-      pathParams.endpointType
-    );
-
-    // Combine chunks and return as complete response
-    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-    const combined = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) {
-      combined.set(chunk, offset);
-      offset += chunk.length;
-    }
-
-    const body = new TextDecoder().decode(combined);
+    // Get buffered body and return
+    const body = getBody();
 
     return {
       statusCode: 200,
@@ -2719,135 +372,80 @@ async function handleApiGatewayStreaming(
       }),
     };
   } finally {
-    // Clean up context
     if (awsRequestId) {
       clearCurrentHTTPContext(awsRequestId);
     }
-
     await Promise.all([flushPostHog(), flushSentry()]).catch((flushErrors) => {
       console.error("[PostHog/Sentry] Error flushing events:", flushErrors);
+      Sentry.captureException(ensureError(flushErrors), {
+        tags: {
+          context: "stream-handler",
+          operation: "flush-events",
+        },
+      });
     });
   }
 }
 
 /**
- * Extracts the path from an event (handles multiple event types)
- */
-function extractPathFromEvent(
-  event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent
-): string {
-  // Transform REST API v1 events to v2 format if needed
-  if ("httpMethod" in event && event.httpMethod !== undefined) {
-    // API Gateway REST API v1 event - transform it to v2 format
-    const httpV2Event = transformRestToHttpV2Event(
-      event as APIGatewayProxyEvent
-    );
-    return httpV2Event.rawPath || httpV2Event.requestContext.http.path || "";
-  }
-
-  // For Lambda Function URL events, transform to get the path
-  // But only if requestContext.http exists (Lambda Function URL events have this)
-  if (
-    "rawPath" in event &&
-    "requestContext" in event &&
-    (event as { requestContext?: { http?: unknown } }).requestContext?.http
-  ) {
-    const httpV2Event = transformLambdaUrlToHttpV2Event(
-      event as LambdaUrlEvent
-    );
-    return httpV2Event.rawPath || "";
-  }
-
-  // For API Gateway v2 events, use rawPath directly
-  if ("rawPath" in event && "version" in event) {
-    return (event as unknown as APIGatewayProxyEventV2).rawPath || "";
-  }
-
-  // Fallback: try to get path from requestContext
-  const eventAny = event as { requestContext?: { http?: { path?: string } } };
-  return eventAny.requestContext?.http?.path || "";
-}
-
-/**
  * Dual handler wrapper that supports both Lambda Function URL and API Gateway
- * Routes /api/streams/url to non-streaming handler, others to streaming/buffered handlers
  */
 const createHandler = () => {
-  // Create a handler that checks the path first
-  // This handles the standard Lambda signature (event, context, callback) used by API Gateway
+  // Standard handler for API Gateway
   const standardHandler = async (
     event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent,
     context: Context,
     callback: Callback
   ): Promise<APIGatewayProxyResultV2> => {
-    // Extract path from event
     const path = extractPathFromEvent(event);
-
-    // Normalize path (remove leading/trailing slashes for comparison)
     const normalizedPath = path.replace(/^\/+/, "/");
+    const endpointType = detectEndpointType(normalizedPath);
 
-    // Route URL endpoint to non-streaming handler (always via API Gateway)
-    if (normalizedPath === "/api/streams/url") {
-      // Normalize event to APIGatewayProxyEventV2
+    // Route URL endpoint to separate handler
+    if (endpointType === "url") {
       let httpV2Event: APIGatewayProxyEventV2;
       if ("httpMethod" in event && event.httpMethod !== undefined) {
-        // REST API v1 event - transform it
         httpV2Event = transformRestToHttpV2Event(event as APIGatewayProxyEvent);
       } else if ("rawPath" in event && "requestContext" in event) {
-        // Lambda Function URL event - transform it
         httpV2Event = transformLambdaUrlToHttpV2Event(event as LambdaUrlEvent);
       } else {
-        // Already APIGatewayProxyEventV2
         httpV2Event = event as unknown as APIGatewayProxyEventV2;
       }
-
-      // Handle URL endpoint with non-streaming handler
       return await handleUrlEndpoint(httpV2Event);
     }
 
-    // For all other endpoints, use the buffered handler (API Gateway)
+    // For streaming endpoints, use buffered handler
     const bufferedHandler = adaptHttpHandler(handleApiGatewayStreaming);
     return await bufferedHandler(event, context, callback);
   };
 
-  // If awslambda is available, we need to handle streaming endpoints
-  // But the URL endpoint should always go through the standard handler (non-streaming)
+  // If awslambda is available, handle streaming
   if (isLambdaFunctionUrlInvocation()) {
-    // Create a streaming handler that excludes the URL endpoint
     const streamingHandler = getDefined(
       awslambda,
       "awslambda is not defined"
     ).streamifyResponse(internalHandler);
 
-    // Return a handler that routes based on path
-    // URL endpoint -> standard handler (non-streaming)
-    // Other endpoints -> streaming handler
     return async (
       event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent,
       contextOrStream: Context | HttpResponseStream,
       callback?: Callback
     ): Promise<APIGatewayProxyResultV2 | void> => {
-      // Extract path to determine routing
       const path = extractPathFromEvent(event);
       const normalizedPath = path.replace(/^\/+/, "/");
+      const endpointType = detectEndpointType(normalizedPath);
 
       // URL endpoint always uses non-streaming handler
-      // When awslambda is available, streamifyResponse wraps the handler,
-      // so we receive (event, responseStream) even for API Gateway requests
-      // In this case, we need to write the JSON response to the stream
-      if (normalizedPath === "/api/streams/url") {
-        // Check if this is a streaming invocation (responseStream) or standard (Context)
+      if (endpointType === "url") {
         if (
           contextOrStream &&
           typeof contextOrStream === "object" &&
           "write" in contextOrStream &&
           typeof (contextOrStream as HttpResponseStream).write === "function"
         ) {
-          // Streaming invocation (when awslambda is available, even API Gateway goes through streamifyResponse)
-          // Normalize event to APIGatewayProxyEventV2
+          // Streaming invocation - write JSON response to stream
           let httpV2Event: APIGatewayProxyEventV2;
           if ("httpMethod" in event && event.httpMethod !== undefined) {
-            // REST API v1 event - transform it
             httpV2Event = transformRestToHttpV2Event(
               event as APIGatewayProxyEvent
             );
@@ -2857,67 +455,14 @@ const createHandler = () => {
             (event as { requestContext?: { http?: unknown } }).requestContext
               ?.http
           ) {
-            // Lambda Function URL event - transform it (only if requestContext.http exists)
             httpV2Event = transformLambdaUrlToHttpV2Event(
               event as LambdaUrlEvent
             );
-          } else if ("rawPath" in event && "version" in event) {
-            // Already APIGatewayProxyEventV2 (or has version field)
-            httpV2Event = event as unknown as APIGatewayProxyEventV2;
           } else {
-            // Fallback: try to construct from available data
-            // This handles cases where requestContext.http is missing
-            const eventAny = event as {
-              rawPath?: string;
-              requestContext?: {
-                http?: { method?: string; path?: string };
-                httpMethod?: string;
-                path?: string;
-              };
-            };
-            const method =
-              eventAny.requestContext?.http?.method ||
-              eventAny.requestContext?.httpMethod ||
-              "GET";
-            const path =
-              eventAny.requestContext?.http?.path ||
-              eventAny.requestContext?.path ||
-              eventAny.rawPath ||
-              "/api/streams/url";
-            httpV2Event = {
-              version: "2.0",
-              routeKey: `${method} ${path}`,
-              rawPath: eventAny.rawPath || path,
-              rawQueryString: "",
-              headers: {},
-              requestContext: {
-                accountId: "",
-                apiId: "",
-                domainName: "",
-                domainPrefix: "",
-                http: {
-                  method: method,
-                  path: path,
-                  protocol: "HTTP/1.1",
-                  sourceIp: "",
-                  userAgent: "",
-                },
-                requestId: "",
-                routeKey: `${method} ${path}`,
-                stage: "$default",
-                time: new Date().toISOString(),
-                timeEpoch: Date.now(),
-              },
-              body: undefined,
-              isBase64Encoded: false,
-            };
+            httpV2Event = event as unknown as APIGatewayProxyEventV2;
           }
 
-          // Get the result from handleUrlEndpoint
           const result = await handleUrlEndpoint(httpV2Event);
-
-          // Write the result to the stream (non-streaming JSON response)
-          // Type assertion needed because TypeScript infers the wrong type
           const apiResult = result as {
             statusCode: number;
             headers?: Record<string, string>;
@@ -2935,7 +480,7 @@ const createHandler = () => {
           responseStream.end();
           return;
         } else {
-          // Standard invocation (API Gateway without awslambda)
+          // Standard invocation
           return await standardHandler(
             event,
             contextOrStream as Context,
@@ -2944,20 +489,20 @@ const createHandler = () => {
         }
       }
 
-      // For other endpoints, check if this is a streaming invocation
+      // For streaming endpoints, check if this is a streaming invocation
       if (
         contextOrStream &&
         typeof contextOrStream === "object" &&
         "write" in contextOrStream &&
         typeof (contextOrStream as HttpResponseStream).write === "function"
       ) {
-        // Streaming invocation (Function URL) - use streaming handler
+        // Streaming invocation (Function URL)
         return await streamingHandler(
           event,
           contextOrStream as HttpResponseStream
         );
       } else {
-        // Standard invocation (API Gateway) - use standard handler
+        // Standard invocation (API Gateway)
         return await standardHandler(
           event,
           contextOrStream as Context,
@@ -2966,7 +511,7 @@ const createHandler = () => {
       }
     };
   } else {
-    // No streaming support - use the standard handler directly
+    // No streaming support - use standard handler
     return standardHandler;
   }
 };
