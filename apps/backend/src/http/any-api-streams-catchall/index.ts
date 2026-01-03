@@ -149,13 +149,19 @@ const internalHandler = async (
     allowedOrigins
   );
 
+  console.log("[Stream Handler] Response headers:", responseHeaders);
+
   // Set headers on the stream IMMEDIATELY - this must happen before any writes
   // In Lambda Function URLs, headers must be set via HttpResponseStream.from() before any data is written
   responseStream = createResponseStream(responseStream, responseHeaders);
 
+  const method = httpV2Event.requestContext.http.method;
+  console.log("[Stream Handler] Method:", method);
+
   try {
     // Handle OPTIONS preflight request
-    if (httpV2Event.requestContext.http.method === "OPTIONS") {
+    if (method === "OPTIONS") {
+      console.log("[Stream Handler] Handling OPTIONS request");
       await writeChunkToStream(responseStream, "");
       responseStream.end();
       return;
