@@ -262,7 +262,7 @@ const createHandler = () => {
     event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent,
     responseStream: HttpResponseStream
   ): Promise<APIGatewayProxyResultV2 | void> => {
-    console.log("[Stream Handler] Event:", event);
+    console.log("[Stream Handler] Handler called", { event, responseStream });
     const path = extractPathFromEvent(event);
     const normalizedPath = path.replace(/^\/+/, "/");
     const endpointType = detectEndpointType(normalizedPath);
