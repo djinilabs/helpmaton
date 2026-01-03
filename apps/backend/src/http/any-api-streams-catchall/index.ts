@@ -272,27 +272,8 @@ const createHandler = () => {
         return handleUrlEndpoint(httpV2Event, responseStream);
       } else {
         console.log("[Stream Handler] Standard invocation");
-        let mockResponseStream = false;
-        if (typeof responseStream.write !== "function") {
-          console.log("[Stream Handler] Mocking response stream");
-          mockResponseStream = true;
-          responseStream = new ResponseStream();
-          console.log(
-            "[Stream Handler] Mocked response stream:",
-            responseStream
-          );
-        }
         // Standard invocation
         await internalHandler(httpV2Event, responseStream);
-        if (mockResponseStream) {
-          return {
-            statusCode: 200,
-            headers: {
-              "Content-Type": "text/event-stream; charset=utf-8",
-            },
-            body: responseStream.getBufferedData().toString("utf-8"),
-          };
-        }
       }
     }
   );
