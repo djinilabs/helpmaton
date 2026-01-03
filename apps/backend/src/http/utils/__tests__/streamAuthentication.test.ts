@@ -1,6 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import type { LambdaUrlEvent } from "../../../utils/httpEventAdapter";
 import { authenticateStreamRequest } from "../streamAuthentication";
 
 import { createAPIGatewayEventV2 } from "./test-helpers";

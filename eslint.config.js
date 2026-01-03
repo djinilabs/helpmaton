@@ -38,8 +38,8 @@ export default tseslint.config(
     rules: {
       ...importPlugin.configs.recommended.rules,
       ...importPlugin.configs.typescript.rules,
-      '@typescript-eslint/no-unused-vars': 'warn',
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-unused-vars': 'error',
+      '@typescript-eslint/no-explicit-any': 'error',
       'import/order': ['error', {
         'groups': [
           'builtin',
@@ -87,9 +87,9 @@ export default tseslint.config(
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
       // Tailwind CSS rules
-      'tailwindcss/classnames-order': 'warn',
-      'tailwindcss/enforces-negative-arbitrary-values': 'warn',
-      'tailwindcss/enforces-shorthand': 'warn',
+      'tailwindcss/classnames-order': 'error',
+      'tailwindcss/enforces-negative-arbitrary-values': 'error',
+      'tailwindcss/enforces-shorthand': 'error',
       'tailwindcss/no-arbitrary-value': 'off', // Allow arbitrary values for flexibility
       'tailwindcss/no-custom-classname': 'off', // Allow custom classnames when needed
       'tailwindcss/no-contradicting-classname': 'error'

@@ -55,7 +55,7 @@ describe("streamResponseStream", () => {
     });
 
     it("should handle empty buffer", () => {
-      const { stream, getBody } = createMockResponseStream();
+      const { getBody } = createMockResponseStream();
       expect(getBody()).toBe("");
     });
 

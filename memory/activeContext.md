@@ -58,7 +58,7 @@
    - Updated catch block to wrap stream with appropriate headers before writing errors
    - All responses now properly formatted for Lambda Function URLs in RESPONSE_STREAM mode
 
-2. **CloudFormation IAM Permissions Fix** (Latest):
+5. **CloudFormation IAM Permissions Fix** (Latest):
 
    - Updated `lambda-urls` plugin to add CloudFormation permissions to all functions with Function URLs
    - Refactored `addIamPermissionsForStreamUrlLookup()` to accept array of function IDs instead of hardcoded name
@@ -66,7 +66,7 @@
    - Each function gets its own IAM policy (scoped to current CloudFormation stack)
    - Permissions added to all functions in `@lambda-urls` pragma automatically
 
-3. **URL Endpoint Consolidation**:
+6. **URL Endpoint Consolidation**:
 
    - Consolidated `GET /api/streams/url` handler into unified `/api/streams/*` catchall handler
    - Removed separate route from `app.arc` (was `get /api/streams/url`)
@@ -85,48 +85,48 @@
    - Supports both Lambda Function URL (true streaming) and API Gateway (buffered streaming) invocations
    - Created dual handler wrapper that automatically detects invocation method
 
-3. **Authentication & Authorization**:
+8. **Authentication & Authorization**:
 
    - Test endpoint: JWT Bearer token authentication with workspace permission checks
    - Stream endpoint: Secret validation from path parameters
    - Conditional authentication logic based on detected endpoint type
    - Both authentication methods work with both invocation types (Lambda Function URL and API Gateway)
 
-4. **CORS Headers**:
+9. **CORS Headers**:
 
    - Test endpoint: Uses `FRONTEND_URL` environment variable for CORS headers
    - Stream endpoint: Uses agent's streaming server configuration (allowed origins from database)
    - Conditional CORS header generation based on endpoint type
    - All responses include appropriate CORS headers
 
-5. **Streaming Implementation**:
+10. **Streaming Implementation**:
 
-   - Lambda Function URL: True streaming using `awslambda.streamifyResponse` (writes chunks as they arrive)
-   - API Gateway: Buffered streaming (collects all chunks, returns complete response)
-   - Automatic detection of invocation method
-   - Same business logic for both streaming approaches
+    - Lambda Function URL: True streaming using `awslambda.streamifyResponse` (writes chunks as they arrive)
+    - API Gateway: Buffered streaming (collects all chunks, returns complete response)
+    - Automatic detection of invocation method
+    - Same business logic for both streaming approaches
 
-6. **Utility Relocation**:
+11. **Utility Relocation**:
 
-   - Moved `types.ts` → `src/utils/messageTypes.ts` (used by non-HTTP utils)
-   - Moved utilities to `src/http/utils/`:
-     - `agentSetup.ts`, `messageConversion.ts`, `toolFormatting.ts`, `requestValidation.ts`
-     - `streaming.ts`, `responseFormatting.ts`, `continuation.ts`, `toolCostExtraction.ts`
-     - `responseStream.ts` → `responseStreamSetup.ts` (renamed to avoid conflict)
-   - Moved all test files to `src/http/utils/__tests__/agentUtils/`
-   - Updated all imports across the codebase (12+ files)
+    - Moved `types.ts` → `src/utils/messageTypes.ts` (used by non-HTTP utils)
+    - Moved utilities to `src/http/utils/`:
+      - `agentSetup.ts`, `messageConversion.ts`, `toolFormatting.ts`, `requestValidation.ts`
+      - `streaming.ts`, `responseFormatting.ts`, `continuation.ts`, `toolCostExtraction.ts`
+      - `responseStream.ts` → `responseStreamSetup.ts` (renamed to avoid conflict)
+    - Moved all test files to `src/http/utils/__tests__/agentUtils/`
+    - Updated all imports across the codebase (12+ files)
 
-7. **Express Handler Cleanup**:
+12. **Express Handler Cleanup**:
 
-   - Removed `registerPostTestAgent` from Express app
-   - Old Express route handler deprecated (still exists but not registered)
-   - All test agent requests now go through unified streaming handler
+    - Removed `registerPostTestAgent` from Express app
+    - Old Express route handler deprecated (still exists but not registered)
+    - All test agent requests now go through unified streaming handler
 
-8. **Error Handling**:
-   - BYOK authentication error detection preserved
-   - Credit error handling with proper formatting
-   - Error responses include appropriate CORS headers based on endpoint type
-   - All error paths properly handled for both invocation methods
+13. **Error Handling**:
+    - BYOK authentication error detection preserved
+    - Credit error handling with proper formatting
+    - Error responses include appropriate CORS headers based on endpoint type
+    - All error paths properly handled for both invocation methods
 
 **Files Created**:
 
@@ -216,6 +216,7 @@
 **Latest Verification**: Typecheck, lint, and all handler tests passing after refactoring, error logging improvements, and promise handling fixes ✅
 
 **Code Quality Improvements**:
+
 - Reduced main handler complexity by ~50% (500+ lines → ~250 lines)
 - Created 11 specialized utility modules with single responsibilities
 - All errors properly logged to Sentry (no masked errors)

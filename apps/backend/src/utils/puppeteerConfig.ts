@@ -1,13 +1,25 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - @sparticuz/chromium is installed in container image
 // Lazy-load chromium to avoid import errors in test environments
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let chromium: any = null;
+
+/**
+ * Type definition for @sparticuz/chromium module
+ * Based on actual usage in puppeteerBrowser.ts
+ */
+interface ChromiumModule {
+  args: string[];
+  executablePath: (path: string) => Promise<string>;
+  defaultViewport: { width: number; height: number };
+  headless: boolean;
+  setGraphicsMode?: boolean;
+}
+
+let chromium: ChromiumModule | null = null;
 
 /**
  * Get @sparticuz/chromium module, lazy-loaded to avoid import errors in test environments
  */
-export function getChromium(): any {
+export function getChromium(): ChromiumModule | null {
   if (!chromium) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports

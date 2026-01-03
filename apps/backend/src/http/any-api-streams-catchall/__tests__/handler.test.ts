@@ -1,13 +1,7 @@
-import type {
-  APIGatewayProxyEvent,
-  APIGatewayProxyEventV2,
-  Callback,
-  Context,
-} from "aws-lambda";
+import type { APIGatewayProxyEventV2, Callback, Context } from "aws-lambda";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  createAPIGatewayEvent,
   createAPIGatewayEventV2,
   createMockCallback,
   createMockContext,

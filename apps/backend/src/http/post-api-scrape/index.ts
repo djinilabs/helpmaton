@@ -1,6 +1,3 @@
-import { tmpdir } from "os";
-import { join } from "path";
-
 import { badRequest, boomify } from "@hapi/boom";
 import serverlessExpress from "@vendia/serverless-express";
 import type {

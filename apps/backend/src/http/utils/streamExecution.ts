@@ -8,7 +8,6 @@ import {
 import { extractTokenUsageAndCosts } from "./generationTokenExtraction";
 import { pipeAIStreamToResponse } from "./streamAIPipeline";
 import { handleStreamingError, handleResultExtractionError } from "./streamErrorHandling";
-import { performPostProcessing } from "./streamPostProcessing";
 import type { StreamRequestContext } from "./streamRequestContext";
 import type { HttpResponseStream } from "./streamResponseStream";
 

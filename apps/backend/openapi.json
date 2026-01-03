@@ -6623,6 +6623,100 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/documents/search": {
+      "get": {
+        "summary": "Search workspace documents",
+        "description": "Search documents in a workspace using semantic vector search. Returns the most relevant document snippets based on the query.",
+        "tags": [
+          "Documents"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Search query text",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of results (default: 5)",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 5
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "snippet": {
+                        "type": "string",
+                        "description": "Document snippet content"
+                      },
+                      "documentName": {
+                        "type": "string",
+                        "description": "Name of the document"
+                      },
+                      "documentId": {
+                        "type": "string",
+                        "description": "ID of the document"
+                      },
+                      "folderPath": {
+                        "type": "string",
+                        "description": "Folder path of the document"
+                      },
+                      "similarity": {
+                        "type": "number",
+                        "description": "Similarity score (0-1)"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/documents/folders": {
       "get": {
         "summary": "List document folders",
@@ -7406,6 +7500,155 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/memory": {
+      "get": {
+        "summary": "Get agent memory records",
+        "description": "Returns memory records for a specific agent, with optional semantic search and temporal filtering",
+        "tags": [
+          "Agents",
+          "Memory"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "grain",
+            "in": "query",
+            "description": "Temporal grain to search (working, daily, weekly, monthly, quarterly, yearly)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "working",
+                "daily",
+                "weekly",
+                "monthly",
+                "quarterly",
+                "yearly"
+              ],
+              "default": "working"
+            }
+          },
+          {
+            "name": "queryText",
+            "in": "query",
+            "description": "Optional semantic search query. If empty, only temporal filtering is applied.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minimumDaysAgo",
+            "in": "query",
+            "description": "Minimum age of results in days (default: 0)",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "maximumDaysAgo",
+            "in": "query",
+            "description": "Maximum age of results in days (default: 365)",
+            "schema": {
+              "type": "integer",
+              "default": 365
+            }
+          },
+          {
+            "name": "maxResults",
+            "in": "query",
+            "description": "Maximum number of results to return (default: 50)",
+            "schema": {
+              "type": "integer",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent memory records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "workspaceId": {
+                      "type": "string"
+                    },
+                    "agentId": {
+                      "type": "string"
+                    },
+                    "records": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "content": {
+                            "type": "string"
+                          },
+                          "date": {
+                            "type": "string"
+                          },
+                          "timestamp": {
+                            "type": "string"
+                          },
+                          "metadata": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "Agent not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/agents/{agentId}/conversations": {
       "get": {
         "summary": "List agent conversations",
@@ -7753,75 +7996,6 @@
         }
       }
     },
-    "/api/usage": {
-      "get": {
-        "summary": "Get usage statistics",
-        "description": "Returns aggregated usage statistics across all workspaces the authenticated user has access to",
-        "tags": [
-          "Usage"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "currency",
-            "in": "query",
-            "description": "Currency for cost calculations",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "usd",
-                "eur",
-                "gbp"
-              ],
-              "default": "usd"
-            }
-          },
-          {
-            "name": "startDate",
-            "in": "query",
-            "description": "Start date for usage statistics (YYYY-MM-DD format)",
-            "schema": {
-              "type": "string",
-              "format": "date"
-            }
-          },
-          {
-            "name": "endDate",
-            "in": "query",
-            "description": "End date for usage statistics (YYYY-MM-DD format). Defaults to today.",
-            "schema": {
-              "type": "string",
-              "format": "date"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Usage statistics",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UsageResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
     "/api/pricing": {
       "get": {
         "summary": "Get OpenRouter model pricing",
@@ -7889,6 +8063,75 @@
                 }
               }
             }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/usage": {
+      "get": {
+        "summary": "Get usage statistics",
+        "description": "Returns aggregated usage statistics across all workspaces the authenticated user has access to",
+        "tags": [
+          "Usage"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "currency",
+            "in": "query",
+            "description": "Currency for cost calculations",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "usd",
+                "eur",
+                "gbp"
+              ],
+              "default": "usd"
+            }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "description": "Start date for usage statistics (YYYY-MM-DD format)",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "description": "End date for usage statistics (YYYY-MM-DD format). Defaults to today.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
