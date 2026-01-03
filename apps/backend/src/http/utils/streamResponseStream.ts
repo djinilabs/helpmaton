@@ -26,13 +26,13 @@ export function createResponseStream(
   headers: Record<string, string>
 ): HttpResponseStream {
   if (typeof awslambda !== "undefined" && awslambda) {
-    return getDefined(awslambda, "awslambda is not defined").HttpResponseStream.from(
-      stream,
-      {
-        statusCode: 200,
-        headers,
-      }
-    );
+    return getDefined(
+      awslambda,
+      "awslambda is not defined"
+    ).HttpResponseStream.from(stream, {
+      statusCode: 200,
+      headers,
+    });
   }
   return stream;
 }
@@ -49,10 +49,7 @@ export function createMockResponseStream(): {
   const buffer: Uint8Array[] = [];
 
   const stream: HttpResponseStream = {
-    write: (
-      chunk: string | Uint8Array,
-      callback?: (error?: Error) => void
-    ) => {
+    write: (chunk: string | Uint8Array, callback?: (error?: Error) => void) => {
       const bytes =
         typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
       buffer.push(bytes);
@@ -103,4 +100,3 @@ export function writeChunkToStream(
     });
   });
 }
-

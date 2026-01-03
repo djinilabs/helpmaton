@@ -105,7 +105,7 @@ export async function getTestAgentFunctionUrl(
   // Local development: skip function URL discovery and use API Gateway URL directly
   if (process.env.ARC_ENV === "testing") {
     const apiBaseUrl = getApiBaseUrl();
-    const testUrl = `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${agentId}/test`;
+    const testUrl = `${apiBaseUrl}/api/streams/${workspaceId}/${agentId}/test`;
     console.log(
       `[test-agent-url] Local development detected (ARC_ENV=testing), using API Gateway URL: ${testUrl}`
     );
@@ -118,7 +118,7 @@ export async function getTestAgentFunctionUrl(
   if (envFunctionUrl) {
     // Normalize URL: remove trailing slash to avoid double slashes when appending paths
     const normalizedUrl = envFunctionUrl.replace(/\/+$/, "");
-    const testUrl = `${normalizedUrl}/api/workspaces/${workspaceId}/agents/${agentId}/test`;
+    const testUrl = `${normalizedUrl}/api/streams/${workspaceId}/${agentId}/test`;
     console.log(
       `[test-agent-url] Using TEST_AGENT_FUNCTION_URL environment variable: ${testUrl}`
     );
@@ -127,7 +127,7 @@ export async function getTestAgentFunctionUrl(
 
   // Return cached Function URL if still valid
   if (cachedFunctionUrl && Date.now() < cacheExpiry) {
-    const testUrl = `${cachedFunctionUrl}/api/workspaces/${workspaceId}/agents/${agentId}/test`;
+    const testUrl = `${cachedFunctionUrl}/api/streams/${workspaceId}/${agentId}/test`;
     console.log(
       `[test-agent-url] Using cached Function URL: ${testUrl}`
     );
@@ -141,7 +141,7 @@ export async function getTestAgentFunctionUrl(
     const normalizedUrl = functionUrl.replace(/\/+$/, "");
     cachedFunctionUrl = normalizedUrl;
     cacheExpiry = Date.now() + CACHE_TTL;
-    const testUrl = `${normalizedUrl}/api/workspaces/${workspaceId}/agents/${agentId}/test`;
+    const testUrl = `${normalizedUrl}/api/streams/${workspaceId}/${agentId}/test`;
     console.log(
       `[test-agent-url] Retrieved Function URL from CloudFormation: ${functionUrl} (normalized: ${normalizedUrl}) with path: ${testUrl}`
     );
@@ -151,7 +151,7 @@ export async function getTestAgentFunctionUrl(
   // Fallback to API Gateway URL if function URL not available
   // This can happen during deployment transition or if CloudFormation lookup fails
   const apiBaseUrl = getApiBaseUrl();
-  const fallbackUrl = `${apiBaseUrl}/api/workspaces/${workspaceId}/agents/${agentId}/test`;
+  const fallbackUrl = `${apiBaseUrl}/api/streams/${workspaceId}/${agentId}/test`;
   console.warn(
     `[test-agent-url] Function URL not available, falling back to API Gateway URL: ${fallbackUrl}`
   );
