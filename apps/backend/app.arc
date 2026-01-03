@@ -11,6 +11,7 @@ post /api/scrape
 get /api/usage
 get /api/models
 get /api/pricing
+get /api/stream-url
 any /api/discord
 any /api/auth
 any /api/auth/*

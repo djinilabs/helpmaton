@@ -1932,7 +1932,7 @@ export interface CreateStreamServerResponse {
 }
 
 export async function getStreamUrl(): Promise<{ url: string } | null> {
-  const response = await apiFetch(`/api/streams/url`, {
+  const response = await apiFetch(`/api/stream-url`, {
     method: "GET",
   });
 

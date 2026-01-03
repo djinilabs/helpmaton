@@ -17,13 +17,8 @@ import {
 } from "../../utils/sentry";
 import { getAllowedOrigins } from "../../utils/streamServerUtils";
 import { clearCurrentHTTPContext } from "../../utils/workspaceCreditContext";
-import { handleUrlEndpoint } from "../get-api-streams-url";
 import { authenticateStreamRequest } from "../utils/streamAuthentication";
 import { computeCorsHeaders } from "../utils/streamCorsHeaders";
-import {
-  detectEndpointType,
-  extractPathFromEvent,
-} from "../utils/streamEndpointDetection";
 import {
   writeErrorResponse,
   persistConversationError,
@@ -94,13 +89,6 @@ const internalHandler = async (
     await writeChunkToStream(responseStream, errorResponse);
     responseStream.end();
     return;
-  }
-
-  // URL endpoint should not reach here (handled by wrapper)
-  if (pathParams.endpointType === "url") {
-    throw new Error(
-      "URL endpoint should be handled by the wrapper, not internalHandler"
-    );
   }
 
   let context: StreamRequestContext | undefined;
@@ -260,21 +248,10 @@ const createHandler = () => {
       responseStream: HttpResponseStream
     ): Promise<APIGatewayProxyResultV2 | void> => {
       console.log("[Stream Handler] Handler called", { event, responseStream });
-      const path = extractPathFromEvent(event);
-      const normalizedPath = path.replace(/^\/+/, "/");
-      const endpointType = detectEndpointType(normalizedPath);
-      console.log("[Stream Handler] Endpoint type:", endpointType);
-
       const httpV2Event = normalizeEventToHttpV2(event);
-      // URL endpoint always uses non-streaming handler
-      if (endpointType === "url") {
-        console.log("[Stream Handler] URL endpoint");
-        return handleUrlEndpoint(httpV2Event, responseStream);
-      } else {
-        console.log("[Stream Handler] Standard invocation");
-        // Standard invocation
-        await internalHandler(httpV2Event, responseStream);
-      }
+      console.log("[Stream Handler] Standard invocation");
+      // Standard invocation
+      await internalHandler(httpV2Event, responseStream);
     }
   );
 };
