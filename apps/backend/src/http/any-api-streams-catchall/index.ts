@@ -196,6 +196,8 @@ const internalHandler = async (
     const executionResult = await executeStream(context, responseStream);
     if (!executionResult) {
       // Error was handled in executeStream
+      // Both handleStreamingError and handleResultExtractionError ensure
+      // the stream is properly ended via writeErrorResponse before returning true
       return;
     }
 

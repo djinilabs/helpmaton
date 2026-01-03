@@ -216,7 +216,8 @@ export async function handleStreamingError(
 
 /**
  * Handles errors during result extraction
- * Returns true if error was handled and response was written, false otherwise
+ * Returns true if error was handled and response was written
+ * Always writes error response and ends stream before returning
  */
 export async function handleResultExtractionError(
   resultError: unknown,
@@ -235,7 +236,10 @@ export async function handleResultExtractionError(
     return true;
   }
   await persistConversationError(context, resultError);
-  return false;
+  // Write error response and end stream before returning
+  // This ensures the stream is always properly closed even for non-BYOK errors
+  await writeErrorResponse(responseStream, resultError);
+  return true; // Changed from false - we handled it by writing error
 }
 
 /**

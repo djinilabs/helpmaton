@@ -54,12 +54,14 @@ export async function pipeAIStreamToResponse(
   const decoder = new TextDecoder();
   let textBuffer = ""; // Buffer for extracting text deltas (for logging/tracking only)
   let streamCompletedSuccessfully = false; // Track if stream completed without error
+  let hasWrittenData = false; // Track if we've written any data to the stream
 
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       if (value) {
+        hasWrittenData = true;
         // Write the raw chunk immediately to responseStream for true streaming
         // Don't buffer - write as soon as we receive it
         await writeChunkToStream(responseStream, value);
@@ -94,10 +96,13 @@ export async function pipeAIStreamToResponse(
       }
     }
 
-    // Write any remaining buffered text (should be minimal)
-    if (textBuffer) {
-      const remainingBytes = new TextEncoder().encode(textBuffer);
-      await writeChunkToStream(responseStream, remainingBytes);
+    // REMOVED: Don't write textBuffer again - raw bytes were already written
+    // The textBuffer is only for tracking text deltas, not for writing to stream
+
+    // If no data was written, write an SSE comment to initialize the stream
+    // Lambda Function URLs with RESPONSE_STREAM mode require at least one write
+    if (!hasWrittenData) {
+      await writeChunkToStream(responseStream, ": stream-init\n\n");
     }
 
     // Mark as successfully completed before ending stream
