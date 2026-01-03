@@ -1,11 +1,9 @@
-import type { APIGatewayProxyEventV2, Callback, Context } from "aws-lambda";
+import type { APIGatewayProxyEventV2 } from "aws-lambda";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  createAPIGatewayEventV2,
-  createMockCallback,
-  createMockContext,
-} from "../../utils/__tests__/test-helpers";
+import { createAPIGatewayEventV2 } from "../../utils/__tests__/test-helpers";
+import { createMockResponseStream } from "../../utils/streamResponseStream";
+import type { HttpResponseStream } from "../../utils/streamResponseStream";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
 const mockCloudFormationModule = vi.hoisted(() => {
@@ -216,13 +214,33 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
   });
 
   describe("GET /api/streams/url endpoint", () => {
-    let mockContext: ReturnType<typeof createMockContext>;
-    let mockCallback: ReturnType<typeof createMockCallback>;
+    // Helper function to call handler with mock response stream and extract result
+    async function callHandlerWithStream(
+      event: APIGatewayProxyEventV2
+    ): Promise<{
+      statusCode: number;
+      headers: Record<string, string>;
+      body: string;
+    }> {
+      const { stream, getBody, getStatusCode, getHeaders } =
+        createMockResponseStream();
+      await (
+        handler as unknown as (
+          event: APIGatewayProxyEventV2,
+          responseStream: HttpResponseStream
+        ) => Promise<void>
+      )(event, stream);
 
-    beforeEach(() => {
-      mockContext = createMockContext();
-      mockCallback = createMockCallback();
-    });
+      const body = getBody();
+      const statusCode = getStatusCode();
+      const headers = getHeaders();
+
+      return {
+        statusCode,
+        headers,
+        body,
+      };
+    }
 
     it("should return streaming function URL from environment variable", async () => {
       process.env.STREAMING_FUNCTION_URL = "https://example.com/stream";
@@ -232,17 +250,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
         rawPath: "/api/streams/url",
       });
 
-      const result = (await (
-        handler as unknown as (
-          event: APIGatewayProxyEventV2,
-          context: Context,
-          callback: Callback
-        ) => Promise<unknown>
-      )(event, mockContext, mockCallback)) as {
-        statusCode: number;
-        headers: Record<string, string>;
-        body: string;
-      };
+      const result = await callHandlerWithStream(event);
 
       expect(result.statusCode).toBe(200);
       const body = JSON.parse(result.body);
@@ -258,17 +266,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
         rawPath: "/api/streams/url",
       });
 
-      const result = (await (
-        handler as unknown as (
-          event: APIGatewayProxyEventV2,
-          context: Context,
-          callback: Callback
-        ) => Promise<unknown>
-      )(event, mockContext, mockCallback)) as {
-        statusCode: number;
-        headers: Record<string, string>;
-        body: string;
-      };
+      const result = await callHandlerWithStream(event);
 
       expect(result.statusCode).toBe(200);
       const body = JSON.parse(result.body);
@@ -298,17 +296,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
         rawPath: "/api/streams/url",
       });
 
-      const result = (await (
-        handler as unknown as (
-          event: APIGatewayProxyEventV2,
-          context: Context,
-          callback: Callback
-        ) => Promise<unknown>
-      )(event, mockContext, mockCallback)) as {
-        statusCode: number;
-        headers: Record<string, string>;
-        body: string;
-      };
+      const result = await callHandlerWithStream(event);
 
       expect(result.statusCode).toBe(200);
       const body = JSON.parse(result.body);
@@ -339,17 +327,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
         rawPath: "/api/streams/url",
       });
 
-      const result = (await (
-        handler as unknown as (
-          event: APIGatewayProxyEventV2,
-          context: Context,
-          callback: Callback
-        ) => Promise<unknown>
-      )(event, mockContext, mockCallback)) as {
-        statusCode: number;
-        headers: Record<string, string>;
-        body: string;
-      };
+      const result = await callHandlerWithStream(event);
 
       expect(result.statusCode).toBe(200);
       const body = JSON.parse(result.body);
@@ -379,17 +357,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
         rawPath: "/api/streams/url",
       });
 
-      const result = (await (
-        handler as unknown as (
-          event: APIGatewayProxyEventV2,
-          context: Context,
-          callback: Callback
-        ) => Promise<unknown>
-      )(event, mockContext, mockCallback)) as {
-        statusCode: number;
-        headers: Record<string, string>;
-        body: string;
-      };
+      const result = await callHandlerWithStream(event);
 
       expect(result.statusCode).toBe(200);
       const body = JSON.parse(result.body);
@@ -411,17 +379,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
         rawPath: "/api/streams/url",
       });
 
-      const result = (await (
-        handler as unknown as (
-          event: APIGatewayProxyEventV2,
-          context: Context,
-          callback: Callback
-        ) => Promise<unknown>
-      )(event, mockContext, mockCallback)) as {
-        statusCode: number;
-        headers: Record<string, string>;
-        body: string;
-      };
+      const result = await callHandlerWithStream(event);
 
       expect(result.statusCode).toBe(404);
       const body = JSON.parse(result.body);
@@ -436,17 +394,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
         rawPath: "/api/streams/url",
       });
 
-      const result = (await (
-        handler as unknown as (
-          event: APIGatewayProxyEventV2,
-          context: Context,
-          callback: Callback
-        ) => Promise<unknown>
-      )(event, mockContext, mockCallback)) as {
-        statusCode: number;
-        headers: Record<string, string>;
-        body: string;
-      };
+      const result = await callHandlerWithStream(event);
 
       expect(result.statusCode).toBe(404);
       const body = JSON.parse(result.body);
@@ -463,17 +411,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
         rawPath: "/api/streams/url",
       });
 
-      const result = (await (
-        handler as unknown as (
-          event: APIGatewayProxyEventV2,
-          context: Context,
-          callback: Callback
-        ) => Promise<unknown>
-      )(event, mockContext, mockCallback)) as {
-        statusCode: number;
-        headers: Record<string, string>;
-        body: string;
-      };
+      const result = await callHandlerWithStream(event);
 
       expect(result.statusCode).toBe(404);
       const body = JSON.parse(result.body);
@@ -491,17 +429,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
         rawPath: "/api/streams/url",
       });
 
-      const result = (await (
-        handler as unknown as (
-          event: APIGatewayProxyEventV2,
-          context: Context,
-          callback: Callback
-        ) => Promise<unknown>
-      )(event, mockContext, mockCallback)) as {
-        statusCode: number;
-        headers: Record<string, string>;
-        body: string;
-      };
+      const result = await callHandlerWithStream(event);
 
       expect(result.statusCode).toBe(404);
       const body = JSON.parse(result.body);
@@ -516,17 +444,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       // Override the method in requestContext
       event.requestContext.http.method = "POST";
 
-      const result = (await (
-        handler as unknown as (
-          event: APIGatewayProxyEventV2,
-          context: Context,
-          callback: Callback
-        ) => Promise<unknown>
-      )(event, mockContext, mockCallback)) as {
-        statusCode: number;
-        headers: Record<string, string>;
-        body: string;
-      };
+      const result = await callHandlerWithStream(event);
 
       expect(result.statusCode).toBe(406);
       const body = JSON.parse(result.body);

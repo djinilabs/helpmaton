@@ -25,18 +25,27 @@ export type HttpResponseStream = ResponseStream;
  */
 export function createResponseStream(
   stream: HttpResponseStream,
-  headers: Record<string, string>
+  headers: Record<string, string>,
+  statusCode: number = 200
 ): HttpResponseStream {
   if (typeof awslambda !== "undefined" && awslambda.HttpResponseStream) {
     return getDefined(
       awslambda,
       "awslambda is not defined"
     ).HttpResponseStream.from(stream, {
-      statusCode: 200,
+      statusCode,
       headers,
     });
   }
-  return stream;
+  // When awslambda is undefined (e.g., in tests), store status code and headers on the stream
+  // This allows tests to extract status codes and headers
+  const streamWithMetadata = stream as HttpResponseStream & {
+    _statusCode?: number;
+    _headers?: Record<string, string>;
+  };
+  streamWithMetadata._statusCode = statusCode;
+  streamWithMetadata._headers = headers;
+  return streamWithMetadata;
 }
 
 /**
@@ -45,16 +54,22 @@ export function createResponseStream(
  * The mock stream implements the ResponseStream interface from lambda-stream
  */
 export function createMockResponseStream(): {
-  stream: HttpResponseStream;
+  stream: HttpResponseStream & { _statusCode?: number; _headers?: Record<string, string> };
   buffer: Uint8Array[];
   getBody(): string;
+  getStatusCode(): number;
+  getHeaders(): Record<string, string>;
 } {
   const buffer: Uint8Array[] = [];
+  const statusCode = 200;
+  const headers: Record<string, string> = {};
 
   // Create a mock stream that matches ResponseStream interface
   // ResponseStream.write can return boolean or accept callback
   // ResponseStream.end can return ResponseStream or accept callback
   const stream = {
+    _statusCode: statusCode,
+    _headers: headers,
     write: (
       chunk: string | Uint8Array,
       callback?: (error?: Error | null) => void
@@ -73,7 +88,7 @@ export function createMockResponseStream(): {
       }
       return stream; // Return ResponseStream as required by interface
     },
-  } as HttpResponseStream;
+  } as HttpResponseStream & { _statusCode?: number; _headers?: Record<string, string> };
 
   const getBody = (): string => {
     const totalLength = buffer.reduce((sum, chunk) => sum + chunk.length, 0);
@@ -86,7 +101,15 @@ export function createMockResponseStream(): {
     return new TextDecoder().decode(combined);
   };
 
-  return { stream, buffer, getBody };
+  const getStatusCode = (): number => {
+    return stream._statusCode ?? 200;
+  };
+
+  const getHeaders = (): Record<string, string> => {
+    return stream._headers ?? {};
+  };
+
+  return { stream, buffer, getBody, getStatusCode, getHeaders };
 }
 
 /**

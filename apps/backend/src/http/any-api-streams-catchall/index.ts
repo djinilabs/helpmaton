@@ -5,7 +5,7 @@ import type {
   APIGatewayProxyEventV2,
   APIGatewayProxyResultV2,
 } from "aws-lambda";
-import { ResponseStream, streamifyResponse } from "lambda-stream";
+import { streamifyResponse } from "lambda-stream";
 
 import { type LambdaUrlEvent } from "../../utils/httpEventAdapter";
 import { flushPostHog } from "../../utils/posthog";

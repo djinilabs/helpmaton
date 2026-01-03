@@ -133,12 +133,11 @@ export async function handleUrlEndpoint(
 ): Promise<void> {
   console.log("[handleUrlEndpoint] Event:", event);
   const origin = event.headers["origin"] || event.headers["Origin"];
-  const headers = computeCorsHeaders("url", origin, null);
-
-  responseStream = createResponseStream(responseStream, {
+  const corsHeaders = computeCorsHeaders("url", origin, null);
+  const headers = {
     "Content-Type": "application/json",
-    ...headers,
-  });
+    ...corsHeaders,
+  };
 
   // Ensure requestContext.http exists (construct if missing)
   if (!event.requestContext?.http) {
@@ -197,6 +196,7 @@ export async function handleUrlEndpoint(
 
   // Only allow GET requests for URL endpoint
   if (event.requestContext.http.method !== "GET") {
+    responseStream = createResponseStream(responseStream, headers, 406);
     responseStream.write(
       JSON.stringify({
         error: `Only GET method is allowed for /api/streams/url and we got a ${event.requestContext.http.method} request`,
@@ -205,6 +205,9 @@ export async function handleUrlEndpoint(
     responseStream.end();
     return;
   }
+
+  // Set headers for GET requests (default 200 status)
+  responseStream = createResponseStream(responseStream, headers, 200);
 
   console.log("[streams-url-handler] Handler invoked for URL endpoint");
   console.log(
@@ -219,12 +222,11 @@ export async function handleUrlEndpoint(
 
   const streamingFunctionUrl = await getStreamingFunctionUrl();
 
-  responseStream = createResponseStream(responseStream, headers);
-
   if (!streamingFunctionUrl) {
     console.error(
       "[streams-url-handler] Failed to get streaming function URL. Returning 404."
     );
+    responseStream = createResponseStream(responseStream, headers, 404);
     responseStream.write(
       JSON.stringify({
         error:
