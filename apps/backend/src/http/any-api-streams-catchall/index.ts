@@ -7,7 +7,7 @@ import type {
   Context,
   Callback,
 } from "aws-lambda";
-import { isInAWS, streamifyResponse } from "lambda-stream";
+import { streamifyResponse } from "lambda-stream";
 
 import {
   adaptHttpHandler,
@@ -61,8 +61,6 @@ import {
   type HttpResponseStream,
 } from "../utils/streamResponseStream";
 
-import { getDefined } from "@/utils";
-
 // Declare global awslambda for HttpResponseStream.from() metadata helper
 // We still need this for setting headers and status code
 declare const awslambda:
@@ -80,14 +78,6 @@ declare const awslambda:
 initSentry();
 
 /**
- * Detects if handler is invoked via Lambda Function URL
- * Uses lambda-stream's isInAWS() helper for better detection
- */
-function isLambdaFunctionUrlInvocation(): boolean {
-  return isInAWS();
-}
-
-/**
  * Internal handler function that processes the request for Lambda Function URL streaming
  */
 const internalHandler = async (
@@ -99,15 +89,15 @@ const internalHandler = async (
   const pathParams = extractStreamPathParameters(normalizedEvent);
 
   if (!pathParams) {
-    responseStream = getDefined(
-      awslambda,
-      "awslambda is not defined"
-    ).HttpResponseStream.from(responseStream, {
-      statusCode: 406,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    // Use awslambda.HttpResponseStream.from if available, otherwise stream is already ready
+    if (typeof awslambda !== "undefined" && awslambda) {
+      responseStream = awslambda.HttpResponseStream.from(responseStream, {
+        statusCode: 406,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+    }
     const errorResponse = JSON.stringify({
       error: "Invalid path parameters",
     });
@@ -463,99 +453,94 @@ const createHandler = () => {
     return await bufferedHandler(event, context, callback);
   };
 
-  // If in AWS Lambda with streaming support, handle streaming
-  if (isLambdaFunctionUrlInvocation()) {
-    // Use lambda-stream's streamifyResponse for better types and local testing
-    const streamingHandler = streamifyResponse(internalHandler);
+  // Always use lambda-stream's streamifyResponse - it provides a polyfill for local/testing
+  // In AWS, it uses the real awslambda.streamifyResponse; locally, it buffers the response
+  const streamingHandler = streamifyResponse(internalHandler);
 
-    return async (
-      event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent,
-      contextOrStream: Context | HttpResponseStream,
-      callback?: Callback
-    ): Promise<APIGatewayProxyResultV2 | void> => {
-      const path = extractPathFromEvent(event);
-      const normalizedPath = path.replace(/^\/+/, "/");
-      const endpointType = detectEndpointType(normalizedPath);
+  return async (
+    event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent,
+    contextOrStream: Context | HttpResponseStream,
+    callback?: Callback
+  ): Promise<APIGatewayProxyResultV2 | void> => {
+    const path = extractPathFromEvent(event);
+    const normalizedPath = path.replace(/^\/+/, "/");
+    const endpointType = detectEndpointType(normalizedPath);
 
-      // URL endpoint always uses non-streaming handler
-      if (endpointType === "url") {
-        if (
-          contextOrStream &&
-          typeof contextOrStream === "object" &&
-          "write" in contextOrStream &&
-          typeof (contextOrStream as HttpResponseStream).write === "function"
-        ) {
-          // Streaming invocation - write JSON response to stream
-          let httpV2Event: APIGatewayProxyEventV2;
-          if ("httpMethod" in event && event.httpMethod !== undefined) {
-            httpV2Event = transformRestToHttpV2Event(
-              event as APIGatewayProxyEvent
-            );
-          } else if (
-            "rawPath" in event &&
-            "requestContext" in event &&
-            (event as { requestContext?: { http?: unknown } }).requestContext
-              ?.http
-          ) {
-            httpV2Event = transformLambdaUrlToHttpV2Event(
-              event as LambdaUrlEvent
-            );
-          } else {
-            httpV2Event = event as unknown as APIGatewayProxyEventV2;
-          }
-
-          const result = await handleUrlEndpoint(httpV2Event);
-          const apiResult = result as {
-            statusCode: number;
-            headers?: Record<string, string>;
-            body: string;
-          };
-          let responseStream = contextOrStream as HttpResponseStream;
-          responseStream = getDefined(
-            awslambda,
-            "awslambda is not defined"
-          ).HttpResponseStream.from(responseStream, {
-            statusCode: apiResult.statusCode,
-            headers: apiResult.headers || {},
-          });
-          await writeChunkToStream(responseStream, apiResult.body || "");
-          responseStream.end();
-          return;
-        } else {
-          // Standard invocation
-          return await standardHandler(
-            event,
-            contextOrStream as Context,
-            callback as Callback
-          );
-        }
-      }
-
-      // For streaming endpoints, check if this is a streaming invocation
+    // URL endpoint always uses non-streaming handler
+    if (endpointType === "url") {
       if (
         contextOrStream &&
         typeof contextOrStream === "object" &&
         "write" in contextOrStream &&
         typeof (contextOrStream as HttpResponseStream).write === "function"
       ) {
-        // Streaming invocation (Function URL)
-        return await streamingHandler(
-          event,
-          contextOrStream as HttpResponseStream
-        );
+        // Streaming invocation - write JSON response to stream
+        let httpV2Event: APIGatewayProxyEventV2;
+        if ("httpMethod" in event && event.httpMethod !== undefined) {
+          httpV2Event = transformRestToHttpV2Event(
+            event as APIGatewayProxyEvent
+          );
+        } else if (
+          "rawPath" in event &&
+          "requestContext" in event &&
+          (event as { requestContext?: { http?: unknown } }).requestContext
+            ?.http
+        ) {
+          httpV2Event = transformLambdaUrlToHttpV2Event(
+            event as LambdaUrlEvent
+          );
+        } else {
+          httpV2Event = event as unknown as APIGatewayProxyEventV2;
+        }
+
+        const result = await handleUrlEndpoint(httpV2Event);
+        const apiResult = result as {
+          statusCode: number;
+          headers?: Record<string, string>;
+          body: string;
+        };
+        let responseStream = contextOrStream as HttpResponseStream;
+        // Use awslambda.HttpResponseStream.from if available, otherwise stream is already ready
+        if (typeof awslambda !== "undefined" && awslambda) {
+          responseStream = awslambda.HttpResponseStream.from(responseStream, {
+            statusCode: apiResult.statusCode,
+            headers: apiResult.headers || {},
+          });
+        }
+        await writeChunkToStream(responseStream, apiResult.body || "");
+        responseStream.end();
+        return;
       } else {
-        // Standard invocation (API Gateway)
+        // Standard invocation
         return await standardHandler(
           event,
           contextOrStream as Context,
           callback as Callback
         );
       }
-    };
-  } else {
-    // No streaming support - use standard handler
-    return standardHandler;
-  }
+    }
+
+    // For streaming endpoints, check if this is a streaming invocation
+    if (
+      contextOrStream &&
+      typeof contextOrStream === "object" &&
+      "write" in contextOrStream &&
+      typeof (contextOrStream as HttpResponseStream).write === "function"
+    ) {
+      // Streaming invocation (Function URL or lambda-stream polyfill)
+      return await streamingHandler(
+        event,
+        contextOrStream as HttpResponseStream
+      );
+    } else {
+      // Standard invocation (API Gateway)
+      return await standardHandler(
+        event,
+        contextOrStream as Context,
+        callback as Callback
+      );
+    }
+  };
 };
 
 /**
