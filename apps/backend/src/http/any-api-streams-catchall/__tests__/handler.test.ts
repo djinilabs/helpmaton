@@ -233,7 +233,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       });
 
       const result = (await (
-        handler as (
+        handler as unknown as (
           event: APIGatewayProxyEventV2,
           context: Context,
           callback: Callback
@@ -259,7 +259,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       });
 
       const result = (await (
-        handler as (
+        handler as unknown as (
           event: APIGatewayProxyEventV2,
           context: Context,
           callback: Callback
@@ -299,7 +299,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       });
 
       const result = (await (
-        handler as (
+        handler as unknown as (
           event: APIGatewayProxyEventV2,
           context: Context,
           callback: Callback
@@ -340,7 +340,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       });
 
       const result = (await (
-        handler as (
+        handler as unknown as (
           event: APIGatewayProxyEventV2,
           context: Context,
           callback: Callback
@@ -380,7 +380,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       });
 
       const result = (await (
-        handler as (
+        handler as unknown as (
           event: APIGatewayProxyEventV2,
           context: Context,
           callback: Callback
@@ -412,7 +412,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       });
 
       const result = (await (
-        handler as (
+        handler as unknown as (
           event: APIGatewayProxyEventV2,
           context: Context,
           callback: Callback
@@ -437,7 +437,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       });
 
       const result = (await (
-        handler as (
+        handler as unknown as (
           event: APIGatewayProxyEventV2,
           context: Context,
           callback: Callback
@@ -464,7 +464,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       });
 
       const result = (await (
-        handler as (
+        handler as unknown as (
           event: APIGatewayProxyEventV2,
           context: Context,
           callback: Callback
@@ -492,7 +492,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       });
 
       const result = (await (
-        handler as (
+        handler as unknown as (
           event: APIGatewayProxyEventV2,
           context: Context,
           callback: Callback
@@ -517,7 +517,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
       event.requestContext.http.method = "POST";
 
       const result = (await (
-        handler as (
+        handler as unknown as (
           event: APIGatewayProxyEventV2,
           context: Context,
           callback: Callback

@@ -2,7 +2,10 @@ import {
   CloudFormationClient,
   DescribeStacksCommand,
 } from "@aws-sdk/client-cloudformation";
-import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
+import type {
+  APIGatewayProxyEventV2,
+  APIGatewayProxyResultV2,
+} from "aws-lambda";
 
 import { computeCorsHeaders } from "../utils/streamCorsHeaders";
 
@@ -126,6 +129,7 @@ async function getStreamingFunctionUrl(): Promise<string | null> {
 export async function handleUrlEndpoint(
   event: APIGatewayProxyEventV2
 ): Promise<APIGatewayProxyResultV2> {
+  console.log("[handleUrlEndpoint] Event:", event);
   const origin = event.headers["origin"] || event.headers["Origin"];
   const headers = computeCorsHeaders("url", origin, null);
 
@@ -191,7 +195,7 @@ export async function handleUrlEndpoint(
     return {
       statusCode: 406,
       body: JSON.stringify({
-        error: "Only GET method is allowed for /api/streams/url",
+        error: `Only GET method is allowed for /api/streams/url and we got a ${event.requestContext.http.method} request`,
       }),
       headers,
     };
@@ -242,4 +246,3 @@ export async function handleUrlEndpoint(
     }),
   };
 }
-

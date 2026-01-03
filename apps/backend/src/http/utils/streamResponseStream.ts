@@ -27,7 +27,7 @@ export function createResponseStream(
   stream: HttpResponseStream,
   headers: Record<string, string>
 ): HttpResponseStream {
-  if (typeof awslambda !== "undefined" && awslambda) {
+  if (typeof awslambda !== "undefined" && awslambda.HttpResponseStream) {
     return getDefined(
       awslambda,
       "awslambda is not defined"

@@ -11,7 +11,7 @@ import type {
 /**
  * Type guard to check if an event is a REST API Gateway event
  */
-function isRestEvent(
+export function isRestEvent(
   event:
     | APIGatewayProxyEvent
     | APIGatewayProxyEventV2
