@@ -13,7 +13,7 @@
   "pnpm": {
     "supportedArchitectures": {
       "os": ["linux"],
-      "cpu": ["arm64"]
+      "cpu": ["x64"]
     }
   }
 }
