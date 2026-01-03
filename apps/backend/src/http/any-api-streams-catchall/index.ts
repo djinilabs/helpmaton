@@ -7,6 +7,7 @@ import type {
   Context,
   Callback,
 } from "aws-lambda";
+import { isInAWS, streamifyResponse } from "lambda-stream";
 
 import {
   adaptHttpHandler,
@@ -62,12 +63,10 @@ import {
 
 import { getDefined } from "@/utils";
 
-// Declare global awslambda for Lambda Function URL streaming
+// Declare global awslambda for HttpResponseStream.from() metadata helper
+// We still need this for setting headers and status code
 declare const awslambda:
   | {
-      streamifyResponse: <TEvent, TStream extends HttpResponseStream>(
-        handler: (event: TEvent, responseStream: TStream) => Promise<void>
-      ) => (event: TEvent, responseStream: TStream) => Promise<void>;
       HttpResponseStream: {
         from(
           underlyingStream: unknown,
@@ -82,12 +81,10 @@ initSentry();
 
 /**
  * Detects if handler is invoked via Lambda Function URL
+ * Uses lambda-stream's isInAWS() helper for better detection
  */
 function isLambdaFunctionUrlInvocation(): boolean {
-  return (
-    typeof awslambda !== "undefined" &&
-    typeof awslambda.streamifyResponse === "function"
-  );
+  return isInAWS();
 }
 
 /**
@@ -196,8 +193,6 @@ const internalHandler = async (
     const executionResult = await executeStream(context, responseStream);
     if (!executionResult) {
       // Error was handled in executeStream
-      // Both handleStreamingError and handleResultExtractionError ensure
-      // the stream is properly ended via writeErrorResponse before returning true
       return;
     }
 
@@ -468,12 +463,10 @@ const createHandler = () => {
     return await bufferedHandler(event, context, callback);
   };
 
-  // If awslambda is available, handle streaming
+  // If in AWS Lambda with streaming support, handle streaming
   if (isLambdaFunctionUrlInvocation()) {
-    const streamingHandler = getDefined(
-      awslambda,
-      "awslambda is not defined"
-    ).streamifyResponse(internalHandler);
+    // Use lambda-stream's streamifyResponse for better types and local testing
+    const streamingHandler = streamifyResponse(internalHandler);
 
     return async (
       event: APIGatewayProxyEvent | APIGatewayProxyEventV2 | LambdaUrlEvent,

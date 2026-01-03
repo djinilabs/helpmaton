@@ -5,8 +5,10 @@ import type { setupAgentAndTools } from "../../http/utils/agentSetup";
 import { Sentry, ensureError } from "../../utils/sentry";
 
 import { prepareLLMCall } from "./generationLLMSetup";
-import { writeChunkToStream, type HttpResponseStream } from "./streamResponseStream";
-
+import {
+  writeChunkToStream,
+  type HttpResponseStream,
+} from "./streamResponseStream";
 
 /**
  * Pipes the AI stream to the response stream
@@ -98,9 +100,10 @@ export async function pipeAIStreamToResponse(
 
     // REMOVED: Don't write textBuffer again - raw bytes were already written
     // The textBuffer is only for tracking text deltas, not for writing to stream
+    // Writing it again would duplicate data or write incomplete UTF-8 sequences
 
     // If no data was written, write an SSE comment to initialize the stream
-    // Lambda Function URLs with RESPONSE_STREAM mode require at least one write
+    // Lambda Function URLs require at least one write to activate the stream
     if (!hasWrittenData) {
       await writeChunkToStream(responseStream, ": stream-init\n\n");
     }

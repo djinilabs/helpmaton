@@ -1,25 +1,27 @@
+import type { ResponseStream } from "lambda-stream";
+
 import { getDefined } from "../../utils";
 
 // Declare global awslambda for Lambda Function URL streaming
+// We still need this for HttpResponseStream.from() metadata helper
 declare const awslambda:
   | {
       HttpResponseStream: {
         from(
           underlyingStream: unknown,
           metadata: Record<string, unknown>
-        ): HttpResponseStream;
+        ): ResponseStream;
       };
     }
   | undefined;
 
-// Type for AWS Lambda HttpResponseStream (available in RESPONSE_STREAM mode)
-export interface HttpResponseStream {
-  write(chunk: string | Uint8Array, callback?: (error?: Error) => void): void;
-  end(callback?: (error?: Error) => void): void;
-}
+// Export ResponseStream type from lambda-stream for use throughout the codebase
+// This provides better types and local testing support
+export type HttpResponseStream = ResponseStream;
 
 /**
  * Creates a response stream with headers for Lambda Function URLs
+ * Uses awslambda.HttpResponseStream.from() for metadata (as shown in lambda-stream docs)
  */
 export function createResponseStream(
   stream: HttpResponseStream,
@@ -40,6 +42,7 @@ export function createResponseStream(
 /**
  * Creates a mock response stream that buffers all chunks
  * Used for API Gateway where we need to return a complete response
+ * The mock stream implements the ResponseStream interface from lambda-stream
  */
 export function createMockResponseStream(): {
   stream: HttpResponseStream;
@@ -48,21 +51,29 @@ export function createMockResponseStream(): {
 } {
   const buffer: Uint8Array[] = [];
 
-  const stream: HttpResponseStream = {
-    write: (chunk: string | Uint8Array, callback?: (error?: Error) => void) => {
+  // Create a mock stream that matches ResponseStream interface
+  // ResponseStream.write can return boolean or accept callback
+  // ResponseStream.end can return ResponseStream or accept callback
+  const stream = {
+    write: (
+      chunk: string | Uint8Array,
+      callback?: (error?: Error | null) => void
+    ): boolean => {
       const bytes =
         typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk;
       buffer.push(bytes);
       if (callback) {
         callback();
       }
+      return true; // Return boolean as required by ResponseStream interface
     },
-    end: (callback?: (error?: Error) => void) => {
+    end: (callback?: (error?: Error | null) => void): HttpResponseStream => {
       if (callback) {
         callback();
       }
+      return stream; // Return ResponseStream as required by interface
     },
-  };
+  } as HttpResponseStream;
 
   const getBody = (): string => {
     const totalLength = buffer.reduce((sum, chunk) => sum + chunk.length, 0);

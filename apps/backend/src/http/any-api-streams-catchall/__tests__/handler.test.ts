@@ -49,6 +49,13 @@ const { mockGetDefined, mockStreamifyResponse, mockHttpResponseStreamFrom } =
     };
   });
 
+// Mock lambda-stream
+const mockIsInAWS = vi.fn(() => false); // Default to false for API Gateway tests
+vi.mock("lambda-stream", () => ({
+  isInAWS: mockIsInAWS,
+  streamifyResponse: mockStreamifyResponse,
+}));
+
 // Mock CloudFormationClient
 vi.mock("@aws-sdk/client-cloudformation", () => ({
   CloudFormationClient: mockCloudFormationModule.CloudFormationClientClass,
@@ -187,6 +194,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
     vi.clearAllMocks();
     mockStreamifyResponse.mockImplementation((handler) => handler);
     mockHttpResponseStreamFrom.mockImplementation((stream) => stream);
+    mockIsInAWS.mockReturnValue(false); // Default to false for API Gateway tests
     mockCloudFormationSend.mockClear();
     // Reset environment variables
     delete process.env.STREAMING_FUNCTION_URL;

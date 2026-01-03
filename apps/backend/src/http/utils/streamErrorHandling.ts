@@ -7,9 +7,7 @@ import {
 import { Sentry, ensureError } from "../../utils/sentry";
 import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 
-import {
-  cleanupReservationOnError,
-} from "./generationCreditManagement";
+import { cleanupReservationOnError } from "./generationCreditManagement";
 import {
   isByokAuthenticationError,
   normalizeByokError,
@@ -17,8 +15,10 @@ import {
   handleCreditErrors,
 } from "./generationErrorHandling";
 import type { StreamRequestContext } from "./streamRequestContext";
-import { writeChunkToStream, type HttpResponseStream } from "./streamResponseStream";
-
+import {
+  writeChunkToStream,
+  type HttpResponseStream,
+} from "./streamResponseStream";
 
 /**
  * Writes an error response to the stream in SSE format
@@ -78,7 +78,9 @@ export async function writeErrorResponse(
         },
         extra: {
           writeError:
-            writeError instanceof Error ? writeError.message : String(writeError),
+            writeError instanceof Error
+              ? writeError.message
+              : String(writeError),
           originalError: errorMessage,
         },
       });
@@ -216,8 +218,8 @@ export async function handleStreamingError(
 
 /**
  * Handles errors during result extraction
- * Returns true if error was handled and response was written
- * Always writes error response and ends stream before returning
+ * Returns true if error was handled and response was written, false otherwise
+ * Always ensures the stream is ended before returning
  */
 export async function handleResultExtractionError(
   resultError: unknown,
@@ -236,10 +238,10 @@ export async function handleResultExtractionError(
     return true;
   }
   await persistConversationError(context, resultError);
-  // Write error response and end stream before returning
-  // This ensures the stream is always properly closed even for non-BYOK errors
+  // Write error response and end stream before returning false
+  // This ensures the stream is always properly closed
   await writeErrorResponse(responseStream, resultError);
-  return true; // Changed from false - we handled it by writing error
+  return true; // Changed to true since we handled it by writing error and ending stream
 }
 
 /**
@@ -317,4 +319,3 @@ export async function handleStreamingErrorForApiGateway(
 
   return null;
 }
-

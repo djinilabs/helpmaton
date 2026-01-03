@@ -15,10 +15,10 @@ describe("streamResponseStream", () => {
 
   describe("createResponseStream", () => {
     it("should return stream as-is when awslambda is not available", () => {
-      const mockStream: HttpResponseStream = {
-        write: vi.fn(),
-        end: vi.fn(),
-      };
+      const mockStream = {
+        write: vi.fn(() => true),
+        end: vi.fn(() => mockStream),
+      } as unknown as HttpResponseStream;
       const result = createResponseStream(mockStream, {});
       expect(result).toBe(mockStream);
     });
@@ -32,10 +32,10 @@ describe("streamResponseStream", () => {
         },
       };
 
-      const mockStream: HttpResponseStream = {
-        write: vi.fn(),
-        end: vi.fn(),
-      };
+      const mockStream = {
+        write: vi.fn(() => true),
+        end: vi.fn(() => mockStream),
+      } as unknown as HttpResponseStream;
       const headers = { "Content-Type": "text/event-stream" };
       createResponseStream(mockStream, headers);
       expect(mockFrom).toHaveBeenCalledWith(mockStream, {
@@ -76,39 +76,42 @@ describe("streamResponseStream", () => {
 
   describe("writeChunkToStream", () => {
     it("should resolve when write succeeds", async () => {
-      const mockStream: HttpResponseStream = {
+      const mockStream = {
         write: vi.fn((chunk, callback) => {
           if (callback) {
             callback();
           }
+          return true;
         }),
-        end: vi.fn(),
-      };
+        end: vi.fn(() => mockStream),
+      } as unknown as HttpResponseStream;
       await expect(writeChunkToStream(mockStream, "test")).resolves.toBeUndefined();
     });
 
     it("should reject when write fails", async () => {
       const error = new Error("Write failed");
-      const mockStream: HttpResponseStream = {
+      const mockStream = {
         write: vi.fn((chunk, callback) => {
           if (callback) {
             callback(error);
           }
+          return true;
         }),
-        end: vi.fn(),
-      };
+        end: vi.fn(() => mockStream),
+      } as unknown as HttpResponseStream;
       await expect(writeChunkToStream(mockStream, "test")).rejects.toBe(error);
     });
 
     it("should handle Uint8Array chunks", async () => {
-      const mockStream: HttpResponseStream = {
+      const mockStream = {
         write: vi.fn((chunk, callback) => {
           if (callback) {
             callback();
           }
+          return true;
         }),
-        end: vi.fn(),
-      };
+        end: vi.fn(() => mockStream),
+      } as unknown as HttpResponseStream;
       const chunk = new TextEncoder().encode("test");
       await expect(writeChunkToStream(mockStream, chunk)).resolves.toBeUndefined();
     });
