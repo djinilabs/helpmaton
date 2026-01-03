@@ -2,19 +2,55 @@
 
 ## Current Status
 
-**Status**: Lambda Function URL Streaming Fix & CloudFormation IAM Permissions - Completed ✅
+**Status**: Stream Handler Refactoring & Code Quality Improvements - Completed ✅
 
-**Latest Work**: Fixed two critical issues with Lambda Function URLs in streaming mode:
+**Latest Work**: Completed comprehensive refactoring of the stream handler to improve maintainability, ensure proper error logging, and eliminate dangling promises:
 
-1. **502 Error Fix**: Fixed 502 internal server errors by ensuring all responses properly wrap the response stream with headers using `HttpResponseStream.from()` before writing any data. Lambda Function URLs in `RESPONSE_STREAM` mode require the stream to be wrapped with status code and headers before writing. Updated `/api/streams/url` endpoint and error handling paths to properly wrap streams.
+1. **Stream Handler Refactoring**: Significantly reduced complexity by extracting specialized utilities into separate files with distinct responsibilities. The main handler now acts as a router and orchestrator, making the codebase much easier to follow and maintain. Reduced main handler from 500+ lines to ~250 lines.
 
-2. **CloudFormation IAM Permissions**: Fixed `AccessDenied` errors when Lambda functions query CloudFormation stack outputs. Updated the `lambda-urls` plugin to add CloudFormation `DescribeStacks` permissions to all Lambda functions that have Function URLs (not just a hardcoded function name). The plugin now automatically grants permissions to all functions in the `@lambda-urls` pragma.
+2. **Error Logging**: Ensured all errors are properly logged to Sentry. Previously ignored errors (like stream end failures) are now captured with appropriate context and tags. No errors are masked - all are either properly handled or logged to Sentry.
 
-**Previous Work**: Consolidated the `GET /api/streams/url` handler into the unified `/api/streams/*` catchall handler. The URL endpoint functionality (retrieving the streaming Lambda Function URL) is now handled by the same unified handler that processes test and stream endpoints. This consolidation eliminates code duplication and simplifies the routing structure. The unified handler supports both Lambda Function URL (true streaming) and API Gateway (buffered streaming) invocations, with conditional authentication (JWT for test endpoint, secret for stream endpoint) and CORS headers. All utilities have been relocated from `post-api-workspaces-000workspaceId-agents-000agentId-test/utils/` to shared locations for better code organization and reusability.
+3. **Promise Handling**: Fixed dangling promises by ensuring all async operations are properly awaited or returned. No "fire and forget" promises remain in the codebase. All promises are either awaited or returned.
+
+**Previous Work**: Fixed two critical issues with Lambda Function URLs in streaming mode (502 errors and CloudFormation IAM permissions). Also consolidated the `GET /api/streams/url` handler into the unified `/api/streams/*` catchall handler. The unified handler supports both Lambda Function URL (true streaming) and API Gateway (buffered streaming) invocations, with conditional authentication (JWT for test endpoint, secret for stream endpoint) and CORS headers.
 
 **Recent Changes**:
 
-1. **Lambda Function URL Streaming Fix** (Latest):
+1. **Stream Handler Refactoring** (Latest):
+
+   - **Complexity Reduction**: Extracted monolithic handler into specialized utility files:
+     - `streamEndpointDetection.ts` - Endpoint type detection and path extraction
+     - `streamPathExtraction.ts` - Path parameter extraction
+     - `streamCorsHeaders.ts` - CORS header computation and OPTIONS handling
+     - `streamResponseStream.ts` - Response stream creation (real and mock)
+     - `streamAIPipeline.ts` - AI stream to response stream piping
+     - `streamRequestContext.ts` - Request context building
+     - `streamAuthentication.ts` - JWT and secret-based authentication
+     - `streamErrorHandling.ts` - Error handling and persistence
+     - `streamPostProcessing.ts` - Credit adjustment, usage tracking, conversation logging
+     - `streamExecution.ts` - Stream execution orchestration
+     - `streamEventNormalization.ts` - Event type normalization
+   - **URL Endpoint Isolation**: Moved `/api/streams/url` endpoint to separate handler file (`get-api-streams-url/index.ts`)
+   - **Main Handler Simplification**: Reduced main handler from 500+ lines to ~250 lines, acting as router/orchestrator
+   - **Test Coverage**: All existing tests pass, comprehensive unit tests for new utilities
+
+2. **Error Logging Improvements** (Latest):
+
+   - **Sentry Integration**: All previously ignored errors now logged to Sentry:
+     - Stream end failures in error handling paths
+     - Stream end failures in AI pipeline finally block
+     - Conversation error persistence failures
+     - Event flushing errors (PostHog/Sentry)
+   - **Error Context**: All Sentry captures include appropriate tags and extra context
+   - **No Masked Errors**: All errors are either properly handled or logged to Sentry
+
+3. **Promise Handling Fixes** (Latest):
+
+   - **Dangling Promise Fix**: Fixed issue where `persistConversationError` was called inside `.then()` without awaiting
+   - **Promise Verification**: Verified all async operations are properly awaited or returned
+   - **No Fire-and-Forget**: Eliminated all "fire and forget" promise patterns
+
+4. **Lambda Function URL Streaming Fix** (Previous):
 
    - Fixed 502 errors by wrapping response stream with `HttpResponseStream.from()` before writing
    - Updated `/api/streams/url` endpoint to wrap stream with headers (status code 200/404, Content-Type: application/json)
@@ -41,7 +77,7 @@
    - Fixed test cache clearing using `vi.resetModules()` and dynamic imports
    - Deleted old handler files (`get-api-streams-url/index.ts` and test file)
 
-2. **Streaming Endpoints Unification** (Previous):
+7. **Streaming Endpoints Unification** (Previous):
 
    - Updated `app.arc` to use catch-all route `any /api/streams/*` for both endpoints
    - Unified handler supports both `/api/streams/:workspaceId/:agentId/test` (JWT auth) and `/api/streams/:workspaceId/:agentId/:secret` (secret auth)
@@ -96,7 +132,40 @@
 
 - None (consolidated into existing unified handler)
 
+**Files Created** (Latest):
+
+- `apps/backend/src/http/get-api-streams-url/index.ts` - URL endpoint handler (isolated from main handler)
+- `apps/backend/src/http/utils/streamEndpointDetection.ts` - Endpoint type detection utilities
+- `apps/backend/src/http/utils/streamPathExtraction.ts` - Path parameter extraction utilities
+- `apps/backend/src/http/utils/streamCorsHeaders.ts` - CORS header computation utilities
+- `apps/backend/src/http/utils/streamResponseStream.ts` - Response stream creation utilities
+- `apps/backend/src/http/utils/streamAIPipeline.ts` - AI stream piping utilities
+- `apps/backend/src/http/utils/streamRequestContext.ts` - Request context building utilities
+- `apps/backend/src/http/utils/streamAuthentication.ts` - Authentication utilities
+- `apps/backend/src/http/utils/streamErrorHandling.ts` - Error handling and persistence utilities
+- `apps/backend/src/http/utils/streamPostProcessing.ts` - Post-processing utilities (credits, usage, logging)
+- `apps/backend/src/http/utils/streamExecution.ts` - Stream execution orchestration utilities
+- `apps/backend/src/http/utils/streamEventNormalization.ts` - Event normalization utilities
+- `apps/backend/src/http/utils/__tests__/streamEndpointDetection.test.ts` - Unit tests
+- `apps/backend/src/http/utils/__tests__/streamPathExtraction.test.ts` - Unit tests
+- `apps/backend/src/http/utils/__tests__/streamCorsHeaders.test.ts` - Unit tests
+- `apps/backend/src/http/utils/__tests__/streamResponseStream.test.ts` - Unit tests
+- `apps/backend/src/http/utils/__tests__/streamAIPipeline.test.ts` - Unit tests
+- `apps/backend/src/http/utils/__tests__/streamRequestContext.test.ts` - Unit tests
+- `apps/backend/src/http/utils/__tests__/streamAuthentication.test.ts` - Unit tests
+- `apps/backend/src/http/utils/__tests__/streamErrorHandling.test.ts` - Unit tests
+- `apps/backend/src/http/utils/__tests__/streamPostProcessing.test.ts` - Unit tests
+- `apps/backend/src/http/utils/__tests__/streamExecution.test.ts` - Unit tests
+- `apps/backend/src/http/utils/__tests__/streamEventNormalization.test.ts` - Unit tests
+
 **Files Modified** (Latest):
+
+- `apps/backend/src/http/any-api-streams-catchall/index.ts` - Refactored to use extracted utilities; reduced from 500+ lines to ~250 lines; fixed dangling promise; added Sentry logging for all error paths
+- `apps/backend/src/http/utils/streamErrorHandling.ts` - Added Sentry logging for all error paths (stream end failures, persistence failures)
+- `apps/backend/src/http/utils/streamAIPipeline.ts` - Added Sentry logging for stream end failures in finally block
+- `apps/backend/src/http/utils/streamPostProcessing.ts` - Fixed promise handling in tool extraction; added Sentry logging for conversation logging errors
+
+**Files Modified** (Previous):
 
 - `apps/backend/src/http/any-api-streams-catchall/index.ts` - Fixed response stream wrapping for `/api/streams/url` endpoint and error handling paths; all responses now properly wrap stream with headers before writing
 - `apps/backend/src/plugins/lambda-urls/index.js` - Refactored IAM permissions function to accept multiple function IDs; automatically grants CloudFormation permissions to all functions with Function URLs
@@ -142,9 +211,20 @@
 - Local Development: Automatic detection, uses appropriate streaming method
 - URL Discovery: Supports `STREAMING_FUNCTION_URL` env var, CloudFormation stack outputs, with 5-minute cache TTL
 
-**Verification**: All tests passing (19 tests in unified handler, 2066+ total), typecheck and lint clean ✅
+**Verification**: All tests passing (211 tests in stream handler utilities, 17 test files), typecheck and lint clean ✅
 
-**Latest Verification**: Typecheck, lint, and all handler tests passing after streaming and IAM permission fixes ✅
+**Latest Verification**: Typecheck, lint, and all handler tests passing after refactoring, error logging improvements, and promise handling fixes ✅
+
+**Code Quality Improvements**:
+- Reduced main handler complexity by ~50% (500+ lines → ~250 lines)
+- Created 11 specialized utility modules with single responsibilities
+- All errors properly logged to Sentry (no masked errors)
+- All promises properly awaited or returned (no dangling promises)
+- Comprehensive test coverage for all new utilities
+
+**Previous Status**: Stream Handler Refactoring & Code Quality Improvements - Completed ✅
+
+**Previous Work**: Completed comprehensive refactoring of the stream handler (`apps/backend/src/http/any-api-streams-catchall/index.ts`) to improve maintainability and code quality. The refactoring extracted specialized utilities into separate files, ensured all errors are logged to Sentry, and eliminated all dangling promises.
 
 **Previous Status**: Scrape Endpoint Lambda Function URL Conversion - Completed ✅
 

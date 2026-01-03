@@ -52,6 +52,7 @@ export function ensureRequestContextHttp(
         http?: { method?: string; path?: string };
         httpMethod?: string;
         path?: string;
+        requestId?: string;
       };
       rawPath?: string;
     };
@@ -64,6 +65,11 @@ export function ensureRequestContextHttp(
       eventAny.requestContext?.path ||
       eventAny.rawPath ||
       "/";
+    // Preserve original request ID or generate one if missing
+    const originalRequestId =
+      httpV2Event.requestContext?.requestId ||
+      eventAny.requestContext?.requestId ||
+      `gen-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
     if (!httpV2Event.requestContext) {
       httpV2Event.requestContext = {
@@ -78,13 +84,17 @@ export function ensureRequestContextHttp(
           sourceIp: "",
           userAgent: "",
         },
-        requestId: "",
+        requestId: originalRequestId,
         routeKey: `${method} ${path}`,
         stage: "$default",
         time: new Date().toISOString(),
         timeEpoch: Date.now(),
       };
     } else {
+      // Preserve existing request ID if present, otherwise use original
+      if (!httpV2Event.requestContext.requestId) {
+        httpV2Event.requestContext.requestId = originalRequestId;
+      }
       httpV2Event.requestContext.http = {
         method: method,
         path: path,
@@ -93,6 +103,16 @@ export function ensureRequestContextHttp(
         userAgent: "",
       };
     }
+  } else if (!httpV2Event.requestContext.requestId) {
+    // If http exists but requestId is missing, generate one
+    const eventAny = event as {
+      requestContext?: {
+        requestId?: string;
+      };
+    };
+    httpV2Event.requestContext.requestId =
+      eventAny.requestContext?.requestId ||
+      `gen-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   }
 
   return httpV2Event;

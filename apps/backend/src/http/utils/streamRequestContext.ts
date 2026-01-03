@@ -328,10 +328,37 @@ export async function buildStreamRequestContext(
   const db = await database();
 
   // Get context for workspace credit transactions
+  // The requestId should have been set in handleApiGatewayStreaming or internalHandler
+  // before this function is called. If it's missing or empty, that's an error.
   const awsRequestId = event.requestContext?.requestId;
+
+  if (!awsRequestId || awsRequestId.trim() === "") {
+    console.error(
+      "[buildStreamRequestContext] Request ID is missing or empty:",
+      {
+        hasRequestContext: !!event.requestContext,
+        requestIdInEvent: event.requestContext?.requestId,
+      }
+    );
+    throw new Error(
+      "Request ID is missing from event. Context setup should have set this before calling buildStreamRequestContext."
+    );
+  }
+
   const lambdaContext = getContextFromRequestId(awsRequestId);
   if (!lambdaContext) {
-    throw new Error("Context not available for workspace credit transactions");
+    // Log detailed error information for debugging
+    console.error(
+      "[buildStreamRequestContext] Context not found for requestId:",
+      {
+        awsRequestId,
+        hasRequestContext: !!event.requestContext,
+        requestIdInEvent: event.requestContext?.requestId,
+      }
+    );
+    throw new Error(
+      `Context not available for workspace credit transactions. RequestId: ${awsRequestId}`
+    );
   }
 
   // Setup agent context

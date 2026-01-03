@@ -128,9 +128,23 @@ const internalHandler = async (
 
   let context: StreamRequestContext | undefined;
 
+  // Extract request ID from original event before normalization (as fallback)
+  const originalRequestId =
+    (event as { requestContext?: { requestId?: string } }).requestContext
+      ?.requestId || undefined;
+
   // Ensure requestContext.http exists
   const httpV2Event = ensureRequestContextHttp(normalizedEvent);
-  const awsRequestId = httpV2Event.requestContext.requestId;
+  // Use request ID from normalized event, or fall back to original, or generate one
+  const awsRequestId =
+    httpV2Event.requestContext.requestId ||
+    originalRequestId ||
+    `gen-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+  // Ensure the request ID is set in the event for later use
+  if (!httpV2Event.requestContext.requestId) {
+    httpV2Event.requestContext.requestId = awsRequestId;
+  }
 
   // Setup workspace credit context
   setupWorkspaceCreditContext(awsRequestId);
@@ -267,7 +281,40 @@ async function handleApiGatewayStreaming(
     return await handleUrlEndpoint(event);
   }
 
-  const awsRequestId = event.requestContext?.requestId;
+  // Extract request ID from event or context, or generate one
+  // Handle empty string case (transformations may set it to "")
+  const eventRequestId = event.requestContext?.requestId;
+  const awsRequestId =
+    eventRequestId && eventRequestId.trim() !== ""
+      ? eventRequestId
+      : context.awsRequestId ||
+        `gen-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+  // Ensure the request ID is set in the event for later use
+  // This is critical - buildStreamRequestContext will use this to retrieve the context
+  if (!event.requestContext) {
+    event.requestContext = {
+      accountId: "",
+      apiId: "",
+      domainName: "",
+      domainPrefix: "",
+      http: {
+        method: "POST",
+        path: event.rawPath || "/",
+        protocol: "HTTP/1.1",
+        sourceIp: "",
+        userAgent: "",
+      },
+      requestId: awsRequestId,
+      routeKey: "POST /",
+      stage: "$default",
+      time: new Date().toISOString(),
+      timeEpoch: Date.now(),
+    };
+  } else {
+    // Always update the requestId to ensure it matches what we use for context setup
+    event.requestContext.requestId = awsRequestId;
+  }
 
   // Setup workspace credit context
   setupWorkspaceCreditContext(awsRequestId, context);
