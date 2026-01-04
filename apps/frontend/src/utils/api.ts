@@ -545,6 +545,37 @@ export function setupGlobalFetchOverride(): void {
       }
     }
 
+    // Handle 402 Payment Required - show appropriate error message based on endpoint type
+    if (response.status === 402) {
+      let errorMessage: string;
+      try {
+        const errorBody = await response.clone().json();
+        errorMessage = errorBody.error || errorBody.message || "Payment required";
+      } catch {
+        errorMessage = "Payment required";
+      }
+
+      // Determine endpoint type: test (API Gateway) or streaming (Function URL)
+      // Test endpoint: relative URL starting with /api/ (same origin)
+      // Streaming endpoint: full HTTP URL (cross-origin Lambda Function URL)
+      const isTestEndpoint =
+        isSameOrigin &&
+        (urlString.startsWith("/api/") ||
+          requestUrl.pathname.startsWith("/api/"));
+
+      if (isTestEndpoint) {
+        // Test endpoint: more specific message about credits
+        throw new Error(
+          errorMessage.includes("service limits")
+            ? "Insufficient credits. Please add credits to your workspace to continue."
+            : errorMessage
+        );
+      } else {
+        // Streaming endpoint: generic administrator message
+        throw new Error("Contact your administrator");
+      }
+    }
+
     return response;
   };
 }
