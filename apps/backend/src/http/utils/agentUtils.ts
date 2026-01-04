@@ -39,7 +39,7 @@ type CachedAgent = {
   enableSearchDocuments?: boolean;
   enableMemorySearch?: boolean;
   searchWebProvider?: "tavily" | "jina" | null;
-  fetchWebProvider?: "tavily" | "jina" | null;
+  fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
   enableSendEmail?: boolean;
   notificationChannelId?: string;
   enabledMcpServerIds?: string[];
@@ -2028,6 +2028,7 @@ export function createCallAgentAsyncTool(
             message: message.trim(),
             callDepth,
             maxDepth,
+            ...(conversationId && { conversationId }),
           },
         });
 
@@ -2050,15 +2051,8 @@ export function createCallAgentAsyncTool(
           timestamp: new Date().toISOString(),
         });
 
-        // Track delegation in conversation metadata (pending status)
-        if (conversationId) {
-          await trackDelegation(db, workspaceId, currentAgentId, conversationId, {
-            callingAgentId: currentAgentId,
-            targetAgentId: agentId,
-            taskId,
-            status: "completed", // Will be updated by queue processor when done
-          });
-        }
+        // Note: Delegation tracking will be handled by queue processor when task completes/fails
+        // We don't track "pending" status since trackDelegation only supports "completed", "failed", "cancelled"
 
         return `Delegation task created successfully. Task ID: ${taskId}. Use check_delegation_status(${taskId}) to check the status and get results when ready.`;
       } catch (error) {

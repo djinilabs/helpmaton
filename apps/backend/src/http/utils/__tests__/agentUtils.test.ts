@@ -639,7 +639,6 @@ describe("agentUtils - Delegation Tools", () => {
       });
 
       // If query matches, task is created; if not, we get error with agent list
-      const hasNoMatchError = result.includes("Error: No agent found matching query");
       const hasTaskCreated = result.includes("Delegation task created successfully");
       
       if (hasTaskCreated) {

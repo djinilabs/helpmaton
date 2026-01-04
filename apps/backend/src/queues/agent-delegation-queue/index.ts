@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { callAgentInternal } from "../../http/utils/agentUtils";
 import { database } from "../../tables";
+import { trackDelegation } from "../../utils/conversationLogger";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
 import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
 
@@ -70,6 +71,7 @@ const DelegationTaskMessageSchema = z.object({
   message: z.string(),
   callDepth: z.number(),
   maxDepth: z.number(),
+  conversationId: z.string().optional(),
 });
 
 type DelegationTaskMessage = z.infer<typeof DelegationTaskMessageSchema>;
@@ -82,7 +84,7 @@ async function processDelegationTask(
   context: Awaited<ReturnType<typeof getCurrentSQSContext>>
 ): Promise<void> {
   const db = await database();
-  const { taskId, workspaceId, callingAgentId, targetAgentId, message: taskMessage, callDepth, maxDepth } = message;
+  const { taskId, workspaceId, callingAgentId, targetAgentId, message: taskMessage, callDepth, maxDepth, conversationId } = message;
 
   // Update task status to running
   const taskPk = `delegation-tasks/${taskId}`;
@@ -191,6 +193,16 @@ async function processDelegationTask(
       status: "completed",
       timestamp: new Date().toISOString(),
     });
+
+    // Track delegation in conversation metadata if conversationId is available
+    if (conversationId) {
+      await trackDelegation(db, workspaceId, callingAgentId, conversationId, {
+        callingAgentId,
+        targetAgentId,
+        taskId,
+        status: "completed",
+      });
+    }
   } else {
     // This shouldn't happen, but handle it
     const error = new Error("Delegation completed but no result returned");
@@ -219,6 +231,16 @@ async function processDelegationTask(
       timestamp: new Date().toISOString(),
     });
 
+    // Track delegation in conversation metadata if conversationId is available
+    if (conversationId) {
+      await trackDelegation(db, workspaceId, callingAgentId, conversationId, {
+        callingAgentId,
+        targetAgentId,
+        taskId,
+        status: "failed",
+      });
+    }
+
     throw error;
   }
 }
@@ -230,7 +252,7 @@ async function processDelegationTaskWithErrorHandling(
   message: DelegationTaskMessage,
   messageId: string
 ): Promise<void> {
-  const { taskId, workspaceId, callingAgentId, targetAgentId, callDepth } = message;
+  const { taskId, workspaceId, callingAgentId, targetAgentId, callDepth, conversationId } = message;
   const db = await database();
   const taskPk = `delegation-tasks/${taskId}`;
 
@@ -267,6 +289,16 @@ async function processDelegationTaskWithErrorHandling(
       error: errorMessage,
       timestamp: new Date().toISOString(),
     });
+
+    // Track delegation in conversation metadata if conversationId is available
+    if (conversationId) {
+      await trackDelegation(db, workspaceId, callingAgentId, conversationId, {
+        callingAgentId,
+        targetAgentId,
+        taskId,
+        status: "failed",
+      });
+    }
 
     console.error(`[Delegation Queue] Task ${taskId} failed:`, error);
     throw error;
