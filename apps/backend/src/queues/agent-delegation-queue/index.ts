@@ -30,7 +30,7 @@ function isRetryableError(error: unknown): boolean {
   }
 
   const message = error.message.toLowerCase();
-  
+
   // Retry on timeouts
   if (message.includes("timeout")) {
     return true;
@@ -52,7 +52,12 @@ function isRetryableError(error: unknown): boolean {
   }
 
   // Retry on server errors (5xx)
-  if (message.includes("500") || message.includes("502") || message.includes("503") || message.includes("504")) {
+  if (
+    message.includes("500") ||
+    message.includes("502") ||
+    message.includes("503") ||
+    message.includes("504")
+  ) {
     return true;
   }
 
@@ -81,10 +86,19 @@ type DelegationTaskMessage = z.infer<typeof DelegationTaskMessageSchema>;
  */
 async function processDelegationTask(
   message: DelegationTaskMessage,
-  context: Awaited<ReturnType<typeof getCurrentSQSContext>>
+  context: NonNullable<Awaited<ReturnType<typeof getCurrentSQSContext>>>
 ): Promise<void> {
   const db = await database();
-  const { taskId, workspaceId, callingAgentId, targetAgentId, message: taskMessage, callDepth, maxDepth, conversationId } = message;
+  const {
+    taskId,
+    workspaceId,
+    callingAgentId,
+    targetAgentId,
+    message: taskMessage,
+    callDepth,
+    maxDepth,
+    conversationId,
+  } = message;
 
   // Update task status to running
   const taskPk = `delegation-tasks/${taskId}`;
@@ -127,9 +141,9 @@ async function processDelegationTask(
         const delay = baseDelay + jitter;
 
         console.log(
-          `[Delegation Queue] Retrying task ${taskId} (attempt ${
-            attempt + 1
-          }/${BACKOFF_MAX_RETRIES + 1}) after ${Math.round(delay)}ms:`,
+          `[Delegation Queue] Retrying task ${taskId} (attempt ${attempt + 1}/${
+            BACKOFF_MAX_RETRIES + 1
+          }) after ${Math.round(delay)}ms:`,
           {
             taskId,
             previousError:
@@ -143,13 +157,17 @@ async function processDelegationTask(
       }
 
       // Call the agent internally
+      // Use 280 seconds timeout (leaving 20s buffer for queue processing)
+      // Queue timeout is 300 seconds, so this ensures we complete before queue timeout
+      const DELEGATION_TIMEOUT_MS = 280 * 1000; // 280 seconds
       result = await callAgentInternal(
         workspaceId,
         targetAgentId,
         taskMessage,
         callDepth,
         maxDepth,
-        context
+        context,
+        DELEGATION_TIMEOUT_MS
       );
 
       // Success - break out of retry loop
@@ -170,7 +188,10 @@ async function processDelegationTask(
 
   // Update task to completed
   if (result !== undefined) {
-    const completedTask = await db["agent-delegation-tasks"].get(taskPk, "task");
+    const completedTask = await db["agent-delegation-tasks"].get(
+      taskPk,
+      "task"
+    );
     if (completedTask) {
       await db["agent-delegation-tasks"].update({
         ...completedTask,
@@ -206,7 +227,7 @@ async function processDelegationTask(
   } else {
     // This shouldn't happen, but handle it
     const error = new Error("Delegation completed but no result returned");
-    
+
     // Update task to failed
     const failedTask = await db["agent-delegation-tasks"].get(taskPk, "task");
     if (failedTask) {
@@ -252,7 +273,14 @@ async function processDelegationTaskWithErrorHandling(
   message: DelegationTaskMessage,
   messageId: string
 ): Promise<void> {
-  const { taskId, workspaceId, callingAgentId, targetAgentId, callDepth, conversationId } = message;
+  const {
+    taskId,
+    workspaceId,
+    callingAgentId,
+    targetAgentId,
+    callDepth,
+    conversationId,
+  } = message;
   const db = await database();
   const taskPk = `delegation-tasks/${taskId}`;
 
@@ -338,4 +366,3 @@ export const handler = handlingSQSErrors(
     return failedMessageIds;
   }
 );
-

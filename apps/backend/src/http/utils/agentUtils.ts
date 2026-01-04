@@ -916,24 +916,32 @@ export async function callAgentInternal(
     // Track generation time
     const generationStartTime = Date.now();
     
-    // Create timeout promise
+    // Create timeout promise with handle for cleanup
+    let timeoutHandle: NodeJS.Timeout | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
+      timeoutHandle = setTimeout(() => {
         reject(new Error(`Delegation timeout: Agent call exceeded ${timeoutMs}ms`));
       }, timeoutMs);
     });
 
-    // Race between generateText and timeout
-    result = await Promise.race([
-      generateText({
-        model: model as unknown as Parameters<typeof generateText>[0]["model"],
-        system: targetAgent.systemPrompt,
-        messages: modelMessages,
-        tools,
-        ...generateOptions,
-      }),
-      timeoutPromise,
-    ]);
+    try {
+      // Race between generateText and timeout
+      result = await Promise.race([
+        generateText({
+          model: model as unknown as Parameters<typeof generateText>[0]["model"],
+          system: targetAgent.systemPrompt,
+          messages: modelMessages,
+          tools,
+          ...generateOptions,
+        }),
+        timeoutPromise,
+      ]);
+    } finally {
+      // Clear timeout to prevent memory leak if generateText completed first
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }
     
     // Generation time tracked but not currently used in agent delegation
     void (Date.now() - generationStartTime);

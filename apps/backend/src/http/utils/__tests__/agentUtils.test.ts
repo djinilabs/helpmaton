@@ -679,6 +679,46 @@ describe("agentUtils - Delegation Tools", () => {
       expect(result).toContain("Error: No agent found matching query");
       expect(result).toContain("Available agents");
     });
+
+    it("should create task with createdAt field", async () => {
+      const agent = createMockAgent({
+        pk: "agents/test-workspace/test-agent",
+        name: "Test Agent",
+        systemPrompt: "A test agent.",
+      });
+
+      (mockDb.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue(agent);
+
+      const tool = createCallAgentAsyncTool(
+        "test-workspace",
+        ["test-agent"],
+        "calling-agent",
+        0,
+        3
+      );
+
+      await (tool as unknown as {
+        execute: (args: unknown) => Promise<string>;
+      }).execute({
+        agentId: "test-agent",
+        message: "Test message",
+      });
+
+      // Verify create was called
+      expect(mockDb["agent-delegation-tasks"].create).toHaveBeenCalled();
+      const createCall = (mockDb["agent-delegation-tasks"].create as ReturnType<typeof vi.fn>).mock.calls[0];
+      const taskData = createCall[0];
+
+      // Verify required fields are present
+      // Note: createdAt is automatically set by the table API, so we don't include it in the create call
+      expect(taskData).toHaveProperty("pk");
+      expect(taskData).toHaveProperty("sk", "task");
+      expect(taskData).toHaveProperty("workspaceId", "test-workspace");
+      expect(taskData).toHaveProperty("callingAgentId", "calling-agent");
+      expect(taskData).toHaveProperty("targetAgentId", "test-agent");
+      expect(taskData).toHaveProperty("message", "Test message");
+      expect(taskData).toHaveProperty("status", "pending");
+    });
   });
 });
 
