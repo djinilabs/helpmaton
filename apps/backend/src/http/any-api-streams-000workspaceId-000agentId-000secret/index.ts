@@ -1851,12 +1851,15 @@ const internalHandler = async (
         error:
           writeError instanceof Error ? writeError.message : String(writeError),
       });
-      Sentry.captureException(ensureError(writeError), {
-        tags: {
-          context: "stream-handler",
-          operation: "write-error-response",
-        },
-      });
+      // Only send to Sentry if the original error was a server error
+      if (boomed.isServer) {
+        Sentry.captureException(ensureError(writeError), {
+          tags: {
+            context: "stream-handler",
+            operation: "write-error-response",
+          },
+        });
+      }
     }
   } finally {
     // Clean up context from module-level map

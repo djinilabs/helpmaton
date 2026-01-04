@@ -1,3 +1,4 @@
+import { boomify } from "@hapi/boom";
 import type { APIGatewayProxyResultV2 } from "aws-lambda";
 
 import {
@@ -28,6 +29,8 @@ export async function writeErrorResponse(
   error: unknown
 ): Promise<void> {
   const errorMessage = error instanceof Error ? error.message : String(error);
+  // Boomify the original error to check if it's a server error
+  const boomed = boomify(error as Error);
   const errorChunk = `data: ${JSON.stringify({
     type: "error",
     errorText: errorMessage,
@@ -38,16 +41,18 @@ export async function writeErrorResponse(
     try {
       responseStream.end();
     } catch (endError) {
-      // Stream might already be ended - log to Sentry
-      Sentry.captureException(ensureError(endError), {
-        tags: {
-          context: "stream-error-handling",
-          operation: "end-stream-after-error-write",
-        },
-        extra: {
-          originalError: errorMessage,
-        },
-      });
+      // Stream might already be ended - only log to Sentry if original error was server error
+      if (boomed.isServer) {
+        Sentry.captureException(ensureError(endError), {
+          tags: {
+            context: "stream-error-handling",
+            operation: "end-stream-after-error-write",
+          },
+          extra: {
+            originalError: errorMessage,
+          },
+        });
+      }
     }
   } catch (writeError) {
     console.error(
@@ -58,32 +63,37 @@ export async function writeErrorResponse(
         originalError: errorMessage,
       }
     );
-    Sentry.captureException(ensureError(writeError), {
-      tags: {
-        context: "stream-error-handling",
-        operation: "write-error-response",
-      },
-      extra: {
-        originalError: errorMessage,
-      },
-    });
-    try {
-      responseStream.end();
-    } catch (endError) {
-      // Stream already ended - log to Sentry
-      Sentry.captureException(ensureError(endError), {
+    // Only send to Sentry if the original error was a server error
+    if (boomed.isServer) {
+      Sentry.captureException(ensureError(writeError), {
         tags: {
           context: "stream-error-handling",
-          operation: "end-stream-after-write-error",
+          operation: "write-error-response",
         },
         extra: {
-          writeError:
-            writeError instanceof Error
-              ? writeError.message
-              : String(writeError),
           originalError: errorMessage,
         },
       });
+    }
+    try {
+      responseStream.end();
+    } catch (endError) {
+      // Stream already ended - only log to Sentry if original error was server error
+      if (boomed.isServer) {
+        Sentry.captureException(ensureError(endError), {
+          tags: {
+            context: "stream-error-handling",
+            operation: "end-stream-after-write-error",
+          },
+          extra: {
+            writeError:
+              writeError instanceof Error
+                ? writeError.message
+                : String(writeError),
+            originalError: errorMessage,
+          },
+        });
+      }
     }
   }
 }
