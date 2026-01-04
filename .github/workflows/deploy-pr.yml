@@ -227,6 +227,8 @@ jobs:
           HELPMATON_S3_REGION: ${{ secrets.HELPMATON_S3_REGION }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           VITE_SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          GITHUB_SHA: ${{ github.sha }}
+          SENTRY_RELEASE: ${{ github.sha }}
           CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
           CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
@@ -295,6 +297,7 @@ jobs:
           [ -n "${HELPMATON_S3_REGION}" ] && ENV_VARS+=(HELPMATON_S3_REGION "${HELPMATON_S3_REGION}")
           [ -n "${HELPMATON_S3_ENDPOINT}" ] && ENV_VARS+=(HELPMATON_S3_ENDPOINT "${HELPMATON_S3_ENDPOINT}")
           [ -n "${SENTRY_DSN}" ] && ENV_VARS+=(SENTRY_DSN "${SENTRY_DSN}")
+          [ -n "${SENTRY_RELEASE}" ] && ENV_VARS+=(SENTRY_RELEASE "${SENTRY_RELEASE}")
           [ -n "${DISCORD_PUBLIC_KEY}" ] && ENV_VARS+=(DISCORD_PUBLIC_KEY "${DISCORD_PUBLIC_KEY}")
           [ -n "${DISCORD_CS_USERS}" ] && ENV_VARS+=(DISCORD_CS_USERS "${DISCORD_CS_USERS}")
           [ -n "${GMAIL_CLIENT_ID}" ] && ENV_VARS+=(GMAIL_CLIENT_ID "${GMAIL_CLIENT_ID}")
