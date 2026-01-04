@@ -18,15 +18,10 @@ const mockCloudFormationModule = vi.hoisted(() => {
 });
 
 // Mock awslambda using vi.hoisted to ensure it's available before module imports
-// For URL endpoint tests, we want to test the API Gateway path, so we don't set up awslambda
 const { mockGetDefined, mockStreamifyResponse, mockHttpResponseStreamFrom } =
   vi.hoisted(() => {
     const mockStreamifyResponseFn = vi.fn((handler) => handler);
     const mockHttpResponseStreamFromFn = vi.fn((stream) => stream);
-
-    // Don't set up global awslambda for URL endpoint tests - we want to test API Gateway path
-    // Only set it up if needed for other tests
-    // global.awslambda = undefined; // Explicitly undefined for API Gateway tests
 
     return {
       mockStreamifyResponse: mockStreamifyResponseFn,
@@ -187,15 +182,7 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
     mockHttpResponseStreamFrom.mockImplementation((stream) => stream);
     mockCloudFormationSend.mockClear();
     // Reset environment variables
-    delete process.env.STREAMING_FUNCTION_URL;
-    delete process.env.AWS_STACK_NAME;
-    delete process.env.ARC_STACK_NAME;
-    delete process.env.STACK_NAME;
-    // Ensure awslambda is undefined for API Gateway tests (URL endpoint tests)
-    // @ts-expect-error - We're explicitly setting it to undefined for testing
-    global.awslambda = undefined;
-    // Clear module cache to reset cachedFunctionUrl and cacheExpiry
-    // This is needed because the URL endpoint caches the Function URL
+    // Clear module cache
     vi.resetModules();
     // Re-import handler after resetting modules to get fresh cache state
     const handlerModule = await import("../index");
@@ -207,8 +194,4 @@ describe("any-api-streams-000workspaceId-000agentId-000secret handler", () => {
     expect(handler).toBeDefined();
     expect(typeof handler).toBe("function");
   });
-
-  // Note: GET /api/streams/url endpoint tests have been removed.
-  // The endpoint is now handled by a separate handler at get-api-stream-url/index.ts
-  // and should be tested in that handler's test file.
 });

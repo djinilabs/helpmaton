@@ -49,15 +49,6 @@ export function extractStreamPathParameters(
   // Detect endpoint type
   const endpointType = detectEndpointType(normalizedPath);
 
-  // URL endpoint doesn't need path parameters
-  if (endpointType === "url") {
-    return {
-      workspaceId: "",
-      agentId: "",
-      endpointType: "url",
-    };
-  }
-
   let workspaceId = httpV2Event.pathParameters?.workspaceId;
   let agentId = httpV2Event.pathParameters?.agentId;
   let secret: string | undefined;

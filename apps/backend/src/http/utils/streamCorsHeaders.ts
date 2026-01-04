@@ -13,10 +13,7 @@ export function computeCorsHeaders(
   allowedOrigins: string[] | null
 ): Record<string, string> {
   const headers: Record<string, string> = {
-    "Content-Type":
-      endpointType === "url"
-        ? "application/json"
-        : DEFAULT_CONTENT_TYPE,
+    "Content-Type": DEFAULT_CONTENT_TYPE,
   };
 
   if (endpointType === "test") {
@@ -26,19 +23,6 @@ export function computeCorsHeaders(
     headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
     headers["Access-Control-Allow-Headers"] =
       "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id";
-    if (frontendUrl) {
-      headers["Access-Control-Allow-Credentials"] = "true";
-    }
-    return headers;
-  }
-
-  if (endpointType === "url") {
-    // URL endpoint: Use FRONTEND_URL for CORS
-    const frontendUrl = process.env.FRONTEND_URL;
-    headers["Access-Control-Allow-Origin"] = frontendUrl || "*";
-    headers["Access-Control-Allow-Methods"] = "GET, OPTIONS";
-    headers["Access-Control-Allow-Headers"] =
-      "Content-Type, Authorization, X-Requested-With, Origin, Accept";
     if (frontendUrl) {
       headers["Access-Control-Allow-Credentials"] = "true";
     }

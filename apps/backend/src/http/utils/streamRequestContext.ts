@@ -257,10 +257,6 @@ async function validateCreditsAndReserveBeforeLLM(
   const finalModelName =
     typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
 
-  // URL endpoint doesn't need credit validation (returns early)
-  if (endpointType === "url") {
-    return undefined;
-  }
   return await validateAndReserveCredits(
     db,
     workspaceId,
@@ -271,7 +267,7 @@ async function validateCreditsAndReserveBeforeLLM(
     agent.systemPrompt,
     tools,
     usesByok,
-    endpointType as "test" | "stream",
+    endpointType,
     context,
     conversationId
   );
@@ -284,14 +280,7 @@ async function validateSubscriptionAndLimitsStream(
   workspaceId: string,
   endpointType: EndpointType
 ): Promise<string | undefined> {
-  // URL endpoint doesn't need subscription validation (returns early)
-  if (endpointType === "url") {
-    return undefined;
-  }
-  return await validateSubscriptionAndLimits(
-    workspaceId,
-    endpointType as "test" | "stream"
-  );
+  return await validateSubscriptionAndLimits(workspaceId, endpointType);
 }
 
 /**

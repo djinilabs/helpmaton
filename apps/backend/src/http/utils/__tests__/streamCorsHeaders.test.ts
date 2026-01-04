@@ -11,23 +11,6 @@ describe("streamCorsHeaders", () => {
   });
 
   describe("computeCorsHeaders", () => {
-    it("should compute headers for 'url' endpoint with FRONTEND_URL", () => {
-      process.env.FRONTEND_URL = "https://app.example.com";
-      const headers = computeCorsHeaders("url", undefined, null);
-      expect(headers["Content-Type"]).toBe("application/json");
-      expect(headers["Access-Control-Allow-Origin"]).toBe(
-        "https://app.example.com"
-      );
-      expect(headers["Access-Control-Allow-Methods"]).toBe("GET, OPTIONS");
-      expect(headers["Access-Control-Allow-Credentials"]).toBe("true");
-    });
-
-    it("should compute headers for 'url' endpoint without FRONTEND_URL", () => {
-      const headers = computeCorsHeaders("url", undefined, null);
-      expect(headers["Access-Control-Allow-Origin"]).toBe("*");
-      expect(headers["Access-Control-Allow-Credentials"]).toBeUndefined();
-    });
-
     it("should compute headers for 'test' endpoint with FRONTEND_URL", () => {
       process.env.FRONTEND_URL = "https://app.example.com";
       const headers = computeCorsHeaders("test", undefined, null);

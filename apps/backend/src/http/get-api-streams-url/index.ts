@@ -4,7 +4,6 @@ import {
 } from "@aws-sdk/client-cloudformation";
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
 
-import { computeCorsHeaders } from "../utils/streamCorsHeaders";
 import {
   createResponseStream,
   HttpResponseStream,
@@ -132,12 +131,17 @@ export async function handleUrlEndpoint(
   responseStream: HttpResponseStream
 ): Promise<void> {
   console.log("[handleUrlEndpoint] Event:", event);
-  const origin = event.headers["origin"] || event.headers["Origin"];
-  const corsHeaders = computeCorsHeaders("url", origin, null);
-  const headers = {
+  const frontendUrl = process.env.FRONTEND_URL;
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...corsHeaders,
+    "Access-Control-Allow-Origin": frontendUrl || "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, X-Requested-With, Origin, Accept",
   };
+  if (frontendUrl) {
+    headers["Access-Control-Allow-Credentials"] = "true";
+  }
 
   // Ensure requestContext.http exists (construct if missing)
   if (!event.requestContext?.http) {

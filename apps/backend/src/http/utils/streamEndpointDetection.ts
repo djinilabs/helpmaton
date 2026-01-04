@@ -10,18 +10,14 @@ import {
 } from "../../utils/httpEventAdapter";
 
 /**
- * Endpoint type: test (JWT auth), stream (secret auth), or url (Function URL discovery)
+ * Endpoint type: test (JWT auth) or stream (secret auth)
  */
-export type EndpointType = "test" | "stream" | "url";
+export type EndpointType = "test" | "stream";
 
 /**
  * Detects endpoint type based on path pattern
  */
 export function detectEndpointType(path: string): EndpointType {
-  // Pattern: /api/streams/url (exact match for URL discovery endpoint)
-  if (path === "/api/streams/url") {
-    return "url";
-  }
   // Pattern: /api/streams/{workspaceId}/{agentId}/test
   if (path.match(/^\/api\/streams\/[^/]+\/[^/]+\/test$/)) {
     return "test";

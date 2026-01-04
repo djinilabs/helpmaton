@@ -21,7 +21,7 @@ import {
 } from "./streamResponseStream";
 
 /**
- * Writes an error response to the stream in SSE format
+ * Writes an error response to the stream in SSE format (ai-sdk format)
  */
 export async function writeErrorResponse(
   responseStream: HttpResponseStream,
@@ -30,7 +30,7 @@ export async function writeErrorResponse(
   const errorMessage = error instanceof Error ? error.message : String(error);
   const errorChunk = `data: ${JSON.stringify({
     type: "error",
-    error: errorMessage,
+    errorText: errorMessage,
   })}\n\n`;
 
   try {

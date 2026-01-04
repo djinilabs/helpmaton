@@ -6,16 +6,12 @@ import { createAPIGatewayEventV2 } from "./test-helpers";
 
 describe("streamPathExtraction", () => {
   describe("extractStreamPathParameters", () => {
-    it("should extract parameters for 'url' endpoint", () => {
+    it("should return null for '/api/streams/url' path (not handled by this handler)", () => {
       const event = createAPIGatewayEventV2({
         rawPath: "/api/streams/url",
       });
       const result = extractStreamPathParameters(event);
-      expect(result).toEqual({
-        workspaceId: "",
-        agentId: "",
-        endpointType: "url",
-      });
+      expect(result).toBeNull();
     });
 
     it("should extract parameters for 'test' endpoint", () => {

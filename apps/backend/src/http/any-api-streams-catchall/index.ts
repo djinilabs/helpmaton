@@ -7,6 +7,10 @@ import type {
 } from "aws-lambda";
 import { streamifyResponse } from "lambda-stream";
 
+import {
+  InsufficientCreditsError,
+  SpendingLimitExceededError,
+} from "../../utils/creditErrors";
 import { type LambdaUrlEvent } from "../../utils/httpEventAdapter";
 import { flushPostHog } from "../../utils/posthog";
 import {
@@ -17,6 +21,7 @@ import {
 } from "../../utils/sentry";
 import { getAllowedOrigins } from "../../utils/streamServerUtils";
 import { clearCurrentHTTPContext } from "../../utils/workspaceCreditContext";
+import { handleCreditErrors } from "../utils/generationErrorHandling";
 import { authenticateStreamRequest } from "../utils/streamAuthentication";
 import { computeCorsHeaders } from "../utils/streamCorsHeaders";
 import {
@@ -194,6 +199,67 @@ const internalHandler = async (
           statusCode: boomed.output.statusCode,
         },
       });
+    }
+
+    // Handle credit errors before generic error handling
+    // Extract workspaceId from pathParams as fallback when context is not available
+    const workspaceId =
+      context?.workspaceId || pathParams?.workspaceId || undefined;
+
+    if (
+      workspaceId &&
+      (error instanceof InsufficientCreditsError ||
+        error instanceof SpendingLimitExceededError)
+    ) {
+      const creditErrorResult = await handleCreditErrors(
+        error,
+        workspaceId,
+        pathParams?.endpointType || "stream"
+      );
+      if (creditErrorResult.handled && creditErrorResult.response) {
+        const response = creditErrorResult.response;
+        if (
+          typeof response === "object" &&
+          response !== null &&
+          "body" in response
+        ) {
+          try {
+            const body = JSON.parse((response as { body: string }).body);
+            const errorMessage =
+              typeof body === "object" && body !== null && "error" in body
+                ? (body as { error: string }).error
+                : error instanceof Error
+                ? error.message
+                : String(error);
+
+            if (context) {
+              await persistConversationError(context, error);
+            }
+
+            if (typeof awslambda !== "undefined" && awslambda) {
+              responseStream = awslambda.HttpResponseStream.from(
+                responseStream,
+                {
+                  statusCode:
+                    (response as { statusCode?: number }).statusCode || 402,
+                  headers: {
+                    "Content-Type": "text/event-stream; charset=utf-8",
+                  },
+                }
+              );
+            }
+            await writeErrorResponse(responseStream, new Error(errorMessage));
+            responseStream.end();
+            return;
+          } catch (parseError) {
+            console.error(
+              "[Stream Handler] Failed to parse credit error response:",
+              parseError
+            );
+            // Fall through to generic error handling
+          }
+        }
+      }
     }
 
     if (context) {
