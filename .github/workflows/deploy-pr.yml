@@ -59,7 +59,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.26.2
+          version: 10.27.0
 
       - name: Get pnpm store directory
         shell: bash
@@ -109,9 +109,9 @@ jobs:
           CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
           DISCORD_TRIAL_CREDIT_CHANNEL_ID: ${{ secrets.DISCORD_TRIAL_CREDIT_CHANNEL_ID }}
-          ENABLE_CREDIT_VALIDATION: "false"
+          ENABLE_CREDIT_VALIDATION: "true"
           ENABLE_CREDIT_DEDUCTION: "true"
-          ENABLE_SPENDING_LIMIT_CHECKS: "false"
+          ENABLE_SPENDING_LIMIT_CHECKS: "true"
           DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
           DISCORD_CS_USERS: ${{ secrets.DISCORD_CS_USERS }}
           GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
@@ -128,6 +128,8 @@ jobs:
           LEMON_SQUEEZY_CHECKOUT_CANCEL_URL: ${{ secrets.LEMON_SQUEEZY_CHECKOUT_CANCEL_URL }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           HELPMATON_VECTORDB_S3_BUCKET_STAGING: ${{ secrets.HELPMATON_VECTORDB_S3_BUCKET_STAGING }}
+          DECODO_PROXY_URLS: ${{ secrets.DECODO_PROXY_URLS }}
+          TWOCAPTCHA_API_KEY: ${{ secrets.TWOCAPTCHA_API_KEY }}
           E2E_OVERRIDE_MAX_USERS: "10"
         run: |
           PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
@@ -233,9 +235,9 @@ jobs:
           CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
           DISCORD_TRIAL_CREDIT_CHANNEL_ID: ${{ secrets.DISCORD_TRIAL_CREDIT_CHANNEL_ID }}
-          ENABLE_CREDIT_VALIDATION: "false"
+          ENABLE_CREDIT_VALIDATION: "true"
           ENABLE_CREDIT_DEDUCTION: "true"
-          ENABLE_SPENDING_LIMIT_CHECKS: "false"
+          ENABLE_SPENDING_LIMIT_CHECKS: "true"
           DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
           DISCORD_CS_USERS: ${{ secrets.DISCORD_CS_USERS }}
           GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
@@ -252,6 +254,8 @@ jobs:
           LEMON_SQUEEZY_CHECKOUT_CANCEL_URL: ${{ secrets.LEMON_SQUEEZY_TEST_CHECKOUT_CANCEL_URL }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           HELPMATON_VECTORDB_S3_BUCKET_STAGING: ${{ secrets.HELPMATON_VECTORDB_S3_BUCKET_STAGING }}
+          DECODO_PROXY_URLS: ${{ secrets.DECODO_PROXY_URLS }}
+          TWOCAPTCHA_API_KEY: ${{ secrets.TWOCAPTCHA_API_KEY }}
           E2E_OVERRIDE_MAX_USERS: "10"
         run: |
           PR_NUMBER="${PR_NUMBER:-${{ steps.pr-info.outputs.pr_number }}}"
@@ -317,6 +321,8 @@ jobs:
           [ -n "${LEMON_SQUEEZY_CHECKOUT_CANCEL_URL}" ] && ENV_VARS+=(LEMON_SQUEEZY_CHECKOUT_CANCEL_URL "${LEMON_SQUEEZY_CHECKOUT_CANCEL_URL}")
           [ -n "${TAVILY_API_KEY}" ] && ENV_VARS+=(TAVILY_API_KEY "${TAVILY_API_KEY}")
           [ -n "${HELPMATON_VECTORDB_S3_BUCKET_STAGING}" ] && ENV_VARS+=(HELPMATON_VECTORDB_S3_BUCKET_STAGING "${HELPMATON_VECTORDB_S3_BUCKET_STAGING}")
+          [ -n "${DECODO_PROXY_URLS}" ] && ENV_VARS+=(DECODO_PROXY_URLS "${DECODO_PROXY_URLS}")
+          [ -n "${TWOCAPTCHA_API_KEY}" ] && ENV_VARS+=(TWOCAPTCHA_API_KEY "${TWOCAPTCHA_API_KEY}")
           [ -n "${E2E_OVERRIDE_MAX_USERS}" ] && ENV_VARS+=(E2E_OVERRIDE_MAX_USERS "${E2E_OVERRIDE_MAX_USERS}")
 
           # Environment variables are now injected directly into Lambda bundles at build time

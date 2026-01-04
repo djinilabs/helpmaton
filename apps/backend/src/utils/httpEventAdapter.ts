@@ -5,15 +5,132 @@ import type {
   APIGatewayProxyResultV2,
   Context,
   Callback,
+  LambdaFunctionURLEvent,
 } from "aws-lambda";
 
 /**
  * Type guard to check if an event is a REST API Gateway event
  */
-function isRestEvent(
-  event: APIGatewayProxyEvent | APIGatewayProxyEventV2
+export function isRestEvent(
+  event:
+    | APIGatewayProxyEvent
+    | APIGatewayProxyEventV2
+    | LambdaFunctionURLEvent
+    | LambdaUrlEvent
 ): event is APIGatewayProxyEvent {
   return "httpMethod" in event && event.httpMethod !== undefined;
+}
+
+/**
+ * Type guard to check if an event is a Lambda Function URL event
+ */
+function isLambdaUrlEvent(
+  event:
+    | APIGatewayProxyEvent
+    | APIGatewayProxyEventV2
+    | LambdaFunctionURLEvent
+    | LambdaUrlEvent
+): event is LambdaFunctionURLEvent | LambdaUrlEvent {
+  // Lambda Function URL events have a specific structure
+  // They have requestContext.http.method (not httpMethod at top level)
+  // and have rawPath (not path like REST API)
+  if (typeof event !== "object" || event === null) {
+    return false;
+  }
+
+  const eventAny = event as unknown as Record<string, unknown>;
+
+  // REST API events have httpMethod at top level - exclude those
+  if ("httpMethod" in eventAny) {
+    return false;
+  }
+
+  // Check for Lambda Function URL event structure
+  // Function URL events have rawPath AND requestContext.http.method
+  // HTTP API v2 events also have these, but we can distinguish by checking:
+  // - HTTP API v2 events have version "2.0" AND routeKey AND the structure matches APIGatewayProxyEventV2
+  // - Function URL events have rawPath, requestContext.http.method, but the requestContext structure is different
+  // The key difference: Function URL events have requestContext with http.method directly accessible
+  // AND the requestContext doesn't have the same structure as HTTP API v2
+  // Actually, both have similar structures, so we need a different approach
+  // The distinguishing feature: if it has rawPath and requestContext.http.method and no httpMethod,
+  // AND it's not already an HTTP API v2 event (which we check by type narrowing)
+  // Since we can't check TypeScript types at runtime, we check the structure:
+  // HTTP API v2 events that are already in the correct format will have version "2.0" and be passed through
+  // Function URL events need transformation
+  // The safest check: if it has the Function URL structure (rawPath, requestContext.http.method)
+  // AND it's not REST (already checked), treat it as Function URL if it needs transformation
+  // But we need to exclude HTTP API v2 events which are already in the correct format
+  // HTTP API v2 events have version "2.0" and are already APIGatewayProxyEventV2 format
+  // Function URL events need to be transformed FROM their format TO HTTP v2 format
+  // So if it has rawPath and requestContext.http.method and it's NOT already HTTP v2 format,
+  // it's a Function URL event
+  // But how do we check if it's "already HTTP v2 format"?
+  // We can check: if it has version "2.0" AND routeKey AND the structure matches HTTP v2,
+  // it's already HTTP v2 and doesn't need transformation
+  // Function URL events might have version "2.0" but need transformation anyway
+  // Actually, the real check: Function URL events have a LambdaUrlEvent structure
+  // which includes rawPath, routeKey, requestContext with http.method
+  // HTTP API v2 events have APIGatewayProxyEventV2 structure
+  // The difference: Function URL events need transformation, HTTP v2 events don't
+  // So we check: if it matches LambdaUrlEvent structure (has rawPath, requestContext.http.method)
+  // AND it's not REST, it's a Function URL event that needs transformation
+  // But we must exclude HTTP v2 events which also match this pattern
+  // The solution: check if the event structure is EXACTLY like HTTP v2 (has all HTTP v2 fields)
+  // If it does, it's HTTP v2. If it doesn't but has Function URL structure, it's Function URL
+  if (
+    "rawPath" in eventAny &&
+    eventAny.requestContext &&
+    typeof eventAny.requestContext === "object" &&
+    eventAny.requestContext !== null
+  ) {
+    const requestContext = eventAny.requestContext as Record<string, unknown>;
+    if (
+      requestContext.http &&
+      typeof requestContext.http === "object" &&
+      requestContext.http !== null &&
+      "method" in requestContext.http
+    ) {
+      // Check if this is already an HTTP API v2 event by checking for HTTP v2 specific structure
+      // HTTP API v2 events have version "2.0" and routeKey and are already in the correct format
+      // If it's already HTTP v2 format, don't treat it as Function URL
+      // The key: HTTP v2 events that are passed to adaptHttpHandler are already APIGatewayProxyEventV2
+      // Function URL events are LambdaFunctionURLEvent or LambdaUrlEvent and need transformation
+      // Since we can't check types at runtime, we check: if it has version "2.0" and routeKey
+      // and the structure looks like HTTP v2 (has all the HTTP v2 fields), it's HTTP v2
+      // Otherwise, if it has rawPath and requestContext.http.method, it's Function URL
+      // But this is tricky because Function URL events might also have version "2.0"
+      // The real solution: Function URL events from AWS have a specific requestContext structure
+      // that's different from HTTP API v2. But they're very similar.
+      // Actually, let's use a simpler approach: if the event type is LambdaFunctionURLEvent or LambdaUrlEvent
+      // (which we can't check at runtime), we rely on the structure
+      // The distinguishing feature: Function URL events need transformation, so if it has the structure
+      // and it's not REST and it's not already HTTP v2 (which we assume if it has version "2.0" and looks like HTTP v2),
+      // treat it as Function URL
+      // For now, let's be conservative: only treat it as Function URL if it clearly matches the structure
+      // and doesn't look like HTTP v2
+      // Check: if it has rawPath and requestContext.http.method and no httpMethod, it's likely Function URL
+      // UNLESS it's clearly HTTP v2 (has version "2.0" and all HTTP v2 fields)
+      const hasHttpV2Structure =
+        eventAny.version === "2.0" &&
+        "routeKey" in eventAny &&
+        typeof eventAny.routeKey === "string" &&
+        "requestContext" in eventAny &&
+        typeof eventAny.requestContext === "object" &&
+        eventAny.requestContext !== null &&
+        "routeKey" in (eventAny.requestContext as Record<string, unknown>);
+
+      // If it has HTTP v2 structure, it's HTTP v2, not Function URL
+      if (hasHttpV2Structure) {
+        return false;
+      }
+
+      // Otherwise, if it has Function URL structure, it's Function URL
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -76,7 +193,7 @@ function buildRawQueryString(
 /**
  * Transforms a REST API Gateway event into an HTTP v2 event format.
  */
-function transformRestToHttpV2Event(
+export function transformRestToHttpV2Event(
   event: APIGatewayProxyEvent
 ): APIGatewayProxyEventV2 {
   const restContext = event.requestContext;
@@ -215,11 +332,45 @@ export interface LambdaUrlEvent {
 }
 
 /**
+ * Extracts path parameters from rawPath for different route patterns
+ */
+function extractPathParametersFromPath(
+  rawPath: string
+): Record<string, string> | undefined {
+  // Pattern 1: /api/streams/:workspaceId/:agentId/:secret
+  // Note: secret can contain slashes, so we match everything after agentId
+  const streamsMatch = rawPath.match(
+    /^\/api\/streams\/([^/]+)\/([^/]+)\/(.+)$/
+  );
+  if (streamsMatch) {
+    return {
+      workspaceId: streamsMatch[1],
+      agentId: streamsMatch[2],
+      secret: streamsMatch[3],
+    };
+  }
+
+  // Pattern 2: /api/workspaces/:workspaceId/agents/:agentId/test
+  const testAgentMatch = rawPath.match(
+    /^\/api\/workspaces\/([^/]+)\/agents\/([^/]+)\/test$/
+  );
+  if (testAgentMatch) {
+    return {
+      workspaceId: testAgentMatch[1],
+      agentId: testAgentMatch[2],
+    };
+  }
+
+  // Add more patterns as needed
+  return undefined;
+}
+
+/**
  * Transforms a Lambda Function URL event into an HTTP v2 event format.
  * This allows handlers to reuse existing HTTP v2 event handling logic.
  */
 export function transformLambdaUrlToHttpV2Event(
-  event: LambdaUrlEvent
+  event: LambdaFunctionURLEvent | LambdaUrlEvent
 ): APIGatewayProxyEventV2 {
   // Normalize headers to lowercase (HTTP API v2 convention)
   const normalizedHeaders: Record<string, string> = {};
@@ -253,20 +404,15 @@ export function transformLambdaUrlToHttpV2Event(
     }
   }
 
-  // Extract path parameters from rawPath
-  // Route pattern: /api/streams/:workspaceId/:agentId/:secret
-  const pathMatch = event.rawPath.match(
-    /^\/api\/streams\/([^/]+)\/([^/]+)\/([^/]+)$/
-  );
-  const pathParameters: Record<string, string> | undefined = pathMatch
-    ? {
-        workspaceId: pathMatch[1],
-        agentId: pathMatch[2],
-        secret: pathMatch[3],
-      }
-    : undefined;
+  // Extract path parameters from rawPath for multiple route patterns
+  const pathParameters = extractPathParametersFromPath(event.rawPath);
 
   // Build requestContext
+  const routeKey =
+    "routeKey" in event && event.routeKey
+      ? event.routeKey
+      : `${event.requestContext.http.method} ${event.rawPath}`;
+
   const requestContext: APIGatewayProxyEventV2["requestContext"] = {
     accountId: event.requestContext.accountId || "",
     apiId: event.requestContext.apiId || "",
@@ -280,7 +426,7 @@ export function transformLambdaUrlToHttpV2Event(
       userAgent: event.requestContext.http.userAgent,
     },
     requestId: event.requestContext.requestId || "",
-    routeKey: event.routeKey,
+    routeKey: routeKey,
     stage: event.requestContext.stage || "$default",
     time: event.requestContext.time || new Date().toISOString(),
     timeEpoch: event.requestContext.timeEpoch || Date.now(),
@@ -289,7 +435,7 @@ export function transformLambdaUrlToHttpV2Event(
   // Build the HTTP v2 event
   const httpV2Event: APIGatewayProxyEventV2 = {
     version: "2.0",
-    routeKey: event.routeKey,
+    routeKey: routeKey,
     rawPath: event.rawPath,
     rawQueryString: event.rawQueryString,
     headers: normalizedHeaders,
@@ -305,10 +451,10 @@ export function transformLambdaUrlToHttpV2Event(
 }
 
 /**
- * Wraps an HTTP v2 event handler to handle both HTTP v2 and REST API Gateway events.
+ * Wraps an HTTP v2 event handler to handle HTTP v2, REST API Gateway, and Lambda Function URL events.
  *
  * @param handler - The original HTTP v2 event handler
- * @returns A new handler that can process both REST and HTTP v2 event types
+ * @returns A new handler that can process REST, HTTP v2, and Function URL event types
  *
  * @example
  * ```typescript
@@ -322,20 +468,39 @@ export function transformLambdaUrlToHttpV2Event(
 export function adaptHttpHandler(
   handler: APIGatewayProxyHandlerV2
 ): (
-  event: APIGatewayProxyEvent | APIGatewayProxyEventV2,
+  event:
+    | APIGatewayProxyEvent
+    | APIGatewayProxyEventV2
+    | LambdaFunctionURLEvent
+    | LambdaUrlEvent,
   context: Context,
   callback: Callback
 ) => Promise<APIGatewayProxyResultV2> {
   return async (
-    event: APIGatewayProxyEvent | APIGatewayProxyEventV2,
+    event:
+      | APIGatewayProxyEvent
+      | APIGatewayProxyEventV2
+      | LambdaFunctionURLEvent
+      | LambdaUrlEvent,
     context: Context,
     callback: Callback
   ): Promise<APIGatewayProxyResultV2> => {
     try {
       const isRest = isRestEvent(event);
+      // Check for Function URL events before assuming HTTP v2
+      // Function URL events might have version "2.0" but have a different structure
+      const isLambdaUrl = isLambdaUrlEvent(event);
 
-      // Convert REST event to HTTP v2 format if needed
-      const httpV2Event = isRest ? transformRestToHttpV2Event(event) : event;
+      // Convert events to HTTP v2 format if needed
+      let httpV2Event: APIGatewayProxyEventV2;
+      if (isRest) {
+        httpV2Event = transformRestToHttpV2Event(event);
+      } else if (isLambdaUrl) {
+        httpV2Event = transformLambdaUrlToHttpV2Event(event);
+      } else {
+        // Already HTTP v2 format (or unknown format - assume HTTP v2)
+        httpV2Event = event;
+      }
       const result = await handler(httpV2Event, context, callback);
       if (!result) {
         throw new Error("Handler returned undefined");

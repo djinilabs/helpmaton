@@ -13,15 +13,10 @@ import {
   type StreamTextResultWithResolvedUsage,
 } from "../../../utils/conversationLogger";
 import { isAuthenticationError } from "../../../utils/handlingErrors";
+import type { UIMessage } from "../../../utils/messageTypes";
 import { Sentry, ensureError } from "../../../utils/sentry";
 import { getContextFromRequestId } from "../../../utils/workspaceCreditContext";
-import { setupAgentAndTools } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
-import { convertAiSdkUIMessagesToUIMessages } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion";
-import {
-  formatToolCallMessage,
-  formatToolResultMessage,
-} from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/toolFormatting";
-import type { UIMessage } from "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
+import { setupAgentAndTools } from "../../utils/agentSetup";
 import { MODEL_NAME } from "../../utils/agentUtils";
 import {
   adjustCreditsAfterLLMCall,
@@ -43,8 +38,75 @@ import {
   trackSuccessfulRequest,
 } from "../../utils/generationRequestTracking";
 import { extractTokenUsageAndCosts } from "../../utils/generationTokenExtraction";
+import { convertAiSdkUIMessagesToUIMessages } from "../../utils/messageConversion";
 import { extractUserId } from "../../utils/session";
+import {
+  formatToolCallMessage,
+  formatToolResultMessage,
+} from "../../utils/toolFormatting";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
+
+/**
+ * Sets CORS headers for the test agent endpoint
+ * Uses FRONTEND_URL as the allowed origin
+ */
+function setCorsHeaders(
+  _req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+): void {
+  const frontendUrl = process.env.FRONTEND_URL;
+
+  // Always set Access-Control-Allow-Origin to FRONTEND_URL
+  if (frontendUrl) {
+    res.setHeader("Access-Control-Allow-Origin", frontendUrl);
+  }
+
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
+  );
+  next();
+}
+
+/**
+ * Sets CORS headers on a response object
+ * Used to ensure CORS headers are present before sending responses
+ */
+function applyCorsHeaders(res: express.Response): void {
+  const frontendUrl = process.env.FRONTEND_URL;
+
+  // Always set Access-Control-Allow-Origin to FRONTEND_URL
+  if (frontendUrl) {
+    res.setHeader("Access-Control-Allow-Origin", frontendUrl);
+  }
+
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With, Origin, Accept, X-Conversation-Id"
+  );
+}
+
+/**
+ * Sets CORS headers and sends a JSON response
+ * Used for error responses to ensure CORS headers are always present
+ */
+function sendJsonResponseWithCors(
+  res: express.Response,
+  statusCode: number,
+  data: object
+): void {
+  applyCorsHeaders(res);
+  res.status(statusCode).json(data);
+}
 
 async function persistConversationError(options: {
   db: Awaited<ReturnType<typeof database>>;
@@ -257,8 +319,17 @@ async function persistConversationError(options: {
  *         $ref: '#/components/responses/InternalServerError'
  */
 export const registerPostTestAgent = (app: express.Application) => {
+  app.options(
+    "/api/workspaces/:workspaceId/agents/:agentId/test",
+    setCorsHeaders,
+    asyncHandler(async (req, res) => {
+      res.status(200).end();
+    })
+  );
+
   app.post(
     "/api/workspaces/:workspaceId/agents/:agentId/test",
+    setCorsHeaders,
     requireAuth,
     requirePermission(PERMISSION_LEVELS.READ),
     asyncHandler(async (req, res) => {
@@ -288,7 +359,9 @@ export const registerPostTestAgent = (app: express.Application) => {
         req.headers["x-request-id"] ||
         req.headers["X-Request-Id"] ||
         req.apiGateway?.event?.requestContext?.requestId;
-      const awsRequestId = Array.isArray(awsRequestIdRaw) ? awsRequestIdRaw[0] : awsRequestIdRaw;
+      const awsRequestId = Array.isArray(awsRequestIdRaw)
+        ? awsRequestIdRaw[0]
+        : awsRequestIdRaw;
 
       // Get context for workspace credit transactions
       const context = getContextFromRequestId(awsRequestId);
@@ -306,7 +379,9 @@ export const registerPostTestAgent = (app: express.Application) => {
             "X-Request-Id": req.headers["X-Request-Id"],
           },
         });
-        throw new Error("Context not available for workspace credit transactions");
+        throw new Error(
+          "Context not available for workspace credit transactions"
+        );
       }
 
       // Validate subscription and limits
@@ -453,11 +528,13 @@ export const registerPostTestAgent = (app: express.Application) => {
 
         // Check if this is a BYOK authentication error FIRST
         if (isByokAuthenticationError(error, usesByok)) {
+          applyCorsHeaders(res);
           handleByokAuthenticationErrorExpress(res, "test");
           return;
         }
 
         // Handle credit errors
+        applyCorsHeaders(res);
         const creditErrorHandled = await handleCreditErrorsExpress(
           error,
           workspaceId,
@@ -530,7 +607,7 @@ export const registerPostTestAgent = (app: express.Application) => {
             }
           );
 
-          return res.status(400).json({
+          return sendJsonResponseWithCors(res, 400, {
             error:
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           });
@@ -617,7 +694,7 @@ export const registerPostTestAgent = (app: express.Application) => {
                                   : undefined,
                             });
 
-                            return res.status(400).json({
+                            return sendJsonResponseWithCors(res, 400, {
                               error:
                                 "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
                             });
@@ -673,7 +750,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           });
 
           // Return specific error message for BYOK authentication issues
-          return res.status(400).json({
+          return sendJsonResponseWithCors(res, 400, {
             error:
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           });
@@ -746,7 +823,7 @@ export const registerPostTestAgent = (app: express.Application) => {
                           : undefined,
                     });
 
-                    return res.status(400).json({
+                    return sendJsonResponseWithCors(res, 400, {
                       error:
                         "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
                     });
@@ -968,7 +1045,7 @@ export const registerPostTestAgent = (app: express.Application) => {
               typeof awsRequestId === "string" ? awsRequestId : undefined,
           });
 
-          return res.status(400).json({
+          return sendJsonResponseWithCors(res, 400, {
             error:
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           });
@@ -1189,7 +1266,7 @@ export const registerPostTestAgent = (app: express.Application) => {
             error: errorToLog,
           });
 
-          return res.status(400).json({
+          return sendJsonResponseWithCors(res, 400, {
             error:
               "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
           });
@@ -1218,7 +1295,9 @@ export const registerPostTestAgent = (app: express.Application) => {
         openrouterGenerationIds,
         provisionalCostUsd,
       } = extractTokenUsageAndCosts(
-        result as unknown as GenerateTextResultWithTotalUsage | StreamTextResultWithResolvedUsage,
+        result as unknown as
+          | GenerateTextResultWithTotalUsage
+          | StreamTextResultWithResolvedUsage,
         usage,
         finalModelName,
         "test"

@@ -1,8 +1,8 @@
 import type { SQSEvent, SQSRecord } from "aws-lambda";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import type { UIMessage } from "../../../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 import type { DatabaseSchema } from "../../../tables/schema";
+import type { UIMessage } from "../../../utils/messageTypes";
 import { handler } from "../index";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports

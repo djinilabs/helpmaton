@@ -61,13 +61,63 @@ export const asyncHandler = (
 
 /**
  * Extract Bearer token from Authorization header
+ * Checks multiple sources: req.headers, req.apiGateway.event.headers
+ * Handles case variations robustly
  * @param req - Express Request object
  * @returns Bearer token or null if not found
  */
 function extractBearerToken(req: express.Request): string | null {
-  const authHeader = req.headers.authorization || req.headers.Authorization;
+  // First, try standard Express headers (case-insensitive check)
+  let authHeader: string | undefined;
+
+  // Check common case variations in req.headers
+  const headerKeys = Object.keys(req.headers);
+  for (const key of headerKeys) {
+    if (key.toLowerCase() === "authorization") {
+      const value = req.headers[key];
+      if (value && typeof value === "string") {
+        authHeader = value;
+        break;
+      }
+    }
+  }
+
+  // Fallback to req.apiGateway.event.headers (serverless-express attaches the event)
+  // Headers in API Gateway events are normalized to lowercase
+  if (!authHeader && req.apiGateway?.event?.headers) {
+    const eventHeaders = req.apiGateway.event.headers;
+    // Check lowercase 'authorization' (normalized by API Gateway)
+    authHeader = eventHeaders.authorization;
+
+    // Also check case variations in event headers
+    if (!authHeader) {
+      for (const [key, value] of Object.entries(eventHeaders)) {
+        if (
+          key.toLowerCase() === "authorization" &&
+          typeof value === "string"
+        ) {
+          authHeader = value;
+          break;
+        }
+      }
+    }
+  }
+
   if (!authHeader || typeof authHeader !== "string") {
-    console.log(`[extractBearerToken] No Authorization header found`);
+    // Debug logging to help diagnose header extraction issues
+    console.log(`[extractBearerToken] No Authorization header found`, {
+      hasHeaders: !!req.headers,
+      headerKeys: Object.keys(req.headers || {}),
+      hasApiGateway: !!req.apiGateway,
+      hasEvent: !!req.apiGateway?.event,
+      eventHeaderKeys: req.apiGateway?.event?.headers
+        ? Object.keys(req.apiGateway.event.headers)
+        : undefined,
+      authorizationInHeaders: !!(
+        req.headers.authorization || req.headers.Authorization
+      ),
+      authorizationInEvent: !!req.apiGateway?.event?.headers?.authorization,
+    });
     return null;
   }
 

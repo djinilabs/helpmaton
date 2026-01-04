@@ -33,6 +33,11 @@ import { LoadingScreen } from "../components/LoadingScreen";
 import { QueryPanel } from "../components/QueryPanel";
 import { SectionGroup } from "../components/SectionGroup";
 // Lazy load accordion components
+const AgentChatWithFunctionUrl = lazy(() =>
+  import("../components/AgentChatWithFunctionUrl").then((module) => ({
+    default: module.AgentChatWithFunctionUrl,
+  }))
+);
 const AgentChat = lazy(() =>
   import("../components/AgentChat").then((module) => ({
     default: module.AgentChat,
@@ -83,6 +88,7 @@ import {
   useDeleteStreamServer,
 } from "../hooks/useStreamServer";
 import { useStreamUrl } from "../hooks/useStreamUrl";
+import { useToast } from "../hooks/useToast";
 import { useAgentUsage, useAgentDailyUsage } from "../hooks/useUsage";
 import { useWorkspace } from "../hooks/useWorkspaces";
 import type { ClientTool, Conversation } from "../utils/api";
@@ -192,7 +198,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   const createStreamServer = useCreateStreamServer(workspaceId, agentId);
   const updateStreamServer = useUpdateStreamServer(workspaceId, agentId);
   const deleteStreamServer = useDeleteStreamServer(workspaceId, agentId);
-  const { data: streamUrlData } = useStreamUrl();
+  const { data: streamUrlData, error: streamUrlError } = useStreamUrl();
 
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -215,8 +221,22 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
 
   const { expandedSection, toggleSection } = useAccordion("agent-detail");
   const [chatClearKey, setChatClearKey] = useState(0);
+  const toast = useToast();
 
   useEscapeKey(isStreamTestModalOpen, () => setIsStreamTestModalOpen(false));
+
+  // Display error toast when stream URL fetch fails (non-404 errors)
+  useEffect(() => {
+    if (streamUrlError) {
+      const errorMessage =
+        streamUrlError instanceof Error
+          ? streamUrlError.message
+          : "Failed to fetch streaming function URL";
+      toast.error(
+        `Unable to fetch streaming function URL: ${errorMessage}. Stream server features may be unavailable.`
+      );
+    }
+  }, [streamUrlError, toast]);
 
   const canEdit = !!(
     workspace.permissionLevel &&
@@ -264,7 +284,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
 
   // Use agent prop directly for fetchWebProvider, with local state for editing
   const [fetchWebProvider, setFetchWebProvider] = useState<
-    "tavily" | "jina" | null
+    "tavily" | "jina" | "scrape" | null
   >(() => agent?.fetchWebProvider ?? null);
 
   // Use agent prop directly for enableExaSearch, with local state for editing
@@ -496,9 +516,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   }, [agent?.id, agent?.searchWebProvider, agent?.enableTavilySearch]);
 
   // Synchronize fetchWebProvider state with agent prop using useEffect
-  const prevFetchWebProviderRef = useRef<"tavily" | "jina" | null | undefined>(
-    agent?.fetchWebProvider
-  );
+  const prevFetchWebProviderRef = useRef<
+    "tavily" | "jina" | "scrape" | null | undefined
+  >(agent?.fetchWebProvider);
   useEffect(() => {
     const currentValue = agent?.fetchWebProvider ?? null;
     const prevValue = prevFetchWebProviderRef.current ?? null;
@@ -1290,7 +1310,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             onToggle={() => toggleSection("test")}
           >
             <LazyAccordionContent isExpanded={expandedSection === "test"}>
-              <AgentChat
+              <AgentChatWithFunctionUrl
                 key={chatClearKey}
                 workspaceId={workspaceId}
                 agentId={agentId}
@@ -2065,6 +2085,28 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
                           Use Jina Reader API. Free to use (no credits charged).
                           Rate limits may apply.
+                        </div>
+                      </div>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                      <input
+                        type="radio"
+                        name="fetchWebProvider"
+                        value="scrape"
+                        checked={fetchWebProvider === "scrape"}
+                        onChange={() => setFetchWebProvider("scrape")}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="font-bold">Scrape</div>
+                        <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                          Use Puppeteer with residential proxies to scrape web
+                          pages and extract Accessibility Object Model (AOM) as
+                          XML. Supports JavaScript-rendered content. Uses
+                          stealth techniques and attempts to solve captchas
+                          automatically. Note: This service can take longer to
+                          fetch content compared to other providers. Cost:
+                          $0.005 per call.
                         </div>
                       </div>
                     </label>

@@ -45,19 +45,19 @@ import { asyncHandler, requireAuth, requirePermission } from "../middleware";
  *           type: string
  *       - name: minimumDaysAgo
  *         in: query
- *         description: Minimum age of results in days (default: 0)
+ *         description: "Minimum age of results in days (default: 0)"
  *         schema:
  *           type: integer
  *           default: 0
  *       - name: maximumDaysAgo
  *         in: query
- *         description: Maximum age of results in days (default: 365)
+ *         description: "Maximum age of results in days (default: 365)"
  *         schema:
  *           type: integer
  *           default: 365
  *       - name: maxResults
  *         in: query
- *         description: Maximum number of results to return (default: 50)
+ *         description: "Maximum number of results to return (default: 50)"
  *         schema:
  *           type: integer
  *           default: 50

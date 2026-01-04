@@ -1,0 +1,20 @@
+{
+  "name": "helpmaton-puppeteer-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal runtime dependencies for Puppeteer Lambda container",
+  "dependencies": {
+    "puppeteer-core": "^24.34.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-recaptcha": "^3.6.8",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "@sparticuz/chromium": "^143.0.0"
+  },
+  "pnpm": {
+    "supportedArchitectures": {
+      "os": ["linux"],
+      "cpu": ["x64"]
+    }
+  }
+}
+

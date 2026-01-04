@@ -58,7 +58,6 @@ import { registerPostEmailConnection } from "./routes/post-email-connection";
 import { registerPostGeneratePrompt } from "./routes/post-generate-prompt";
 import { registerPostMcpServer } from "./routes/post-mcp-server";
 import { registerPostStreamServers } from "./routes/post-stream-servers";
-import { registerPostTestAgent } from "./routes/post-test-agent";
 import { registerPostTestChannel } from "./routes/post-test-channel";
 import { registerPostTestEmailConnection } from "./routes/post-test-email-connection";
 import { registerPostTrialCreditRequest } from "./routes/post-trial-credit-request";
@@ -110,7 +109,10 @@ export const createApp: () => express.Application = () => {
 
     // If we found a requestId and it's not already in headers, add it
     if (requestId && typeof requestId === "string") {
-      if (!req.headers["x-amzn-requestid"] && !req.headers["X-Amzn-Requestid"]) {
+      if (
+        !req.headers["x-amzn-requestid"] &&
+        !req.headers["X-Amzn-Requestid"]
+      ) {
         req.headers["x-amzn-requestid"] = requestId;
       }
       if (!req.headers["x-request-id"] && !req.headers["X-Request-Id"]) {
@@ -194,7 +196,6 @@ export const createApp: () => express.Application = () => {
   registerPostMcpServer(app);
   registerPutMcpServer(app);
   registerDeleteMcpServer(app);
-  registerPostTestAgent(app);
   registerPostStreamServers(app);
   registerGetStreamServers(app);
   registerPutStreamServers(app);

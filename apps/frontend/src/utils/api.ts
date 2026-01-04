@@ -80,7 +80,7 @@ export interface Agent {
   enableSendEmail?: boolean;
   enableTavilySearch?: boolean;
   searchWebProvider?: "tavily" | "jina" | null;
-  fetchWebProvider?: "tavily" | "jina" | null;
+  fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
   enableExaSearch?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
@@ -117,7 +117,7 @@ export interface UpdateAgentInput {
   enableSendEmail?: boolean;
   enableTavilySearch?: boolean;
   searchWebProvider?: "tavily" | "jina" | null;
-  fetchWebProvider?: "tavily" | "jina" | null;
+  fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
   enableExaSearch?: boolean;
   clientTools?: ClientTool[];
   spendingLimits?: SpendingLimit[];
@@ -542,6 +542,25 @@ export function setupGlobalFetchOverride(): void {
           }
           throw new Error("Session expired. Please sign in again.");
         }
+      }
+    }
+
+    // Handle 402 Payment Required - show appropriate error message based on endpoint type
+    if (response.status === 402) {
+      // Determine endpoint type: test (API Gateway) or streaming (Function URL)
+      // Test endpoint: relative URL starting with /api/ (same origin)
+      // Streaming endpoint: full HTTP URL (cross-origin Lambda Function URL)
+      const isTestEndpoint =
+        urlString.endsWith("/test") || requestUrl.pathname.endsWith("/test");
+
+      if (isTestEndpoint) {
+        // Test endpoint: message about workspace credits
+        throw new Error("Not enough workspace credits");
+      } else {
+        // Streaming endpoint: generic administrator message
+        throw new Error(
+          "There was an error. Please contact your administrator."
+        );
       }
     }
 
@@ -1932,7 +1951,7 @@ export interface CreateStreamServerResponse {
 }
 
 export async function getStreamUrl(): Promise<{ url: string } | null> {
-  const response = await apiFetch(`/api/streams/url`, {
+  const response = await apiFetch(`/api/stream-url`, {
     method: "GET",
   });
 

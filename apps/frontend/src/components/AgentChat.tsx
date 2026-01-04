@@ -10,6 +10,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { useAgent } from "../hooks/useAgents";
+import { getAccessToken } from "../utils/api";
 import { getDefaultAvatar } from "../utils/avatarUtils";
 import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
@@ -53,18 +54,63 @@ export const AgentChat: FC<AgentChatProps> = ({
   // Generate and memoize conversation ID for this chat instance
   const conversationId = useMemo(() => generateUUID(), []);
 
+  // Determine the API endpoint URL
+  // If api prop is provided (Function URL), use it; otherwise fall back to API Gateway
+  const apiUrl = useMemo(() => {
+    if (api) {
+      console.log("[AgentChat] Using provided API URL:", api);
+      return api;
+    }
+
+    // Fallback to API Gateway URL
+    const gatewayUrl = `/api/workspaces/${workspaceId}/agents/${agentId}/test`;
+    console.log("[AgentChat] Using API Gateway URL:", gatewayUrl);
+    return gatewayUrl;
+  }, [api, workspaceId, agentId]);
+
   // Create a custom fetch function that adds the X-Conversation-Id header
+  // and Authorization header for cross-origin Function URL requests
   const fetchWithConversationId = useMemo(() => {
     return async (
       input: RequestInfo | URL,
       init?: RequestInit
     ): Promise<Response> => {
-      // Use the global fetch (which includes Authorization header)
+      // Use the global fetch (which includes Authorization header for same-origin requests)
       const globalFetch = typeof window !== "undefined" ? window.fetch : fetch;
+
+      // Parse URL to determine if it's cross-origin (Function URL)
+      const urlString =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+          ? input.toString()
+          : typeof input === "object" && "url" in input
+          ? input.url
+          : String(input);
+
+      let requestUrl: URL;
+      let isCrossOrigin = false;
+      if (typeof window !== "undefined") {
+        try {
+          requestUrl = new URL(urlString, window.location.origin);
+          isCrossOrigin = requestUrl.origin !== window.location.origin;
+        } catch {
+          // If URL parsing fails, assume same-origin
+        }
+      }
 
       // Add X-Conversation-Id header to the request
       const headers = new Headers(init?.headers);
       headers.set("X-Conversation-Id", conversationId);
+
+      // For cross-origin requests (Function URLs), explicitly add Authorization header
+      // The global fetch override only adds it for same-origin requests
+      if (isCrossOrigin && typeof window !== "undefined") {
+        const accessToken = getAccessToken();
+        if (accessToken) {
+          headers.set("Authorization", `Bearer ${accessToken}`);
+        }
+      }
 
       return globalFetch(input, {
         ...init,
@@ -73,11 +119,23 @@ export const AgentChat: FC<AgentChatProps> = ({
     };
   }, [conversationId]);
 
+  // Determine credentials based on whether we're using a Function URL
+  // Lambda Function URLs don't use cookies, so omit credentials
+  // API Gateway uses cookies, so include credentials
+  const useCredentials = useMemo(() => {
+    // If api prop is provided and it's a full URL (starts with http), it's a Function URL
+    if (api && api.startsWith("http")) {
+      return "omit";
+    }
+    // Otherwise, it's API Gateway (relative URL or undefined)
+    return "include";
+  }, [api]);
+
   const { messages, sendMessage, status, error, addToolOutput, setMessages } =
     useChat({
       transport: new DefaultChatTransport({
-        api: api || `/api/workspaces/${workspaceId}/agents/${agentId}/test`,
-        credentials: api ? "omit" : "include", // Lambda Function URLs don't use cookies
+        api: apiUrl,
+        credentials: useCredentials,
         // Use custom fetch that includes X-Conversation-Id header
         fetch: fetchWithConversationId,
       }),
@@ -789,7 +847,6 @@ export const AgentChat: FC<AgentChatProps> = ({
               const costUsd = messageCost?.costUsd;
               const isFinal = messageCost?.isFinal;
 
-
               return (
                 <div key={message.id} className="space-y-2">
                   {/* Render all parts in order */}
@@ -829,51 +886,61 @@ export const AgentChat: FC<AgentChatProps> = ({
                                 )}
                                 {tokenUsage && (
                                   <div className="flex flex-wrap items-center gap-1">
-                                    {typeof tokenUsage.promptTokens === "number" && (
+                                    {typeof tokenUsage.promptTokens ===
+                                      "number" && (
                                       <span
                                         className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
                                           tokenUsage.promptTokens
                                         )}`}
                                       >
-                                        P: {tokenUsage.promptTokens.toLocaleString()}
+                                        P:{" "}
+                                        {tokenUsage.promptTokens.toLocaleString()}
                                       </span>
                                     )}
-                                    {typeof tokenUsage.completionTokens === "number" && (
+                                    {typeof tokenUsage.completionTokens ===
+                                      "number" && (
                                       <span
                                         className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
                                           tokenUsage.completionTokens
                                         )}`}
                                       >
-                                        C: {tokenUsage.completionTokens.toLocaleString()}
+                                        C:{" "}
+                                        {tokenUsage.completionTokens.toLocaleString()}
                                       </span>
                                     )}
-                                    {typeof tokenUsage.reasoningTokens === "number" &&
+                                    {typeof tokenUsage.reasoningTokens ===
+                                      "number" &&
                                       tokenUsage.reasoningTokens > 0 && (
                                         <span
                                           className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
                                             tokenUsage.reasoningTokens
                                           )}`}
                                         >
-                                          R: {tokenUsage.reasoningTokens.toLocaleString()}
+                                          R:{" "}
+                                          {tokenUsage.reasoningTokens.toLocaleString()}
                                         </span>
                                       )}
-                                    {typeof tokenUsage.cachedPromptTokens === "number" &&
+                                    {typeof tokenUsage.cachedPromptTokens ===
+                                      "number" &&
                                       tokenUsage.cachedPromptTokens > 0 && (
                                         <span
                                           className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
                                             tokenUsage.cachedPromptTokens
                                           )}`}
                                         >
-                                          Cache: {tokenUsage.cachedPromptTokens.toLocaleString()}
+                                          Cache:{" "}
+                                          {tokenUsage.cachedPromptTokens.toLocaleString()}
                                         </span>
                                       )}
-                                    {typeof tokenUsage.totalTokens === "number" && (
+                                    {typeof tokenUsage.totalTokens ===
+                                      "number" && (
                                       <span
                                         className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
                                           tokenUsage.totalTokens
                                         )}`}
                                       >
-                                        Total: {tokenUsage.totalTokens.toLocaleString()}
+                                        Total:{" "}
+                                        {tokenUsage.totalTokens.toLocaleString()}
                                       </span>
                                     )}
                                   </div>
@@ -933,13 +1000,15 @@ export const AgentChat: FC<AgentChatProps> = ({
                                   P: {tokenUsage.promptTokens.toLocaleString()}
                                 </span>
                               )}
-                              {typeof tokenUsage.completionTokens === "number" && (
+                              {typeof tokenUsage.completionTokens ===
+                                "number" && (
                                 <span
                                   className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
                                     tokenUsage.completionTokens
                                   )}`}
                                 >
-                                  C: {tokenUsage.completionTokens.toLocaleString()}
+                                  C:{" "}
+                                  {tokenUsage.completionTokens.toLocaleString()}
                                 </span>
                               )}
                               {typeof tokenUsage.reasoningTokens === "number" &&
@@ -949,17 +1018,20 @@ export const AgentChat: FC<AgentChatProps> = ({
                                       tokenUsage.reasoningTokens
                                     )}`}
                                   >
-                                    R: {tokenUsage.reasoningTokens.toLocaleString()}
+                                    R:{" "}
+                                    {tokenUsage.reasoningTokens.toLocaleString()}
                                   </span>
                                 )}
-                              {typeof tokenUsage.cachedPromptTokens === "number" &&
+                              {typeof tokenUsage.cachedPromptTokens ===
+                                "number" &&
                                 tokenUsage.cachedPromptTokens > 0 && (
                                   <span
                                     className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
                                       tokenUsage.cachedPromptTokens
                                     )}`}
                                   >
-                                    Cache: {tokenUsage.cachedPromptTokens.toLocaleString()}
+                                    Cache:{" "}
+                                    {tokenUsage.cachedPromptTokens.toLocaleString()}
                                   </span>
                                 )}
                               {typeof tokenUsage.totalTokens === "number" && (
@@ -968,7 +1040,8 @@ export const AgentChat: FC<AgentChatProps> = ({
                                     tokenUsage.totalTokens
                                   )}`}
                                 >
-                                  Total: {tokenUsage.totalTokens.toLocaleString()}
+                                  Total:{" "}
+                                  {tokenUsage.totalTokens.toLocaleString()}
                                 </span>
                               )}
                             </div>
