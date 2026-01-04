@@ -474,9 +474,9 @@
         },
         "qwen/qwen3-vl-8b-instruct": {
           "usd": {
-            "input": 0.064,
-            "output": 0.39999999999999997,
-            "cachedInput": 0.0064
+            "input": 0.08,
+            "output": 0.5,
+            "cachedInput": 0.008
           }
         },
         "openai/o3-deep-research": {
@@ -502,16 +502,16 @@
         },
         "baidu/ernie-4.5-21b-a3b-thinking": {
           "usd": {
-            "input": 0.056,
-            "output": 0.224,
-            "cachedInput": 0.005600000000000001
+            "input": 0.07,
+            "output": 0.28,
+            "cachedInput": 0.007000000000000001
           }
         },
         "qwen/qwen3-vl-30b-a3b-thinking": {
           "usd": {
-            "input": 0.16,
-            "output": 0.7999999999999999,
-            "cachedInput": 0.016
+            "input": 0.19999999999999998,
+            "output": 1,
+            "cachedInput": 0.02
           }
         },
         "qwen/qwen3-vl-30b-a3b-instruct": {
@@ -670,9 +670,9 @@
         },
         "qwen/qwen3-next-80b-a3b-thinking": {
           "usd": {
-            "input": 0.12,
+            "input": 0.15,
             "output": 1.2,
-            "cachedInput": 0.012
+            "cachedInput": 0.015
           }
         },
         "qwen/qwen3-next-80b-a3b-instruct": {
@@ -803,23 +803,23 @@
         },
         "baidu/ernie-4.5-21b-a3b": {
           "usd": {
-            "input": 0.056,
-            "output": 0.224,
-            "cachedInput": 0.005600000000000001
+            "input": 0.07,
+            "output": 0.28,
+            "cachedInput": 0.007000000000000001
           }
         },
         "baidu/ernie-4.5-vl-28b-a3b": {
           "usd": {
-            "input": 0.112,
-            "output": 0.448,
-            "cachedInput": 0.011200000000000002
+            "input": 0.14,
+            "output": 0.56,
+            "cachedInput": 0.014000000000000002
           }
         },
         "z-ai/glm-4.5v": {
           "usd": {
-            "input": 0.48,
-            "output": 1.44,
-            "cachedInput": 0.048
+            "input": 0.6,
+            "output": 1.7999999999999998,
+            "cachedInput": 0.06
           }
         },
         "ai21/jamba-mini-1.7": {
@@ -943,9 +943,9 @@
         },
         "z-ai/glm-4.5-air": {
           "usd": {
-            "input": 0.10400000000000001,
-            "output": 0.6799999999999999,
-            "cachedInput": 0.010400000000000001
+            "input": 0.13,
+            "output": 0.85,
+            "cachedInput": 0.013000000000000001
           }
         },
         "qwen/qwen3-235b-a22b-thinking-2507": {
@@ -1027,9 +1027,9 @@
         },
         "thudm/glm-4.1v-9b-thinking": {
           "usd": {
-            "input": 0.028,
-            "output": 0.1104,
-            "cachedInput": 0.0028000000000000004
+            "input": 0.035,
+            "output": 0.13799999999999998,
+            "cachedInput": 0.0035000000000000005
           }
         },
         "mistralai/devstral-medium": {
@@ -1104,16 +1104,16 @@
         },
         "baidu/ernie-4.5-vl-424b-a47b": {
           "usd": {
-            "input": 0.33599999999999997,
-            "output": 1,
-            "cachedInput": 0.0336
+            "input": 0.42,
+            "output": 1.25,
+            "cachedInput": 0.042
           }
         },
         "baidu/ernie-4.5-300b-a47b": {
           "usd": {
-            "input": 0.224,
-            "output": 0.88,
-            "cachedInput": 0.022400000000000003
+            "input": 0.28,
+            "output": 1.1,
+            "cachedInput": 0.028000000000000004
           }
         },
         "inception/mercury": {
@@ -1188,9 +1188,9 @@
         },
         "deepseek/deepseek-r1-0528-qwen3-8b": {
           "usd": {
-            "input": 0.048,
-            "output": 0.072,
-            "cachedInput": 0.0048000000000000004
+            "input": 0.06,
+            "output": 0.09,
+            "cachedInput": 0.006
           }
         },
         "deepseek/deepseek-r1-0528:free": {
@@ -1342,9 +1342,9 @@
         },
         "qwen/qwen3-8b": {
           "usd": {
-            "input": 0.028,
-            "output": 0.1104,
-            "cachedInput": 0.0028000000000000004
+            "input": 0.035,
+            "output": 0.13799999999999998,
+            "cachedInput": 0.0035000000000000005
           }
         },
         "qwen/qwen3-14b": {
@@ -1764,16 +1764,16 @@
         },
         "deepseek/deepseek-r1-distill-qwen-32b": {
           "usd": {
-            "input": 0.24,
-            "output": 0.24,
-            "cachedInput": 0.024
+            "input": 0.27,
+            "output": 0.27,
+            "cachedInput": 0.027000000000000003
           }
         },
         "deepseek/deepseek-r1-distill-qwen-14b": {
           "usd": {
-            "input": 0.12,
-            "output": 0.12,
-            "cachedInput": 0.012
+            "input": 0.15,
+            "output": 0.15,
+            "cachedInput": 0.015
           }
         },
         "perplexity/sonar-reasoning": {
@@ -2500,5 +2500,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-01T00:17:07.824Z"
+  "lastUpdated": "2026-01-02T00:15:19.716Z"
 }
