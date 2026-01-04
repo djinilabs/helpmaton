@@ -59,6 +59,25 @@ export function computeCorsHeaders(
 }
 
 /**
+ * Merges CORS headers with existing HTTP response headers
+ * CORS headers take precedence if there are conflicts
+ */
+export function mergeCorsHeaders(
+  endpointType: EndpointType,
+  origin: string | undefined,
+  allowedOrigins: string[] | null,
+  existingHeaders: Record<string, string> = {}
+): Record<string, string> {
+  const corsHeaders = computeCorsHeaders(endpointType, origin, allowedOrigins);
+  
+  // Merge: existing headers first, then CORS headers (CORS headers override conflicts)
+  return {
+    ...existingHeaders,
+    ...corsHeaders,
+  };
+}
+
+/**
  * Handles OPTIONS preflight request
  */
 export function handleOptionsRequest(

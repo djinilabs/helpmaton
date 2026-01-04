@@ -23,7 +23,14 @@ import { getAllowedOrigins } from "../../utils/streamServerUtils";
 import { clearCurrentHTTPContext } from "../../utils/workspaceCreditContext";
 import { handleCreditErrors } from "../utils/generationErrorHandling";
 import { authenticateStreamRequest } from "../utils/streamAuthentication";
-import { computeCorsHeaders } from "../utils/streamCorsHeaders";
+import {
+  computeCorsHeaders,
+  mergeCorsHeaders,
+} from "../utils/streamCorsHeaders";
+import {
+  detectEndpointType,
+  extractPathFromEvent,
+} from "../utils/streamEndpointDetection";
 import {
   writeErrorResponse,
   persistConversationError,
@@ -76,16 +83,35 @@ const internalHandler = async (
     event,
     responseStream,
   });
+
+  // Ensure requestContext.http exists (needed for early error case)
+  const httpV2Event = ensureRequestContextHttp(event);
+
   const pathParams = extractStreamPathParameters(event);
 
   if (!pathParams) {
+    // Compute CORS headers even for invalid path parameters
+    // Try to detect endpoint type from path, default to "stream" if detection fails
+    const path = extractPathFromEvent(event);
+    const endpointType = detectEndpointType(path);
+    const origin =
+      httpV2Event.headers["origin"] || httpV2Event.headers["Origin"];
+
+    // For invalid path params, use default CORS (allow all origins)
+    const errorHeaders = mergeCorsHeaders(
+      endpointType,
+      origin,
+      null, // No allowed origins check for invalid paths
+      {
+        "Content-Type": "application/json",
+      }
+    );
+
     // Use awslambda.HttpResponseStream.from if available, otherwise stream is already ready
     if (typeof awslambda !== "undefined" && awslambda) {
       responseStream = awslambda.HttpResponseStream.from(responseStream, {
         statusCode: 406,
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: errorHeaders,
       });
     }
     const errorResponse = JSON.stringify({
@@ -102,9 +128,6 @@ const internalHandler = async (
   const originalRequestId =
     (event as { requestContext?: { requestId?: string } }).requestContext
       ?.requestId || undefined;
-
-  // Ensure requestContext.http exists
-  const httpV2Event = ensureRequestContextHttp(event);
   // Use request ID from normalized event, or fall back to original, or generate one
   const awsRequestId =
     httpV2Event.requestContext.requestId ||
@@ -237,14 +260,21 @@ const internalHandler = async (
             }
 
             if (typeof awslambda !== "undefined" && awslambda) {
+              // Merge CORS headers with existing headers
+              const errorHeaders = mergeCorsHeaders(
+                pathParams?.endpointType || "stream",
+                origin,
+                pathParams?.endpointType === "stream" ? allowedOrigins : null,
+                {
+                  "Content-Type": "text/event-stream; charset=utf-8",
+                }
+              );
               responseStream = awslambda.HttpResponseStream.from(
                 responseStream,
                 {
                   statusCode:
                     (response as { statusCode?: number }).statusCode || 402,
-                  headers: {
-                    "Content-Type": "text/event-stream; charset=utf-8",
-                  },
+                  headers: errorHeaders,
                 }
               );
             }
@@ -267,11 +297,18 @@ const internalHandler = async (
     }
     try {
       if (typeof awslambda !== "undefined" && awslambda) {
+        // Merge CORS headers with existing headers
+        const errorHeaders = mergeCorsHeaders(
+          pathParams?.endpointType || "stream",
+          origin,
+          pathParams?.endpointType === "stream" ? allowedOrigins : null,
+          {
+            "Content-Type": "text/event-stream; charset=utf-8",
+          }
+        );
         responseStream = awslambda.HttpResponseStream.from(responseStream, {
           statusCode: boomed.output?.statusCode || 500,
-          headers: {
-            "Content-Type": "text/event-stream; charset=utf-8",
-          },
+          headers: errorHeaders,
         });
       }
       await writeErrorResponse(responseStream, error);
