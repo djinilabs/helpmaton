@@ -30,7 +30,7 @@ import { asyncHandler, requireAuth, requirePermission } from "../middleware";
  *           type: string
  *       - name: limit
  *         in: query
- *         description: Maximum number of results (default: 5)
+ *         description: "Maximum number of results (default: 5)"
  *         schema:
  *           type: integer
  *           minimum: 1

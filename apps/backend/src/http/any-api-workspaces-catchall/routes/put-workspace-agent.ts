@@ -409,12 +409,17 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
         }
 
         // Handle fetchWebProvider with backward compatibility for enableTavilyFetch
-        let resolvedFetchWebProvider: "tavily" | "jina" | undefined;
+        let resolvedFetchWebProvider: "tavily" | "jina" | "scrape" | undefined;
         if (fetchWebProvider !== undefined) {
           // New field takes precedence
-          if (fetchWebProvider !== null && fetchWebProvider !== "tavily" && fetchWebProvider !== "jina") {
+          if (
+            fetchWebProvider !== null &&
+            fetchWebProvider !== "tavily" &&
+            fetchWebProvider !== "jina" &&
+            fetchWebProvider !== "scrape"
+          ) {
             throw badRequest(
-              "fetchWebProvider must be 'tavily', 'jina', or null"
+              "fetchWebProvider must be 'tavily', 'jina', 'scrape', or null"
             );
           }
           resolvedFetchWebProvider = fetchWebProvider === null ? undefined : fetchWebProvider;

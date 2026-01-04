@@ -74,7 +74,7 @@ vi.mock("@architect/functions", () => ({
 }));
 
 vi.mock(
-  "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/requestValidation",
+  "../../utils/requestValidation",
   () => ({
     validateWebhookRequest: mockValidateWebhookRequest,
     validateWebhookKey: mockValidateWebhookKey,
@@ -91,21 +91,15 @@ vi.mock("../../../utils/requestTracking", () => ({
   incrementRequestBucket: vi.fn(),
 }));
 
-vi.mock(
-  "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup",
-  () => ({
-    setupAgentAndTools: mockSetupAgentAndTools,
-    logToolDefinitions: vi.fn(),
-  })
-);
+vi.mock("../../utils/agentSetup", () => ({
+  setupAgentAndTools: mockSetupAgentAndTools,
+  logToolDefinitions: vi.fn(),
+}));
 
-vi.mock(
-  "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion",
-  () => ({
-    convertTextToUIMessage: mockConvertTextToUIMessage,
-    convertUIMessagesToModelMessages: mockConvertUIMessagesToModelMessages,
-  })
-);
+vi.mock("../../utils/messageConversion", () => ({
+  convertTextToUIMessage: mockConvertTextToUIMessage,
+  convertUIMessagesToModelMessages: mockConvertUIMessagesToModelMessages,
+}));
 
 vi.mock("../../../utils/creditValidation", () => ({
   validateCreditsAndLimitsAndReserve: vi.fn(),
@@ -142,12 +136,9 @@ vi.mock("../../../utils/creditManagement", () => ({
   enqueueCostVerification: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock(
-  "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/streaming",
-  () => ({
-    processSimpleNonStreamingResponse: mockProcessSimpleNonStreamingResponse,
-  })
-);
+vi.mock("../../utils/streaming", () => ({
+  processSimpleNonStreamingResponse: mockProcessSimpleNonStreamingResponse,
+}));
 
 // Mock workspaceCreditContext
 const mockContext: AugmentedContext = {
@@ -182,11 +173,9 @@ vi.mock("../../../utils/workspaceCreditTransactions", () => ({
   updateTransactionBufferConversationId: vi.fn(), // Mock the new function
 }));
 
-vi.mock(
-  "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/toolFormatting",
-  () => ({
-    formatToolCallMessage: mockFormatToolCallMessage,
-    formatToolResultMessage: mockFormatToolResultMessage,
+vi.mock("../../utils/toolFormatting", () => ({
+  formatToolCallMessage: mockFormatToolCallMessage,
+  formatToolResultMessage: mockFormatToolResultMessage,
   })
 );
 

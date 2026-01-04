@@ -1,7 +1,6 @@
 import type { ModelMessage } from "ai";
 
-import { logToolDefinitions } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
-
+import { logToolDefinitions } from "./agentSetup";
 import { buildGenerateTextOptions } from "./agentUtils";
 import type { GenerationEndpoint } from "./generationErrorHandling";
 

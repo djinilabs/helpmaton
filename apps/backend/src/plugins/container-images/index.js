@@ -524,6 +524,15 @@ function convertToContainerImage(functionResource, imageUri, functionId, handler
     delete properties.Handler;
   }
 
+  // Set memory for specific functions that need more memory
+  // Puppeteer needs 2048 MB for web scraping
+  if (functionId.includes("PostApiScrape") || functionId.includes("Scrape")) {
+    properties.MemorySize = 2048;
+    console.log(
+      `[container-images] Set MemorySize to 2048 MB for ${functionId}`
+    );
+  }
+
   // Note: We're using LAMBDA_HANDLER_PATH environment variable
   // The wrapper at index.js reads this and loads the correct handler
 

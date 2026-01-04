@@ -25,7 +25,10 @@ import {
   refundTavilyCredits,
   calculateTavilyCost,
 } from "../../utils/tavilyCredits";
+import { generateScrapeAuthToken } from "../../utils/tokenUtils";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
+
+import { getScrapeFunctionUrl } from "./scrapeUrl";
 
 /**
  * Create web search tool
@@ -803,6 +806,171 @@ export function createJinaSearchTool(
           provider: "jina",
           error: error instanceof Error ? error.message : String(error),
           arguments: { query, max_results },
+          workspaceId,
+          agentId,
+          conversationId,
+        });
+        return errorMessage;
+      }
+    },
+  });
+}
+
+/**
+ * Create web fetch tool using Puppeteer scrape endpoint
+ * Scrapes web pages using Puppeteer with residential proxies and returns AOM as XML
+ * @param workspaceId - Workspace ID
+ * @param context - Augmented Lambda context (optional, not used for transactions since endpoint handles them)
+ * @param agentId - Agent ID (optional, for logging)
+ * @param conversationId - Conversation ID (optional, for logging)
+ */
+export function createScrapeFetchTool(
+  workspaceId: string,
+  context?: AugmentedContext,
+  agentId?: string,
+  conversationId?: string
+) {
+  const fetchParamsSchema = z.object({
+    url: z
+      .string()
+      .url("url must be a valid URL")
+      .describe(
+        "REQUIRED: The URL to scrape. This MUST be a valid URL starting with http:// or https://. Example: 'https://example.com/article'"
+      ),
+  });
+
+  type FetchArgs = z.infer<typeof fetchParamsSchema>;
+
+  const description =
+    "Scrape web pages using Puppeteer with residential proxies to extract Accessibility Object Model (AOM) as XML. This tool allows you to get the full content structure from any web page, including JavaScript-rendered content. The service uses stealth techniques to avoid detection and attempts to solve captchas automatically. IMPORTANT: This service can take significantly longer to fetch content compared to other providers (may take 30-60 seconds or more) due to the stealth measures and captcha solving. Use this when you need to read and understand the complete structure and content of a specific URL. CRITICAL REQUIREMENTS: (1) You MUST provide the 'url' parameter - it is REQUIRED and cannot be empty. (2) The 'url' parameter must be a valid URL starting with http:// or https://. (3) When the user asks you to scrape or fetch content from a URL, IMMEDIATELY call this tool with the required 'url' parameter. Example: If user says 'scrape https://example.com/article', call fetch_url with {url: 'https://example.com/article'}. The tool uses residential proxies to access web pages and returns the AOM (Accessibility Object Model) structure as XML. Cost: $0.005 per call.";
+
+  return tool({
+    description,
+    parameters: fetchParamsSchema,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
+    // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    execute: async (args: any) => {
+      // Validate required parameters
+      if (!args || typeof args !== "object") {
+        return "Error: fetch_url requires a 'url' parameter. Please provide a valid URL string.";
+      }
+
+      const typedArgs = args as FetchArgs;
+      const { url } = typedArgs;
+
+      // Validate url parameter
+      if (!url || typeof url !== "string" || url.trim().length === 0) {
+        return "Error: fetch_url requires a non-empty 'url' parameter. Please provide a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
+      }
+
+      // Basic URL validation
+      try {
+        new URL(url);
+      } catch {
+        return "Error: fetch_url requires a valid URL. The 'url' parameter must be a valid URL starting with http:// or https://. Example: {url: 'https://example.com/article'}";
+      }
+
+      // Validate required IDs for token generation
+      if (!workspaceId || !agentId || !conversationId) {
+        return "Error: Missing required context (workspaceId, agentId, or conversationId) for scrape authentication.";
+      }
+
+      // Log tool call
+      console.log("[Tool Call] fetch_url (Scrape)", {
+        toolName: "fetch_url",
+        provider: "scrape",
+        arguments: { url },
+        workspaceId,
+        agentId,
+        conversationId,
+      });
+
+      try {
+        // Generate JWE token for authentication
+        const authToken = await generateScrapeAuthToken(
+          workspaceId,
+          agentId,
+          conversationId
+        );
+
+        // Get scrape URL (Function URL in deployed environments, API Gateway URL in local dev)
+        const scrapeUrl = await getScrapeFunctionUrl();
+
+        // Make POST request to scrape endpoint
+        const response = await fetch(scrapeUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({ url }),
+        });
+
+        // Handle response
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMessage = `Error scraping web page: HTTP ${response.status}`;
+          try {
+            const errorJson = JSON.parse(errorText);
+            if (errorJson.message) {
+              errorMessage = `Error scraping web page (HTTP ${response.status}): ${errorJson.message}`;
+            } else if (errorJson.error) {
+              errorMessage = `Error scraping web page (HTTP ${response.status}): ${errorJson.error}`;
+            }
+          } catch {
+            // If error response is not JSON, use the text as-is
+            if (errorText) {
+              errorMessage = `Error scraping web page (HTTP ${response.status}): ${errorText}`;
+            }
+          }
+          console.error("[Tool Error] fetch_url (Scrape)", {
+            toolName: "fetch_url",
+            provider: "scrape",
+            error: errorMessage,
+            status: response.status,
+            url,
+            workspaceId,
+            agentId,
+            conversationId,
+          });
+          return errorMessage;
+        }
+
+        // Parse XML response
+        const xmlContent = await response.text();
+
+        // Format result for the agent
+        let resultText = `**Content scraped from ${url}:**\n\n`;
+        resultText += `**AOM (Accessibility Object Model) XML:**\n\`\`\`xml\n${xmlContent}\n\`\`\`\n`;
+
+        // Add cost marker (0.005 USD = 5000 millionths) for tracking/display only
+        // IMPORTANT: The scrape endpoint already charges credits directly via reserveCredits(),
+        // so this marker is ONLY for cost tracking/display in the test endpoint UI.
+        // It does NOT cause additional credit deduction - credits are charged once at the endpoint level.
+        resultText += `\n\n__HM_TOOL_COST__:5000`;
+
+        // Log tool result
+        console.log("[Tool Result] fetch_url (Scrape)", {
+          toolName: "fetch_url",
+          provider: "scrape",
+          url,
+          xmlLength: xmlContent.length,
+          workspaceId,
+          agentId,
+          conversationId,
+        });
+
+        return resultText;
+      } catch (error) {
+        const errorMessage = `Error scraping web content: ${
+          error instanceof Error ? error.message : String(error)
+        }`;
+        console.error("[Tool Error] fetch_url (Scrape)", {
+          toolName: "fetch_url",
+          provider: "scrape",
+          error: error instanceof Error ? error.message : String(error),
+          arguments: { url },
           workspaceId,
           agentId,
           conversationId,

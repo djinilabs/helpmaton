@@ -2,7 +2,7 @@ import { generateText } from "ai";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Import after mocks are set up
-import type { UIMessage } from "../../../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
+import type { UIMessage } from "../../../utils/messageTypes";
 import type { SubscriptionPlan } from "../../subscriptionPlans";
 import type { FactRecord, TemporalGrain } from "../../vectordb/types";
 import { calculateRetentionCutoff } from "../retentionPolicies";

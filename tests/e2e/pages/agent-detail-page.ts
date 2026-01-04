@@ -215,6 +215,47 @@ export class AgentDetailPage extends BasePage {
   }
 
   /**
+   * Verify that the latest conversation contains the expected user message
+   * Returns true if the conversation contains the message, false otherwise
+   */
+  async verifyLatestConversationContainsMessage(
+    expectedMessage: string
+  ): Promise<boolean> {
+    await this.expandConversationsSection();
+
+    // Wait for conversations to load
+    const loadingLocator = this.page.locator("text=Loading...");
+    try {
+      await loadingLocator.waitFor({ state: "hidden", timeout: 15000 });
+    } catch {
+      // Loading might not be present or already gone, continue
+    }
+
+    // Get the first conversation (most recent)
+    const conversations = this.page
+      .locator('[id="accordion-content-conversations"]')
+      .locator(
+        "div.border-2.border-neutral-300.rounded-xl.p-4.bg-white.cursor-pointer"
+      )
+      .first();
+
+    const conversationCount = await conversations.count();
+    if (conversationCount === 0) {
+      return false;
+    }
+
+    // Get the text content of the first conversation
+    const conversationText = await conversations.textContent();
+    if (!conversationText) {
+      return false;
+    }
+
+    // Check if the expected message is in the conversation text
+    // The conversation card might show a preview or summary
+    return conversationText.includes(expectedMessage);
+  }
+
+  /**
    * Expand Memory section
    */
   async expandMemorySection(): Promise<void> {
@@ -370,5 +411,163 @@ export class AgentDetailPage extends BasePage {
       .locator("..")
       .locator("div.text-sm");
     return await this.getElementText(promptContainer);
+  }
+
+  /**
+   * Expand Stream Server section
+   */
+  async expandStreamServerSection(): Promise<void> {
+    await this.expandAccordion("STREAM SERVER");
+  }
+
+  /**
+   * Create a stream server with the given allowed origins
+   */
+  async createStreamServer(allowedOrigins: string): Promise<void> {
+    await this.expandStreamServerSection();
+
+    // Wait for accordion content to be visible
+    const accordionContent = this.page.locator(
+      '[id="accordion-content-stream-server"]'
+    );
+    await accordionContent.waitFor({ state: "visible", timeout: 10000 });
+
+    // Check if stream server already exists
+    const createButton = this.page.locator(
+      'button:has-text("Create Stream Server")'
+    );
+    const testButton = this.page.locator('button:has-text("Test")');
+
+    // If create button exists, we need to create the stream server
+    if (await createButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      // Click "Create Stream Server" button
+      await this.clickElement(createButton);
+
+      // Wait for the form to appear - look for form with label "Allowed Origins"
+      const form = this.page
+        .locator('form')
+        .filter({ has: this.page.locator('label:has-text("Allowed Origins")') })
+        .first();
+      await form.waitFor({ state: "visible", timeout: 10000 });
+
+      // Fill in allowed origins - find input within the form
+      const originsInput = form.locator('input[type="text"]').first();
+      await originsInput.waitFor({ state: "visible", timeout: 5000 });
+      await originsInput.fill(allowedOrigins);
+
+      // Submit the form
+      const submitButton = form.locator(
+        'button[type="submit"]:has-text("Create")'
+      );
+      await this.clickElement(submitButton);
+
+      // Wait for stream server to be created (Test button should appear)
+      await testButton.waitFor({ state: "visible", timeout: 15000 });
+    } else {
+      // Stream server already exists, verify it's visible
+      await testButton.waitFor({ state: "visible", timeout: 5000 });
+    }
+  }
+
+  /**
+   * Open the test streaming server dialog
+   * Returns true if dialog opened successfully, false if stream URL is not available
+   */
+  async openTestStreamServerDialog(): Promise<boolean> {
+    await this.expandStreamServerSection();
+
+    // Wait for accordion content to be visible
+    const accordionContent = this.page.locator(
+      '[id="accordion-content-stream-server"]'
+    );
+    await accordionContent.waitFor({ state: "visible", timeout: 10000 });
+
+    // Check if the Test button is enabled (requires stream URL)
+    const testButton = this.page
+      .locator('button:has-text("Test")')
+      .first();
+    
+    const isEnabled = await testButton.isEnabled().catch(() => false);
+    if (!isEnabled) {
+      // Stream URL is not available, dialog won't open
+      return false;
+    }
+
+    // Click the "Test" button
+    await this.clickElement(testButton);
+
+    // Wait for the dialog to open (modal with "Test Stream Server" heading)
+    // The dialog only renders if streamUrlData?.url exists
+    try {
+      const dialog = this.page.locator('h2:has-text("Test Stream Server")');
+      await dialog.waitFor({ state: "visible", timeout: 5000 });
+      return true;
+    } catch {
+      // Dialog didn't appear - likely stream URL is not available
+      return false;
+    }
+  }
+
+  /**
+   * Send a message in the test streaming dialog
+   */
+  async sendMessageInStreamDialog(message: string): Promise<void> {
+    // The dialog contains an AgentChat component
+    // Wait for the dialog to be visible
+    const dialog = this.page.locator('h2:has-text("Test Stream Server")');
+    await dialog.waitFor({ state: "visible", timeout: 10000 });
+
+    // Find the AgentChat form within the dialog
+    const dialogContent = dialog.locator("..").locator("..");
+    const chatForm = dialogContent.locator('form:has(textarea)');
+    await chatForm.waitFor({ state: "visible", timeout: 10000 });
+
+    // Find the textarea within the dialog
+    const textarea = chatForm.locator(
+      'textarea[placeholder="Type your message..."]'
+    );
+    await textarea.waitFor({ state: "visible", timeout: 10000 });
+
+    // Fill and submit
+    await textarea.fill(message);
+    const submitButton = chatForm.locator('button[type="submit"]:has-text("Send")');
+    await this.clickElement(submitButton);
+  }
+
+  /**
+   * Wait for agent response in the test streaming dialog
+   */
+  async waitForAgentResponseInStreamDialog(
+    timeoutMs: number = 30000
+  ): Promise<string> {
+    // The dialog contains an AgentChat component
+    // Wait for response to appear within the dialog
+    const dialog = this.page.locator('h2:has-text("Test Stream Server")');
+    await dialog.waitFor({ state: "visible", timeout: 10000 });
+
+    const dialogContent = dialog.locator("..").locator("..");
+    const responseLocator = dialogContent
+      .locator('[role="assistant"]')
+      .or(dialogContent.locator('div:has-text("assistant")'))
+      .last();
+
+    await this.waitForElement(responseLocator, timeoutMs);
+    return await this.getElementText(responseLocator);
+  }
+
+  /**
+   * Close the test streaming server dialog
+   */
+  async closeTestStreamServerDialog(): Promise<void> {
+    // Find the Close button in the dialog
+    const dialog = this.page.locator('h2:has-text("Test Stream Server")');
+    await dialog.waitFor({ state: "visible", timeout: 10000 });
+
+    const dialogHeader = dialog.locator("..");
+    const closeButton = dialogHeader.locator('button:has-text("Close")');
+    await this.clickElement(closeButton);
+
+    // Wait for dialog to close
+    await dialog.waitFor({ state: "hidden", timeout: 5000 });
   }
 }
