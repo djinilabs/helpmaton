@@ -91,7 +91,7 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "eslint-plugin-tailwindcss": "^3.18.2",
     "glob": "^13.0.0",
-    "globals": "^16.5.0",
+    "globals": "^17.0.0",
     "nanoid": "^5.0.9",
     "node-gyp": "^12.1.0",
     "npm-run-all2": "^8.0.4",
