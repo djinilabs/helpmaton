@@ -245,7 +245,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
     {
       name: "call_agent_async",
       description:
-        "Delegate a task to another agent asynchronously (fire-and-forget). Returns immediately with a taskId that you can use to check status later. Use this when you don't need an immediate response. You can identify the target agent by agentId/agent_id or by query (semantic description).",
+        "Delegate a task to another agent asynchronously with status tracking. Returns immediately with a taskId that you can use to check status or retrieve results later. Use this when you don't need an immediate response. You can identify the target agent by agentId/agent_id or by query (semantic description).",
       alwaysAvailable: false,
       condition: hasDelegation
         ? "Available (delegation configured)"
@@ -301,7 +301,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
     {
       name: "cancel_delegation",
       description:
-        "Cancel a pending or running async delegation task. Tasks that are already completed or failed cannot be cancelled.",
+        "Request cancellation of a pending or running async delegation task. Tasks that are already completed or failed cannot be cancelled. Cancelling a running task only marks it as cancelled and does not interrupt work that is already being processed.",
       alwaysAvailable: false,
       condition: hasDelegation
         ? "Available (delegation configured)"

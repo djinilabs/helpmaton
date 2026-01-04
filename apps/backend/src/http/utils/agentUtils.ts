@@ -53,6 +53,32 @@ const agentMetadataCache = new Map<
 >();
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_CLEANUP_THRESHOLD = 100; // Clean up expired entries when cache exceeds this size
+
+/**
+ * Clean up expired cache entries
+ * This prevents memory leaks in high-traffic scenarios
+ */
+function cleanupExpiredCacheEntries(): void {
+  if (agentMetadataCache.size <= CACHE_CLEANUP_THRESHOLD) {
+    return; // No cleanup needed if cache is small
+  }
+
+  const now = Date.now();
+  let cleaned = 0;
+  for (const [key, cached] of agentMetadataCache.entries()) {
+    if (now - cached.timestamp >= CACHE_TTL_MS) {
+      agentMetadataCache.delete(key);
+      cleaned++;
+    }
+  }
+
+  if (cleaned > 0) {
+    console.log(
+      `[Agent Cache] Cleaned up ${cleaned} expired entries (cache size: ${agentMetadataCache.size})`
+    );
+  }
+}
 
 function getCachedAgent(
   workspaceId: string,
@@ -77,6 +103,8 @@ function setCachedAgent(
 ): void {
   const key = `${workspaceId}:${agentId}`;
   agentMetadataCache.set(key, { agent, timestamp: Date.now() });
+  // Periodically clean up expired entries to prevent memory leaks
+  cleanupExpiredCacheEntries();
 }
 
 export interface WorkspaceAndAgent {
@@ -913,9 +941,6 @@ export async function callAgentInternal(
       const { logToolDefinitions } = await import("./agentSetup");
       logToolDefinitions(tools, "Agent Delegation", targetAgent);
     }
-    // Track generation time
-    const generationStartTime = Date.now();
-    
     // Create timeout promise with handle for cleanup
     let timeoutHandle: NodeJS.Timeout | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -943,8 +968,6 @@ export async function callAgentInternal(
       }
     }
     
-    // Generation time tracked but not currently used in agent delegation
-    void (Date.now() - generationStartTime);
     // LLM call succeeded - mark as attempted
     llmCallAttempted = true;
 
@@ -1167,8 +1190,26 @@ export async function callAgentInternal(
 }
 
 /**
- * Minimum score threshold for accepting an agent match
- * Default: 2.0 - allows for lenient matching while preventing false positives
+ * Minimum score threshold for accepting an agent match.
+ *
+ * Scoring model:
+ * - Individual similarity checks (see `calculateStringSimilarity`) return a value in [0.0, 1.0].
+ * - The overall agent match score is an aggregate of several such similarity signals
+ *   (e.g. agent name, description, and capability keywords), so the combined score
+ *   can be greater than 1.0. In the current heuristic, a "perfect" match across
+ *   all signals is roughly in the 3.0 range.
+ *
+ * Rationale for 2.0:
+ * - 2.0 effectively requires a strong match on at least two independent signals
+ *   (or an extremely strong match on one plus supporting evidence from others).
+ * - This was empirically tuned to allow reasonably lenient matching while still
+ *   filtering out most false positives in typical queries.
+ *
+ * Tuning guidance:
+ * - Lower values (< 2.0) will increase recall (more agents considered matches)
+ *   but can introduce more false positives.
+ * - Higher values (> 2.0) will increase precision (fewer, more exact matches)
+ *   but may cause relevant agents to be missed.
  */
 const MATCH_THRESHOLD = 2.0;
 
@@ -1317,37 +1358,9 @@ export async function findAgentByQuery(
 
   // Get all delegatable agents (with caching)
   const agents = await Promise.all(
-    delegatableAgentIds.map(async (agentId): Promise<CachedAgent | null> => {
-      const cached = getCachedAgent(workspaceId, agentId);
-      if (cached) {
-        return cached;
-      }
-
-      const agentPk = `agents/${workspaceId}/${agentId}`;
-      const agent = await db.agent.get(agentPk, "agent");
-
-      if (agent) {
-        const cachedAgent: CachedAgent = {
-          pk: agent.pk,
-          name: agent.name,
-          systemPrompt: agent.systemPrompt,
-          modelName: agent.modelName,
-          provider: agent.provider,
-          enableSearchDocuments: agent.enableSearchDocuments,
-          enableMemorySearch: agent.enableMemorySearch,
-          searchWebProvider: agent.searchWebProvider,
-          fetchWebProvider: agent.fetchWebProvider,
-          enableSendEmail: agent.enableSendEmail,
-          notificationChannelId: agent.notificationChannelId,
-          enabledMcpServerIds: agent.enabledMcpServerIds,
-          clientTools: agent.clientTools,
-        };
-        setCachedAgent(workspaceId, agentId, cachedAgent);
-        return cachedAgent;
-      }
-
-      return null;
-    })
+    delegatableAgentIds.map((agentId) =>
+      fetchAndCacheAgent(db, workspaceId, agentId)
+    )
   );
 
   const validAgents = agents.filter(
@@ -1358,6 +1371,17 @@ export async function findAgentByQuery(
     return null;
   }
 
+  // Scoring weights for agent matching
+  // These weights determine the relative importance of each matching signal
+  const SCORE_WEIGHTS = {
+    NAME_SIMILARITY: 15, // Agent name matches are most important
+    PROMPT_SIMILARITY: 8, // System prompt matches are moderately important
+    TOKEN_MATCH: 1.5, // Individual token matches in prompt add small increments
+    CAPABILITIES_SIMILARITY: 10, // Overall capabilities similarity is important
+    KEYWORD_CAPABILITY_MATCH: 4, // Keyword-to-capability mapping matches
+    DIRECT_CAPABILITY_MATCH: 3, // Direct capability name matches
+  } as const;
+
   // Score each agent based on fuzzy keyword matches
   const scoredAgents = validAgents.map((agent) => {
     const agentId = agent.pk.replace(`agents/${workspaceId}/`, "");
@@ -1365,19 +1389,19 @@ export async function findAgentByQuery(
 
     // 1. Fuzzy match against agent name (weighted heavily)
     const nameSimilarity = calculateStringSimilarity(queryLower, agent.name);
-    score += nameSimilarity * 15; // Up to 15 points
+    score += nameSimilarity * SCORE_WEIGHTS.NAME_SIMILARITY;
 
     // 2. Fuzzy match against system prompt (first 500 chars for performance)
     const promptLower = agent.systemPrompt.substring(0, 500).toLowerCase();
     const promptSimilarity = calculateStringSimilarity(queryLower, promptLower);
-    score += promptSimilarity * 8; // Up to 8 points
+    score += promptSimilarity * SCORE_WEIGHTS.PROMPT_SIMILARITY;
 
     // Also count individual token matches in prompt
     const queryTokens = queryLower.split(/\s+/).filter((t) => t.length > 2);
     for (const token of queryTokens) {
       const tokenMatches = (promptLower.match(new RegExp(token, "g")) || [])
         .length;
-      score += tokenMatches * 1.5; // 1.5 points per token match
+      score += tokenMatches * SCORE_WEIGHTS.TOKEN_MATCH;
     }
 
     // 3. Match against capabilities with fuzzy matching
@@ -1387,7 +1411,7 @@ export async function findAgentByQuery(
       queryLower,
       capabilitiesStr
     );
-    score += capabilitiesSimilarity * 10; // Up to 10 points
+    score += capabilitiesSimilarity * SCORE_WEIGHTS.CAPABILITIES_SIMILARITY;
 
     // 4. Expanded keyword mapping with fuzzy matching
     const capabilityKeywords = getCapabilityKeywords();
@@ -1407,7 +1431,7 @@ export async function findAgentByQuery(
         ) {
           for (const cap of relatedCapabilities) {
             if (capabilitiesStr.includes(cap)) {
-              score += 4; // Points for keyword-capability match
+              score += SCORE_WEIGHTS.KEYWORD_CAPABILITY_MATCH;
             }
           }
         }
@@ -1420,7 +1444,7 @@ export async function findAgentByQuery(
           capLower.includes(queryToken) ||
           queryToken.includes(capLower.replace(/_/g, " "))
         ) {
-          score += 3; // Points for direct capability match
+          score += SCORE_WEIGHTS.DIRECT_CAPABILITY_MATCH;
         }
       }
     }
@@ -1480,6 +1504,49 @@ function formatAgentList(
 }
 
 /**
+ * Fetch and cache a single agent by ID
+ * Shared helper to avoid code duplication
+ */
+async function fetchAndCacheAgent(
+  db: Awaited<ReturnType<typeof database>>,
+  workspaceId: string,
+  agentId: string
+): Promise<CachedAgent | null> {
+  // Check cache first
+  const cached = getCachedAgent(workspaceId, agentId);
+  if (cached) {
+    return cached;
+  }
+
+  // Fetch from database
+  const agentPk = `agents/${workspaceId}/${agentId}`;
+  const agent = await db.agent.get(agentPk, "agent");
+
+  // Cache if found
+  if (agent) {
+    const cachedAgent: CachedAgent = {
+      pk: agent.pk,
+      name: agent.name,
+      systemPrompt: agent.systemPrompt,
+      modelName: agent.modelName,
+      provider: agent.provider,
+      enableSearchDocuments: agent.enableSearchDocuments,
+      enableMemorySearch: agent.enableMemorySearch,
+      searchWebProvider: agent.searchWebProvider,
+      fetchWebProvider: agent.fetchWebProvider,
+      enableSendEmail: agent.enableSendEmail,
+      notificationChannelId: agent.notificationChannelId,
+      enabledMcpServerIds: agent.enabledMcpServerIds,
+      clientTools: agent.clientTools,
+    };
+    setCachedAgent(workspaceId, agentId, cachedAgent);
+    return cachedAgent;
+  }
+
+  return null;
+}
+
+/**
  * Helper function to fetch all delegatable agents (with caching)
  * Reusable in both list_agents tool and error handling
  */
@@ -1491,40 +1558,9 @@ async function fetchDelegatableAgents(
 
   // Get all delegatable agents (with caching)
   const agents = await Promise.all(
-    delegatableAgentIds.map(async (agentId): Promise<CachedAgent | null> => {
-      // Check cache first
-      const cached = getCachedAgent(workspaceId, agentId);
-      if (cached) {
-        return cached;
-      }
-
-      // Fetch from database
-      const agentPk = `agents/${workspaceId}/${agentId}`;
-      const agent = await db.agent.get(agentPk, "agent");
-
-      // Cache if found
-      if (agent) {
-        const cachedAgent: CachedAgent = {
-          pk: agent.pk,
-          name: agent.name,
-          systemPrompt: agent.systemPrompt,
-          modelName: agent.modelName,
-          provider: agent.provider,
-          enableSearchDocuments: agent.enableSearchDocuments,
-          enableMemorySearch: agent.enableMemorySearch,
-          searchWebProvider: agent.searchWebProvider,
-          fetchWebProvider: agent.fetchWebProvider,
-          enableSendEmail: agent.enableSendEmail,
-          notificationChannelId: agent.notificationChannelId,
-          enabledMcpServerIds: agent.enabledMcpServerIds,
-          clientTools: agent.clientTools,
-        };
-        setCachedAgent(workspaceId, agentId, cachedAgent);
-        return cachedAgent;
-      }
-
-      return null;
-    })
+    delegatableAgentIds.map((agentId) =>
+      fetchAndCacheAgent(db, workspaceId, agentId)
+    )
   );
 
   // Filter out any null results (agents that don't exist)
@@ -1860,11 +1896,13 @@ export function createCallAgentTool(
         });
 
         // Log delegation metrics (failed)
+        // Note: agentId is guaranteed to be a non-empty string at this point
+        // (validated before the try block)
         console.log("[Delegation Metrics]", {
           type: "sync",
           workspaceId,
           callingAgentId: currentAgentId,
-          targetAgentId: agentId || "unknown",
+          targetAgentId: agentId,
           callDepth,
           status: "failed",
           error: error instanceof Error ? error.message : String(error),
@@ -1876,7 +1914,7 @@ export function createCallAgentTool(
           const db = await database();
           await trackDelegation(db, workspaceId, currentAgentId, conversationId, {
             callingAgentId: currentAgentId,
-            targetAgentId: agentId || "unknown",
+            targetAgentId: agentId,
             status: "failed",
           });
         }
@@ -2003,14 +2041,16 @@ export function createCallAgentAsyncTool(
         const db = await database();
         const taskId = randomUUID();
 
-        // Calculate TTL (7 days from now)
-        const ttl = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+        // Calculate TTL (4 days from now, aligned with default SQS message retention)
+        // SQS default message retention is 4 days, so tasks should expire around the same time
+        const ttl = Math.floor(Date.now() / 1000) + 4 * 24 * 60 * 60;
 
         // Create task record
         const taskPk = `delegation-tasks/${taskId}`;
         const gsi1pk = `workspace/${workspaceId}/agent/${currentAgentId}`;
         const gsi1sk = new Date().toISOString();
 
+        // createdAt is automatically set by the table API
         await db["agent-delegation-tasks"].create({
           pk: taskPk,
           sk: "task",

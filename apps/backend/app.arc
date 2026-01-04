@@ -307,7 +307,6 @@ openrouter-cost-verification-queue
   messageRetentionPeriod 604800
 agent-delegation-queue
   timeout 300
-  reserved 1
 
 @api-throttling
 free

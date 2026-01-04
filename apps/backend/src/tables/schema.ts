@@ -212,6 +212,7 @@ export const tableSchemas = {
           callingAgentId: z.string(),
           targetAgentId: z.string(),
           taskId: z.string().optional(),
+          // ISO 8601 datetime string (accepts any precision: seconds, milliseconds, microseconds)
           timestamp: z.string().datetime(),
           status: z.enum(["completed", "failed", "cancelled"]),
         })
@@ -450,7 +451,9 @@ export const tableSchemas = {
     status: z.enum(["pending", "running", "completed", "failed", "cancelled"]),
     result: z.string().optional(),
     error: z.string().optional(),
+    // ISO 8601 datetime string (accepts any precision: seconds, milliseconds, microseconds)
     createdAt: z.string().datetime(),
+    // ISO 8601 datetime string (accepts any precision: seconds, milliseconds, microseconds)
     completedAt: z.string().datetime().optional(),
     ttl: z.number().optional(), // 7 days TTL timestamp
     gsi1pk: z.string(), // "workspace/{workspaceId}/agent/{callingAgentId}"

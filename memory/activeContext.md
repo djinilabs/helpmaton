@@ -2,9 +2,11 @@
 
 ## Current Status
 
-**Status**: Stream Handler Refactoring & Code Quality Improvements - Completed ✅
+**Status**: Agent Delegation Improvements - Completed ✅
 
-**Latest Work**: Completed comprehensive refactoring of the stream handler to improve maintainability, ensure proper error logging, and eliminate dangling promises:
+**Latest Work**: Enhanced agent delegation capabilities with async support, query-based agent matching, and comprehensive delegation tracking. Implemented new tools for asynchronous delegation, status checking, and cancellation, along with a queue-based processing system for long-running delegations.
+
+**Previous Work**: Completed comprehensive refactoring of the stream handler to improve maintainability, ensure proper error logging, and eliminate dangling promises:
 
 1. **Stream Handler Refactoring**: Significantly reduced complexity by extracting specialized utilities into separate files with distinct responsibilities. The main handler now acts as a router and orchestrator, making the codebase much easier to follow and maintain. Reduced main handler from 500+ lines to ~250 lines.
 
@@ -1373,7 +1375,105 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 
 ## Recent Changes
 
-### Stratified Agent Memory System Implementation (Latest)
+### Agent Delegation Improvements (Latest)
+
+**Status**: ✅ Completed
+
+**Overview**: Significantly enhanced agent-to-agent delegation capabilities by adding asynchronous delegation support, intelligent query-based agent matching, delegation status tracking, and a robust queue-based processing system. Agents can now delegate tasks to other agents using natural language queries, track async delegation status, and cancel pending tasks.
+
+**Key Features Implemented**:
+
+1. **Async Delegation Support**:
+   - New `call_agent_async` tool for fire-and-forget delegation
+   - Returns task ID immediately without waiting for completion
+   - Supports long-running tasks that exceed Lambda timeout limits
+   - Queue-based processing with 300-second timeout (5 minutes)
+   - Delegation timeout set to 280 seconds (20s buffer for queue processing)
+
+2. **Query-Based Agent Matching**:
+   - Intelligent fuzzy matching algorithm for finding agents by description
+   - Matches against agent name, system prompt, and capabilities
+   - Supports synonyms and partial word matching (e.g., "doc" matches "document", "mail" matches "email")
+   - Capability-based matching (search_documents, search_web, send_email, search_memory, etc.)
+   - Minimum score threshold (2.0) to prevent false positives
+   - Agent metadata caching (5-minute TTL) to reduce database queries
+
+3. **Delegation Management Tools**:
+   - `check_delegation_status` tool to query task status and retrieve results
+   - `cancel_delegation` tool to cancel pending or running tasks
+   - Status tracking: pending → running → completed/failed/cancelled
+   - Task results and error messages stored in database
+
+4. **Queue-Based Processing**:
+   - New SQS queue (`agent-delegation-queue`) with 300-second timeout
+   - Exponential backoff retry logic (3 retries, 1-10 second delays with jitter)
+   - Retryable error detection (timeouts, network errors, rate limits, 5xx errors)
+   - Automatic task status updates (pending → running → completed/failed)
+   - Proper error handling with task failure tracking
+
+5. **Delegation Tracking**:
+   - Conversation metadata tracking for all delegations
+   - Tracks both sync and async delegations with status
+   - Includes taskId for async delegations
+   - Status updates from queue processor when tasks complete/fail
+   - Delegation history stored in conversation records
+
+6. **Enhanced List Agents Tool**:
+   - Improved formatting with agent descriptions, capabilities, and model information
+   - Truncates long descriptions to 200 characters
+   - Shows all available capabilities (search_documents, search_web, send_email, etc.)
+   - Displays model name and provider information
+
+**Technical Improvements**:
+
+1. **Timeout Handling**:
+   - Proper timeout cleanup to prevent memory leaks
+   - Timeout handle stored and cleared in finally block
+   - Prevents dangling timers when generateText completes before timeout
+
+2. **Type Safety**:
+   - Fixed TypeScript type errors for `fetchWebProvider` (added "scrape" to union type)
+   - Proper type annotations for queue message schema
+   - Non-null assertions for context in queue processor
+
+3. **Error Handling**:
+   - Comprehensive error handling in queue processor
+   - Task status updates on both success and failure
+   - Delegation tracking updated when tasks complete/fail
+   - Proper error messages returned to calling agent
+
+4. **Code Quality**:
+   - Fixed lint errors (unused variables)
+   - Proper formatting and code style
+   - Comprehensive unit tests for all new functionality
+
+**Files Created**:
+- `apps/backend/src/queues/agent-delegation-queue/index.ts` - Queue processor for async delegations
+- `apps/backend/src/http/utils/__tests__/agentUtils.test.ts` - Comprehensive unit tests for delegation features
+
+**Files Modified**:
+- `apps/backend/app.arc` - Added `agent-delegation-tasks` table, GSI, and `agent-delegation-queue`
+- `apps/backend/src/http/utils/agentUtils.ts` - Added async delegation tools, query matching, delegation tracking
+- `apps/backend/src/http/utils/agentSetup.ts` - Added async delegation tools to agent setup
+- `apps/backend/src/tables/schema.ts` - Added `agent-delegation-tasks` table schema and delegation tracking to conversations
+- `apps/backend/src/utils/conversationLogger.ts` - Added `trackDelegation()` function for conversation metadata
+- `apps/frontend/src/components/ToolsHelpDialog.tsx` - Updated tool descriptions and added async delegation tools
+
+**Database Schema Changes**:
+- New table: `agent-delegation-tasks` with status tracking, results, errors, and TTL
+- GSI: `byWorkspaceAndAgent` for querying delegations by workspace and calling agent
+- Conversation schema: Added `delegations` array field for tracking delegation history
+
+**Configuration**:
+- Queue timeout: 300 seconds (5 minutes)
+- Delegation timeout: 280 seconds (20s buffer for queue processing)
+- Task TTL: 7 days
+- Agent metadata cache TTL: 5 minutes
+- Retry configuration: 3 retries, exponential backoff (1-10 seconds), 20% jitter
+
+**Verification**: All tests passing (23 tests in agentUtils.test.ts), typecheck and lint clean ✅
+
+### Stratified Agent Memory System Implementation
 
 **Status**: ✅ Completed
 

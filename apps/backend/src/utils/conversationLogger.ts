@@ -1889,7 +1889,12 @@ export async function trackDelegation(
       undefined,
       async (current) => {
         if (!current) {
-          // This shouldn't happen since we checked above, but handle gracefully
+          // Conversation was removed between the existence check and update; skip tracking
+          // Return existing object to maintain type safety (we know it exists from check above)
+          console.warn(
+            "[Delegation Tracking] Conversation disappeared before update, skipping delegation tracking:",
+            { workspaceId, agentId, conversationId }
+          );
           return existing;
         }
 

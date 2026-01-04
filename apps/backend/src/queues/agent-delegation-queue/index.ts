@@ -9,9 +9,9 @@ import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
 
 // Exponential backoff configuration for delegation retries
 const BACKOFF_INITIAL_DELAY_MS = 1000; // 1 second
-const BACKOFF_MAX_RETRIES = 3;
+const BACKOFF_MAX_ATTEMPTS = 4; // Total attempts: initial + 3 retries
 const BACKOFF_MAX_DELAY_MS = 10000; // 10 seconds maximum
-const BACKOFF_MULTIPLIER = 2;
+const BACKOFF_MULTIPLIER = 2; // Doubles delay each retry: 1s, 2s, 4s, 8s (capped at 10s)
 
 /**
  * Sleep for a given duration
@@ -82,6 +82,67 @@ const DelegationTaskMessageSchema = z.object({
 type DelegationTaskMessage = z.infer<typeof DelegationTaskMessageSchema>;
 
 /**
+ * Log delegation metrics with consistent structure
+ */
+function logDelegationMetrics(
+  type: "async",
+  workspaceId: string,
+  callingAgentId: string,
+  targetAgentId: string,
+  taskId: string,
+  callDepth: number,
+  status: "completed" | "failed",
+  extra?: { error?: string }
+): void {
+  console.log("[Delegation Metrics]", {
+    type,
+    workspaceId,
+    callingAgentId,
+    targetAgentId,
+    taskId,
+    callDepth,
+    status,
+    ...(extra ?? {}),
+    timestamp: new Date().toISOString(),
+  });
+}
+
+/**
+ * Track delegation in conversation metadata (best-effort, errors are logged but don't fail)
+ */
+async function trackDelegationSafely(
+  db: Awaited<ReturnType<typeof database>>,
+  workspaceId: string,
+  callingAgentId: string,
+  conversationId: string | undefined,
+  targetAgentId: string,
+  taskId: string,
+  status: "completed" | "failed"
+): Promise<void> {
+  if (!conversationId) {
+    return;
+  }
+
+  try {
+    await trackDelegation(db, workspaceId, callingAgentId, conversationId, {
+      callingAgentId,
+      targetAgentId,
+      taskId,
+      status,
+    });
+  } catch (error) {
+    // Log but don't fail - delegation tracking is best-effort
+    console.error("[Delegation Queue] Error tracking delegation:", {
+      error: error instanceof Error ? error.message : String(error),
+      workspaceId,
+      callingAgentId,
+      conversationId,
+      taskId,
+    });
+  }
+}
+
+/**
  * Process a single delegation task
  */
 async function processDelegationTask(
@@ -128,10 +189,11 @@ async function processDelegationTask(
   let lastError: Error | undefined;
   let result: string | undefined;
 
-  for (let attempt = 0; attempt <= BACKOFF_MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt < BACKOFF_MAX_ATTEMPTS; attempt++) {
     try {
       if (attempt > 0) {
-        // Calculate delay with exponential backoff, capped at max delay
+        // Calculate delay with exponential backoff: 2^(attempt-1) seconds, capped at max delay
+        // This creates delays of 1s, 2s, 4s, 8s (capped at 10s) for attempts 1, 2, 3, 4
         const baseDelay = Math.min(
           BACKOFF_INITIAL_DELAY_MS * Math.pow(BACKOFF_MULTIPLIER, attempt - 1),
           BACKOFF_MAX_DELAY_MS
@@ -141,9 +203,7 @@ async function processDelegationTask(
         const delay = baseDelay + jitter;
 
         console.log(
-          `[Delegation Queue] Retrying task ${taskId} (attempt ${attempt + 1}/${
-            BACKOFF_MAX_RETRIES + 1
-          }) after ${Math.round(delay)}ms:`,
+          `[Delegation Queue] Retrying task ${taskId} (attempt ${attempt + 1}/${BACKOFF_MAX_ATTEMPTS}) after ${Math.round(delay)}ms:`,
           {
             taskId,
             previousError:
@@ -157,9 +217,9 @@ async function processDelegationTask(
       }
 
       // Call the agent internally
-      // Use 280 seconds timeout (leaving 20s buffer for queue processing)
-      // Queue timeout is 300 seconds, so this ensures we complete before queue timeout
-      const DELEGATION_TIMEOUT_MS = 280 * 1000; // 280 seconds
+      // Use 260 seconds timeout to leave a safer buffer for Lambda processing
+      // Lambda function timeout is 300 seconds; this buffer accounts for init, network, and cleanup
+      const DELEGATION_TIMEOUT_MS = 260 * 1000; // 260 seconds
       result = await callAgentInternal(
         workspaceId,
         targetAgentId,
@@ -176,7 +236,7 @@ async function processDelegationTask(
       lastError = error instanceof Error ? error : new Error(String(error));
 
       // Check if error is retryable and we have retries left
-      if (attempt < BACKOFF_MAX_RETRIES && isRetryableError(error)) {
+      if (attempt < BACKOFF_MAX_ATTEMPTS - 1 && isRetryableError(error)) {
         // Will retry on next iteration
         continue;
       }
@@ -204,26 +264,26 @@ async function processDelegationTask(
     console.log(`[Delegation Queue] Task ${taskId} completed successfully`);
 
     // Log delegation metrics
-    console.log("[Delegation Metrics]", {
-      type: "async",
+    logDelegationMetrics(
+      "async",
       workspaceId,
       callingAgentId,
       targetAgentId,
       taskId,
       callDepth,
-      status: "completed",
-      timestamp: new Date().toISOString(),
-    });
+      "completed"
+    );
 
     // Track delegation in conversation metadata if conversationId is available
-    if (conversationId) {
-      await trackDelegation(db, workspaceId, callingAgentId, conversationId, {
-        callingAgentId,
-        targetAgentId,
-        taskId,
-        status: "completed",
-      });
-    }
+    await trackDelegationSafely(
+      db,
+      workspaceId,
+      callingAgentId,
+      conversationId,
+      targetAgentId,
+      taskId,
+      "completed"
+    );
   } else {
     // This shouldn't happen, but handle it
     const error = new Error("Delegation completed but no result returned");
@@ -240,27 +300,27 @@ async function processDelegationTask(
     }
 
     // Log delegation metrics (failed)
-    console.log("[Delegation Metrics]", {
-      type: "async",
+    logDelegationMetrics(
+      "async",
       workspaceId,
       callingAgentId,
       targetAgentId,
       taskId,
       callDepth,
-      status: "failed",
-      error: error.message,
-      timestamp: new Date().toISOString(),
-    });
+      "failed",
+      { error: error.message }
+    );
 
     // Track delegation in conversation metadata if conversationId is available
-    if (conversationId) {
-      await trackDelegation(db, workspaceId, callingAgentId, conversationId, {
-        callingAgentId,
-        targetAgentId,
-        taskId,
-        status: "failed",
-      });
-    }
+    await trackDelegationSafely(
+      db,
+      workspaceId,
+      callingAgentId,
+      conversationId,
+      targetAgentId,
+      taskId,
+      "failed"
+    );
 
     throw error;
   }
@@ -306,27 +366,27 @@ async function processDelegationTaskWithErrorHandling(
     }
 
     // Log delegation metrics (failed)
-    console.log("[Delegation Metrics]", {
-      type: "async",
+    logDelegationMetrics(
+      "async",
       workspaceId,
       callingAgentId,
       targetAgentId,
       taskId,
       callDepth,
-      status: "failed",
-      error: errorMessage,
-      timestamp: new Date().toISOString(),
-    });
+      "failed",
+      { error: errorMessage }
+    );
 
     // Track delegation in conversation metadata if conversationId is available
-    if (conversationId) {
-      await trackDelegation(db, workspaceId, callingAgentId, conversationId, {
-        callingAgentId,
-        targetAgentId,
-        taskId,
-        status: "failed",
-      });
-    }
+    await trackDelegationSafely(
+      db,
+      workspaceId,
+      callingAgentId,
+      conversationId,
+      targetAgentId,
+      taskId,
+      "failed"
+    );
 
     console.error(`[Delegation Queue] Task ${taskId} failed:`, error);
     throw error;
