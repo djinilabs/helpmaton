@@ -53,18 +53,31 @@ const agentMetadataCache = new Map<
 >();
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const CACHE_CLEANUP_THRESHOLD = 100; // Clean up expired entries when cache exceeds this size
+const CLEANUP_INTERVAL_MS = 60 * 1000; // Clean up at most once per minute to avoid excessive cleanup
+
+// Track last cleanup time to throttle cleanup frequency
+let lastCleanupTimestamp = 0;
+// Track periodic cleanup interval handle for singleton pattern
+let periodicCleanupInterval: NodeJS.Timeout | undefined;
 
 /**
  * Clean up expired cache entries
  * This prevents memory leaks in high-traffic scenarios
+ * Always removes expired entries regardless of cache size
  */
-function cleanupExpiredCacheEntries(): void {
-  if (agentMetadataCache.size <= CACHE_CLEANUP_THRESHOLD) {
-    return; // No cleanup needed if cache is small
+function cleanupExpiredCacheEntries(force: boolean = false): void {
+  const now = Date.now();
+
+  // Throttle cleanup: only run if forced, cache is large, or enough time has passed
+  // This prevents excessive cleanup on every set operation while ensuring expired entries are removed
+  if (
+    !force &&
+    agentMetadataCache.size < 50 &&
+    now - lastCleanupTimestamp < CLEANUP_INTERVAL_MS
+  ) {
+    return; // Skip cleanup if cache is small and cleanup ran recently
   }
 
-  const now = Date.now();
   let cleaned = 0;
   for (const [key, cached] of agentMetadataCache.entries()) {
     if (now - cached.timestamp >= CACHE_TTL_MS) {
@@ -73,10 +86,38 @@ function cleanupExpiredCacheEntries(): void {
     }
   }
 
+  lastCleanupTimestamp = now;
+
   if (cleaned > 0) {
     console.log(
       `[Agent Cache] Cleaned up ${cleaned} expired entries (cache size: ${agentMetadataCache.size})`
     );
+  }
+}
+
+/**
+ * Initialize periodic cleanup to catch expired entries even when cache operations are infrequent
+ * Uses singleton pattern to avoid creating multiple intervals
+ */
+function initializePeriodicCleanup(): void {
+  // Only create interval if it doesn't exist (singleton pattern)
+  if (periodicCleanupInterval !== undefined) {
+    return;
+  }
+
+  // Run cleanup every TTL period to ensure expired entries are removed
+  periodicCleanupInterval = setInterval(() => {
+    cleanupExpiredCacheEntries(true); // Force cleanup on periodic runs
+  }, CACHE_TTL_MS);
+
+  // Clear interval on process exit (though Lambda handles this automatically)
+  if (typeof process !== "undefined" && process.on) {
+    process.on("SIGTERM", () => {
+      if (periodicCleanupInterval) {
+        clearInterval(periodicCleanupInterval);
+        periodicCleanupInterval = undefined;
+      }
+    });
   }
 }
 
@@ -103,7 +144,9 @@ function setCachedAgent(
 ): void {
   const key = `${workspaceId}:${agentId}`;
   agentMetadataCache.set(key, { agent, timestamp: Date.now() });
-  // Periodically clean up expired entries to prevent memory leaks
+  // Initialize periodic cleanup on first cache write
+  initializePeriodicCleanup();
+  // Clean up expired entries to prevent memory leaks (throttled to avoid excessive cleanup)
   cleanupExpiredCacheEntries();
 }
 

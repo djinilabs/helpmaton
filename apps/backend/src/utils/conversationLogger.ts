@@ -1931,6 +1931,18 @@ export async function trackDelegation(
       conversationId,
       delegation,
     });
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "delegation-tracking",
+        operation: "track-delegation",
+      },
+      extra: {
+        workspaceId,
+        agentId,
+        conversationId,
+        delegation,
+      },
+    });
   }
 }
 
