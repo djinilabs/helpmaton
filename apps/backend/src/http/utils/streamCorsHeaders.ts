@@ -69,7 +69,7 @@ export function mergeCorsHeaders(
   existingHeaders: Record<string, string> = {}
 ): Record<string, string> {
   const corsHeaders = computeCorsHeaders(endpointType, origin, allowedOrigins);
-  
+
   // Merge: existing headers first, then CORS headers (CORS headers override conflicts)
   return {
     ...existingHeaders,
@@ -89,4 +89,3 @@ export function handleOptionsRequest(
     body: "",
   };
 }
-
