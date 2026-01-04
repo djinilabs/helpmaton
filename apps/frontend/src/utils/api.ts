@@ -550,7 +550,8 @@ export function setupGlobalFetchOverride(): void {
       let errorMessage: string;
       try {
         const errorBody = await response.clone().json();
-        errorMessage = errorBody.error || errorBody.message || "Payment required";
+        errorMessage =
+          errorBody.error || errorBody.message || "Payment required";
       } catch {
         errorMessage = "Payment required";
       }
