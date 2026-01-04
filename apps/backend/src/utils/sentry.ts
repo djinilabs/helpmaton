@@ -33,9 +33,15 @@ export function initSentry(): void {
       ? "production"
       : "development";
 
+  // Get release version from environment variable (typically GITHUB_SHA in CI/CD)
+  // Falls back to undefined if not set (Sentry will work without it)
+  const release =
+    process.env.SENTRY_RELEASE || process.env.GITHUB_SHA || undefined;
+
   Sentry.init({
     dsn,
     environment,
+    release, // Add release configuration
     // Enable source maps for better error reporting
     integrations: [
       // Automatically instrument Node.js modules
@@ -50,7 +56,11 @@ export function initSentry(): void {
   });
 
   isInitialized = true;
-  console.log(`[Sentry] Initialized for environment: ${environment}`);
+  console.log(
+    `[Sentry] Initialized for environment: ${environment}${
+      release ? `, release: ${release}` : ""
+    }`
+  );
 }
 
 /**

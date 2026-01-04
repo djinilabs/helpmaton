@@ -264,6 +264,7 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
+          SENTRY_RELEASE: ${{ github.sha }}
           VITE_SENTRY_RELEASE: ${{ github.sha }}
           VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
           VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
@@ -339,6 +340,7 @@ jobs:
           [ -n "${HELPMATON_S3_REGION}" ] && ENV_VARS+=(HELPMATON_S3_REGION "${HELPMATON_S3_REGION}")
           [ -n "${HELPMATON_S3_ENDPOINT}" ] && ENV_VARS+=(HELPMATON_S3_ENDPOINT "${HELPMATON_S3_ENDPOINT}")
           [ -n "${SENTRY_DSN}" ] && ENV_VARS+=(SENTRY_DSN "${SENTRY_DSN}")
+          [ -n "${SENTRY_RELEASE}" ] && ENV_VARS+=(SENTRY_RELEASE "${SENTRY_RELEASE}")
           [ -n "${DISCORD_PUBLIC_KEY}" ] && ENV_VARS+=(DISCORD_PUBLIC_KEY "${DISCORD_PUBLIC_KEY}")
           [ -n "${DISCORD_CS_USERS}" ] && ENV_VARS+=(DISCORD_CS_USERS "${DISCORD_CS_USERS}")
           [ -n "${GMAIL_CLIENT_ID}" ] && ENV_VARS+=(GMAIL_CLIENT_ID "${GMAIL_CLIENT_ID}")
