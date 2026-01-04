@@ -264,6 +264,10 @@ function createFunctionUrl(resources, outputs, functionId, route, stage = "stagi
 
   // Check if this is a streaming route (needed for output ID determination)
   const isStreamingRoute = route.includes("/api/streams/");
+  // Check if this is a scrape route (needed for output ID determination)
+  const isScrapeRoute = route.includes("/api/scrape");
+  // Check if this is a test agent route (needed for output ID determination)
+  const isTestAgentRoute = route.includes("/api/workspaces");
 
   // Create Lambda Function URL resource
   // Note: No need to prefix with stack name - CloudFormation resource IDs are already unique within a stack
@@ -338,10 +342,16 @@ function createFunctionUrl(resources, outputs, functionId, route, stage = "stagi
 
   // Add output for the Function URL
   // For backward compatibility, use "StreamingFunctionUrl" for the streaming route
+  // Use "ScrapeFunctionUrl" for the scrape route for consistency
+  // Use "TestAgentFunctionUrl" for the test agent route (workspaces catchall)
   // Otherwise, use a sanitized route name
   const outputId = isStreamingRoute
     ? "StreamingFunctionUrl"
-    : `${functionId.replace(/[^a-zA-Z0-9]/g, "")}FunctionUrl`;
+    : isScrapeRoute
+      ? "ScrapeFunctionUrl"
+      : isTestAgentRoute
+        ? "TestAgentFunctionUrl"
+        : `${functionId.replace(/[^a-zA-Z0-9]/g, "")}FunctionUrl`;
 
   if (!outputs[outputId]) {
     outputs[outputId] = {
@@ -353,9 +363,13 @@ function createFunctionUrl(resources, outputs, functionId, route, stage = "stagi
         Name: {
           "Fn::Sub": isStreamingRoute
             ? "${AWS::StackName}-streaming-function-url"
-            : `\${AWS::StackName}-${functionId
-                .replace(/[^a-zA-Z0-9]/g, "")
-                .toLowerCase()}-function-url`,
+            : isScrapeRoute
+              ? "${AWS::StackName}-scrape-function-url"
+              : isTestAgentRoute
+                ? "${AWS::StackName}-test-agent-function-url"
+                : `\${AWS::StackName}-${functionId
+                    .replace(/[^a-zA-Z0-9]/g, "")
+                    .toLowerCase()}-function-url`,
         },
       },
     };
@@ -432,6 +446,9 @@ async function configureLambdaUrls({ cloudformation, inventory, arc, stage }) {
     routes.join(", ")
   );
 
+  // Collect function IDs that need CloudFormation permissions
+  const functionIdsForCloudFormationPermissions = [];
+
   // Process each route
   for (const route of routes) {
     const functionId = routeToFunctionId(route);
@@ -455,77 +472,105 @@ async function configureLambdaUrls({ cloudformation, inventory, arc, stage }) {
     }
 
     createFunctionUrl(resources, outputs, functionId, route, deploymentStage);
+    
+    // Add function ID to the list for CloudFormation permissions
+    // All functions with Function URLs may need to query CloudFormation to discover their URLs
+    functionIdsForCloudFormationPermissions.push(functionId);
   }
 
-  // Add IAM permissions for GetApiStreamsUrl function to query CloudFormation and Lambda APIs
-  addIamPermissionsForStreamUrlLookup(resources);
+  // Add IAM permissions for functions that need to query CloudFormation and Lambda APIs
+  addIamPermissionsForStreamUrlLookup(resources, functionIdsForCloudFormationPermissions);
 
   return cloudformation;
 }
 
 /**
- * Adds IAM permissions to the GetApiStreamsUrl Lambda function
- * to allow it to query CloudFormation stack outputs and Lambda function URLs
+ * Adds IAM permissions to Lambda functions that need to query CloudFormation stack outputs
+ * to allow them to query CloudFormation stack outputs and Lambda function URLs
  * @param {Object} resources - CloudFormation resources
+ * @param {string[]} functionIds - Array of Lambda function logical IDs that need CloudFormation permissions
  */
-function addIamPermissionsForStreamUrlLookup(resources) {
-  const functionId = "GetApiStreamsUrlHTTPLambda";
-  const functionResource = resources[functionId];
-
-  if (!functionResource) {
+function addIamPermissionsForStreamUrlLookup(resources, functionIds) {
+  if (!functionIds || functionIds.length === 0) {
     console.log(
-      `[lambda-urls] GetApiStreamsUrl function not found, skipping IAM permissions`
+      `[lambda-urls] No function IDs provided, skipping IAM permissions`
     );
     return;
   }
 
   // Find the Lambda execution role
   // Architect uses a shared "Role" resource for all Lambda functions
+  // We'll use the first function to find the role, since all functions share the same role
   let roleId = "Role";
   let role = resources[roleId];
 
-  // If not found, try to extract from Lambda function's Role property
-  if (!role && functionResource.Properties?.Role) {
-    const roleProperty = functionResource.Properties.Role;
+  // Try to find role from the first function if Role resource not found directly
+  if (!role && functionIds.length > 0) {
+    const firstFunctionId = functionIds[0];
+    const firstFunctionResource = resources[firstFunctionId];
 
-    // Handle direct Ref: { Ref: "Role" }
-    if (roleProperty && typeof roleProperty === "object" && roleProperty.Ref) {
-      roleId = roleProperty.Ref;
-      role = resources[roleId];
-    }
-    // Handle Fn::Sub with nested Ref: { "Fn::Sub": ["...", { "roleName": { "Ref": "Role" } }] }
-    else if (
-      roleProperty &&
-      typeof roleProperty === "object" &&
-      roleProperty["Fn::Sub"]
-    ) {
-      const subArray = roleProperty["Fn::Sub"];
-      if (
-        Array.isArray(subArray) &&
-        subArray.length === 2 &&
-        typeof subArray[1] === "object"
+    if (firstFunctionResource?.Properties?.Role) {
+      const roleProperty = firstFunctionResource.Properties.Role;
+
+      // Handle direct Ref: { Ref: "Role" }
+      if (roleProperty && typeof roleProperty === "object" && roleProperty.Ref) {
+        roleId = roleProperty.Ref;
+        role = resources[roleId];
+      }
+      // Handle Fn::Sub with nested Ref: { "Fn::Sub": ["...", { "roleName": { "Ref": "Role" } }] }
+      else if (
+        roleProperty &&
+        typeof roleProperty === "object" &&
+        roleProperty["Fn::Sub"]
       ) {
-        const subVars = subArray[1];
-        for (const key in subVars) {
-          const value = subVars[key];
-          if (value && typeof value === "object" && value.Ref) {
-            roleId = value.Ref;
-            role = resources[roleId];
-            break;
+        const subArray = roleProperty["Fn::Sub"];
+        if (
+          Array.isArray(subArray) &&
+          subArray.length === 2 &&
+          typeof subArray[1] === "object"
+        ) {
+          const subVars = subArray[1];
+          for (const key in subVars) {
+            const value = subVars[key];
+            if (value && typeof value === "object" && value.Ref) {
+              roleId = value.Ref;
+              role = resources[roleId];
+              break;
+            }
           }
         }
       }
     }
   }
 
-  if (role && role.Type === "AWS::IAM::Role") {
-    // Add inline policy to the role for CloudFormation and Lambda operations
-    const policyId = `${functionId}StreamUrlLookupPolicy`;
+  if (!role || role.Type !== "AWS::IAM::Role") {
+    console.warn(
+      `[lambda-urls] Lambda role ${roleId} not found (type: ${role?.Type}). IAM permissions may need to be added manually.`
+    );
+    return;
+  }
+
+  // Add IAM policy for each function that needs CloudFormation permissions
+  // Each function gets its own policy to make it explicit which functions have permissions
+  for (const functionId of functionIds) {
+    const functionResource = resources[functionId];
+
+    if (!functionResource) {
+      console.warn(
+        `[lambda-urls] Lambda function ${functionId} not found, skipping IAM permissions for this function`
+      );
+      continue;
+    }
+
+    // Create unique policy ID for each function
+    const policyId = `${functionId}CloudFormationLookupPolicy`;
+    
+    // Only create policy if it doesn't already exist
     if (!resources[policyId]) {
       resources[policyId] = {
         Type: "AWS::IAM::Policy",
         Properties: {
-          PolicyName: "StreamUrlLookupPolicy",
+          PolicyName: `${functionId}CloudFormationLookupPolicy`,
           Roles: [{ Ref: roleId }],
           PolicyDocument: {
             Version: "2012-10-17",
@@ -563,13 +608,13 @@ function addIamPermissionsForStreamUrlLookup(resources) {
       };
 
       console.log(
-        `[lambda-urls] Added IAM permissions to GetApiStreamsUrl Lambda role ${roleId} for CloudFormation and Lambda API access`
+        `[lambda-urls] Added IAM permissions to ${functionId} Lambda role ${roleId} for CloudFormation and Lambda API access`
+      );
+    } else {
+      console.log(
+        `[lambda-urls] IAM policy ${policyId} already exists for ${functionId}, skipping`
       );
     }
-  } else {
-    console.warn(
-      `[lambda-urls] GetApiStreamsUrl Lambda role ${roleId} not found (type: ${role?.Type}). IAM permissions may need to be added manually.`
-    );
   }
 }
 

@@ -59,12 +59,9 @@ vi.mock("../../../../utils/requestTracking", () => ({
   incrementRequestBucket: mockIncrementRequestBucket,
 }));
 
-vi.mock(
-  "../../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup",
-  () => ({
-    setupAgentAndTools: mockSetupAgentAndTools,
-  })
-);
+vi.mock("../../utils/agentSetup", () => ({
+  setupAgentAndTools: mockSetupAgentAndTools,
+}));
 
 vi.mock("ai", () => ({
   convertToModelMessages: mockConvertToModelMessages,

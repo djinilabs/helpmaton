@@ -15,14 +15,16 @@ function configureMethodAuthorizers(cloudformation, authorizerId) {
         ? getPathFromResourceId(resources, resource.Properties.ResourceId)
         : null;
 
-      // Skip auth routes, authorizer route, webhook route, and user routes
+      // Skip auth routes, authorizer route, webhook route, scrape route, and user routes
       // Webhook route has its own authentication (webhook key validation)
+      // Scrape route has its own authentication (JWT token validation)
       // User routes handle their own authentication (cookie-based for migration, refresh tokens, etc.)
       if (
         path &&
         (path.startsWith("/api/auth") ||
           path.startsWith("/api/authorizer") ||
           path.startsWith("/api/webhook") ||
+          path.startsWith("/api/scrape") ||
           path.startsWith("/api/user") ||
           path.startsWith("/api/streams"))
       ) {

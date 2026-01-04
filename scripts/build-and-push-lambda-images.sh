@@ -154,12 +154,74 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
     # The Dockerfile will copy files from apps/backend/ as needed
     BUILD_CONTEXT="."
     
+    # Determine architecture for this image
+    # Check config.arc files for functions using this image to determine architecture
+    ARCHITECTURE="linux/arm64"  # Default to arm64
+    print_status "Checking architecture requirements for ${IMAGE_NAME}..."
+    
+    # Find all functions using this image from app.arc
+    # Then check their config.arc files for architecture specification
+    while IFS= read -r line || [ -n "$line" ]; do
+        # Check if this line uses the current image
+        if echo "$line" | grep -q "${IMAGE_NAME}$"; then
+            # Extract method and route/function identifier from the line
+            # Format: method route image-name or scheduled name image-name or queue name image-name
+            METHOD=$(echo "$line" | awk '{print $1}')
+            ROUTE_OR_NAME=$(echo "$line" | awk '{print $2}')
+            
+            # Skip if this is a comment or empty line
+            if [[ "$METHOD" =~ ^# ]] || [ -z "$METHOD" ]; then
+                continue
+            fi
+            
+            # Try to find config.arc file for this function
+            CONFIG_ARC_PATH=""
+            
+            # For HTTP routes: convert to Architect's directory naming convention
+            # Examples:
+            #   post /api/scrape -> post-api-scrape
+            #   any /api/streams/* -> any-api-streams-catchall
+            #   post /api/webhook/:workspaceId/:agentId/:key -> post-api-webhook-000workspaceId-000agentId-000key
+            if [[ "$METHOD" =~ ^(get|post|put|delete|patch|any)$ ]]; then
+                # Convert route to directory name
+                # Remove leading /, replace / with -, handle catchall (*), handle path params
+                ROUTE_DIR=$(echo "$ROUTE_OR_NAME" | \
+                    sed 's|^/||' | \
+                    sed 's|/|-|g' | \
+                    sed 's|:workspaceId|000workspaceId|g' | \
+                    sed 's|:agentId|000agentId|g' | \
+                    sed 's|:key|000key|g' | \
+                    sed 's|:secret|000secret|g' | \
+                    sed 's|:userId|000userId|g' | \
+                    sed 's|\*|catchall|g')
+                
+                # Prepend method
+                ROUTE_DIR="${METHOD}-${ROUTE_DIR}"
+                
+                CONFIG_ARC_PATH="apps/backend/src/http/${ROUTE_DIR}/config.arc"
+            elif [[ "$METHOD" == "scheduled" ]]; then
+                CONFIG_ARC_PATH="apps/backend/src/scheduled/${ROUTE_OR_NAME}/config.arc"
+            elif [[ "$METHOD" == "queue" ]]; then
+                CONFIG_ARC_PATH="apps/backend/src/queues/${ROUTE_OR_NAME}/config.arc"
+            fi
+            
+            # If config.arc exists, check for architecture specification
+            if [ -n "$CONFIG_ARC_PATH" ] && [ -f "$CONFIG_ARC_PATH" ]; then
+                if grep -q "architecture x86_64" "$CONFIG_ARC_PATH"; then
+                    ARCHITECTURE="linux/amd64"
+                    print_status "Found x86_64 architecture requirement in ${CONFIG_ARC_PATH}"
+                    break
+                fi
+            fi
+        fi
+    done < "${APP_ARC_PATH}"
+    
     # Build Docker image
-    # IMPORTANT: Build for arm64 architecture to match Lambda function configuration
+    # IMPORTANT: Build for the correct architecture to match Lambda function configuration
     # Lambda functions default to arm64 (Graviton2) for better price/performance
-    # If the image is built for amd64 but Lambda is arm64, you'll get ProcessSpawnFailed errors
+    # Some functions (like puppeteer) require x86_64 for compatibility
     # Use docker buildx for cross-platform builds (supports emulation on amd64 hosts)
-    print_status "Building Docker image: ${IMAGE_NAME} for arm64 architecture..."
+    print_status "Building Docker image: ${IMAGE_NAME} for ${ARCHITECTURE} architecture..."
     
     # Check if buildx is available, fall back to regular docker build if not
     if docker buildx version > /dev/null 2>&1; then
@@ -169,7 +231,7 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
         # --provenance=false and --sbom=false ensure the image manifest is compatible with Lambda
         print_status "Using docker buildx for cross-platform build..."
         docker buildx build \
-            --platform linux/arm64 \
+            --platform "${ARCHITECTURE}" \
             --provenance=false \
             --sbom=false \
             --push \
@@ -182,7 +244,7 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
         # Fallback to regular docker build (may fail on amd64 hosts building for arm64)
         print_warning "docker buildx not available, using regular docker build"
         docker build \
-            --platform linux/arm64 \
+            --platform "${ARCHITECTURE}" \
             -f "${DOCKERFILE_PATH}" \
             -t "${IMAGE_NAME}:${IMAGE_TAG}" \
             -t "${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}" \

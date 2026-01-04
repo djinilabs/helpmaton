@@ -1,8 +1,13 @@
-import { createHash, randomBytes, scrypt, timingSafeEqual } from "crypto";
+import {
+  createHash,
+  randomBytes,
+  scrypt,
+  timingSafeEqual,
+} from "crypto";
 import { promisify } from "util";
 
 import { unauthorized } from "@hapi/boom";
-import { SignJWT, jwtVerify } from "jose";
+import { EncryptJWT, SignJWT, jwtVerify } from "jose";
 
 function getDefined<T>(value: T | undefined, message: string): T {
   if (value === undefined) {
@@ -213,4 +218,41 @@ export async function validateRefreshToken(
     console.error("[tokenUtils] Error validating refresh token:", error);
     return false;
   }
+}
+
+/**
+ * Generate a JWE (JSON Web Encryption) token for scrape endpoint authentication
+ * Token contains workspaceId, agentId, and conversationId for authorization
+ * @param workspaceId - Workspace ID
+ * @param agentId - Agent ID
+ * @param conversationId - Conversation ID
+ * @returns Encrypted JWT token string (JWE)
+ */
+export async function generateScrapeAuthToken(
+  workspaceId: string,
+  agentId: string,
+  conversationId: string
+): Promise<string> {
+  const secret = getJwtSecret();
+  const now = Math.floor(Date.now() / 1000);
+  const EXPIRY_SECONDS = 30 * 60; // 30 minutes
+
+  // Derive a 256-bit key from the secret using SHA-256
+  // A256GCM requires exactly 32 bytes (256 bits)
+  const keyMaterial = Buffer.from(secret);
+  const derivedKey = createHash("sha256").update(keyMaterial).digest();
+
+  const token = await new EncryptJWT({
+    workspaceId,
+    agentId,
+    conversationId,
+  })
+    .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
+    .setIssuedAt(now)
+    .setExpirationTime(now + EXPIRY_SECONDS)
+    .setIssuer("helpmaton")
+    .setAudience("helpmaton-api")
+    .encrypt(derivedKey);
+
+  return token;
 }

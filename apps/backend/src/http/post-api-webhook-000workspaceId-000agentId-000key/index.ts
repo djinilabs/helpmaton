@@ -40,27 +40,27 @@ import {
   isAuthenticationError,
 } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import type { UIMessage } from "../../utils/messageTypes";
 import { Sentry, ensureError } from "../../utils/sentry";
 import {
   getContextFromRequestId,
   getTransactionBuffer,
 } from "../../utils/workspaceCreditContext";
 import { updateTransactionBufferConversationId } from "../../utils/workspaceCreditTransactions";
-import { setupAgentAndTools } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup";
+import { setupAgentAndTools } from "../utils/agentSetup";
 import {
   convertTextToUIMessage,
   convertUIMessagesToModelMessages,
-} from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/messageConversion";
+} from "../utils/messageConversion";
 import {
   validateWebhookRequest,
   validateWebhookKey,
-} from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/requestValidation";
-import { processSimpleNonStreamingResponse } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/streaming";
+} from "../utils/requestValidation";
+import { processSimpleNonStreamingResponse } from "../utils/streaming";
 import {
   formatToolCallMessage,
   formatToolResultMessage,
-} from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/toolFormatting";
-import type { UIMessage } from "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
+} from "../utils/toolFormatting";
 
 async function persistWebhookConversationError(options: {
   db: Awaited<ReturnType<typeof database>>;

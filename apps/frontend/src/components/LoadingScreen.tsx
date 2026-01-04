@@ -55,9 +55,9 @@ export const LoadingScreen: FC<LoadingScreenProps> = ({
       return;
     }
 
-    // Rotate through messages every 2 seconds
+    // Randomly select a message every 2 seconds
     const interval = setInterval(() => {
-      setMessageIndex((prev) => (prev + 1) % FUNNY_MESSAGES.length);
+      setMessageIndex(() => Math.floor(Math.random() * FUNNY_MESSAGES.length));
     }, 2000);
 
     return () => clearInterval(interval);

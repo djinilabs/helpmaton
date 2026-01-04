@@ -1,5 +1,4 @@
-import type { UIMessage } from "../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
-
+import type { UIMessage } from "./messageTypes";
 import { calculateConversationCosts } from "./tokenAccounting";
 
 /**

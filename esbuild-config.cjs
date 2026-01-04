@@ -66,6 +66,8 @@ const ENV_VARS_TO_INJECT = [
   'TAVILY_API_KEY',
   'JINA_API_KEY',
   'EXA_API_KEY',
+  'DECODO_PROXY_URLS',
+  'TWOCAPTCHA_API_KEY',
 ];
 
 /**
@@ -122,6 +124,11 @@ const config = {
     '@lancedb/lancedb-linux-x64',
     '@lancedb/lancedb-win32-x64',
     '@lancedb/*',
+    // Puppeteer packages - installed in Docker container, not bundled
+    'puppeteer-core',
+    'puppeteer-extra',
+    'puppeteer-extra-plugin-recaptcha',
+    'puppeteer-extra-plugin-stealth',
     // Native .node files
     '*.node',
   ],

@@ -688,6 +688,22 @@ async function callAgentInternal(
   } else if (targetAgent.fetchWebProvider === "jina") {
     const { createJinaFetchTool } = await import("./tavilyTools");
     tools.fetch_url = createJinaFetchTool(workspaceId, targetAgentId);
+  } else if (targetAgent.fetchWebProvider === "scrape") {
+    // Scrape-based fetch relies on a conversationId for authentication.
+    // In the agent delegation context, conversationId is not available, so
+    // the tool will return an error if called. This is intentional - scrape
+    // requires conversation context for authentication. If scrape support is
+    // needed for delegated agents, the authentication mechanism must be updated
+    // to work without conversationId.
+    // Note: Tavily and Jina fetch tools work without conversationId and are
+    // available for delegated agents.
+    const { createScrapeFetchTool } = await import("./tavilyTools");
+    tools.fetch_url = createScrapeFetchTool(
+      workspaceId,
+      context,
+      targetAgentId,
+      undefined // conversationId not available in agent delegation context
+    );
   }
 
   // Add Exa.ai search tool if enabled
@@ -740,9 +756,7 @@ async function callAgentInternal(
     targetAgent.clientTools.length > 0
   ) {
     // Import createClientTools dynamically to avoid circular dependency
-    const { createClientTools } = await import(
-      "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup"
-    );
+    const { createClientTools } = await import("./agentSetup");
     const clientTools = createClientTools(targetAgent.clientTools);
     // Merge client tools into tools object
     Object.assign(tools, clientTools);
@@ -827,9 +841,7 @@ async function callAgentInternal(
     });
     // Log tool definitions before LLM call
     if (tools) {
-      const { logToolDefinitions } = await import(
-        "../post-api-workspaces-000workspaceId-agents-000agentId-test/utils/agentSetup"
-      );
+      const { logToolDefinitions } = await import("./agentSetup");
       logToolDefinitions(tools, "Agent Delegation", targetAgent);
     }
     // Track generation time

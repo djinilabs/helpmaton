@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import type { UIMessage } from "../../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
+import type { UIMessage } from "../../utils/messageTypes";
 import { getMessageCost } from "../messageCostCalculation";
 
 describe("getMessageCost", () => {

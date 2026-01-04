@@ -422,7 +422,9 @@ async function* queryTransactionsForDateRange(
 
   if (agentId) {
     // Query by agentId using GSI with queryAsync to handle pagination
-    for await (const transaction of db["workspace-credit-transactions"].queryAsync({
+    for await (const transaction of db[
+      "workspace-credit-transactions"
+    ].queryAsync({
       IndexName: "byAgentId",
       KeyConditionExpression: "agentId = :agentId",
       ExpressionAttributeNames: {
@@ -444,7 +446,9 @@ async function* queryTransactionsForDateRange(
   } else if (workspaceId) {
     // Query by workspaceId using pk with queryAsync to handle pagination
     const workspacePk = `workspaces/${workspaceId}`;
-    for await (const transaction of db["workspace-credit-transactions"].queryAsync({
+    for await (const transaction of db[
+      "workspace-credit-transactions"
+    ].queryAsync({
       KeyConditionExpression: "pk = :pk",
       ExpressionAttributeNames: {
         "#createdAt": "createdAt",
@@ -463,92 +467,6 @@ async function* queryTransactionsForDateRange(
       }
     }
   }
-}
-
-/**
- * Aggregate transactions for cost (excluding tool-execution)
- * @deprecated Use aggregateTransactionsStream() for better memory efficiency
- */
-function aggregateTransactions(
-  transactions: WorkspaceCreditTransactionRecord[]
-): UsageStats {
-  const stats: UsageStats = {
-    inputTokens: 0,
-    outputTokens: 0,
-    totalTokens: 0,
-    costUsd: 0,
-    byModel: {},
-    byProvider: {},
-    byByok: {
-      byok: {
-        inputTokens: 0,
-        outputTokens: 0,
-        totalTokens: 0,
-        costUsd: 0,
-      },
-      platform: {
-        inputTokens: 0,
-        outputTokens: 0,
-        totalTokens: 0,
-        costUsd: 0,
-      },
-    },
-    toolExpenses: {},
-  };
-
-  // Filter out tool-execution transactions (they're handled separately)
-  // Filter out credit-purchase transactions (they're not usage costs)
-  const nonToolTransactions = transactions.filter(
-    (txn) => txn.source !== "tool-execution" && txn.source !== "credit-purchase"
-  );
-
-  for (const txn of nonToolTransactions) {
-    // Transaction amounts are stored as negative for debits, positive for credits
-    // For cost reporting, we want positive costs, so take absolute value of debits
-    // (negative amounts become positive, positive amounts stay positive or are excluded)
-    const rawAmount = txn.amountMillionthUsd || 0;
-    const costUsd = rawAmount < 0 ? -rawAmount : 0; // Only count debits, convert to positive
-
-    // Aggregate totals
-    stats.costUsd += costUsd;
-
-    // Aggregate by model
-    const modelName = txn.model || "unknown";
-    if (!stats.byModel[modelName]) {
-      stats.byModel[modelName] = {
-        inputTokens: 0,
-        outputTokens: 0,
-        totalTokens: 0,
-        costUsd: 0,
-      };
-    }
-    // Use the same cost calculation for model breakdown
-    const modelCostUsd = rawAmount < 0 ? -rawAmount : 0;
-    stats.byModel[modelName].costUsd += modelCostUsd;
-
-    // Aggregate by provider
-    const provider = txn.supplier || "unknown";
-    if (!stats.byProvider[provider]) {
-      stats.byProvider[provider] = {
-        inputTokens: 0,
-        outputTokens: 0,
-        totalTokens: 0,
-        costUsd: 0,
-      };
-    }
-    // Use the same cost calculation for provider breakdown
-    const providerCostUsd = rawAmount < 0 ? -rawAmount : 0;
-    stats.byProvider[provider].costUsd += providerCostUsd;
-
-    // Aggregate by BYOK (for text-generation and embedding-generation, BYOK is determined by supplier)
-    // For now, we'll treat all transactions as platform (BYOK transactions would have different handling)
-    // This might need adjustment based on actual BYOK tracking in transactions
-    // Use the same cost calculation for BYOK breakdown
-    const byokCostUsd = rawAmount < 0 ? -rawAmount : 0;
-    stats.byByok.platform.costUsd += byokCostUsd;
-  }
-
-  return stats;
 }
 
 /**
@@ -633,69 +551,6 @@ async function aggregateTransactionsStream(
     // Use the same cost calculation for BYOK breakdown
     const byokCostUsd = rawAmount < 0 ? -rawAmount : 0;
     stats.byByok.platform.costUsd += byokCostUsd;
-  }
-
-  return stats;
-}
-
-/**
- * Aggregate tool transactions
- * @deprecated Use aggregateToolTransactionsStream() for better memory efficiency
- */
-function aggregateToolTransactions(
-  transactions: WorkspaceCreditTransactionRecord[]
-): UsageStats {
-  const stats: UsageStats = {
-    inputTokens: 0,
-    outputTokens: 0,
-    totalTokens: 0,
-    costUsd: 0,
-    byModel: {},
-    byProvider: {},
-    byByok: {
-      byok: {
-        inputTokens: 0,
-        outputTokens: 0,
-        totalTokens: 0,
-        costUsd: 0,
-      },
-      platform: {
-        inputTokens: 0,
-        outputTokens: 0,
-        totalTokens: 0,
-        costUsd: 0,
-      },
-    },
-    toolExpenses: {},
-  };
-
-  // Filter only tool-execution transactions
-  const toolTransactions = transactions.filter(
-    (txn) => txn.source === "tool-execution"
-  );
-
-  for (const txn of toolTransactions) {
-    // Transaction amounts are stored as negative for debits, positive for credits
-    // For cost reporting, we want positive costs, so take absolute value of debits
-    const rawAmount = txn.amountMillionthUsd || 0;
-    const costUsd = rawAmount < 0 ? -rawAmount : 0; // Only count debits, convert to positive
-    const toolCall = txn.tool_call || "unknown";
-    const supplier = txn.supplier || "unknown";
-    const key = `${toolCall}-${supplier}`;
-
-    // Aggregate totals
-    stats.costUsd += costUsd;
-
-    // Aggregate by tool
-    if (!stats.toolExpenses[key]) {
-      stats.toolExpenses[key] = {
-        costUsd: 0,
-        callCount: 0,
-      };
-    }
-    // Use the same cost calculation for tool expenses (already calculated above as costUsd)
-    stats.toolExpenses[key].costUsd += costUsd;
-    stats.toolExpenses[key].callCount += 1;
   }
 
   return stats;

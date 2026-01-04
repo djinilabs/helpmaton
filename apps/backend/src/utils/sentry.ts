@@ -67,7 +67,14 @@ export function initSentry(): void {
  * Helper function to ensure error is an Error instance
  */
 export function ensureError(error: unknown): Error {
-  return error instanceof Error ? error : new Error(String(error));
+  if (error instanceof Error) {
+    return error;
+  }
+  if (typeof error === "string") {
+    return new Error(error);
+  }
+  console.warn("[Sentry] Unknown error type:", typeof error, error);
+  return new Error(String(error));
 }
 
 /**

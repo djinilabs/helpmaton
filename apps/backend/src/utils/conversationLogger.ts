@@ -1,10 +1,10 @@
 import { randomUUID } from "crypto";
 
-import type { UIMessage } from "../http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/types";
 import type { DatabaseSchema } from "../tables/schema";
 
 import { writeToWorkingMemory } from "./memory/writeMemory";
 import { getMessageCost } from "./messageCostCalculation";
+import type { UIMessage } from "./messageTypes";
 import { Sentry, ensureError } from "./sentry";
 
 /**
