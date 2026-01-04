@@ -551,8 +551,7 @@ export function setupGlobalFetchOverride(): void {
       // Test endpoint: relative URL starting with /api/ (same origin)
       // Streaming endpoint: full HTTP URL (cross-origin Lambda Function URL)
       const isTestEndpoint =
-        isSameOrigin &&
-        (urlString.endsWith("/test") || requestUrl.pathname.endsWith("/test"));
+        urlString.endsWith("/test") || requestUrl.pathname.endsWith("/test");
 
       if (isTestEndpoint) {
         // Test endpoint: message about workspace credits
