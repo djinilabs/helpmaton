@@ -1373,4 +1373,142 @@ describe("conversationLogger", () => {
       );
     });
   });
+
+  describe("updateConversation - preserves delegations", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let mockDb: any;
+
+    beforeEach(() => {
+      mockDb = {
+        "agent-conversations": {
+          atomicUpdate: vi.fn(),
+        },
+      };
+    });
+
+    it("should preserve existing delegations when updating conversation", async () => {
+      const existingDelegations = [
+        {
+          callingAgentId: "agent-1",
+          targetAgentId: "agent-2",
+          taskId: "task-123",
+          timestamp: "2024-01-01T00:00:00Z",
+          status: "completed" as const,
+        },
+        {
+          callingAgentId: "agent-1",
+          targetAgentId: "agent-3",
+          timestamp: "2024-01-01T01:00:00Z",
+          status: "failed" as const,
+        },
+      ];
+
+      const existingConversation = {
+        pk: "conversations/workspace-1/agent-1/conv-1",
+        sk: "conversation",
+        workspaceId: "workspace-1",
+        agentId: "agent-1",
+        conversationId: "conv-1",
+        conversationType: "test" as const,
+        messages: [{ role: "user" as const, content: "Hello" }],
+        tokenUsage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        startedAt: "2024-01-01T00:00:00Z",
+        lastMessageAt: "2024-01-01T00:00:00Z",
+        delegations: existingDelegations,
+      };
+
+      // Mock atomicUpdate to simulate existing conversation
+      mockDb["agent-conversations"].atomicUpdate = vi.fn(
+        async (pk, sk, callback) => {
+          const result = await callback(existingConversation);
+          return result;
+        }
+      );
+
+      const newMessages: UIMessage[] = [
+        { role: "user" as const, content: "Hello" },
+        { role: "assistant" as const, content: "Hi there" },
+      ];
+
+      await updateConversation(
+        mockDb,
+        "workspace-1",
+        "agent-1",
+        "conv-1",
+        newMessages,
+        { promptTokens: 20, completionTokens: 10, totalTokens: 30 },
+        false,
+        undefined,
+        undefined,
+        "test"
+      );
+
+      // Verify atomicUpdate was called
+      expect(mockDb["agent-conversations"].atomicUpdate).toHaveBeenCalled();
+
+      // Get the result from the callback
+      const updateCall = (
+        mockDb["agent-conversations"].atomicUpdate as ReturnType<typeof vi.fn>
+      ).mock.calls[0];
+      const callback = updateCall[2];
+      const result = await callback(existingConversation);
+
+      // Verify delegations are preserved
+      expect(result.delegations).toBeDefined();
+      expect(result.delegations).toEqual(existingDelegations);
+      expect(result.delegations?.length).toBe(2);
+    });
+
+    it("should not add delegations field if it doesn't exist in existing conversation", async () => {
+      const existingConversation = {
+        pk: "conversations/workspace-1/agent-1/conv-1",
+        sk: "conversation",
+        workspaceId: "workspace-1",
+        agentId: "agent-1",
+        conversationId: "conv-1",
+        conversationType: "test" as const,
+        messages: [{ role: "user" as const, content: "Hello" }],
+        tokenUsage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        startedAt: "2024-01-01T00:00:00Z",
+        lastMessageAt: "2024-01-01T00:00:00Z",
+        // No delegations field
+      };
+
+      // Mock atomicUpdate to simulate existing conversation
+      mockDb["agent-conversations"].atomicUpdate = vi.fn(
+        async (pk, sk, callback) => {
+          const result = await callback(existingConversation);
+          return result;
+        }
+      );
+
+      const newMessages: UIMessage[] = [
+        { role: "user" as const, content: "Hello" },
+        { role: "assistant" as const, content: "Hi there" },
+      ];
+
+      await updateConversation(
+        mockDb,
+        "workspace-1",
+        "agent-1",
+        "conv-1",
+        newMessages,
+        { promptTokens: 20, completionTokens: 10, totalTokens: 30 },
+        false,
+        undefined,
+        undefined,
+        "test"
+      );
+
+      // Get the result from the callback
+      const updateCall = (
+        mockDb["agent-conversations"].atomicUpdate as ReturnType<typeof vi.fn>
+      ).mock.calls[0];
+      const callback = updateCall[2];
+      const result = await callback(existingConversation);
+
+      // Verify delegations field is not added if it didn't exist
+      expect(result.delegations).toBeUndefined();
+    });
+  });
 });

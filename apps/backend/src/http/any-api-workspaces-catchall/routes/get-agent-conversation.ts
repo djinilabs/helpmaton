@@ -59,6 +59,24 @@ import { asyncHandler, requireAuth, requirePermission } from "../middleware";
  *                 lastMessageAt:
  *                   type: string
  *                   format: date-time
+ *                 delegations:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       callingAgentId:
+ *                         type: string
+ *                       targetAgentId:
+ *                         type: string
+ *                       taskId:
+ *                         type: string
+ *                         nullable: true
+ *                       timestamp:
+ *                         type: string
+ *                         format: date-time
+ *                       status:
+ *                         type: string
+ *                         enum: [completed, failed, cancelled]
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       401:
@@ -118,8 +136,11 @@ export const registerGetAgentConversation = (app: express.Application) => {
         startedAt: conversation.startedAt,
         lastMessageAt: conversation.lastMessageAt,
         error: conversation.error || null,
-        awsRequestIds: conversation.awsRequestIds || undefined,
-        totalGenerationTimeMs: conversation.totalGenerationTimeMs || undefined,
+        awsRequestIds: conversation.awsRequestIds ?? null,
+        totalGenerationTimeMs: conversation.totalGenerationTimeMs ?? null,
+        delegations: conversation.delegations || [],
+        modelName: conversation.modelName ?? null,
+        provider: conversation.provider ?? null,
       });
     })
   );

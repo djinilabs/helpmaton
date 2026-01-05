@@ -10,6 +10,8 @@ import {
   createSendEmailTool,
   createListAgentsTool,
   createCallAgentTool,
+  createCallAgentAsyncTool,
+  createCheckDelegationStatusTool,
   getWorkspaceApiKey,
   validateWorkspaceAndAgent,
   type WorkspaceAndAgent,
@@ -33,6 +35,7 @@ export interface AgentSetupOptions {
   userId?: string;
   context?: AugmentedContext;
   conversationId?: string;
+  conversationOwnerAgentId?: string; // Agent ID that owns the conversation (for delegation tracking)
 }
 
 /**
@@ -264,14 +267,34 @@ export async function setupAgentAndTools(
 
     // Extract agentId from agent.pk (format: "agents/{workspaceId}/{agentId}")
     const agentId = agent.pk.replace(`agents/${workspaceId}/`, "");
+    // Use conversationOwnerAgentId if provided, otherwise use current agentId
+    const conversationOwnerAgentId =
+      options?.conversationOwnerAgentId || agentId;
     tools.call_agent = createCallAgentTool(
       workspaceId,
       agent.delegatableAgentIds,
       agentId,
       callDepth,
       maxDepth,
-      options?.context
+      options?.context,
+      options?.conversationId,
+      conversationOwnerAgentId
     );
+
+    // Add async delegation tools
+    // Note: conversationOwnerAgentId is not yet used for async delegations
+    // as it requires updating the message schema. For now, async delegations
+    // use callingAgentId from the message for tracking.
+    tools.call_agent_async = createCallAgentAsyncTool(
+      workspaceId,
+      agent.delegatableAgentIds,
+      agentId,
+      callDepth,
+      maxDepth,
+      options?.context,
+      options?.conversationId
+    );
+    tools.check_delegation_status = createCheckDelegationStatusTool(workspaceId);
   }
 
   // Add MCP server tools if agent has enabled MCP servers

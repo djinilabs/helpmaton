@@ -139,6 +139,11 @@ tool-usage-aggregates
   pk *String
   sk **String
 
+agent-delegation-tasks
+  pk *String
+  sk **String
+  ttl TTL
+
 @tables-indexes
 
 next-auth
@@ -276,6 +281,11 @@ workspace-credit-transactions
   sk **String
   name byAgentId
 
+agent-delegation-tasks
+  gsi1pk *String
+  gsi1sk **String
+  name byWorkspaceAndAgent
+
 @scheduled
 aggregate-token-usage rate(1 day)
 cleanup-expired-reservations rate(10 minutes)
@@ -295,6 +305,8 @@ agent-temporal-grain-queue
 openrouter-cost-verification-queue
   visibilityTimeout 60
   messageRetentionPeriod 604800
+agent-delegation-queue
+  timeout 300
 
 @api-throttling
 free

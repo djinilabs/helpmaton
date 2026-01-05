@@ -404,6 +404,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           userId,
           context,
           conversationId,
+          conversationOwnerAgentId: agentId, // The agent from route params owns the conversation
         }
       );
 
@@ -1379,9 +1380,10 @@ export const registerPostTestAgent = (app: express.Application) => {
       }
 
       // Create assistant message with token usage, modelName, provider, costs, and generation time
+      // Always create message even if content is empty (no text response, but input tokens were consumed)
       const assistantMessage: UIMessage = {
         role: "assistant",
-        content: assistantContent.length > 0 ? assistantContent : responseText,
+        content: assistantContent.length > 0 ? assistantContent : responseText || "",
         ...(tokenUsage && { tokenUsage }),
         modelName: finalModelName,
         provider: "openrouter",

@@ -1857,6 +1857,141 @@ export async function startConversation(
 }
 
 /**
+ * Track a delegation call in conversation metadata
+ */
+export async function trackDelegation(
+  db: DatabaseSchema,
+  workspaceId: string,
+  agentId: string,
+  conversationId: string,
+  delegation: {
+    callingAgentId: string;
+    targetAgentId: string;
+    taskId?: string;
+    status: "completed" | "failed" | "cancelled";
+  }
+): Promise<void> {
+  try {
+    const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
+
+    // Check if conversation exists first
+    // If it doesn't exist, we'll create it with just the delegation
+    // This ensures delegations are tracked even if updateConversation hasn't been called yet
+    const existing = await db["agent-conversations"].get(pk);
+    if (!existing) {
+      console.log(
+        "[Delegation Tracking] Conversation not found, creating it with delegation:",
+        { workspaceId, agentId, conversationId }
+      );
+      // Create conversation with just the delegation
+      // updateConversation will fill in the rest later
+      const newDelegation = {
+        ...delegation,
+        timestamp: new Date().toISOString(),
+      };
+      await db["agent-conversations"].create({
+        pk,
+        sk: "conversation",
+        workspaceId,
+        agentId,
+        conversationId,
+        conversationType: "test", // Default type, will be updated by updateConversation
+        messages: [],
+        delegations: [newDelegation],
+        startedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        expires: calculateTTL(),
+      });
+      console.log(
+        "[Delegation Tracking] Created conversation with delegation:",
+        {
+          workspaceId,
+          agentId,
+          conversationId,
+          delegationCount: 1,
+        }
+      );
+      return;
+    }
+
+    await db["agent-conversations"].atomicUpdate(
+      pk,
+      undefined,
+      async (current) => {
+        if (!current) {
+          // Conversation was removed between the existence check and update; skip tracking
+          // Return existing object to maintain type safety (we know it exists from check above)
+          console.warn(
+            "[Delegation Tracking] Conversation disappeared before update, skipping delegation tracking:",
+            { workspaceId, agentId, conversationId }
+          );
+          return existing;
+        }
+
+        const existingDelegations =
+          (
+            current as {
+              delegations?: Array<{
+                callingAgentId: string;
+                targetAgentId: string;
+                taskId?: string;
+                timestamp: string;
+                status: "completed" | "failed" | "cancelled";
+              }>;
+            }
+          ).delegations || [];
+
+        const newDelegation = {
+          ...delegation,
+          timestamp: new Date().toISOString(),
+        };
+
+        const updatedDelegations = [...existingDelegations, newDelegation];
+        console.log(
+          "[trackDelegation] Adding delegation to conversation:",
+          {
+            workspaceId,
+            agentId,
+            conversationId,
+            delegationCount: updatedDelegations.length,
+            newDelegation: {
+              callingAgentId: delegation.callingAgentId,
+              targetAgentId: delegation.targetAgentId,
+              status: delegation.status,
+            },
+          }
+        );
+        return {
+          pk: current.pk,
+          delegations: updatedDelegations,
+        };
+      }
+    );
+  } catch (error) {
+    // Log but don't fail - delegation tracking is best-effort
+    console.error("[Delegation Tracking] Error tracking delegation:", {
+      error: error instanceof Error ? error.message : String(error),
+      workspaceId,
+      agentId,
+      conversationId,
+      delegation,
+    });
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "delegation-tracking",
+        operation: "track-delegation",
+      },
+      extra: {
+        workspaceId,
+        agentId,
+        conversationId,
+        delegation,
+      },
+    });
+  }
+}
+
+/**
  * Update an existing conversation with new messages and token usage
  * Uses atomicUpdate to ensure thread-safe updates
  */
@@ -2053,7 +2188,35 @@ export async function updateConversation(
         ? existingRequestIds
         : undefined;
 
-      // Update conversation, preserving existing fields
+      // Preserve delegations from existing conversation
+      // IMPORTANT: Always preserve delegations if they exist, even if empty array
+      // This prevents overwriting delegations that were added by trackDelegation
+      // Note: We read delegations from the 'existing' parameter which is the current state
+      // at the time atomicUpdate reads it. If trackDelegation wrote after this read but before
+      // this write, atomicUpdate will retry and we'll read the latest state with delegations.
+      const existingDelegations =
+        (
+          existing as {
+            delegations?: Array<{
+              callingAgentId: string;
+              targetAgentId: string;
+              taskId?: string;
+              timestamp: string;
+              status: "completed" | "failed" | "cancelled";
+            }>;
+          }
+        ).delegations;
+
+      // Log for debugging delegation preservation
+      if (existingDelegations && existingDelegations.length > 0) {
+        console.log(
+          "[updateConversation] Preserving delegations:",
+          existingDelegations.length,
+          "delegation(s)"
+        );
+      }
+
+      // Update conversation, preserving existing fields including delegations
       const conversationRecord = {
         pk,
         workspaceId: existing.workspaceId,
@@ -2072,6 +2235,11 @@ export async function updateConversation(
         error: error ?? (existing as { error?: ConversationErrorInfo }).error,
         startedAt: existing.startedAt,
         awsRequestIds: updatedRequestIds,
+        // Always preserve delegations if they exist (even if empty array)
+        // This is critical to prevent overwriting delegations added by trackDelegation
+        ...(existingDelegations !== undefined
+          ? { delegations: existingDelegations }
+          : {}),
       };
 
       return conversationRecord;

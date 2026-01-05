@@ -1,10 +1,17 @@
+import { randomUUID } from "crypto";
+
+import { queues } from "@architect/functions";
 import { resourceGone } from "@hapi/boom";
 import type { ModelMessage } from "ai";
 import { generateText, tool, stepCountIs } from "ai";
 import { z } from "zod";
 
 import { database } from "../../tables";
-import { extractTokenUsage } from "../../utils/conversationLogger";
+import {
+  extractTokenUsage,
+  trackDelegation,
+  updateConversation,
+} from "../../utils/conversationLogger";
 import {
   adjustCreditReservation,
   refundReservation,
@@ -12,6 +19,7 @@ import {
 import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation";
 import { searchDocuments } from "../../utils/documentSearch";
 import { isCreditDeductionEnabled } from "../../utils/featureFlags";
+import type { UIMessage } from "../../utils/messageTypes";
 import { sendNotification } from "../../utils/notifications";
 import { Sentry, ensureError } from "../../utils/sentry";
 import { extractTokenUsageAndCosts } from "../utils/generationTokenExtraction";
@@ -21,6 +29,131 @@ import { createModel } from "./modelFactory";
 import type { Provider } from "./modelFactory";
 
 export const MODEL_NAME = "google/gemini-2.5-flash";
+
+/**
+ * Cache for agent metadata to avoid repeated database queries
+ * Key: `${workspaceId}:${agentId}`, Value: { agent, timestamp }
+ * TTL: 5 minutes
+ */
+type CachedAgent = {
+  pk: string;
+  name: string;
+  systemPrompt: string;
+  modelName?: string;
+  provider?: string;
+  enableSearchDocuments?: boolean;
+  enableMemorySearch?: boolean;
+  searchWebProvider?: "tavily" | "jina" | null;
+  fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
+  enableSendEmail?: boolean;
+  notificationChannelId?: string;
+  enabledMcpServerIds?: string[];
+  clientTools?: Array<{ name: string }>;
+  [key: string]: unknown;
+};
+
+const agentMetadataCache = new Map<
+  string,
+  { agent: CachedAgent; timestamp: number }
+>();
+
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CLEANUP_INTERVAL_MS = 60 * 1000; // Clean up at most once per minute to avoid excessive cleanup
+
+// Track last cleanup time to throttle cleanup frequency
+let lastCleanupTimestamp = 0;
+// Track periodic cleanup interval handle for singleton pattern
+let periodicCleanupInterval: NodeJS.Timeout | undefined;
+
+/**
+ * Clean up expired cache entries
+ * This prevents memory leaks in high-traffic scenarios
+ * Always removes expired entries regardless of cache size
+ */
+function cleanupExpiredCacheEntries(force: boolean = false): void {
+  const now = Date.now();
+
+  // Throttle cleanup: only run if forced, cache is large, or enough time has passed
+  // This prevents excessive cleanup on every set operation while ensuring expired entries are removed
+  if (
+    !force &&
+    agentMetadataCache.size < 50 &&
+    now - lastCleanupTimestamp < CLEANUP_INTERVAL_MS
+  ) {
+    return; // Skip cleanup if cache is small and cleanup ran recently
+  }
+
+  let cleaned = 0;
+  for (const [key, cached] of agentMetadataCache.entries()) {
+    if (now - cached.timestamp >= CACHE_TTL_MS) {
+      agentMetadataCache.delete(key);
+      cleaned++;
+    }
+  }
+
+  lastCleanupTimestamp = now;
+
+  if (cleaned > 0) {
+    console.log(
+      `[Agent Cache] Cleaned up ${cleaned} expired entries (cache size: ${agentMetadataCache.size})`
+    );
+  }
+}
+
+/**
+ * Initialize periodic cleanup to catch expired entries even when cache operations are infrequent
+ * Uses singleton pattern to avoid creating multiple intervals
+ */
+function initializePeriodicCleanup(): void {
+  // Only create interval if it doesn't exist (singleton pattern)
+  if (periodicCleanupInterval !== undefined) {
+    return;
+  }
+
+  // Run cleanup every TTL period to ensure expired entries are removed
+  periodicCleanupInterval = setInterval(() => {
+    cleanupExpiredCacheEntries(true); // Force cleanup on periodic runs
+  }, CACHE_TTL_MS);
+
+  // Clear interval on process exit (though Lambda handles this automatically)
+  if (typeof process !== "undefined" && process.on) {
+    process.on("SIGTERM", () => {
+      if (periodicCleanupInterval) {
+        clearInterval(periodicCleanupInterval);
+        periodicCleanupInterval = undefined;
+      }
+    });
+  }
+}
+
+function getCachedAgent(
+  workspaceId: string,
+  agentId: string
+): CachedAgent | null {
+  const key = `${workspaceId}:${agentId}`;
+  const cached = agentMetadataCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.agent;
+  }
+  // Remove expired entry
+  if (cached) {
+    agentMetadataCache.delete(key);
+  }
+  return null;
+}
+
+function setCachedAgent(
+  workspaceId: string,
+  agentId: string,
+  agent: CachedAgent
+): void {
+  const key = `${workspaceId}:${agentId}`;
+  agentMetadataCache.set(key, { agent, timestamp: Date.now() });
+  // Initialize periodic cleanup on first cache write
+  initializePeriodicCleanup();
+  // Clean up expired entries to prevent memory leaks (throttled to avoid excessive cleanup)
+  cleanupExpiredCacheEntries();
+}
 
 export interface WorkspaceAndAgent {
   workspace: {
@@ -584,8 +717,9 @@ export function createSendEmailTool(workspaceId: string) {
 /**
  * Internal function to call an agent with a message
  * Used for agent delegation
+ * Exported for use in queue processors
  */
-async function callAgentInternal(
+export async function callAgentInternal(
   workspaceId: string,
   targetAgentId: string,
   message: string,
@@ -595,7 +729,10 @@ async function callAgentInternal(
     ReturnType<
       typeof import("../../utils/workspaceCreditContext").getContextFromRequestId
     >
-  >
+  >,
+  timeoutMs: number = 60000, // Default 60 seconds
+  conversationId?: string,
+  conversationOwnerAgentId?: string // Agent ID that owns the conversation (for delegation tracking)
 ): Promise<string> {
   // Check depth limit
   if (callDepth >= maxDepth) {
@@ -709,11 +846,7 @@ async function callAgentInternal(
   // Add Exa.ai search tool if enabled
   if (targetAgent.enableExaSearch === true) {
     const { createExaSearchTool } = await import("./exaTools");
-    tools.search = createExaSearchTool(
-      workspaceId,
-      context,
-      targetAgentId
-    );
+    tools.search = createExaSearchTool(workspaceId, context, targetAgentId);
   }
 
   if (targetAgent.notificationChannelId) {
@@ -778,8 +911,21 @@ async function callAgentInternal(
       targetAgentId,
       callDepth + 1,
       maxDepth,
-      context
+      context,
+      conversationId,
+      conversationOwnerAgentId
     );
+    tools.call_agent_async = createCallAgentAsyncTool(
+      workspaceId,
+      targetAgent.delegatableAgentIds,
+      targetAgentId,
+      callDepth + 1,
+      maxDepth,
+      context,
+      conversationId
+    );
+    tools.check_delegation_status =
+      createCheckDelegationStatusTool(workspaceId);
   }
 
   // Convert message to ModelMessage format
@@ -844,17 +990,37 @@ async function callAgentInternal(
       const { logToolDefinitions } = await import("./agentSetup");
       logToolDefinitions(tools, "Agent Delegation", targetAgent);
     }
-    // Track generation time
-    const generationStartTime = Date.now();
-    result = await generateText({
-      model: model as unknown as Parameters<typeof generateText>[0]["model"],
-      system: targetAgent.systemPrompt,
-      messages: modelMessages,
-      tools,
-      ...generateOptions,
+    // Create timeout promise with handle for cleanup
+    let timeoutHandle: NodeJS.Timeout | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(
+          new Error(`Delegation timeout: Agent call exceeded ${timeoutMs}ms`)
+        );
+      }, timeoutMs);
     });
-    // Generation time tracked but not currently used in agent delegation
-    void (Date.now() - generationStartTime);
+
+    try {
+      // Race between generateText and timeout
+      result = await Promise.race([
+        generateText({
+          model: model as unknown as Parameters<
+            typeof generateText
+          >[0]["model"],
+          system: targetAgent.systemPrompt,
+          messages: modelMessages,
+          tools,
+          ...generateOptions,
+        }),
+        timeoutPromise,
+      ]);
+    } finally {
+      // Clear timeout to prevent memory leak if generateText completed first
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }
+
     // LLM call succeeded - mark as attempted
     llmCallAttempted = true;
 
@@ -868,6 +1034,7 @@ async function callAgentInternal(
     tokenUsage = extractionResult.tokenUsage;
     const openrouterGenerationId = extractionResult.openrouterGenerationId;
     const openrouterGenerationIds = extractionResult.openrouterGenerationIds;
+    const provisionalCostUsd = extractionResult.provisionalCostUsd;
     if (
       isCreditDeductionEnabled() &&
       reservationId &&
@@ -948,6 +1115,76 @@ async function callAgentInternal(
 
     if (!result) {
       throw new Error("LLM call succeeded but result is undefined");
+    }
+
+    // Create conversation for target agent to track the delegation call
+    // This ensures the target agent has a conversation record showing:
+    // - The message it received from the calling agent
+    // - The response it gave
+    // - Token usage and costs
+    try {
+      const delegationConversationId = randomUUID();
+
+      // Build messages for the target agent's conversation
+      const targetAgentMessages: UIMessage[] = [
+        {
+          role: "user",
+          content: message,
+        },
+        {
+          role: "assistant",
+          content: result.text,
+          ...(tokenUsage && { tokenUsage }),
+          modelName: modelName || MODEL_NAME,
+          provider: "openrouter",
+          ...(openrouterGenerationId && { openrouterGenerationId }),
+          ...(provisionalCostUsd !== undefined && {
+            provisionalCostUsd,
+          }),
+        },
+      ];
+
+      // Update/create conversation for target agent
+      await updateConversation(
+        db,
+        workspaceId,
+        targetAgentId,
+        delegationConversationId,
+        targetAgentMessages,
+        tokenUsage,
+        usesByok,
+        undefined, // error
+        undefined, // awsRequestId (delegations don't have request IDs)
+        "test" // conversationType
+      );
+
+      console.log("[Agent Delegation] Created conversation for target agent:", {
+        workspaceId,
+        targetAgentId,
+        delegationConversationId,
+        messageLength: message.length,
+        responseLength: result.text.length,
+        tokenUsage: tokenUsage
+          ? {
+              promptTokens: tokenUsage.promptTokens,
+              completionTokens: tokenUsage.completionTokens,
+              totalTokens: tokenUsage.totalTokens,
+            }
+          : undefined,
+      });
+    } catch (conversationError) {
+      // Log but don't fail - conversation logging is best-effort
+      console.error(
+        "[callAgentInternal] Error creating conversation for target agent:",
+        {
+          error:
+            conversationError instanceof Error
+              ? conversationError.message
+              : String(conversationError),
+          workspaceId,
+          targetAgentId,
+        }
+      );
     }
 
     return result.text;
@@ -1070,10 +1307,446 @@ async function callAgentInternal(
       `[callAgentInternal] Error calling agent ${targetAgentId}:`,
       error
     );
+
+    // Try to log failed delegation in target agent's conversation
+    if (message) {
+      try {
+        const delegationConversationId = randomUUID();
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        const errorInfo = {
+          message: errorMessage,
+          name: error instanceof Error ? error.name : "Error",
+          code: undefined,
+          statusCode: 500,
+        };
+
+        await updateConversation(
+          db,
+          workspaceId,
+          targetAgentId,
+          delegationConversationId,
+          [
+            {
+              role: "user",
+              content: message,
+            },
+          ],
+          undefined, // tokenUsage
+          usesByok,
+          errorInfo,
+          undefined, // awsRequestId
+          "test"
+        );
+
+        console.log(
+          "[Agent Delegation] Created error conversation for target agent:",
+          {
+            workspaceId,
+            targetAgentId,
+            delegationConversationId,
+            error: errorMessage,
+          }
+        );
+      } catch (logError) {
+        // Ignore logging errors - don't mask the original error
+        console.warn(
+          "[callAgentInternal] Failed to log error conversation:",
+          logError
+        );
+      }
+    }
+
     return `Error calling agent: ${
       error instanceof Error ? error.message : String(error)
     }`;
   }
+}
+
+/**
+ * Minimum score threshold for accepting an agent match.
+ *
+ * Scoring model:
+ * - Individual similarity checks (see `calculateStringSimilarity`) return a value in [0.0, 1.0].
+ * - The overall agent match score is an aggregate of several such similarity signals
+ *   (e.g. agent name, description, and capability keywords), so the combined score
+ *   can be greater than 1.0. In the current heuristic, a "perfect" match across
+ *   all signals is roughly in the 3.0 range.
+ *
+ * Rationale for 2.0:
+ * - 2.0 effectively requires a strong match on at least two independent signals
+ *   (or an extremely strong match on one plus supporting evidence from others).
+ * - This was empirically tuned to allow reasonably lenient matching while still
+ *   filtering out most false positives in typical queries.
+ *
+ * Tuning guidance:
+ * - Lower values (< 2.0) will increase recall (more agents considered matches)
+ *   but can introduce more false positives.
+ * - Higher values (> 2.0) will increase precision (fewer, more exact matches)
+ *   but may cause relevant agents to be missed.
+ */
+const MATCH_THRESHOLD = 2.0;
+
+/**
+ * Calculate a simple similarity score between two strings
+ * Returns a value between 0 and 1 based on how much of the query appears in the target
+ */
+function calculateStringSimilarity(query: string, target: string): number {
+  const queryLower = query.toLowerCase();
+  const targetLower = target.toLowerCase();
+
+  // Exact match
+  if (targetLower === queryLower) {
+    return 1.0;
+  }
+
+  // Contains full query
+  if (targetLower.includes(queryLower)) {
+    return 0.8;
+  }
+
+  // Token-based matching
+  const queryTokens = queryLower.split(/\s+/).filter((t) => t.length > 0);
+  const targetTokens = targetLower.split(/\s+|_/).filter((t) => t.length > 0);
+
+  if (queryTokens.length === 0) {
+    return 0;
+  }
+
+  let matchedTokens = 0;
+  for (const queryToken of queryTokens) {
+    // Check if any target token contains this query token (or vice versa)
+    for (const targetToken of targetTokens) {
+      if (
+        targetToken.includes(queryToken) ||
+        queryToken.includes(targetToken)
+      ) {
+        matchedTokens++;
+        break; // Count each query token only once
+      }
+    }
+  }
+
+  return (matchedTokens / queryTokens.length) * 0.6; // Partial credit for token matches
+}
+
+/**
+ * Expanded keyword mapping with synonyms and variations
+ * Maps common keywords to related capabilities
+ */
+function getCapabilityKeywords(): Record<string, string[]> {
+  return {
+    // Document search variations
+    document: ["search_documents", "documents", "doc", "file", "content"],
+    doc: ["search_documents", "documents", "document"],
+    file: ["search_documents", "documents", "document"],
+    content: ["search_documents", "documents", "document"],
+
+    // Memory search variations
+    memory: ["search_memory", "memory", "remember", "recall", "past"],
+    remember: ["search_memory", "memory"],
+    recall: ["search_memory", "memory"],
+    past: ["search_memory", "memory"],
+    history: ["search_memory", "memory"],
+
+    // Web search variations
+    web: ["search_web", "fetch_url", "web", "internet", "online", "browse"],
+    internet: ["search_web", "fetch_url", "web"],
+    online: ["search_web", "fetch_url", "web"],
+    browse: ["search_web", "fetch_url", "web"],
+    url: ["fetch_url", "search_web"],
+    link: ["fetch_url", "search_web"],
+
+    // Email variations
+    email: ["send_email", "email", "mail", "send", "message"],
+    mail: ["send_email", "email"],
+    send: ["send_email", "email"],
+
+    // Notification variations
+    notification: ["send_notification", "notification", "notify", "alert"],
+    notify: ["send_notification", "notification"],
+    alert: ["send_notification", "notification"],
+
+    // Search variations (general)
+    search: ["search_web", "search_documents", "search_memory", "search"],
+    find: ["search_web", "search_documents", "search_memory", "search"],
+    lookup: ["search_web", "search_documents", "search_memory"],
+  };
+}
+
+/**
+ * Build a list of agent capabilities from agent configuration
+ */
+function buildAgentCapabilities(agent: CachedAgent): string[] {
+  const capabilities: string[] = [];
+
+  if (agent.enableSearchDocuments === true) {
+    capabilities.push("search_documents");
+  }
+
+  if (agent.enableMemorySearch === true) {
+    capabilities.push("search_memory");
+  }
+
+  if (
+    agent.searchWebProvider === "tavily" ||
+    agent.searchWebProvider === "jina"
+  ) {
+    capabilities.push("search_web");
+  }
+
+  if (
+    agent.fetchWebProvider === "tavily" ||
+    agent.fetchWebProvider === "jina"
+  ) {
+    capabilities.push("fetch_url");
+  }
+
+  if (agent.enableSendEmail === true) {
+    capabilities.push("send_email");
+  }
+
+  if (agent.notificationChannelId) {
+    capabilities.push("send_notification");
+  }
+
+  if (agent.enabledMcpServerIds && agent.enabledMcpServerIds.length > 0) {
+    capabilities.push(
+      `mcp_tools (${agent.enabledMcpServerIds.length} servers)`
+    );
+  }
+
+  if (agent.clientTools && agent.clientTools.length > 0) {
+    capabilities.push(`client_tools (${agent.clientTools.length} tools)`);
+  }
+
+  return capabilities;
+}
+
+/**
+ * Find an agent by semantic query using fuzzy keyword matching
+ * Matches against agent name, system prompt, and capabilities with lenient scoring
+ * Exported for use in async tools
+ */
+export async function findAgentByQuery(
+  workspaceId: string,
+  query: string,
+  delegatableAgentIds: string[]
+): Promise<{ agentId: string; agentName: string; score: number } | null> {
+  const db = await database();
+  const queryLower = query.toLowerCase().trim();
+
+  // Early return for empty or whitespace-only queries
+  if (queryLower.length === 0) {
+    return null;
+  }
+
+  // Get all delegatable agents (with caching)
+  const agents = await Promise.all(
+    delegatableAgentIds.map((agentId) =>
+      fetchAndCacheAgent(db, workspaceId, agentId)
+    )
+  );
+
+  const validAgents = agents.filter(
+    (agent): agent is CachedAgent => agent !== null
+  );
+
+  if (validAgents.length === 0) {
+    return null;
+  }
+
+  // Scoring weights for agent matching
+  // These weights determine the relative importance of each matching signal
+  const SCORE_WEIGHTS = {
+    NAME_SIMILARITY: 15, // Agent name matches are most important
+    PROMPT_SIMILARITY: 8, // System prompt matches are moderately important
+    TOKEN_MATCH: 1.5, // Individual token matches in prompt add small increments
+    CAPABILITIES_SIMILARITY: 10, // Overall capabilities similarity is important
+    KEYWORD_CAPABILITY_MATCH: 4, // Keyword-to-capability mapping matches
+    DIRECT_CAPABILITY_MATCH: 3, // Direct capability name matches
+  } as const;
+
+  // Score each agent based on fuzzy keyword matches
+  const scoredAgents = validAgents.map((agent) => {
+    const agentId = agent.pk.replace(`agents/${workspaceId}/`, "");
+    let score = 0;
+
+    // 1. Fuzzy match against agent name (weighted heavily)
+    const nameSimilarity = calculateStringSimilarity(queryLower, agent.name);
+    score += nameSimilarity * SCORE_WEIGHTS.NAME_SIMILARITY;
+
+    // 2. Fuzzy match against system prompt (first 500 chars for performance)
+    const promptLower = agent.systemPrompt.substring(0, 500).toLowerCase();
+    const promptSimilarity = calculateStringSimilarity(queryLower, promptLower);
+    score += promptSimilarity * SCORE_WEIGHTS.PROMPT_SIMILARITY;
+
+    // Also count individual token matches in prompt
+    const queryTokens = queryLower.split(/\s+/).filter((t) => t.length > 2);
+    for (const token of queryTokens) {
+      const tokenMatches = (promptLower.match(new RegExp(token, "g")) || [])
+        .length;
+      score += tokenMatches * SCORE_WEIGHTS.TOKEN_MATCH;
+    }
+
+    // 3. Match against capabilities with fuzzy matching
+    const capabilities = buildAgentCapabilities(agent);
+    const capabilitiesStr = capabilities.join(" ").toLowerCase();
+    const capabilitiesSimilarity = calculateStringSimilarity(
+      queryLower,
+      capabilitiesStr
+    );
+    score += capabilitiesSimilarity * SCORE_WEIGHTS.CAPABILITIES_SIMILARITY;
+
+    // 4. Expanded keyword mapping with fuzzy matching
+    const capabilityKeywords = getCapabilityKeywords();
+    const queryTokensForKeywords = queryLower
+      .split(/\s+/)
+      .filter((t) => t.length > 0);
+
+    for (const queryToken of queryTokensForKeywords) {
+      // Check exact keyword matches
+      for (const [keyword, relatedCapabilities] of Object.entries(
+        capabilityKeywords
+      )) {
+        if (
+          queryToken === keyword ||
+          queryToken.includes(keyword) ||
+          keyword.includes(queryToken)
+        ) {
+          for (const cap of relatedCapabilities) {
+            if (capabilitiesStr.includes(cap)) {
+              score += SCORE_WEIGHTS.KEYWORD_CAPABILITY_MATCH;
+            }
+          }
+        }
+      }
+
+      // Also check if query token partially matches capability names
+      for (const cap of capabilities) {
+        const capLower = cap.toLowerCase();
+        if (
+          capLower.includes(queryToken) ||
+          queryToken.includes(capLower.replace(/_/g, " "))
+        ) {
+          score += SCORE_WEIGHTS.DIRECT_CAPABILITY_MATCH;
+        }
+      }
+    }
+
+    return { agent, agentId, score };
+  });
+
+  // Sort by score (highest first) and return best match
+  scoredAgents.sort((a, b) => b.score - a.score);
+
+  const bestMatch = scoredAgents[0];
+  // Apply threshold - only return match if score meets minimum threshold
+  if (bestMatch.score >= MATCH_THRESHOLD) {
+    const agentName = bestMatch.agent.name;
+    return { agentId: bestMatch.agentId, agentName, score: bestMatch.score };
+  }
+
+  return null;
+}
+
+/**
+ * Format a list of agents into a consistent string format
+ * Reusable in both list_agents tool and error messages
+ */
+function formatAgentList(agents: CachedAgent[], workspaceId: string): string {
+  if (agents.length === 0) {
+    return "No delegatable agents found.";
+  }
+
+  const agentList = agents
+    .map((agent) => {
+      const agentId = agent.pk.replace(`agents/${workspaceId}/`, "");
+      const capabilities = buildAgentCapabilities(agent);
+      const description =
+        agent.systemPrompt.length > 200
+          ? `${agent.systemPrompt.substring(0, 200)}...`
+          : agent.systemPrompt;
+      const modelInfo = agent.modelName ? `${agent.modelName}` : "default";
+      const providerInfo = agent.provider || "openrouter";
+
+      let agentInfo = `- ${agent.name} (ID: ${agentId})\n  Description: ${description}\n  Model: ${modelInfo} (${providerInfo})`;
+
+      if (capabilities.length > 0) {
+        agentInfo += `\n  Capabilities: ${capabilities.join(", ")}`;
+      } else {
+        agentInfo += `\n  Capabilities: none`;
+      }
+
+      return agentInfo;
+    })
+    .join("\n\n");
+
+  return `Available agents for delegation (${agents.length}):\n\n${agentList}`;
+}
+
+/**
+ * Fetch and cache a single agent by ID
+ * Shared helper to avoid code duplication
+ */
+async function fetchAndCacheAgent(
+  db: Awaited<ReturnType<typeof database>>,
+  workspaceId: string,
+  agentId: string
+): Promise<CachedAgent | null> {
+  // Check cache first
+  const cached = getCachedAgent(workspaceId, agentId);
+  if (cached) {
+    return cached;
+  }
+
+  // Fetch from database
+  const agentPk = `agents/${workspaceId}/${agentId}`;
+  const agent = await db.agent.get(agentPk, "agent");
+
+  // Cache if found
+  if (agent) {
+    const cachedAgent: CachedAgent = {
+      pk: agent.pk,
+      name: agent.name,
+      systemPrompt: agent.systemPrompt,
+      modelName: agent.modelName,
+      provider: agent.provider,
+      enableSearchDocuments: agent.enableSearchDocuments,
+      enableMemorySearch: agent.enableMemorySearch,
+      searchWebProvider: agent.searchWebProvider,
+      fetchWebProvider: agent.fetchWebProvider,
+      enableSendEmail: agent.enableSendEmail,
+      notificationChannelId: agent.notificationChannelId,
+      enabledMcpServerIds: agent.enabledMcpServerIds,
+      clientTools: agent.clientTools,
+    };
+    setCachedAgent(workspaceId, agentId, cachedAgent);
+    return cachedAgent;
+  }
+
+  return null;
+}
+
+/**
+ * Helper function to fetch all delegatable agents (with caching)
+ * Reusable in both list_agents tool and error handling
+ */
+async function fetchDelegatableAgents(
+  workspaceId: string,
+  delegatableAgentIds: string[]
+): Promise<CachedAgent[]> {
+  const db = await database();
+
+  // Get all delegatable agents (with caching)
+  const agents = await Promise.all(
+    delegatableAgentIds.map((agentId) =>
+      fetchAndCacheAgent(db, workspaceId, agentId)
+    )
+  );
+
+  // Filter out any null results (agents that don't exist)
+  return agents.filter((agent): agent is CachedAgent => agent !== null);
 }
 
 /**
@@ -1096,35 +1769,12 @@ export function createListAgentsTool(
 
     execute: async () => {
       try {
-        const db = await database();
-
-        // Get all delegatable agents
-        const agents = await Promise.all(
-          delegatableAgentIds.map(async (agentId) => {
-            const agentPk = `agents/${workspaceId}/${agentId}`;
-            const agent = await db.agent.get(agentPk, "agent");
-            return agent;
-          })
+        const validAgents = await fetchDelegatableAgents(
+          workspaceId,
+          delegatableAgentIds
         );
 
-        // Filter out any null results (agents that don't exist)
-        const validAgents = agents.filter(
-          (agent): agent is NonNullable<typeof agent> => agent !== null
-        );
-
-        if (validAgents.length === 0) {
-          return "No delegatable agents found.";
-        }
-
-        // Format agent list - only name and ID
-        const agentList = validAgents
-          .map((agent) => {
-            const agentId = agent.pk.replace(`agents/${workspaceId}/`, "");
-            return `- ${agent.name} (ID: ${agentId})`;
-          })
-          .join("\n");
-
-        return `Available agents for delegation (${validAgents.length}):\n\n${agentList}`;
+        return formatAgentList(validAgents, workspaceId);
       } catch (error) {
         console.error("Error in list_agents tool:", error);
         return `Error listing agents: ${
@@ -1148,35 +1798,53 @@ export function createCallAgentTool(
     ReturnType<
       typeof import("../../utils/workspaceCreditContext").getContextFromRequestId
     >
-  >
+  >,
+  conversationId?: string,
+  conversationOwnerAgentId?: string // Agent ID that owns the conversation (for delegation tracking)
 ) {
-  const callAgentParamsSchema = z.object({
-    agentId: z
-      .string()
-      .min(1, "agentId parameter is required")
-      .optional()
-      .describe(
-        "The exact agent ID to delegate to. You MUST call list_agents FIRST to get the available agent IDs. Do not guess or make up agent IDs - you must use the exact ID returned by list_agents."
-      ),
-    agent_id: z
-      .string()
-      .min(1, "agent_id parameter is required")
-      .optional()
-      .describe(
-        "The exact agent ID to delegate to (alternative to agentId). You MUST call list_agents FIRST to get the available agent IDs. Do not guess or make up agent IDs - you must use the exact ID returned by list_agents."
-      ),
-    message: z
-      .string()
-      .min(1, "message parameter is required")
-      .describe(
-        "The message or query to send to the delegated agent. This should be the specific task or question you want the other agent to handle."
-      ),
-  });
+  const callAgentParamsSchema = z
+    .object({
+      agentId: z
+        .string()
+        .min(1, "agentId parameter is required")
+        .optional()
+        .describe(
+          "The exact agent ID to delegate to. You can get this by calling list_agents first, or use the query parameter to find an agent by description."
+        ),
+      agent_id: z
+        .string()
+        .min(1, "agent_id parameter is required")
+        .optional()
+        .describe(
+          "The exact agent ID to delegate to (alternative to agentId). You can get this by calling list_agents first, or use the query parameter to find an agent by description."
+        ),
+      query: z
+        .string()
+        .min(1, "query parameter is required")
+        .optional()
+        .describe(
+          "Semantic query to find an agent (e.g., 'find an agent that can search documents' or 'agent that handles email'). Mutually exclusive with agentId/agent_id. The system will match your query against agent names, descriptions, and capabilities."
+        ),
+      message: z
+        .string()
+        .min(1, "message parameter is required")
+        .describe(
+          "The message or query to send to the delegated agent. This should be the specific task or question you want the other agent to handle."
+        ),
+    })
+    .refine((data) => data.agentId || data.agent_id || data.query, {
+      message:
+        "Must provide either agentId/agent_id or query parameter to identify the target agent.",
+    })
+    .refine((data) => !((data.agentId || data.agent_id) && data.query), {
+      message:
+        "Cannot provide both agentId/agent_id and query - use one or the other.",
+    });
 
   type CallAgentArgs = z.infer<typeof callAgentParamsSchema>;
 
   const description =
-    "Delegate a task to another agent in the workspace. CRITICAL REQUIREMENTS: (1) You MUST call list_agents FIRST to see which agents are available and get their exact IDs. (2) Do NOT call this tool without first calling list_agents - you cannot guess agent IDs. (3) Provide the exact agent ID from the list_agents output and the message/query you want to send. (4) The delegated agent will process the request and return a response. You can only delegate to agents that have been configured as delegatable. Example workflow: First call list_agents to see available agents, then use one of the returned agent IDs to call this tool.";
+    "Delegate a task to another agent in the workspace. You can identify the target agent in two ways: (1) Provide the exact agentId/agent_id (get this by calling list_agents first), or (2) Use the query parameter to describe what kind of agent you need (e.g., 'agent that can search documents'). The system will automatically find the best matching agent. The delegated agent will process your message and return a response. Example: call_agent({query: 'agent that searches documents', message: 'Find information about X'}) or call_agent({agentId: 'agent-123', message: 'Your question here'}).";
 
   return tool({
     description,
@@ -1187,8 +1855,9 @@ export function createCallAgentTool(
     execute: async (args: any) => {
       const typedArgs = args as CallAgentArgs;
       // Normalize: accept both agentId and agent_id, prefer agentId
-      const agentId = typedArgs.agentId || typedArgs.agent_id;
-      const { message } = typedArgs;
+      let agentId = typedArgs.agentId || typedArgs.agent_id;
+      const { message, query } = typedArgs;
+      let matchedAgentName: string | undefined;
 
       // Log tool call with arguments
       console.log("[Tool Call] call_agent", {
@@ -1196,6 +1865,7 @@ export function createCallAgentTool(
         arguments: {
           ...typedArgs,
           agentId, // Normalized agentId (from either agentId or agent_id)
+          query,
           message: message
             ? `${message.substring(0, 100)}${message.length > 100 ? "..." : ""}`
             : undefined,
@@ -1206,16 +1876,65 @@ export function createCallAgentTool(
         maxDepth,
       });
 
+      // If query provided, resolve agentId using semantic matching
+      if (query && typeof query === "string" && query.trim().length > 0) {
+        try {
+          const match = await findAgentByQuery(
+            workspaceId,
+            query,
+            delegatableAgentIds
+          );
+          if (match) {
+            agentId = match.agentId;
+            matchedAgentName = match.agentName;
+            console.log("[Tool Call] call_agent - Query matched", {
+              query,
+              matchedAgentId: agentId,
+              matchedAgentName,
+              score: match.score,
+            });
+          } else {
+            // No match found above threshold - fetch and include agent list in error
+            const validAgents = await fetchDelegatableAgents(
+              workspaceId,
+              delegatableAgentIds
+            );
+            const formattedAgentList = formatAgentList(
+              validAgents,
+              workspaceId
+            );
+            const errorMessage = `Error: No agent found matching query "${query}" with sufficient confidence. Available agents:\n\n${formattedAgentList}\n\nPlease use an agentId from the list above or try a more specific query.`;
+            console.error("[Tool Error] call_agent", {
+              toolName: "call_agent",
+              error: "No agent matched query",
+              query,
+            });
+            return errorMessage;
+          }
+        } catch (error) {
+          const errorMessage = `Error finding agent by query: ${
+            error instanceof Error ? error.message : String(error)
+          }`;
+          console.error("[Tool Error] call_agent", {
+            toolName: "call_agent",
+            error: "Query matching failed",
+            query,
+            errorMessage,
+          });
+          return errorMessage;
+        }
+      }
+
       // Validate agentId is a string
       if (!agentId || typeof agentId !== "string") {
         const errorMessage =
           agentId === undefined || agentId === null
-            ? "Error: This tool call requires you to pass either the agentId or agent_id parameter, which you can get by listing the agents using the list_agents tool. Please call list_agents first to see available agents and their IDs, then use one of those IDs in the call_agent tool."
+            ? "Error: This tool call requires you to pass either the agentId/agent_id parameter or the query parameter. Use query to find an agent by description, or call list_agents first to get exact agent IDs."
             : `Error: The agentId/agent_id parameter must be a non-empty string. Received: ${
                 typeof agentId === "object"
                   ? JSON.stringify(agentId)
                   : String(agentId)
-              }. Use list_agents to see available agents and their IDs.`;
+              }. Use list_agents to see available agents and their IDs, or use the query parameter.`;
         console.error("[Tool Error] call_agent", {
           toolName: "call_agent",
           error:
@@ -1224,6 +1943,7 @@ export function createCallAgentTool(
               : "Invalid agentId type",
           arguments: {
             agentId,
+            query,
             message: message
               ? `${message.substring(0, 100)}${
                   message.length > 100 ? "..." : ""
@@ -1292,17 +2012,24 @@ export function createCallAgentTool(
         const targetAgentName = targetAgent.name;
 
         // Call the agent internally
+        // Pass conversationId and conversationOwnerAgentId through to nested delegations
         const response = await callAgentInternal(
           workspaceId,
           agentId,
           message.trim(),
           callDepth,
           maxDepth,
-          context
+          context,
+          60000, // timeoutMs
+          conversationId,
+          conversationOwnerAgentId || currentAgentId
         );
 
         // Wrap response with metadata
-        const result = `Agent ${targetAgentName} responded: ${response}`;
+        let result = `Agent ${targetAgentName} responded: ${response}`;
+        if (matchedAgentName && query) {
+          result = `Matched query "${query}" to agent ${targetAgentName} (ID: ${agentId}). ${result}`;
+        }
 
         // Log tool result
         console.log("[Tool Result] call_agent", {
@@ -1313,6 +2040,29 @@ export function createCallAgentTool(
           targetAgentId: agentId,
           targetAgentName,
         });
+
+        // Log delegation metrics
+        console.log("[Delegation Metrics]", {
+          type: "sync",
+          workspaceId,
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId,
+          callDepth,
+          status: "completed",
+          timestamp: new Date().toISOString(),
+        });
+
+        // Track delegation in conversation metadata
+        // Use conversationOwnerAgentId if provided (for tracking in original conversation),
+        // otherwise use currentAgentId (for tracking in calling agent's conversation)
+        const ownerAgentId = conversationOwnerAgentId || currentAgentId;
+        if (conversationId) {
+          await trackDelegation(db, workspaceId, ownerAgentId, conversationId, {
+            callingAgentId: currentAgentId,
+            targetAgentId: agentId,
+            status: "completed",
+          });
+        }
 
         return result;
       } catch (error) {
@@ -1331,7 +2081,290 @@ export function createCallAgentTool(
               : undefined,
           },
         });
+
+        // Log delegation metrics (failed)
+        // Note: agentId is guaranteed to be a non-empty string at this point
+        // (validated before the try block)
+        console.log("[Delegation Metrics]", {
+          type: "sync",
+          workspaceId,
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId,
+          callDepth,
+          status: "failed",
+          error: error instanceof Error ? error.message : String(error),
+          timestamp: new Date().toISOString(),
+        });
+
+        // Track failed delegation
+        // Use conversationOwnerAgentId if provided (for tracking in original conversation),
+        // otherwise use currentAgentId (for tracking in calling agent's conversation)
+        const ownerAgentId = conversationOwnerAgentId || currentAgentId;
+        if (conversationId) {
+          const db = await database();
+          await trackDelegation(db, workspaceId, ownerAgentId, conversationId, {
+            callingAgentId: currentAgentId,
+            targetAgentId: agentId,
+            status: "failed",
+          });
+        }
+
         return errorMessage;
+      }
+    },
+  });
+}
+
+/**
+ * Create the call_agent_async tool for async delegation
+ */
+export function createCallAgentAsyncTool(
+  workspaceId: string,
+  delegatableAgentIds: string[],
+  currentAgentId: string,
+  callDepth: number,
+  maxDepth: number = 3,
+  context?: Awaited<
+    ReturnType<
+      typeof import("../../utils/workspaceCreditContext").getContextFromRequestId
+    >
+  >,
+  conversationId?: string
+  // Note: conversationOwnerAgentId is not yet used for async delegations
+  // as it requires updating the message schema. For now, async delegations
+  // use callingAgentId from the message for tracking.
+) {
+  const callAgentAsyncParamsSchema = z
+    .object({
+      agentId: z.string().optional(),
+      agent_id: z.string().optional(),
+      query: z
+        .string()
+        .min(1)
+        .optional()
+        .describe(
+          "Semantic query to find an agent (e.g., 'find an agent that can search documents'). Mutually exclusive with agentId/agent_id."
+        ),
+      message: z
+        .string()
+        .min(1, "message parameter is required")
+        .describe(
+          "The message or query to send to the delegated agent. This will be processed asynchronously."
+        ),
+    })
+    .refine((data) => data.agentId || data.agent_id || data.query, {
+      message:
+        "Must provide either agentId/agent_id or query parameter to identify the target agent.",
+    })
+    .refine((data) => !((data.agentId || data.agent_id) && data.query), {
+      message:
+        "Cannot provide both agentId/agent_id and query - use one or the other.",
+    });
+
+  type CallAgentAsyncArgs = z.infer<typeof callAgentAsyncParamsSchema>;
+
+  const description =
+    "Delegate a task to another agent asynchronously (fire-and-forget). Returns immediately with a taskId that you can use to check status later. Use this when you don't need an immediate response. You can identify the target agent by agentId/agent_id or by query (semantic description). Example: call_agent_async({query: 'agent that searches documents', message: 'Find information about X'}) returns a taskId immediately.";
+
+  return tool({
+    description,
+    parameters: callAgentAsyncParamsSchema,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    execute: async (args: any) => {
+      const typedArgs = args as CallAgentAsyncArgs;
+      let agentId = typedArgs.agentId || typedArgs.agent_id;
+      const { message, query } = typedArgs;
+
+      // If query provided, resolve agentId using semantic matching
+      if (query && typeof query === "string" && query.trim().length > 0) {
+        try {
+          const match = await findAgentByQuery(
+            workspaceId,
+            query,
+            delegatableAgentIds
+          );
+          if (match) {
+            agentId = match.agentId;
+            console.log("[Tool Call] call_agent_async - Query matched", {
+              query,
+              matchedAgentId: agentId,
+              score: match.score,
+            });
+          } else {
+            // No match found above threshold - fetch and include agent list in error
+            const validAgents = await fetchDelegatableAgents(
+              workspaceId,
+              delegatableAgentIds
+            );
+            const formattedAgentList = formatAgentList(
+              validAgents,
+              workspaceId
+            );
+            return `Error: No agent found matching query "${query}" with sufficient confidence. Available agents:\n\n${formattedAgentList}\n\nPlease use an agentId from the list above or try a more specific query.`;
+          }
+        } catch (error) {
+          return `Error finding agent by query: ${
+            error instanceof Error ? error.message : String(error)
+          }`;
+        }
+      }
+
+      if (!agentId || typeof agentId !== "string") {
+        return "Error: Must provide either agentId/agent_id or query parameter.";
+      }
+
+      if (!delegatableAgentIds.includes(agentId)) {
+        return `Error: Agent ID "${agentId}" is not in the list of delegatable agents.`;
+      }
+
+      if (
+        !message ||
+        typeof message !== "string" ||
+        message.trim().length === 0
+      ) {
+        return "Error: The message parameter is required and must be a non-empty string.";
+      }
+
+      try {
+        const db = await database();
+        const taskId = randomUUID();
+
+        // Calculate TTL (4 days from now, aligned with default SQS message retention)
+        // SQS default message retention is 4 days, so tasks should expire around the same time
+        const ttl = Math.floor(Date.now() / 1000) + 4 * 24 * 60 * 60;
+
+        // Create task record
+        const taskPk = `delegation-tasks/${taskId}`;
+        const gsi1pk = `workspace/${workspaceId}/agent/${currentAgentId}`;
+        const gsi1sk = new Date().toISOString();
+
+        // createdAt is automatically set by the table API
+        await db["agent-delegation-tasks"].create({
+          pk: taskPk,
+          sk: "task",
+          workspaceId,
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId,
+          message: message.trim(),
+          status: "pending",
+          ttl,
+          gsi1pk,
+          gsi1sk,
+        });
+
+        // Enqueue to delegation queue
+        const queueName = "agent-delegation-queue";
+        await queues.publish({
+          name: queueName,
+          payload: {
+            taskId,
+            workspaceId,
+            callingAgentId: currentAgentId,
+            targetAgentId: agentId,
+            message: message.trim(),
+            callDepth,
+            maxDepth,
+            ...(conversationId && { conversationId }),
+          },
+        });
+
+        console.log("[Tool Call] call_agent_async - Task created", {
+          taskId,
+          workspaceId,
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId,
+        });
+
+        // Log delegation metrics
+        console.log("[Delegation Metrics]", {
+          type: "async",
+          workspaceId,
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId,
+          taskId,
+          callDepth,
+          status: "pending",
+          timestamp: new Date().toISOString(),
+        });
+
+        // Note: Delegation tracking will be handled by queue processor when task completes/fails
+        // We don't track "pending" status since trackDelegation only supports "completed", "failed", "cancelled"
+
+        return `Delegation task created successfully. Task ID: ${taskId}. Use check_delegation_status(${taskId}) to check the status and get results when ready.`;
+      } catch (error) {
+        const errorMessage = `Error creating async delegation task: ${
+          error instanceof Error ? error.message : String(error)
+        }`;
+        console.error("[Tool Error] call_agent_async", {
+          error: error instanceof Error ? error.message : String(error),
+          arguments: { agentId, query, message },
+        });
+        return errorMessage;
+      }
+    },
+  });
+}
+
+/**
+ * Create the check_delegation_status tool
+ */
+export function createCheckDelegationStatusTool(workspaceId: string) {
+  const checkStatusParamsSchema = z.object({
+    taskId: z
+      .string()
+      .min(1, "taskId parameter is required")
+      .describe("The task ID returned by call_agent_async"),
+  });
+
+  const description =
+    "Check the status of an async delegation task. Returns the current status (pending, running, completed, failed) and the result if completed, or error message if failed.";
+
+  return tool({
+    description,
+    parameters: checkStatusParamsSchema,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    execute: async (args: any) => {
+      const { taskId } = args as z.infer<typeof checkStatusParamsSchema>;
+
+      try {
+        const db = await database();
+        const taskPk = `delegation-tasks/${taskId}`;
+        const task = await db["agent-delegation-tasks"].get(taskPk, "task");
+
+        if (!task) {
+          return `Error: Task ${taskId} not found. Make sure you're using the correct task ID.`;
+        }
+
+        // Verify task belongs to this workspace
+        if (task.workspaceId !== workspaceId) {
+          return `Error: Task ${taskId} does not belong to this workspace.`;
+        }
+
+        let statusMessage = `Task ${taskId} status: ${task.status}`;
+
+        if (task.status === "completed" && task.result) {
+          statusMessage += `\n\nResult: ${task.result}`;
+        } else if (task.status === "failed" && task.error) {
+          statusMessage += `\n\nError: ${task.error}`;
+        } else if (task.status === "cancelled") {
+          statusMessage += "\n\nTask was cancelled.";
+        } else if (task.status === "pending" || task.status === "running") {
+          statusMessage += "\n\nTask is still processing. Check again later.";
+        }
+
+        if (task.completedAt) {
+          statusMessage += `\nCompleted at: ${task.completedAt}`;
+        }
+
+        return statusMessage;
+      } catch (error) {
+        return `Error checking task status: ${
+          error instanceof Error ? error.message : String(error)
+        }`;
       }
     },
   });
