@@ -404,6 +404,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           userId,
           context,
           conversationId,
+          conversationOwnerAgentId: agentId, // The agent from route params owns the conversation
         }
       );
 

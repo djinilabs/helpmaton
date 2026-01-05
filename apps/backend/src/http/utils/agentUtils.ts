@@ -728,7 +728,9 @@ export async function callAgentInternal(
       typeof import("../../utils/workspaceCreditContext").getContextFromRequestId
     >
   >,
-  timeoutMs: number = 60000 // Default 60 seconds
+  timeoutMs: number = 60000, // Default 60 seconds
+  conversationId?: string,
+  conversationOwnerAgentId?: string // Agent ID that owns the conversation (for delegation tracking)
 ): Promise<string> {
   // Check depth limit
   if (callDepth >= maxDepth) {
@@ -907,7 +909,9 @@ export async function callAgentInternal(
       targetAgentId,
       callDepth + 1,
       maxDepth,
-      context
+      context,
+      conversationId,
+      conversationOwnerAgentId
     );
     tools.call_agent_async = createCallAgentAsyncTool(
       workspaceId,
@@ -915,7 +919,8 @@ export async function callAgentInternal(
       targetAgentId,
       callDepth + 1,
       maxDepth,
-      context
+      context,
+      conversationId
     );
     tools.check_delegation_status =
       createCheckDelegationStatusTool(workspaceId);
@@ -1671,7 +1676,8 @@ export function createCallAgentTool(
       typeof import("../../utils/workspaceCreditContext").getContextFromRequestId
     >
   >,
-  conversationId?: string
+  conversationId?: string,
+  conversationOwnerAgentId?: string // Agent ID that owns the conversation (for delegation tracking)
 ) {
   const callAgentParamsSchema = z
     .object({
@@ -1883,13 +1889,17 @@ export function createCallAgentTool(
         const targetAgentName = targetAgent.name;
 
         // Call the agent internally
+        // Pass conversationId and conversationOwnerAgentId through to nested delegations
         const response = await callAgentInternal(
           workspaceId,
           agentId,
           message.trim(),
           callDepth,
           maxDepth,
-          context
+          context,
+          60000, // timeoutMs
+          conversationId,
+          conversationOwnerAgentId || currentAgentId
         );
 
         // Wrap response with metadata
@@ -1920,18 +1930,15 @@ export function createCallAgentTool(
         });
 
         // Track delegation in conversation metadata
+        // Use conversationOwnerAgentId if provided (for tracking in original conversation),
+        // otherwise use currentAgentId (for tracking in calling agent's conversation)
+        const ownerAgentId = conversationOwnerAgentId || currentAgentId;
         if (conversationId) {
-          await trackDelegation(
-            db,
-            workspaceId,
-            currentAgentId,
-            conversationId,
-            {
-              callingAgentId: currentAgentId,
-              targetAgentId: agentId,
-              status: "completed",
-            }
-          );
+          await trackDelegation(db, workspaceId, ownerAgentId, conversationId, {
+            callingAgentId: currentAgentId,
+            targetAgentId: agentId,
+            status: "completed",
+          });
         }
 
         return result;
@@ -1967,19 +1974,16 @@ export function createCallAgentTool(
         });
 
         // Track failed delegation
+        // Use conversationOwnerAgentId if provided (for tracking in original conversation),
+        // otherwise use currentAgentId (for tracking in calling agent's conversation)
+        const ownerAgentId = conversationOwnerAgentId || currentAgentId;
         if (conversationId) {
           const db = await database();
-          await trackDelegation(
-            db,
-            workspaceId,
-            currentAgentId,
-            conversationId,
-            {
-              callingAgentId: currentAgentId,
-              targetAgentId: agentId,
-              status: "failed",
-            }
-          );
+          await trackDelegation(db, workspaceId, ownerAgentId, conversationId, {
+            callingAgentId: currentAgentId,
+            targetAgentId: agentId,
+            status: "failed",
+          });
         }
 
         return errorMessage;
@@ -2003,6 +2007,9 @@ export function createCallAgentAsyncTool(
     >
   >,
   conversationId?: string
+  // Note: conversationOwnerAgentId is not yet used for async delegations
+  // as it requires updating the message schema. For now, async delegations
+  // use callingAgentId from the message for tracking.
 ) {
   const callAgentAsyncParamsSchema = z
     .object({

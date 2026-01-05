@@ -5,12 +5,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock dependencies using vi.hoisted
-const { mockDatabase, mockQueues } = vi.hoisted(() => {
+const { mockDatabase, mockQueues, mockTrackDelegation } = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
     mockQueues: {
       publish: vi.fn(),
     },
+    mockTrackDelegation: vi.fn(),
   };
 });
 
@@ -23,9 +24,21 @@ vi.mock("@architect/functions", () => ({
 }));
 
 vi.mock("../../../utils/conversationLogger", () => ({
-  trackDelegation: vi.fn().mockResolvedValue(undefined),
   extractTokenUsage: vi.fn(),
+  trackDelegation: mockTrackDelegation,
 }));
+
+// Mock generateText and other AI SDK functions that callAgentInternal uses
+vi.mock("ai", async () => {
+  const actual = await vi.importActual("ai");
+  return {
+    ...actual,
+    generateText: vi.fn().mockResolvedValue({
+      text: "Agent response",
+      usage: { promptTokens: 10, completionTokens: 5 },
+    }),
+  };
+});
 
 // Import after mocks are set up
 import type { AgentRecord, DatabaseSchema } from "../../../tables/schema";
@@ -39,7 +52,10 @@ import {
 // Helper to create mock agent records
 function createMockAgent(overrides: Partial<AgentRecord> = {}): AgentRecord {
   const defaultPk =
-    overrides.pk || `agents/test-workspace/test-agent-${Math.random().toString(36).substring(7)}`;
+    overrides.pk ||
+    `agents/test-workspace/test-agent-${Math.random()
+      .toString(36)
+      .substring(7)}`;
   return {
     pk: defaultPk,
     sk: "agent",
@@ -86,11 +102,9 @@ describe("agentUtils - Fuzzy Matching", () => {
 
       (mockDb.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue(agent);
 
-      const result = await findAgentByQuery(
-        "test-workspace",
-        "doc search",
-        ["doc-agent"]
-      );
+      const result = await findAgentByQuery("test-workspace", "doc search", [
+        "doc-agent",
+      ]);
 
       expect(result).not.toBeNull();
       expect(result?.agentId).toBe("doc-agent");
@@ -129,11 +143,9 @@ describe("agentUtils - Fuzzy Matching", () => {
 
       (mockDb.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue(agent);
 
-      const result = await findAgentByQuery(
-        "test-workspace",
-        "send mail",
-        ["email-agent"]
-      );
+      const result = await findAgentByQuery("test-workspace", "send mail", [
+        "email-agent",
+      ]);
 
       expect(result).not.toBeNull();
       expect(result?.agentId).toBe("email-agent");
@@ -150,11 +162,9 @@ describe("agentUtils - Fuzzy Matching", () => {
 
       (mockDb.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue(agent);
 
-      const result = await findAgentByQuery(
-        "test-workspace",
-        "memory agent",
-        ["memory-agent"]
-      );
+      const result = await findAgentByQuery("test-workspace", "memory agent", [
+        "memory-agent",
+      ]);
 
       expect(result).not.toBeNull();
       expect(result?.agentId).toBe("memory-agent");
@@ -170,11 +180,9 @@ describe("agentUtils - Fuzzy Matching", () => {
 
       (mockDb.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue(agent);
 
-      const result = await findAgentByQuery(
-        "test-workspace",
-        "doc",
-        ["doc-agent"]
-      );
+      const result = await findAgentByQuery("test-workspace", "doc", [
+        "doc-agent",
+      ]);
 
       expect(result).not.toBeNull();
       expect(result?.agentId).toBe("doc-agent");
@@ -189,11 +197,9 @@ describe("agentUtils - Fuzzy Matching", () => {
 
       (mockDb.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue(agent);
 
-      const result = await findAgentByQuery(
-        "test-workspace",
-        "mail",
-        ["email-agent"]
-      );
+      const result = await findAgentByQuery("test-workspace", "mail", [
+        "email-agent",
+      ]);
 
       expect(result).not.toBeNull();
       expect(result?.agentId).toBe("email-agent");
@@ -208,11 +214,9 @@ describe("agentUtils - Fuzzy Matching", () => {
 
       (mockDb.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue(agent);
 
-      const result = await findAgentByQuery(
-        "test-workspace",
-        "Search Agent",
-        ["search-agent"]
-      );
+      const result = await findAgentByQuery("test-workspace", "Search Agent", [
+        "search-agent",
+      ]);
 
       expect(result).not.toBeNull();
       expect(result?.agentId).toBe("search-agent");
@@ -297,11 +301,7 @@ describe("agentUtils - Fuzzy Matching", () => {
     });
 
     it("should return null when no delegatable agents provided", async () => {
-      const result = await findAgentByQuery(
-        "test-workspace",
-        "any query",
-        []
-      );
+      const result = await findAgentByQuery("test-workspace", "any query", []);
 
       expect(result).toBeNull();
     });
@@ -343,11 +343,9 @@ describe("agentUtils - Fuzzy Matching", () => {
     it("should handle agent not found in database gracefully", async () => {
       (mockDb.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
-      const result = await findAgentByQuery(
-        "test-workspace",
-        "any query",
-        ["non-existent-agent"]
-      );
+      const result = await findAgentByQuery("test-workspace", "any query", [
+        "non-existent-agent",
+      ]);
 
       expect(result).toBeNull();
     });
@@ -362,22 +360,18 @@ describe("agentUtils - Fuzzy Matching", () => {
       (mockDb.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue(agent);
 
       // First call - should fetch from database
-      const result1 = await findAgentByQuery(
-        "test-workspace",
-        "document",
-        ["cached-agent"]
-      );
+      const result1 = await findAgentByQuery("test-workspace", "document", [
+        "cached-agent",
+      ]);
 
       expect(result1).not.toBeNull();
       expect(mockDb.agent.get).toHaveBeenCalledTimes(1);
 
       // Second call - should use cache (agent.get not called again)
       vi.clearAllMocks();
-      const result2 = await findAgentByQuery(
-        "test-workspace",
-        "document",
-        ["cached-agent"]
-      );
+      const result2 = await findAgentByQuery("test-workspace", "document", [
+        "cached-agent",
+      ]);
 
       expect(result2).not.toBeNull();
       // Should still call get to check cache, but cache should be used
@@ -410,7 +404,9 @@ describe("agentUtils - Agent List Formatting", () => {
 
       (mockDb.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue(agent);
 
-      const tool = createListAgentsTool("test-workspace", ["format-test-agent1"]);
+      const tool = createListAgentsTool("test-workspace", [
+        "format-test-agent1",
+      ]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await (tool as any).execute();
 
@@ -448,7 +444,10 @@ describe("agentUtils - Agent List Formatting", () => {
         }
       );
 
-      const tool = createListAgentsTool("test-workspace", ["format-multi-agent1", "format-multi-agent2"]);
+      const tool = createListAgentsTool("test-workspace", [
+        "format-multi-agent1",
+        "format-multi-agent2",
+      ]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await (tool as any).execute();
 
@@ -467,7 +466,9 @@ describe("agentUtils - Agent List Formatting", () => {
 
       (mockDb.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue(agent);
 
-      const tool = createListAgentsTool("test-workspace", ["format-no-caps-agent"]);
+      const tool = createListAgentsTool("test-workspace", [
+        "format-no-caps-agent",
+      ]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result = await (tool as any).execute();
 
@@ -477,7 +478,9 @@ describe("agentUtils - Agent List Formatting", () => {
 
     it("should handle empty delegatable agents list", async () => {
       const tool = createListAgentsTool("test-workspace", []);
-      const result = await (tool as unknown as { execute: () => Promise<string> }).execute();
+      const result = await (
+        tool as unknown as { execute: () => Promise<string> }
+      ).execute();
 
       expect(result).toBe("No delegatable agents found.");
     });
@@ -493,7 +496,9 @@ describe("agentUtils - Agent List Formatting", () => {
       (mockDb.agent.get as ReturnType<typeof vi.fn>).mockResolvedValue(agent);
 
       const tool = createListAgentsTool("test-workspace", ["truncate-agent"]);
-      const result = await (tool as unknown as { execute: () => Promise<string> }).execute();
+      const result = await (
+        tool as unknown as { execute: () => Promise<string> }
+      ).execute();
 
       expect(result).toContain("...");
       // Description should be truncated - check that it ends with "..."
@@ -546,18 +551,22 @@ describe("agentUtils - Delegation Tools", () => {
 
       // Use a query with only special characters - should score very low
       // Empty or whitespace-only queries are handled early, so use minimal content
-      const result = await (tool as unknown as {
-        execute: (args: unknown) => Promise<string>;
-      }).execute({
+      const result = await (
+        tool as unknown as {
+          execute: (args: unknown) => Promise<string>;
+        }
+      ).execute({
         query: "$$$",
         message: "Test message",
       });
 
       // The query might match with a low score, but if it's below threshold, we should get the error
       // If it matches, the error will be about API keys, so we check for either error type
-      const hasNoMatchError = result.includes("Error: No agent found matching query");
+      const hasNoMatchError = result.includes(
+        "Error: No agent found matching query"
+      );
       const hasApiKeyError = result.includes("OPENROUTER_API_KEY");
-      
+
       // If we get API key error, it means the query matched (which is actually testing the matching works)
       // In that case, we can't test the "no match" error message format
       // So we skip this test if the query matched, or we adjust expectations
@@ -591,17 +600,21 @@ describe("agentUtils - Delegation Tools", () => {
       );
 
       // Use a query with only special characters - should score very low
-      const result = await (tool as unknown as {
-        execute: (args: unknown) => Promise<string>;
-      }).execute({
+      const result = await (
+        tool as unknown as {
+          execute: (args: unknown) => Promise<string>;
+        }
+      ).execute({
         query: "$$$",
         message: "Test message",
       });
 
       // Similar to above - if query matches, we get API key error; if not, we get no match error
-      const hasNoMatchError = result.includes("Error: No agent found matching query");
+      const hasNoMatchError = result.includes(
+        "Error: No agent found matching query"
+      );
       const hasApiKeyError = result.includes("OPENROUTER_API_KEY");
-      
+
       if (!hasNoMatchError && hasApiKeyError) {
         // Query matched - fuzzy matching is working
         expect(result).toBeTruthy();
@@ -631,16 +644,20 @@ describe("agentUtils - Delegation Tools", () => {
       );
 
       // Use a query with only special characters - should score very low
-      const result = await (tool as unknown as {
-        execute: (args: unknown) => Promise<string>;
-      }).execute({
+      const result = await (
+        tool as unknown as {
+          execute: (args: unknown) => Promise<string>;
+        }
+      ).execute({
         query: "$$$",
         message: "Test message",
       });
 
       // If query matches, task is created; if not, we get error with agent list
-      const hasTaskCreated = result.includes("Delegation task created successfully");
-      
+      const hasTaskCreated = result.includes(
+        "Delegation task created successfully"
+      );
+
       if (hasTaskCreated) {
         // Query matched - fuzzy matching is working, task was created
         expect(result).toContain("Task ID:");
@@ -669,9 +686,11 @@ describe("agentUtils - Delegation Tools", () => {
         3
       );
 
-      const result = await (tool as unknown as {
-        execute: (args: unknown) => Promise<string>;
-      }).execute({
+      const result = await (
+        tool as unknown as {
+          execute: (args: unknown) => Promise<string>;
+        }
+      ).execute({
         query: "completely unrelated query",
         message: "Test message",
       });
@@ -697,16 +716,20 @@ describe("agentUtils - Delegation Tools", () => {
         3
       );
 
-      await (tool as unknown as {
-        execute: (args: unknown) => Promise<string>;
-      }).execute({
+      await (
+        tool as unknown as {
+          execute: (args: unknown) => Promise<string>;
+        }
+      ).execute({
         agentId: "test-agent",
         message: "Test message",
       });
 
       // Verify create was called
       expect(mockDb["agent-delegation-tasks"].create).toHaveBeenCalled();
-      const createCall = (mockDb["agent-delegation-tasks"].create as ReturnType<typeof vi.fn>).mock.calls[0];
+      const createCall = (
+        mockDb["agent-delegation-tasks"].create as ReturnType<typeof vi.fn>
+      ).mock.calls[0];
       const taskData = createCall[0];
 
       // Verify required fields are present
@@ -720,5 +743,151 @@ describe("agentUtils - Delegation Tools", () => {
       expect(taskData).toHaveProperty("status", "pending");
     });
   });
-});
 
+  describe("createCallAgentTool - Delegation Tracking", () => {
+    it("should track delegation with conversationOwnerAgentId when provided", async () => {
+      const workspaceId = "test-workspace";
+      const originalAgentId = "original-agent"; // The agent that owns the conversation
+      const callingAgentId = "calling-agent"; // The agent making the delegation
+      const targetAgentId = "target-agent"; // The agent being delegated to
+      const conversationId = "conv-123";
+
+      // Mock the target agent
+      const targetAgent = createMockAgent({
+        pk: `agents/${workspaceId}/${targetAgentId}`,
+        name: "Target Agent",
+        systemPrompt: "I am the target agent.",
+      });
+
+      // Mock the conversation that belongs to the original agent
+      const mockConversation = {
+        pk: `conversations/${workspaceId}/${originalAgentId}/${conversationId}`,
+        sk: "conversation",
+        workspaceId,
+        agentId: originalAgentId,
+        conversationType: "test",
+        messages: [],
+      };
+
+      mockDb.agent.get = vi.fn().mockResolvedValueOnce(targetAgent); // For the target agent lookup
+
+      mockDb["agent-conversations"] = {
+        get: vi.fn().mockResolvedValue(mockConversation),
+        atomicUpdate: vi.fn().mockResolvedValue(mockConversation),
+      } as unknown as DatabaseSchema["agent-conversations"];
+
+      // Create the tool with conversationId and conversationOwnerAgentId
+      const tool = createCallAgentTool(
+        workspaceId,
+        [targetAgentId],
+        callingAgentId,
+        0,
+        3,
+        undefined, // context
+        conversationId,
+        originalAgentId // conversationOwnerAgentId - this is the key parameter
+      );
+
+      // Execute the tool
+      const result = await (
+        tool as unknown as {
+          execute: (args: unknown) => Promise<string>;
+        }
+      ).execute({
+        agentId: targetAgentId,
+        message: "Test message",
+      });
+
+      // Verify the delegation was tracked with the correct ownerAgentId
+      expect(mockTrackDelegation).toHaveBeenCalledWith(
+        expect.anything(), // db
+        workspaceId,
+        originalAgentId, // This should be the conversationOwnerAgentId, not callingAgentId
+        conversationId,
+        {
+          callingAgentId: callingAgentId,
+          targetAgentId: targetAgentId,
+          status: "completed",
+        }
+      );
+
+      // Verify the result is returned (from mocked generateText)
+      // The actual result may vary, but we mainly care about trackDelegation being called correctly
+      expect(result).toBeTruthy();
+    });
+
+    it("should track delegation with currentAgentId when conversationOwnerAgentId is not provided", async () => {
+      const workspaceId = "test-workspace";
+      const callingAgentId = "calling-agent"; // The agent making the delegation
+      const targetAgentId = "target-agent"; // The agent being delegated to
+      const conversationId = "conv-456";
+
+      // Mock the target agent
+      const targetAgent = createMockAgent({
+        pk: `agents/${workspaceId}/${targetAgentId}`,
+        name: "Target Agent",
+        systemPrompt: "I am the target agent.",
+      });
+
+      // Mock the conversation that belongs to the calling agent
+      const mockConversation = {
+        pk: `conversations/${workspaceId}/${callingAgentId}/${conversationId}`,
+        sk: "conversation",
+        workspaceId,
+        agentId: callingAgentId,
+        conversationType: "test",
+        messages: [],
+      };
+
+      // Mock agent.get to return the target agent when called with the correct pk
+      mockDb.agent.get = vi.fn().mockImplementation((pk: string) => {
+        if (pk === `agents/${workspaceId}/${targetAgentId}`) {
+          return Promise.resolve(targetAgent);
+        }
+        return Promise.resolve(null);
+      });
+
+      mockDb["agent-conversations"] = {
+        get: vi.fn().mockResolvedValue(mockConversation),
+        atomicUpdate: vi.fn().mockResolvedValue(mockConversation),
+      } as unknown as DatabaseSchema["agent-conversations"];
+
+      // Create the tool with conversationId but WITHOUT conversationOwnerAgentId
+      const tool = createCallAgentTool(
+        workspaceId,
+        [targetAgentId],
+        callingAgentId,
+        0,
+        3,
+        undefined, // context
+        conversationId
+        // No conversationOwnerAgentId - should default to callingAgentId
+      );
+
+      // Execute the tool
+      await (
+        tool as unknown as {
+          execute: (args: unknown) => Promise<string>;
+        }
+      ).execute({
+        agentId: targetAgentId,
+        message: "Test message",
+      });
+
+      // Verify the delegation was tracked with callingAgentId as the owner
+      // Note: The status might be "failed" if callAgentInternal fails, but the important thing
+      // is that the ownerAgentId (3rd parameter) is correct
+      expect(mockTrackDelegation).toHaveBeenCalledWith(
+        expect.anything(), // db
+        workspaceId,
+        callingAgentId, // Should default to callingAgentId when conversationOwnerAgentId is not provided
+        conversationId,
+        expect.objectContaining({
+          callingAgentId: callingAgentId,
+          targetAgentId: targetAgentId,
+          // status can be "completed" or "failed" depending on whether callAgentInternal succeeds
+        })
+      );
+    });
+  });
+});
