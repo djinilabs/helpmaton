@@ -930,32 +930,32 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
         text: "I found documents.",
         toolCalls: [], // Empty - tool calls are in _steps
         toolResults: [], // Empty - tool results are in _steps
-        _steps: {
-          status: {
-            value: [
-              {
-                content: [
-                  {
-                    type: "tool-call",
-                    toolCallId: "call-456",
-                    toolName: "searchDocuments",
-                    input: { query: "documents" },
-                  },
-                ],
-              },
-              {
-                content: [
-                  {
-                    type: "tool-result",
-                    toolCallId: "call-456",
-                    toolName: "searchDocuments",
-                    output: { value: "Found 5 documents" },
-                  },
-                ],
-              },
-            ],
-          },
+      _steps: {
+        status: {
+          value: [
+            {
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "call-456",
+                  toolName: "searchDocuments",
+                  input: { query: "documents" },
+                },
+              ],
+            },
+            {
+              content: [
+                {
+                  type: "tool-result",
+                  toolCallId: "call-456",
+                  toolName: "searchDocuments",
+                  output: { value: "Found 5 documents" },
+                },
+              ],
+            },
+          ],
         },
+      },
       } as unknown as Awaited<ReturnType<typeof generateText>>,
     });
 
@@ -1147,69 +1147,69 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
       text: "I found documents.",
       tokenUsage: expectedTokenUsage,
       rawResult: {
-        text: "I found documents.",
-        toolCalls: [], // Empty - tool calls are in steps
-        toolResults: [], // Empty - tool results are in steps
-        usage: undefined, // No top-level usage - it's in steps[].usage
-        totalUsage: {
-          // AI SDK provides totalUsage that aggregates all steps
-          promptTokens: step1Usage.promptTokens + step2Usage.promptTokens, // 1118
-          completionTokens: step1Usage.completionTokens + step2Usage.completionTokens, // 37
-          totalTokens: step1Usage.totalTokens + step2Usage.totalTokens, // 1155
-          reasoningTokens: 0,
-          cachedPromptTokens: 0,
-        },
-        steps: [
-          {
-            content: [
-              {
-                type: "tool-call",
-                toolCallId: "tool_search_abc123",
-                toolName: "searchDocuments",
-                input: { query: "documents" },
-              },
-              {
-                type: "tool-result",
-                toolCallId: "tool_search_abc123",
-                toolName: "searchDocuments",
-                output: {
-                  type: "text",
-                  value: "Found 5 documents",
-                },
-              },
-            ],
-            usage: step1Usage,
-            response: {
-              id: "gen-1766755634-mSZupEMPTYHYviRp0kbj",
+      text: "I found documents.",
+      toolCalls: [], // Empty - tool calls are in steps
+      toolResults: [], // Empty - tool results are in steps
+      usage: undefined, // No top-level usage - it's in steps[].usage
+      totalUsage: {
+        // AI SDK provides totalUsage that aggregates all steps
+        promptTokens: step1Usage.promptTokens + step2Usage.promptTokens, // 1118
+        completionTokens: step1Usage.completionTokens + step2Usage.completionTokens, // 37
+        totalTokens: step1Usage.totalTokens + step2Usage.totalTokens, // 1155
+        reasoningTokens: 0,
+        cachedPromptTokens: 0,
+      },
+      steps: [
+        {
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "tool_search_abc123",
+              toolName: "searchDocuments",
+              input: { query: "documents" },
             },
-            providerMetadata: {
-              openrouter: {
-                usage: {
-                  cost: 0.0001797,
-                },
-              },
-            },
-          },
-          {
-            content: [
-              {
+            {
+              type: "tool-result",
+              toolCallId: "tool_search_abc123",
+              toolName: "searchDocuments",
+              output: {
                 type: "text",
-                text: "I found documents.",
+                value: "Found 5 documents",
               },
-            ],
-            usage: step2Usage,
-            response: {
-              id: "gen-1766755635-GhZIxomllM8bIk1B2vXN",
             },
-            providerMetadata: {
-              openrouter: {
-                usage: {
-                  cost: 0.0002482,
-                },
+          ],
+          usage: step1Usage,
+          response: {
+            id: "gen-1766755634-mSZupEMPTYHYviRp0kbj",
+          },
+          providerMetadata: {
+            openrouter: {
+              usage: {
+                cost: 0.0001797,
               },
             },
           },
-        ],
+        },
+        {
+          content: [
+            {
+              type: "text",
+              text: "I found documents.",
+            },
+          ],
+          usage: step2Usage,
+          response: {
+            id: "gen-1766755635-GhZIxomllM8bIk1B2vXN",
+          },
+          providerMetadata: {
+            openrouter: {
+              usage: {
+                cost: 0.0002482,
+              },
+            },
+          },
+        },
+      ],
       } as unknown as Awaited<ReturnType<typeof generateText>>,
       openrouterGenerationId: "gen-1766755634-mSZupEMPTYHYviRp0kbj",
       openrouterGenerationIds: [

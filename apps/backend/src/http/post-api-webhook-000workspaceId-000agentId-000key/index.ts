@@ -205,13 +205,13 @@ export const handler = adaptHttpHandler(
         );
         const generationTimeMs = Date.now() - generationStartTime;
 
-        // Track successful LLM request
-        await trackSuccessfulRequest(
-          subscriptionId,
-          workspaceId,
-          agentId,
-          "webhook"
-        );
+      // Track successful LLM request
+      await trackSuccessfulRequest(
+        subscriptionId,
+        workspaceId,
+        agentId,
+        "webhook"
+      );
 
         // Get agent info for model name (needed for conversation logging)
         const { setupAgentAndTools } = await import("../utils/agentSetup");
@@ -234,151 +234,140 @@ export const handler = adaptHttpHandler(
         const responseContent = agentResult.text;
 
         // Extract tool calls and results from raw result (same logic as before)
-        let toolCallsFromResult: unknown[];
-        let toolResultsFromResult: unknown[];
-        try {
+      let toolCallsFromResult: unknown[];
+      let toolResultsFromResult: unknown[];
+      try {
           if (!agentResult.rawResult) {
             throw new Error("Raw result not available from agent call");
           }
 
-          // Also extract steps/_steps as the source of truth for tool calls/results
-          // generateText returns result.steps (array), streamText returns result._steps.status.value
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
+        // Also extract steps/_steps as the source of truth for tool calls/results
+        // generateText returns result.steps (array), streamText returns result._steps.status.value
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
           const resultAny = agentResult.rawResult as any;
-          // Check both result.steps (generateText) and result._steps.status.value (streamText)
-          const stepsValue = Array.isArray(resultAny.steps)
-            ? resultAny.steps
-            : resultAny._steps?.status?.value;
+        // Check both result.steps (generateText) and result._steps.status.value (streamText)
+        const stepsValue = Array.isArray(resultAny.steps)
+          ? resultAny.steps
+          : resultAny._steps?.status?.value;
 
-          // Extract tool calls and results from steps (source of truth for server-side tool execution)
-          const toolCallsFromSteps: unknown[] = [];
-          const toolResultsFromSteps: unknown[] = [];
+        // Extract tool calls and results from steps (source of truth for server-side tool execution)
+        const toolCallsFromSteps: unknown[] = [];
+        const toolResultsFromSteps: unknown[] = [];
 
-          if (Array.isArray(stepsValue)) {
-            for (const step of stepsValue) {
-              if (step?.content && Array.isArray(step.content)) {
-                for (const contentItem of step.content) {
-                  if (
-                    typeof contentItem === "object" &&
-                    contentItem !== null &&
-                    "type" in contentItem
-                  ) {
-                    if (contentItem.type === "tool-call") {
-                      // Validate required fields before adding
-                      if (
-                        contentItem.toolCallId &&
-                        contentItem.toolName &&
-                        typeof contentItem.toolCallId === "string" &&
-                        typeof contentItem.toolName === "string"
-                      ) {
-                        // Convert AI SDK tool-call format to our format
-                        toolCallsFromSteps.push({
-                          toolCallId: contentItem.toolCallId,
-                          toolName: contentItem.toolName,
-                          args: contentItem.input || contentItem.args || {},
-                        });
-                      } else {
-                        console.warn(
-                          "[Webhook Handler] Skipping tool call with missing/invalid fields:",
-                          {
-                            hasToolCallId: !!contentItem.toolCallId,
-                            hasToolName: !!contentItem.toolName,
-                            toolCallIdType: typeof contentItem.toolCallId,
-                            toolNameType: typeof contentItem.toolName,
-                            contentItem,
-                          }
-                        );
-                      }
-                    } else if (contentItem.type === "tool-result") {
-                      // Validate required fields before adding
-                      if (
-                        contentItem.toolCallId &&
-                        contentItem.toolName &&
-                        typeof contentItem.toolCallId === "string" &&
-                        typeof contentItem.toolName === "string"
-                      ) {
-                        // Convert AI SDK tool-result format to our format
-                        // Handle both string outputs and object outputs with .value property
-                        let resultValue = contentItem.output;
-                        if (
-                          typeof resultValue === "object" &&
-                          resultValue !== null &&
-                          "value" in resultValue
-                        ) {
-                          resultValue = resultValue.value;
+        if (Array.isArray(stepsValue)) {
+          for (const step of stepsValue) {
+            if (step?.content && Array.isArray(step.content)) {
+              for (const contentItem of step.content) {
+                if (
+                  typeof contentItem === "object" &&
+                  contentItem !== null &&
+                  "type" in contentItem
+                ) {
+                  if (contentItem.type === "tool-call") {
+                    // Validate required fields before adding
+                    if (
+                      contentItem.toolCallId &&
+                      contentItem.toolName &&
+                      typeof contentItem.toolCallId === "string" &&
+                      typeof contentItem.toolName === "string"
+                    ) {
+                      // Convert AI SDK tool-call format to our format
+                      toolCallsFromSteps.push({
+                        toolCallId: contentItem.toolCallId,
+                        toolName: contentItem.toolName,
+                        args: contentItem.input || contentItem.args || {},
+                      });
+                    } else {
+                      console.warn(
+                        "[Webhook Handler] Skipping tool call with missing/invalid fields:",
+                        {
+                          hasToolCallId: !!contentItem.toolCallId,
+                          hasToolName: !!contentItem.toolName,
+                          toolCallIdType: typeof contentItem.toolCallId,
+                          toolNameType: typeof contentItem.toolName,
+                          contentItem,
                         }
-                        toolResultsFromSteps.push({
-                          toolCallId: contentItem.toolCallId,
-                          toolName: contentItem.toolName,
-                          output:
-                            resultValue ||
-                            contentItem.output ||
-                            contentItem.result,
-                          result: resultValue || contentItem.result,
-                        });
-                      } else {
-                        console.warn(
-                          "[Webhook Handler] Skipping tool result with missing/invalid fields:",
-                          {
-                            hasToolCallId: !!contentItem.toolCallId,
-                            hasToolName: !!contentItem.toolName,
-                            toolCallIdType: typeof contentItem.toolCallId,
-                            toolNameType: typeof contentItem.toolName,
-                            contentItem,
-                          }
-                        );
+                      );
+                    }
+                  } else if (contentItem.type === "tool-result") {
+                    // Validate required fields before adding
+                    if (
+                      contentItem.toolCallId &&
+                      contentItem.toolName &&
+                      typeof contentItem.toolCallId === "string" &&
+                      typeof contentItem.toolName === "string"
+                    ) {
+                      // Convert AI SDK tool-result format to our format
+                      // Handle both string outputs and object outputs with .value property
+                      let resultValue = contentItem.output;
+                      if (
+                        typeof resultValue === "object" &&
+                        resultValue !== null &&
+                        "value" in resultValue
+                      ) {
+                        resultValue = resultValue.value;
                       }
+                      toolResultsFromSteps.push({
+                        toolCallId: contentItem.toolCallId,
+                        toolName: contentItem.toolName,
+                        output:
+                          resultValue ||
+                          contentItem.output ||
+                          contentItem.result,
+                        result: resultValue || contentItem.result,
+                      });
+                    } else {
+                      console.warn(
+                        "[Webhook Handler] Skipping tool result with missing/invalid fields:",
+                        {
+                          hasToolCallId: !!contentItem.toolCallId,
+                          hasToolName: !!contentItem.toolName,
+                          toolCallIdType: typeof contentItem.toolCallId,
+                          toolNameType: typeof contentItem.toolName,
+                          contentItem,
+                        }
+                      );
                     }
                   }
                 }
               }
             }
           }
+        }
 
-          // Use steps as source of truth - prefer tool calls/results from steps if available
-          // Only fall back to direct properties if steps doesn't have them
-          if (toolCallsFromSteps.length > 0) {
-            toolCallsFromResult = toolCallsFromSteps;
-          } else {
+        // Use steps as source of truth - prefer tool calls/results from steps if available
+        // Only fall back to direct properties if steps doesn't have them
+        if (toolCallsFromSteps.length > 0) {
+          toolCallsFromResult = toolCallsFromSteps;
+        } else {
             toolCallsFromResult = (agentResult.rawResult as { toolCalls?: unknown[] }).toolCalls || [];
-          }
+        }
 
-          if (toolResultsFromSteps.length > 0) {
-            toolResultsFromResult = toolResultsFromSteps;
-          } else {
+        if (toolResultsFromSteps.length > 0) {
+          toolResultsFromResult = toolResultsFromSteps;
+        } else {
             toolResultsFromResult = (agentResult.rawResult as { toolResults?: unknown[] }).toolResults || [];
-          }
+        }
 
-          // DIAGNOSTIC: Log tool calls and results extracted from result
-          console.log("[Webhook Handler] Tool calls extracted from result:", {
-            toolCallsCount: toolCallsFromResult.length,
-            toolCalls: toolCallsFromResult,
-            toolResultsCount: toolResultsFromResult.length,
-            toolResults: toolResultsFromResult,
+        // DIAGNOSTIC: Log tool calls and results extracted from result
+        console.log("[Webhook Handler] Tool calls extracted from result:", {
+          toolCallsCount: toolCallsFromResult.length,
+          toolCalls: toolCallsFromResult,
+          toolResultsCount: toolResultsFromResult.length,
+          toolResults: toolResultsFromResult,
             resultKeys: agentResult.rawResult ? Object.keys(agentResult.rawResult) : [],
             hasToolCalls: agentResult.rawResult && "toolCalls" in agentResult.rawResult,
             hasToolResults: agentResult.rawResult && "toolResults" in agentResult.rawResult,
-            hasSteps: "steps" in resultAny,
-            has_steps: "_steps" in resultAny,
-            stepsCount: Array.isArray(stepsValue) ? stepsValue.length : 0,
-            toolCallsFromStepsCount: toolCallsFromSteps.length,
-            toolResultsFromStepsCount: toolResultsFromSteps.length,
-          });
-        } catch (resultError) {
-          // Check if this is a BYOK authentication error
-          if (isByokAuthenticationError(resultError, usesByok)) {
-            const errorToLog = normalizeByokError(resultError);
-            await persistWebhookConversationError({
-              db,
-              workspaceId,
-              agentId,
-              uiMessage,
-              usesByok,
-              finalModelName,
-              error: errorToLog,
-            });
-            return handleByokAuthenticationErrorApiGateway("webhook");
-          }
+          hasSteps: "steps" in resultAny,
+          has_steps: "_steps" in resultAny,
+          stepsCount: Array.isArray(stepsValue) ? stepsValue.length : 0,
+          toolCallsFromStepsCount: toolCallsFromSteps.length,
+          toolResultsFromStepsCount: toolResultsFromSteps.length,
+        });
+      } catch (resultError) {
+        // Check if this is a BYOK authentication error
+        if (isByokAuthenticationError(resultError, usesByok)) {
+          const errorToLog = normalizeByokError(resultError);
           await persistWebhookConversationError({
             db,
             workspaceId,
@@ -386,11 +375,22 @@ export const handler = adaptHttpHandler(
             uiMessage,
             usesByok,
             finalModelName,
-            error: resultError,
-            awsRequestId,
+            error: errorToLog,
           });
-          throw resultError;
+          return handleByokAuthenticationErrorApiGateway("webhook");
         }
+        await persistWebhookConversationError({
+          db,
+          workspaceId,
+          agentId,
+          uiMessage,
+          usesByok,
+          finalModelName,
+          error: resultError,
+          awsRequestId,
+        });
+        throw resultError;
+      }
 
       // FIX: If tool calls are missing but tool results exist, reconstruct tool calls from results
       if (
@@ -440,10 +440,10 @@ export const handler = adaptHttpHandler(
         }
       }
 
-        // Add text response if present
-        if (responseContent && responseContent.trim().length > 0) {
-          assistantContent.push({ type: "text", text: responseContent });
-        }
+      // Add text response if present
+      if (responseContent && responseContent.trim().length > 0) {
+        assistantContent.push({ type: "text", text: responseContent });
+      }
 
       // DIAGNOSTIC: Log assistantContent before creating message
       console.log(
@@ -468,21 +468,21 @@ export const handler = adaptHttpHandler(
         }
       );
 
-        // Create assistant message with modelName, provider, costs, and generation time
-        // Ensure content is always an array if we have tool calls/results, even if text is empty
-        const assistantMessage: UIMessage = {
-          role: "assistant",
-          content:
-            assistantContent.length > 0
-              ? assistantContent
-              : responseContent || "",
+      // Create assistant message with modelName, provider, costs, and generation time
+      // Ensure content is always an array if we have tool calls/results, even if text is empty
+      const assistantMessage: UIMessage = {
+        role: "assistant",
+        content:
+          assistantContent.length > 0
+            ? assistantContent
+            : responseContent || "",
           ...(agentResult.tokenUsage && { tokenUsage: agentResult.tokenUsage }),
-          modelName: finalModelName,
-          provider: "openrouter",
+        modelName: finalModelName,
+        provider: "openrouter",
           ...(agentResult.openrouterGenerationId && { openrouterGenerationId: agentResult.openrouterGenerationId }),
           ...(agentResult.provisionalCostUsd !== undefined && { provisionalCostUsd: agentResult.provisionalCostUsd }),
-          ...(generationTimeMs !== undefined && { generationTimeMs }),
-        };
+        ...(generationTimeMs !== undefined && { generationTimeMs }),
+      };
 
       // DIAGNOSTIC: Log final assistant message structure
       console.log("[Webhook Handler] Final assistant message:", {
@@ -513,75 +513,75 @@ export const handler = adaptHttpHandler(
           : false,
       });
 
-        // Log conversation (non-blocking)
-        // Each webhook call creates a new conversation
-        // tokenUsage already extracted above for credit deduction
-        try {
-          // Combine user message and assistant message for logging
-          // Deduplication will happen in startConversation (via expandMessagesWithToolCalls)
-          const messagesForLogging: UIMessage[] = [uiMessage, assistantMessage];
+      // Log conversation (non-blocking)
+      // Each webhook call creates a new conversation
+      // tokenUsage already extracted above for credit deduction
+      try {
+        // Combine user message and assistant message for logging
+        // Deduplication will happen in startConversation (via expandMessagesWithToolCalls)
+        const messagesForLogging: UIMessage[] = [uiMessage, assistantMessage];
 
-          // Get valid messages for logging (filter out any invalid ones, but keep empty messages)
-          const validMessages: UIMessage[] = messagesForLogging.filter(
-            (msg): msg is UIMessage =>
-              msg != null &&
-              typeof msg === "object" &&
-              "role" in msg &&
-              typeof msg.role === "string" &&
-              (msg.role === "user" ||
-                msg.role === "assistant" ||
-                msg.role === "system" ||
-                msg.role === "tool") &&
-              "content" in msg
-          );
+        // Get valid messages for logging (filter out any invalid ones, but keep empty messages)
+        const validMessages: UIMessage[] = messagesForLogging.filter(
+          (msg): msg is UIMessage =>
+            msg != null &&
+            typeof msg === "object" &&
+            "role" in msg &&
+            typeof msg.role === "string" &&
+            (msg.role === "user" ||
+              msg.role === "assistant" ||
+              msg.role === "system" ||
+              msg.role === "tool") &&
+            "content" in msg
+        );
 
-          // DIAGNOSTIC: Log messages being passed to startConversation
-          console.log(
-            "[Webhook Handler] Messages being passed to startConversation:",
-            {
-              messagesForLoggingCount: messagesForLogging.length,
-              validMessagesCount: validMessages.length,
-              assistantMessageInValid: validMessages.some(
-                (msg) => msg.role === "assistant"
-              ),
-              messages: validMessages.map((msg) => ({
-                role: msg.role,
-                contentType: typeof msg.content,
-                isArray: Array.isArray(msg.content),
-                contentLength: Array.isArray(msg.content)
-                  ? msg.content.length
-                  : "N/A",
-                hasToolCalls: Array.isArray(msg.content)
-                  ? msg.content.some(
-                      (item) =>
-                        typeof item === "object" &&
-                        item !== null &&
-                        "type" in item &&
-                        item.type === "tool-call"
-                    )
-                  : false,
-                hasToolResults: Array.isArray(msg.content)
-                  ? msg.content.some(
-                      (item) =>
-                        typeof item === "object" &&
-                        item !== null &&
-                        "type" in item &&
-                        item.type === "tool-result"
-                    )
-                  : false,
-              })),
-            }
-          );
+        // DIAGNOSTIC: Log messages being passed to startConversation
+        console.log(
+          "[Webhook Handler] Messages being passed to startConversation:",
+          {
+            messagesForLoggingCount: messagesForLogging.length,
+            validMessagesCount: validMessages.length,
+            assistantMessageInValid: validMessages.some(
+              (msg) => msg.role === "assistant"
+            ),
+            messages: validMessages.map((msg) => ({
+              role: msg.role,
+              contentType: typeof msg.content,
+              isArray: Array.isArray(msg.content),
+              contentLength: Array.isArray(msg.content)
+                ? msg.content.length
+                : "N/A",
+              hasToolCalls: Array.isArray(msg.content)
+                ? msg.content.some(
+                    (item) =>
+                      typeof item === "object" &&
+                      item !== null &&
+                      "type" in item &&
+                      item.type === "tool-call"
+                  )
+                : false,
+              hasToolResults: Array.isArray(msg.content)
+                ? msg.content.some(
+                    (item) =>
+                      typeof item === "object" &&
+                      item !== null &&
+                      "type" in item &&
+                      item.type === "tool-result"
+                  )
+                : false,
+            })),
+          }
+        );
 
-          const conversationId = await startConversation(db, {
-            workspaceId,
-            agentId,
-            conversationType: "webhook",
-            messages: validMessages,
+        const conversationId = await startConversation(db, {
+          workspaceId,
+          agentId,
+          conversationType: "webhook",
+          messages: validMessages,
             tokenUsage: agentResult.tokenUsage,
-            usesByok,
-            awsRequestId,
-          });
+          usesByok,
+          awsRequestId,
+        });
 
         // Update transaction buffer with conversationId for any transactions that don't have it
         // This ensures workspace transactions include the conversationId even though they were
@@ -600,18 +600,18 @@ export const handler = adaptHttpHandler(
         // Note: reservationId is handled internally by agentCallNonStreaming
         // The reservation is updated with conversationId during credit adjustment
 
-          // Enqueue cost verification (Step 3) if we have generation IDs
+        // Enqueue cost verification (Step 3) if we have generation IDs
           // Note: reservationId is handled internally by agentCallNonStreaming
           // We need to get it from the context if available, but this is optional
-          await enqueueCostVerificationIfNeeded(
+        await enqueueCostVerificationIfNeeded(
             agentResult.openrouterGenerationId, // Keep for backward compat
             agentResult.openrouterGenerationIds, // New parameter
-            workspaceId,
+          workspaceId,
             undefined, // reservationId - handled internally by agentCallNonStreaming
-            conversationId,
-            agentId,
-            "webhook"
-          );
+          conversationId,
+          agentId,
+          "webhook"
+        );
       } catch (error) {
         // Log error but don't fail the request
         console.error("[Webhook Handler] Error logging conversation:", {
@@ -631,14 +631,14 @@ export const handler = adaptHttpHandler(
         });
       }
 
-        // Return plain text response for webhook
-        return {
-          statusCode: 200,
-          headers: {
-            "Content-Type": "text/plain; charset=utf-8",
-          },
-          body: responseContent,
-        };
+      // Return plain text response for webhook
+      return {
+        statusCode: 200,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+        },
+        body: responseContent,
+      };
       } catch (error) {
         // Comprehensive error logging for debugging
         logErrorDetails(error, {

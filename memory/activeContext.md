@@ -2,9 +2,15 @@
 
 ## Current Status
 
-**Status**: Agent Delegation Improvements - Completed ✅
+**Status**: Slack & Discord Bot Integration - Completed ✅
 
 **Latest Work**:
+
+1. **Slack & Discord Bot Integration**: Implemented a comprehensive Integration Bridge service that allows users to deploy their agents as Slack or Discord bots. The system includes webhook handlers for both platforms, signature verification, throttled message editing to simulate streaming, and a complete UI for managing integrations.
+
+2. **Webhook Handler Refactoring**: Refactored the main webhook handler to reuse `agentCallNonStreaming.ts` utility, enabling tool call continuity and reducing code duplication. All webhook tests updated and passing.
+
+**Previous Work**: Agent Delegation Improvements - Completed ✅
 
 1. **Documentation Created**: Created comprehensive documentation (`docs/agent-delegation-backend-changes.md`) describing all backend changes for agent delegation improvements, including infrastructure changes, database schema updates, queue processing, agent matching algorithms, and delegation tracking.
 
@@ -22,7 +28,44 @@
 
 **Recent Changes**:
 
-1. **Stream Handler Refactoring** (Latest):
+1. **Slack & Discord Bot Integration** (Latest):
+
+   - **Integration Bridge Architecture**: Created a new service layer that sits between chat platforms (Slack/Discord) and the existing Agent API, handling ingress, verification, agent execution, translation, and egress
+   - **Database Schema**: Added `bot-integration` table with GSIs for workspace and agent lookups, storing platform-specific configuration (Slack tokens, Discord public keys) with encryption
+   - **Slack Integration**:
+     - Webhook handler with `X-Slack-Signature` verification using signing secret
+     - Handles `url_verification` challenge and `app_mention` events
+     - Dynamic Slack App Manifest generation endpoint
+     - Throttled message editing (1.5s interval) to simulate streaming
+     - Markdown to Slack Blocks conversion
+   - **Discord Integration**:
+     - Webhook handler with Ed25519 signature verification using public key
+     - Handles `PING` and `APPLICATION_COMMAND` interaction types
+     - Throttled message editing (1.5s interval) to simulate streaming
+     - Markdown to Discord Embeds conversion
+   - **Non-Streaming Agent Calls**: Created `agentCallNonStreaming.ts` utility that wraps `generateText` for complete text responses, handling credit management, error logging, and tool continuation
+   - **Frontend UI**: Created dedicated Integrations page with:
+     - Integration list view with status badges
+     - Slack connection modal with manifest generation and copy-to-clipboard
+     - Discord connection modal with credential input
+     - Integration management (view, edit, delete)
+   - **API Endpoints**: Full CRUD API for managing bot integrations:
+     - `POST /api/workspaces/:workspaceId/integrations` - Create integration
+     - `GET /api/workspaces/:workspaceId/integrations` - List integrations
+     - `GET /api/workspaces/:workspaceId/integrations/:integrationId` - Get integration
+     - `PATCH /api/workspaces/:workspaceId/integrations/:integrationId` - Update integration
+     - `DELETE /api/workspaces/:workspaceId/integrations/:integrationId` - Delete integration
+     - `POST /api/workspaces/:workspaceId/integrations/slack-manifest` - Generate Slack manifest
+   - **Webhook Routes**: Dynamic webhook URLs with integration ID:
+     - `any /api/webhooks/slack/:integrationId` - Slack webhook handler
+     - `any /api/webhooks/discord/:integrationId` - Discord webhook handler
+   - **Code Reuse**: Refactored main webhook handler to use `agentCallNonStreaming.ts`, enabling tool continuation and reducing duplication
+   - **Documentation**: Created comprehensive guides:
+     - `docs/slack-integration.md` - Slack setup and configuration
+     - `docs/discord-integration.md` - Discord setup and configuration
+     - Updated `docs/webhook-system.md` and `docs/database-schema.md`
+
+2. **Stream Handler Refactoring** (Previous):
 
    - **Complexity Reduction**: Extracted monolithic handler into specialized utility files:
      - `streamEndpointDetection.ts` - Endpoint type detection and path extraction
@@ -40,7 +83,7 @@
    - **Main Handler Simplification**: Reduced main handler from 500+ lines to ~250 lines, acting as router/orchestrator
    - **Test Coverage**: All existing tests pass, comprehensive unit tests for new utilities
 
-2. **Error Logging Improvements** (Latest):
+3. **Error Logging Improvements** (Latest):
 
    - **Sentry Integration**: All previously ignored errors now logged to Sentry:
      - Stream end failures in error handling paths
@@ -50,13 +93,13 @@
    - **Error Context**: All Sentry captures include appropriate tags and extra context
    - **No Masked Errors**: All errors are either properly handled or logged to Sentry
 
-3. **Promise Handling Fixes** (Latest):
+4. **Promise Handling Fixes** (Latest):
 
    - **Dangling Promise Fix**: Fixed issue where `persistConversationError` was called inside `.then()` without awaiting
    - **Promise Verification**: Verified all async operations are properly awaited or returned
    - **No Fire-and-Forget**: Eliminated all "fire and forget" promise patterns
 
-4. **Lambda Function URL Streaming Fix** (Previous):
+5. **Lambda Function URL Streaming Fix** (Previous):
 
    - Fixed 502 errors by wrapping response stream with `HttpResponseStream.from()` before writing
    - Updated `/api/streams/url` endpoint to wrap stream with headers (status code 200/404, Content-Type: application/json)
@@ -64,7 +107,7 @@
    - Updated catch block to wrap stream with appropriate headers before writing errors
    - All responses now properly formatted for Lambda Function URLs in RESPONSE_STREAM mode
 
-5. **CloudFormation IAM Permissions Fix** (Latest):
+6. **CloudFormation IAM Permissions Fix** (Latest):
 
    - Updated `lambda-urls` plugin to add CloudFormation permissions to all functions with Function URLs
    - Refactored `addIamPermissionsForStreamUrlLookup()` to accept array of function IDs instead of hardcoded name
@@ -72,7 +115,7 @@
    - Each function gets its own IAM policy (scoped to current CloudFormation stack)
    - Permissions added to all functions in `@lambda-urls` pragma automatically
 
-6. **URL Endpoint Consolidation**:
+7. **URL Endpoint Consolidation**:
 
    - Consolidated `GET /api/streams/url` handler into unified `/api/streams/*` catchall handler
    - Removed separate route from `app.arc` (was `get /api/streams/url`)
@@ -83,7 +126,7 @@
    - Fixed test cache clearing using `vi.resetModules()` and dynamic imports
    - Deleted old handler files (`get-api-streams-url/index.ts` and test file)
 
-7. **Streaming Endpoints Unification** (Previous):
+8. **Streaming Endpoints Unification** (Previous):
 
    - Updated `app.arc` to use catch-all route `any /api/streams/*` for both endpoints
    - Unified handler supports both `/api/streams/:workspaceId/:agentId/test` (JWT auth) and `/api/streams/:workspaceId/:agentId/:secret` (secret auth)
@@ -91,28 +134,28 @@
    - Supports both Lambda Function URL (true streaming) and API Gateway (buffered streaming) invocations
    - Created dual handler wrapper that automatically detects invocation method
 
-8. **Authentication & Authorization**:
+9. **Authentication & Authorization**:
 
    - Test endpoint: JWT Bearer token authentication with workspace permission checks
    - Stream endpoint: Secret validation from path parameters
    - Conditional authentication logic based on detected endpoint type
    - Both authentication methods work with both invocation types (Lambda Function URL and API Gateway)
 
-9. **CORS Headers**:
+10. **CORS Headers**:
 
-   - Test endpoint: Uses `FRONTEND_URL` environment variable for CORS headers
-   - Stream endpoint: Uses agent's streaming server configuration (allowed origins from database)
-   - Conditional CORS header generation based on endpoint type
-   - All responses include appropriate CORS headers
+    - Test endpoint: Uses `FRONTEND_URL` environment variable for CORS headers
+    - Stream endpoint: Uses agent's streaming server configuration (allowed origins from database)
+    - Conditional CORS header generation based on endpoint type
+    - All responses include appropriate CORS headers
 
-10. **Streaming Implementation**:
+11. **Streaming Implementation**:
 
     - Lambda Function URL: True streaming using `awslambda.streamifyResponse` (writes chunks as they arrive)
     - API Gateway: Buffered streaming (collects all chunks, returns complete response)
     - Automatic detection of invocation method
     - Same business logic for both streaming approaches
 
-11. **Utility Relocation**:
+12. **Utility Relocation**:
 
     - Moved `types.ts` → `src/utils/messageTypes.ts` (used by non-HTTP utils)
     - Moved utilities to `src/http/utils/`:
@@ -122,23 +165,44 @@
     - Moved all test files to `src/http/utils/__tests__/agentUtils/`
     - Updated all imports across the codebase (12+ files)
 
-12. **Express Handler Cleanup**:
+13. **Express Handler Cleanup**:
 
     - Removed `registerPostTestAgent` from Express app
     - Old Express route handler deprecated (still exists but not registered)
     - All test agent requests now go through unified streaming handler
 
-13. **Error Handling**:
+14. **Error Handling**:
     - BYOK authentication error detection preserved
     - Credit error handling with proper formatting
     - Error responses include appropriate CORS headers based on endpoint type
     - All error paths properly handled for both invocation methods
 
-**Files Created**:
+**Files Created** (Latest - Slack/Discord Integration):
 
-- None (consolidated into existing unified handler)
+- `apps/backend/src/http/utils/agentCallNonStreaming.ts` - Utility for non-streaming agent calls with tool continuation
+- `apps/backend/src/http/any-api-webhooks-slack-000integrationId/index.ts` - Slack webhook handler
+- `apps/backend/src/http/any-api-webhooks-slack-000integrationId/services/slackVerification.ts` - Slack signature verification
+- `apps/backend/src/http/any-api-webhooks-slack-000integrationId/services/slackResponse.ts` - Slack API response formatting
+- `apps/backend/src/http/any-api-webhooks-slack-000integrationId/services/slackStreaming.ts` - Throttled Slack message editing
+- `apps/backend/src/http/any-api-webhooks-discord-000integrationId/index.ts` - Discord webhook handler
+- `apps/backend/src/http/any-api-webhooks-discord-000integrationId/services/discordVerification.ts` - Discord Ed25519 signature verification
+- `apps/backend/src/http/any-api-webhooks-discord-000integrationId/services/discordResponse.ts` - Discord API response formatting
+- `apps/backend/src/http/any-api-webhooks-discord-000integrationId/services/discordStreaming.ts` - Throttled Discord message editing
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-workspace-integrations.ts` - Create integration endpoint
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-integrations.ts` - List integrations endpoint
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-integration.ts` - Get integration endpoint
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/patch-workspace-integration.ts` - Update integration endpoint
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/delete-workspace-integration.ts` - Delete integration endpoint
+- `apps/backend/src/http/any-api-workspaces-catchall/routes/post-workspace-integrations-slack-manifest.ts` - Generate Slack manifest endpoint
+- `apps/frontend/src/pages/Integrations.tsx` - Integrations management page
+- `apps/frontend/src/components/IntegrationCard.tsx` - Integration card component
+- `apps/frontend/src/components/SlackConnectModal.tsx` - Slack connection modal
+- `apps/frontend/src/components/DiscordConnectModal.tsx` - Discord connection modal
+- `apps/frontend/src/components/SlackManifestDisplay.tsx` - Slack manifest display component
+- `docs/slack-integration.md` - Slack integration setup guide
+- `docs/discord-integration.md` - Discord integration setup guide
 
-**Files Created** (Latest):
+**Files Created** (Previous):
 
 - `apps/backend/src/http/get-api-streams-url/index.ts` - URL endpoint handler (isolated from main handler)
 - `apps/backend/src/http/utils/streamEndpointDetection.ts` - Endpoint type detection utilities
@@ -164,12 +228,19 @@
 - `apps/backend/src/http/utils/__tests__/streamExecution.test.ts` - Unit tests
 - `apps/backend/src/http/utils/__tests__/streamEventNormalization.test.ts` - Unit tests
 
-**Files Modified** (Latest):
+**Files Modified** (Latest - Slack/Discord Integration):
 
-- `apps/backend/src/http/any-api-streams-catchall/index.ts` - Refactored to use extracted utilities; reduced from 500+ lines to ~250 lines; fixed dangling promise; added Sentry logging for all error paths
-- `apps/backend/src/http/utils/streamErrorHandling.ts` - Added Sentry logging for all error paths (stream end failures, persistence failures)
-- `apps/backend/src/http/utils/streamAIPipeline.ts` - Added Sentry logging for stream end failures in finally block
-- `apps/backend/src/http/utils/streamPostProcessing.ts` - Fixed promise handling in tool extraction; added Sentry logging for conversation logging errors
+- `apps/backend/app.arc` - Added `bot-integration` table with GSIs, webhook routes for Slack/Discord, and integration management API routes
+- `apps/backend/src/tables/schema.ts` - Added `bot-integration` table schema with Zod validation
+- `apps/backend/src/http/utils/generationErrorHandling.ts` - Extended `GenerationEndpoint` type to include "bridge"
+- `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Refactored to use `agentCallNonStreaming.ts` for code reuse and tool continuation support
+- `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/__tests__/handler.test.ts` - Updated tests to mock `callAgentNonStreaming` instead of internal dependencies
+- `apps/backend/src/http/any-api-workspaces-catchall/workspaces-app.ts` - Registered integration management routes
+- `apps/frontend/src/utils/api.ts` - Added integration management API functions and interfaces
+- `apps/frontend/src/Routes.tsx` - Added route for Integrations page
+- `apps/frontend/src/pages/WorkspaceDetail.tsx` - Added navigation link to Integrations page
+- `docs/webhook-system.md` - Updated with Slack and Discord webhook documentation
+- `docs/database-schema.md` - Added `bot-integration` table documentation
 
 **Files Modified** (Previous):
 
@@ -206,7 +277,19 @@
 
 - `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/__tests__/` - Test files moved to new location
 
-**Configuration**:
+**Configuration** (Latest - Slack/Discord Integration):
+
+- Database Table: `bot-integration` with encryption enabled
+- GSIs: `byWorkspaceId` and `byAgentId` for efficient lookups
+- Slack Webhook: `any /api/webhooks/slack/:integrationId` (signature verification required)
+- Discord Webhook: `any /api/webhooks/discord/:integrationId` (Ed25519 signature verification required)
+- Integration API: Full CRUD endpoints under `/api/workspaces/:workspaceId/integrations`
+- Throttled Updates: 1.5-second interval for message editing to simulate streaming
+- Frontend Route: `/workspaces/:workspaceId/integrations` (Integrations management page)
+- Slack Manifest: Dynamic generation with webhook URL, scopes, and bot name
+- Discord Setup: Requires Public Key and Bot Token from Discord Developer Portal
+
+**Configuration** (Previous - Streaming):
 
 - Route: `any /api/streams/*` (catch-all for all streaming endpoints)
 - Test endpoint: `/api/streams/:workspaceId/:agentId/test` (JWT auth, FRONTEND_URL CORS)
@@ -217,7 +300,9 @@
 - Local Development: Automatic detection, uses appropriate streaming method
 - URL Discovery: Supports `STREAMING_FUNCTION_URL` env var, CloudFormation stack outputs, with 5-minute cache TTL
 
-**Verification**: All tests passing (211 tests in stream handler utilities, 17 test files), typecheck and lint clean ✅
+**Verification** (Latest - Slack/Discord Integration): All tests passing (2121 tests), typecheck and lint clean ✅
+
+**Verification** (Previous - Streaming): All tests passing (211 tests in stream handler utilities, 17 test files), typecheck and lint clean ✅
 
 **Latest Verification**: Typecheck, lint, and all handler tests passing after refactoring, error logging improvements, and promise handling fixes ✅
 
@@ -1379,7 +1464,78 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 
 ## Recent Changes
 
-### Agent Delegation Improvements (Latest)
+### Slack & Discord Bot Integration (Latest)
+
+**Status**: ✅ Completed
+
+**Overview**: Implemented a comprehensive Integration Bridge service that enables users to deploy their AI agents as Slack or Discord bots. The system provides a complete workflow from integration setup through webhook handling, agent execution, and message delivery with throttled streaming simulation.
+
+**Key Features Implemented**:
+
+1. **Integration Bridge Architecture**:
+
+   - Service layer between chat platforms (Slack/Discord) and existing Agent API
+   - Handles ingress (webhook events), verification (signature validation), agent execution, translation (text to platform format), and egress (posting responses)
+   - Dynamic webhook URLs with integration ID for routing
+
+2. **Slack Integration**:
+
+   - Webhook handler with `X-Slack-Signature` verification using signing secret
+   - Handles `url_verification` challenge for Slack app setup
+   - Processes `app_mention` events to trigger agent responses
+   - Dynamic Slack App Manifest generation (JSON) with webhook URL, scopes, and bot name
+   - Throttled message editing (1.5s interval) to simulate streaming
+   - Markdown to Slack Blocks conversion
+
+3. **Discord Integration**:
+
+   - Webhook handler with Ed25519 signature verification using public key
+   - Handles `PING` interaction type for endpoint verification
+   - Processes `APPLICATION_COMMAND` interaction type for agent responses
+   - Throttled message editing (1.5s interval) to simulate streaming
+   - Markdown to Discord Embeds conversion
+
+4. **Non-Streaming Agent Calls**:
+
+   - Created `agentCallNonStreaming.ts` utility that wraps `generateText` for complete text responses
+   - Handles credit management, error logging, and tool continuation
+   - Returns raw result, generation IDs, and costs for conversation logging
+   - Reused by both integration webhooks and main webhook handler
+
+5. **Frontend UI**:
+
+   - Dedicated Integrations page (`/workspaces/:workspaceId/integrations`)
+   - Integration list view with status badges (pending, active, inactive, error)
+   - Slack connection modal with manifest generation and copy-to-clipboard
+   - Discord connection modal with credential input (Public Key, Bot Token)
+   - Integration management (view, edit, delete)
+
+6. **API Endpoints**:
+
+   - Full CRUD API for managing bot integrations
+   - Slack manifest generation endpoint
+   - Dynamic webhook routes with integration ID in path
+
+7. **Code Reuse**:
+   - Refactored main webhook handler to use `agentCallNonStreaming.ts`
+   - Enabled tool continuation support in webhook handler
+   - Reduced code duplication between webhook and integration handlers
+
+**Technical Implementation**:
+
+- **Database**: `bot-integration` table with encryption, GSIs for workspace and agent lookups
+- **Security**: Platform-specific signature verification (Slack HMAC, Discord Ed25519)
+- **Streaming Simulation**: Throttled message editing every 1.5 seconds to provide near-real-time experience
+- **Error Handling**: Comprehensive error handling with proper cleanup and logging
+- **Documentation**: Complete setup guides for both platforms
+
+**Files Created**: 22 new files (handlers, services, routes, components, documentation)
+
+**Files Modified**: 10 files (schema, routes, API utilities, frontend navigation)
+
+**Verification**: All tests passing (2121 tests), typecheck and lint clean ✅
+
+### Agent Delegation Improvements (Previous)
 
 **Status**: ✅ Completed
 
