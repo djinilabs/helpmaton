@@ -324,6 +324,9 @@ openrouter-cost-verification-queue
   messageRetentionPeriod 604800
 agent-delegation-queue
   timeout 300
+bot-webhook-queue
+  visibilityTimeout 60
+  messageRetentionPeriod 1209600
 
 @api-throttling
 free
@@ -345,8 +348,6 @@ post /api/scrape
 # Example: any /api/streams/* my-custom-image
 any /api/streams/* lancedb
 post /api/webhook/:workspaceId/:agentId/:key lancedb
-any /api/webhooks/slack/:integrationId lancedb
-any /api/webhooks/discord/:integrationId lancedb
 post /api/scrape puppeteer
 any /api/workspaces lancedb
 any /api/workspaces/* lancedb
@@ -359,6 +360,7 @@ scheduled summarize-memory-yearly lancedb
 scheduled cleanup-memory-retention lancedb
 
 queue agent-temporal-grain-queue lancedb
+queue bot-webhook-queue lancedb
 
 @plugins
 architect/plugin-typescript

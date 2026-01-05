@@ -5,12 +5,11 @@ import type {
 } from "aws-lambda";
 
 import { database } from "../../tables";
+import { enqueueBotWebhookTask } from "../../utils/botWebhookQueue";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
-import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
-import { callAgentNonStreaming } from "../utils/agentCallNonStreaming";
 
-import { postSlackMessage, updateSlackMessage } from "./services/slackResponse";
+import { postSlackMessage } from "./services/slackResponse";
 import { verifySlackSignature } from "./services/slackVerification";
 
 interface SlackEvent {
@@ -29,10 +28,6 @@ interface SlackEvent {
 export const handler = adaptHttpHandler(
   handlingErrors(
     async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
-      // Extract request ID for context
-      const awsRequestId = event.requestContext?.requestId;
-      const context = getContextFromRequestId(awsRequestId);
-
       // Extract integrationId from path - format: {workspaceId}/{integrationId}
       const integrationId = event.pathParameters?.integrationId;
       if (!integrationId) {
@@ -143,7 +138,7 @@ export const handler = adaptHttpHandler(
           // Initialize Slack client
           const client = new WebClient(config.botToken);
 
-          // Post initial "thinking" message
+          // Post initial "thinking" message (for immediate feedback)
           const initialMessage = await postSlackMessage(
             client,
             slackEvent.channel,
@@ -151,103 +146,41 @@ export const handler = adaptHttpHandler(
             slackEvent.thread_ts
           );
 
+          // Enqueue task for async processing
           try {
-            // Call agent (non-streaming, but we'll simulate streaming with throttled edits)
-            const agentResultPromise = callAgentNonStreaming(
+            await enqueueBotWebhookTask(
+              "slack",
+              actualIntegrationId,
               integration.workspaceId,
               integration.agentId,
               messageText,
               {
-                modelReferer: "http://localhost:3000/api/webhooks/slack",
-                conversationId: slackEvent.thread_ts || slackEvent.ts,
-                context,
-              }
+                botToken: config.botToken,
+                channel: slackEvent.channel,
+                messageTs: initialMessage.ts,
+                threadTs: slackEvent.thread_ts,
+              },
+              slackEvent.thread_ts || slackEvent.ts
             );
-
-            // Start a background task to update the message periodically
-            // This simulates streaming by showing progressively more text
-            const updateInterval = setInterval(() => {
-              // Use void to explicitly ignore the promise
-              void (async () => {
-                try {
-                  // Check if agent call is complete
-                  const isComplete = await Promise.race([
-                    agentResultPromise.then(() => true),
-                    new Promise<boolean>((resolve) =>
-                      setTimeout(() => resolve(false), 100)
-                    ),
-                  ]);
-
-                  if (isComplete) {
-                    clearInterval(updateInterval);
-                    const agentResult = await agentResultPromise;
-                    const responseText = agentResult.text;
-
-                    // Update with complete response
-                    if (slackEvent.channel) {
-                      await updateSlackMessage(
-                        client,
-                        slackEvent.channel,
-                        initialMessage.ts,
-                        responseText || "No response generated."
-                      );
-                    }
-                  } else {
-                    // Still processing - update with "thinking" indicator
-                    if (slackEvent.channel) {
-                      // Slack timestamps are Unix timestamps (e.g., "1234567890.123456")
-                      // Convert to milliseconds: parseFloat(ts) * 1000
-                      const messageTimestamp =
-                        parseFloat(initialMessage.ts) * 1000;
-                      const elapsed = Math.floor(
-                        (Date.now() - messageTimestamp) / 1000
-                      );
-                      await updateSlackMessage(
-                        client,
-                        slackEvent.channel,
-                        initialMessage.ts,
-                        `Agent is thinking... (${elapsed}s)`
-                      );
-                    }
-                  }
-                } catch (error) {
-                  console.error(
-                    "[Slack Streaming] Error in update interval:",
-                    error
-                  );
-                }
-              })();
-            }, 1500); // Update every 1.5 seconds
-
-            // Wait for agent result
-            const agentResult = await agentResultPromise;
-            clearInterval(updateInterval);
-
-            // Final update with complete response
-            const responseText = agentResult.text;
-            await updateSlackMessage(
-              client,
-              slackEvent.channel,
-              initialMessage.ts,
-              responseText || "No response generated."
-            );
-
-            // Update lastUsedAt
-            await db["bot-integration"].update({
-              ...integration,
-              lastUsedAt: new Date().toISOString(),
-            });
           } catch (error) {
+            console.error("[Slack Webhook] Error enqueueing task:", error);
             // Update message with error
-            await updateSlackMessage(
-              client,
-              slackEvent.channel,
-              initialMessage.ts,
-              `❌ Error: ${
-                error instanceof Error ? error.message : "Unknown error"
-              }`
-            );
-            throw error;
+            try {
+              await postSlackMessage(
+                client,
+                slackEvent.channel,
+                `❌ Error: ${
+                  error instanceof Error ? error.message : "Unknown error"
+                }`,
+                slackEvent.thread_ts
+              );
+            } catch (updateError) {
+              console.error(
+                "[Slack Webhook] Error posting error message:",
+                updateError
+              );
+            }
+            // Don't throw - we've already returned ok response
           }
         }
       }
