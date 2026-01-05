@@ -3080,7 +3080,11 @@ const AgentDetail: FC = () => {
       )}
     >
       <Suspense fallback={<AgentLoadingFallback />}>
-        <AgentDataLoader workspaceId={workspaceId!} agentId={agentId!} />
+        <AgentDataLoader
+          workspaceId={workspaceId!}
+          agentId={agentId!}
+          key={`${workspaceId}-${agentId}`}
+        />
       </Suspense>
     </ErrorBoundary>
   );

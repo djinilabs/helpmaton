@@ -10,6 +10,7 @@ import { database } from "../../tables";
 import {
   extractTokenUsage,
   trackDelegation,
+  updateConversation,
 } from "../../utils/conversationLogger";
 import {
   adjustCreditReservation,
@@ -18,6 +19,7 @@ import {
 import { validateCreditsAndLimitsAndReserve } from "../../utils/creditValidation";
 import { searchDocuments } from "../../utils/documentSearch";
 import { isCreditDeductionEnabled } from "../../utils/featureFlags";
+import type { UIMessage } from "../../utils/messageTypes";
 import { sendNotification } from "../../utils/notifications";
 import { Sentry, ensureError } from "../../utils/sentry";
 import { extractTokenUsageAndCosts } from "../utils/generationTokenExtraction";
@@ -1032,6 +1034,7 @@ export async function callAgentInternal(
     tokenUsage = extractionResult.tokenUsage;
     const openrouterGenerationId = extractionResult.openrouterGenerationId;
     const openrouterGenerationIds = extractionResult.openrouterGenerationIds;
+    const provisionalCostUsd = extractionResult.provisionalCostUsd;
     if (
       isCreditDeductionEnabled() &&
       reservationId &&
@@ -1112,6 +1115,76 @@ export async function callAgentInternal(
 
     if (!result) {
       throw new Error("LLM call succeeded but result is undefined");
+    }
+
+    // Create conversation for target agent to track the delegation call
+    // This ensures the target agent has a conversation record showing:
+    // - The message it received from the calling agent
+    // - The response it gave
+    // - Token usage and costs
+    try {
+      const delegationConversationId = randomUUID();
+
+      // Build messages for the target agent's conversation
+      const targetAgentMessages: UIMessage[] = [
+        {
+          role: "user",
+          content: message,
+        },
+        {
+          role: "assistant",
+          content: result.text,
+          ...(tokenUsage && { tokenUsage }),
+          modelName: modelName || MODEL_NAME,
+          provider: "openrouter",
+          ...(openrouterGenerationId && { openrouterGenerationId }),
+          ...(provisionalCostUsd !== undefined && {
+            provisionalCostUsd,
+          }),
+        },
+      ];
+
+      // Update/create conversation for target agent
+      await updateConversation(
+        db,
+        workspaceId,
+        targetAgentId,
+        delegationConversationId,
+        targetAgentMessages,
+        tokenUsage,
+        usesByok,
+        undefined, // error
+        undefined, // awsRequestId (delegations don't have request IDs)
+        "test" // conversationType
+      );
+
+      console.log("[Agent Delegation] Created conversation for target agent:", {
+        workspaceId,
+        targetAgentId,
+        delegationConversationId,
+        messageLength: message.length,
+        responseLength: result.text.length,
+        tokenUsage: tokenUsage
+          ? {
+              promptTokens: tokenUsage.promptTokens,
+              completionTokens: tokenUsage.completionTokens,
+              totalTokens: tokenUsage.totalTokens,
+            }
+          : undefined,
+      });
+    } catch (conversationError) {
+      // Log but don't fail - conversation logging is best-effort
+      console.error(
+        "[callAgentInternal] Error creating conversation for target agent:",
+        {
+          error:
+            conversationError instanceof Error
+              ? conversationError.message
+              : String(conversationError),
+          workspaceId,
+          targetAgentId,
+        }
+      );
     }
 
     return result.text;
@@ -1234,6 +1307,56 @@ export async function callAgentInternal(
       `[callAgentInternal] Error calling agent ${targetAgentId}:`,
       error
     );
+
+    // Try to log failed delegation in target agent's conversation
+    if (message) {
+      try {
+        const delegationConversationId = randomUUID();
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        const errorInfo = {
+          message: errorMessage,
+          name: error instanceof Error ? error.name : "Error",
+          code: undefined,
+          statusCode: 500,
+        };
+
+        await updateConversation(
+          db,
+          workspaceId,
+          targetAgentId,
+          delegationConversationId,
+          [
+            {
+              role: "user",
+              content: message,
+            },
+          ],
+          undefined, // tokenUsage
+          usesByok,
+          errorInfo,
+          undefined, // awsRequestId
+          "test"
+        );
+
+        console.log(
+          "[Agent Delegation] Created error conversation for target agent:",
+          {
+            workspaceId,
+            targetAgentId,
+            delegationConversationId,
+            error: errorMessage,
+          }
+        );
+      } catch (logError) {
+        // Ignore logging errors - don't mask the original error
+        console.warn(
+          "[callAgentInternal] Failed to log error conversation:",
+          logError
+        );
+      }
+    }
+
     return `Error calling agent: ${
       error instanceof Error ? error.message : String(error)
     }`;
