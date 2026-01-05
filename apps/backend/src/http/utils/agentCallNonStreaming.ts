@@ -28,11 +28,18 @@ export interface AgentCallNonStreamingOptions {
   conversationId?: string;
   conversationOwnerAgentId?: string;
   userId?: string;
+  endpointType?: "bridge" | "webhook" | "test" | "stream";
 }
 
 export interface AgentCallNonStreamingResult {
   text: string;
   tokenUsage: TokenUsage | undefined;
+  // Raw result from generateText for extracting tool calls/results
+  rawResult?: Awaited<ReturnType<typeof generateText>>;
+  // Extracted generation IDs and costs
+  openrouterGenerationId?: string;
+  openrouterGenerationIds?: string[];
+  provisionalCostUsd?: number;
 }
 
 /**
@@ -98,6 +105,9 @@ export async function callAgentNonStreaming(
   let llmCallAttempted = false;
   let result: Awaited<ReturnType<typeof generateText>> | undefined;
   let tokenUsage: TokenUsage | undefined;
+  let extractionResult:
+    | ReturnType<typeof extractTokenUsageAndCosts>
+    | undefined;
 
   try {
     // Validate credits, spending limits, and reserve credits before LLM call
@@ -111,7 +121,7 @@ export async function callAgentNonStreaming(
       agent.systemPrompt,
       tools,
       usesByok,
-      "bridge", // endpoint type
+      options?.endpointType || "bridge", // endpoint type
       options?.context
     );
 
@@ -120,7 +130,7 @@ export async function callAgentNonStreaming(
       agent,
       tools,
       modelMessages,
-      "bridge",
+      options?.endpointType || "bridge",
       workspaceId,
       agentId
     );
@@ -136,11 +146,11 @@ export async function callAgentNonStreaming(
     });
 
     // Extract token usage and costs
-    const extractionResult = extractTokenUsageAndCosts(
+    extractionResult = extractTokenUsageAndCosts(
       result as unknown as GenerateTextResultWithTotalUsage,
       undefined,
       finalModelName,
-      "bridge"
+      options?.endpointType || "bridge"
     );
     tokenUsage = extractionResult.tokenUsage;
 
@@ -157,7 +167,7 @@ export async function callAgentNonStreaming(
         usesByok,
         extractionResult.openrouterGenerationId,
         extractionResult.openrouterGenerationIds,
-        "bridge",
+        options?.endpointType || "bridge",
         options.context
       );
     } else {
@@ -185,7 +195,7 @@ export async function callAgentNonStreaming(
         reservationId,
         workspaceId,
         agentId,
-        "bridge"
+        options?.endpointType || "bridge"
       );
     }
   } catch (error) {
@@ -201,7 +211,7 @@ export async function callAgentNonStreaming(
         error,
         llmCallAttempted,
         usesByok,
-        "bridge",
+        options?.endpointType || "bridge",
         options.context
       );
     }
@@ -223,8 +233,16 @@ export async function callAgentNonStreaming(
     tools
   );
 
+  // Use token usage from processedResult if available (includes continuation tokens),
+  // otherwise fall back to initial extraction
+  const finalTokenUsage = processedResult.tokenUsage || tokenUsage;
+
   return {
     text: processedResult.text,
-    tokenUsage: processedResult.tokenUsage || tokenUsage,
+    tokenUsage: finalTokenUsage,
+    rawResult: result,
+    openrouterGenerationId: extractionResult?.openrouterGenerationId,
+    openrouterGenerationIds: extractionResult?.openrouterGenerationIds,
+    provisionalCostUsd: extractionResult?.provisionalCostUsd,
   };
 }
