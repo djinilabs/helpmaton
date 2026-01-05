@@ -28,7 +28,10 @@ export const registerPatchWorkspaceIntegration = (app: express.Application) => {
         const db = await database();
 
         const integrationPk = `bot-integrations/${workspaceId}/${integrationId}`;
-        const integration = await db["bot-integration"].get(integrationPk, "integration");
+        const integration = await db["bot-integration"].get(
+          integrationPk,
+          "integration"
+        );
 
         if (!integration) {
           throw notFound("Integration not found");
@@ -52,7 +55,11 @@ export const registerPatchWorkspaceIntegration = (app: express.Application) => {
         }
 
         if (status !== undefined) {
-          if (status !== "active" && status !== "inactive" && status !== "error") {
+          if (
+            status !== "active" &&
+            status !== "inactive" &&
+            status !== "error"
+          ) {
             throw badRequest("status must be 'active', 'inactive', or 'error'");
           }
           updates.status = status;
@@ -64,14 +71,23 @@ export const registerPatchWorkspaceIntegration = (app: express.Application) => {
           }
           // Validate platform-specific config
           if (integration.platform === "slack") {
-            if (config.botToken !== undefined && typeof config.botToken !== "string") {
+            if (
+              config.botToken !== undefined &&
+              typeof config.botToken !== "string"
+            ) {
               throw badRequest("config.botToken must be a string");
             }
-            if (config.signingSecret !== undefined && typeof config.signingSecret !== "string") {
+            if (
+              config.signingSecret !== undefined &&
+              typeof config.signingSecret !== "string"
+            ) {
               throw badRequest("config.signingSecret must be a string");
             }
           } else if (integration.platform === "discord") {
-            if (config.botToken !== undefined && typeof config.botToken !== "string") {
+            if (
+              config.botToken !== undefined &&
+              typeof config.botToken !== "string"
+            ) {
               throw badRequest("config.botToken must be a string");
             }
             if (config.publicKey !== undefined) {
@@ -79,14 +95,20 @@ export const registerPatchWorkspaceIntegration = (app: express.Application) => {
                 throw badRequest("config.publicKey must be a string");
               }
               if (!/^[0-9a-fA-F]{64}$/.test(config.publicKey)) {
-                throw badRequest("config.publicKey must be a 64-character hex string");
+                throw badRequest(
+                  "config.publicKey must be a 64-character hex string"
+                );
               }
             }
           }
           updates.config = { ...integration.config, ...config };
         }
 
-        const updated = await db["bot-integration"].update(updates);
+        const updated = await db["bot-integration"].update({
+          pk: integrationPk,
+          sk: "integration",
+          ...updates,
+        });
 
         res.json({
           id: integrationId,
@@ -100,9 +122,12 @@ export const registerPatchWorkspaceIntegration = (app: express.Application) => {
           updatedAt: updated.updatedAt,
         });
       } catch (error) {
-        handleError(error, next, "PATCH /api/workspaces/:workspaceId/integrations/:integrationId");
+        handleError(
+          error,
+          next,
+          "PATCH /api/workspaces/:workspaceId/integrations/:integrationId"
+        );
       }
     }
   );
 };
-

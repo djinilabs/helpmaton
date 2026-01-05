@@ -1,4 +1,7 @@
-import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
+import type {
+  APIGatewayProxyEventV2,
+  APIGatewayProxyResultV2,
+} from "aws-lambda";
 
 import { database } from "../../tables";
 import { handlingErrors } from "../../utils/handlingErrors";
@@ -6,7 +9,11 @@ import { adaptHttpHandler } from "../../utils/httpEventAdapter";
 import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { callAgentNonStreaming } from "../utils/agentCallNonStreaming";
 
-import { createDiscordInteractionResponse , updateDiscordMessage } from "./services/discordResponse";
+import {
+  createDiscordDeferredResponse,
+  createDiscordInteractionResponse,
+  updateDiscordMessage,
+} from "./services/discordResponse";
 import { verifyDiscordSignature } from "./services/discordVerification";
 
 interface DiscordInteraction {
@@ -63,7 +70,10 @@ export const handler = adaptHttpHandler(
       }
       const [workspaceId, actualIntegrationId] = parts;
       const integrationPk = `bot-integrations/${workspaceId}/${actualIntegrationId}`;
-      const integration = await db["bot-integration"].get(integrationPk, "integration");
+      const integration = await db["bot-integration"].get(
+        integrationPk,
+        "integration"
+      );
 
       if (!integration || integration.platform !== "discord") {
         return {
@@ -148,80 +158,114 @@ export const handler = adaptHttpHandler(
           };
         }
 
-        // Post initial "thinking" response
-        const initialResponse = createDiscordInteractionResponse(
-          "Agent is thinking...",
-          false
-        );
+        // Return deferred response immediately (Discord requires response within 3 seconds)
+        // This acknowledges the interaction and allows up to 15 minutes for follow-up
+        const deferredResponse = createDiscordDeferredResponse();
 
-        // Start background task to update message periodically
-        const updateInterval = setInterval(() => {
-          // Use void to explicitly ignore the promise
-          void (async () => {
+        // Process agent call in background (don't await - return immediately)
+        void (async () => {
+          // Capture start time for elapsed time calculation
+          const startTime = Date.now();
+
+          // Post initial "thinking" message
+          if (body.token && config.applicationId) {
             try {
-              if (body.token && config.applicationId) {
-                const elapsed = Math.floor((Date.now() - Date.now()) / 1000);
+              await updateDiscordMessage(
+                config.botToken,
+                config.applicationId,
+                body.token,
+                "Agent is thinking..."
+              );
+            } catch (error) {
+              console.error(
+                "[Discord Streaming] Error posting initial message:",
+                error
+              );
+            }
+          }
+
+          // Start background task to update message periodically
+          const updateInterval = setInterval(() => {
+            // Use void to explicitly ignore the promise
+            void (async () => {
+              try {
+                if (body.token && config.applicationId) {
+                  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                  await updateDiscordMessage(
+                    config.botToken,
+                    config.applicationId,
+                    body.token,
+                    `Agent is thinking... (${elapsed}s)`
+                  );
+                }
+              } catch (error) {
+                console.error(
+                  "[Discord Streaming] Error in update interval:",
+                  error
+                );
+              }
+            })();
+          }, 1500);
+
+          try {
+            // Call agent
+            const agentResult = await callAgentNonStreaming(
+              integration.workspaceId,
+              integration.agentId,
+              messageText,
+              {
+                modelReferer: "http://localhost:3000/api/webhooks/discord",
+                conversationId: body.channel_id,
+                context,
+              }
+            );
+
+            clearInterval(updateInterval);
+
+            // Update with complete response
+            if (body.token && config.applicationId) {
+              await updateDiscordMessage(
+                config.botToken,
+                config.applicationId,
+                body.token,
+                agentResult.text || "No response generated."
+              );
+            }
+
+            // Update lastUsedAt
+            await db["bot-integration"].update({
+              ...integration,
+              lastUsedAt: new Date().toISOString(),
+            });
+          } catch (error) {
+            clearInterval(updateInterval);
+            // Update with error
+            if (body.token && config.applicationId) {
+              try {
                 await updateDiscordMessage(
                   config.botToken,
                   config.applicationId,
                   body.token,
-                  `Agent is thinking... (${elapsed}s)`
+                  `❌ Error: ${
+                    error instanceof Error ? error.message : "Unknown error"
+                  }`
+                );
+              } catch (updateError) {
+                console.error(
+                  "[Discord Streaming] Error updating with error message:",
+                  updateError
                 );
               }
-            } catch (error) {
-              console.error("[Discord Streaming] Error in update interval:", error);
             }
-          })();
-        }, 1500);
-
-        try {
-          // Call agent
-          const agentResult = await callAgentNonStreaming(
-            integration.workspaceId,
-            integration.agentId,
-            messageText,
-            {
-              modelReferer: "http://localhost:3000/api/webhooks/discord",
-              conversationId: body.channel_id,
-              context,
-            }
-          );
-
-          clearInterval(updateInterval);
-
-          // Update with complete response
-          if (body.token && config.applicationId) {
-            await updateDiscordMessage(
-              config.botToken,
-              config.applicationId,
-              body.token,
-              agentResult.text || "No response generated."
-            );
+            // Log error but don't throw (we've already returned the response)
+            console.error("[Discord Streaming] Error calling agent:", error);
           }
+        })();
 
-          // Update lastUsedAt
-          await db["bot-integration"].update({
-            ...integration,
-            lastUsedAt: new Date().toISOString(),
-          });
-        } catch (error) {
-          clearInterval(updateInterval);
-          // Update with error
-          if (body.token && config.applicationId) {
-            await updateDiscordMessage(
-              config.botToken,
-              config.applicationId,
-              body.token,
-              `❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`
-            );
-          }
-          throw error;
-        }
-
-        // Return initial response (Discord requires immediate response)
+        // Return deferred response immediately (within 3 seconds)
         return {
           statusCode: 200,
-          body: JSON.stringify(initialResponse),
+          body: JSON.stringify(deferredResponse),
           headers: { "Content-Type": "application/json" },
         };
       }
@@ -237,4 +281,3 @@ export const handler = adaptHttpHandler(
     }
   )
 );
-

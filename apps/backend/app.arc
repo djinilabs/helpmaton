@@ -345,6 +345,8 @@ post /api/scrape
 # Example: any /api/streams/* my-custom-image
 any /api/streams/* lancedb
 post /api/webhook/:workspaceId/:agentId/:key lancedb
+any /api/webhooks/slack/:integrationId lancedb
+any /api/webhooks/discord/:integrationId lancedb
 post /api/scrape puppeteer
 any /api/workspaces lancedb
 any /api/workspaces/* lancedb

@@ -73,7 +73,7 @@ export const registerPostWorkspaceIntegrationsSlackManifest = (app: express.Appl
           },
           event_subscriptions: {
             request_url: webhookUrl,
-            bot_events: ["app_mentions", "message.channels", "message.groups", "message.im", "message.mpim"],
+            bot_events: ["app_mention", "message.channels", "message.groups", "message.im", "message.mpim"],
           },
           settings: {
             event_subscriptions: {

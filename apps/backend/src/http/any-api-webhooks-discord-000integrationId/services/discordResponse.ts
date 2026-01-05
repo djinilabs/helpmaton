@@ -52,6 +52,16 @@ export function createDiscordInteractionResponse(
 }
 
 /**
+ * Creates a deferred Discord interaction response
+ * This acknowledges the interaction immediately, allowing up to 15 minutes for follow-up
+ */
+export function createDiscordDeferredResponse(): { type: number } {
+  return {
+    type: 5, // DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE
+  };
+}
+
+/**
  * Updates a Discord message via REST API
  */
 export async function updateDiscordMessage(

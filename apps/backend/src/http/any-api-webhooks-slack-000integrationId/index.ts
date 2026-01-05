@@ -1,5 +1,8 @@
 import { WebClient } from "@slack/web-api";
-import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
+import type {
+  APIGatewayProxyEventV2,
+  APIGatewayProxyResultV2,
+} from "aws-lambda";
 
 import { database } from "../../tables";
 import { handlingErrors } from "../../utils/handlingErrors";
@@ -7,10 +10,7 @@ import { adaptHttpHandler } from "../../utils/httpEventAdapter";
 import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { callAgentNonStreaming } from "../utils/agentCallNonStreaming";
 
-import {
-  postSlackMessage,
-  updateSlackMessage,
-} from "./services/slackResponse";
+import { postSlackMessage, updateSlackMessage } from "./services/slackResponse";
 import { verifySlackSignature } from "./services/slackVerification";
 
 interface SlackEvent {
@@ -56,7 +56,10 @@ export const handler = adaptHttpHandler(
       }
       const [workspaceId, actualIntegrationId] = parts;
       const integrationPk = `bot-integrations/${workspaceId}/${actualIntegrationId}`;
-      const integration = await db["bot-integration"].get(integrationPk, "integration");
+      const integration = await db["bot-integration"].get(
+        integrationPk,
+        "integration"
+      );
 
       if (!integration || integration.platform !== "slack") {
         return {
@@ -116,9 +119,10 @@ export const handler = adaptHttpHandler(
       if (body.type === "event_callback" && body.event) {
         const slackEvent = body.event;
 
-        // Handle app_mentions and message events
+        // Handle app_mention and message events
         if (
-          (slackEvent.type === "app_mentions" || slackEvent.type === "message") &&
+          (slackEvent.type === "app_mention" ||
+            slackEvent.type === "message") &&
           slackEvent.text &&
           slackEvent.channel &&
           slackEvent.user
@@ -169,7 +173,9 @@ export const handler = adaptHttpHandler(
                   // Check if agent call is complete
                   const isComplete = await Promise.race([
                     agentResultPromise.then(() => true),
-                    new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 100)),
+                    new Promise<boolean>((resolve) =>
+                      setTimeout(() => resolve(false), 100)
+                    ),
                   ]);
 
                   if (isComplete) {
@@ -189,7 +195,13 @@ export const handler = adaptHttpHandler(
                   } else {
                     // Still processing - update with "thinking" indicator
                     if (slackEvent.channel) {
-                      const elapsed = Math.floor((Date.now() - Date.parse(initialMessage.ts)) / 1000);
+                      // Slack timestamps are Unix timestamps (e.g., "1234567890.123456")
+                      // Convert to milliseconds: parseFloat(ts) * 1000
+                      const messageTimestamp =
+                        parseFloat(initialMessage.ts) * 1000;
+                      const elapsed = Math.floor(
+                        (Date.now() - messageTimestamp) / 1000
+                      );
                       await updateSlackMessage(
                         client,
                         slackEvent.channel,
@@ -199,7 +211,10 @@ export const handler = adaptHttpHandler(
                     }
                   }
                 } catch (error) {
-                  console.error("[Slack Streaming] Error in update interval:", error);
+                  console.error(
+                    "[Slack Streaming] Error in update interval:",
+                    error
+                  );
                 }
               })();
             }, 1500); // Update every 1.5 seconds
@@ -228,7 +243,9 @@ export const handler = adaptHttpHandler(
               client,
               slackEvent.channel,
               initialMessage.ts,
-              `❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`
+              `❌ Error: ${
+                error instanceof Error ? error.message : "Unknown error"
+              }`
             );
             throw error;
           }
@@ -243,4 +260,3 @@ export const handler = adaptHttpHandler(
     }
   )
 );
-
