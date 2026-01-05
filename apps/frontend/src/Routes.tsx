@@ -14,6 +14,7 @@ const SubscriptionManagement = lazy(
 );
 const UserSettings = lazy(() => import("./pages/UserSettings"));
 const InviteAccept = lazy(() => import("./pages/InviteAccept"));
+const Integrations = lazy(() => import("./pages/Integrations"));
 const ApiDocs = lazy(() => import("./pages/ApiDocs"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -39,6 +40,10 @@ export const AppRoutes: FC = () => {
         <Route
           path="/workspaces/:workspaceId/invites/:token"
           element={<InviteAccept />}
+        />
+        <Route
+          path="/workspaces/:workspaceId/integrations"
+          element={<Integrations />}
         />
         <Route path="/subscription" element={<SubscriptionManagement />} />
         <Route path="/settings" element={<UserSettings />} />

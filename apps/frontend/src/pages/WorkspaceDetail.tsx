@@ -14,6 +14,7 @@ import {
   KeyIcon,
   UsersIcon,
   ExclamationTriangleIcon,
+  LinkIcon,
 } from "@heroicons/react/24/outline";
 import { useQueryErrorResetBoundary, useQuery } from "@tanstack/react-query";
 import { useState, Suspense, lazy } from "react";
@@ -647,6 +648,47 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               <ErrorBoundary>
                 <EmailConnectionCard workspaceId={id!} />
               </ErrorBoundary>
+            </LazyAccordionContent>
+          </AccordionSection>
+
+          <AccordionSection
+            id="integrations"
+            title={
+              <>
+                <LinkIcon className="mr-2 inline-block size-5" />
+                Bot Integrations
+              </>
+            }
+            isExpanded={expandedSection === "integrations"}
+            onToggle={() => toggleSection("integrations")}
+          >
+            <LazyAccordionContent
+              isExpanded={expandedSection === "integrations"}
+            >
+              <div className="space-y-4">
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                  Connect your agents to Slack or Discord bots to make them available to your team or community.
+                </p>
+                <Link
+                  to={`/workspaces/${id}/integrations`}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored"
+                >
+                  Manage Integrations
+                  <svg
+                    className="size-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </Link>
+              </div>
             </LazyAccordionContent>
           </AccordionSection>
         </SectionGroup>

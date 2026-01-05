@@ -4,7 +4,7 @@ This document describes the DynamoDB database schema used by Helpmaton, includin
 
 ## Overview
 
-Helpmaton uses DynamoDB as its primary database, with 22 tables storing different types of data. All tables use encryption at rest and support optimistic locking via version numbers.
+Helpmaton uses DynamoDB as its primary database, with 23 tables storing different types of data. All tables use encryption at rest and support optimistic locking via version numbers.
 
 ## Table Structure
 

@@ -5,7 +5,6 @@
   "dependencies": {
     "@20minutes/s3rver": "^4.0.1",
     "@ai-sdk/google": "^2.0.31",
-    "@openrouter/ai-sdk-provider": "^1.0.0",
     "@architect/functions": "^8.1.6",
     "@auth/core": "^0.41.0",
     "@auth/dynamodb-adapter": "^2.7.4",
@@ -21,7 +20,9 @@
     "@aws-sdk/lib-dynamodb": "^3.716.0",
     "@hapi/boom": "^10.0.1",
     "@lancedb/lancedb": "^0.23.0",
+    "@openrouter/ai-sdk-provider": "^1.0.0",
     "@sentry/node": "^10.0.0",
+    "@slack/web-api": "^7.13.0",
     "@sparticuz/chromium": "^143.0.0",
     "@tavily/core": "^0.6.3",
     "@vendia/serverless-express": "^4.12.6",
@@ -55,7 +56,6 @@
     "@types/nodemailer": "^7.0.0",
     "@types/swagger-jsdoc": "^6.0.1",
     "@vitest/ui": "^4.0.9",
-    
     "swagger-jsdoc": "^6.2.8",
     "vitest": "^4.0.9"
   },

@@ -459,6 +459,22 @@ export const tableSchemas = {
     gsi1pk: z.string(), // "workspace/{workspaceId}/agent/{callingAgentId}"
     gsi1sk: z.string(), // "{createdAt}"
   }),
+  "bot-integration": TableBaseSchema.extend({
+    pk: z.string(), // bot-integration ID (e.g., "bot-integrations/{workspaceId}/{integrationId}")
+    sk: z.string().optional(), // optional sort key (fixed value "integration")
+    workspaceId: z.string(), // workspace ID for GSI queries
+    agentId: z.string(), // agent ID this bot is connected to (for GSI queries)
+    platform: z.enum(["slack", "discord"]), // platform type
+    name: z.string(), // user-friendly name for the integration
+    config: z.record(z.string(), z.unknown()), // platform-specific config (encrypted)
+    // Slack: { botToken, signingSecret, teamId?, teamName? }
+    // Discord: { botToken, publicKey, applicationId? }
+    webhookUrl: z.string().url(), // the webhook URL for this integration
+    status: z.enum(["active", "inactive", "error"]).default("active"), // integration status
+    lastUsedAt: z.string().datetime().optional(), // timestamp of last use
+    version: z.number().default(1),
+    createdAt: z.string().datetime().default(new Date().toISOString()),
+  }),
 } as const;
 
 export type TableBaseSchemaType = z.infer<typeof TableBaseSchema>;
@@ -486,7 +502,8 @@ export type TableName =
   | "user-api-key"
   | "user-refresh-token"
   | "workspace-credit-transactions"
-  | "agent-delegation-tasks";
+  | "agent-delegation-tasks"
+  | "bot-integration";
 
 export type WorkspaceRecord = z.infer<typeof tableSchemas.workspace>;
 export type PermissionRecord = z.infer<typeof tableSchemas.permission>;
@@ -536,6 +553,9 @@ export type UserRefreshTokenRecord = z.infer<
 >;
 export type WorkspaceCreditTransactionRecord = z.infer<
   (typeof tableSchemas)["workspace-credit-transactions"]
+>;
+export type BotIntegrationRecord = z.infer<
+  (typeof tableSchemas)["bot-integration"]
 >;
 
 export const PERMISSION_LEVELS = {
@@ -659,6 +679,7 @@ export type DatabaseSchema = {
   "user-refresh-token": TableAPI<"user-refresh-token">;
   "workspace-credit-transactions": TableAPI<"workspace-credit-transactions">;
   "agent-delegation-tasks": TableAPI<"agent-delegation-tasks">;
+  "bot-integration": TableAPI<"bot-integration">;
 };
 
 /**
@@ -701,7 +722,8 @@ export type TableRecord =
   | z.infer<(typeof tableSchemas)["agent-stream-servers"]>
   | z.infer<(typeof tableSchemas)["user-api-key"]>
   | z.infer<(typeof tableSchemas)["user-refresh-token"]>
-  | z.infer<(typeof tableSchemas)["workspace-credit-transactions"]>;
+  | z.infer<(typeof tableSchemas)["workspace-credit-transactions"]>
+  | z.infer<(typeof tableSchemas)["bot-integration"]>;
 
 /**
  * Callback function for atomic update operations
