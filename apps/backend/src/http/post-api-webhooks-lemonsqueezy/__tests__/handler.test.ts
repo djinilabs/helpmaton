@@ -20,6 +20,7 @@ const {
   mockSendPaymentFailedEmail,
   mockSendSubscriptionCancelledEmail,
   mockGetUserEmailById,
+  mockAssociateSubscriptionWithPlan,
 } = vi.hoisted(() => {
   const database = vi.fn();
   const verifyWebhookSignature = vi.fn();
@@ -30,6 +31,7 @@ const {
   const sendPaymentFailedEmail = vi.fn();
   const sendSubscriptionCancelledEmail = vi.fn();
   const getUserEmailById = vi.fn().mockResolvedValue("user@example.com");
+  const associateSubscriptionWithPlan = vi.fn().mockResolvedValue(undefined);
   return {
     mockDatabase: database,
     mockVerifyWebhookSignature: verifyWebhookSignature,
@@ -40,6 +42,7 @@ const {
     mockSendPaymentFailedEmail: sendPaymentFailedEmail,
     mockSendSubscriptionCancelledEmail: sendSubscriptionCancelledEmail,
     mockGetUserEmailById: getUserEmailById,
+    mockAssociateSubscriptionWithPlan: associateSubscriptionWithPlan,
   };
 });
 
@@ -73,7 +76,6 @@ vi.mock("../../../utils/subscriptionEmails", () => ({
 }));
 
 // Mock apiGatewayUsagePlans module
-const mockAssociateSubscriptionWithPlan = vi.fn().mockResolvedValue(undefined);
 vi.mock("../../../utils/apiGatewayUsagePlans", () => ({
   associateSubscriptionWithPlan: mockAssociateSubscriptionWithPlan,
 }));
