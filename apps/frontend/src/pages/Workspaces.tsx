@@ -12,6 +12,7 @@ const CreateWorkspaceModal = lazy(() =>
   }))
 );
 import { useWorkspaces } from "../hooks/useWorkspaces";
+import { trackEvent } from "../utils/tracking";
 
 const WorkspacesList: FC = () => {
   const { data: workspaces } = useWorkspaces();
@@ -102,7 +103,12 @@ const WorkspacesList: FC = () => {
             {workspaces.map((workspace) => (
               <div
                 key={workspace.id}
-                onClick={() => navigate(`/workspaces/${workspace.id}`)}
+                onClick={() => {
+                  trackEvent("workspace_viewed", {
+                    workspace_id: workspace.id,
+                  });
+                  navigate(`/workspaces/${workspace.id}`);
+                }}
                 className="group relative transform cursor-pointer overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large transition-all duration-200 hover:scale-[1.03] hover:border-primary-400 hover:shadow-bold active:scale-[0.97] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500 lg:p-10"
               >
                 <div className="group-hover:opacity-8 absolute right-0 top-0 size-40 rounded-full bg-gradient-primary opacity-0 blur-3xl transition-opacity duration-200"></div>

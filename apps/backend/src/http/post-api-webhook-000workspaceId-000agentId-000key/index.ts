@@ -42,6 +42,7 @@ import {
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
 import type { UIMessage } from "../../utils/messageTypes";
 import { Sentry, ensureError } from "../../utils/sentry";
+import { trackBusinessEvent } from "../../utils/tracking";
 import {
   getContextFromRequestId,
   getTransactionBuffer,
@@ -934,6 +935,17 @@ export const handler = adaptHttpHandler(
           },
         });
       }
+
+      // Track webhook call
+      trackBusinessEvent(
+        "webhook",
+        "called",
+        {
+          workspace_id: workspaceId,
+          agent_id: agentId,
+        },
+        undefined // Webhooks use API keys, no user context
+      );
 
       // Return plain text response for webhook
       return {

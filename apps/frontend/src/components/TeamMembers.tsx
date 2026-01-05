@@ -10,6 +10,7 @@ import {
   type Member,
   type WorkspaceInviteListItem,
 } from "../utils/api";
+import { trackEvent } from "../utils/tracking";
 
 import { LoadingScreen } from "./LoadingScreen";
 
@@ -70,7 +71,11 @@ export const TeamMembers: FC<TeamMembersProps> = ({
 
   const removeMember = useMutation({
     mutationFn: (userId: string) => removeWorkspaceMember(workspaceId, userId),
-    onSuccess: () => {
+    onSuccess: (_, userId) => {
+      trackEvent("workspace_member_removed", {
+        workspace_id: workspaceId,
+        member_user_id: userId,
+      });
       queryClient.invalidateQueries({
         queryKey: ["workspace-members", workspaceId],
       });
@@ -87,7 +92,11 @@ export const TeamMembers: FC<TeamMembersProps> = ({
   const cancelInvite = useMutation({
     mutationFn: (inviteId: string) =>
       cancelWorkspaceInvite(workspaceId, inviteId),
-    onSuccess: () => {
+    onSuccess: (_, inviteId) => {
+      trackEvent("workspace_invite_deleted", {
+        workspace_id: workspaceId,
+        invite_id: inviteId,
+      });
       queryClient.invalidateQueries({
         queryKey: ["workspace-invites", workspaceId],
       });

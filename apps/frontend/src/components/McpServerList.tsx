@@ -3,6 +3,7 @@ import type { FC } from "react";
 
 import { useMcpServers, useDeleteMcpServer } from "../hooks/useMcpServers";
 import type { McpServer } from "../utils/api";
+import { trackEvent } from "../utils/tracking";
 
 import { McpServerModal } from "./McpServerModal";
 
@@ -58,6 +59,10 @@ const McpServerItem: FC<McpServerItemProps> = ({
               }
               try {
                 await deleteServer.mutateAsync(server.id);
+                trackEvent("mcp_server_deleted", {
+                  workspace_id: workspaceId,
+                  server_id: server.id,
+                });
               } catch {
                 // Error is handled by toast in the hook
               }

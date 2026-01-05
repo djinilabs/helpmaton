@@ -15,6 +15,7 @@ import {
 import { isAuthenticationError } from "../../../utils/handlingErrors";
 import type { UIMessage } from "../../../utils/messageTypes";
 import { Sentry, ensureError } from "../../../utils/sentry";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { getContextFromRequestId } from "../../../utils/workspaceCreditContext";
 import { setupAgentAndTools } from "../../utils/agentSetup";
 import { MODEL_NAME } from "../../utils/agentUtils";
@@ -578,6 +579,17 @@ export const registerPostTestAgent = (app: express.Application) => {
         workspaceId,
         agentId,
         "test"
+      );
+
+      // Track agent test execution
+      trackBusinessEvent(
+        "agent",
+        "test_executed",
+        {
+          workspace_id: workspaceId,
+          agent_id: agentId,
+        },
+        req
       );
 
       // Get the UI message stream response from streamText result

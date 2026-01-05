@@ -4,6 +4,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { isValidAvatar } from "../../../utils/avatarUtils";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -562,6 +563,20 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           createdAt: updated.createdAt,
           updatedAt: updated.updatedAt,
         };
+
+        // Track agent update
+        trackBusinessEvent(
+          "agent",
+          "updated",
+          {
+            workspace_id: workspaceId,
+            agent_id: agentId,
+            provider: updated.provider,
+            model_name: updated.modelName || undefined,
+          },
+          req
+        );
+
         res.json(response);
       } catch (error) {
         handleError(

@@ -4,6 +4,8 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { queryUsageStats } from "../../../utils/aggregation";
+import { trackBusinessEvent } from "../../../utils/tracking";
+import { extractUserId } from "../../utils/session";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -139,6 +141,17 @@ export const registerGetWorkspaceUsage = (app: express.Application) => {
         byProvider: Object.keys(stats.byProvider),
         toolExpenses: Object.keys(stats.toolExpenses),
       });
+
+      // Track workspace usage viewing
+      const userId = extractUserId(req);
+      if (userId) {
+        trackBusinessEvent("workspace", "usage_viewed", {
+          workspace_id: workspaceId,
+          start_date: startDate.toISOString().split("T")[0],
+          end_date: endDate.toISOString().split("T")[0],
+          user_id: userId,
+        });
+      }
 
       res.json({
         workspaceId,

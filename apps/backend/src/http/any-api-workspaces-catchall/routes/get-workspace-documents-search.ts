@@ -3,6 +3,7 @@ import express from "express";
 
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { searchDocuments } from "../../../utils/documentSearch";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -96,6 +97,19 @@ export const registerGetWorkspaceDocumentsSearch = (
       }
 
       const results = await searchDocuments(workspaceId, query.trim(), limit);
+
+      // Track document search
+      trackBusinessEvent(
+        "document",
+        "search_performed",
+        {
+          workspace_id: workspaceId,
+          query_length: query.trim().length,
+          result_count: results.length,
+          limit,
+        },
+        req
+      );
 
       res.json({ results });
     })

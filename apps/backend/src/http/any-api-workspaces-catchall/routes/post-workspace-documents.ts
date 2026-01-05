@@ -17,6 +17,7 @@ import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
 } from "../../../utils/subscriptionUtils";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 import { calculateDocumentMetrics } from "../utils";
 
@@ -327,6 +328,22 @@ export const registerPostWorkspaceDocuments = (app: express.Application) => {
             });
           });
         }
+      }
+
+      // Track document upload(s) - only include document_count for single uploads
+      for (const doc of uploadedDocuments) {
+        trackBusinessEvent(
+          "document",
+          "uploaded",
+          {
+            workspace_id: workspaceId,
+            document_id: doc.id,
+            document_type: doc.contentType,
+            folder_path: doc.folderPath || undefined,
+            ...(uploadedDocuments.length === 1 ? { document_count: 1 } : {}),
+          },
+          req
+        );
       }
 
       res.status(201).json({ documents: uploadedDocuments });

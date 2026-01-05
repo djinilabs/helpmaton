@@ -3,6 +3,7 @@ import { useState, type FC } from "react";
 
 import { useToast } from "../hooks/useToast";
 import { inviteWorkspaceMember } from "../utils/api";
+import { trackEvent } from "../utils/tracking";
 
 interface InviteMemberProps {
   workspaceId: string;
@@ -36,7 +37,12 @@ export const InviteMember: FC<InviteMemberProps> = ({
   const invite = useMutation({
     mutationFn: () =>
       inviteWorkspaceMember(workspaceId, email.trim(), permissionLevel),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      trackEvent("workspace_member_invited", {
+        workspace_id: workspaceId,
+        invite_id: result.inviteId,
+        permission_level: permissionLevel,
+      });
       queryClient.invalidateQueries({
         queryKey: ["workspace-members", workspaceId],
       });

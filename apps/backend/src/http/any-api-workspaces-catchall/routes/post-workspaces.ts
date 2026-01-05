@@ -10,6 +10,7 @@ import {
   checkSubscriptionLimits,
   getUserSubscription,
 } from "../../../utils/subscriptionUtils";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth } from "../middleware";
 
 /**
@@ -86,6 +87,16 @@ export const registerPostWorkspaces = (app: express.Application) => {
         userRef,
         PERMISSION_LEVELS.OWNER,
         userRef
+      );
+
+      // Track workspace creation
+      trackBusinessEvent(
+        "workspace",
+        "created",
+        {
+          workspace_id: workspaceId,
+        },
+        req
       );
 
       res.status(201).json({

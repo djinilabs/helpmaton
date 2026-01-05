@@ -9,6 +9,7 @@ import {
   incrementRequestBucket,
 } from "../../../utils/requestTracking";
 import { getWorkspaceSubscription } from "../../../utils/subscriptionUtils";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { createModel } from "../../utils/modelFactory";
 import { extractUserId } from "../../utils/session";
 import { handleError, requireAuth, requirePermission } from "../middleware";
@@ -334,6 +335,16 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
             { workspaceId }
           );
         }
+
+        // Track prompt generation
+        trackBusinessEvent(
+          "agent",
+          "prompt_generated",
+          {
+            workspace_id: workspaceId,
+          },
+          req
+        );
 
         res.json({
           prompt: generatedPrompt,

@@ -71,3 +71,52 @@ export async function flushPostHog(timeoutMs = 2000): Promise<void> {
     console.error("[PostHog] Error flushing events:", error);
   }
 }
+
+/**
+ * Identify a user in PostHog
+ * Uses consistent `user/${userId}` format to match frontend identification
+ * @param userId - User ID (without prefix)
+ * @param properties - Optional user properties (non-PII only)
+ */
+export function identifyUser(
+  userId: string,
+  properties?: Record<string, unknown>
+): void {
+  if (!phClient) {
+    return;
+  }
+
+  try {
+    const distinctId = `user/${userId}`;
+    phClient.identify({
+      distinctId,
+      properties: properties || {},
+    });
+  } catch (error) {
+    console.error("[PostHog] Error identifying user:", error);
+  }
+}
+
+/**
+ * Identify a workspace as a group in PostHog
+ * @param workspaceId - Workspace ID
+ * @param properties - Workspace properties (member_count, agent_count, subscription_tier, etc.)
+ */
+export function identifyWorkspaceGroup(
+  workspaceId: string,
+  properties?: Record<string, unknown>
+): void {
+  if (!phClient) {
+    return;
+  }
+
+  try {
+    phClient.groupIdentify({
+      groupType: "workspace",
+      groupKey: workspaceId,
+      properties: properties || {},
+    });
+  } catch (error) {
+    console.error("[PostHog] Error identifying workspace group:", error);
+  }
+}

@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -69,6 +70,17 @@ export const registerDeleteWorkspaceAgent = (app: express.Application) => {
 
         // Delete agent
         await db.agent.delete(agentPk, "agent");
+
+        // Track agent deletion
+        trackBusinessEvent(
+          "agent",
+          "deleted",
+          {
+            workspace_id: workspaceId,
+            agent_id: agentId,
+          },
+          req
+        );
 
         res.status(204).send();
       } catch (error) {

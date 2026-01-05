@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useEffect } from "react";
 import type { FC } from "react";
 import { Link } from "react-router-dom";
 
@@ -9,6 +9,7 @@ import {
   useCreateUserApiKey,
   useDeleteUserApiKey,
 } from "../hooks/useUserApiKeys";
+import { trackEvent } from "../utils/tracking";
 
 // Lazy load SubscriptionPanel
 const SubscriptionPanel = lazy(() =>
@@ -36,6 +37,9 @@ const UserSettings: FC = () => {
       const result = await createApiKeyMutation.mutateAsync({
         name: newKeyName.trim() || undefined,
       });
+      trackEvent("user_api_key_created", {
+        key_id: result.id,
+      });
       setNewlyCreatedKey({
         id: result.id,
         key: result.key,
@@ -58,6 +62,9 @@ const UserSettings: FC = () => {
     }
     try {
       await deleteApiKeyMutation.mutateAsync(keyId);
+      trackEvent("user_api_key_deleted", {
+        key_id: keyId,
+      });
     } catch {
       // Error is handled by the mutation
     }
@@ -85,6 +92,11 @@ const UserSettings: FC = () => {
   });
 
   useEscapeKey(!!newlyCreatedKey, () => setNewlyCreatedKey(null));
+
+  // Track user settings viewing
+  useEffect(() => {
+    trackEvent("user_settings_viewed", {});
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-soft p-6 dark:bg-gradient-soft-dark lg:p-10">

@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -93,6 +94,18 @@ export const registerDeleteWorkspaceChannel = (app: express.Application) => {
 
         // Delete channel
         await db["output_channel"].delete(channelPk, "channel");
+
+        // Track channel deletion
+        trackBusinessEvent(
+          "channel",
+          "deleted",
+          {
+            workspace_id: workspaceId,
+            channel_id: channelId,
+            channel_type: channel.type,
+          },
+          req
+        );
 
         res.status(204).send();
       } catch (error) {

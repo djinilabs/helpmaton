@@ -9,6 +9,7 @@ import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
 } from "../../../utils/subscriptionUtils";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -181,6 +182,18 @@ export const registerPostMcpServer = (app: express.Application) => {
           config,
           createdBy: currentUserRef,
         });
+
+        // Track MCP server creation
+        trackBusinessEvent(
+          "mcp_server",
+          "created",
+          {
+            workspace_id: workspaceId,
+            server_id: serverId,
+            auth_type: authType,
+          },
+          req
+        );
 
         res.status(201).json({
           id: serverId,

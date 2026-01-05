@@ -99,6 +99,7 @@ import {
   getDefaultModelForProvider,
   type Provider,
 } from "../utils/modelConfig";
+import { trackEvent } from "../utils/tracking";
 
 // Lazy load modals - only load when opened
 const AgentModal = lazy(() =>
@@ -566,6 +567,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     setIsDeleting(true);
     try {
       await deleteAgent.mutateAsync();
+      trackEvent("agent_deleted", {
+        workspace_id: workspaceId,
+        agent_id: agentId,
+      });
       navigate(`/workspaces/${workspaceId}`);
     } catch {
       // Error is handled by toast in the hook
@@ -578,6 +583,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     try {
       const createdKey = await createKey.mutateAsync({
         name: newKeyName || undefined,
+      });
+      trackEvent("agent_key_added", {
+        workspace_id: workspaceId,
+        agent_id: agentId,
+        key_id: createdKey.id,
       });
       if (createdKey.key) {
         setNewlyCreatedKey({ id: createdKey.id, key: createdKey.key });
@@ -621,6 +631,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       const result = await createStreamServer.mutateAsync({
         allowedOrigins: origins.length > 0 ? origins : ["*"],
       });
+      trackEvent("stream_server_created", {
+        workspace_id: workspaceId,
+        agent_id: agentId,
+      });
       setAllowedOrigins(
         result.allowedOrigins && result.allowedOrigins.length > 0
           ? result.allowedOrigins.join(", ")
@@ -642,6 +656,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       await updateStreamServer.mutateAsync({
         allowedOrigins: origins.length > 0 ? origins : ["*"],
       });
+      trackEvent("stream_server_updated", {
+        workspace_id: workspaceId,
+        agent_id: agentId,
+      });
       setIsConfiguringStreamServer(false);
     } catch {
       // Error is handled by toast in the hook
@@ -658,6 +676,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     }
     try {
       await deleteStreamServer.mutateAsync();
+      trackEvent("stream_server_deleted", {
+        workspace_id: workspaceId,
+        agent_id: agentId,
+      });
       setAllowedOrigins("");
     } catch {
       // Error is handled by toast in the hook
@@ -2864,6 +2886,11 @@ const KeyItem: FC<KeyItemProps> = ({
     setIsDeleting(true);
     try {
       await deleteKey.mutateAsync();
+      trackEvent("agent_key_removed", {
+        workspace_id: workspaceId,
+        agent_id: agentId,
+        key_id: keyData.id,
+      });
     } catch {
       // Error is handled by toast in the hook
       setIsDeleting(false);
@@ -2989,6 +3016,45 @@ const AgentUsageSection: FC<AgentUsageSectionProps> = ({
   };
 
   const isRefreshing = isRefetchingUsage || isRefetchingDaily;
+  const hasTrackedUsage = useRef(false);
+  const hasTrackedDailyUsage = useRef(false);
+  const lastTrackedKey = useRef<string>("");
+
+  // Track usage viewing - only once per data load
+  useEffect(() => {
+    const trackingKey = `${workspaceId}-${agentId}-${dateRangePreset}`;
+    if (
+      usageData &&
+      !isLoading &&
+      (!hasTrackedUsage.current || lastTrackedKey.current !== trackingKey)
+    ) {
+      trackEvent("agent_usage_viewed", {
+        workspace_id: workspaceId,
+        agent_id: agentId,
+        date_range_preset: dateRangePreset,
+      });
+      hasTrackedUsage.current = true;
+      lastTrackedKey.current = trackingKey;
+    }
+    if (isLoading) {
+      hasTrackedUsage.current = false;
+    }
+  }, [usageData, isLoading, workspaceId, agentId, dateRangePreset]);
+
+  // Track daily usage viewing - only once per data load
+  useEffect(() => {
+    if (dailyUsageData && !isLoadingDaily && !hasTrackedDailyUsage.current) {
+      trackEvent("agent_usage_daily_viewed", {
+        workspace_id: workspaceId,
+        agent_id: agentId,
+        date_range_preset: dateRangePreset,
+      });
+      hasTrackedDailyUsage.current = true;
+    }
+    if (isLoadingDaily) {
+      hasTrackedDailyUsage.current = false;
+    }
+  }, [dailyUsageData, isLoadingDaily, workspaceId, agentId, dateRangePreset]);
 
   if (isLoading || isLoadingDaily) {
     return <LoadingScreen compact message="Loading usage..." />;

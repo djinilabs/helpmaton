@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { database } from "../../tables";
 import type { McpServerRecord } from "../../tables/schema";
+import { trackBusinessEvent } from "../../utils/tracking";
 
 /**
  * Get MCP server details
@@ -172,6 +173,18 @@ export function createMcpServerTool(
           server,
           typedArgs.method,
           typedArgs.params
+        );
+
+        // Track MCP server tool call
+        trackBusinessEvent(
+          "mcp_server",
+          "tool_called",
+          {
+            workspace_id: workspaceId,
+            server_id: serverId,
+            method: typedArgs.method,
+          },
+          undefined // Tool execution doesn't have request context
         );
 
         // Format result as string for the agent

@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -184,6 +185,17 @@ export const registerPutMcpServer = (app: express.Application) => {
           updatedBy: req.userRef || "",
           updatedAt: new Date().toISOString(),
         });
+
+        // Track MCP server update
+        trackBusinessEvent(
+          "mcp_server",
+          "updated",
+          {
+            workspace_id: workspaceId,
+            server_id: serverId,
+          },
+          req
+        );
 
         res.json({
           id: serverId,

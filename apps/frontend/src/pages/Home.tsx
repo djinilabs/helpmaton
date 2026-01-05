@@ -1,5 +1,5 @@
 import { useSession, signOut } from "next-auth/react";
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useEffect } from "react";
 import type { FC } from "react";
 import { Link } from "react-router-dom";
 
@@ -18,9 +18,14 @@ const UsageDashboard = lazy(() =>
 import { useUserUsage } from "../hooks/useUsage";
 import { clearTokens } from "../utils/api";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
+import { trackEvent } from "../utils/tracking";
 
 const Home: FC = () => {
   const { data: session } = useSession();
+
+  useEffect(() => {
+    trackEvent("home_page_viewed", {});
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-soft p-6 dark:bg-gradient-soft-dark lg:p-10">
