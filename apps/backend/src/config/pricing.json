@@ -74,9 +74,9 @@
         },
         "minimax/minimax-m2.1": {
           "usd": {
-            "input": 0.3,
-            "output": 1.2,
-            "cachedInput": 0.03
+            "input": 0.12,
+            "output": 0.48,
+            "cachedInput": 0.012
           }
         },
         "z-ai/glm-4.7": {
@@ -2500,5 +2500,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-02T00:15:19.716Z"
+  "lastUpdated": "2026-01-05T00:16:44.564Z"
 }
