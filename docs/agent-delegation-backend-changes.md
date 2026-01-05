@@ -5,6 +5,7 @@ This document describes the backend changes made in the `feat/delegation-improve
 ## Overview
 
 The agent delegation system allows agents to:
+
 - **Synchronously delegate** to other agents and wait for immediate responses
 - **Asynchronously delegate** to other agents via a queue system for long-running tasks
 - **Find agents by semantic query** using fuzzy matching against agent names, descriptions, and capabilities
@@ -18,6 +19,7 @@ The agent delegation system allows agents to:
 A new DynamoDB table was added to track async delegation tasks:
 
 **Table Definition** (`app.arc`):
+
 ```arc
 agent-delegation-tasks
   pk *String
@@ -26,6 +28,7 @@ agent-delegation-tasks
 ```
 
 **GSI Definition**:
+
 ```arc
 agent-delegation-tasks
   gsi1pk *String
@@ -34,6 +37,7 @@ agent-delegation-tasks
 ```
 
 **Schema** (`apps/backend/src/tables/schema.ts`):
+
 - `pk`: `"delegation-tasks/{taskId}"`
 - `sk`: `"task"`
 - `workspaceId`: Workspace identifier
@@ -54,6 +58,7 @@ agent-delegation-tasks
 A new SQS queue was added for processing async delegation tasks:
 
 **Queue Definition** (`app.arc`):
+
 ```arc
 agent-delegation-queue
   timeout 300
@@ -67,6 +72,7 @@ agent-delegation-queue
 The `agent-conversations` table schema was extended to track delegation calls:
 
 **New Field** (`apps/backend/src/tables/schema.ts`):
+
 ```typescript
 delegations: z.array(
   z.object({
@@ -76,7 +82,7 @@ delegations: z.array(
     timestamp: z.string().datetime(),
     status: z.enum(["completed", "failed", "cancelled"]),
   })
-).optional()
+).optional();
 ```
 
 This allows tracking all delegation calls made during a conversation for observability and debugging.
@@ -90,6 +96,7 @@ This allows tracking all delegation calls made during a conversation for observa
 The queue processor handles async delegation tasks with the following features:
 
 #### Retry Logic with Exponential Backoff
+
 - **Initial delay**: 1 second
 - **Max attempts**: 4 (initial + 3 retries)
 - **Max delay**: 10 seconds (capped)
@@ -97,22 +104,26 @@ The queue processor handles async delegation tasks with the following features:
 - **Jitter**: Random 0-20% added to prevent thundering herd
 
 #### Error Handling
+
 - **Retryable errors**: Network errors, timeouts, rate limits (429), server errors (5xx)
 - **Non-retryable errors**: Validation errors, not found (404), etc.
 - **Task status tracking**: Updates task status to `running`, `completed`, or `failed`
 - **Cancellation support**: Checks for cancelled tasks before processing
 
 #### Timeout Management
+
 - Uses 260-second timeout (leaving 40-second buffer for Lambda processing)
 - Lambda function timeout is 300 seconds
 - Prevents Lambda from timing out before agent call completes
 
 #### Credit Management
+
 - Integrates with workspace credit context for proper credit tracking
 - Uses `getCurrentSQSContext` to maintain credit transaction context
 - Delegated calls use workspace API keys if available (BYOK support)
 
 #### Delegation Tracking
+
 - Tracks delegation in conversation metadata (best-effort, errors don't fail the task)
 - Logs delegation metrics for observability
 - Updates task status atomically
@@ -124,6 +135,7 @@ The queue processor handles async delegation tasks with the following features:
 #### New Functions
 
 ##### `callAgentInternal` (Exported)
+
 Previously internal, now exported for use by queue processors:
 
 ```typescript
@@ -135,10 +147,11 @@ export async function callAgentInternal(
   maxDepth: number,
   context?: AugmentedContext,
   timeoutMs: number = 60000
-): Promise<string>
+): Promise<string>;
 ```
 
 **Features**:
+
 - Depth limit checking (prevents infinite delegation chains)
 - Agent validation (existence and workspace ownership)
 - Full tool support for delegated agents (documents, memory, web search, email, notifications, MCP servers, client tools)
@@ -148,6 +161,7 @@ export async function callAgentInternal(
 - Comprehensive error handling with credit refunds
 
 ##### `findAgentByQuery` (Exported)
+
 Semantic agent matching using fuzzy keyword matching:
 
 ```typescript
@@ -155,10 +169,11 @@ export async function findAgentByQuery(
   workspaceId: string,
   query: string,
   delegatableAgentIds: string[]
-): Promise<{ agentId: string; agentName: string; score: number } | null>
+): Promise<{ agentId: string; agentName: string; score: number } | null>;
 ```
 
 **Matching Algorithm**:
+
 - **Name similarity**: Weighted 15x (most important)
 - **Prompt similarity**: Weighted 8x (first 500 chars for performance)
 - **Token matches**: Weighted 1.5x (individual token matches in prompt)
@@ -167,11 +182,13 @@ export async function findAgentByQuery(
 - **Direct capability match**: Weighted 3x (exact capability name matches)
 
 **Scoring**:
+
 - Minimum threshold: 2.0 (requires strong match on at least two signals)
 - Returns best match above threshold, or `null` if no match found
 - Supports fuzzy matching with synonyms (e.g., "document" → "search_documents")
 
 ##### Agent Metadata Caching
+
 New caching system to reduce database queries:
 
 - **TTL**: 5 minutes
@@ -183,10 +200,13 @@ New caching system to reduce database queries:
 #### New Delegation Tools
 
 ##### `createListAgentsTool`
+
 Lists all delegatable agents with their capabilities and descriptions.
 
 ##### `createCallAgentTool`
+
 Synchronous delegation tool:
+
 - Accepts `agentId`/`agent_id` or `query` parameter
 - Validates agent is in delegatable list
 - Calls agent internally and returns response
@@ -194,7 +214,9 @@ Synchronous delegation tool:
 - Logs delegation metrics
 
 ##### `createCallAgentAsyncTool`
+
 Asynchronous delegation tool:
+
 - Accepts `agentId`/`agent_id` or `query` parameter
 - Creates task record in database
 - Enqueues to SQS queue
@@ -202,13 +224,17 @@ Asynchronous delegation tool:
 - Supports query-based agent matching
 
 ##### `createCheckDelegationStatusTool`
+
 Status checking tool:
+
 - Queries task by taskId
 - Returns current status and result/error if available
 - Validates task belongs to workspace
 
 ##### `createCancelDelegationTool`
+
 Cancellation tool:
+
 - Updates task status to `cancelled`
 - Validates task is cancellable (not already completed/failed)
 - Prevents cancellation of completed tasks
@@ -218,6 +244,7 @@ Cancellation tool:
 **Location**: `apps/backend/src/http/utils/agentSetup.ts`
 
 #### Changes
+
 - Delegation tools are automatically added when agent has `delegatableAgentIds` configured
 - Supports both sync and async delegation tools
 - Passes `callDepth` and `maxDepth` for depth limiting
@@ -242,10 +269,11 @@ export async function trackDelegation(
     taskId?: string;
     status: "completed" | "failed" | "cancelled";
   }
-): Promise<void>
+): Promise<void>;
 ```
 
 **Features**:
+
 - Atomic update using `atomicUpdate` API
 - Best-effort tracking (errors logged but don't fail)
 - Appends to existing delegations array
@@ -264,12 +292,14 @@ const match = await findAgentByQuery(workspaceId, query, delegatableAgentIds);
 ```
 
 **Matching Signals**:
+
 - Agent name similarity
 - System prompt content (first 500 chars)
 - Capability keywords (with synonym expansion)
 - Direct capability name matching
 
 **Synonym Support**:
+
 - "document" → `search_documents`
 - "memory" → `search_memory`
 - "web" → `search_web`, `fetch_url`
@@ -279,12 +309,14 @@ const match = await findAgentByQuery(workspaceId, query, delegatableAgentIds);
 ### 2. Async Delegation with Status Tracking
 
 Async delegation allows agents to:
+
 - Fire-and-forget long-running tasks
 - Check status later using taskId
 - Cancel pending/running tasks
 - Retrieve results when completed
 
 **Task Lifecycle**:
+
 1. `pending` → Created, enqueued to SQS
 2. `running` → Queue processor starts execution
 3. `completed` → Success with result
@@ -294,6 +326,7 @@ Async delegation allows agents to:
 ### 3. Depth Limiting
 
 Prevents infinite delegation chains:
+
 - `callDepth`: Current depth (starts at 0)
 - `maxDepth`: Maximum allowed depth (default: 3)
 - Each delegation increments `callDepth`
@@ -302,6 +335,7 @@ Prevents infinite delegation chains:
 ### 4. Credit Management Integration
 
 Delegated calls properly handle credits:
+
 - Uses workspace credit context from SQS message
 - Reserves credits before LLM call
 - Adjusts reservation based on actual token usage
@@ -311,12 +345,14 @@ Delegated calls properly handle credits:
 ### 5. Error Handling and Retries
 
 **Queue Processor**:
+
 - Exponential backoff with jitter
 - Retries only on retryable errors
 - Updates task status on failure
 - Tracks delegation even on failure
 
 **Synchronous Calls**:
+
 - Returns error message instead of throwing
 - Tracks failed delegations in conversation metadata
 - Logs delegation metrics for observability
@@ -331,9 +367,11 @@ Delegated calls properly handle credits:
 ## Testing
 
 Unit tests were added/updated in:
+
 - `apps/backend/src/http/utils/__tests__/agentUtils.test.ts`
 
 Tests cover:
+
 - Agent matching with fuzzy scoring
 - Query-based agent finding
 - Delegation tool creation
@@ -344,6 +382,7 @@ Tests cover:
 ### Delegation Metrics
 
 All delegations log structured metrics:
+
 ```typescript
 {
   type: "sync" | "async",
@@ -361,6 +400,7 @@ All delegations log structured metrics:
 ### Conversation Tracking
 
 Delegations are tracked in conversation metadata:
+
 - All delegation calls are recorded
 - Includes status (completed/failed/cancelled)
 - Includes timestamp
@@ -370,15 +410,18 @@ Delegations are tracked in conversation metadata:
 ## Migration Notes
 
 ### Database Schema
+
 - New table `agent-delegation-tasks` must be created
 - New GSI `byWorkspaceAndAgent` must be created
 - Existing `agent-conversations` table will automatically support `delegations` field (optional)
 
 ### Queue Configuration
+
 - New SQS queue `agent-delegation-queue` must be created
 - Queue timeout set to 300 seconds
 
 ### Backward Compatibility
+
 - All changes are backward compatible
 - Existing agents without `delegatableAgentIds` are unaffected
 - Delegation tools are only added when `delegatableAgentIds` is configured
@@ -386,17 +429,20 @@ Delegations are tracked in conversation metadata:
 ## Performance Considerations
 
 ### Agent Metadata Caching
+
 - Reduces database queries for agent lookups
 - 5-minute TTL balances freshness with performance
 - Automatic cleanup prevents memory leaks
 - Throttled cleanup reduces overhead
 
 ### Query-Based Matching
+
 - Limits prompt search to first 500 chars for performance
 - Uses efficient token-based matching
 - Caches agent metadata to avoid repeated queries
 
 ### Async Delegation
+
 - Offloads long-running tasks to queue
 - Prevents blocking synchronous calls
 - Allows parallel processing of multiple delegations
@@ -404,16 +450,19 @@ Delegations are tracked in conversation metadata:
 ## Security Considerations
 
 ### Workspace Isolation
+
 - All queries validate workspace ownership
 - Task queries verify workspace membership
 - Agent validation ensures workspace consistency
 
 ### Depth Limiting
+
 - Prevents infinite recursion
 - Configurable max depth (default: 3)
 - Returns clear error message when limit reached
 
 ### Credit Management
+
 - Proper credit tracking for delegated calls
 - Supports BYOK (workspace API keys)
 - Refunds credits on errors before LLM call
@@ -421,10 +470,10 @@ Delegations are tracked in conversation metadata:
 ## Future Enhancements
 
 Potential improvements:
+
 1. **Delegation history API**: Query delegation history by workspace/agent
 2. **Delegation analytics**: Track delegation patterns and success rates
 3. **Delegation limits**: Per-workspace limits on delegation depth/count
 4. **Delegation webhooks**: Notify external systems of delegation events
 5. **Improved matching**: ML-based agent matching for better accuracy
 6. **Delegation batching**: Support for delegating to multiple agents in parallel
-

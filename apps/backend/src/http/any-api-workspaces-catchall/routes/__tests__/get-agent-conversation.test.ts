@@ -67,10 +67,14 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/conversations/:conver
         conversationType: conversation.conversationType,
         messages: conversation.messages || [],
         tokenUsage: conversation.tokenUsage || null,
-        modelName: conversation.modelName || null,
-        provider: conversation.provider || null,
         startedAt: conversation.startedAt,
         lastMessageAt: conversation.lastMessageAt,
+        error: conversation.error || null,
+        awsRequestIds: conversation.awsRequestIds ?? null,
+        totalGenerationTimeMs: conversation.totalGenerationTimeMs ?? null,
+        delegations: conversation.delegations || [],
+        modelName: conversation.modelName ?? null,
+        provider: conversation.provider ?? null,
       });
     };
 
@@ -141,10 +145,14 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/conversations/:conver
         { id: "msg-2", content: "World" },
       ],
       tokenUsage: { inputTokens: 100, outputTokens: 50 },
-      modelName: "gpt-4",
-      provider: "openai",
       startedAt: "2024-01-01T00:00:00Z",
       lastMessageAt: "2024-01-02T00:00:00Z",
+      error: null,
+      awsRequestIds: null,
+      totalGenerationTimeMs: null,
+      delegations: [],
+      modelName: "gpt-4",
+      provider: "openai",
     });
   });
 
@@ -196,10 +204,14 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/conversations/:conver
       conversationType: "chat",
       messages: [],
       tokenUsage: null,
-      modelName: null,
-      provider: null,
       startedAt: "2024-01-01T00:00:00Z",
       lastMessageAt: "2024-01-02T00:00:00Z",
+      error: null,
+      awsRequestIds: null,
+      totalGenerationTimeMs: null,
+      delegations: [],
+      modelName: null,
+      provider: null,
     });
   });
 
@@ -416,5 +428,94 @@ describe("GET /api/workspaces/:workspaceId/agents/:agentId/conversations/:conver
           .message
       ).toContain("Conversation does not belong to this agent");
     }
+  });
+
+  it("should include delegations in response when present", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const workspaceId = "workspace-123";
+    const agentId = "agent-456";
+    const conversationId = "conv-789";
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      name: "Test Agent",
+    };
+
+    const mockConversation = {
+      pk: `conversations/${workspaceId}/${agentId}/${conversationId}`,
+      sk: "conversation",
+      workspaceId,
+      agentId,
+      conversationType: "test",
+      messages: [],
+      tokenUsage: null,
+      startedAt: "2024-01-01T00:00:00Z",
+      lastMessageAt: "2024-01-02T00:00:00Z",
+      delegations: [
+        {
+          callingAgentId: "agent-456",
+          targetAgentId: "agent-789",
+          taskId: "task-123",
+          timestamp: "2024-01-01T12:00:00Z",
+          status: "completed" as const,
+        },
+        {
+          callingAgentId: "agent-456",
+          targetAgentId: "agent-999",
+          timestamp: "2024-01-01T13:00:00Z",
+          status: "failed" as const,
+        },
+      ],
+    };
+
+    const mockAgentGet = vi.fn().mockResolvedValue(mockAgent);
+    mockDb.agent.get = mockAgentGet;
+
+    const mockConversationGet = vi.fn().mockResolvedValue(mockConversation);
+    mockDb["agent-conversations"].get = mockConversationGet;
+
+    const req = createMockRequest({
+      workspaceResource: "workspaces/workspace-123",
+      params: {
+        workspaceId,
+        agentId,
+        conversationId,
+      },
+    });
+    const res = createMockResponse();
+
+    await callRouteHandler(req, res);
+
+    expect(res.json).toHaveBeenCalledWith({
+      id: conversationId,
+      conversationType: "test",
+      messages: [],
+      tokenUsage: null,
+      startedAt: "2024-01-01T00:00:00Z",
+      lastMessageAt: "2024-01-02T00:00:00Z",
+      error: null,
+      awsRequestIds: null,
+      totalGenerationTimeMs: null,
+      delegations: [
+        {
+          callingAgentId: "agent-456",
+          targetAgentId: "agent-789",
+          taskId: "task-123",
+          timestamp: "2024-01-01T12:00:00Z",
+          status: "completed",
+        },
+        {
+          callingAgentId: "agent-456",
+          targetAgentId: "agent-999",
+          timestamp: "2024-01-01T13:00:00Z",
+          status: "failed",
+        },
+      ],
+      modelName: null,
+      provider: null,
+    });
   });
 });

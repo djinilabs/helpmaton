@@ -793,6 +793,14 @@ export interface ConversationError {
   metadata?: Record<string, unknown>;
 }
 
+export interface Delegation {
+  callingAgentId: string;
+  targetAgentId: string;
+  taskId?: string;
+  timestamp: string;
+  status: "completed" | "failed" | "cancelled";
+}
+
 export interface Conversation {
   id: string;
   conversationType: "test" | "webhook" | "stream";
@@ -813,6 +821,7 @@ export interface Conversation {
 export interface ConversationDetail extends Conversation {
   messages: unknown[];
   awsRequestIds?: string[];
+  delegations?: Delegation[];
 }
 
 export interface ListConversationsResponse {
