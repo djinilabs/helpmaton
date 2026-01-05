@@ -4,7 +4,11 @@
 
 **Status**: Agent Delegation Improvements - Completed ✅
 
-**Latest Work**: Enhanced agent delegation capabilities with async support, query-based agent matching, and comprehensive delegation tracking. Implemented new tools for asynchronous delegation, status checking, and cancellation, along with a queue-based processing system for long-running delegations.
+**Latest Work**:
+
+1. **Documentation Created**: Created comprehensive documentation (`docs/agent-delegation-backend-changes.md`) describing all backend changes for agent delegation improvements, including infrastructure changes, database schema updates, queue processing, agent matching algorithms, and delegation tracking.
+
+2. **Agent Delegation Enhancements**: Enhanced agent delegation capabilities with async support, query-based agent matching, and comprehensive delegation tracking. Implemented new tools for asynchronous delegation, status checking, and cancellation, along with a queue-based processing system for long-running delegations.
 
 **Previous Work**: Completed comprehensive refactoring of the stream handler to improve maintainability, ensure proper error logging, and eliminate dangling promises:
 
@@ -1384,6 +1388,7 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 **Key Features Implemented**:
 
 1. **Async Delegation Support**:
+
    - New `call_agent_async` tool for fire-and-forget delegation
    - Returns task ID immediately without waiting for completion
    - Supports long-running tasks that exceed Lambda timeout limits
@@ -1391,6 +1396,7 @@ The SQS queue processing now supports partial batch failures, allowing successfu
    - Delegation timeout set to 280 seconds (20s buffer for queue processing)
 
 2. **Query-Based Agent Matching**:
+
    - Intelligent fuzzy matching algorithm for finding agents by description
    - Matches against agent name, system prompt, and capabilities
    - Supports synonyms and partial word matching (e.g., "doc" matches "document", "mail" matches "email")
@@ -1399,12 +1405,14 @@ The SQS queue processing now supports partial batch failures, allowing successfu
    - Agent metadata caching (5-minute TTL) to reduce database queries
 
 3. **Delegation Management Tools**:
+
    - `check_delegation_status` tool to query task status and retrieve results
    - `cancel_delegation` tool to cancel pending or running tasks
    - Status tracking: pending → running → completed/failed/cancelled
    - Task results and error messages stored in database
 
 4. **Queue-Based Processing**:
+
    - New SQS queue (`agent-delegation-queue`) with 300-second timeout
    - Exponential backoff retry logic (3 retries, 1-10 second delays with jitter)
    - Retryable error detection (timeouts, network errors, rate limits, 5xx errors)
@@ -1412,6 +1420,7 @@ The SQS queue processing now supports partial batch failures, allowing successfu
    - Proper error handling with task failure tracking
 
 5. **Delegation Tracking**:
+
    - Conversation metadata tracking for all delegations
    - Tracks both sync and async delegations with status
    - Includes taskId for async delegations
@@ -1427,16 +1436,19 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 **Technical Improvements**:
 
 1. **Timeout Handling**:
+
    - Proper timeout cleanup to prevent memory leaks
    - Timeout handle stored and cleared in finally block
    - Prevents dangling timers when generateText completes before timeout
 
 2. **Type Safety**:
+
    - Fixed TypeScript type errors for `fetchWebProvider` (added "scrape" to union type)
    - Proper type annotations for queue message schema
    - Non-null assertions for context in queue processor
 
 3. **Error Handling**:
+
    - Comprehensive error handling in queue processor
    - Task status updates on both success and failure
    - Delegation tracking updated when tasks complete/fail
@@ -1448,10 +1460,12 @@ The SQS queue processing now supports partial batch failures, allowing successfu
    - Comprehensive unit tests for all new functionality
 
 **Files Created**:
+
 - `apps/backend/src/queues/agent-delegation-queue/index.ts` - Queue processor for async delegations
 - `apps/backend/src/http/utils/__tests__/agentUtils.test.ts` - Comprehensive unit tests for delegation features
 
 **Files Modified**:
+
 - `apps/backend/app.arc` - Added `agent-delegation-tasks` table, GSI, and `agent-delegation-queue`
 - `apps/backend/src/http/utils/agentUtils.ts` - Added async delegation tools, query matching, delegation tracking
 - `apps/backend/src/http/utils/agentSetup.ts` - Added async delegation tools to agent setup
@@ -1460,11 +1474,13 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 - `apps/frontend/src/components/ToolsHelpDialog.tsx` - Updated tool descriptions and added async delegation tools
 
 **Database Schema Changes**:
+
 - New table: `agent-delegation-tasks` with status tracking, results, errors, and TTL
 - GSI: `byWorkspaceAndAgent` for querying delegations by workspace and calling agent
 - Conversation schema: Added `delegations` array field for tracking delegation history
 
 **Configuration**:
+
 - Queue timeout: 300 seconds (5 minutes)
 - Delegation timeout: 280 seconds (20s buffer for queue processing)
 - Task TTL: 7 days

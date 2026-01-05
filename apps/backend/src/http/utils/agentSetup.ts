@@ -12,7 +12,6 @@ import {
   createCallAgentTool,
   createCallAgentAsyncTool,
   createCheckDelegationStatusTool,
-  createCancelDelegationTool,
   getWorkspaceApiKey,
   validateWorkspaceAndAgent,
   type WorkspaceAndAgent,
@@ -288,7 +287,6 @@ export async function setupAgentAndTools(
       options?.conversationId
     );
     tools.check_delegation_status = createCheckDelegationStatusTool(workspaceId);
-    tools.cancel_delegation = createCancelDelegationTool(workspaceId);
   }
 
   // Add MCP server tools if agent has enabled MCP servers

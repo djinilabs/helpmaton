@@ -7,7 +7,10 @@ import { generateText, tool, stepCountIs } from "ai";
 import { z } from "zod";
 
 import { database } from "../../tables";
-import { extractTokenUsage, trackDelegation } from "../../utils/conversationLogger";
+import {
+  extractTokenUsage,
+  trackDelegation,
+} from "../../utils/conversationLogger";
 import {
   adjustCreditReservation,
   refundReservation,
@@ -839,11 +842,7 @@ export async function callAgentInternal(
   // Add Exa.ai search tool if enabled
   if (targetAgent.enableExaSearch === true) {
     const { createExaSearchTool } = await import("./exaTools");
-    tools.search = createExaSearchTool(
-      workspaceId,
-      context,
-      targetAgentId
-    );
+    tools.search = createExaSearchTool(workspaceId, context, targetAgentId);
   }
 
   if (targetAgent.notificationChannelId) {
@@ -918,8 +917,8 @@ export async function callAgentInternal(
       maxDepth,
       context
     );
-    tools.check_delegation_status = createCheckDelegationStatusTool(workspaceId);
-    tools.cancel_delegation = createCancelDelegationTool(workspaceId);
+    tools.check_delegation_status =
+      createCheckDelegationStatusTool(workspaceId);
   }
 
   // Convert message to ModelMessage format
@@ -988,7 +987,9 @@ export async function callAgentInternal(
     let timeoutHandle: NodeJS.Timeout | undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutHandle = setTimeout(() => {
-        reject(new Error(`Delegation timeout: Agent call exceeded ${timeoutMs}ms`));
+        reject(
+          new Error(`Delegation timeout: Agent call exceeded ${timeoutMs}ms`)
+        );
       }, timeoutMs);
     });
 
@@ -996,7 +997,9 @@ export async function callAgentInternal(
       // Race between generateText and timeout
       result = await Promise.race([
         generateText({
-          model: model as unknown as Parameters<typeof generateText>[0]["model"],
+          model: model as unknown as Parameters<
+            typeof generateText
+          >[0]["model"],
           system: targetAgent.systemPrompt,
           messages: modelMessages,
           tools,
@@ -1010,7 +1013,7 @@ export async function callAgentInternal(
         clearTimeout(timeoutHandle);
       }
     }
-    
+
     // LLM call succeeded - mark as attempted
     llmCallAttempted = true;
 
@@ -1286,7 +1289,10 @@ function calculateStringSimilarity(query: string, target: string): number {
   for (const queryToken of queryTokens) {
     // Check if any target token contains this query token (or vice versa)
     for (const targetToken of targetTokens) {
-      if (targetToken.includes(queryToken) || queryToken.includes(targetToken)) {
+      if (
+        targetToken.includes(queryToken) ||
+        queryToken.includes(targetToken)
+      ) {
         matchedTokens++;
         break; // Count each query token only once
       }
@@ -1354,11 +1360,17 @@ function buildAgentCapabilities(agent: CachedAgent): string[] {
     capabilities.push("search_memory");
   }
 
-  if (agent.searchWebProvider === "tavily" || agent.searchWebProvider === "jina") {
+  if (
+    agent.searchWebProvider === "tavily" ||
+    agent.searchWebProvider === "jina"
+  ) {
     capabilities.push("search_web");
   }
 
-  if (agent.fetchWebProvider === "tavily" || agent.fetchWebProvider === "jina") {
+  if (
+    agent.fetchWebProvider === "tavily" ||
+    agent.fetchWebProvider === "jina"
+  ) {
     capabilities.push("fetch_url");
   }
 
@@ -1371,7 +1383,9 @@ function buildAgentCapabilities(agent: CachedAgent): string[] {
   }
 
   if (agent.enabledMcpServerIds && agent.enabledMcpServerIds.length > 0) {
-    capabilities.push(`mcp_tools (${agent.enabledMcpServerIds.length} servers)`);
+    capabilities.push(
+      `mcp_tools (${agent.enabledMcpServerIds.length} servers)`
+    );
   }
 
   if (agent.clientTools && agent.clientTools.length > 0) {
@@ -1512,10 +1526,7 @@ export async function findAgentByQuery(
  * Format a list of agents into a consistent string format
  * Reusable in both list_agents tool and error messages
  */
-function formatAgentList(
-  agents: CachedAgent[],
-  workspaceId: string
-): string {
+function formatAgentList(agents: CachedAgent[], workspaceId: string): string {
   if (agents.length === 0) {
     return "No delegatable agents found.";
   }
@@ -1692,20 +1703,14 @@ export function createCallAgentTool(
           "The message or query to send to the delegated agent. This should be the specific task or question you want the other agent to handle."
         ),
     })
-    .refine(
-      (data) => data.agentId || data.agent_id || data.query,
-      {
-        message:
-          "Must provide either agentId/agent_id or query parameter to identify the target agent.",
-      }
-    )
-    .refine(
-      (data) => !((data.agentId || data.agent_id) && data.query),
-      {
-        message:
-          "Cannot provide both agentId/agent_id and query - use one or the other.",
-      }
-    );
+    .refine((data) => data.agentId || data.agent_id || data.query, {
+      message:
+        "Must provide either agentId/agent_id or query parameter to identify the target agent.",
+    })
+    .refine((data) => !((data.agentId || data.agent_id) && data.query), {
+      message:
+        "Cannot provide both agentId/agent_id and query - use one or the other.",
+    });
 
   type CallAgentArgs = z.infer<typeof callAgentParamsSchema>;
 
@@ -1765,7 +1770,10 @@ export function createCallAgentTool(
               workspaceId,
               delegatableAgentIds
             );
-            const formattedAgentList = formatAgentList(validAgents, workspaceId);
+            const formattedAgentList = formatAgentList(
+              validAgents,
+              workspaceId
+            );
             const errorMessage = `Error: No agent found matching query "${query}" with sufficient confidence. Available agents:\n\n${formattedAgentList}\n\nPlease use an agentId from the list above or try a more specific query.`;
             console.error("[Tool Error] call_agent", {
               toolName: "call_agent",
@@ -1913,11 +1921,17 @@ export function createCallAgentTool(
 
         // Track delegation in conversation metadata
         if (conversationId) {
-          await trackDelegation(db, workspaceId, currentAgentId, conversationId, {
-            callingAgentId: currentAgentId,
-            targetAgentId: agentId,
-            status: "completed",
-          });
+          await trackDelegation(
+            db,
+            workspaceId,
+            currentAgentId,
+            conversationId,
+            {
+              callingAgentId: currentAgentId,
+              targetAgentId: agentId,
+              status: "completed",
+            }
+          );
         }
 
         return result;
@@ -1955,11 +1969,17 @@ export function createCallAgentTool(
         // Track failed delegation
         if (conversationId) {
           const db = await database();
-          await trackDelegation(db, workspaceId, currentAgentId, conversationId, {
-            callingAgentId: currentAgentId,
-            targetAgentId: agentId,
-            status: "failed",
-          });
+          await trackDelegation(
+            db,
+            workspaceId,
+            currentAgentId,
+            conversationId,
+            {
+              callingAgentId: currentAgentId,
+              targetAgentId: agentId,
+              status: "failed",
+            }
+          );
         }
 
         return errorMessage;
@@ -2002,20 +2022,14 @@ export function createCallAgentAsyncTool(
           "The message or query to send to the delegated agent. This will be processed asynchronously."
         ),
     })
-    .refine(
-      (data) => data.agentId || data.agent_id || data.query,
-      {
-        message:
-          "Must provide either agentId/agent_id or query parameter to identify the target agent.",
-      }
-    )
-    .refine(
-      (data) => !((data.agentId || data.agent_id) && data.query),
-      {
-        message:
-          "Cannot provide both agentId/agent_id and query - use one or the other.",
-      }
-    );
+    .refine((data) => data.agentId || data.agent_id || data.query, {
+      message:
+        "Must provide either agentId/agent_id or query parameter to identify the target agent.",
+    })
+    .refine((data) => !((data.agentId || data.agent_id) && data.query), {
+      message:
+        "Cannot provide both agentId/agent_id and query - use one or the other.",
+    });
 
   type CallAgentAsyncArgs = z.infer<typeof callAgentAsyncParamsSchema>;
 
@@ -2054,7 +2068,10 @@ export function createCallAgentAsyncTool(
               workspaceId,
               delegatableAgentIds
             );
-            const formattedAgentList = formatAgentList(validAgents, workspaceId);
+            const formattedAgentList = formatAgentList(
+              validAgents,
+              workspaceId
+            );
             return `Error: No agent found matching query "${query}" with sufficient confidence. Available agents:\n\n${formattedAgentList}\n\nPlease use an agentId from the list above or try a more specific query.`;
           }
         } catch (error) {
@@ -2172,7 +2189,7 @@ export function createCheckDelegationStatusTool(workspaceId: string) {
   });
 
   const description =
-    "Check the status of an async delegation task. Returns the current status (pending, running, completed, failed, cancelled) and the result if completed, or error message if failed.";
+    "Check the status of an async delegation task. Returns the current status (pending, running, completed, failed) and the result if completed, or error message if failed.";
 
   return tool({
     description,
@@ -2222,70 +2239,3 @@ export function createCheckDelegationStatusTool(workspaceId: string) {
     },
   });
 }
-
-/**
- * Create the cancel_delegation tool
- */
-export function createCancelDelegationTool(workspaceId: string) {
-  const cancelDelegationParamsSchema = z.object({
-    taskId: z
-      .string()
-      .min(1, "taskId parameter is required")
-      .describe("The task ID returned by call_agent_async"),
-  });
-
-  const description =
-    "Cancel a pending or running async delegation task. Tasks that are already completed or failed cannot be cancelled.";
-
-  return tool({
-    description,
-    parameters: cancelDelegationParamsSchema,
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
-      const { taskId } = args as z.infer<typeof cancelDelegationParamsSchema>;
-
-      try {
-        const db = await database();
-        const taskPk = `delegation-tasks/${taskId}`;
-        const task = await db["agent-delegation-tasks"].get(taskPk, "task");
-
-        if (!task) {
-          return `Error: Task ${taskId} not found.`;
-        }
-
-        // Verify task belongs to this workspace
-        if (task.workspaceId !== workspaceId) {
-          return `Error: Task ${taskId} does not belong to this workspace.`;
-        }
-
-        if (task.status === "completed" || task.status === "failed") {
-          return `Error: Cannot cancel task ${taskId} - it is already ${task.status}.`;
-        }
-
-        if (task.status === "cancelled") {
-          return `Task ${taskId} is already cancelled.`;
-        }
-
-        // Update status to cancelled
-        await db["agent-delegation-tasks"].update({
-          ...task,
-          status: "cancelled",
-          completedAt: new Date().toISOString(),
-        });
-
-        console.log("[Tool Call] cancel_delegation - Task cancelled", {
-          taskId,
-        });
-
-        return `Task ${taskId} has been cancelled successfully.`;
-      } catch (error) {
-        return `Error cancelling task: ${
-          error instanceof Error ? error.message : String(error)
-        }`;
-      }
-    },
-  });
-}
-
