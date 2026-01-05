@@ -184,11 +184,36 @@ export async function logConversation(
   streamResult: Awaited<ReturnType<typeof streamText>>,
   generationTimeMs?: number
 ): Promise<void> {
-  if (!tokenUsage) {
-    return;
-  }
-
   try {
+    // Extract tokenUsage from streamResult if not provided
+    // This ensures we always have tokenUsage when the LLM call succeeded,
+    // even if no response text was generated (input tokens were still consumed)
+    let finalTokenUsage = tokenUsage;
+    if (!finalTokenUsage) {
+      const totalUsage = await streamResult.totalUsage;
+      const { tokenUsage: extractedTokenUsage } = extractTokenUsageAndCosts(
+        { totalUsage } as unknown as StreamTextResultWithResolvedUsage,
+        undefined,
+        context.finalModelName,
+        "stream"
+      );
+      finalTokenUsage = extractedTokenUsage;
+    }
+
+    // If we still don't have tokenUsage, we can't calculate costs, so skip logging
+    // This should be rare - if streamResult exists, we should have tokenUsage
+    if (!finalTokenUsage) {
+      console.warn(
+        "[Stream Handler] No tokenUsage available for conversation logging, skipping",
+        {
+          workspaceId: context.workspaceId,
+          agentId: context.agentId,
+          conversationId: context.conversationId,
+        }
+      );
+      return;
+    }
+
     const { toolCalls, toolResults } = await extractToolCallsAndResults(streamResult);
 
     const toolCallMessages = toolCalls.map(formatToolCallMessage);
@@ -238,11 +263,13 @@ export async function logConversation(
     );
     const provisionalCostUsd = extractedProvisionalCostUsd;
 
+    // Always create assistant message, even if content is empty
+    // Empty content means no text response, but input tokens were still consumed
     const assistantMessage: UIMessage = {
       role: "assistant",
       content:
-        assistantContent.length > 0 ? assistantContent : finalResponseText,
-      ...{ tokenUsage },
+        assistantContent.length > 0 ? assistantContent : finalResponseText || "",
+      ...{ tokenUsage: finalTokenUsage },
       modelName: context.finalModelName,
       provider: "openrouter",
       ...(openrouterGenerationId && { openrouterGenerationId }),
@@ -274,7 +301,7 @@ export async function logConversation(
       context.agentId,
       context.conversationId,
       validMessages,
-      tokenUsage,
+      finalTokenUsage,
       context.usesByok,
       undefined,
       context.awsRequestId,
