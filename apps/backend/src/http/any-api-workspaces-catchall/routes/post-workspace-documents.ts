@@ -330,7 +330,7 @@ export const registerPostWorkspaceDocuments = (app: express.Application) => {
         }
       }
 
-      // Track document upload(s)
+      // Track document upload(s) - only include document_count for single uploads
       for (const doc of uploadedDocuments) {
         trackBusinessEvent(
           "document",
@@ -340,7 +340,7 @@ export const registerPostWorkspaceDocuments = (app: express.Application) => {
             document_id: doc.id,
             document_type: doc.contentType,
             folder_path: doc.folderPath || undefined,
-            document_count: uploadedDocuments.length,
+            ...(uploadedDocuments.length === 1 ? { document_count: 1 } : {}),
           },
           req
         );

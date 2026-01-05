@@ -414,11 +414,14 @@ const SubscriptionManagement: FC = () => {
                           "Are you sure you want to cancel your subscription? It will remain active until the end of the billing period."
                         )
                       ) {
-                        trackEvent("subscription_downgraded", {
-                        from_plan: subscription.plan,
-                        to_plan: "free",
-                      });
-                      cancelMutation.mutate();
+                        cancelMutation.mutate(undefined, {
+                          onSuccess: () => {
+                            trackEvent("subscription_downgraded", {
+                              from_plan: subscription.plan,
+                              to_plan: "free",
+                            });
+                          },
+                        });
                       }
                     }}
                     disabled={cancelMutation.isPending}
@@ -468,18 +471,24 @@ const SubscriptionManagement: FC = () => {
                 subscription.status !== "cancelled" &&
                 subscription.status !== "expired"
               ) {
-                trackEvent("subscription_upgraded", {
-                  from_plan: subscription.plan,
-                  to_plan: plan,
+                changePlanMutation.mutate(plan, {
+                  onSuccess: () => {
+                    trackEvent("subscription_upgraded", {
+                      from_plan: subscription.plan,
+                      to_plan: plan,
+                    });
+                  },
                 });
-                changePlanMutation.mutate(plan);
               } else {
                 // Free plan or cancelled/expired subscription - create new checkout
-                trackEvent("subscription_upgraded", {
-                  from_plan: subscription.plan,
-                  to_plan: plan,
+                checkoutMutation.mutate(plan, {
+                  onSuccess: () => {
+                    trackEvent("subscription_upgraded", {
+                      from_plan: subscription.plan,
+                      to_plan: plan,
+                    });
+                  },
                 });
-                checkoutMutation.mutate(plan);
               }
             }}
             onDowngrade={(targetPlan) => {
@@ -490,11 +499,14 @@ const SubscriptionManagement: FC = () => {
                     "Are you sure you want to cancel your subscription? It will remain active until the end of the billing period."
                   )
                 ) {
-                  trackEvent("subscription_downgraded", {
-                    from_plan: subscription.plan,
-                    to_plan: "free",
+                  cancelMutation.mutate(undefined, {
+                    onSuccess: () => {
+                      trackEvent("subscription_downgraded", {
+                        from_plan: subscription.plan,
+                        to_plan: "free",
+                      });
+                    },
                   });
-                  cancelMutation.mutate();
                 }
               } else {
                 // Downgrading to a different paid plan (e.g., pro to starter)
@@ -503,11 +515,14 @@ const SubscriptionManagement: FC = () => {
                     `Are you sure you want to downgrade to ${targetPlan}?`
                   )
                 ) {
-                  trackEvent("subscription_downgraded", {
-                    from_plan: subscription.plan,
-                    to_plan: targetPlan,
+                  changePlanMutation.mutate(targetPlan, {
+                    onSuccess: () => {
+                      trackEvent("subscription_downgraded", {
+                        from_plan: subscription.plan,
+                        to_plan: targetPlan,
+                      });
+                    },
                   });
-                  changePlanMutation.mutate(targetPlan);
                 }
               }
             }}

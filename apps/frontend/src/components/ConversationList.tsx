@@ -44,7 +44,7 @@ export const ConversationList: FC<ConversationListProps> = ({
         conversation_count: conversations.length,
       });
     }
-  }, [data, isLoading, workspaceId, agentId, conversations.length]);
+  }, [data, isLoading, workspaceId, agentId, conversations]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();

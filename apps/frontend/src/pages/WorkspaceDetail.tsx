@@ -16,7 +16,7 @@ import {
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { useQueryErrorResetBoundary, useQuery } from "@tanstack/react-query";
-import { useState, Suspense, lazy, useEffect } from "react";
+import { useState, Suspense, lazy, useEffect, useRef } from "react";
 import type { FC } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 
@@ -985,24 +985,37 @@ const WorkspaceUsageSection: FC<WorkspaceUsageSectionProps> = ({
   };
 
   const isRefreshing = isRefetchingUsage || isRefetchingDaily;
+  const hasTrackedUsage = useRef(false);
+  const hasTrackedDailyUsage = useRef(false);
+  const lastTrackedKey = useRef<string>("");
 
-  // Track workspace usage viewing
+  // Track workspace usage viewing - only once per data load
   useEffect(() => {
-    if (usageData && !isLoadingUsage) {
+    const trackingKey = `${workspaceId}-${dateRangePreset}`;
+    if (usageData && !isLoadingUsage && (!hasTrackedUsage.current || lastTrackedKey.current !== trackingKey)) {
       trackEvent("workspace_usage_viewed", {
         workspace_id: workspaceId,
         date_range_preset: dateRangePreset,
       });
+      hasTrackedUsage.current = true;
+      lastTrackedKey.current = trackingKey;
+    }
+    if (isLoadingUsage) {
+      hasTrackedUsage.current = false;
     }
   }, [usageData, isLoadingUsage, workspaceId, dateRangePreset]);
 
-  // Track workspace daily usage viewing
+  // Track workspace daily usage viewing - only once per data load
   useEffect(() => {
-    if (dailyData && !isLoadingDaily) {
+    if (dailyData && !isLoadingDaily && !hasTrackedDailyUsage.current) {
       trackEvent("workspace_usage_daily_viewed", {
         workspace_id: workspaceId,
         date_range_preset: dateRangePreset,
       });
+      hasTrackedDailyUsage.current = true;
+    }
+    if (isLoadingDaily) {
+      hasTrackedDailyUsage.current = false;
     }
   }, [dailyData, isLoadingDaily, workspaceId, dateRangePreset]);
 

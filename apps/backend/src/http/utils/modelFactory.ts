@@ -10,7 +10,7 @@ export type Provider = "google" | "openrouter";
 
 /**
  * Parse OpenRouter model name to extract actual provider and model
- * @param modelName - OpenRouter model identifier (e.g., "google/gemini-2.5-flash", "openai/gpt-5.2")
+ * @param modelName - OpenRouter model identifier (e.g., "google/gemini-2.5-flash", "openai/gpt-4")
  * @returns Object with provider and model, or null provider for edge cases
  */
 function parseOpenRouterModel(modelName: string): {

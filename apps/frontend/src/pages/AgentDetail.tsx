@@ -3016,26 +3016,43 @@ const AgentUsageSection: FC<AgentUsageSectionProps> = ({
   };
 
   const isRefreshing = isRefetchingUsage || isRefetchingDaily;
+  const hasTrackedUsage = useRef(false);
+  const hasTrackedDailyUsage = useRef(false);
+  const lastTrackedKey = useRef<string>("");
 
-  // Track usage viewing
+  // Track usage viewing - only once per data load
   useEffect(() => {
-    if (usageData && !isLoading) {
+    const trackingKey = `${workspaceId}-${agentId}-${dateRangePreset}`;
+    if (
+      usageData &&
+      !isLoading &&
+      (!hasTrackedUsage.current || lastTrackedKey.current !== trackingKey)
+    ) {
       trackEvent("agent_usage_viewed", {
         workspace_id: workspaceId,
         agent_id: agentId,
         date_range_preset: dateRangePreset,
       });
+      hasTrackedUsage.current = true;
+      lastTrackedKey.current = trackingKey;
+    }
+    if (isLoading) {
+      hasTrackedUsage.current = false;
     }
   }, [usageData, isLoading, workspaceId, agentId, dateRangePreset]);
 
-  // Track daily usage viewing
+  // Track daily usage viewing - only once per data load
   useEffect(() => {
-    if (dailyUsageData && !isLoadingDaily) {
+    if (dailyUsageData && !isLoadingDaily && !hasTrackedDailyUsage.current) {
       trackEvent("agent_usage_daily_viewed", {
         workspace_id: workspaceId,
         agent_id: agentId,
         date_range_preset: dateRangePreset,
       });
+      hasTrackedDailyUsage.current = true;
+    }
+    if (isLoadingDaily) {
+      hasTrackedDailyUsage.current = false;
     }
   }, [dailyUsageData, isLoadingDaily, workspaceId, agentId, dateRangePreset]);
 

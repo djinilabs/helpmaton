@@ -1,4 +1,4 @@
-import { useState, useEffect, type FC } from "react";
+import { useState, useEffect, useRef, type FC } from "react";
 
 import { useAgentMemory } from "../hooks/useAgentMemory";
 import type { TemporalGrain } from "../utils/api";
@@ -31,9 +31,13 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
     }
   );
 
-  // Track memory viewing
+  const hasTrackedMemory = useRef(false);
+  const lastTrackedKey = useRef<string>("");
+
+  // Track memory viewing - only once per data load
   useEffect(() => {
-    if (data && !isLoading) {
+    const trackingKey = `${workspaceId}-${agentId}-${grain}-${queryText.trim()}`;
+    if (data && !isLoading && (!hasTrackedMemory.current || lastTrackedKey.current !== trackingKey)) {
       const resultCount = Array.isArray(data) ? data.length : (data.records?.length || 0);
       trackEvent("agent_memory_viewed", {
         workspace_id: workspaceId,
@@ -42,6 +46,11 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
         has_query: queryText.trim().length > 0,
         result_count: resultCount,
       });
+      hasTrackedMemory.current = true;
+      lastTrackedKey.current = trackingKey;
+    }
+    if (isLoading) {
+      hasTrackedMemory.current = false;
     }
   }, [data, isLoading, workspaceId, agentId, grain, queryText]);
 

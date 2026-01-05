@@ -72,19 +72,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const workspaceId = params.workspaceId || params.id;
     if (workspaceId && posthog && typeof posthog.group === "function") {
-      // Extract workspace ID from path if not in params
-      // Path patterns: /workspaces/:id or /workspaces/:workspaceId/agents/:agentId
-      let extractedWorkspaceId = workspaceId;
-      if (!extractedWorkspaceId && location.pathname.startsWith("/workspaces/")) {
-        const pathParts = location.pathname.split("/");
-        if (pathParts.length >= 3) {
-          extractedWorkspaceId = pathParts[2];
-        }
-      }
-
-      if (extractedWorkspaceId) {
-        identifyWorkspaceGroup(extractedWorkspaceId);
-      }
+      identifyWorkspaceGroup(workspaceId);
     }
   }, [location.pathname, params.workspaceId, params.id]);
 

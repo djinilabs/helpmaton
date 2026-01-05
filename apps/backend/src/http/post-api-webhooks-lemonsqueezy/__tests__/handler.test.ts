@@ -21,6 +21,7 @@ const {
   mockSendSubscriptionCancelledEmail,
   mockGetUserEmailById,
   mockAssociateSubscriptionWithPlan,
+  mockTrackBusinessEvent,
 } = vi.hoisted(() => {
   const database = vi.fn();
   const verifyWebhookSignature = vi.fn();
@@ -32,6 +33,7 @@ const {
   const sendSubscriptionCancelledEmail = vi.fn();
   const getUserEmailById = vi.fn().mockResolvedValue("user@example.com");
   const associateSubscriptionWithPlan = vi.fn().mockResolvedValue(undefined);
+  const trackBusinessEvent = vi.fn();
   return {
     mockDatabase: database,
     mockVerifyWebhookSignature: verifyWebhookSignature,
@@ -43,6 +45,7 @@ const {
     mockSendSubscriptionCancelledEmail: sendSubscriptionCancelledEmail,
     mockGetUserEmailById: getUserEmailById,
     mockAssociateSubscriptionWithPlan: associateSubscriptionWithPlan,
+    mockTrackBusinessEvent: trackBusinessEvent,
   };
 });
 
@@ -78,6 +81,11 @@ vi.mock("../../../utils/subscriptionEmails", () => ({
 // Mock apiGatewayUsagePlans module
 vi.mock("../../../utils/apiGatewayUsagePlans", () => ({
   associateSubscriptionWithPlan: mockAssociateSubscriptionWithPlan,
+}));
+
+// Mock tracking module
+vi.mock("../../../utils/tracking", () => ({
+  trackBusinessEvent: mockTrackBusinessEvent,
 }));
 
 // Mock workspaceCreditContext

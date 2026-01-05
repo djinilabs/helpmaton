@@ -384,17 +384,17 @@ const DeleteButton: FC<DeleteButtonProps> = ({
     ) {
       return;
     }
-      setIsDeleting(true);
-      try {
-        await deleteDocument.mutateAsync();
-        trackEvent("document_deleted", {
-          workspace_id: workspaceId,
-          document_id: documentId,
-        });
-      } catch {
-        // Error is handled by toast in the hook
-        setIsDeleting(false);
-      }
+    setIsDeleting(true);
+    try {
+      await deleteDocument.mutateAsync();
+      trackEvent("document_deleted", {
+        workspace_id: workspaceId,
+        document_id: documentId,
+      });
+    } catch {
+      // Error is handled by toast in the hook
+      setIsDeleting(false);
+    }
   };
 
   return (
