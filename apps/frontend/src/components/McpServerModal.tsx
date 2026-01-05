@@ -8,6 +8,7 @@ import {
   useUpdateMcpServer,
   useMcpServer,
 } from "../hooks/useMcpServers";
+import { trackEvent } from "../utils/tracking";
 
 interface McpServerModalProps {
   isOpen: boolean;
@@ -130,12 +131,19 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           name: name.trim(),
         };
 
+        const updatedFields: string[] = [];
+        if (name.trim() !== server?.name) {
+          updatedFields.push("name");
+        }
+
         // Only update fields that changed
         if (server && url !== server.url) {
           updateData.url = url.trim();
+          updatedFields.push("url");
         }
         if (server && authType !== server.authType) {
           updateData.authType = authType;
+          updatedFields.push("auth_type");
         }
         // Only include config if:
         // 1. Auth type changed (need new credentials for new auth type)
@@ -169,6 +177,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
               updateData.config = config;
             }
           }
+          updatedFields.push("config");
         }
         // If neither condition is true, don't send config (will keep existing)
 
@@ -176,13 +185,24 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           serverId,
           input: updateData,
         });
+        trackEvent("mcp_server_updated", {
+          workspace_id: workspaceId,
+          server_id: serverId,
+          server_name: name.trim(),
+          updated_fields: updatedFields,
+        });
       } else {
         // When creating, only send config if authType is not "none"
-        await createServer.mutateAsync({
+        const result = await createServer.mutateAsync({
           name: name.trim(),
           url: url.trim(),
           authType,
           ...(authType === "header" || authType === "basic" ? { config } : {}),
+        });
+        trackEvent("mcp_server_created", {
+          workspace_id: workspaceId,
+          server_id: result.id,
+          auth_type: authType,
         });
       }
       handleClose();

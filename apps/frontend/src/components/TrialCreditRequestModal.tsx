@@ -7,6 +7,7 @@ import {
   useRequestTrialCredits,
   useTrialStatus,
 } from "../hooks/useTrialCredits";
+import { trackEvent } from "../utils/tracking";
 
 interface TrialCreditRequestModalProps {
   isOpen: boolean;
@@ -110,6 +111,9 @@ export const TrialCreditRequestModal: FC<TrialCreditRequestModalProps> = ({
       await requestCredits.mutateAsync({
         workspaceId,
         captchaToken,
+      });
+      trackEvent("trial_credit_requested", {
+        workspace_id: workspaceId,
       });
       handleClose();
     } catch {

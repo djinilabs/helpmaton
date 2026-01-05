@@ -1,7 +1,8 @@
-import { useState, type FC } from "react";
+import { useState, useEffect, type FC } from "react";
 
 import { useAgentMemory } from "../hooks/useAgentMemory";
 import type { TemporalGrain } from "../utils/api";
+import { trackEvent } from "../utils/tracking";
 
 interface AgentMemoryRecordsProps {
   workspaceId: string;
@@ -29,6 +30,20 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
       maxResults,
     }
   );
+
+  // Track memory viewing
+  useEffect(() => {
+    if (data && !isLoading) {
+      const resultCount = Array.isArray(data) ? data.length : (data.records?.length || 0);
+      trackEvent("agent_memory_viewed", {
+        workspace_id: workspaceId,
+        agent_id: agentId,
+        grain,
+        has_query: queryText.trim().length > 0,
+        result_count: resultCount,
+      });
+    }
+  }, [data, isLoading, workspaceId, agentId, grain, queryText]);
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString();

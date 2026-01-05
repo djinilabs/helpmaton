@@ -9,6 +9,7 @@ import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
 } from "../../../utils/subscriptionUtils";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -171,6 +172,18 @@ export const registerPostWorkspaceChannels = (app: express.Application) => {
           config,
           createdBy: currentUserRef,
         });
+
+        // Track channel creation
+        trackBusinessEvent(
+          "channel",
+          "created",
+          {
+            workspace_id: workspaceId,
+            channel_id: channel.channelId,
+            channel_type: type,
+          },
+          req
+        );
 
         res.status(201).json({
           id: channel.channelId,

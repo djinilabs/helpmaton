@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -94,6 +95,17 @@ export const registerDeleteMcpServer = (app: express.Application) => {
 
         // Delete server
         await db["mcp-server"].delete(pk, "server");
+
+        // Track MCP server deletion
+        trackBusinessEvent(
+          "mcp_server",
+          "deleted",
+          {
+            workspace_id: workspaceId,
+            server_id: serverId,
+          },
+          req
+        );
 
         res.status(204).send();
       } catch (error) {

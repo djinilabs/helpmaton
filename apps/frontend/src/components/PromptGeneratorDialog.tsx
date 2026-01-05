@@ -4,6 +4,7 @@ import type { FC } from "react";
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useGeneratePrompt } from "../hooks/useAgents";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { trackEvent } from "../utils/tracking";
 
 import { LoadingScreen } from "./LoadingScreen";
 
@@ -44,6 +45,10 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
         goal: goal.trim(),
         agentId: agentId || undefined,
       });
+      trackEvent("agent_prompt_generated", {
+        workspace_id: workspaceId,
+        agent_id: agentId || undefined,
+      });
       setGeneratedPrompt(result.prompt);
     } catch {
       // Error is handled by toast in the hook
@@ -52,6 +57,10 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
 
   const handleAccept = () => {
     if (generatedPrompt) {
+      trackEvent("agent_prompt_accepted", {
+        workspace_id: workspaceId,
+        agent_id: agentId || undefined,
+      });
       onAccept(generatedPrompt);
       handleClose();
     }

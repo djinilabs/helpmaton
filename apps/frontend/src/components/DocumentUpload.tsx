@@ -7,6 +7,7 @@ import {
   useFolders,
 } from "../hooks/useDocuments";
 import type { CreateDocumentInput } from "../utils/api";
+import { trackEvent } from "../utils/tracking";
 
 interface DocumentUploadProps {
   workspaceId: string;
@@ -91,14 +92,24 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
 
     try {
       if (files.length === 1) {
-        await uploadDocument.mutateAsync({
+        const result = await uploadDocument.mutateAsync({
           file: files[0],
           folderPath: folderPath || undefined,
         });
+        trackEvent("document_uploaded", {
+          workspace_id: workspaceId,
+          document_id: result.id,
+          folder_path: folderPath || undefined,
+        });
       } else {
-        await uploadDocuments.mutateAsync({
+        const results = await uploadDocuments.mutateAsync({
           files,
           folderPath: folderPath || undefined,
+        });
+        trackEvent("document_bulk_uploaded", {
+          workspace_id: workspaceId,
+          document_count: results.length,
+          folder_path: folderPath || undefined,
         });
       }
       setUploadProgress(null);
@@ -127,9 +138,15 @@ export const DocumentUpload: FC<DocumentUploadProps> = ({
         name: textDocumentName.trim(),
         content: textDocumentContent.trim(),
       };
-      await uploadDocument.mutateAsync({
+      const result = await uploadDocument.mutateAsync({
         file: input,
         folderPath: folderPath || undefined,
+      });
+      trackEvent("document_uploaded", {
+        workspace_id: workspaceId,
+        document_id: result.id,
+        folder_path: folderPath || undefined,
+        is_text_document: true,
       });
       setUploadProgress(null);
       setTextDocumentName("");

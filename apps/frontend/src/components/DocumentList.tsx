@@ -8,6 +8,7 @@ import {
   useSearchDocuments,
 } from "../hooks/useDocuments";
 import { getSizeColor, getAgeColor, getPercentageColor } from "../utils/colorUtils";
+import { trackEvent } from "../utils/tracking";
 
 import { DocumentViewer } from "./DocumentViewer";
 
@@ -47,6 +48,10 @@ export const DocumentList: FC<DocumentListProps> = ({
   const handleSearch = () => {
     if (searchQuery.trim()) {
       setActiveSearchQuery(searchQuery.trim());
+      trackEvent("document_search_performed", {
+        workspace_id: workspaceId,
+        query_length: searchQuery.trim().length,
+      });
     }
   };
 
@@ -62,6 +67,10 @@ export const DocumentList: FC<DocumentListProps> = ({
 
   const handleDocumentClick = (documentId: string) => {
     setSelectedDocumentId(documentId);
+    trackEvent("document_viewed", {
+      workspace_id: workspaceId,
+      document_id: documentId,
+    });
   };
 
   const handleCloseViewer = () => {
@@ -87,9 +96,17 @@ export const DocumentList: FC<DocumentListProps> = ({
   const handleBreadcrumbClick = (index: number) => {
     if (index === 0) {
       onFolderChange?.("");
+      trackEvent("document_folder_viewed", {
+        workspace_id: workspaceId,
+        folder_path: "",
+      });
     } else {
       const path = breadcrumbs.slice(1, index + 1).join("/");
       onFolderChange?.(path);
+      trackEvent("document_folder_viewed", {
+        workspace_id: workspaceId,
+        folder_path: path,
+      });
     }
   };
 
@@ -367,13 +384,17 @@ const DeleteButton: FC<DeleteButtonProps> = ({
     ) {
       return;
     }
-    setIsDeleting(true);
-    try {
-      await deleteDocument.mutateAsync();
-    } catch {
-      // Error is handled by toast in the hook
-      setIsDeleting(false);
-    }
+      setIsDeleting(true);
+      try {
+        await deleteDocument.mutateAsync();
+        trackEvent("document_deleted", {
+          workspace_id: workspaceId,
+          document_id: documentId,
+        });
+      } catch {
+        // Error is handled by toast in the hook
+        setIsDeleting(false);
+      }
   };
 
   return (

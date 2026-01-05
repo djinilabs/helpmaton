@@ -16,7 +16,7 @@ import {
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { useQueryErrorResetBoundary, useQuery } from "@tanstack/react-query";
-import { useState, Suspense, lazy } from "react";
+import { useState, Suspense, lazy, useEffect } from "react";
 import type { FC } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 
@@ -117,6 +117,7 @@ import {
   type Workspace,
 } from "../utils/api";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
+import { trackEvent } from "../utils/tracking";
 
 const PERMISSION_LEVELS = {
   READ: 1,
@@ -383,6 +384,9 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
     setIsDeleting(true);
     try {
       await deleteWorkspace.mutateAsync();
+      trackEvent("workspace_deleted", {
+        workspace_id: id,
+      });
       navigate("/workspaces");
     } catch {
       // Error is handled by toast in the hook
@@ -981,6 +985,26 @@ const WorkspaceUsageSection: FC<WorkspaceUsageSectionProps> = ({
   };
 
   const isRefreshing = isRefetchingUsage || isRefetchingDaily;
+
+  // Track workspace usage viewing
+  useEffect(() => {
+    if (usageData && !isLoadingUsage) {
+      trackEvent("workspace_usage_viewed", {
+        workspace_id: workspaceId,
+        date_range_preset: dateRangePreset,
+      });
+    }
+  }, [usageData, isLoadingUsage, workspaceId, dateRangePreset]);
+
+  // Track workspace daily usage viewing
+  useEffect(() => {
+    if (dailyData && !isLoadingDaily) {
+      trackEvent("workspace_usage_daily_viewed", {
+        workspace_id: workspaceId,
+        date_range_preset: dateRangePreset,
+      });
+    }
+  }, [dailyData, isLoadingDaily, workspaceId, dateRangePreset]);
 
   if (isLoadingUsage || isLoadingDaily) {
     return <LoadingScreen compact message="Loading usage..." />;

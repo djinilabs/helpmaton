@@ -9,6 +9,33 @@ import { getModelPricing, loadPricingConfig } from "../../utils/pricing";
 export type Provider = "google" | "openrouter";
 
 /**
+ * Parse OpenRouter model name to extract actual provider and model
+ * @param modelName - OpenRouter model identifier (e.g., "google/gemini-2.5-flash", "openai/gpt-5.2")
+ * @returns Object with provider and model, or null provider for edge cases
+ */
+function parseOpenRouterModel(modelName: string): {
+  provider: string | null;
+  model: string;
+} {
+  // Handle "auto" selection
+  if (modelName === "auto") {
+    return { provider: "openrouter", model: "auto" };
+  }
+
+  // Check if model name contains provider prefix (format: "provider/model-name")
+  const parts = modelName.split("/");
+  if (parts.length === 2) {
+    return {
+      provider: parts[0], // e.g., "google", "openai", "mistralai"
+      model: parts[1],     // e.g., "gemini-2.5-flash", "gpt-5.2"
+    };
+  }
+
+  // No provider prefix found - use openrouter as provider and full name as model
+  return { provider: "openrouter", model: modelName };
+}
+
+/**
  * Get system API key for a provider from environment variables
  */
 function getSystemApiKey(provider: Provider): string {
@@ -208,11 +235,13 @@ export async function createModel(
         } else {
           distinctId = "system";
         }
+        // Parse OpenRouter model name to extract actual provider and model
+        const { provider: actualProvider, model: actualModel } = parseOpenRouterModel(finalModelName);
         return withTracing(model, phClient, {
           posthogDistinctId: distinctId,
           posthogProperties: {
-            provider: "openrouter",
-            modelName: finalModelName,
+            provider: actualProvider || "openrouter",
+            modelName: actualModel,
             workspaceId: workspaceId || undefined,
             userId: userId || undefined,
             referer,

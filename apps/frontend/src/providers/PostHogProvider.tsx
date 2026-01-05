@@ -1,8 +1,9 @@
 import { useSession } from "next-auth/react";
 import { useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 
 import { posthog } from "../utils/posthog";
+import { identifyWorkspaceGroup } from "../utils/tracking";
 
 /**
  * PostHog Provider component that tracks page views and user interactions
@@ -10,6 +11,10 @@ import { posthog } from "../utils/posthog";
  */
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const params = useParams<{
+    id?: string;
+    workspaceId?: string;
+  }>();
   const { data: session, status } = useSession();
 
   // Identify user when authenticated
@@ -62,6 +67,26 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [location]);
+
+  // Identify workspace group when workspace is in URL
+  useEffect(() => {
+    const workspaceId = params.workspaceId || params.id;
+    if (workspaceId && posthog && typeof posthog.group === "function") {
+      // Extract workspace ID from path if not in params
+      // Path patterns: /workspaces/:id or /workspaces/:workspaceId/agents/:agentId
+      let extractedWorkspaceId = workspaceId;
+      if (!extractedWorkspaceId && location.pathname.startsWith("/workspaces/")) {
+        const pathParts = location.pathname.split("/");
+        if (pathParts.length >= 3) {
+          extractedWorkspaceId = pathParts[2];
+        }
+      }
+
+      if (extractedWorkspaceId) {
+        identifyWorkspaceGroup(extractedWorkspaceId);
+      }
+    }
+  }, [location.pathname, params.workspaceId, params.id]);
 
   return <>{children}</>;
 }

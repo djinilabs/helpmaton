@@ -1,6 +1,5 @@
 import { ClockIcon } from "@heroicons/react/24/outline";
-import type { FC } from "react";
-
+import { useEffect, type FC } from "react";
 
 import { useAgentConversations } from "../hooks/useAgentConversations";
 import type { Conversation } from "../utils/api";
@@ -9,6 +8,7 @@ import {
   getCostColor,
 } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
+import { trackEvent } from "../utils/tracking";
 
 interface ConversationListProps {
   workspaceId: string;
@@ -34,6 +34,17 @@ export const ConversationList: FC<ConversationListProps> = ({
 
   // Flatten all conversations from all pages
   const conversations = data?.pages.flatMap((page) => page.conversations) ?? [];
+
+  // Track conversation list viewing
+  useEffect(() => {
+    if (data && !isLoading) {
+      trackEvent("agent_conversations_viewed", {
+        workspace_id: workspaceId,
+        agent_id: agentId,
+        conversation_count: conversations.length,
+      });
+    }
+  }, [data, isLoading, workspaceId, agentId, conversations.length]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
@@ -153,7 +164,15 @@ export const ConversationList: FC<ConversationListProps> = ({
             {conversations.map((conversation) => (
               <div
                 key={conversation.id}
-                onClick={() => onConversationClick(conversation)}
+                onClick={() => {
+                  trackEvent("agent_conversation_viewed", {
+                    workspace_id: workspaceId,
+                    agent_id: agentId,
+                    conversation_id: conversation.id,
+                    conversation_type: conversation.conversationType,
+                  });
+                  onConversationClick(conversation);
+                }}
                 className="transform cursor-pointer rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:scale-[1.01] hover:border-primary-400 hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
               >
                 {/* Header Row - Type, Message Count, Error Badge, and Cost */}

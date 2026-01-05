@@ -29,6 +29,7 @@ import { launchBrowser } from "../../utils/puppeteerBrowser";
 import { delay } from "../../utils/puppeteerContentLoading";
 import { setupResourceBlocking } from "../../utils/puppeteerResourceBlocking";
 import { ensureError, flushSentry, Sentry } from "../../utils/sentry";
+import { trackBusinessEvent } from "../../utils/tracking";
 import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { expressErrorHandler } from "../utils/errorHandler";
 import { extractWorkspaceContextFromToken } from "../utils/jwtUtils";
@@ -241,6 +242,17 @@ function createApp(): express.Application {
       const aomXml = await extractAOM(page);
 
       console.log("[scrape] Success.");
+
+      // Track scrape execution
+      trackBusinessEvent(
+        "scrape",
+        "executed",
+        {
+          workspace_id: workspaceId,
+          agent_id: agentId,
+        },
+        undefined // Scrape uses token auth, no user request context
+      );
 
       res.setHeader("Content-Type", "application/xml");
       res.status(200).send(aomXml);

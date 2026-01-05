@@ -20,6 +20,7 @@ import {
   sendSubscriptionCancelledEmail,
 } from "../../utils/subscriptionEmails";
 import { getUserSubscription } from "../../utils/subscriptionUtils";
+import { trackBusinessEvent } from "../../utils/tracking";
 import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 
 interface LemonSqueezyWebhookEvent {
@@ -815,6 +816,18 @@ async function handleOrderCreated(
     pk: workspacePk,
     lemonSqueezyOrderId: orderData.id,
   });
+
+  // Track credit purchase completion
+  trackBusinessEvent(
+    "credits",
+    "purchased",
+    {
+      workspace_id: workspaceId,
+      amount_millionth_usd: creditAmount,
+      order_id: orderData.id,
+    },
+    undefined // Webhook doesn't have user request context
+  );
 
   console.log(
     `[Webhook] Created credit purchase transaction for ${creditAmount} credits to workspace ${workspaceId} from order ${orderData.id}`
