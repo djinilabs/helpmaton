@@ -152,34 +152,48 @@ export const handler = adaptHttpHandler(
           };
         }
 
+        // Validate required fields before proceeding
+        if (!body.token) {
+          return {
+            statusCode: 400,
+            body: JSON.stringify({ error: "Missing interaction token" }),
+            headers: { "Content-Type": "application/json" },
+          };
+        }
+
+        if (!config.applicationId) {
+          return {
+            statusCode: 400,
+            body: JSON.stringify({
+              error: "Integration missing applicationId",
+            }),
+            headers: { "Content-Type": "application/json" },
+          };
+        }
+
         // Return deferred response immediately (Discord requires response within 3 seconds)
         // This acknowledges the interaction and allows up to 15 minutes for follow-up
         const deferredResponse = createDiscordDeferredResponse();
 
         // Enqueue task for async processing
-        if (body.token && config.applicationId) {
-          try {
-            await enqueueBotWebhookTask(
-              "discord",
-              actualIntegrationId,
-              integration.workspaceId,
-              integration.agentId,
-              messageText,
-              {
-                interactionToken: body.token,
-                applicationId: config.applicationId,
-                channelId: body.channel_id,
-                botToken: config.botToken,
-              },
-              body.channel_id
-            );
-          } catch (error) {
-            console.error(
-              "[Discord Webhook] Error enqueueing task:",
-              error
-            );
-            // Still return deferred response - queue handler will handle errors
-          }
+        try {
+          await enqueueBotWebhookTask(
+            "discord",
+            actualIntegrationId,
+            integration.workspaceId,
+            integration.agentId,
+            messageText,
+            {
+              interactionToken: body.token,
+              applicationId: config.applicationId,
+              channelId: body.channel_id,
+              botToken: config.botToken,
+            },
+            body.channel_id
+          );
+        } catch (error) {
+          console.error("[Discord Webhook] Error enqueueing task:", error);
+          // Still return deferred response - queue handler will handle errors
         }
 
         // Return deferred response immediately (within 3 seconds)

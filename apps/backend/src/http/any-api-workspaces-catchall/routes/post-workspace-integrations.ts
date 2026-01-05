@@ -100,7 +100,10 @@ export const registerPostWorkspaceIntegrations = (app: express.Application) => {
           if (!config.botToken || typeof config.botToken !== "string") {
             throw badRequest("config.botToken is required for Slack");
           }
-          if (!config.signingSecret || typeof config.signingSecret !== "string") {
+          if (
+            !config.signingSecret ||
+            typeof config.signingSecret !== "string"
+          ) {
             throw badRequest("config.signingSecret is required for Slack");
           }
         } else if (platform === "discord") {
@@ -112,7 +115,9 @@ export const registerPostWorkspaceIntegrations = (app: express.Application) => {
           }
           // Validate public key is hex and 64 characters (32 bytes)
           if (!/^[0-9a-fA-F]{64}$/.test(config.publicKey)) {
-            throw badRequest("config.publicKey must be a 64-character hex string");
+            throw badRequest(
+              "config.publicKey must be a 64-character hex string"
+            );
           }
         }
 
@@ -120,11 +125,20 @@ export const registerPostWorkspaceIntegrations = (app: express.Application) => {
         const integrationId = randomUUID();
 
         // Construct webhook URL
-        const baseUrl = process.env.ARC_ENV === "production"
-          ? "https://api.helpmaton.com"
-          : process.env.ARC_ENV === "staging"
-          ? "https://staging-api.helpmaton.com"
-          : "http://localhost:3333";
+        const webhookBaseFromEnv = process.env.WEBHOOK_BASE_URL;
+        let baseUrl: string;
+
+        if (webhookBaseFromEnv && webhookBaseFromEnv.trim()) {
+          baseUrl = webhookBaseFromEnv.trim().replace(/\/+$/, "");
+        } else if (process.env.ARC_ENV === "production") {
+          baseUrl = "https://api.helpmaton.com";
+        } else if (process.env.ARC_ENV === "staging") {
+          baseUrl = "https://staging-api.helpmaton.com";
+        } else {
+          throw new Error(
+            "WEBHOOK_BASE_URL environment variable must be set for non-production/non-staging environments"
+          );
+        }
         const webhookUrl = `${baseUrl}/api/webhooks/${platform}/${workspaceId}/${integrationId}`;
 
         // Create integration
@@ -152,9 +166,12 @@ export const registerPostWorkspaceIntegrations = (app: express.Application) => {
           createdAt: integration.createdAt,
         });
       } catch (error) {
-        handleError(error, next, "POST /api/workspaces/:workspaceId/integrations");
+        handleError(
+          error,
+          next,
+          "POST /api/workspaces/:workspaceId/integrations"
+        );
       }
     }
   );
 };
-

@@ -1,6 +1,6 @@
 import type { FC } from "react";
 
-import { BotIntegration } from "../utils/api";
+import type { BotIntegration } from "../utils/api";
 
 interface IntegrationCardProps {
   integration: BotIntegration;
@@ -28,7 +28,9 @@ export const IntegrationCard: FC<IntegrationCardProps> = ({
               {integration.name}
             </h3>
             <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[integration.status]}`}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                statusColors[integration.status]
+              }`}
             >
               {integration.status}
             </span>
@@ -68,4 +70,3 @@ export const IntegrationCard: FC<IntegrationCardProps> = ({
     </div>
   );
 };
-

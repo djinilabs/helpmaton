@@ -15,7 +15,9 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *     security:
  *       - bearerAuth: []
  */
-export const registerPostWorkspaceIntegrationsSlackManifest = (app: express.Application) => {
+export const registerPostWorkspaceIntegrationsSlackManifest = (
+  app: express.Application
+) => {
   app.post(
     "/api/workspaces/:workspaceId/integrations/slack/manifest",
     requireAuth,
@@ -39,11 +41,20 @@ export const registerPostWorkspaceIntegrationsSlackManifest = (app: express.Appl
         const placeholderIntegrationId = "PLACEHOLDER_INTEGRATION_ID";
 
         // Construct webhook URL
-        const baseUrl = process.env.ARC_ENV === "production"
-          ? "https://api.helpmaton.com"
-          : process.env.ARC_ENV === "staging"
-          ? "https://staging-api.helpmaton.com"
-          : "http://localhost:3333";
+        const webhookBaseFromEnv = process.env.WEBHOOK_BASE_URL;
+        let baseUrl: string;
+
+        if (webhookBaseFromEnv && webhookBaseFromEnv.trim()) {
+          baseUrl = webhookBaseFromEnv.trim().replace(/\/+$/, "");
+        } else if (process.env.ARC_ENV === "production") {
+          baseUrl = "https://api.helpmaton.com";
+        } else if (process.env.ARC_ENV === "staging") {
+          baseUrl = "https://staging-api.helpmaton.com";
+        } else {
+          throw new Error(
+            "WEBHOOK_BASE_URL environment variable must be set for non-production/non-staging environments"
+          );
+        }
         const webhookUrl = `${baseUrl}/api/webhooks/slack/${workspaceId}/${placeholderIntegrationId}`;
 
         // Generate Slack app manifest
@@ -73,7 +84,13 @@ export const registerPostWorkspaceIntegrationsSlackManifest = (app: express.Appl
           },
           event_subscriptions: {
             request_url: webhookUrl,
-            bot_events: ["app_mention", "message.channels", "message.groups", "message.im", "message.mpim"],
+            bot_events: [
+              "app_mention",
+              "message.channels",
+              "message.groups",
+              "message.im",
+              "message.mpim",
+            ],
           },
           settings: {
             event_subscriptions: {
@@ -98,9 +115,12 @@ export const registerPostWorkspaceIntegrationsSlackManifest = (app: express.Appl
           ],
         });
       } catch (error) {
-        handleError(error, next, "POST /api/workspaces/:workspaceId/integrations/slack/manifest");
+        handleError(
+          error,
+          next,
+          "POST /api/workspaces/:workspaceId/integrations/slack/manifest"
+        );
       }
     }
   );
 };
-

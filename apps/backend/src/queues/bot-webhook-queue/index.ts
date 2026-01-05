@@ -36,6 +36,11 @@ async function processDiscordTask(
     );
   }
 
+  // TypeScript: these are guaranteed to be strings after the check above
+  const safeBotToken: string = botToken;
+  const safeApplicationId: string = applicationId;
+  const safeInteractionToken: string = interactionToken;
+
   const db = await database();
 
   // Get integration to access config
@@ -55,9 +60,9 @@ async function processDiscordTask(
   // Post initial "thinking" message
   try {
     await updateDiscordMessage(
-      botToken,
-      applicationId,
-      interactionToken,
+      safeBotToken,
+      safeApplicationId,
+      safeInteractionToken,
       "Agent is thinking..."
     );
   } catch (error) {
@@ -67,35 +72,46 @@ async function processDiscordTask(
     );
   }
 
+  // Helper to update the Discord message with elapsed time
+  async function updateDiscordThinkingMessage(): Promise<void> {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    await updateDiscordMessage(
+      safeBotToken,
+      safeApplicationId,
+      safeInteractionToken,
+      `Agent is thinking... (${elapsed}s)`
+    );
+  }
+
   // Start background task to update message periodically
   const updateInterval = setInterval(() => {
-    // Use void to explicitly ignore the promise
-    void (async () => {
-      try {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        await updateDiscordMessage(
-          botToken,
-          applicationId,
-          interactionToken,
-          `Agent is thinking... (${elapsed}s)`
-        );
-      } catch (error) {
-        console.error(
-          "[Bot Webhook Queue] Error in Discord update interval:",
-          error
-        );
-      }
-    })();
+    updateDiscordThinkingMessage().catch((error) => {
+      console.error(
+        "[Bot Webhook Queue] Error in Discord update interval:",
+        error
+      );
+    });
   }, 1500);
 
   try {
+    // Get base URL for model referer
+    const webhookBaseFromEnv = process.env.WEBHOOK_BASE_URL?.trim();
+    const baseUrl: string =
+      webhookBaseFromEnv && webhookBaseFromEnv.length > 0
+        ? webhookBaseFromEnv
+        : process.env.ARC_ENV === "production"
+        ? "https://api.helpmaton.com"
+        : process.env.ARC_ENV === "staging"
+        ? "https://staging-api.helpmaton.com"
+        : "http://localhost:3333";
+
     // Call agent
     const agentResult = await callAgentNonStreaming(
       workspaceId,
       agentId,
       messageText,
       {
-        modelReferer: "http://localhost:3000/api/webhooks/discord",
+        modelReferer: `${baseUrl}/api/webhooks/discord`,
         conversationId: conversationId || channelId,
         context,
         endpointType: "webhook",
@@ -106,9 +122,9 @@ async function processDiscordTask(
 
     // Update with complete response
     await updateDiscordMessage(
-      botToken,
-      applicationId,
-      interactionToken,
+      safeBotToken,
+      safeApplicationId,
+      safeInteractionToken,
       agentResult.text || "No response generated."
     );
 
@@ -122,12 +138,10 @@ async function processDiscordTask(
     // Update with error
     try {
       await updateDiscordMessage(
-        botToken,
-        applicationId,
-        interactionToken,
-        `❌ Error: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
+        safeBotToken,
+        safeApplicationId,
+        safeInteractionToken,
+        `❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     } catch (updateError) {
       console.error(
@@ -163,6 +177,11 @@ async function processSlackTask(
     );
   }
 
+  // TypeScript: these are guaranteed to be strings after the check above
+  const safeBotToken: string = botToken;
+  const safeChannel: string = channel;
+  const safeMessageTs: string = messageTs;
+
   const db = await database();
 
   // Get integration to access config
@@ -176,31 +195,42 @@ async function processSlackTask(
     throw new Error(`Integration not found: ${message.integrationId}`);
   }
 
-  const client = new WebClient(botToken);
+  const client = new WebClient(safeBotToken);
 
   // Capture start time for elapsed time calculation
   const startTime = Date.now();
 
+  // Helper to update the Slack message with elapsed time
+  async function updateSlackThinkingMessage(): Promise<void> {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    await updateSlackMessage(
+      client,
+      safeChannel,
+      safeMessageTs,
+      `Agent is thinking... (${elapsed}s)`
+    );
+  }
+
   // Start background task to update message periodically
   const updateInterval = setInterval(() => {
-    // Use void to explicitly ignore the promise
-    void (async () => {
-      try {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        await updateSlackMessage(
-          client,
-          channel,
-          messageTs,
-          `Agent is thinking... (${elapsed}s)`
-        );
-      } catch (error) {
-        console.error(
-          "[Bot Webhook Queue] Error in Slack update interval:",
-          error
-        );
-      }
-    })();
+    updateSlackThinkingMessage().catch((error) => {
+      console.error(
+        "[Bot Webhook Queue] Error in Slack update interval:",
+        error
+      );
+    });
   }, 1500);
+
+  // Get base URL for model referer
+  const webhookBaseFromEnv = process.env.WEBHOOK_BASE_URL?.trim();
+  const baseUrl: string =
+    webhookBaseFromEnv && webhookBaseFromEnv.length > 0
+      ? webhookBaseFromEnv
+      : process.env.ARC_ENV === "production"
+      ? "https://api.helpmaton.com"
+      : process.env.ARC_ENV === "staging"
+      ? "https://staging-api.helpmaton.com"
+      : "http://localhost:3333";
 
   try {
     // Call agent
@@ -209,7 +239,7 @@ async function processSlackTask(
       agentId,
       messageText,
       {
-        modelReferer: "http://localhost:3000/api/webhooks/slack",
+        modelReferer: `${baseUrl}/api/webhooks/slack`,
         conversationId: conversationId || threadTs || messageTs,
         context,
         endpointType: "webhook",
@@ -221,8 +251,8 @@ async function processSlackTask(
     // Update with complete response
     await updateSlackMessage(
       client,
-      channel,
-      messageTs,
+      safeChannel,
+      safeMessageTs,
       agentResult.text || "No response generated."
     );
 
@@ -237,11 +267,9 @@ async function processSlackTask(
     try {
       await updateSlackMessage(
         client,
-        channel,
-        messageTs,
-        `❌ Error: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
+        safeChannel,
+        safeMessageTs,
+        `❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`
       );
     } catch (updateError) {
       console.error(
@@ -308,4 +336,3 @@ export const handler = handlingSQSErrors(
     return failedMessageIds;
   }
 );
-

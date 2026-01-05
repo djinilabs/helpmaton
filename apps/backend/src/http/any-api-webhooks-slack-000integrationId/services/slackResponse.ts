@@ -6,14 +6,22 @@ import { WebClient } from "@slack/web-api";
 export function markdownToSlack(markdown: string): string {
   let slack = markdown;
 
-  // Convert bold: **text** or __text__ to *text*
-  slack = slack.replace(/\*\*(.+?)\*\*/g, "*$1*");
-  slack = slack.replace(/__(.+?)__/g, "*$1*");
+  // Convert bold: **text** or __text__ to placeholders so we don't
+  // accidentally treat them as italic later.
+  const BOLD_OPEN = "^@BOLD_OPEN^@";
+  const BOLD_CLOSE = "^@BOLD_CLOSE^@";
+  slack = slack.replace(/\*\*(.+?)\*\*/g, `${BOLD_OPEN}$1${BOLD_CLOSE}`);
+  slack = slack.replace(/__(.+?)__/g, `${BOLD_OPEN}$1${BOLD_CLOSE}`);
 
   // Convert italic: *text* or _text_ to _text_
-  // But avoid converting bold markers
-  slack = slack.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "_$1_");
-  slack = slack.replace(/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/g, "_$1_");
+  // We avoid lookbehind/lookahead for better compatibility and rely on
+  // the fact that bold markers have been replaced with placeholders.
+  slack = slack.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1_$2_");
+  slack = slack.replace(/(^|[^_])_([^_\n]+)_/g, "$1_$2_");
+
+  // Restore bold placeholders to Slack bold markers (*text*)
+  slack = slack.replace(new RegExp(BOLD_OPEN, "g"), "*");
+  slack = slack.replace(new RegExp(BOLD_CLOSE, "g"), "*");
 
   // Convert code blocks: ```code``` to ```code```
   // Slack uses triple backticks for code blocks, so this is already compatible
@@ -36,7 +44,10 @@ export function markdownToSlack(markdown: string): string {
 /**
  * Truncates text to Slack's message limit (4000 characters)
  */
-export function truncateSlackMessage(text: string, maxLength: number = 4000): string {
+export function truncateSlackMessage(
+  text: string,
+  maxLength: number = 4000
+): string {
   if (text.length <= maxLength) {
     return text;
   }
@@ -91,4 +102,3 @@ export async function updateSlackMessage(
     );
   }
 }
-

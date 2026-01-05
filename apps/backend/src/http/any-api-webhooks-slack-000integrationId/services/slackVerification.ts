@@ -1,4 +1,4 @@
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
 
@@ -50,14 +50,11 @@ export function verifySlackSignature(
       return false;
     }
 
-    let isValid = true;
-    for (let i = 0; i < signature.length; i++) {
-      if (signature[i] !== computedSignature[i]) {
-        isValid = false;
-      }
-    }
+    // Convert strings to Buffers for timing-safe comparison
+    const signatureBuffer = Buffer.from(signature);
+    const computedBuffer = Buffer.from(computedSignature);
 
-    if (!isValid) {
+    if (!timingSafeEqual(signatureBuffer, computedBuffer)) {
       console.warn("Slack signature verification failed");
       return false;
     }
@@ -69,4 +66,3 @@ export function verifySlackSignature(
     return false;
   }
 }
-

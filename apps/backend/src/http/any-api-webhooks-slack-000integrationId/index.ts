@@ -139,12 +139,33 @@ export const handler = adaptHttpHandler(
           const client = new WebClient(config.botToken);
 
           // Post initial "thinking" message (for immediate feedback)
-          const initialMessage = await postSlackMessage(
-            client,
-            slackEvent.channel,
-            "Agent is thinking...",
-            slackEvent.thread_ts
-          );
+          let initialMessage: { ts: string; channel: string };
+          try {
+            initialMessage = await postSlackMessage(
+              client,
+              slackEvent.channel,
+              "Agent is thinking...",
+              slackEvent.thread_ts
+            );
+          } catch (error) {
+            console.error(
+              "[Slack Webhook] Error posting initial message:",
+              error
+            );
+            // If we can't post the initial message, we can't proceed
+            // Return error response
+            return {
+              statusCode: 500,
+              body: JSON.stringify({
+                ok: false,
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Failed to post message",
+              }),
+              headers: { "Content-Type": "application/json" },
+            };
+          }
 
           // Enqueue task for async processing
           try {

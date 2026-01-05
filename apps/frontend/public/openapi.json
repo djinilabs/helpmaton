@@ -708,292 +708,6 @@
     }
   },
   "paths": {
-    "/api/user/api-keys": {
-      "post": {
-        "summary": "Create user API key",
-        "description": "Creates a new API key for the authenticated user. The key value is only returned once upon creation.",
-        "tags": [
-          "User"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": false,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "description": "Optional name/label for the key"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "API key created successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "description": "API key ID"
-                    },
-                    "key": {
-                      "type": "string",
-                      "description": "The API key value (only shown once - save this securely)"
-                    },
-                    "name": {
-                      "type": "string",
-                      "nullable": true,
-                      "description": "Optional name/label for the key"
-                    },
-                    "keyPrefix": {
-                      "type": "string",
-                      "description": "Key prefix for display"
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date-time",
-                      "description": "When the key was created"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      },
-      "get": {
-        "summary": "List user API keys",
-        "description": "Returns all API keys for the authenticated user (masked)",
-        "tags": [
-          "User"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "List of API keys",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "description": "API key ID"
-                      },
-                      "name": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Optional name/label for the key"
-                      },
-                      "keyPrefix": {
-                        "type": "string",
-                        "description": "Masked key prefix for display"
-                      },
-                      "maskedKey": {
-                        "type": "string",
-                        "description": "Fully masked key for display"
-                      },
-                      "createdAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "When the key was created"
-                      },
-                      "lastUsedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true,
-                        "description": "When the key was last used"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/api/user/refresh-token": {
-      "post": {
-        "summary": "Refresh access and refresh tokens",
-        "description": "Validates a refresh token and returns new access and refresh tokens. The old refresh token is revoked. This endpoint does not require authentication as it uses the refresh token in the request body.",
-        "tags": [
-          "User"
-        ],
-        "security": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "refreshToken"
-                ],
-                "properties": {
-                  "refreshToken": {
-                    "type": "string",
-                    "description": "The refresh token to validate"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Tokens refreshed successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "accessToken": {
-                      "type": "string",
-                      "description": "New JWT access token (24 hours expiry)"
-                    },
-                    "refreshToken": {
-                      "type": "string",
-                      "description": "New refresh token (30 days expiry, save securely)"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/api/user/generate-tokens": {
-      "post": {
-        "summary": "Generate access and refresh tokens",
-        "description": "Generates new access and refresh tokens for the authenticated user. Requires either a valid Bearer token or cookie-based session. This is typically called after initial login to get Bearer tokens.",
-        "tags": [
-          "User"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Tokens generated successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "accessToken": {
-                      "type": "string",
-                      "description": "JWT access token (24 hours expiry)"
-                    },
-                    "refreshToken": {
-                      "type": "string",
-                      "description": "Refresh token (30 days expiry, save securely)"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/api/user/api-keys/{keyId}": {
-      "delete": {
-        "summary": "Delete user API key",
-        "description": "Deletes an API key for the authenticated user",
-        "tags": [
-          "User"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "keyId",
-            "in": "path",
-            "required": true,
-            "description": "API key ID",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "API key deleted successfully"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
-          },
-          "403": {
-            "$ref": "#/components/responses/Forbidden"
-          },
-          "410": {
-            "description": "API key not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
     "/api/workspaces/{workspaceId}": {
       "put": {
         "summary": "Update workspace",
@@ -4204,6 +3918,109 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/integrations": {
+      "post": {
+        "summary": "Create a new bot integration",
+        "description": "Creates a new Slack or Discord bot integration for an agent",
+        "tags": [
+          "Integrations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "platform",
+                  "name",
+                  "agentId",
+                  "config"
+                ],
+                "properties": {
+                  "platform": {
+                    "type": "string",
+                    "enum": [
+                      "slack",
+                      "discord"
+                    ],
+                    "description": "Platform type"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Integration name"
+                  },
+                  "agentId": {
+                    "type": "string",
+                    "description": "Agent ID to connect to"
+                  },
+                  "config": {
+                    "type": "object",
+                    "description": "Platform-specific configuration (encrypted)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Integration created successfully"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "get": {
+        "summary": "List bot integrations",
+        "description": "Lists all bot integrations for a workspace",
+        "tags": [
+          "Integrations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/integrations/slack/manifest": {
+      "post": {
+        "summary": "Generate Slack app manifest",
+        "description": "Generates a Slack app manifest JSON with pre-filled webhook URL",
+        "tags": [
+          "Integrations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/workspaces/{workspaceId}/documents": {
       "post": {
         "summary": "Upload workspace documents",
@@ -5808,6 +5625,44 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/integrations/{integrationId}": {
+      "patch": {
+        "summary": "Update bot integration",
+        "description": "Updates a bot integration (status, name, config)",
+        "tags": [
+          "Integrations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "Get bot integration",
+        "description": "Gets a single bot integration",
+        "tags": [
+          "Integrations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Delete bot integration",
+        "description": "Deletes a bot integration",
+        "tags": [
+          "Integrations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/workspaces/{workspaceId}/documents/{documentId}/rename": {
       "patch": {
         "summary": "Rename workspace document",
@@ -6845,6 +6700,141 @@
         }
       }
     },
+    "/api/user/api-keys": {
+      "get": {
+        "summary": "List user API keys",
+        "description": "Returns all API keys for the authenticated user (masked)",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of API keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "description": "API key ID"
+                      },
+                      "name": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Optional name/label for the key"
+                      },
+                      "keyPrefix": {
+                        "type": "string",
+                        "description": "Masked key prefix for display"
+                      },
+                      "maskedKey": {
+                        "type": "string",
+                        "description": "Fully masked key for display"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "When the key was created"
+                      },
+                      "lastUsedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true,
+                        "description": "When the key was last used"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create user API key",
+        "description": "Creates a new API key for the authenticated user. The key value is only returned once upon creation.",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Optional name/label for the key"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "API key created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "API key ID"
+                    },
+                    "key": {
+                      "type": "string",
+                      "description": "The API key value (only shown once - save this securely)"
+                    },
+                    "name": {
+                      "type": "string",
+                      "nullable": true,
+                      "description": "Optional name/label for the key"
+                    },
+                    "keyPrefix": {
+                      "type": "string",
+                      "description": "Key prefix for display"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "When the key was created"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/trial-status": {
       "get": {
         "summary": "Get trial status",
@@ -7844,6 +7834,36 @@
                     "lastMessageAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "delegations": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "callingAgentId": {
+                            "type": "string"
+                          },
+                          "targetAgentId": {
+                            "type": "string"
+                          },
+                          "taskId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "timestamp": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "completed",
+                              "failed",
+                              "cancelled"
+                            ]
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -7926,6 +7946,55 @@
         }
       }
     },
+    "/api/user/api-keys/{keyId}": {
+      "delete": {
+        "summary": "Delete user API key",
+        "description": "Deletes an API key for the authenticated user",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "description": "API key ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "API key deleted successfully"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "410": {
+            "description": "API key not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/agents/{agentId}/keys/{keyId}": {
       "delete": {
         "summary": "Delete agent key",
@@ -7992,6 +8061,234 @@
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/user/refresh-token": {
+      "post": {
+        "summary": "Refresh access and refresh tokens",
+        "description": "Validates a refresh token and returns new access and refresh tokens. The old refresh token is revoked. This endpoint does not require authentication as it uses the refresh token in the request body.",
+        "tags": [
+          "User"
+        ],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refreshToken"
+                ],
+                "properties": {
+                  "refreshToken": {
+                    "type": "string",
+                    "description": "The refresh token to validate"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens refreshed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "New JWT access token (24 hours expiry)"
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "description": "New refresh token (30 days expiry, save securely)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/user/generate-tokens": {
+      "post": {
+        "summary": "Generate access and refresh tokens",
+        "description": "Generates new access and refresh tokens for the authenticated user. Requires either a valid Bearer token or cookie-based session. This is typically called after initial login to get Bearer tokens.",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tokens generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {
+                      "type": "string",
+                      "description": "JWT access token (24 hours expiry)"
+                    },
+                    "refreshToken": {
+                      "type": "string",
+                      "description": "Refresh token (30 days expiry, save securely)"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/usage": {
+      "get": {
+        "summary": "Get usage statistics",
+        "description": "Returns aggregated usage statistics across all workspaces the authenticated user has access to",
+        "tags": [
+          "Usage"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "currency",
+            "in": "query",
+            "description": "Currency for cost calculations",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "usd",
+                "eur",
+                "gbp"
+              ],
+              "default": "usd"
+            }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "description": "Start date for usage statistics (YYYY-MM-DD format)",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "description": "End date for usage statistics (YYYY-MM-DD format). Defaults to today.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/stream-url": {
+      "get": {
+        "summary": "Get streaming function URL",
+        "description": "Returns the Lambda Function URL for streaming agent interactions",
+        "tags": [
+          "Streaming"
+        ],
+        "responses": {
+          "200": {
+            "description": "Streaming function URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "The Lambda Function URL for streaming"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Streaming function URL not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -8063,75 +8360,6 @@
                 }
               }
             }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/api/usage": {
-      "get": {
-        "summary": "Get usage statistics",
-        "description": "Returns aggregated usage statistics across all workspaces the authenticated user has access to",
-        "tags": [
-          "Usage"
-        ],
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "currency",
-            "in": "query",
-            "description": "Currency for cost calculations",
-            "schema": {
-              "type": "string",
-              "enum": [
-                "usd",
-                "eur",
-                "gbp"
-              ],
-              "default": "usd"
-            }
-          },
-          {
-            "name": "startDate",
-            "in": "query",
-            "description": "Start date for usage statistics (YYYY-MM-DD format)",
-            "schema": {
-              "type": "string",
-              "format": "date"
-            }
-          },
-          {
-            "name": "endDate",
-            "in": "query",
-            "description": "End date for usage statistics (YYYY-MM-DD format). Defaults to today.",
-            "schema": {
-              "type": "string",
-              "format": "date"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Usage statistics",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UsageResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/BadRequest"
-          },
-          "401": {
-            "$ref": "#/components/responses/Unauthorized"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"

@@ -1,6 +1,6 @@
 import type { FC } from "react";
 
-import { SlackManifestResponse } from "../utils/api";
+import type { SlackManifestResponse } from "../utils/api";
 
 interface SlackManifestDisplayProps {
   manifestData: SlackManifestResponse;
@@ -64,4 +64,3 @@ export const SlackManifestDisplay: FC<SlackManifestDisplayProps> = ({
     </div>
   );
 };
-
