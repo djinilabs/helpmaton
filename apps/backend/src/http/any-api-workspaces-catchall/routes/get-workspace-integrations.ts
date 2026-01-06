@@ -33,16 +33,26 @@ export const registerGetWorkspaceIntegrations = (app: express.Application) => {
           },
         });
 
-        const integrations = result.items.map((integration) => ({
-          id: integration.pk.split("/").pop(),
-          platform: integration.platform,
-          name: integration.name,
-          agentId: integration.agentId,
-          webhookUrl: integration.webhookUrl,
-          status: integration.status,
-          lastUsedAt: integration.lastUsedAt || null,
-          createdAt: integration.createdAt,
-        }));
+        const integrations = result.items.map((integration) => {
+          const config = (integration.config || {}) as {
+            discordCommand?: {
+              commandName: string;
+              commandId: string;
+            };
+          };
+
+          return {
+            id: integration.pk.split("/").pop(),
+            platform: integration.platform,
+            name: integration.name,
+            agentId: integration.agentId,
+            webhookUrl: integration.webhookUrl,
+            status: integration.status,
+            lastUsedAt: integration.lastUsedAt || null,
+            createdAt: integration.createdAt,
+            discordCommand: config.discordCommand,
+          };
+        });
 
         res.json(integrations);
       } catch (error) {

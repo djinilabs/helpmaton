@@ -159,6 +159,13 @@ export const registerPostWorkspaceIntegrations = (app: express.Application) => {
           createdBy: currentUserRef,
         });
 
+        const integrationConfig = (integration.config || {}) as {
+          discordCommand?: {
+            commandName: string;
+            commandId: string;
+          };
+        };
+
         res.status(201).json({
           id: integrationId,
           platform: integration.platform,
@@ -167,6 +174,7 @@ export const registerPostWorkspaceIntegrations = (app: express.Application) => {
           webhookUrl: integration.webhookUrl,
           status: integration.status,
           createdAt: integration.createdAt,
+          discordCommand: integrationConfig.discordCommand,
         });
       } catch (error) {
         handleError(

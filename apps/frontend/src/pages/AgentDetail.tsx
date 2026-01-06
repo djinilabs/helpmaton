@@ -88,6 +88,11 @@ const DiscordConnectModal = lazy(() =>
     default: module.DiscordConnectModal,
   }))
 );
+const DiscordCommandDialog = lazy(() =>
+  import("../components/DiscordCommandDialog").then((module) => ({
+    default: module.DiscordCommandDialog,
+  }))
+);
 import { useAccordion } from "../hooks/useAccordion";
 import {
   useAgent,
@@ -244,6 +249,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [showSlackModal, setShowSlackModal] = useState(false);
   const [showDiscordModal, setShowDiscordModal] = useState(false);
+  const [commandDialogState, setCommandDialogState] = useState<{
+    integrationId: string;
+    currentCommandName?: string;
+  } | null>(null);
   const systemPromptRef = useRef<HTMLDivElement>(null);
 
   const { expandedSection, toggleSection } = useAccordion("agent-detail");
@@ -312,6 +321,17 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     status: "active" | "inactive" | "error"
   ) => {
     updateIntegrationMutation.mutate({ id, status });
+  };
+
+  const handleInstallCommand = (integrationId: string, currentCommandName?: string) => {
+    setCommandDialogState({ integrationId, currentCommandName });
+  };
+
+  const handleCommandDialogSuccess = () => {
+    queryClient.invalidateQueries({
+      queryKey: ["integrations", workspaceId],
+    });
+    setCommandDialogState(null);
   };
 
   useEscapeKey(isStreamTestModalOpen, () => setIsStreamTestModalOpen(false));
@@ -2759,6 +2779,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         integration={integration}
                         onDelete={handleDeleteIntegration}
                         onUpdate={handleUpdateIntegration}
+                        onInstallCommand={handleInstallCommand}
                       />
                     </Suspense>
                   ))}
@@ -3005,6 +3026,18 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 });
                 setShowDiscordModal(false);
               }}
+            />
+          </Suspense>
+        )}
+
+        {commandDialogState && (
+          <Suspense fallback={<LoadingScreen />}>
+            <DiscordCommandDialog
+              workspaceId={workspaceId}
+              integrationId={commandDialogState.integrationId}
+              currentCommandName={commandDialogState.currentCommandName}
+              onClose={() => setCommandDialogState(null)}
+              onSuccess={handleCommandDialogSuccess}
             />
           </Suspense>
         )}

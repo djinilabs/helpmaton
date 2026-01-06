@@ -33,6 +33,13 @@ export const registerGetWorkspaceIntegration = (app: express.Application) => {
           throw notFound("Integration not found");
         }
 
+        const config = (integration.config || {}) as {
+          discordCommand?: {
+            commandName: string;
+            commandId: string;
+          };
+        };
+
         res.json({
           id: integrationId,
           platform: integration.platform,
@@ -42,6 +49,7 @@ export const registerGetWorkspaceIntegration = (app: express.Application) => {
           status: integration.status,
           lastUsedAt: integration.lastUsedAt || null,
           createdAt: integration.createdAt,
+          discordCommand: config.discordCommand,
         });
       } catch (error) {
         handleError(error, next, "GET /api/workspaces/:workspaceId/integrations/:integrationId");

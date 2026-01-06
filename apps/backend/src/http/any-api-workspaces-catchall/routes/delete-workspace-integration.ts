@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { deleteDiscordCommand } from "../../../utils/discordApi";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -31,6 +32,42 @@ export const registerDeleteWorkspaceIntegration = (app: express.Application) => 
 
         if (!integration) {
           throw notFound("Integration not found");
+        }
+
+        // If this is a Discord integration with a registered command, delete it from Discord
+        if (integration.platform === "discord") {
+          const config = integration.config as {
+            botToken?: string;
+            applicationId?: string;
+            discordCommand?: {
+              commandName: string;
+              commandId: string;
+            };
+          };
+
+          if (
+            config.discordCommand &&
+            config.applicationId &&
+            config.botToken
+          ) {
+            try {
+              await deleteDiscordCommand(
+                config.applicationId,
+                config.discordCommand.commandId,
+                config.botToken
+              );
+              console.log(
+                `Deleted Discord command: ${config.discordCommand.commandName} (${config.discordCommand.commandId})`
+              );
+            } catch (error) {
+              // Log but don't fail - the command might already be deleted
+              console.warn(
+                `Failed to delete Discord command during integration deletion: ${
+                  error instanceof Error ? error.message : String(error)
+                }`
+              );
+            }
+          }
         }
 
         await db["bot-integration"].delete(integrationPk, "integration");

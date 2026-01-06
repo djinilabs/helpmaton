@@ -3,6 +3,7 @@ import type { FC } from "react";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 
+import { DiscordCommandDialog } from "../components/DiscordCommandDialog";
 import { DiscordConnectModal } from "../components/DiscordConnectModal";
 import { IntegrationCard } from "../components/IntegrationCard";
 import { LoadingScreen } from "../components/LoadingScreen";
@@ -18,6 +19,10 @@ const Integrations: FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const [showSlackModal, setShowSlackModal] = useState(false);
   const [showDiscordModal, setShowDiscordModal] = useState(false);
+  const [commandDialogState, setCommandDialogState] = useState<{
+    integrationId: string;
+    currentCommandName?: string;
+  } | null>(null);
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -78,6 +83,17 @@ const Integrations: FC = () => {
     updateMutation.mutate({ id, status });
   };
 
+  const handleInstallCommand = (integrationId: string, currentCommandName?: string) => {
+    setCommandDialogState({ integrationId, currentCommandName });
+  };
+
+  const handleCommandDialogSuccess = () => {
+    if (workspaceId) {
+      queryClient.invalidateQueries({ queryKey: ["integrations", workspaceId] });
+    }
+    setCommandDialogState(null);
+  };
+
   if (!workspaceId) {
     return <div>Workspace ID is required</div>;
   }
@@ -121,6 +137,7 @@ const Integrations: FC = () => {
               integration={integration}
               onDelete={handleDelete}
               onUpdate={handleUpdate}
+              onInstallCommand={handleInstallCommand}
             />
           ))}
         </div>
@@ -149,6 +166,16 @@ const Integrations: FC = () => {
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ["integrations", workspaceId] });
           }}
+        />
+      )}
+
+      {commandDialogState && (
+        <DiscordCommandDialog
+          workspaceId={workspaceId}
+          integrationId={commandDialogState.integrationId}
+          currentCommandName={commandDialogState.currentCommandName}
+          onClose={() => setCommandDialogState(null)}
+          onSuccess={handleCommandDialogSuccess}
         />
       )}
     </div>

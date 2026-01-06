@@ -110,6 +110,13 @@ export const registerPatchWorkspaceIntegration = (app: express.Application) => {
           ...updates,
         });
 
+        const updatedConfig = (updated.config || {}) as {
+          discordCommand?: {
+            commandName: string;
+            commandId: string;
+          };
+        };
+
         res.json({
           id: integrationId,
           platform: updated.platform,
@@ -120,6 +127,7 @@ export const registerPatchWorkspaceIntegration = (app: express.Application) => {
           lastUsedAt: updated.lastUsedAt || null,
           createdAt: updated.createdAt,
           updatedAt: updated.updatedAt,
+          discordCommand: updatedConfig.discordCommand,
         });
       } catch (error) {
         handleError(

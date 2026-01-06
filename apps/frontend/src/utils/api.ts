@@ -2068,6 +2068,10 @@ export interface BotIntegration {
   lastUsedAt: string | null;
   createdAt: string;
   updatedAt?: string;
+  discordCommand?: {
+    commandName: string;
+    commandId: string;
+  };
 }
 
 export interface CreateIntegrationInput {
@@ -2156,6 +2160,21 @@ export async function deleteIntegration(
       method: "DELETE",
     }
   );
+}
+
+export async function registerDiscordCommand(
+  workspaceId: string,
+  integrationId: string,
+  commandName: string
+): Promise<BotIntegration> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/integrations/${integrationId}/discord-command`,
+    {
+      method: "POST",
+      body: JSON.stringify({ commandName }),
+    }
+  );
+  return response.json();
 }
 
 export async function generateSlackManifest(
