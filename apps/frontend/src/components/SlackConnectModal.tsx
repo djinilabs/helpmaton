@@ -9,6 +9,7 @@ import {
   generateSlackManifest,
   createIntegration,
   type CreateIntegrationInput,
+  type BotIntegration,
 } from "../utils/api";
 
 import { SlackManifestDisplay } from "./SlackManifestDisplay";
@@ -26,7 +27,9 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [step, setStep] = useState<"manifest" | "credentials">("manifest");
+  const [step, setStep] = useState<"manifest" | "credentials" | "complete">(
+    "manifest"
+  );
   const [selectedAgentId, setSelectedAgentId] = useState<string>(
     preSelectedAgentId || ""
   );
@@ -36,6 +39,8 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
   const [manifestData, setManifestData] = useState<Awaited<
     ReturnType<typeof generateSlackManifest>
   > | null>(null);
+  const [createdIntegration, setCreatedIntegration] =
+    useState<BotIntegration | null>(null);
   const { data: agents } = useAgents(workspaceId);
   const toast = useToast();
   const { registerDialog, unregisterDialog } = useDialogTracking();
@@ -92,10 +97,10 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
           signingSecret,
         },
       };
-      await createIntegration(workspaceId, input);
+      const integration = await createIntegration(workspaceId, input);
+      setCreatedIntegration(integration);
       toast.success("Integration created successfully");
-      onSuccess();
-      onClose();
+      setStep("complete");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to create integration"
@@ -227,6 +232,81 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
                 className="flex-1 rounded-md bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700"
               >
                 Create Integration
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === "complete" && createdIntegration && (
+          <div className="space-y-4">
+            <div className="rounded-lg bg-green-50 p-4 dark:bg-green-900/20">
+              <p className="text-sm text-green-800 dark:text-green-200">
+                ✅ Your Slack integration has been created! Now you need to update
+                the webhook URL in your Slack app settings.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                Webhook URL (Copy this and update in Slack)
+              </label>
+              <div className="mt-1 flex gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={createdIntegration.webhookUrl}
+                  className="flex-1 rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+                />
+                <button
+                  onClick={() => handleCopy(createdIntegration.webhookUrl)}
+                  className="rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
+              <h4 className="mb-2 text-sm font-semibold text-blue-900 dark:text-blue-200">
+                Final Step: Update Webhook URL in Slack
+              </h4>
+              <ol className="list-inside list-decimal space-y-2 text-sm text-blue-800 dark:text-blue-300">
+                <li>
+                  Go to{" "}
+                  <a
+                    href="https://api.slack.com/apps"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium underline"
+                  >
+                    https://api.slack.com/apps
+                  </a>{" "}
+                  and select your app
+                </li>
+                <li>Go to "Event Subscriptions" in the left sidebar</li>
+                <li>
+                  In the "Request URL" field, paste the webhook URL above
+                </li>
+                <li>Click "Save Changes"</li>
+                <li>
+                  Slack will verify the URL - you should see a green checkmark ✅
+                </li>
+                <li>
+                  Make sure "Enable Events" is turned ON and you have subscribed
+                  to: <code>app_mentions</code> and <code>message.im</code>
+                </li>
+              </ol>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  onSuccess();
+                  onClose();
+                }}
+                className="flex-1 rounded-md bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700"
+              >
+                Done
               </button>
             </div>
           </div>

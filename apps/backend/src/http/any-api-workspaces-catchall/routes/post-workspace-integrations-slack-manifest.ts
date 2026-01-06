@@ -110,11 +110,11 @@ export const registerPostWorkspaceIntegrationsSlackManifest = (
             "1. Copy the manifest JSON above",
             "2. Go to https://api.slack.com/apps",
             "3. Click 'Create New App' → 'From Manifest'",
-            "4. Paste the manifest JSON",
-            "5. Note: The webhook URL in the manifest contains a placeholder. After creating the integration below, you'll need to update the webhook URL in your Slack app settings to match the actual integration webhook URL.",
-            "6. After creating the app, copy the Bot User OAuth Token and Signing Secret",
-            "7. Return to this page and create the integration with those credentials",
-            "8. After creating the integration, update the webhook URL in your Slack app's Event Subscriptions settings to use the actual webhook URL provided in the integration details",
+            "4. Paste the manifest JSON and click 'Create'",
+            "5. Install the app to your workspace (in 'Install App' → 'Install to Workspace')",
+            "6. After installing, copy the Bot User OAuth Token (from 'OAuth & Permissions') and Signing Secret (from 'Basic Information' → 'App Credentials')",
+            "7. Return here and click 'Continue to Credentials' to create the integration",
+            "8. ⚠️ IMPORTANT: After creating the integration, you'll see the real webhook URL. You MUST update the webhook URL in your Slack app's 'Event Subscriptions' settings with the real URL (it will replace the placeholder URL from the manifest)",
           ],
         });
       } catch (error) {

@@ -51,6 +51,16 @@ export const SlackManifestDisplay: FC<SlackManifestDisplayProps> = ({
           </button>
         </div>
       </div>
+      <div className="rounded-lg bg-yellow-50 p-4 dark:bg-yellow-900/20">
+        <h4 className="mb-2 text-sm font-semibold text-yellow-900 dark:text-yellow-200">
+          ⚠️ Important Note
+        </h4>
+        <p className="text-sm text-yellow-800 dark:text-yellow-300">
+          The webhook URL in the manifest contains a placeholder. After creating
+          the integration, you'll see the real webhook URL and must update it in
+          your Slack app's Event Subscriptions settings.
+        </p>
+      </div>
       <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
         <h4 className="mb-2 text-sm font-semibold text-blue-900 dark:text-blue-200">
           Setup Instructions
