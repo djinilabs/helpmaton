@@ -18,7 +18,18 @@ export function verifySlackSignature(
 
   const signature = headers["x-slack-signature"];
   const timestamp = headers["x-slack-request-timestamp"];
-  const body = event.body || "";
+  
+  // Get the raw body - Slack signs the original body string
+  // If API Gateway base64 encoded it, we need to decode it back to the original
+  let body = event.body || "";
+  if (event.isBase64Encoded && body) {
+    try {
+      body = Buffer.from(body, "base64").toString("utf8");
+    } catch (error) {
+      console.error("Failed to decode base64 body:", error);
+      return false;
+    }
+  }
 
   if (!signature || !timestamp) {
     console.warn("Missing Slack signature headers");

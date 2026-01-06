@@ -17,10 +17,27 @@ export function verifyDiscordSignature(
 
   const signature = headers["x-signature-ed25519"];
   const timestamp = headers["x-signature-timestamp"];
-  const body = event.body || "";
+  
+  // Get the raw body - Discord signs the original JSON string
+  // If API Gateway base64 encoded it, we need to decode it back to the original
+  let body = event.body || "";
+  if (event.isBase64Encoded && body) {
+    try {
+      body = Buffer.from(body, "base64").toString("utf8");
+    } catch (error) {
+      console.error("Failed to decode base64 body:", error);
+      return false;
+    }
+  }
 
   if (!signature || !timestamp) {
-    console.warn("Missing Discord signature headers");
+    console.warn("Missing Discord signature headers", {
+      hasSignature: !!signature,
+      hasTimestamp: !!timestamp,
+      headers: Object.keys(headers).filter((h) =>
+        h.includes("signature")
+      ),
+    });
     return false;
   }
 
@@ -31,7 +48,11 @@ export function verifyDiscordSignature(
 
     // Reject requests older than 5 minutes
     if (currentTime - requestTime > 300) {
-      console.warn("Discord request too old");
+      console.warn("Discord request too old", {
+        currentTime,
+        requestTime,
+        age: currentTime - requestTime,
+      });
       return false;
     }
 
@@ -45,12 +66,17 @@ export function verifyDiscordSignature(
     // Validate key length
     if (publicKeyBuffer.length !== 32) {
       console.error(
-        `Invalid public key length: ${publicKeyBuffer.length}, expected 32`
+        `Invalid public key length: ${publicKeyBuffer.length}, expected 32`,
+        {
+          publicKeyLength: publicKey.length,
+          publicKeyPrefix: publicKey.substring(0, 10) + "...",
+        }
       );
       return false;
     }
 
     // Create the message to verify (timestamp + body)
+    // IMPORTANT: Use the raw body string, not parsed JSON
     const message = timestamp + body;
     const messageBuffer = Buffer.from(message, "utf8");
 
@@ -63,12 +89,29 @@ export function verifyDiscordSignature(
         new Uint8Array(publicKeyBuffer)
       );
     } catch (error) {
-      console.error("tweetnacl verification failed:", error);
+      console.error("tweetnacl verification failed:", error, {
+        signatureLength: signature.length,
+        signaturePrefix: signature.substring(0, 10) + "...",
+        publicKeyLength: publicKey.length,
+        publicKeyPrefix: publicKey.substring(0, 10) + "...",
+        bodyLength: body.length,
+        bodyPreview: body.substring(0, 50),
+        timestamp,
+      });
       return false;
     }
 
     if (!isValid) {
-      console.warn("Discord signature verification failed");
+      console.warn("Discord signature verification failed", {
+        signatureLength: signature.length,
+        signaturePrefix: signature.substring(0, 10) + "...",
+        publicKeyLength: publicKey.length,
+        publicKeyPrefix: publicKey.substring(0, 10) + "...",
+        bodyLength: body.length,
+        bodyPreview: body.substring(0, 50),
+        timestamp,
+        messageLength: message.length,
+      });
       return false;
     }
 

@@ -18,6 +18,23 @@ import { verifyDiscordSignature } from "./services/discordVerification";
 import { postSlackMessage } from "./services/slackResponse";
 import { verifySlackSignature } from "./services/slackVerification";
 
+/**
+ * Decodes the request body if it's base64 encoded by API Gateway
+ * Returns the decoded body as a string, ready for JSON parsing or signature verification
+ */
+function decodeRequestBody(event: APIGatewayProxyEventV2): string {
+  let body = event.body || "";
+  if (event.isBase64Encoded && body) {
+    try {
+      body = Buffer.from(body, "base64").toString("utf8");
+    } catch (error) {
+      console.error("Failed to decode base64 body:", error);
+      return "";
+    }
+  }
+  return body;
+}
+
 interface SlackEvent {
   type: string;
   event?: {
@@ -88,9 +105,10 @@ export const handler = adaptHttpHandler(
       // Discord sends PING requests during endpoint verification, and these must be handled
       // even if the integration doesn't exist yet or isn't active
       if (type === "discord") {
+        const bodyText = decodeRequestBody(event);
         let body: DiscordInteraction | undefined;
         try {
-          body = JSON.parse(event.body || "{}");
+          body = JSON.parse(bodyText);
         } catch {
           // If we can't parse the body, continue to normal flow which will return an error
           body = undefined;
@@ -105,7 +123,7 @@ export const handler = adaptHttpHandler(
             "integration"
           );
 
-          // If integration exists, verify platform matches
+          // If integration exists, verify platform matches and signature
           if (integration) {
             if (integration.platform !== "discord") {
               // Integration exists but platform doesn't match - return 404
@@ -116,7 +134,7 @@ export const handler = adaptHttpHandler(
               };
             }
 
-            // Integration exists and platform matches - verify signature if possible
+            // Integration exists and platform matches - verify signature is required
             const config = integration.config as {
               botToken?: string;
               publicKey?: string;
@@ -128,21 +146,44 @@ export const handler = adaptHttpHandler(
                 config.publicKey
               );
               if (!signatureValid) {
+                // Discord requires signature verification to pass for endpoint verification
                 console.warn(
-                  "Discord PING received but signature verification failed - allowing for endpoint verification"
+                  "Discord PING received but signature verification failed"
                 );
+                return {
+                  statusCode: 401,
+                  body: JSON.stringify({ error: "Invalid signature" }),
+                  headers: { "Content-Type": "application/json" },
+                };
               }
+            } else {
+              // Integration exists but no public key - this shouldn't happen
+              console.error(
+                "Discord PING received but integration missing public key"
+              );
+              return {
+                statusCode: 500,
+                body: JSON.stringify({
+                  error: "Integration configuration error",
+                }),
+                headers: { "Content-Type": "application/json" },
+              };
             }
           } else {
-            // Integration doesn't exist - allow PING for Discord endpoint verification
+            // Integration doesn't exist - Discord requires signature verification
+            // We can't verify without the public key, so return 404
+            // The integration must exist before Discord can verify the endpoint
             console.warn(
-              "Discord PING received but integration not found - allowing for endpoint verification"
+              "Discord PING received but integration not found - integration must exist for verification"
             );
+            return {
+              statusCode: 404,
+              body: JSON.stringify({ error: "Integration not found" }),
+              headers: { "Content-Type": "application/json" },
+            };
           }
 
-          // Return PONG for PING requests
-          // This allows Discord to verify the endpoint during initial setup
-          // or when the integration exists and platform matches
+          // Return PONG for PING requests with valid signature
           return {
             statusCode: 200,
             body: JSON.stringify({ type: 1 }),
@@ -211,9 +252,10 @@ async function handleSlackWebhook(
   }
 
   // Parse request body
+  const bodyText = decodeRequestBody(event);
   let body: SlackEvent;
   try {
-    body = JSON.parse(event.body || "{}");
+    body = JSON.parse(bodyText);
   } catch {
     return {
       statusCode: 400,
@@ -344,9 +386,10 @@ async function handleDiscordWebhook(
   };
 
   // Parse request body first to check if it's a PING
+  const bodyText = decodeRequestBody(event);
   let body: DiscordInteraction;
   try {
-    body = JSON.parse(event.body || "{}");
+    body = JSON.parse(bodyText);
   } catch {
     return {
       statusCode: 400,
