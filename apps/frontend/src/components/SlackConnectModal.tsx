@@ -194,6 +194,11 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
                 placeholder="xoxb-..."
                 className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
               />
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                Found in Slack app settings → "OAuth & Permissions" → "Bot User OAuth Token".
+                <br />
+                <strong>Important:</strong> You must install the app to your workspace first (in "Install App") before this token will appear.
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
@@ -206,6 +211,9 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
                 placeholder="..."
                 className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
               />
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                Found in Slack app settings → "Basic Information" → "App Credentials" → "Signing Secret"
+              </p>
             </div>
             <div className="flex gap-2">
               <button

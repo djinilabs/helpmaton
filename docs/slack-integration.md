@@ -23,28 +23,39 @@ The Slack integration allows you to deploy a Slack bot that connects to one of y
 3. Paste the manifest JSON you copied
 4. Click "Create"
 
-### Step 3: Get Credentials
+### Step 3: Install Bot to Workspace
 
-1. In your Slack app settings, go to "OAuth & Permissions"
-2. Copy the "Bot User OAuth Token" (starts with `xoxb-`)
-3. Go to "Basic Information" → "App Credentials"
-4. Copy the "Signing Secret"
+**Important**: You must install the app to your workspace before you can get the Bot User OAuth Token.
 
-### Step 4: Complete Integration
+1. In your Slack app settings, go to "Install App" (in the left sidebar)
+2. Click "Install to Workspace"
+3. Authorize the bot with the requested permissions
+4. After installation, you'll be redirected back to the app settings
+
+### Step 4: Get Credentials
+
+After installing the app, you can now get the required credentials:
+
+1. **Bot User OAuth Token**:
+   - Go to "OAuth & Permissions" in your Slack app settings
+   - Scroll down to "Bot User OAuth Token"
+   - Click "Copy" to copy the token (it starts with `xoxb-`)
+   - **Note**: If you don't see this token, make sure you've completed Step 3 (Install Bot to Workspace)
+
+2. **Signing Secret**:
+   - Go to "Basic Information" → "App Credentials"
+   - Find "Signing Secret" and click "Show" or "Copy"
+   - Copy the signing secret
+
+### Step 5: Complete Integration
 
 1. Return to the Helpmaton Integrations page
 2. Click "Continue to Credentials"
 3. Enter:
    - Integration name (e.g., "Support Bot")
-   - Bot User OAuth Token
-   - Signing Secret
+   - Bot User OAuth Token (from Step 4)
+   - Signing Secret (from Step 4)
 4. Click "Create Integration"
-
-### Step 5: Install Bot to Workspace
-
-1. In Slack app settings, go to "Install App"
-2. Click "Install to Workspace"
-3. Authorize the bot
 
 ## How It Works
 
