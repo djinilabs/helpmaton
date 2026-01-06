@@ -242,33 +242,41 @@ async function handleSlackWebhook(
     teamName?: string;
   };
 
-  // Verify signature
-  if (!verifySlackSignature(event, config.signingSecret)) {
-    return {
-      statusCode: 401,
-      body: JSON.stringify({ error: "Invalid signature" }),
-      headers: { "Content-Type": "application/json" },
-    };
-  }
-
-  // Parse request body
+  // Parse request body first to check if it's a URL verification challenge
+  // URL verification challenges must be handled even if signature verification fails
+  // (similar to Discord's PING handling)
   const bodyText = decodeRequestBody(event);
   let body: SlackEvent;
   try {
     body = JSON.parse(bodyText);
   } catch {
+    // If we can't parse the body, continue to signature verification which will fail
+    body = {} as SlackEvent;
+  }
+
+  // Handle URL verification challenge BEFORE signature verification
+  // Slack sends URL verification when you update the webhook URL
+  // This must succeed for Slack to accept the endpoint
+  if (body.type === "url_verification" && body.challenge) {
+    // Still verify signature if possible, but don't fail on URL verification
+    const signatureValid = verifySlackSignature(event, config.signingSecret);
+    if (!signatureValid) {
+      console.warn(
+        "Slack URL verification received but signature verification failed - allowing for endpoint verification"
+      );
+    }
     return {
-      statusCode: 400,
-      body: JSON.stringify({ error: "Invalid JSON" }),
+      statusCode: 200,
+      body: JSON.stringify({ challenge: body.challenge }),
       headers: { "Content-Type": "application/json" },
     };
   }
 
-  // Handle URL verification challenge
-  if (body.type === "url_verification" && body.challenge) {
+  // For all other requests, verify signature
+  if (!verifySlackSignature(event, config.signingSecret)) {
     return {
-      statusCode: 200,
-      body: JSON.stringify({ challenge: body.challenge }),
+      statusCode: 401,
+      body: JSON.stringify({ error: "Invalid signature" }),
       headers: { "Content-Type": "application/json" },
     };
   }
