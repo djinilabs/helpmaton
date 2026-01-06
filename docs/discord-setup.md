@@ -129,7 +129,7 @@ Once configured, your agent will have access to the `send_notification` tool. Wh
 
 ## Additional Resources
 
-- [Discord Developer Documentation](https://discord.com/developers/docs/intro)
-- [Discord Bot Permissions](https://discord.com/developers/docs/topics/permissions)
-- [Discord API Documentation](https://discord.com/developers/docs/reference)
+- <a href="https://discord.com/developers/docs/intro" target="_blank" rel="noopener noreferrer">Discord Developer Documentation</a>
+- <a href="https://discord.com/developers/docs/topics/permissions" target="_blank" rel="noopener noreferrer">Discord Bot Permissions</a>
+- <a href="https://discord.com/developers/docs/reference" target="_blank" rel="noopener noreferrer">Discord API Documentation</a>
 

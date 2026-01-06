@@ -10,7 +10,7 @@ The Discord integration allows you to deploy a Discord bot that connects to one 
 
 ### Step 1: Create Discord Application
 
-1. Go to https://discord.com/developers/applications
+1. Go to <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer">https://discord.com/developers/applications</a>
 2. Click "New Application"
 3. Give it a name and click "Create"
 

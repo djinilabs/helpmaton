@@ -123,11 +123,11 @@ The following secrets must be configured in your GitHub repository settings (Set
 
 - **`DISCORD_APPLICATION_ID`**: Discord application ID for slash command registration
 
-  - Obtain from: https://discord.com/developers/applications → Your Application → General Information
+  - Obtain from: <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer">https://discord.com/developers/applications</a> → Your Application → General Information
   - Required for Discord slash command registration
 
 - **`DISCORD_CS_BOT_TOKEN`**: Discord bot token for command registration
-  - Obtain from: https://discord.com/developers/applications → Your Application → Bot → Token
+  - Obtain from: <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer">https://discord.com/developers/applications</a> → Your Application → Bot → Token
   - Required for Discord slash command registration
   - Note: This is different from the bot tokens used in workspace channels
 

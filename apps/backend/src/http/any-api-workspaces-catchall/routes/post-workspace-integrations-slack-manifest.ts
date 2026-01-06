@@ -85,21 +85,19 @@ export const registerPostWorkspaceIntegrationsSlackManifest = (
               ],
             },
           },
-          event_subscriptions: {
-            request_url: webhookUrl,
-            bot_events: [
-              "app_mention",
-              "message.channels",
-              "message.groups",
-              "message.im",
-              "message.mpim",
-            ],
-          },
           settings: {
             event_subscriptions: {
               request_url: webhookUrl,
+              bot_events: [
+                "app_mention",
+                "message.channels",
+                "message.groups",
+                "message.im",
+                "message.mpim",
+              ],
             },
             interactivity: {
+              is_enabled: true,
               request_url: webhookUrl,
             },
           },

@@ -18,7 +18,7 @@ The Slack integration allows you to deploy a Slack bot that connects to one of y
 
 ### Step 2: Create Slack App
 
-1. Go to https://api.slack.com/apps
+1. Go to <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer">https://api.slack.com/apps</a>
 2. Click "Create New App" → "From Manifest"
 3. Paste the manifest JSON you copied
 4. Click "Create"
