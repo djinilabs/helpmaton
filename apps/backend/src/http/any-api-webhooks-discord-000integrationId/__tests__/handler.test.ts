@@ -47,7 +47,7 @@ vi.mock("../services/discordResponse", () => ({
   createDiscordInteractionResponse: mockCreateDiscordInteractionResponse,
 }));
 
-vi.mock("../../utils/botWebhookQueue", () => ({
+vi.mock("../../../utils/botWebhookQueue", () => ({
   enqueueBotWebhookTask: mockEnqueueBotWebhookTask,
 }));
 

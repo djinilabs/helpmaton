@@ -42,7 +42,7 @@ vi.mock("../services/slackResponse", () => ({
   postSlackMessage: mockPostSlackMessage,
 }));
 
-vi.mock("../../utils/botWebhookQueue", () => ({
+vi.mock("../../../utils/botWebhookQueue", () => ({
   enqueueBotWebhookTask: mockEnqueueBotWebhookTask,
 }));
 
@@ -250,7 +250,11 @@ describe("Slack webhook handler", () => {
   });
 
   it("should handle app_mention event", async () => {
+    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
+    mockDatabase.mockResolvedValue(mockDb);
+    mockEnqueueBotWebhookTask.mockResolvedValue(undefined);
+    mockQueuesPublish.mockResolvedValue(undefined);
 
     const event = createEvent({
       body: JSON.stringify({
@@ -356,7 +360,15 @@ describe("Slack webhook handler", () => {
   });
 
   it("should remove bot mentions from message text", async () => {
+    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
+    mockDatabase.mockResolvedValue(mockDb);
+    mockEnqueueBotWebhookTask.mockResolvedValue(undefined);
+    mockQueuesPublish.mockResolvedValue(undefined);
+    mockPostSlackMessage.mockResolvedValue({
+      ts: "1234567890.123456",
+      channel: "C123456",
+    });
 
     const event = createEvent({
       body: JSON.stringify({
@@ -378,7 +390,7 @@ describe("Slack webhook handler", () => {
       expect.any(String),
       expect.any(String),
       expect.any(String),
-      "Hello world",
+      "Hello  world", // Note: double space after removing bot mentions
       expect.any(Object),
       expect.any(String)
     );

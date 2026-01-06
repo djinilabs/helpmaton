@@ -123,7 +123,7 @@ export const handler = adaptHttpHandler(
       }
 
       // Handle APPLICATION_COMMAND (type 2) - Slash commands
-      if (body.type === 2 && body.data && body.token) {
+      if (body.type === 2 && body.data) {
         const commandName = body.data.name || "";
         const options = body.data.options || [];
 
