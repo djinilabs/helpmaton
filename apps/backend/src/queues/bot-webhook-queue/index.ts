@@ -94,7 +94,8 @@ async function processDiscordTask(
   }, 1500);
 
   try {
-    // Get base URL for model referer
+    // Get base URL for model referer (used for logging/tracking)
+    // Note: For non-local environments, WEBHOOK_BASE_URL should be set
     const webhookBaseFromEnv = process.env.WEBHOOK_BASE_URL?.trim();
     const baseUrl: string =
       webhookBaseFromEnv && webhookBaseFromEnv.length > 0
@@ -103,7 +104,7 @@ async function processDiscordTask(
         ? "https://api.helpmaton.com"
         : process.env.ARC_ENV === "staging"
         ? "https://staging-api.helpmaton.com"
-        : "http://localhost:3333";
+        : "http://localhost:3333"; // Fallback for local development
 
     // Call agent
     const agentResult = await callAgentNonStreaming(
