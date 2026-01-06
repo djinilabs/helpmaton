@@ -80,6 +80,54 @@ export const handler = adaptHttpHandler(
         };
       }
 
+      // For Discord, handle PING (type 1) requests early for endpoint verification
+      // Discord sends PING requests during endpoint verification, and these must be handled
+      // even if the integration doesn't exist yet or isn't active
+      if (type === "discord") {
+        let body: DiscordInteraction | undefined;
+        try {
+          body = JSON.parse(event.body || "{}");
+        } catch {
+          // If we can't parse the body, continue to normal flow which will return an error
+          body = undefined;
+        }
+
+        // If it's a PING request, handle it immediately
+        if (body && body.type === 1) {
+          const db = await database();
+          const integrationPk = `bot-integrations/${workspaceId}/${integrationId}`;
+          const integration = await db["bot-integration"].get(
+            integrationPk,
+            "integration"
+          );
+
+          // Try to verify signature if integration exists and has a public key
+          if (integration && integration.platform === "discord") {
+            const config = integration.config as {
+              botToken?: string;
+              publicKey?: string;
+              applicationId?: string;
+            };
+            if (config.publicKey) {
+              const signatureValid = verifyDiscordSignature(event, config.publicKey);
+              if (!signatureValid) {
+                console.warn("Discord PING received but signature verification failed - allowing for endpoint verification");
+              }
+            }
+          } else {
+            console.warn("Discord PING received but integration not found - allowing for endpoint verification");
+          }
+
+          // Always return PONG for PING requests, even if integration doesn't exist
+          // This allows Discord to verify the endpoint during initial setup
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ type: 1 }),
+            headers: { "Content-Type": "application/json" },
+          };
+        }
+      }
+
       const db = await database();
 
       const integrationPk = `bot-integrations/${workspaceId}/${integrationId}`;

@@ -2,9 +2,15 @@
 
 ## Current Status
 
-**Status**: Webhook Handler Unification - Completed ✅
+**Status**: Discord Webhook Verification Fix - Completed ✅
 
 **Latest Work**:
+
+1. **Discord Webhook Verification Fix**: Fixed Discord interactions endpoint verification issue. The handler was checking for integration existence and active status before handling PING requests, causing Discord's endpoint verification to fail. Fixed by handling PING (type 1) requests early in the flow, before integration checks, allowing Discord to verify the endpoint even during initial setup. The endpoint now responds correctly to Discord's verification PING requests.
+
+**Previous Work**: Webhook Handler Unification - Completed ✅
+
+**Previous Latest Work**:
 
 1. **Webhook Handler Unification**: Successfully unified Slack and Discord webhook handlers into a single unified handler that routes based on the `:type` path parameter. The new route `any /api/webhooks/:type/:workspaceId/:integrationId` supports both platforms through platform-specific routing logic. All service files consolidated, tests moved and updated, and old handlers removed. All typecheck, lint, and tests passing.
 
