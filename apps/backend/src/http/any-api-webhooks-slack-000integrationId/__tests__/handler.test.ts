@@ -16,6 +16,7 @@ const {
   mockEnqueueBotWebhookTask,
   mockAdaptHttpHandler,
   mockHandlingErrors,
+  mockQueuesPublish,
 } = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
@@ -24,11 +25,12 @@ const {
     mockEnqueueBotWebhookTask: vi.fn(),
     mockAdaptHttpHandler: vi.fn((fn) => fn),
     mockHandlingErrors: vi.fn((fn) => fn),
+    mockQueuesPublish: vi.fn(),
   };
 });
 
 // Mock modules
-vi.mock("../../tables", () => ({
+vi.mock("../../../tables", () => ({
   database: mockDatabase,
 }));
 
@@ -52,12 +54,15 @@ vi.mock("../../utils/handlingErrors", () => ({
   handlingErrors: mockHandlingErrors,
 }));
 
-// Mock @architect/functions for database initialization
+// Mock @architect/functions for database initialization and queues
 vi.mock("@architect/functions", () => ({
   tables: vi.fn().mockResolvedValue({
     reflect: vi.fn().mockResolvedValue({}),
     _client: {},
   }),
+  queues: {
+    publish: mockQueuesPublish,
+  },
 }));
 
 // Import handler after mocks
@@ -106,7 +111,7 @@ describe("Slack webhook handler", () => {
       channel: "C123456",
     });
     mockEnqueueBotWebhookTask.mockResolvedValue(undefined);
-    // Set up default mock database - tests can modify mockDb directly
+    mockQueuesPublish.mockResolvedValue(undefined);
     mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
   });

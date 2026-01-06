@@ -16,6 +16,7 @@ const {
   mockEnqueueBotWebhookTask,
   mockAdaptHttpHandler,
   mockHandlingErrors,
+  mockQueuesPublish,
 } = vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
@@ -28,11 +29,12 @@ const {
     mockEnqueueBotWebhookTask: vi.fn(),
     mockAdaptHttpHandler: vi.fn((fn) => fn),
     mockHandlingErrors: vi.fn((fn) => fn),
+    mockQueuesPublish: vi.fn(),
   };
 });
 
 // Mock modules
-vi.mock("../../tables", () => ({
+vi.mock("../../../tables", () => ({
   database: mockDatabase,
 }));
 
@@ -57,12 +59,15 @@ vi.mock("../../utils/handlingErrors", () => ({
   handlingErrors: mockHandlingErrors,
 }));
 
-// Mock @architect/functions for database initialization
+// Mock @architect/functions for database initialization and queues
 vi.mock("@architect/functions", () => ({
   tables: vi.fn().mockResolvedValue({
     reflect: vi.fn().mockResolvedValue({}),
     _client: {},
   }),
+  queues: {
+    publish: mockQueuesPublish,
+  },
 }));
 
 // Import handler after mocks
@@ -106,6 +111,7 @@ describe("Discord webhook handler", () => {
     // Set up default mocks
     mockVerifyDiscordSignature.mockReturnValue(true);
     mockEnqueueBotWebhookTask.mockResolvedValue(undefined);
+    mockQueuesPublish.mockResolvedValue(undefined);
   });
 
   function createEvent(overrides?: {
@@ -259,6 +265,10 @@ describe("Discord webhook handler", () => {
     const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
     mockDatabase.mockResolvedValue(mockDb);
+    
+    // Ensure mockEnqueueBotWebhookTask is set up (vi.clearAllMocks might have cleared it)
+    mockEnqueueBotWebhookTask.mockResolvedValue(undefined);
+    mockQueuesPublish.mockResolvedValue(undefined);
 
     const event = createEvent({
       body: JSON.stringify({
