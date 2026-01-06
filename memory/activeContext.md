@@ -2,13 +2,15 @@
 
 ## Current Status
 
-**Status**: Slack & Discord Bot Integration - Completed ✅
+**Status**: Bot Webhook Queue Test Fixes - In Progress 🔄
 
 **Latest Work**:
 
-1. **Slack & Discord Bot Integration**: Implemented a comprehensive Integration Bridge service that allows users to deploy their agents as Slack or Discord bots. The system includes webhook handlers for both platforms, signature verification, throttled message editing to simulate streaming, and a complete UI for managing integrations.
+1. **Bot Webhook Queue Test Debugging**: Investigating 9 failing tests in `apps/backend/src/queues/bot-webhook-queue/__tests__/index.test.ts`. Identified incorrect mock paths (needed `../../../` instead of `../../` for `__tests__/` subdirectory). Fixed mock paths for `tables`, `handlingSQSErrors`, and `workspaceCreditContext` modules. Still investigating why `mockCallAgentNonStreaming` is not being called in some tests.
 
-2. **Webhook Handler Refactoring**: Refactored the main webhook handler to reuse `agentCallNonStreaming.ts` utility, enabling tool call continuity and reducing code duplication. All webhook tests updated and passing.
+2. **Slack & Discord Bot Integration**: Implemented a comprehensive Integration Bridge service that allows users to deploy their agents as Slack or Discord bots. The system includes webhook handlers for both platforms, signature verification, throttled message editing to simulate streaming, and a complete UI for managing integrations.
+
+3. **Webhook Handler Refactoring**: Refactored the main webhook handler to reuse `agentCallNonStreaming.ts` utility, enabling tool call continuity and reducing code duplication. All webhook handler tests updated and passing.
 
 **Previous Work**: Agent Delegation Improvements - Completed ✅
 
@@ -1970,15 +1972,55 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 - Memory Bank strategy initialized
 - Created memory folder structure with three core files
 
+## Current Work: Bot Webhook Queue Test Fixes
+
+**Status**: In Progress 🔄
+
+**Issue**: 9 failing tests in `apps/backend/src/queues/bot-webhook-queue/__tests__/index.test.ts`
+
+**Root Causes Identified**:
+
+1. **Incorrect Mock Paths**: Test file is in `__tests__/` subdirectory, requiring `../../../` instead of `../../` for module imports:
+   - Fixed: `../../tables` → `../../../tables`
+   - Fixed: `../../utils/handlingSQSErrors` → `../../../utils/handlingSQSErrors`
+   - Fixed: `../../utils/workspaceCreditContext` → `../../../utils/workspaceCreditContext`
+
+2. **Database Mock Issues**: The mock database needs to include all tables that `commitContextTransactions` might access (workspace, workspace-credit-transactions, atomicUpdate), but the working test pattern suggests these may not be needed if `handlingSQSErrors` is properly mocked.
+
+3. **Slack API Mocking**: The `updateSlackMessage` mock needs to properly handle the WebClient instance passed to it. The error "An API error occurred: invalid_auth" suggests the Slack WebClient is trying to make real API calls instead of using the mock.
+
+4. **Fake Timers**: The test uses `vi.useFakeTimers()` which prevents `setInterval` from running, potentially affecting the throttled message update logic.
+
+**Test Being Debugged**: "should handle threadTs" - expects `mockCallAgentNonStreaming` to be called with `conversationId: "1234567890.123455"` (the threadTs value).
+
+**Findings**:
+- Mock paths corrected for proper module resolution
+- Handler is being called but `callAgentNonStreaming` is not being invoked
+- Error occurs before `callAgentNonStreaming` is reached, likely in the Slack message update interval or error handling path
+- The database error "Cannot read properties of undefined (reading 'get')" suggests a mock setup issue
+
+**Next Steps**:
+1. Verify all mock paths are correct across all failing tests
+2. Ensure `updateSlackMessage` mock properly handles WebClient instances
+3. Check if fake timers need to be advanced or if real timers should be used
+4. Verify database mock includes all required tables for `commitContextTransactions`
+5. Compare with working test ("should successfully process Slack task") to identify differences
+
 ## Next Steps
 
-1. Monitor memory system performance:
+1. **Complete Bot Webhook Queue Test Fixes**:
+   - Fix remaining 9 failing tests in bot-webhook-queue handler
+   - Verify all mock paths are correct
+   - Ensure proper WebClient mocking for Slack API calls
+   - Test with both fake and real timers to identify timing issues
+
+2. Monitor memory system performance:
    - Track summarization quality and adjust prompts if needed
    - Monitor storage usage and retention cleanup effectiveness
    - Verify memory search performance and relevance
-2. Monitor Lambda function performance and cold start times
-3. Measure actual image size reduction after deployment
-4. Document container image deployment process for other functions
+3. Monitor Lambda function performance and cold start times
+4. Measure actual image size reduction after deployment
+5. Document container image deployment process for other functions
 
 ## Notes
 
