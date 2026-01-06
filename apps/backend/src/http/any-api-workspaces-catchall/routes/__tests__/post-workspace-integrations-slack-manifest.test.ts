@@ -70,7 +70,7 @@ describe("POST /api/workspaces/:workspaceId/integrations/slack/manifest", () => 
     expect((body.webhookUrl as string)).toContain("https://api.helpmaton.com");
     expect((body.webhookUrl as string)).toContain("workspace-123");
     expect((body.manifest as { display_information: { name: string } }).display_information.name).toBe("Test Agent");
-    expect((body.manifest as { event_subscriptions: { bot_events: string[] } }).event_subscriptions.bot_events).toContain("app_mention");
+    expect((body.manifest as { settings: { event_subscriptions: { bot_events: string[] } } }).settings.event_subscriptions.bot_events).toContain("app_mention");
   });
 
   it("should use default agent name when agentName is not provided", async () => {
@@ -167,7 +167,7 @@ describe("POST /api/workspaces/:workspaceId/integrations/slack/manifest", () => 
     await callRouteHandler(req, res);
 
     const body = res.body;
-    const botEvents = (body.manifest as { event_subscriptions: { bot_events: string[] } }).event_subscriptions.bot_events;
+    const botEvents = (body.manifest as { settings: { event_subscriptions: { bot_events: string[] } } }).settings.event_subscriptions.bot_events;
     expect(botEvents).toContain("app_mention");
     expect(botEvents).not.toContain("app_mentions");
   });

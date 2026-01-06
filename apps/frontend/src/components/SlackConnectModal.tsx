@@ -200,9 +200,9 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
                 className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
               />
               <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                Found in Slack app settings → "OAuth & Permissions" → "Bot User OAuth Token".
+                Found in Slack app settings → &quot;OAuth &amp; Permissions&quot; → &quot;Bot User OAuth Token&quot;.
                 <br />
-                <strong>Important:</strong> You must install the app to your workspace first (in "Install App") before this token will appear.
+                <strong>Important:</strong> You must install the app to your workspace first (in &quot;Install App&quot;) before this token will appear.
               </p>
             </div>
             <div>
@@ -217,7 +217,7 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
                 className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
               />
               <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-                Found in Slack app settings → "Basic Information" → "App Credentials" → "Signing Secret"
+                Found in Slack app settings → &quot;Basic Information&quot; → &quot;App Credentials&quot; → &quot;Signing Secret&quot;
               </p>
             </div>
             <div className="flex gap-2">
@@ -283,16 +283,16 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
                   </a>{" "}
                   and select your app
                 </li>
-                <li>Go to "Event Subscriptions" in the left sidebar</li>
+                <li>Go to &quot;Event Subscriptions&quot; in the left sidebar</li>
                 <li>
-                  In the "Request URL" field, paste the webhook URL above
+                  In the &quot;Request URL&quot; field, paste the webhook URL above
                 </li>
-                <li>Click "Save Changes"</li>
+                <li>Click &quot;Save Changes&quot;</li>
                 <li>
                   Slack will verify the URL - you should see a green checkmark ✅
                 </li>
                 <li>
-                  Make sure "Enable Events" is turned ON and you have subscribed
+                  Make sure &quot;Enable Events&quot; is turned ON and you have subscribed
                   to: <code>app_mentions</code> and <code>message.im</code>
                 </li>
               </ol>

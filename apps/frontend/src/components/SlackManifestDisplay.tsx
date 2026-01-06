@@ -57,8 +57,8 @@ export const SlackManifestDisplay: FC<SlackManifestDisplayProps> = ({
         </h4>
         <p className="text-sm text-yellow-800 dark:text-yellow-300">
           The webhook URL in the manifest contains a placeholder. After creating
-          the integration, you'll see the real webhook URL and must update it in
-          your Slack app's Event Subscriptions settings.
+          the integration, you&apos;ll see the real webhook URL and must update it in
+          your Slack app&apos;s Event Subscriptions settings.
         </p>
       </div>
       <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">
@@ -67,7 +67,7 @@ export const SlackManifestDisplay: FC<SlackManifestDisplayProps> = ({
         </h4>
         <ol className="list-inside list-decimal space-y-1 text-sm text-blue-800 dark:text-blue-300">
           {manifestData.instructions.map((instruction, index) => (
-            <li key={index}>{instruction}</li>
+            <li key={index} dangerouslySetInnerHTML={{ __html: instruction.replace(/'/g, "&apos;").replace(/"/g, "&quot;") }} />
           ))}
         </ol>
       </div>
