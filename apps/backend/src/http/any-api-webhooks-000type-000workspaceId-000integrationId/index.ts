@@ -62,11 +62,13 @@ export const handler = adaptHttpHandler(
       const type = event.pathParameters?.type;
       const workspaceId = event.pathParameters?.workspaceId;
       const integrationId = event.pathParameters?.integrationId;
-      
+
       if (!type || !workspaceId || !integrationId) {
         return {
           statusCode: 400,
-          body: JSON.stringify({ error: "Missing type, workspaceId or integrationId" }),
+          body: JSON.stringify({
+            error: "Missing type, workspaceId or integrationId",
+          }),
           headers: { "Content-Type": "application/json" },
         };
       }
@@ -75,7 +77,9 @@ export const handler = adaptHttpHandler(
       if (type !== "slack" && type !== "discord") {
         return {
           statusCode: 400,
-          body: JSON.stringify({ error: "Invalid type. Must be 'slack' or 'discord'" }),
+          body: JSON.stringify({
+            error: "Invalid type. Must be 'slack' or 'discord'",
+          }),
           headers: { "Content-Type": "application/json" },
         };
       }
@@ -101,25 +105,44 @@ export const handler = adaptHttpHandler(
             "integration"
           );
 
-          // Try to verify signature if integration exists and has a public key
-          if (integration && integration.platform === "discord") {
+          // If integration exists, verify platform matches
+          if (integration) {
+            if (integration.platform !== "discord") {
+              // Integration exists but platform doesn't match - return 404
+              return {
+                statusCode: 404,
+                body: JSON.stringify({ error: "Integration not found" }),
+                headers: { "Content-Type": "application/json" },
+              };
+            }
+
+            // Integration exists and platform matches - verify signature if possible
             const config = integration.config as {
               botToken?: string;
               publicKey?: string;
               applicationId?: string;
             };
             if (config.publicKey) {
-              const signatureValid = verifyDiscordSignature(event, config.publicKey);
+              const signatureValid = verifyDiscordSignature(
+                event,
+                config.publicKey
+              );
               if (!signatureValid) {
-                console.warn("Discord PING received but signature verification failed - allowing for endpoint verification");
+                console.warn(
+                  "Discord PING received but signature verification failed - allowing for endpoint verification"
+                );
               }
             }
           } else {
-            console.warn("Discord PING received but integration not found - allowing for endpoint verification");
+            // Integration doesn't exist - allow PING for Discord endpoint verification
+            console.warn(
+              "Discord PING received but integration not found - allowing for endpoint verification"
+            );
           }
 
-          // Always return PONG for PING requests, even if integration doesn't exist
+          // Return PONG for PING requests
           // This allows Discord to verify the endpoint during initial setup
+          // or when the integration exists and platform matches
           return {
             statusCode: 200,
             body: JSON.stringify({ type: 1 }),
@@ -214,8 +237,7 @@ async function handleSlackWebhook(
 
     // Handle app_mention and message events
     if (
-      (slackEvent.type === "app_mention" ||
-        slackEvent.type === "message") &&
+      (slackEvent.type === "app_mention" || slackEvent.type === "message") &&
       slackEvent.text &&
       slackEvent.channel &&
       slackEvent.user
@@ -246,10 +268,7 @@ async function handleSlackWebhook(
           slackEvent.thread_ts
         );
       } catch (error) {
-        console.error(
-          "[Slack Webhook] Error posting initial message:",
-          error
-        );
+        console.error("[Slack Webhook] Error posting initial message:", error);
         // If we can't post the initial message, we can't proceed
         // Return error response
         return {
@@ -257,9 +276,7 @@ async function handleSlackWebhook(
           body: JSON.stringify({
             ok: false,
             error:
-              error instanceof Error
-                ? error.message
-                : "Failed to post message",
+              error instanceof Error ? error.message : "Failed to post message",
           }),
           headers: { "Content-Type": "application/json" },
         };
@@ -345,7 +362,9 @@ async function handleDiscordWebhook(
     // Still verify signature if possible, but don't fail on PING
     const signatureValid = verifyDiscordSignature(event, config.publicKey);
     if (!signatureValid) {
-      console.warn("Discord PING received but signature verification failed - allowing for endpoint verification");
+      console.warn(
+        "Discord PING received but signature verification failed - allowing for endpoint verification"
+      );
     }
     return {
       statusCode: 200,
@@ -454,4 +473,3 @@ async function handleDiscordWebhook(
     headers: { "Content-Type": "application/json" },
   };
 }
-
