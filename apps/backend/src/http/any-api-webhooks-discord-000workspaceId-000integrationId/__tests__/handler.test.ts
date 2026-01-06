@@ -76,7 +76,6 @@ import { handler } from "../index";
 describe("Discord webhook handler", () => {
   const workspaceId = "workspace-123";
   const integrationId = "integration-456";
-  const fullIntegrationId = `${workspaceId}/${integrationId}`;
 
   // Helper to assert result is an object with statusCode and body
   function assertResult(
@@ -121,7 +120,8 @@ describe("Discord webhook handler", () => {
   }): Parameters<typeof handler>[0] {
     return createAPIGatewayEventV2({
       pathParameters: {
-        integrationId: fullIntegrationId,
+        workspaceId,
+        integrationId,
         ...overrides?.pathParameters,
       },
       headers: {
@@ -134,7 +134,7 @@ describe("Discord webhook handler", () => {
     }) as Parameters<typeof handler>[0];
   }
 
-  it("should return 400 when integrationId is missing", async () => {
+  it("should return 400 when workspaceId or integrationId is missing", async () => {
     const event = createAPIGatewayEventV2({
       pathParameters: {},
     }) as Parameters<typeof handler>[0];
@@ -146,28 +146,10 @@ describe("Discord webhook handler", () => {
       assertResult(result);
     expect(result.statusCode).toBe(400);
       const body = JSON.parse(result.body || "{}");
-      expect(body.error).toBe("Missing integrationId");
+      expect(body.error).toBe("Missing workspaceId or integrationId");
     }
   });
 
-  it("should return 400 when integrationId format is invalid", async () => {
-    // This test doesn't need a database mock since the handler returns early
-    // But we set it up to avoid errors if the code path changes
-    // mockDb is already set up in beforeEach
-
-    const event = createAPIGatewayEventV2({
-      pathParameters: {
-        integrationId: "invalid-format",
-      },
-    }) as Parameters<typeof handler>[0];
-
-    const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
-
-    assertResult(result);
-    expect(result.statusCode).toBe(400);
-    const body = JSON.parse(result.body || "{}");
-    expect(body.error).toBe("Invalid integrationId format");
-  });
 
   it("should return 404 when integration not found", async () => {
     const mockDb = createMockDatabase();

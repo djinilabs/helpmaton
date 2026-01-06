@@ -23,8 +23,8 @@ any /api/workspaces
 any /api/workspaces/*
 any /api/authorizer
 any /api/streams/*
-any /api/webhooks/slack/:integrationId
-any /api/webhooks/discord/:integrationId
+any /api/webhooks/slack/:workspaceId/:integrationId
+any /api/webhooks/discord/:workspaceId/:integrationId
 any /*
 
 @tables

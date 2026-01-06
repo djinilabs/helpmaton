@@ -41,29 +41,20 @@ interface DiscordInteraction {
 export const handler = adaptHttpHandler(
   handlingErrors(
     async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
-      // Extract integrationId from path - format: {workspaceId}/{integrationId}
+      // Extract workspaceId and integrationId from path parameters
+      const workspaceId = event.pathParameters?.workspaceId;
       const integrationId = event.pathParameters?.integrationId;
-      if (!integrationId) {
+      
+      if (!workspaceId || !integrationId) {
         return {
           statusCode: 400,
-          body: JSON.stringify({ error: "Missing integrationId" }),
+          body: JSON.stringify({ error: "Missing workspaceId or integrationId" }),
           headers: { "Content-Type": "application/json" },
         };
       }
 
       const db = await database();
-
-      // Parse integrationId - format: {workspaceId}/{integrationId}
-      const parts = integrationId.split("/");
-      if (parts.length !== 2) {
-        return {
-          statusCode: 400,
-          body: JSON.stringify({ error: "Invalid integrationId format" }),
-          headers: { "Content-Type": "application/json" },
-        };
-      }
-      const [workspaceId, actualIntegrationId] = parts;
-      const integrationPk = `bot-integrations/${workspaceId}/${actualIntegrationId}`;
+      const integrationPk = `bot-integrations/${workspaceId}/${integrationId}`;
       const integration = await db["bot-integration"].get(
         integrationPk,
         "integration"
@@ -179,7 +170,7 @@ export const handler = adaptHttpHandler(
         try {
           await enqueueBotWebhookTask(
             "discord",
-            actualIntegrationId,
+            integrationId,
             integration.workspaceId,
             integration.agentId,
             messageText,
