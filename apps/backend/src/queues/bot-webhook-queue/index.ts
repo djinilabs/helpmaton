@@ -1,8 +1,8 @@
 import { WebClient } from "@slack/web-api";
 import type { SQSEvent } from "aws-lambda";
 
-import { updateDiscordMessage } from "../../http/any-api-webhooks-discord-000workspaceId-000integrationId/services/discordResponse";
-import { updateSlackMessage } from "../../http/any-api-webhooks-slack-000workspaceId-000integrationId/services/slackResponse";
+import { updateDiscordMessage } from "../../http/any-api-webhooks-000type-000workspaceId-000integrationId/services/discordResponse";
+import { updateSlackMessage } from "../../http/any-api-webhooks-000type-000workspaceId-000integrationId/services/slackResponse";
 import { callAgentNonStreaming } from "../../http/utils/agentCallNonStreaming";
 import { database } from "../../tables";
 import {

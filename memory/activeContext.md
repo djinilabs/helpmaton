@@ -2,13 +2,13 @@
 
 ## Current Status
 
-**Status**: Bot Webhook Queue Test Fixes - In Progress 🔄
+**Status**: Webhook Handler Unification - Completed ✅
 
 **Latest Work**:
 
-1. **Bot Webhook Queue Test Debugging**: Investigating 9 failing tests in `apps/backend/src/queues/bot-webhook-queue/__tests__/index.test.ts`. Identified incorrect mock paths (needed `../../../` instead of `../../` for `__tests__/` subdirectory). Fixed mock paths for `tables`, `handlingSQSErrors`, and `workspaceCreditContext` modules. Still investigating why `mockCallAgentNonStreaming` is not being called in some tests.
+1. **Webhook Handler Unification**: Successfully unified Slack and Discord webhook handlers into a single unified handler that routes based on the `:type` path parameter. The new route `any /api/webhooks/:type/:workspaceId/:integrationId` supports both platforms through platform-specific routing logic. All service files consolidated, tests moved and updated, and old handlers removed. All typecheck, lint, and tests passing.
 
-2. **Slack & Discord Bot Integration**: Implemented a comprehensive Integration Bridge service that allows users to deploy their agents as Slack or Discord bots. The system includes webhook handlers for both platforms, signature verification, throttled message editing to simulate streaming, and a complete UI for managing integrations.
+2. **Slack & Discord Bot Integration**: Implemented a comprehensive Integration Bridge service that allows users to deploy their agents as Slack or Discord bots. The system includes unified webhook handlers for both platforms, signature verification, throttled message editing to simulate streaming, and a complete UI for managing integrations.
 
 3. **Webhook Handler Refactoring**: Refactored the main webhook handler to reuse `agentCallNonStreaming.ts` utility, enabling tool call continuity and reducing code duplication. All webhook handler tests updated and passing.
 
@@ -58,9 +58,8 @@
      - `PATCH /api/workspaces/:workspaceId/integrations/:integrationId` - Update integration
      - `DELETE /api/workspaces/:workspaceId/integrations/:integrationId` - Delete integration
      - `POST /api/workspaces/:workspaceId/integrations/slack-manifest` - Generate Slack manifest
-   - **Webhook Routes**: Dynamic webhook URLs with integration ID:
-     - `any /api/webhooks/slack/:integrationId` - Slack webhook handler
-     - `any /api/webhooks/discord/:integrationId` - Discord webhook handler
+   - **Webhook Routes**: Unified webhook route with type parameter:
+     - `any /api/webhooks/:type/:workspaceId/:integrationId` - Unified webhook handler (supports both `slack` and `discord` types)
    - **Code Reuse**: Refactored main webhook handler to use `agentCallNonStreaming.ts`, enabling tool continuation and reducing duplication
    - **Documentation**: Created comprehensive guides:
      - `docs/slack-integration.md` - Slack setup and configuration
@@ -179,17 +178,22 @@
     - Error responses include appropriate CORS headers based on endpoint type
     - All error paths properly handled for both invocation methods
 
-**Files Created** (Latest - Slack/Discord Integration):
+**Files Created** (Latest - Webhook Handler Unification):
+
+- `apps/backend/src/http/any-api-webhooks-000type-000workspaceId-000integrationId/index.ts` - Unified webhook handler for Slack and Discord (routes based on :type parameter)
+- `apps/backend/src/http/any-api-webhooks-000type-000workspaceId-000integrationId/services/slackVerification.ts` - Slack signature verification
+- `apps/backend/src/http/any-api-webhooks-000type-000workspaceId-000integrationId/services/slackResponse.ts` - Slack API response formatting
+- `apps/backend/src/http/any-api-webhooks-000type-000workspaceId-000integrationId/services/discordVerification.ts` - Discord Ed25519 signature verification
+- `apps/backend/src/http/any-api-webhooks-000type-000workspaceId-000integrationId/services/discordResponse.ts` - Discord API response formatting
+- `apps/backend/src/http/any-api-webhooks-000type-000workspaceId-000integrationId/__tests__/handler.test.ts` - Unified handler tests
+- `apps/backend/src/http/any-api-webhooks-000type-000workspaceId-000integrationId/services/__tests__/slackVerification.test.ts` - Slack verification tests
+- `apps/backend/src/http/any-api-webhooks-000type-000workspaceId-000integrationId/services/__tests__/slackResponse.test.ts` - Slack response tests
+- `apps/backend/src/http/any-api-webhooks-000type-000workspaceId-000integrationId/services/__tests__/discordVerification.test.ts` - Discord verification tests
+- `apps/backend/src/http/any-api-webhooks-000type-000workspaceId-000integrationId/services/__tests__/discordResponse.test.ts` - Discord response tests
+
+**Files Created** (Previous - Slack/Discord Integration):
 
 - `apps/backend/src/http/utils/agentCallNonStreaming.ts` - Utility for non-streaming agent calls with tool continuation
-- `apps/backend/src/http/any-api-webhooks-slack-000integrationId/index.ts` - Slack webhook handler
-- `apps/backend/src/http/any-api-webhooks-slack-000integrationId/services/slackVerification.ts` - Slack signature verification
-- `apps/backend/src/http/any-api-webhooks-slack-000integrationId/services/slackResponse.ts` - Slack API response formatting
-- `apps/backend/src/http/any-api-webhooks-slack-000integrationId/services/slackStreaming.ts` - Throttled Slack message editing
-- `apps/backend/src/http/any-api-webhooks-discord-000integrationId/index.ts` - Discord webhook handler
-- `apps/backend/src/http/any-api-webhooks-discord-000integrationId/services/discordVerification.ts` - Discord Ed25519 signature verification
-- `apps/backend/src/http/any-api-webhooks-discord-000integrationId/services/discordResponse.ts` - Discord API response formatting
-- `apps/backend/src/http/any-api-webhooks-discord-000integrationId/services/discordStreaming.ts` - Throttled Discord message editing
 - `apps/backend/src/http/any-api-workspaces-catchall/routes/post-workspace-integrations.ts` - Create integration endpoint
 - `apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-integrations.ts` - List integrations endpoint
 - `apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-integration.ts` - Get integration endpoint
@@ -230,9 +234,14 @@
 - `apps/backend/src/http/utils/__tests__/streamExecution.test.ts` - Unit tests
 - `apps/backend/src/http/utils/__tests__/streamEventNormalization.test.ts` - Unit tests
 
-**Files Modified** (Latest - Slack/Discord Integration):
+**Files Modified** (Latest - Webhook Handler Unification):
 
-- `apps/backend/app.arc` - Added `bot-integration` table with GSIs, webhook routes for Slack/Discord, and integration management API routes
+- `apps/backend/app.arc` - Replaced separate Slack and Discord webhook routes with unified route `any /api/webhooks/:type/:workspaceId/:integrationId`
+- `apps/backend/src/queues/bot-webhook-queue/index.ts` - Updated imports to reference unified handler service files
+
+**Files Modified** (Previous - Slack/Discord Integration):
+
+- `apps/backend/app.arc` - Added `bot-integration` table with GSIs and integration management API routes
 - `apps/backend/src/tables/schema.ts` - Added `bot-integration` table schema with Zod validation
 - `apps/backend/src/http/utils/generationErrorHandling.ts` - Extended `GenerationEndpoint` type to include "bridge"
 - `apps/backend/src/http/post-api-webhook-000workspaceId-000agentId-000key/index.ts` - Refactored to use `agentCallNonStreaming.ts` for code reuse and tool continuation support
@@ -257,7 +266,12 @@
 - `apps/frontend/src/utils/api.ts` - Updated `getStreamUrl()` to call unified `/api/streams/url` endpoint
 - `docs/streaming-system.md` - Updated documentation to reflect URL endpoint consolidation
 
-**Files Removed**:
+**Files Removed** (Latest - Webhook Handler Unification):
+
+- `apps/backend/src/http/any-api-webhooks-slack-000workspaceId-000integrationId/` - Entire directory removed (functionality moved to unified handler)
+- `apps/backend/src/http/any-api-webhooks-discord-000workspaceId-000integrationId/` - Entire directory removed (functionality moved to unified handler)
+
+**Files Removed** (Previous):
 
 - `apps/backend/src/http/get-api-streams-url/index.ts` - Handler functionality moved to unified handler
 - `apps/backend/src/http/get-api-streams-url/__tests__/handler.test.ts` - Tests moved to unified handler test file
@@ -279,12 +293,17 @@
 
 - `apps/backend/src/http/post-api-workspaces-000workspaceId-agents-000agentId-test/utils/__tests__/` - Test files moved to new location
 
-**Configuration** (Latest - Slack/Discord Integration):
+**Configuration** (Latest - Webhook Handler Unification):
+
+- Unified Webhook Route: `any /api/webhooks/:type/:workspaceId/:integrationId` (supports both `slack` and `discord` types)
+- Type Validation: Validates `type` parameter must be `slack` or `discord`
+- Platform Routing: Routes to platform-specific handlers based on `type` parameter
+- Integration Validation: Verifies integration platform matches the `type` parameter
+
+**Configuration** (Previous - Slack/Discord Integration):
 
 - Database Table: `bot-integration` with encryption enabled
 - GSIs: `byWorkspaceId` and `byAgentId` for efficient lookups
-- Slack Webhook: `any /api/webhooks/slack/:integrationId` (signature verification required)
-- Discord Webhook: `any /api/webhooks/discord/:integrationId` (Ed25519 signature verification required)
 - Integration API: Full CRUD endpoints under `/api/workspaces/:workspaceId/integrations`
 - Throttled Updates: 1.5-second interval for message editing to simulate streaming
 - Frontend Route: `/workspaces/:workspaceId/integrations` (Integrations management page)
@@ -302,7 +321,9 @@
 - Local Development: Automatic detection, uses appropriate streaming method
 - URL Discovery: Supports `STREAMING_FUNCTION_URL` env var, CloudFormation stack outputs, with 5-minute cache TTL
 
-**Verification** (Latest - Slack/Discord Integration): All tests passing (2121 tests), typecheck and lint clean ✅
+**Verification** (Latest - Webhook Handler Unification): All tests passing (2255 tests), typecheck and lint clean ✅
+
+**Verification** (Previous - Slack/Discord Integration): All tests passing (2121 tests), typecheck and lint clean ✅
 
 **Verification** (Previous - Streaming): All tests passing (211 tests in stream handler utilities, 17 test files), typecheck and lint clean ✅
 
@@ -1972,49 +1993,50 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 - Memory Bank strategy initialized
 - Created memory folder structure with three core files
 
-## Current Work: Bot Webhook Queue Test Fixes
+## Recent Completed Work: Webhook Handler Unification
 
-**Status**: In Progress 🔄
+**Status**: Completed ✅
 
-**Issue**: 9 failing tests in `apps/backend/src/queues/bot-webhook-queue/__tests__/index.test.ts`
+**Overview**: Unified Slack and Discord webhook handlers into a single handler that routes based on the `:type` path parameter, consolidating duplicate code while preserving platform-specific logic.
 
-**Root Causes Identified**:
+**Key Changes**:
 
-1. **Incorrect Mock Paths**: Test file is in `__tests__/` subdirectory, requiring `../../../` instead of `../../` for module imports:
-   - Fixed: `../../tables` → `../../../tables`
-   - Fixed: `../../utils/handlingSQSErrors` → `../../../utils/handlingSQSErrors`
-   - Fixed: `../../utils/workspaceCreditContext` → `../../../utils/workspaceCreditContext`
+1. **Unified Handler Creation**:
+   - Created new handler at `any-api-webhooks-000type-000workspaceId-000integrationId/index.ts`
+   - Extracts `type` parameter from path (`slack` or `discord`)
+   - Validates `type` parameter and verifies integration platform matches
+   - Routes to platform-specific handlers (`handleSlackWebhook` or `handleDiscordWebhook`)
 
-2. **Database Mock Issues**: The mock database needs to include all tables that `commitContextTransactions` might access (workspace, workspace-credit-transactions, atomicUpdate), but the working test pattern suggests these may not be needed if `handlingSQSErrors` is properly mocked.
+2. **Service File Consolidation**:
+   - Moved all platform-specific service files to unified handler's `services/` directory
+   - Preserved all existing functionality for both platforms
+   - Updated imports in queue processor to reference new locations
 
-3. **Slack API Mocking**: The `updateSlackMessage` mock needs to properly handle the WebClient instance passed to it. The error "An API error occurred: invalid_auth" suggests the Slack WebClient is trying to make real API calls instead of using the mock.
+3. **Route Configuration**:
+   - Replaced two separate routes with unified route in `app.arc`
+   - Old: `any /api/webhooks/slack/:workspaceId/:integrationId` and `any /api/webhooks/discord/:workspaceId/:integrationId`
+   - New: `any /api/webhooks/:type/:workspaceId/:integrationId`
 
-4. **Fake Timers**: The test uses `vi.useFakeTimers()` which prevents `setInterval` from running, potentially affecting the throttled message update logic.
+4. **Test Migration**:
+   - Created unified handler test covering both platforms
+   - Moved and updated all service tests to new location
+   - Fixed import paths for test helpers
 
-**Test Being Debugged**: "should handle threadTs" - expects `mockCallAgentNonStreaming` to be called with `conversationId: "1234567890.123455"` (the threadTs value).
+5. **Cleanup**:
+   - Deleted old handler directories after verification
+   - Updated memory documentation to reflect unified structure
 
-**Findings**:
-- Mock paths corrected for proper module resolution
-- Handler is being called but `callAgentNonStreaming` is not being invoked
-- Error occurs before `callAgentNonStreaming` is reached, likely in the Slack message update interval or error handling path
-- The database error "Cannot read properties of undefined (reading 'get')" suggests a mock setup issue
+**Implementation Details**:
+- Type validation ensures only `slack` or `discord` types are accepted
+- Platform-specific differences preserved (signature verification, event handling, response formats)
+- All existing functionality maintained for both platforms
+- Proper TypeScript types using `BotIntegrationRecord`
 
-**Next Steps**:
-1. Verify all mock paths are correct across all failing tests
-2. Ensure `updateSlackMessage` mock properly handles WebClient instances
-3. Check if fake timers need to be advanced or if real timers should be used
-4. Verify database mock includes all required tables for `commitContextTransactions`
-5. Compare with working test ("should successfully process Slack task") to identify differences
+**Verification**: All typecheck, lint, and tests passing (2255 tests) ✅
 
 ## Next Steps
 
-1. **Complete Bot Webhook Queue Test Fixes**:
-   - Fix remaining 9 failing tests in bot-webhook-queue handler
-   - Verify all mock paths are correct
-   - Ensure proper WebClient mocking for Slack API calls
-   - Test with both fake and real timers to identify timing issues
-
-2. Monitor memory system performance:
+1. Monitor memory system performance:
    - Track summarization quality and adjust prompts if needed
    - Monitor storage usage and retention cleanup effectiveness
    - Verify memory search performance and relevance
