@@ -106,7 +106,6 @@ describe("Discord webhook handler", () => {
     // Set up default mocks
     mockVerifyDiscordSignature.mockReturnValue(true);
     mockEnqueueBotWebhookTask.mockResolvedValue(undefined);
-    // Note: Each test should set up its own mock database as needed
   });
 
   function createEvent(overrides?: {
@@ -148,8 +147,7 @@ describe("Discord webhook handler", () => {
   it("should return 400 when integrationId format is invalid", async () => {
     // This test doesn't need a database mock since the handler returns early
     // But we set it up to avoid errors if the code path changes
-    const mockDb = createMockDatabase();
-    mockDatabase.mockResolvedValue(mockDb);
+    // mockDb is already set up in beforeEach
 
     const event = createAPIGatewayEventV2({
       pathParameters: {
@@ -241,7 +239,6 @@ describe("Discord webhook handler", () => {
   });
 
   it("should handle PING interaction (type 1)", async () => {
-    // Explicitly set up mock database for this test
     const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
     mockDatabase.mockResolvedValue(mockDb);
@@ -455,6 +452,10 @@ describe("Discord webhook handler", () => {
 
     // Should still return deferred response
     assertResult(result);
+    if (result.statusCode !== 200) {
+      console.error("Unexpected status code:", result.statusCode);
+      console.error("Response body:", result.body);
+    }
     expect(result.statusCode).toBe(200);
     const body = JSON.parse(result.body || "{}");
     expect(body.type).toBe(5);

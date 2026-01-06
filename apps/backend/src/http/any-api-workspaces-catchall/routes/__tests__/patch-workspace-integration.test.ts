@@ -26,6 +26,29 @@ vi.mock("@architect/functions", () => ({
   }),
 }));
 
+// Mock middleware to pass through
+vi.mock("../middleware", () => ({
+  requireAuth: (
+    _req: express.Request,
+    _res: express.Response,
+    next: express.NextFunction
+  ) => {
+    next();
+  },
+  requirePermission:
+    () =>
+    (
+      _req: express.Request,
+      _res: express.Response,
+      next: express.NextFunction
+    ) => {
+      next();
+    },
+  handleError: (error: unknown, next: express.NextFunction) => {
+    next(error);
+  },
+}));
+
 type MockResponseWithBody = Partial<express.Response> & {
   body: Record<string, unknown>;
   statusCode: number;
@@ -92,6 +115,7 @@ describe("PATCH /api/workspaces/:workspaceId/integrations/:integrationId", () =>
       body: {
         name: "New Name",
       },
+      userRef: "users/user-123",
     });
     const res = createMockResponse() as MockResponseWithBody;
 
@@ -135,6 +159,7 @@ describe("PATCH /api/workspaces/:workspaceId/integrations/:integrationId", () =>
       body: {
         status: "inactive",
       },
+      userRef: "users/user-123",
     });
     const res = createMockResponse() as MockResponseWithBody;
 
@@ -176,6 +201,7 @@ describe("PATCH /api/workspaces/:workspaceId/integrations/:integrationId", () =>
           botToken: "new-token",
         },
       },
+      userRef: "users/user-123",
     });
     const res = createMockResponse() as MockResponseWithBody;
 
@@ -217,6 +243,7 @@ describe("PATCH /api/workspaces/:workspaceId/integrations/:integrationId", () =>
           publicKey: "invalid-key", // Not 64 hex chars
         },
       },
+      userRef: "users/user-123",
     });
     const res = createMockResponse() as MockResponseWithBody;
     const next = vi.fn();
@@ -252,6 +279,7 @@ describe("PATCH /api/workspaces/:workspaceId/integrations/:integrationId", () =>
       body: {
         name: "New Name",
       },
+      userRef: "users/user-123",
     });
     const res = createMockResponse() as MockResponseWithBody;
     const next = vi.fn();

@@ -95,6 +95,8 @@ describe("Slack webhook handler", () => {
     version: 1,
   };
 
+  let mockDb: ReturnType<typeof createMockDatabase>;
+
   beforeEach(() => {
     vi.clearAllMocks();
     // Set up default mocks
@@ -104,7 +106,9 @@ describe("Slack webhook handler", () => {
       channel: "C123456",
     });
     mockEnqueueBotWebhookTask.mockResolvedValue(undefined);
-    // Note: Each test should set up its own mock database as needed
+    // Set up default mock database - tests can modify mockDb directly
+    mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
   });
 
   function createEvent(overrides?: {
@@ -157,9 +161,7 @@ describe("Slack webhook handler", () => {
   });
 
   it("should return 404 when integration not found", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(null);
-    mockDatabase.mockResolvedValue(mockDb);
 
     const event = createEvent();
     const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
@@ -171,12 +173,10 @@ describe("Slack webhook handler", () => {
   });
 
   it("should return 404 when integration platform is not slack", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue({
       ...mockIntegration,
       platform: "discord",
     });
-    mockDatabase.mockResolvedValue(mockDb);
 
     const event = createEvent();
     const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
@@ -186,12 +186,10 @@ describe("Slack webhook handler", () => {
   });
 
   it("should return 400 when integration is not active", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue({
       ...mockIntegration,
       status: "inactive",
     });
-    mockDatabase.mockResolvedValue(mockDb);
 
     const event = createEvent();
     const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
@@ -203,9 +201,7 @@ describe("Slack webhook handler", () => {
   });
 
   it("should return 401 when signature is invalid", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
-    mockDatabase.mockResolvedValue(mockDb);
     mockVerifySlackSignature.mockReturnValue(false);
 
     const event = createEvent();
@@ -218,9 +214,7 @@ describe("Slack webhook handler", () => {
   });
 
   it("should return 400 when body is invalid JSON", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
-    mockDatabase.mockResolvedValue(mockDb);
 
     const event = createEvent({ body: "invalid json" });
     const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
@@ -232,9 +226,7 @@ describe("Slack webhook handler", () => {
   });
 
   it("should handle URL verification challenge", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
-    mockDatabase.mockResolvedValue(mockDb);
 
     const challenge = "test-challenge-string";
     const event = createEvent({
@@ -253,9 +245,7 @@ describe("Slack webhook handler", () => {
   });
 
   it("should handle app_mention event", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
-    mockDatabase.mockResolvedValue(mockDb);
 
     const event = createEvent({
       body: JSON.stringify({
@@ -297,9 +287,7 @@ describe("Slack webhook handler", () => {
   });
 
   it("should handle message event", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
-    mockDatabase.mockResolvedValue(mockDb);
 
     const event = createEvent({
       body: JSON.stringify({
@@ -322,9 +310,7 @@ describe("Slack webhook handler", () => {
   });
 
   it("should handle thread_ts in app_mention event", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
-    mockDatabase.mockResolvedValue(mockDb);
 
     const threadTs = "1234567890.123455";
     const event = createEvent({
@@ -365,9 +351,7 @@ describe("Slack webhook handler", () => {
   });
 
   it("should remove bot mentions from message text", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
-    mockDatabase.mockResolvedValue(mockDb);
 
     const event = createEvent({
       body: JSON.stringify({
@@ -396,9 +380,7 @@ describe("Slack webhook handler", () => {
   });
 
   it("should return 200 when message text is empty after removing mentions", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
-    mockDatabase.mockResolvedValue(mockDb);
 
     const event = createEvent({
       body: JSON.stringify({
@@ -422,9 +404,7 @@ describe("Slack webhook handler", () => {
   });
 
   it("should return 500 when initial message post fails", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
-    mockDatabase.mockResolvedValue(mockDb);
     mockPostSlackMessage.mockRejectedValue(new Error("API error"));
 
     const event = createEvent({
@@ -451,9 +431,7 @@ describe("Slack webhook handler", () => {
   });
 
   it("should handle queue enqueue failure gracefully", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
-    mockDatabase.mockResolvedValue(mockDb);
     mockEnqueueBotWebhookTask.mockRejectedValue(new Error("Queue error"));
 
     const event = createEvent({
@@ -478,9 +456,7 @@ describe("Slack webhook handler", () => {
   });
 
   it("should return 200 for unknown event types", async () => {
-    const mockDb = createMockDatabase();
     mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockIntegration);
-    mockDatabase.mockResolvedValue(mockDb);
 
     const event = createEvent({
       body: JSON.stringify({
