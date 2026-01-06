@@ -1,31 +1,44 @@
 import type { FC } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import { useAgents } from "../hooks/useAgents";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useToast } from "../hooks/useToast";
-import {
-  createIntegration,
-  type CreateIntegrationInput,
-} from "../utils/api";
+import { createIntegration, type CreateIntegrationInput } from "../utils/api";
 
 interface DiscordConnectModalProps {
   workspaceId: string;
+  agentId?: string; // Pre-select this agent
   onClose: () => void;
   onSuccess: () => void;
 }
 
 export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
   workspaceId,
+  agentId: preSelectedAgentId,
   onClose,
   onSuccess,
 }) => {
-  const [selectedAgentId, setSelectedAgentId] = useState<string>("");
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(
+    preSelectedAgentId || ""
+  );
   const [botToken, setBotToken] = useState("");
   const [publicKey, setPublicKey] = useState("");
   const [applicationId, setApplicationId] = useState("");
   const [integrationName, setIntegrationName] = useState("");
   const { data: agents } = useAgents(workspaceId);
   const toast = useToast();
+  const { registerDialog, unregisterDialog } = useDialogTracking();
+
+  // Handle Escape key to close modal
+  useEscapeKey(true, onClose);
+
+  // Register dialog for focus management
+  useEffect(() => {
+    registerDialog();
+    return () => unregisterDialog();
+  }, [registerDialog, unregisterDialog]);
 
   const handleCreateIntegration = async () => {
     if (!integrationName || !botToken || !publicKey || !selectedAgentId) {
@@ -55,7 +68,9 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
       onSuccess();
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create integration");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create integration"
+      );
     }
   };
 
@@ -83,10 +98,16 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
               <li>Go to https://discord.com/developers/applications</li>
               <li>Create a new application or select an existing one</li>
               <li>Go to the &quot;Bot&quot; section and copy the Bot Token</li>
-              <li>Go to the &quot;General Information&quot; section and copy the Public Key</li>
+              <li>
+                Go to the &quot;General Information&quot; section and copy the
+                Public Key
+              </li>
               <li>Copy the Application ID (optional but recommended)</li>
               <li>Fill in the form below and create the integration</li>
-              <li>Copy the webhook URL and paste it into Discord&apos;s &quot;Interactions Endpoint URL&quot; field</li>
+              <li>
+                Copy the webhook URL and paste it into Discord&apos;s
+                &quot;Interactions Endpoint URL&quot; field
+              </li>
             </ol>
           </div>
 
@@ -97,7 +118,8 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
             <select
               value={selectedAgentId}
               onChange={(e) => setSelectedAgentId(e.target.value)}
-              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+              disabled={!!preSelectedAgentId}
+              className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 disabled:bg-neutral-100 disabled:text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-400"
             >
               <option value="">Select an agent...</option>
               {agents?.map((agent) => (
@@ -106,6 +128,11 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
                 </option>
               ))}
             </select>
+            {preSelectedAgentId && (
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                Agent is pre-selected for this integration
+              </p>
+            )}
           </div>
 
           <div>
@@ -179,4 +206,3 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
     </div>
   );
 };
-

@@ -7,7 +7,9 @@ import express, { type Express, type RequestHandler } from "express";
 export function createTestAppWithHandlerCapture(): {
   app: Express;
   getHandler: (path: string) => RequestHandler | undefined;
+  postHandler: (path: string) => RequestHandler | undefined;
   putHandler: (path: string) => RequestHandler | undefined;
+  patchHandler: (path: string) => RequestHandler | undefined;
   deleteHandler: (path: string) => RequestHandler | undefined;
 } {
   const app = express();
@@ -17,7 +19,9 @@ export function createTestAppWithHandlerCapture(): {
 
   // Wrap Express methods to capture handlers
   const originalGet = app.get.bind(app);
+  const originalPost = app.post.bind(app);
   const originalPut = app.put.bind(app);
+  const originalPatch = app.patch.bind(app);
   const originalDelete = app.delete.bind(app);
 
   // Wrap Express methods to capture handlers
@@ -35,6 +39,17 @@ export function createTestAppWithHandlerCapture(): {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (app as any).post = function (
+    path: string,
+    ...routeHandlers: RequestHandler[]
+  ): Express {
+    if (routeHandlers.length > 0) {
+      handlers.set(`POST ${path}`, routeHandlers[routeHandlers.length - 1]);
+    }
+    return originalPost(path, ...routeHandlers);
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (app as any).put = function (
     path: string,
     ...routeHandlers: RequestHandler[]
@@ -43,6 +58,17 @@ export function createTestAppWithHandlerCapture(): {
       handlers.set(`PUT ${path}`, routeHandlers[routeHandlers.length - 1]);
     }
     return originalPut(path, ...routeHandlers);
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (app as any).patch = function (
+    path: string,
+    ...routeHandlers: RequestHandler[]
+  ): Express {
+    if (routeHandlers.length > 0) {
+      handlers.set(`PATCH ${path}`, routeHandlers[routeHandlers.length - 1]);
+    }
+    return originalPatch(path, ...routeHandlers);
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,7 +85,9 @@ export function createTestAppWithHandlerCapture(): {
   return {
     app,
     getHandler: (path: string) => handlers.get(`GET ${path}`),
+    postHandler: (path: string) => handlers.get(`POST ${path}`),
     putHandler: (path: string) => handlers.get(`PUT ${path}`),
+    patchHandler: (path: string) => handlers.get(`PATCH ${path}`),
     deleteHandler: (path: string) => handlers.get(`DELETE ${path}`),
   };
 }

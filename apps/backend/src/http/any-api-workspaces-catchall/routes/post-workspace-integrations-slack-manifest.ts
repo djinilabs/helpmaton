@@ -41,18 +41,21 @@ export const registerPostWorkspaceIntegrationsSlackManifest = (
         const placeholderIntegrationId = "PLACEHOLDER_INTEGRATION_ID";
 
         // Construct webhook URL
-        const webhookBaseFromEnv = process.env.WEBHOOK_BASE_URL;
+        const webhookBaseFromEnv = process.env.WEBHOOK_BASE_URL?.trim();
+        const baseUrlFromEnv = process.env.BASE_URL?.trim();
         let baseUrl: string;
 
-        if (webhookBaseFromEnv && webhookBaseFromEnv.trim()) {
-          baseUrl = webhookBaseFromEnv.trim().replace(/\/+$/, "");
+        if (webhookBaseFromEnv && webhookBaseFromEnv.length > 0) {
+          baseUrl = webhookBaseFromEnv.replace(/\/+$/, "");
+        } else if (baseUrlFromEnv && baseUrlFromEnv.length > 0) {
+          baseUrl = baseUrlFromEnv.replace(/\/+$/, "");
         } else if (process.env.ARC_ENV === "production") {
           baseUrl = "https://api.helpmaton.com";
         } else if (process.env.ARC_ENV === "staging") {
           baseUrl = "https://staging-api.helpmaton.com";
         } else {
           throw new Error(
-            "WEBHOOK_BASE_URL environment variable must be set for non-production/non-staging environments"
+            "WEBHOOK_BASE_URL or BASE_URL environment variable must be set for non-production/non-staging environments"
           );
         }
         const webhookUrl = `${baseUrl}/api/webhooks/slack/${workspaceId}/${placeholderIntegrationId}`;

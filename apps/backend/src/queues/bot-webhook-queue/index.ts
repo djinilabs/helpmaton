@@ -95,11 +95,14 @@ async function processDiscordTask(
 
   try {
     // Get base URL for model referer (used for logging/tracking)
-    // Note: For non-local environments, WEBHOOK_BASE_URL should be set
+    // Falls back to BASE_URL if WEBHOOK_BASE_URL is not set
     const webhookBaseFromEnv = process.env.WEBHOOK_BASE_URL?.trim();
+    const baseUrlFromEnv = process.env.BASE_URL?.trim();
     const baseUrl: string =
       webhookBaseFromEnv && webhookBaseFromEnv.length > 0
         ? webhookBaseFromEnv
+        : baseUrlFromEnv && baseUrlFromEnv.length > 0
+        ? baseUrlFromEnv
         : process.env.ARC_ENV === "production"
         ? "https://api.helpmaton.com"
         : process.env.ARC_ENV === "staging"
@@ -222,11 +225,15 @@ async function processSlackTask(
     });
   }, 1500);
 
-  // Get base URL for model referer
+  // Get base URL for model referer (used for logging/tracking)
+  // Falls back to BASE_URL if WEBHOOK_BASE_URL is not set
   const webhookBaseFromEnv = process.env.WEBHOOK_BASE_URL?.trim();
+  const baseUrlFromEnv = process.env.BASE_URL?.trim();
   const baseUrl: string =
     webhookBaseFromEnv && webhookBaseFromEnv.length > 0
       ? webhookBaseFromEnv
+      : baseUrlFromEnv && baseUrlFromEnv.length > 0
+      ? baseUrlFromEnv
       : process.env.ARC_ENV === "production"
       ? "https://api.helpmaton.com"
       : process.env.ARC_ENV === "staging"

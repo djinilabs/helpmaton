@@ -20,7 +20,12 @@ import {
   BeakerIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
-import { useQueryErrorResetBoundary } from "@tanstack/react-query";
+import {
+  useQueryErrorResetBoundary,
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useState, Suspense, useRef, useEffect, lazy } from "react";
 import type { FC } from "react";
 import { useParams, useNavigate } from "react-router-dom";
@@ -68,6 +73,21 @@ const TransactionTable = lazy(() =>
     default: module.TransactionTable,
   }))
 );
+const IntegrationCard = lazy(() =>
+  import("../components/IntegrationCard").then((module) => ({
+    default: module.IntegrationCard,
+  }))
+);
+const SlackConnectModal = lazy(() =>
+  import("../components/SlackConnectModal").then((module) => ({
+    default: module.SlackConnectModal,
+  }))
+);
+const DiscordConnectModal = lazy(() =>
+  import("../components/DiscordConnectModal").then((module) => ({
+    default: module.DiscordConnectModal,
+  }))
+);
 import { useAccordion } from "../hooks/useAccordion";
 import {
   useAgent,
@@ -92,6 +112,11 @@ import { useToast } from "../hooks/useToast";
 import { useAgentUsage, useAgentDailyUsage } from "../hooks/useUsage";
 import { useWorkspace } from "../hooks/useWorkspaces";
 import type { ClientTool, Conversation } from "../utils/api";
+import {
+  listIntegrations,
+  deleteIntegration,
+  updateIntegration,
+} from "../utils/api";
 import { getDefaultAvatar } from "../utils/avatarUtils";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
 import {
@@ -217,11 +242,77 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     useState<Conversation | null>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [showSlackModal, setShowSlackModal] = useState(false);
+  const [showDiscordModal, setShowDiscordModal] = useState(false);
   const systemPromptRef = useRef<HTMLDivElement>(null);
 
   const { expandedSection, toggleSection } = useAccordion("agent-detail");
   const [chatClearKey, setChatClearKey] = useState(0);
   const toast = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch integrations for this agent
+  const { data: allIntegrations } = useQuery({
+    queryKey: ["integrations", workspaceId],
+    queryFn: () => listIntegrations(workspaceId),
+    enabled: !!workspaceId,
+  });
+
+  // Filter integrations for this agent
+  const agentIntegrations =
+    allIntegrations?.filter((integration) => integration.agentId === agentId) ||
+    [];
+
+  // Mutations for integrations
+  const deleteIntegrationMutation = useMutation({
+    mutationFn: (integrationId: string) =>
+      deleteIntegration(workspaceId, integrationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["integrations", workspaceId],
+      });
+      toast.success("Integration deleted successfully");
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete integration"
+      );
+    },
+  });
+
+  const updateIntegrationMutation = useMutation({
+    mutationFn: ({
+      id,
+      status,
+    }: {
+      id: string;
+      status: "active" | "inactive" | "error";
+    }) => updateIntegration(workspaceId, id, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["integrations", workspaceId],
+      });
+      toast.success("Integration updated successfully");
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update integration"
+      );
+    },
+  });
+
+  const handleDeleteIntegration = (id: string) => {
+    if (confirm("Are you sure you want to delete this integration?")) {
+      deleteIntegrationMutation.mutate(id);
+    }
+  };
+
+  const handleUpdateIntegration = (
+    id: string,
+    status: "active" | "inactive" | "error"
+  ) => {
+    updateIntegrationMutation.mutate({ id, status });
+  };
 
   useEscapeKey(isStreamTestModalOpen, () => setIsStreamTestModalOpen(false));
 
@@ -2614,6 +2705,67 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               )}
             </LazyAccordionContent>
           </AccordionSection>
+
+          {/* Bot Integrations Section */}
+          <AccordionSection
+            id="bot-integrations"
+            title={
+              <>
+                <ChatBubbleLeftRightIcon className="mr-2 inline-block size-5" />
+                BOT INTEGRATIONS
+              </>
+            }
+            isExpanded={expandedSection === "bot-integrations"}
+            onToggle={() => toggleSection("bot-integrations")}
+          >
+            <LazyAccordionContent
+              isExpanded={expandedSection === "bot-integrations"}
+            >
+              <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
+                Connect this agent to Slack or Discord bots to make it available
+                to your team or community. Each integration creates a bot that
+                responds to messages in the connected platform.
+              </p>
+              {canEdit && (
+                <div className="mb-4 flex gap-2">
+                  <button
+                    onClick={() => setShowSlackModal(true)}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored"
+                  >
+                    Connect to Slack
+                  </button>
+                  <button
+                    onClick={() => setShowDiscordModal(true)}
+                    className="rounded-xl bg-indigo-600 px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:bg-indigo-700"
+                  >
+                    Connect to Discord
+                  </button>
+                </div>
+              )}
+
+              {agentIntegrations.length === 0 ? (
+                <p className="text-sm opacity-75 dark:text-neutral-300">
+                  No bot integrations yet. Connect to Slack or Discord to get
+                  started.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {agentIntegrations.map((integration) => (
+                    <Suspense
+                      key={integration.id}
+                      fallback={<LoadingScreen compact />}
+                    >
+                      <IntegrationCard
+                        integration={integration}
+                        onDelete={handleDeleteIntegration}
+                        onUpdate={handleUpdateIntegration}
+                      />
+                    </Suspense>
+                  ))}
+                </div>
+              )}
+            </LazyAccordionContent>
+          </AccordionSection>
         </SectionGroup>
 
         <SectionGroup
@@ -2823,6 +2975,39 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               </div>
             </div>
           )}
+
+        {/* Integration Modals */}
+        {showSlackModal && (
+          <Suspense fallback={<LoadingScreen />}>
+            <SlackConnectModal
+              workspaceId={workspaceId}
+              agentId={agentId}
+              onClose={() => setShowSlackModal(false)}
+              onSuccess={() => {
+                queryClient.invalidateQueries({
+                  queryKey: ["integrations", workspaceId],
+                });
+                setShowSlackModal(false);
+              }}
+            />
+          </Suspense>
+        )}
+
+        {showDiscordModal && (
+          <Suspense fallback={<LoadingScreen />}>
+            <DiscordConnectModal
+              workspaceId={workspaceId}
+              agentId={agentId}
+              onClose={() => setShowDiscordModal(false)}
+              onSuccess={() => {
+                queryClient.invalidateQueries({
+                  queryKey: ["integrations", workspaceId],
+                });
+                setShowDiscordModal(false);
+              }}
+            />
+          </Suspense>
+        )}
       </div>
     </div>
   );

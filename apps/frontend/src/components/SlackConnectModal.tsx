@@ -1,7 +1,9 @@
 import type { FC } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { useDialogTracking } from "../contexts/DialogContext";
 import { useAgents } from "../hooks/useAgents";
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useToast } from "../hooks/useToast";
 import {
   generateSlackManifest,
@@ -13,23 +15,39 @@ import { SlackManifestDisplay } from "./SlackManifestDisplay";
 
 interface SlackConnectModalProps {
   workspaceId: string;
+  agentId?: string; // Pre-select this agent
   onClose: () => void;
   onSuccess: () => void;
 }
 
 export const SlackConnectModal: FC<SlackConnectModalProps> = ({
   workspaceId,
+  agentId: preSelectedAgentId,
   onClose,
   onSuccess,
 }) => {
   const [step, setStep] = useState<"manifest" | "credentials">("manifest");
-  const [selectedAgentId, setSelectedAgentId] = useState<string>("");
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(
+    preSelectedAgentId || ""
+  );
   const [botToken, setBotToken] = useState("");
   const [signingSecret, setSigningSecret] = useState("");
   const [integrationName, setIntegrationName] = useState("");
-  const [manifestData, setManifestData] = useState<Awaited<ReturnType<typeof generateSlackManifest>> | null>(null);
+  const [manifestData, setManifestData] = useState<Awaited<
+    ReturnType<typeof generateSlackManifest>
+  > | null>(null);
   const { data: agents } = useAgents(workspaceId);
   const toast = useToast();
+  const { registerDialog, unregisterDialog } = useDialogTracking();
+
+  // Handle Escape key to close modal
+  useEscapeKey(true, onClose);
+
+  // Register dialog for focus management
+  useEffect(() => {
+    registerDialog();
+    return () => unregisterDialog();
+  }, [registerDialog, unregisterDialog]);
 
   const handleGenerateManifest = async () => {
     if (!selectedAgentId) {
@@ -39,11 +57,17 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
 
     try {
       const agent = agents?.find((a) => a.id === selectedAgentId);
-      const data = await generateSlackManifest(workspaceId, selectedAgentId, agent?.name);
+      const data = await generateSlackManifest(
+        workspaceId,
+        selectedAgentId,
+        agent?.name
+      );
       setManifestData(data);
       toast.success("Manifest generated successfully");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to generate manifest");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to generate manifest"
+      );
     }
   };
 
@@ -73,7 +97,9 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
       onSuccess();
       onClose();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to create integration");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create integration"
+      );
     }
   };
 
@@ -101,7 +127,8 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
               <select
                 value={selectedAgentId}
                 onChange={(e) => setSelectedAgentId(e.target.value)}
-                className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+                disabled={!!preSelectedAgentId}
+                className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 disabled:bg-neutral-100 disabled:text-neutral-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-400"
               >
                 <option value="">Select an agent...</option>
                 {agents?.map((agent) => (
@@ -110,6 +137,11 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
                   </option>
                 ))}
               </select>
+              {preSelectedAgentId && (
+                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                  Agent is pre-selected for this integration
+                </p>
+              )}
             </div>
             <button
               onClick={handleGenerateManifest}
@@ -122,7 +154,9 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
               <>
                 <SlackManifestDisplay
                   manifestData={manifestData}
-                  onCopy={() => handleCopy(JSON.stringify(manifestData.manifest, null, 2))}
+                  onCopy={() =>
+                    handleCopy(JSON.stringify(manifestData.manifest, null, 2))
+                  }
                 />
                 <button
                   onClick={() => setStep("credentials")}
@@ -193,4 +227,3 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
     </div>
   );
 };
-

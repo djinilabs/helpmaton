@@ -323,5 +323,13 @@ export function createMockDatabase() {
       delete: async () => ({}),
       query: async () => ({ items: [] }),
     },
+    "bot-integration": {
+      get: async () => null,
+      put: async () => ({}),
+      create: async () => ({}),
+      update: async () => ({}),
+      delete: async () => ({}),
+      query: async () => ({ items: [] }),
+    },
   };
 }

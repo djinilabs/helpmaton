@@ -8,8 +8,9 @@ export function markdownToSlack(markdown: string): string {
 
   // Convert bold: **text** or __text__ to placeholders so we don't
   // accidentally treat them as italic later.
-  const BOLD_OPEN = "^@BOLD_OPEN^@";
-  const BOLD_CLOSE = "^@BOLD_CLOSE^@";
+  // Use placeholders without underscores or asterisks to avoid regex conflicts
+  const BOLD_OPEN = "\u0001BOLD_OPEN\u0001";
+  const BOLD_CLOSE = "\u0001BOLD_CLOSE\u0001";
   slack = slack.replace(/\*\*(.+?)\*\*/g, `${BOLD_OPEN}$1${BOLD_CLOSE}`);
   slack = slack.replace(/__(.+?)__/g, `${BOLD_OPEN}$1${BOLD_CLOSE}`);
 
@@ -20,8 +21,8 @@ export function markdownToSlack(markdown: string): string {
   slack = slack.replace(/(^|[^_])_([^_\n]+)_/g, "$1_$2_");
 
   // Restore bold placeholders to Slack bold markers (*text*)
-  slack = slack.replace(new RegExp(BOLD_OPEN, "g"), "*");
-  slack = slack.replace(new RegExp(BOLD_CLOSE, "g"), "*");
+  slack = slack.replace(new RegExp(BOLD_OPEN.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), "*");
+  slack = slack.replace(new RegExp(BOLD_CLOSE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), "*");
 
   // Convert code blocks: ```code``` to ```code```
   // Slack uses triple backticks for code blocks, so this is already compatible
