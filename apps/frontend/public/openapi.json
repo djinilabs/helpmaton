@@ -8167,6 +8167,137 @@
         }
       }
     },
+    "/api/stream-url": {
+      "get": {
+        "summary": "Get streaming function URL",
+        "description": "Returns the Lambda Function URL for streaming agent interactions",
+        "tags": [
+          "Streaming"
+        ],
+        "responses": {
+          "200": {
+            "description": "Streaming function URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "The Lambda Function URL for streaming"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Streaming function URL not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "summary": "Get available models",
+        "description": "Returns a list of available OpenRouter AI models and their default model",
+        "tags": [
+          "Usage"
+        ],
+        "responses": {
+          "200": {
+            "description": "Available OpenRouter models",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelsResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/pricing": {
+      "get": {
+        "summary": "Get OpenRouter model pricing",
+        "description": "Returns pricing information for all available OpenRouter AI models",
+        "tags": [
+          "Usage"
+        ],
+        "responses": {
+          "200": {
+            "description": "OpenRouter model pricing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "openrouter": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "type": "number",
+                            "description": "Price per 1M input tokens (USD)"
+                          },
+                          "output": {
+                            "type": "number",
+                            "description": "Price per 1M output tokens (USD)"
+                          },
+                          "cachedInput": {
+                            "type": "number",
+                            "description": "Price per 1M cached input tokens (USD, optional)"
+                          },
+                          "tiers": {
+                            "type": "array",
+                            "description": "Tiered pricing structure (optional)"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
     "/api/usage": {
       "get": {
         "summary": "Get usage statistics",
@@ -8229,137 +8360,6 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/api/stream-url": {
-      "get": {
-        "summary": "Get streaming function URL",
-        "description": "Returns the Lambda Function URL for streaming agent interactions",
-        "tags": [
-          "Streaming"
-        ],
-        "responses": {
-          "200": {
-            "description": "Streaming function URL",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "url": {
-                      "type": "string",
-                      "description": "The Lambda Function URL for streaming"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Streaming function URL not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "406": {
-            "description": "Method not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/pricing": {
-      "get": {
-        "summary": "Get OpenRouter model pricing",
-        "description": "Returns pricing information for all available OpenRouter AI models",
-        "tags": [
-          "Usage"
-        ],
-        "responses": {
-          "200": {
-            "description": "OpenRouter model pricing",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "openrouter": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "object",
-                        "properties": {
-                          "input": {
-                            "type": "number",
-                            "description": "Price per 1M input tokens (USD)"
-                          },
-                          "output": {
-                            "type": "number",
-                            "description": "Price per 1M output tokens (USD)"
-                          },
-                          "cachedInput": {
-                            "type": "number",
-                            "description": "Price per 1M cached input tokens (USD, optional)"
-                          },
-                          "tiers": {
-                            "type": "array",
-                            "description": "Tiered pricing structure (optional)"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/api/models": {
-      "get": {
-        "summary": "Get available models",
-        "description": "Returns a list of available OpenRouter AI models and their default model",
-        "tags": [
-          "Usage"
-        ],
-        "responses": {
-          "200": {
-            "description": "Available OpenRouter models",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ModelsResponse"
-                }
-              }
-            }
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
