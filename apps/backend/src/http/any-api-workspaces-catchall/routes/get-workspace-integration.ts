@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -39,6 +40,19 @@ export const registerGetWorkspaceIntegration = (app: express.Application) => {
             commandId: string;
           };
         };
+
+        // Track integration view
+        trackBusinessEvent(
+          "integration",
+          "viewed",
+          {
+            workspace_id: workspaceId,
+            integration_id: integrationId,
+            platform: integration.platform,
+            agent_id: integration.agentId,
+          },
+          req
+        );
 
         res.json({
           id: integrationId,

@@ -2,6 +2,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -53,6 +54,17 @@ export const registerGetWorkspaceIntegrations = (app: express.Application) => {
             discordCommand: config.discordCommand,
           };
         });
+
+        // Track integrations list view
+        trackBusinessEvent(
+          "integrations",
+          "listed",
+          {
+            workspace_id: workspaceId,
+            integration_count: integrations.length,
+          },
+          req
+        );
 
         res.json(integrations);
       } catch (error) {

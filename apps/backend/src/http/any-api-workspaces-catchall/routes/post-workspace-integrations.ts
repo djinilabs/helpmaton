@@ -5,6 +5,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -181,6 +182,20 @@ export const registerPostWorkspaceIntegrations = (app: express.Application) => {
             commandId: string;
           };
         };
+
+        // Track integration creation
+        trackBusinessEvent(
+          "integration",
+          "created",
+          {
+            workspace_id: workspaceId,
+            integration_id: integrationId,
+            platform: integration.platform,
+            agent_id: agentId,
+            integration_name: name,
+          },
+          req
+        );
 
         res.status(201).json({
           id: integrationId,

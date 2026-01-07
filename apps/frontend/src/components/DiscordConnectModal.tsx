@@ -10,6 +10,7 @@ import {
   type CreateIntegrationInput,
   type BotIntegration,
 } from "../utils/api";
+import { trackEvent } from "../utils/tracking";
 
 interface DiscordConnectModalProps {
   workspaceId: string;
@@ -71,6 +72,13 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
       };
       const integration = await createIntegration(workspaceId, input);
       setCreatedIntegration(integration);
+      trackEvent("integration_created", {
+        workspace_id: workspaceId,
+        integration_id: integration.id,
+        platform: "discord",
+        agent_id: selectedAgentId,
+        integration_name: integrationName,
+      });
       toast.success("Integration created successfully");
     } catch (error) {
       toast.error(

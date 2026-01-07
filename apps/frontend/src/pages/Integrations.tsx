@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { FC } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { DiscordCommandDialog } from "../components/DiscordCommandDialog";
@@ -14,6 +14,7 @@ import {
   deleteIntegration,
   updateIntegration,
 } from "../utils/api";
+import { trackEvent } from "../utils/tracking";
 
 const Integrations: FC = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -37,6 +38,15 @@ const Integrations: FC = () => {
     enabled: !!workspaceId,
   });
 
+  // Track page view
+  useEffect(() => {
+    if (workspaceId) {
+      trackEvent("integration_page_viewed", {
+        workspace_id: workspaceId,
+      });
+    }
+  }, [workspaceId]);
+
   const deleteMutation = useMutation({
     mutationFn: (integrationId: string) => {
       if (!workspaceId) {
@@ -44,9 +54,16 @@ const Integrations: FC = () => {
       }
       return deleteIntegration(workspaceId, integrationId);
     },
-    onSuccess: () => {
+    onSuccess: (_, integrationId) => {
       if (workspaceId) {
         queryClient.invalidateQueries({ queryKey: ["integrations", workspaceId] });
+        const integration = integrations?.find((i) => i.id === integrationId);
+        trackEvent("integration_deleted", {
+          workspace_id: workspaceId,
+          integration_id: integrationId,
+          platform: integration?.platform,
+          agent_id: integration?.agentId,
+        });
       }
       toast.success("Integration deleted successfully");
     },
@@ -62,9 +79,18 @@ const Integrations: FC = () => {
       }
       return updateIntegration(workspaceId, id, { status });
     },
-    onSuccess: () => {
+    onSuccess: (_, { id, status }) => {
       if (workspaceId) {
         queryClient.invalidateQueries({ queryKey: ["integrations", workspaceId] });
+        const integration = integrations?.find((i) => i.id === id);
+        trackEvent("integration_updated", {
+          workspace_id: workspaceId,
+          integration_id: id,
+          platform: integration?.platform,
+          agent_id: integration?.agentId,
+          status,
+          updated_fields: ["status"],
+        });
       }
       toast.success("Integration updated successfully");
     },
@@ -115,13 +141,23 @@ const Integrations: FC = () => {
         </div>
         <div className="flex gap-2">
           <button
-            onClick={() => setShowSlackModal(true)}
+            onClick={() => {
+              trackEvent("slack_connect_modal_opened", {
+                workspace_id: workspaceId,
+              });
+              setShowSlackModal(true);
+            }}
             className="rounded-md bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700"
           >
             Connect Slack
           </button>
           <button
-            onClick={() => setShowDiscordModal(true)}
+            onClick={() => {
+              trackEvent("discord_connect_modal_opened", {
+                workspace_id: workspaceId,
+              });
+              setShowDiscordModal(true);
+            }}
             className="rounded-md bg-indigo-600 px-4 py-2 font-medium text-white hover:bg-indigo-700"
           >
             Connect Discord

@@ -9,6 +9,7 @@ import type { BotIntegrationRecord } from "../../tables/schema";
 import { enqueueBotWebhookTask } from "../../utils/botWebhookQueue";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import { trackEvent } from "../../utils/tracking";
 
 import {
   createDiscordDeferredResponse,
@@ -102,6 +103,32 @@ export const handler = adaptHttpHandler(
         };
       }
 
+      // Track webhook received
+      const bodyText = decodeRequestBody(event);
+      let eventType = "unknown";
+      try {
+        const parsedBody = JSON.parse(bodyText);
+        if (type === "slack") {
+          eventType = parsedBody.type || parsedBody.event?.type || "unknown";
+        } else if (type === "discord") {
+          eventType =
+            parsedBody.type === 1
+              ? "ping"
+              : parsedBody.type === 2
+              ? "interaction"
+              : "unknown";
+        }
+      } catch {
+        // Ignore parse errors for tracking
+      }
+
+      trackEvent("bot_webhook_received", {
+        workspace_id: workspaceId,
+        integration_id: integrationId,
+        platform: type,
+        event_type: eventType,
+      });
+
       // For Discord, handle PING (type 1) requests early for endpoint verification
       // Discord sends PING requests during endpoint verification, and these must be handled
       // even if the integration doesn't exist yet or isn't active
@@ -151,11 +178,24 @@ export const handler = adaptHttpHandler(
                 console.warn(
                   "Discord PING received but signature verification failed"
                 );
+                trackEvent("bot_webhook_verification_failed", {
+                  workspace_id: workspaceId,
+                  integration_id: integrationId,
+                  platform: "discord",
+                  event_type: "ping",
+                });
                 return {
                   statusCode: 401,
                   body: JSON.stringify({ error: "Invalid signature" }),
                   headers: { "Content-Type": "application/json" },
                 };
+              } else {
+                trackEvent("bot_webhook_verified", {
+                  workspace_id: workspaceId,
+                  integration_id: integrationId,
+                  platform: "discord",
+                  event_type: "ping",
+                });
               }
             } else {
               // Integration exists but no public key - this shouldn't happen
@@ -290,13 +330,28 @@ async function handleSlackWebhook(
   }
 
   // For all other requests, verify signature
-  if (!verifySlackSignature(event, config.signingSecret)) {
+  const signatureValid = verifySlackSignature(event, config.signingSecret);
+  if (!signatureValid) {
+    trackEvent("bot_webhook_verification_failed", {
+      workspace_id: integration.workspaceId,
+      integration_id: integrationId,
+      platform: "slack",
+      event_type: body.type || "unknown",
+    });
     return {
       statusCode: 401,
       body: JSON.stringify({ error: "Invalid signature" }),
       headers: { "Content-Type": "application/json" },
     };
   }
+
+  // Track successful verification
+  trackEvent("bot_webhook_verified", {
+    workspace_id: integration.workspaceId,
+    integration_id: integrationId,
+    platform: "slack",
+    event_type: body.type || "unknown",
+  });
 
   // Handle event callback
   if (body.type === "event_callback" && body.event) {
@@ -533,13 +588,28 @@ async function handleDiscordWebhook(
   }
 
   // For all other interaction types, verify signature
-  if (!verifyDiscordSignature(event, config.publicKey)) {
+  const signatureValid = verifyDiscordSignature(event, config.publicKey);
+  if (!signatureValid) {
+    trackEvent("bot_webhook_verification_failed", {
+      workspace_id: integration.workspaceId,
+      integration_id: integrationId,
+      platform: "discord",
+      event_type: body.type === 2 ? "interaction" : "unknown",
+    });
     return {
       statusCode: 401,
       body: JSON.stringify({ error: "Invalid signature" }),
       headers: { "Content-Type": "application/json" },
     };
   }
+
+  // Track successful verification
+  trackEvent("bot_webhook_verified", {
+    workspace_id: integration.workspaceId,
+    integration_id: integrationId,
+    platform: "discord",
+    event_type: body.type === 2 ? "interaction" : "unknown",
+  });
 
   // Handle APPLICATION_COMMAND (type 2) - Slash commands
   if (body.type === 2 && body.data) {

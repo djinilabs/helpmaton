@@ -5,6 +5,7 @@ import { useDialogTracking } from "../contexts/DialogContext";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useToast } from "../hooks/useToast";
 import { registerDiscordCommand } from "../utils/api";
+import { trackEvent } from "../utils/tracking";
 
 interface DiscordCommandDialogProps {
   workspaceId: string;
@@ -68,6 +69,12 @@ export const DiscordCommandDialog: FC<DiscordCommandDialogProps> = ({
 
     try {
       await registerDiscordCommand(workspaceId, integrationId, commandName);
+      trackEvent("discord_command_installed", {
+        workspace_id: workspaceId,
+        integration_id: integrationId,
+        command_name: commandName,
+        is_update: !!currentCommandName,
+      });
       toast.success(
         currentCommandName
           ? "Command updated successfully"

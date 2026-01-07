@@ -4,6 +4,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { deleteDiscordCommand } from "../../../utils/discordApi";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -34,7 +35,8 @@ export const registerDeleteWorkspaceIntegration = (app: express.Application) => 
           throw notFound("Integration not found");
         }
 
-        // If this is a Discord integration with a registered command, delete it from Discord
+        // Check if integration has Discord command before deletion
+        let hadDiscordCommand = false;
         if (integration.platform === "discord") {
           const config = integration.config as {
             botToken?: string;
@@ -45,19 +47,21 @@ export const registerDeleteWorkspaceIntegration = (app: express.Application) => 
             };
           };
 
-          if (
+          hadDiscordCommand = !!(
             config.discordCommand &&
             config.applicationId &&
             config.botToken
-          ) {
+          );
+
+          if (hadDiscordCommand) {
             try {
               await deleteDiscordCommand(
-                config.applicationId,
-                config.discordCommand.commandId,
-                config.botToken
+                config.applicationId!,
+                config.discordCommand!.commandId,
+                config.botToken!
               );
               console.log(
-                `Deleted Discord command: ${config.discordCommand.commandName} (${config.discordCommand.commandId})`
+                `Deleted Discord command: ${config.discordCommand!.commandName} (${config.discordCommand!.commandId})`
               );
             } catch (error) {
               // Log but don't fail - the command might already be deleted
@@ -71,6 +75,20 @@ export const registerDeleteWorkspaceIntegration = (app: express.Application) => 
         }
 
         await db["bot-integration"].delete(integrationPk, "integration");
+
+        // Track integration deletion
+        trackBusinessEvent(
+          "integration",
+          "deleted",
+          {
+            workspace_id: workspaceId,
+            integration_id: integrationId,
+            platform: integration.platform,
+            agent_id: integration.agentId,
+            had_discord_command: hadDiscordCommand,
+          },
+          req
+        );
 
         res.status(204).send();
       } catch (error) {

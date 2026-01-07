@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -129,6 +130,26 @@ export const registerPatchWorkspaceIntegration = (app: express.Application) => {
             commandId: string;
           };
         };
+
+        // Track integration update
+        const updatedFields: string[] = [];
+        if (name !== undefined) updatedFields.push("name");
+        if (status !== undefined) updatedFields.push("status");
+        if (config !== undefined) updatedFields.push("config");
+
+        trackBusinessEvent(
+          "integration",
+          "updated",
+          {
+            workspace_id: workspaceId,
+            integration_id: integrationId,
+            platform: updated.platform,
+            agent_id: updated.agentId,
+            status: updated.status,
+            updated_fields: updatedFields,
+          },
+          req
+        );
 
         res.json({
           id: integrationId,

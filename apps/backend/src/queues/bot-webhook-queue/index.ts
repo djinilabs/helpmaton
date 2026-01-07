@@ -11,6 +11,7 @@ import {
 } from "../../utils/botWebhookQueue";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
 import type { UIMessage } from "../../utils/messageTypes";
+import { trackEvent } from "../../utils/tracking";
 import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
 
 /**
@@ -57,6 +58,7 @@ async function processDiscordTask(
 
   // Capture start time for elapsed time calculation
   const startTime = Date.now();
+  const processingStartTime = Date.now();
 
   // Flag to prevent updates after completion/error
   let isComplete = false;
@@ -148,17 +150,29 @@ async function processDiscordTask(
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Update with complete response
+    const responseText = agentResult.text || "No response generated.";
     await updateDiscordMessage(
       safeBotToken,
       safeApplicationId,
       safeInteractionToken,
-      agentResult.text || "No response generated."
+      responseText
     );
 
     // Update lastUsedAt
     await db["bot-integration"].update({
       ...integration,
       lastUsedAt: new Date().toISOString(),
+    });
+
+    // Track successful processing
+    const processingTimeMs = Date.now() - processingStartTime;
+    trackEvent("bot_webhook_processed", {
+      workspace_id: workspaceId,
+      integration_id: message.integrationId,
+      platform: "discord",
+      agent_id: agentId,
+      processing_time_ms: processingTimeMs,
+      response_length: responseText.length,
     });
   } catch (error) {
     // Stop the interval and mark as complete
@@ -182,6 +196,17 @@ async function processDiscordTask(
         updateError
       );
     }
+
+    // Track failed processing
+    trackEvent("bot_webhook_processing_failed", {
+      workspace_id: workspaceId,
+      integration_id: message.integrationId,
+      platform: "discord",
+      agent_id: agentId,
+      error_type: error instanceof Error ? error.constructor.name : "Unknown",
+      error_message: error instanceof Error ? error.message : String(error),
+    });
+
     throw error;
   }
 }
@@ -241,6 +266,7 @@ async function processSlackTask(
 
   // Capture start time for elapsed time calculation
   const startTime = Date.now();
+  const processingStartTime = Date.now();
 
   // Flag to prevent updates after completion/error
   let isComplete = false;
@@ -438,17 +464,29 @@ async function processSlackTask(
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Update with complete response
+    const responseText = agentResult.text || "No response generated.";
     await updateSlackMessage(
       client,
       safeChannel,
       safeMessageTs,
-      agentResult.text || "No response generated."
+      responseText
     );
 
     // Update lastUsedAt
     await db["bot-integration"].update({
       ...integration,
       lastUsedAt: new Date().toISOString(),
+    });
+
+    // Track successful processing
+    const processingTimeMs = Date.now() - processingStartTime;
+    trackEvent("bot_webhook_processed", {
+      workspace_id: workspaceId,
+      integration_id: message.integrationId,
+      platform: "slack",
+      agent_id: agentId,
+      processing_time_ms: processingTimeMs,
+      response_length: responseText.length,
     });
   } catch (error) {
     // Stop the interval and mark as complete
@@ -472,6 +510,17 @@ async function processSlackTask(
         updateError
       );
     }
+
+    // Track failed processing
+    trackEvent("bot_webhook_processing_failed", {
+      workspace_id: workspaceId,
+      integration_id: message.integrationId,
+      platform: "slack",
+      agent_id: agentId,
+      error_type: error instanceof Error ? error.constructor.name : "Unknown",
+      error_message: error instanceof Error ? error.message : String(error),
+    });
+
     throw error;
   }
 }

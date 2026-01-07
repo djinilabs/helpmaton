@@ -4,6 +4,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { deleteDiscordCommand, makeDiscordRequest } from "../../../utils/discordApi";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 interface DiscordCommand {
@@ -225,6 +226,21 @@ export const registerPostWorkspaceIntegrationDiscordCommand = (
           updatedBy: currentUserRef,
           updatedAt: new Date().toISOString(),
         });
+
+        // Track Discord command registration
+        const isUpdate = !!existingCommand;
+        trackBusinessEvent(
+          "discord_command",
+          "registered",
+          {
+            workspace_id: workspaceId,
+            integration_id: integrationId,
+            agent_id: updated.agentId,
+            command_name: commandName,
+            is_update: isUpdate,
+          },
+          req
+        );
 
         res.json({
           id: integrationId,

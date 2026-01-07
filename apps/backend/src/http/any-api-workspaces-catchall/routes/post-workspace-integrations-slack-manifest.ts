@@ -2,6 +2,7 @@ import { badRequest, unauthorized } from "@hapi/boom";
 import express from "express";
 
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -104,6 +105,18 @@ export const registerPostWorkspaceIntegrationsSlackManifest = (
             },
           },
         };
+
+        // Track Slack manifest generation
+        trackBusinessEvent(
+          "slack_manifest",
+          "generated",
+          {
+            workspace_id: workspaceId,
+            agent_id: agentId,
+            agent_name: agentName,
+          },
+          req
+        );
 
         res.json({
           manifest,

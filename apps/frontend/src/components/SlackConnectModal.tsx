@@ -11,6 +11,7 @@ import {
   type CreateIntegrationInput,
   type BotIntegration,
 } from "../utils/api";
+import { trackEvent } from "../utils/tracking";
 
 import { SlackManifestDisplay } from "./SlackManifestDisplay";
 
@@ -69,6 +70,11 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
         agent?.name
       );
       setManifestData(data);
+      trackEvent("slack_manifest_generated", {
+        workspace_id: workspaceId,
+        agent_id: selectedAgentId,
+        agent_name: agent?.name,
+      });
       toast.success("Manifest generated successfully");
     } catch (error) {
       toast.error(
@@ -110,6 +116,13 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
       };
       const integration = await createIntegration(workspaceId, input);
       setCreatedIntegration(integration);
+      trackEvent("integration_created", {
+        workspace_id: workspaceId,
+        integration_id: integration.id,
+        platform: "slack",
+        agent_id: selectedAgentId,
+        integration_name: integrationName,
+      });
       toast.success("Integration created successfully");
       setStep("complete");
     } catch (error) {
