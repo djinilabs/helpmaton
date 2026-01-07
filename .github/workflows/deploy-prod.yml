@@ -188,6 +188,10 @@ jobs:
           HELPMATON_S3_SECRET_ACCESS_KEY: ${{ secrets.HELPMATON_S3_SECRET_ACCESS_KEY }}
           HELPMATON_S3_REGION: ${{ secrets.HELPMATON_S3_REGION }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          VITE_POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          VITE_POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_API_HOST: ${{ secrets.POSTHOG_API_HOST }}
           CLOUDFLARE_TURNSTILE_SECRET_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET_KEY }}
           CLOUDFLARE_TURNSTILE_SITE_KEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITE_KEY }}
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_CS_BOT_TOKEN }}
@@ -213,6 +217,10 @@ jobs:
           HELPMATON_VECTORDB_S3_BUCKET_PRODUCTION: ${{ secrets.HELPMATON_VECTORDB_S3_BUCKET_PRODUCTION }}
           DECODO_PROXY_URLS: ${{ secrets.DECODO_PROXY_URLS }}
           TWOCAPTCHA_API_KEY: ${{ secrets.TWOCAPTCHA_API_KEY }}
+          BASE_URL: "https://app.helpmaton.com"
+          HELPMATON_CUSTOM_DOMAIN: "app.helpmaton.com"
+          OAUTH_REDIRECT_BASE_URL: "https://app.helpmaton.com"
+          FRONTEND_URL: "https://app.helpmaton.com"
         run: |
           export BASE_URL="https://app.helpmaton.com"
           export HELPMATON_CUSTOM_DOMAIN="app.helpmaton.com"
