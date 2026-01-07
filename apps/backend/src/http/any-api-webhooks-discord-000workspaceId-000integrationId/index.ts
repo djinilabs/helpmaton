@@ -7,12 +7,11 @@ import { database } from "../../tables";
 import { enqueueBotWebhookTask } from "../../utils/botWebhookQueue";
 import { handlingErrors } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
-
 import {
   createDiscordDeferredResponse,
   createDiscordInteractionResponse,
-} from "./services/discordResponse";
-import { verifyDiscordSignature } from "./services/discordVerification";
+} from "../any-api-webhooks-000type-000workspaceId-000integrationId/services/discordResponse";
+import { verifyDiscordSignature } from "../any-api-webhooks-000type-000workspaceId-000integrationId/services/discordVerification";
 
 interface DiscordInteraction {
   type: number;
