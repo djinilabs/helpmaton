@@ -1,16 +1,18 @@
 import { useSession } from "next-auth/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { clearTokens, setTokens } from "../utils/api";
+import { clearTokens, getAccessToken, setTokens } from "../utils/api";
 
 /**
  * Hook to generate Bearer tokens after successful Auth.js login
  * This is a one-time migration step - once tokens are generated, they're stored in localStorage
+ * @returns {boolean} Whether tokens are ready (either already existed or were just generated)
  */
-export function useTokenGeneration() {
+export function useTokenGeneration(): boolean {
   const { data: session, status } = useSession();
   const tokensGeneratedRef = useRef(false);
   const tokenGenerationPromiseRef = useRef<Promise<void> | null>(null);
+  const [tokensReady, setTokensReady] = useState(false);
 
   useEffect(() => {
     // Only generate tokens once per session
@@ -20,19 +22,26 @@ export function useTokenGeneration() {
       !tokensGeneratedRef.current
     ) {
       // Check if we already have tokens
-      const existingAccessToken = localStorage.getItem(
-        "helpmaton_access_token"
-      );
+      const existingAccessToken = getAccessToken();
       if (existingAccessToken) {
         // Tokens already exist, don't regenerate
         tokensGeneratedRef.current = true;
+        setTokensReady(true);
         return;
       }
 
       // Prevent race condition: if a token generation is already in progress, wait for it
       if (tokenGenerationPromiseRef.current) {
         tokenGenerationPromiseRef.current.then(() => {
-          tokensGeneratedRef.current = true;
+          // After waiting, check if tokens actually exist (the promise may have failed)
+          const accessToken = getAccessToken();
+          if (accessToken) {
+            tokensGeneratedRef.current = true;
+            setTokensReady(true);
+          } else {
+            // Token generation failed, tokens are not ready
+            setTokensReady(false);
+          }
         });
         return;
       }
@@ -56,6 +65,7 @@ export function useTokenGeneration() {
               setTokens(data.accessToken, data.refreshToken);
               console.log("[useTokenGeneration] Tokens generated and stored");
               tokensGeneratedRef.current = true;
+              setTokensReady(true);
             } else {
               console.error(
                 "[useTokenGeneration] Invalid response: missing tokens"
@@ -66,6 +76,8 @@ export function useTokenGeneration() {
                   "Failed to initialize session. Please refresh the page and try again."
                 );
               }
+              tokensGeneratedRef.current = false;
+              setTokensReady(false);
             }
           } else {
             const errorText = await response.text();
@@ -81,6 +93,8 @@ export function useTokenGeneration() {
                 "Failed to initialize session. Please refresh the page and try again."
               );
             }
+            tokensGeneratedRef.current = false;
+            setTokensReady(false);
           }
         } catch (error) {
           console.error("[useTokenGeneration] Error generating tokens:", error);
@@ -90,19 +104,22 @@ export function useTokenGeneration() {
               "Failed to initialize session. Please check your connection and refresh the page."
             );
           }
+          tokensGeneratedRef.current = false;
+          setTokensReady(false);
         } finally {
           tokenGenerationPromiseRef.current = null;
         }
       })();
-
-      // Wait for the promise to complete
-      tokenGenerationPromiseRef.current.then(() => {
-        tokensGeneratedRef.current = true;
-      });
     } else if (status === "unauthenticated") {
       // Reset the flag when user logs out
       tokensGeneratedRef.current = false;
+      setTokensReady(false);
       clearTokens();
+    } else if (status === "loading") {
+      // While loading, tokens are not ready
+      setTokensReady(false);
     }
   }, [status, session]);
+
+  return tokensReady;
 }

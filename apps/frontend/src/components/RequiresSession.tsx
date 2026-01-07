@@ -15,7 +15,8 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
   const location = useLocation();
 
   // Generate Bearer tokens after successful Auth.js login
-  useTokenGeneration();
+  // Wait for tokens to be ready before rendering children (which may make API calls)
+  const tokensReady = useTokenGeneration();
 
   // Allow invite acceptance route without authentication
   const isInviteRoute = location.pathname.match(
@@ -53,6 +54,12 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
 
   if (status === "unauthenticated") {
     return <Login />;
+  }
+
+  // Wait for tokens to be ready before rendering children
+  // This prevents API calls from being made before Bearer tokens are available
+  if (status === "authenticated" && !tokensReady) {
+    return <LoadingScreen />;
   }
 
   return (
