@@ -120,9 +120,9 @@ testWithUserManagement.describe.serial(
       expect(agent.workspaceId).toBe(state.workspace.id);
       expect(agent.name).toBe(agentName);
 
-      // Note: UI stays on workspace detail page after creating agent (doesn't auto-navigate)
+      // Note: UI navigates to agent detail page after creating agent
       const currentUrl = page.url();
-      expect(currentUrl).toContain(`/workspaces/${agent.workspaceId}`);
+      expect(currentUrl).toContain(`/workspaces/${agent.workspaceId}/agents/${agent.id}`);
 
       console.log(`✅ Test 3: Agent created with ID: ${agent.id}`);
     });

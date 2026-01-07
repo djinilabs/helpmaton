@@ -132,26 +132,24 @@ export class WorkspaceDetailPage extends BasePage {
       timeout: 10000,
     });
 
-    // The UI doesn't navigate - it stays on workspace detail page
-    // Wait for the agent to appear in the list
-    await this.page.waitForSelector(`a:has-text("${agentData.name}")`, {
+    // After creating an agent, the UI navigates to the agent detail page
+    // Wait for navigation to the agent detail page
+    await this.page.waitForURL(
+      /\/workspaces\/[^/]+\/agents\/[^/]+$/,
+      { timeout: 15000 }
+    );
+
+    // Extract workspace ID and agent ID from the current URL
+    const currentUrl = this.page.url();
+    const match = currentUrl.match(/\/workspaces\/([^/]+)\/agents\/([^/]+)$/);
+    if (!match) {
+      throw new Error(`Failed to extract IDs from URL: ${currentUrl}`);
+    }
+
+    // Verify we're on the agent detail page by checking for the agent name in the heading
+    await this.page.waitForSelector(`h1:has-text("${agentData.name}")`, {
       timeout: 10000,
     });
-
-    // Extract agent ID from the link href
-    const agentLink = this.page
-      .locator(`a:has-text("${agentData.name}")`)
-      .first();
-    const href = await agentLink.getAttribute("href");
-    if (!href) {
-      throw new Error("Failed to get agent link href");
-    }
-
-    // Extract workspace ID and agent ID from href
-    const match = href.match(/\/workspaces\/([^/]+)\/agents\/([^/]+)$/);
-    if (!match) {
-      throw new Error(`Failed to extract IDs from href: ${href}`);
-    }
 
     return {
       id: match[2],
