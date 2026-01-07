@@ -92,8 +92,8 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
   // If integration was created, show the webhook URL
   if (createdIntegration) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-        <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
               Integration Created Successfully
@@ -167,8 +167,8 @@ export const DiscordConnectModal: FC<DiscordConnectModalProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-2xl rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-neutral-900">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-neutral-900 dark:text-neutral-50">
             Connect Discord Bot
