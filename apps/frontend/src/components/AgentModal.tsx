@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { FC } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useCreateAgent, useUpdateAgent } from "../hooks/useAgents";
@@ -262,6 +263,7 @@ export const AgentModal: FC<AgentModalProps> = ({
   workspaceId,
   agent,
 }) => {
+  const navigate = useNavigate();
   const isEditing = !!agent;
   const createAgent = useCreateAgent(workspaceId);
   const updateAgent = useUpdateAgent(workspaceId, agent?.id || "");
@@ -379,16 +381,18 @@ export const AgentModal: FC<AgentModalProps> = ({
           modelName: modelName || null,
           avatar: avatar || null,
         });
+        handleClose();
       } else {
-        await createAgent.mutateAsync({
+        const createdAgent = await createAgent.mutateAsync({
           name: name.trim(),
           systemPrompt: systemPrompt.trim(),
           notificationChannelId: notificationChannelId || null,
           modelName: modelName || null,
           avatar: avatar || null,
         });
+        handleClose();
+        navigate(`/workspaces/${workspaceId}/agents/${createdAgent.id}`);
       }
-      handleClose();
     } catch {
       // Error is handled by toast in the hook
     }
