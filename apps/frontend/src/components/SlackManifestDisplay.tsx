@@ -76,7 +76,7 @@ export const SlackManifestDisplay: FC<SlackManifestDisplayProps> = ({
         <h4 className="mb-2 text-sm font-semibold text-blue-900 dark:text-blue-200">
           Setup Instructions
         </h4>
-        <ol className="list-inside list-decimal space-y-1 max-h-64 overflow-y-auto text-sm text-blue-800 dark:text-blue-300">
+        <ol className="max-h-64 list-inside list-decimal space-y-1 overflow-y-auto text-sm text-blue-800 dark:text-blue-300">
           {manifestData.instructions.map((instruction, index) => (
             <li key={index} dangerouslySetInnerHTML={{ __html: instruction.replace(/'/g, "&apos;").replace(/"/g, "&quot;") }} />
           ))}
