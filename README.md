@@ -24,6 +24,7 @@ Create workspaces to organize your AI agents and their knowledge bases. Each age
 
 - **Customer Support**: Deploy intelligent support agents that understand your product documentation
 - **Internal Knowledge Bases**: Create assistants that help teams find information quickly
+- **Chat Platform Bots**: Deploy your agents as Slack or Discord bots for team collaboration and community engagement
 - **Research Assistants**: Build agents that can search the web for current information, find recent articles, and analyze web content
 - **News Monitoring**: Create agents that monitor news, track industry developments, and provide real-time updates
 - **Content Analysis**: Deploy agents that extract and summarize content from web pages, articles, and online resources
@@ -76,7 +77,7 @@ Agents come with a comprehensive set of built-in tools and can be extended with 
 - **Web Fetch**: Extract and summarize content from any web page URL
 - **Email Sending**: Send emails using workspace email connections
 - **Notification Sending**: Send notifications to Discord channels (with API support for Slack)
-- **Agent Delegation**: Agents can delegate tasks to other agents in the workspace
+- **Agent Delegation**: Agents can delegate tasks to other agents in the workspace, with support for async delegation, query-based matching, and delegation tracking
 
 **Extensibility**: Configure MCP servers with custom authentication and enable them per-agent to give your AI assistants access to databases, business logic, weather APIs, and any other external services you need.
 
@@ -119,6 +120,32 @@ Get real-time, streaming responses from your agents using Server-Sent Events (SS
 ### Webhook API
 
 Every agent exposes a webhook endpoint that accepts HTTP requests. Send messages and receive AI-powered responses, making integration with your applications straightforward. Supports both synchronous responses and streaming via dedicated streaming endpoints.
+
+### Chat Platform Bot Integration
+
+Deploy your agents as Slack or Discord bots, enabling team members and community users to interact with your AI agents directly in their favorite chat platforms. Create integrations that connect your agents to Slack workspaces or Discord servers, with full support for mentions, commands, and direct messages.
+
+**Slack Integration**:
+- Deploy agents as Slack bots that respond to mentions and direct messages
+- Dynamic Slack App Manifest generation for easy setup
+- Secure webhook handling with signature verification
+- Throttled message updates for streaming-like experience
+- Support for both channel mentions and direct messages
+
+**Discord Integration**:
+- Deploy agents as Discord bots with slash command support
+- Ed25519 signature verification for secure interactions
+- Throttled message updates for real-time responses
+- Full support for Discord's interaction system
+
+**Key Features**:
+- **Unified Management**: Manage all integrations from a single Integrations page
+- **Secure by Default**: Platform-specific signature verification ensures only legitimate requests are processed
+- **Easy Setup**: Step-by-step guides for both platforms with manifest generation
+- **Streaming Simulation**: Throttled message updates provide near-real-time response experience
+- **Full Agent Capabilities**: Bots have access to all agent tools, memory, and knowledge bases
+
+See [Slack Integration](./docs/slack-integration.md) and [Discord Integration](./docs/discord-integration.md) for detailed setup guides.
 
 ### Notification Channels
 
@@ -164,14 +191,14 @@ Complete API documentation available in OpenAPI format. Generate client librarie
 
 ### Integration Examples
 
-- Connect agents to Slack, Discord, or other chat platforms
-- Embed AI responses in web applications with real-time streaming
-- Build automated workflows that leverage AI capabilities
-- Create research assistants that search the web for current information
-- Deploy news monitoring agents that track industry developments
-- Build content analysis tools that extract insights from web pages
-- Create custom interfaces for agent interactions
-- Extend agents with MCP servers for database access, external APIs, and custom business logic
+- **Chat Platform Bots**: Deploy agents as Slack or Discord bots for team collaboration and community engagement
+- **Web Applications**: Embed AI responses in web applications with real-time streaming
+- **Automated Workflows**: Build automated workflows that leverage AI capabilities
+- **Research Assistants**: Create research assistants that search the web for current information
+- **News Monitoring**: Deploy news monitoring agents that track industry developments
+- **Content Analysis**: Build content analysis tools that extract insights from web pages
+- **Custom Interfaces**: Create custom interfaces for agent interactions
+- **MCP Extensions**: Extend agents with MCP servers for database access, external APIs, and custom business logic
 
 See the [API Reference](./docs/api-reference.md) for complete endpoint documentation and [MCP Servers](./docs/mcp-servers.md) for tool integration guide.
 
@@ -231,9 +258,11 @@ The platform is designed for reliability, scalability, and performance, handling
 
 ### Integrations
 
+- [Slack Bot Integration](./docs/slack-integration.md) - Deploy your agents as Slack bots for team collaboration
+- [Discord Bot Integration](./docs/discord-integration.md) - Deploy your agents as Discord bots for community engagement
 - [MCP Servers](./docs/mcp-servers.md) - Configure and use MCP servers for external tools
 - [Tavily Integration](./docs/tavily-integration.md) - Web search and content extraction with Tavily API
-- [Discord Setup](./docs/discord-setup.md) - Configure Discord integration for your agents
+- [Discord Setup](./docs/discord-setup.md) - Configure Discord notification channels for your agents
 - [Email Setup](./docs/email-setup.md) - Configure email authentication and notifications
 - Notification Channels - Configure Discord and Slack webhook channels for agent notifications via the API
 
