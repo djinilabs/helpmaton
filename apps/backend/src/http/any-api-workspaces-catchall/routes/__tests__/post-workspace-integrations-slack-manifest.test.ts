@@ -171,5 +171,33 @@ describe("POST /api/workspaces/:workspaceId/integrations/slack/manifest", () => 
     expect(botEvents).toContain("app_mention");
     expect(botEvents).not.toContain("app_mentions");
   });
+
+  it("should include app_home configuration to enable DMs", async () => {
+    process.env.WEBHOOK_BASE_URL = "https://api.helpmaton.com";
+
+    const req = createMockRequest({
+      params: { workspaceId: "workspace-123" },
+      body: {
+        agentId: "agent-456",
+      },
+      userRef: "user-123",
+    });
+    const res = createMockResponse() as MockResponseWithBody;
+
+    await callRouteHandler(req, res);
+
+    const body = res.body;
+    const manifest = body.manifest as {
+      features: {
+        app_home?: {
+          messages_tab_enabled?: boolean;
+          messages_tab_read_only_enabled?: boolean;
+        };
+      };
+    };
+    expect(manifest.features.app_home).toBeDefined();
+    expect(manifest.features.app_home?.messages_tab_enabled).toBe(true);
+    expect(manifest.features.app_home?.messages_tab_read_only_enabled).toBe(false);
+  });
 });
 

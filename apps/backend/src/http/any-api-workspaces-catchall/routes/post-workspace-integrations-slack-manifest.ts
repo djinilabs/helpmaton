@@ -73,6 +73,10 @@ export const registerPostWorkspaceIntegrationsSlackManifest = (
               display_name: agentName || "Helpmaton Agent",
               always_online: true,
             },
+            app_home: {
+              messages_tab_enabled: true,
+              messages_tab_read_only_enabled: false,
+            },
           },
           oauth_config: {
             scopes: {

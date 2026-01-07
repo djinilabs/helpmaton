@@ -2,9 +2,13 @@
 
 ## Current Status
 
-**Status**: Discord Webhook Verification Fix - Completed ✅
+**Status**: Slack DM Support Fix - Completed ✅
 
 **Latest Work**:
+
+1. **Slack DM Support Fix**: Fixed Slack app manifest to enable direct messages (DMs) to bots. Added `app_home` configuration with `messages_tab_enabled: true` and `messages_tab_read_only_enabled: false` to the manifest generation. This allows users to send DMs to Slack bots created with the generated manifest. Previously, users could only interact with bots in channels where the bot was invited, but DMs were disabled by default. Added test coverage to verify the app_home configuration is included in generated manifests.
+
+**Previous Work**: Discord Webhook Verification Fix - Completed ✅
 
 1. **Discord Webhook Verification Fix**: Fixed Discord interactions endpoint verification issue. The handler was checking for integration existence and active status before handling PING requests, causing Discord's endpoint verification to fail. Fixed by handling PING (type 1) requests early in the flow, before integration checks, allowing Discord to verify the endpoint even during initial setup. The endpoint now responds correctly to Discord's verification PING requests.
 
