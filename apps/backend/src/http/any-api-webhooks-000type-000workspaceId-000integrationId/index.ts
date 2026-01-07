@@ -218,6 +218,13 @@ export const handler = adaptHttpHandler(
 
       // Route to platform-specific handlers
       if (type === "slack") {
+        console.log("[Webhook Handler] Routing to Slack handler", {
+          workspaceId,
+          integrationId,
+          hasBody: !!event.body,
+          bodyLength: event.body?.length || 0,
+          headers: Object.keys(event.headers || {}),
+        });
         return handleSlackWebhook(event, integration, integrationId);
       } else {
         return handleDiscordWebhook(event, integration, integrationId);
@@ -258,12 +265,17 @@ async function handleSlackWebhook(
   // Slack sends URL verification when you update the webhook URL
   // This must succeed for Slack to accept the endpoint
   if (body.type === "url_verification" && body.challenge) {
+    console.log("[Slack Webhook] URL verification challenge received", {
+      challenge: body.challenge,
+    });
     // Still verify signature if possible, but don't fail on URL verification
     const signatureValid = verifySlackSignature(event, config.signingSecret);
     if (!signatureValid) {
       console.warn(
         "Slack URL verification received but signature verification failed - allowing for endpoint verification"
       );
+    } else {
+      console.log("[Slack Webhook] URL verification signature valid");
     }
     return {
       statusCode: 200,
@@ -284,6 +296,12 @@ async function handleSlackWebhook(
   // Handle event callback
   if (body.type === "event_callback" && body.event) {
     const slackEvent = body.event;
+    console.log("[Slack Webhook] Event callback received", {
+      eventType: slackEvent.type,
+      hasText: !!slackEvent.text,
+      hasChannel: !!slackEvent.channel,
+      hasUser: !!slackEvent.user,
+    });
 
     // Handle app_mention and message events
     if (
@@ -292,6 +310,12 @@ async function handleSlackWebhook(
       slackEvent.channel &&
       slackEvent.user
     ) {
+      console.log("[Slack Webhook] Processing message event", {
+        eventType: slackEvent.type,
+        channel: slackEvent.channel,
+        user: slackEvent.user,
+        textLength: slackEvent.text.length,
+      });
       // Extract message text (remove bot mention if present)
       let messageText = slackEvent.text.trim();
       // Remove <@BOT_ID> mentions
