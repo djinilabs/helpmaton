@@ -298,6 +298,59 @@ describe("Unified webhook handler", () => {
         "1234567890.123456"
       );
     });
+
+    it("should skip Slack message event with bot mention (app_mention will handle it)", async () => {
+      mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockSlackIntegration);
+      mockVerifySlackSignature.mockReturnValue(true);
+
+      const event = createEvent({
+        body: JSON.stringify({
+          type: "event_callback",
+          event: {
+            type: "message",
+            text: "<@BOT123> Hello bot",
+            channel: "C123456", // Channel (not DM)
+            user: "U123456",
+            ts: "1234567890.123456",
+          },
+        }),
+      });
+
+      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+
+      assertResult(result);
+      expect(result.statusCode).toBe(200);
+      // Should NOT process the message event (app_mention will handle it)
+      expect(mockPostSlackMessage).not.toHaveBeenCalled();
+      expect(mockEnqueueBotWebhookTask).not.toHaveBeenCalled();
+    });
+
+    it("should process Slack message event in DM even with bot mention", async () => {
+      mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockSlackIntegration);
+      mockVerifySlackSignature.mockReturnValue(true);
+      mockPostSlackMessage.mockResolvedValue({ ts: "1234567890.123457", channel: "D123456" });
+
+      const event = createEvent({
+        body: JSON.stringify({
+          type: "event_callback",
+          event: {
+            type: "message",
+            text: "<@BOT123> Hello bot",
+            channel: "D123456", // DM (starts with 'D')
+            user: "U123456",
+            ts: "1234567890.123456",
+          },
+        }),
+      });
+
+      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+
+      assertResult(result);
+      expect(result.statusCode).toBe(200);
+      // Should process DM messages even with bot mentions (no app_mention events in DMs)
+      expect(mockPostSlackMessage).toHaveBeenCalled();
+      expect(mockEnqueueBotWebhookTask).toHaveBeenCalled();
+    });
   });
 
   describe("Discord webhook handling", () => {

@@ -309,141 +309,172 @@ async function handleSlackWebhook(
     });
 
     // Handle app_mention and message events
-    if (
-      (slackEvent.type === "app_mention" || slackEvent.type === "message") &&
-      slackEvent.text &&
-      slackEvent.channel &&
-      slackEvent.user
-    ) {
-      console.log("[Slack Webhook] Processing message event", {
-        eventType: slackEvent.type,
-        channel: slackEvent.channel,
-        user: slackEvent.user,
-        textLength: slackEvent.text.length,
-        subtype: slackEvent.subtype,
-      });
-
-      // Initialize Slack client
-      const client = new WebClient(config.botToken);
-
-      // Get or cache bot user ID
-      let botUserId = config.botUserId;
-      if (!botUserId) {
-        try {
-          const authResult = await client.auth.test();
-          if (authResult.ok && authResult.user_id) {
-            botUserId = authResult.user_id;
-            // Update integration config with bot user ID
-            const updatedConfig = {
-              ...config,
-              botUserId,
-            };
-            await db["bot-integration"].update({
-              ...integration,
-              config: updatedConfig,
-            });
-            console.log("[Slack Webhook] Cached bot user ID", { botUserId });
-          } else {
-            console.error(
-              "[Slack Webhook] Failed to get bot user ID",
-              authResult
-            );
-          }
-        } catch (error) {
-          console.error("[Slack Webhook] Error getting bot user ID:", error);
+    // IMPORTANT: When a bot is mentioned, Slack sends BOTH app_mention and message events.
+    // We prioritize app_mention events and skip message events that contain bot mentions
+    // to prevent duplicate responses.
+    if (slackEvent.text && slackEvent.channel && slackEvent.user) {
+      // For message events, check if this would have been an app_mention
+      // If the message contains a bot mention, skip it (app_mention will handle it)
+      // Exception: DMs (channel starts with 'D') don't send app_mention events, so we process them
+      if (slackEvent.type === "message") {
+        // Check if message contains bot mention before we remove it
+        const hasBotMention = /<@[A-Z0-9]+>/.test(slackEvent.text);
+        // Only skip if it's NOT a DM (channel IDs starting with 'D' are DMs)
+        const isDM = slackEvent.channel.startsWith("D");
+        if (hasBotMention && !isDM) {
+          console.log(
+            "[Slack Webhook] Skipping message event with bot mention (app_mention will handle it)",
+            {
+              channel: slackEvent.channel,
+              user: slackEvent.user,
+              ts: slackEvent.ts,
+            }
+          );
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ ok: true }),
+            headers: { "Content-Type": "application/json" },
+          };
         }
       }
 
-      // Skip processing if message is from the bot itself
-      // Check both botUserId match and subtype independently so subtype works even if botUserId is unavailable
-      if (
-        (botUserId && slackEvent.user === botUserId) ||
-        slackEvent.subtype === "bot_message"
-      ) {
-        console.log("[Slack Webhook] Skipping bot's own message", {
-          botUserId,
-          messageUser: slackEvent.user,
+      // Process app_mention events and message events without bot mentions (or DMs)
+      if (slackEvent.type === "app_mention" || slackEvent.type === "message") {
+        console.log("[Slack Webhook] Processing message event", {
+          eventType: slackEvent.type,
+          channel: slackEvent.channel,
+          user: slackEvent.user,
+          textLength: slackEvent.text.length,
           subtype: slackEvent.subtype,
         });
-        return {
-          statusCode: 200,
-          body: JSON.stringify({ ok: true }),
-          headers: { "Content-Type": "application/json" },
-        };
-      }
 
-      // Extract message text (remove bot mention if present)
-      let messageText = slackEvent.text.trim();
-      // Remove <@BOT_ID> mentions
-      messageText = messageText.replace(/<@[A-Z0-9]+>/g, "").trim();
+        // Initialize Slack client
+        const client = new WebClient(config.botToken);
 
-      if (!messageText) {
-        return {
-          statusCode: 200,
-          body: JSON.stringify({ ok: true }),
-          headers: { "Content-Type": "application/json" },
-        };
-      }
+        // Get or cache bot user ID
+        let botUserId = config.botUserId;
+        if (!botUserId) {
+          try {
+            const authResult = await client.auth.test();
+            if (authResult.ok && authResult.user_id) {
+              botUserId = authResult.user_id;
+              // Update integration config with bot user ID
+              const updatedConfig = {
+                ...config,
+                botUserId,
+              };
+              await db["bot-integration"].update({
+                ...integration,
+                config: updatedConfig,
+              });
+              console.log("[Slack Webhook] Cached bot user ID", { botUserId });
+            } else {
+              console.error(
+                "[Slack Webhook] Failed to get bot user ID",
+                authResult
+              );
+            }
+          } catch (error) {
+            console.error("[Slack Webhook] Error getting bot user ID:", error);
+          }
+        }
 
-      // Post initial "thinking" message (for immediate feedback)
-      let initialMessage: { ts: string; channel: string };
-      try {
-        initialMessage = await postSlackMessage(
-          client,
-          slackEvent.channel,
-          "Agent is thinking...",
-          slackEvent.thread_ts
-        );
-      } catch (error) {
-        console.error("[Slack Webhook] Error posting initial message:", error);
-        // If we can't post the initial message, we can't proceed
-        // Return error response
-        return {
-          statusCode: 500,
-          body: JSON.stringify({
-            ok: false,
-            error:
-              error instanceof Error ? error.message : "Failed to post message",
-          }),
-          headers: { "Content-Type": "application/json" },
-        };
-      }
+        // Skip processing if message is from the bot itself
+        // Check both botUserId match and subtype independently so subtype works even if botUserId is unavailable
+        if (
+          (botUserId && slackEvent.user === botUserId) ||
+          slackEvent.subtype === "bot_message"
+        ) {
+          console.log("[Slack Webhook] Skipping bot's own message", {
+            botUserId,
+            messageUser: slackEvent.user,
+            subtype: slackEvent.subtype,
+          });
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ ok: true }),
+            headers: { "Content-Type": "application/json" },
+          };
+        }
 
-      // Enqueue task for async processing
-      try {
-        await enqueueBotWebhookTask(
-          "slack",
-          integrationId,
-          integration.workspaceId,
-          integration.agentId,
-          messageText,
-          {
-            botToken: config.botToken,
-            channel: slackEvent.channel,
-            messageTs: initialMessage.ts,
-            threadTs: slackEvent.thread_ts,
-          },
-          slackEvent.thread_ts || slackEvent.ts
-        );
-      } catch (error) {
-        console.error("[Slack Webhook] Error enqueueing task:", error);
-        // Update message with error
+        // Extract message text (remove bot mention if present)
+        let messageText = slackEvent.text.trim();
+        // Remove <@BOT_ID> mentions
+        messageText = messageText.replace(/<@[A-Z0-9]+>/g, "").trim();
+
+        if (!messageText) {
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ ok: true }),
+            headers: { "Content-Type": "application/json" },
+          };
+        }
+
+        // Post initial "thinking" message (for immediate feedback)
+        let initialMessage: { ts: string; channel: string };
         try {
-          await postSlackMessage(
+          initialMessage = await postSlackMessage(
             client,
             slackEvent.channel,
-            `❌ Error: ${
-              error instanceof Error ? error.message : "Unknown error"
-            }`,
+            "Agent is thinking...",
             slackEvent.thread_ts
           );
-        } catch (updateError) {
+        } catch (error) {
           console.error(
-            "[Slack Webhook] Error posting error message:",
-            updateError
+            "[Slack Webhook] Error posting initial message:",
+            error
           );
+          // If we can't post the initial message, we can't proceed
+          // Return error response
+          return {
+            statusCode: 500,
+            body: JSON.stringify({
+              ok: false,
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Failed to post message",
+            }),
+            headers: { "Content-Type": "application/json" },
+          };
         }
-        // Don't throw - we've already returned ok response
+
+        // Enqueue task for async processing
+        try {
+          await enqueueBotWebhookTask(
+            "slack",
+            integrationId,
+            integration.workspaceId,
+            integration.agentId,
+            messageText,
+            {
+              botToken: config.botToken,
+              channel: slackEvent.channel,
+              messageTs: initialMessage.ts,
+              threadTs: slackEvent.thread_ts,
+            },
+            slackEvent.thread_ts || slackEvent.ts
+          );
+        } catch (error) {
+          console.error("[Slack Webhook] Error enqueueing task:", error);
+          // Update message with error
+          try {
+            await postSlackMessage(
+              client,
+              slackEvent.channel,
+              `❌ Error: ${
+                error instanceof Error ? error.message : "Unknown error"
+              }`,
+              slackEvent.thread_ts
+            );
+          } catch (updateError) {
+            console.error(
+              "[Slack Webhook] Error posting error message:",
+              updateError
+            );
+          }
+          // Don't throw - we've already returned ok response
+        }
       }
     }
   }
