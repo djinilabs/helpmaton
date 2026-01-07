@@ -141,6 +141,7 @@ async function globalSetup(config: FullConfig) {
     const backendEnv = {
       ...process.env,
       NODE_ENV: "test",
+      ARC_ENV: "testing", // Explicitly set to "testing" to skip API Gateway operations
       ARC_DB_PATH: "./db",
       // Pass through Mailgun credentials for email sending
       MAILGUN_KEY: mailgunKey || "",
@@ -182,6 +183,7 @@ async function globalSetup(config: FullConfig) {
       MAILGUN_DOMAIN: backendEnv.MAILGUN_DOMAIN,
       ARC_DB_PATH: backendEnv.ARC_DB_PATH,
       NODE_ENV: "test",
+      ARC_ENV: "testing", // Explicitly set to "testing" to skip API Gateway operations
       FRONTEND_URL: frontendUrl,
       // TESTMAIL variables (for test code that might need them)
       TESTMAIL_NAMESPACE: testmailNamespace,
