@@ -110,14 +110,37 @@ export function useTokenGeneration(): boolean {
           tokenGenerationPromiseRef.current = null;
         }
       })();
+    } else if (
+      status === "authenticated" &&
+      session?.user &&
+      tokensGeneratedRef.current
+    ) {
+      // Session is authenticated and we've already generated tokens
+      // Verify tokens still exist (they might have been cleared)
+      const existingAccessToken = getAccessToken();
+      if (existingAccessToken) {
+        setTokensReady(true);
+      } else {
+        // Tokens were cleared, reset state
+        tokensGeneratedRef.current = false;
+        setTokensReady(false);
+      }
     } else if (status === "unauthenticated") {
       // Reset the flag when user logs out
       tokensGeneratedRef.current = false;
       setTokensReady(false);
       clearTokens();
     } else if (status === "loading") {
-      // While loading, tokens are not ready
-      setTokensReady(false);
+      // While loading, check if tokens already exist
+      // If they do, keep tokensReady as true to avoid infinite loading
+      const existingAccessToken = getAccessToken();
+      if (existingAccessToken && tokensGeneratedRef.current) {
+        // Tokens exist and were previously generated, keep ready state
+        setTokensReady(true);
+      } else {
+        // No tokens or not yet generated, tokens are not ready
+        setTokensReady(false);
+      }
     }
   }, [status, session]);
 
