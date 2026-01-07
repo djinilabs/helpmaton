@@ -5,10 +5,9 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import {
-  checkDailyRequestLimit,
-  incrementRequestBucket,
+  checkPromptGenerationLimit,
+  incrementPromptGenerationBucket,
 } from "../../../utils/requestTracking";
-import { getWorkspaceSubscription } from "../../../utils/subscriptionUtils";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { createModel } from "../../utils/modelFactory";
 import { extractUserId } from "../../utils/session";
@@ -255,26 +254,11 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
             ? `\n\n## Existing System Prompt\n\n${agent.systemPrompt}\n\nPlease build upon or refine this existing prompt based on the goal above.`
             : "";
 
-        // Check daily request limit before LLM call
+        // Check prompt generation limit before LLM call
         // Note: This is a soft limit - there's a small race condition window where
         // concurrent requests near the limit could all pass the check before incrementing.
         // This is acceptable as a user experience limit, not a security boundary.
-        const subscription = await getWorkspaceSubscription(workspaceId);
-        const subscriptionId = subscription
-          ? subscription.pk.replace("subscriptions/", "")
-          : undefined;
-        if (subscriptionId) {
-          console.log(
-            "[Prompt Generation] Found subscription:",
-            subscriptionId
-          );
-          await checkDailyRequestLimit(subscriptionId);
-        } else {
-          console.warn(
-            "[Prompt Generation] No subscription found for workspace:",
-            workspaceId
-          );
-        }
+        await checkPromptGenerationLimit(workspaceId);
 
         // Extract userId for PostHog tracking
         const userId = extractUserId(req);
@@ -305,34 +289,26 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
 
         const generatedPrompt = result.text.trim();
 
-        // Track successful LLM request (increment bucket)
-        if (subscriptionId) {
-          try {
-            console.log(
-              "[Prompt Generation] Incrementing request bucket for subscription:",
-              subscriptionId
-            );
-            await incrementRequestBucket(subscriptionId);
-            console.log(
-              "[Prompt Generation] Successfully incremented request bucket:",
-              subscriptionId
-            );
-          } catch (error) {
-            // Log error but don't fail the request
-            console.error(
-              "[Prompt Generation] Error incrementing request bucket:",
-              {
-                error: error instanceof Error ? error.message : String(error),
-                stack: error instanceof Error ? error.stack : undefined,
-                workspaceId,
-                subscriptionId,
-              }
-            );
-          }
-        } else {
-          console.warn(
-            "[Prompt Generation] Skipping request bucket increment - no subscription ID:",
-            { workspaceId }
+        // Track successful prompt generation (increment bucket)
+        try {
+          console.log(
+            "[Prompt Generation] Incrementing prompt generation bucket for workspace:",
+            workspaceId
+          );
+          await incrementPromptGenerationBucket(workspaceId);
+          console.log(
+            "[Prompt Generation] Successfully incremented prompt generation bucket:",
+            workspaceId
+          );
+        } catch (error) {
+          // Log error but don't fail the request
+          console.error(
+            "[Prompt Generation] Error incrementing prompt generation bucket:",
+            {
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+              workspaceId,
+            }
           );
         }
 

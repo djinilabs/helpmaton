@@ -358,7 +358,7 @@ export const tableSchemas = {
   "request-buckets": TableBaseSchema.extend({
     pk: z.string(), // bucket ID (e.g., "request-buckets/{subscriptionId}/{category}/{hourTimestamp}")
     subscriptionId: z.string(), // subscription ID for GSI queries
-    category: z.enum(["llm", "search", "fetch"]), // request category
+    category: z.enum(["llm", "search", "fetch", "prompt-generation"]), // request category
     categoryHourTimestamp: z.string().optional(), // composite sort key for GSI: "{category}#{hourTimestamp}"
     hourTimestamp: z.string().datetime(), // ISO timestamp truncated to hour (YYYY-MM-DDTHH:00:00.000Z)
     count: z.number().default(0), // request count for this hour

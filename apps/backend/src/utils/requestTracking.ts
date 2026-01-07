@@ -14,7 +14,7 @@ import {
 
 const BASE_URL = process.env.BASE_URL || "https://app.helpmaton.com";
 
-export type RequestCategory = "llm" | "search" | "fetch";
+export type RequestCategory = "llm" | "search" | "fetch" | "prompt-generation";
 
 /**
  * Get current hour timestamp truncated to hour (YYYY-MM-DDTHH:00:00.000Z)
@@ -487,6 +487,59 @@ export async function checkTavilyDailyLimit(
   // Paid tiers: allow 10 free calls/day, then require credits
   const withinFreeLimit = callCount <= FREE_TIER_LIMIT;
   return { withinFreeLimit, callCount };
+}
+
+/**
+ * Check if workspace has exceeded daily prompt generation limit
+ * Fixed limit of 10 prompt generations per day for all subscription plans
+ * @param workspaceId - Workspace ID
+ * @throws HTTP 429 if limit is exceeded
+ */
+export async function checkPromptGenerationLimit(
+  workspaceId: string
+): Promise<void> {
+  const subscription = await getWorkspaceSubscription(workspaceId);
+  if (!subscription) {
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
+  }
+  // Extract subscriptionId without "subscriptions/" prefix
+  const subscriptionId = subscription.pk.replace("subscriptions/", "");
+
+  const PROMPT_GENERATION_LIMIT = 10;
+  const requestCount = await getRequestCountLast24HoursByCategory(
+    subscriptionId,
+    "prompt-generation"
+  );
+
+  if (requestCount >= PROMPT_GENERATION_LIMIT) {
+    throw tooManyRequests(
+      `Daily prompt generation limit exceeded. You've used ${requestCount} of ${PROMPT_GENERATION_LIMIT} prompt generations in the last 24 hours. Please try again later.`
+    );
+  }
+}
+
+/**
+ * Atomically increment the current hour's prompt generation request bucket
+ * Looks up subscriptionId from workspaceId and calls unified function
+ * @param workspaceId - Workspace ID
+ * @param maxRetries - Maximum number of retries (default: 3)
+ * @returns Updated bucket record
+ */
+export async function incrementPromptGenerationBucket(
+  workspaceId: string,
+  maxRetries: number = 3
+): Promise<RequestBucketRecord> {
+  const subscription = await getWorkspaceSubscription(workspaceId);
+  if (!subscription) {
+    throw new Error(`Could not find subscription for workspace ${workspaceId}`);
+  }
+  // Extract subscriptionId without "subscriptions/" prefix
+  const subscriptionId = subscription.pk.replace("subscriptions/", "");
+  return incrementRequestBucketByCategory(
+    subscriptionId,
+    "prompt-generation",
+    maxRetries
+  );
 }
 
 // Legacy function names for backward compatibility during migration

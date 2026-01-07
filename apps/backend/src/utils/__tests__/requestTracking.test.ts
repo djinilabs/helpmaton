@@ -15,6 +15,8 @@ import {
   getSearchRequestCountLast24Hours,
   getFetchRequestCountLast24Hours,
   checkTavilyDailyLimit,
+  checkPromptGenerationLimit,
+  incrementPromptGenerationBucket,
   // Legacy functions for backward compatibility
   incrementRequestBucket,
   getRequestCountLast24Hours,
@@ -817,6 +819,188 @@ describe("requestTracking", () => {
           delete process.env.ARC_ENV;
         }
       }
+    });
+  });
+
+  describe("checkPromptGenerationLimit", () => {
+    const mockDb = {
+      "request-buckets": {
+        query: vi.fn(),
+      },
+    };
+
+    beforeEach(() => {
+      mockDatabase.mockResolvedValue(mockDb);
+    });
+
+    it("should allow request when under limit", async () => {
+      const workspaceId = "workspace-123";
+      const subscriptionId = "sub-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const subscription: SubscriptionRecord = {
+        pk: `subscriptions/${subscriptionId}`,
+        userId: "user-123",
+        plan: "free",
+        status: "active",
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockGetWorkspaceSubscription.mockResolvedValue(subscription);
+
+      mockDb["request-buckets"].query.mockResolvedValue({
+        items: [{ count: 5 }], // Under limit of 10
+      });
+
+      await expect(
+        checkPromptGenerationLimit(workspaceId)
+      ).resolves.not.toThrow();
+
+      expect(mockDb["request-buckets"].query).toHaveBeenCalledWith(
+        expect.objectContaining({
+          IndexName: "bySubscriptionIdAndCategoryAndHour",
+          KeyConditionExpression: expect.stringContaining(
+            "categoryHourTimestamp BETWEEN"
+          ),
+          ExpressionAttributeValues: expect.objectContaining({
+            ":subscriptionId": subscriptionId,
+            ":startKey": expect.stringContaining("prompt-generation#"),
+            ":endKey": expect.stringContaining("prompt-generation#"),
+          }),
+        })
+      );
+    });
+
+    it("should throw 429 when limit exceeded", async () => {
+      const workspaceId = "workspace-123";
+      const subscriptionId = "sub-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const subscription: SubscriptionRecord = {
+        pk: `subscriptions/${subscriptionId}`,
+        userId: "user-123",
+        plan: "pro",
+        status: "active",
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockGetWorkspaceSubscription.mockResolvedValue(subscription);
+
+      mockDb["request-buckets"].query.mockResolvedValue({
+        items: [{ count: 10 }], // At limit
+      });
+
+      await expect(checkPromptGenerationLimit(workspaceId)).rejects.toThrow();
+
+      const error = await checkPromptGenerationLimit(workspaceId).catch(
+        (e) => e
+      );
+      expect(error.isBoom).toBe(true);
+      expect(error.output.statusCode).toBe(429);
+      expect(error.message).toContain("Daily prompt generation limit exceeded");
+      expect(error.message).toContain("10 of 10");
+    });
+
+    it("should work for all subscription plans", async () => {
+      const workspaceId = "workspace-123";
+      const subscriptionId = "sub-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const plans: Array<"free" | "starter" | "pro"> = ["free", "starter", "pro"];
+
+      for (const plan of plans) {
+        const subscription: SubscriptionRecord = {
+          pk: `subscriptions/${subscriptionId}`,
+          userId: "user-123",
+          plan,
+          status: "active",
+          version: 1,
+          createdAt: now.toISOString(),
+        };
+
+        mockGetWorkspaceSubscription.mockResolvedValue(subscription);
+        mockDb["request-buckets"].query.mockResolvedValue({
+          items: [{ count: 5 }], // Under limit
+        });
+
+        await expect(
+          checkPromptGenerationLimit(workspaceId)
+        ).resolves.not.toThrow();
+      }
+    });
+  });
+
+  describe("incrementPromptGenerationBucket", () => {
+    const mockDb = {
+      "request-buckets": {
+        atomicUpdate: vi.fn(),
+      },
+    };
+
+    beforeEach(() => {
+      mockDatabase.mockResolvedValue(mockDb);
+    });
+
+    it("should increment prompt generation bucket", async () => {
+      const workspaceId = "workspace-123";
+      const subscriptionId = "sub-123";
+      const now = new Date("2024-01-15T14:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const subscription: SubscriptionRecord = {
+        pk: `subscriptions/${subscriptionId}`,
+        userId: "user-123",
+        plan: "free",
+        status: "active",
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockGetWorkspaceSubscription.mockResolvedValue(subscription);
+
+      const createdBucket: RequestBucketRecord = {
+        pk: `request-buckets/${subscriptionId}/prompt-generation/2024-01-15T14:00:00.000Z`,
+        subscriptionId,
+        category: "prompt-generation",
+        categoryHourTimestamp: "prompt-generation#2024-01-15T14:00:00.000Z",
+        hourTimestamp: "2024-01-15T14:00:00.000Z",
+        count: 1,
+        expires: Math.floor(now.getTime() / 1000) + 25 * 60 * 60,
+        version: 1,
+        createdAt: now.toISOString(),
+      };
+
+      mockDb["request-buckets"].atomicUpdate.mockImplementation(
+        async (pk, sk, updater) => {
+          await updater(undefined);
+          return createdBucket;
+        }
+      );
+
+      const result = await incrementPromptGenerationBucket(workspaceId);
+
+      expect(result.category).toBe("prompt-generation");
+      expect(mockDb["request-buckets"].atomicUpdate).toHaveBeenCalledWith(
+        `request-buckets/${subscriptionId}/prompt-generation/2024-01-15T14:00:00.000Z`,
+        undefined,
+        expect.any(Function),
+        { maxRetries: 3 }
+      );
+    });
+
+    it("should throw error if subscription not found", async () => {
+      const workspaceId = "workspace-123";
+
+      mockGetWorkspaceSubscription.mockResolvedValue(null);
+
+      await expect(
+        incrementPromptGenerationBucket(workspaceId)
+      ).rejects.toThrow("Could not find subscription");
     });
   });
 

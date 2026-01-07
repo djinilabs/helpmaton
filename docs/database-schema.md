@@ -453,10 +453,11 @@ All tables are configured with `encrypt true` in `app.arc`, meaning DynamoDB enc
 **Fields**:
 
 - `subscriptionId` (String): Subscription ID for GSI queries
-- `category` (Enum: "llm" | "search" | "fetch"): Request category
+- `category` (Enum: "llm" | "search" | "fetch" | "prompt-generation"): Request category
   - `"llm"`: LLM API requests
   - `"search"`: Web search requests (Tavily search_web tool)
   - `"fetch"`: Web fetch requests (Tavily fetch_url tool)
+  - `"prompt-generation"`: System prompt generation requests (limited to 10 per day for all plans)
 - `hourTimestamp` (String, ISO datetime): ISO timestamp truncated to hour (YYYY-MM-DDTHH:00:00.000Z)
 - `count` (Number, default: 0): Request count for this hour
 - `expires` (Number): TTL timestamp (25 hours from bucket hour)

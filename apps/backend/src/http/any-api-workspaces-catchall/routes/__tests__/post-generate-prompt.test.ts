@@ -14,17 +14,15 @@ import {
 const {
   mockCreateModel,
   mockGenerateText,
-  mockCheckDailyRequestLimit,
-  mockIncrementRequestBucket,
-  mockGetWorkspaceSubscription,
+  mockCheckPromptGenerationLimit,
+  mockIncrementPromptGenerationBucket,
   mockDatabase,
 } = vi.hoisted(() => {
   return {
     mockCreateModel: vi.fn(),
     mockGenerateText: vi.fn(),
-    mockCheckDailyRequestLimit: vi.fn(),
-    mockIncrementRequestBucket: vi.fn(),
-    mockGetWorkspaceSubscription: vi.fn(),
+    mockCheckPromptGenerationLimit: vi.fn(),
+    mockIncrementPromptGenerationBucket: vi.fn(),
     mockDatabase: vi.fn(),
   };
 });
@@ -39,12 +37,8 @@ vi.mock("ai", () => ({
 }));
 
 vi.mock("../../../../utils/requestTracking", () => ({
-  checkDailyRequestLimit: mockCheckDailyRequestLimit,
-  incrementRequestBucket: mockIncrementRequestBucket,
-}));
-
-vi.mock("../../../../utils/subscriptionUtils", () => ({
-  getWorkspaceSubscription: mockGetWorkspaceSubscription,
+  checkPromptGenerationLimit: mockCheckPromptGenerationLimit,
+  incrementPromptGenerationBucket: mockIncrementPromptGenerationBucket,
 }));
 
 vi.mock("../../../../tables", () => ({
@@ -55,14 +49,11 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default mocks
-    mockGetWorkspaceSubscription.mockResolvedValue({
-      pk: "subscriptions/sub-123",
-      sk: "subscription",
-    });
-    mockCheckDailyRequestLimit.mockResolvedValue(undefined);
-    mockIncrementRequestBucket.mockResolvedValue({
-      pk: "llm-request-buckets/sub-123/2024-01-01T00:00:00.000Z",
+    mockCheckPromptGenerationLimit.mockResolvedValue(undefined);
+    mockIncrementPromptGenerationBucket.mockResolvedValue({
+      pk: "request-buckets/sub-123/prompt-generation/2024-01-01T00:00:00.000Z",
       subscriptionId: "sub-123",
+      category: "prompt-generation",
       hourTimestamp: "2024-01-01T00:00:00.000Z",
       count: 1,
     });
@@ -132,14 +123,8 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
             ? `\n\n## Existing System Prompt\n\n${existingSystemPrompt}\n\nPlease build upon or refine this existing prompt based on the goal above.`
             : "";
 
-        // Check daily request limit before LLM call
-        const subscription = await mockGetWorkspaceSubscription(workspaceId);
-        const subscriptionId = subscription
-          ? subscription.pk.replace("subscriptions/", "")
-          : undefined;
-        if (subscriptionId) {
-          await mockCheckDailyRequestLimit(subscriptionId);
-        }
+        // Check prompt generation limit before LLM call
+        await mockCheckPromptGenerationLimit(workspaceId);
 
         // Create model for prompt generation (using Google provider with default model)
         const model = await mockCreateModel(
@@ -182,14 +167,12 @@ Generate only the system prompt text itself, without any additional commentary o
 
         const generatedPrompt = result.text.trim();
 
-        // Track successful LLM request (increment bucket)
-        if (subscriptionId) {
-          try {
-            await mockIncrementRequestBucket(subscriptionId);
-          } catch (error) {
-            // Log error but don't fail the request
-            console.error("Error incrementing request bucket:", error);
-          }
+        // Track successful prompt generation (increment bucket)
+        try {
+          await mockIncrementPromptGenerationBucket(workspaceId);
+        } catch (error) {
+          // Log error but don't fail the request
+          console.error("Error incrementing prompt generation bucket:", error);
         }
 
         res.json({
@@ -226,8 +209,7 @@ Generate only the system prompt text itself, without any additional commentary o
 
     await callRouteHandler(req, res, next);
 
-    expect(mockGetWorkspaceSubscription).toHaveBeenCalledWith("workspace-123");
-    expect(mockCheckDailyRequestLimit).toHaveBeenCalledWith("sub-123");
+    expect(mockCheckPromptGenerationLimit).toHaveBeenCalledWith("workspace-123");
     expect(mockCreateModel).toHaveBeenCalledWith(
       "google",
       undefined,
@@ -248,7 +230,7 @@ Generate only the system prompt text itself, without any additional commentary o
         },
       ],
     });
-    expect(mockIncrementRequestBucket).toHaveBeenCalledWith("sub-123");
+    expect(mockIncrementPromptGenerationBucket).toHaveBeenCalledWith("workspace-123");
     expect(res.json).toHaveBeenCalledWith({
       prompt: mockGenerateTextResult.text.trim(),
     });
@@ -535,10 +517,10 @@ Generate only the system prompt text itself, without any additional commentary o
 
     expect(next).toHaveBeenCalledWith(error);
     // Should not increment bucket on error
-    expect(mockIncrementRequestBucket).not.toHaveBeenCalled();
+    expect(mockIncrementPromptGenerationBucket).not.toHaveBeenCalled();
   });
 
-  it("should check daily request limit before LLM call", async () => {
+  it("should check prompt generation limit before LLM call", async () => {
     const mockModel = { model: "mock-model" };
     mockCreateModel.mockResolvedValue(mockModel);
 
@@ -562,15 +544,12 @@ Generate only the system prompt text itself, without any additional commentary o
     await callRouteHandler(req, res, next);
 
     // Verify order: check limit before creating model
-    expect(mockGetWorkspaceSubscription).toHaveBeenCalledBefore(
-      mockCreateModel as unknown as ReturnType<typeof vi.fn>
-    );
-    expect(mockCheckDailyRequestLimit).toHaveBeenCalledBefore(
+    expect(mockCheckPromptGenerationLimit).toHaveBeenCalledBefore(
       mockCreateModel as unknown as ReturnType<typeof vi.fn>
     );
   });
 
-  it("should increment request bucket after successful LLM call", async () => {
+  it("should increment prompt generation bucket after successful LLM call", async () => {
     const mockModel = { model: "mock-model" };
     mockCreateModel.mockResolvedValue(mockModel);
 
@@ -595,13 +574,15 @@ Generate only the system prompt text itself, without any additional commentary o
 
     // Verify bucket is incremented after successful generation
     expect(mockGenerateText).toHaveBeenCalledBefore(
-      mockIncrementRequestBucket as unknown as ReturnType<typeof vi.fn>
+      mockIncrementPromptGenerationBucket as unknown as ReturnType<typeof vi.fn>
     );
-    expect(mockIncrementRequestBucket).toHaveBeenCalledWith("sub-123");
+    expect(mockIncrementPromptGenerationBucket).toHaveBeenCalledWith("workspace-123");
   });
 
   it("should handle missing subscription gracefully", async () => {
-    mockGetWorkspaceSubscription.mockResolvedValue(null);
+    // checkPromptGenerationLimit will throw if subscription not found
+    const subscriptionError = new Error("Could not find subscription for workspace workspace-123");
+    mockCheckPromptGenerationLimit.mockRejectedValue(subscriptionError);
 
     const mockModel = { model: "mock-model" };
     mockCreateModel.mockResolvedValue(mockModel);
@@ -621,20 +602,15 @@ Generate only the system prompt text itself, without any additional commentary o
     });
 
     const res = createMockResponse();
-    const next = createMockNext();
+    const next = vi.fn();
 
     await callRouteHandler(req, res, next);
 
-    // Should not check limit or increment bucket if no subscription
-    expect(mockCheckDailyRequestLimit).not.toHaveBeenCalled();
-    expect(mockIncrementRequestBucket).not.toHaveBeenCalled();
-    // But should still generate the prompt
-    expect(res.json).toHaveBeenCalledWith({
-      prompt: "Generated prompt",
-    });
+    // Should throw error if subscription not found
+    expect(next).toHaveBeenCalledWith(subscriptionError);
   });
 
-  it("should handle request bucket increment errors gracefully", async () => {
+  it("should handle prompt generation bucket increment errors gracefully", async () => {
     const mockModel = { model: "mock-model" };
     mockCreateModel.mockResolvedValue(mockModel);
 
@@ -644,7 +620,7 @@ Generate only the system prompt text itself, without any additional commentary o
     mockGenerateText.mockResolvedValue(mockGenerateTextResult);
 
     const bucketError = new Error("Failed to increment bucket");
-    mockIncrementRequestBucket.mockRejectedValue(bucketError);
+    mockIncrementPromptGenerationBucket.mockRejectedValue(bucketError);
 
     const req = createMockRequest({
       userRef: "users/user-123",
