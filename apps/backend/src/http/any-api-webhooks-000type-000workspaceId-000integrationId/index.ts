@@ -368,15 +368,69 @@ async function handleSlackWebhook(
     // We prioritize app_mention events and skip message events that contain bot mentions
     // to prevent duplicate responses.
     if (slackEvent.text && slackEvent.channel && slackEvent.user) {
-      // For message events, check if this would have been an app_mention
-      // If the message contains a bot mention, skip it (app_mention will handle it)
-      // Exception: DMs (channel starts with 'D') don't send app_mention events, so we process them
+      // Initialize Slack client early to get bot user ID for mention checking
+      const client = new WebClient(config.botToken);
+
+      // Get or cache bot user ID
+      let botUserId = config.botUserId;
+      if (!botUserId) {
+        try {
+          const authResult = await client.auth.test();
+          if (authResult.ok && authResult.user_id) {
+            botUserId = authResult.user_id;
+            // Update integration config with bot user ID
+            const updatedConfig = {
+              ...config,
+              botUserId,
+            };
+            await db["bot-integration"].update({
+              ...integration,
+              config: updatedConfig,
+            });
+            console.log("[Slack Webhook] Cached bot user ID", { botUserId });
+          } else {
+            console.error(
+              "[Slack Webhook] Failed to get bot user ID",
+              authResult
+            );
+          }
+        } catch (error) {
+          console.error("[Slack Webhook] Error getting bot user ID:", error);
+        }
+      }
+
+      // For message events (not app_mention), only process if:
+      // 1. It's a DM (channel IDs starting with 'D' are DMs), OR
+      // 2. The bot is mentioned in the message
       if (slackEvent.type === "message") {
-        // Check if message contains bot mention before we remove it
-        const hasBotMention = /<@[A-Z0-9]+>/.test(slackEvent.text);
-        // Only skip if it's NOT a DM (channel IDs starting with 'D' are DMs)
         const isDM = slackEvent.channel.startsWith("D");
-        if (hasBotMention && !isDM) {
+        const botMentionPattern = botUserId
+          ? new RegExp(`<@${botUserId}>`)
+          : /<@[A-Z0-9]+>/;
+        const hasBotMention = botMentionPattern.test(slackEvent.text);
+
+        // Skip if it's not a DM and bot is not mentioned
+        if (!isDM && !hasBotMention) {
+          console.log(
+            "[Slack Webhook] Skipping message event - bot not mentioned",
+            {
+              channel: slackEvent.channel,
+              user: slackEvent.user,
+              ts: slackEvent.ts,
+              isDM,
+              hasBotMention,
+            }
+          );
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ ok: true }),
+            headers: { "Content-Type": "application/json" },
+          };
+        }
+
+        // If it's a channel message with bot mention, skip it (app_mention will handle it)
+        // This prevents duplicate responses when both app_mention and message events are sent
+        if (!isDM && hasBotMention) {
           console.log(
             "[Slack Webhook] Skipping message event with bot mention (app_mention will handle it)",
             {
@@ -393,7 +447,7 @@ async function handleSlackWebhook(
         }
       }
 
-      // Process app_mention events and message events without bot mentions (or DMs)
+      // Process app_mention events and message events (DMs or messages with bot mentions)
       if (slackEvent.type === "app_mention" || slackEvent.type === "message") {
         console.log("[Slack Webhook] Processing message event", {
           eventType: slackEvent.type,
@@ -402,37 +456,6 @@ async function handleSlackWebhook(
           textLength: slackEvent.text.length,
           subtype: slackEvent.subtype,
         });
-
-        // Initialize Slack client
-        const client = new WebClient(config.botToken);
-
-        // Get or cache bot user ID
-        let botUserId = config.botUserId;
-        if (!botUserId) {
-          try {
-            const authResult = await client.auth.test();
-            if (authResult.ok && authResult.user_id) {
-              botUserId = authResult.user_id;
-              // Update integration config with bot user ID
-              const updatedConfig = {
-                ...config,
-                botUserId,
-              };
-              await db["bot-integration"].update({
-                ...integration,
-                config: updatedConfig,
-              });
-              console.log("[Slack Webhook] Cached bot user ID", { botUserId });
-            } else {
-              console.error(
-                "[Slack Webhook] Failed to get bot user ID",
-                authResult
-              );
-            }
-          } catch (error) {
-            console.error("[Slack Webhook] Error getting bot user ID:", error);
-          }
-        }
 
         // Skip processing if message is from the bot itself
         // Check both botUserId match and subtype independently so subtype works even if botUserId is unavailable

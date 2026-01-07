@@ -25,10 +25,12 @@ const {
     mockVerifyDiscordSignature: vi.fn(),
     mockPostSlackMessage: vi.fn(),
     mockCreateDiscordDeferredResponse: vi.fn(() => ({ type: 5 })),
-    mockCreateDiscordInteractionResponse: vi.fn((content: string, ephemeral: boolean) => ({
-      type: 4,
-      data: { content, flags: ephemeral ? 64 : undefined },
-    })),
+    mockCreateDiscordInteractionResponse: vi.fn(
+      (content: string, ephemeral: boolean) => ({
+        type: 4,
+        data: { content, flags: ephemeral ? 64 : undefined },
+      })
+    ),
     mockEnqueueBotWebhookTask: vi.fn(),
     mockAdaptHttpHandler: vi.fn((fn) => fn),
     mockHandlingErrors: vi.fn((fn) => fn),
@@ -68,6 +70,16 @@ vi.mock("../../utils/httpEventAdapter", () => ({
 
 vi.mock("../../utils/handlingErrors", () => ({
   handlingErrors: mockHandlingErrors,
+}));
+
+// Mock @slack/web-api
+const mockAuthTest = vi.fn();
+vi.mock("@slack/web-api", () => ({
+  WebClient: class {
+    auth = {
+      test: mockAuthTest,
+    };
+  },
 }));
 
 // Mock @architect/functions for database initialization and queues
@@ -146,6 +158,11 @@ describe("Unified webhook handler", () => {
     });
     mockEnqueueBotWebhookTask.mockResolvedValue(undefined);
     mockQueuesPublish.mockResolvedValue(undefined);
+    // Default WebClient auth.test response (returns bot user ID)
+    mockAuthTest.mockResolvedValue({
+      ok: true,
+      user_id: "BOT123",
+    });
     mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
   });
@@ -181,7 +198,11 @@ describe("Unified webhook handler", () => {
         },
       }) as Parameters<typeof handler>[0];
 
-      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+      const result = await handler(
+        event,
+        {} as Parameters<typeof handler>[1],
+        () => {}
+      );
 
       assertResult(result);
       expect(result.statusCode).toBe(400);
@@ -198,7 +219,11 @@ describe("Unified webhook handler", () => {
         },
       });
 
-      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+      const result = await handler(
+        event,
+        {} as Parameters<typeof handler>[1],
+        () => {}
+      );
 
       assertResult(result);
       expect(result.statusCode).toBe(400);
@@ -215,7 +240,11 @@ describe("Unified webhook handler", () => {
         },
       }) as Parameters<typeof handler>[0];
 
-      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+      const result = await handler(
+        event,
+        {} as Parameters<typeof handler>[1],
+        () => {}
+      );
 
       assertResult(result);
       expect(result.statusCode).toBe(400);
@@ -227,7 +256,11 @@ describe("Unified webhook handler", () => {
       mockDb["bot-integration"].get = vi.fn().mockResolvedValue(null);
 
       const event = createEvent();
-      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+      const result = await handler(
+        event,
+        {} as Parameters<typeof handler>[1],
+        () => {}
+      );
 
       assertResult(result);
       expect(result.statusCode).toBe(404);
@@ -242,14 +275,20 @@ describe("Unified webhook handler", () => {
       });
 
       const event = createEvent();
-      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+      const result = await handler(
+        event,
+        {} as Parameters<typeof handler>[1],
+        () => {}
+      );
 
       assertResult(result);
       expect(result.statusCode).toBe(404);
     });
 
     it("should handle Slack URL verification challenge", async () => {
-      mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockSlackIntegration);
+      mockDb["bot-integration"].get = vi
+        .fn()
+        .mockResolvedValue(mockSlackIntegration);
 
       const challenge = "test-challenge-string";
       const event = createEvent({
@@ -259,7 +298,11 @@ describe("Unified webhook handler", () => {
         }),
       });
 
-      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+      const result = await handler(
+        event,
+        {} as Parameters<typeof handler>[1],
+        () => {}
+      );
 
       assertResult(result);
       expect(result.statusCode).toBe(200);
@@ -268,7 +311,9 @@ describe("Unified webhook handler", () => {
     });
 
     it("should handle Slack app_mention event", async () => {
-      mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockSlackIntegration);
+      mockDb["bot-integration"].get = vi
+        .fn()
+        .mockResolvedValue(mockSlackIntegration);
 
       const event = createEvent({
         body: JSON.stringify({
@@ -283,7 +328,11 @@ describe("Unified webhook handler", () => {
         }),
       });
 
-      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+      const result = await handler(
+        event,
+        {} as Parameters<typeof handler>[1],
+        () => {}
+      );
 
       assertResult(result);
       expect(result.statusCode).toBe(200);
@@ -300,7 +349,9 @@ describe("Unified webhook handler", () => {
     });
 
     it("should skip Slack message event with bot mention (app_mention will handle it)", async () => {
-      mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockSlackIntegration);
+      mockDb["bot-integration"].get = vi
+        .fn()
+        .mockResolvedValue(mockSlackIntegration);
       mockVerifySlackSignature.mockReturnValue(true);
 
       const event = createEvent({
@@ -316,7 +367,11 @@ describe("Unified webhook handler", () => {
         }),
       });
 
-      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+      const result = await handler(
+        event,
+        {} as Parameters<typeof handler>[1],
+        () => {}
+      );
 
       assertResult(result);
       expect(result.statusCode).toBe(200);
@@ -326,9 +381,14 @@ describe("Unified webhook handler", () => {
     });
 
     it("should process Slack message event in DM even with bot mention", async () => {
-      mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockSlackIntegration);
+      mockDb["bot-integration"].get = vi
+        .fn()
+        .mockResolvedValue(mockSlackIntegration);
       mockVerifySlackSignature.mockReturnValue(true);
-      mockPostSlackMessage.mockResolvedValue({ ts: "1234567890.123457", channel: "D123456" });
+      mockPostSlackMessage.mockResolvedValue({
+        ts: "1234567890.123457",
+        channel: "D123456",
+      });
 
       const event = createEvent({
         body: JSON.stringify({
@@ -343,13 +403,56 @@ describe("Unified webhook handler", () => {
         }),
       });
 
-      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+      const result = await handler(
+        event,
+        {} as Parameters<typeof handler>[1],
+        () => {}
+      );
 
       assertResult(result);
       expect(result.statusCode).toBe(200);
       // Should process DM messages even with bot mentions (no app_mention events in DMs)
       expect(mockPostSlackMessage).toHaveBeenCalled();
       expect(mockEnqueueBotWebhookTask).toHaveBeenCalled();
+    });
+
+    it("should skip Slack message event in channel when bot is not mentioned", async () => {
+      const integrationWithBotUserId = {
+        ...mockSlackIntegration,
+        config: {
+          ...mockSlackIntegration.config,
+          botUserId: "BOT123",
+        },
+      };
+      mockDb["bot-integration"].get = vi
+        .fn()
+        .mockResolvedValue(integrationWithBotUserId);
+      mockVerifySlackSignature.mockReturnValue(true);
+
+      const event = createEvent({
+        body: JSON.stringify({
+          type: "event_callback",
+          event: {
+            type: "message",
+            text: "Hello everyone", // No bot mention
+            channel: "C123456", // Channel (not DM)
+            user: "U123456",
+            ts: "1234567890.123456",
+          },
+        }),
+      });
+
+      const result = await handler(
+        event,
+        {} as Parameters<typeof handler>[1],
+        () => {}
+      );
+
+      assertResult(result);
+      expect(result.statusCode).toBe(200);
+      // Should NOT process the message event (bot not mentioned)
+      expect(mockPostSlackMessage).not.toHaveBeenCalled();
+      expect(mockEnqueueBotWebhookTask).not.toHaveBeenCalled();
     });
   });
 
@@ -377,13 +480,19 @@ describe("Unified webhook handler", () => {
     }
 
     it("should handle Discord PING interaction (type 1)", async () => {
-      mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockDiscordIntegration);
+      mockDb["bot-integration"].get = vi
+        .fn()
+        .mockResolvedValue(mockDiscordIntegration);
 
       const event = createDiscordEvent({
         body: JSON.stringify({ type: 1 }),
       });
 
-      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+      const result = await handler(
+        event,
+        {} as Parameters<typeof handler>[1],
+        () => {}
+      );
 
       assertResult(result);
       expect(result.statusCode).toBe(200);
@@ -392,7 +501,9 @@ describe("Unified webhook handler", () => {
     });
 
     it("should handle Discord APPLICATION_COMMAND interaction (type 2)", async () => {
-      mockDb["bot-integration"].get = vi.fn().mockResolvedValue(mockDiscordIntegration);
+      mockDb["bot-integration"].get = vi
+        .fn()
+        .mockResolvedValue(mockDiscordIntegration);
 
       const event = createDiscordEvent({
         body: JSON.stringify({
@@ -411,7 +522,11 @@ describe("Unified webhook handler", () => {
         }),
       });
 
-      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+      const result = await handler(
+        event,
+        {} as Parameters<typeof handler>[1],
+        () => {}
+      );
 
       assertResult(result);
       expect(result.statusCode).toBe(200);
@@ -440,11 +555,14 @@ describe("Unified webhook handler", () => {
       });
 
       const event = createDiscordEvent();
-      const result = await handler(event, {} as Parameters<typeof handler>[1], () => {});
+      const result = await handler(
+        event,
+        {} as Parameters<typeof handler>[1],
+        () => {}
+      );
 
       assertResult(result);
       expect(result.statusCode).toBe(404);
     });
   });
 });
-
