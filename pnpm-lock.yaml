@@ -121,7 +121,7 @@ importers:
         version: 4.0.3
       '@ai-sdk/google':
         specifier: ^2.0.31
-        version: 2.0.52(zod@4.3.4)
+        version: 2.0.52(zod@4.3.5)
       '@architect/functions':
         specifier: ^8.1.6
         version: 8.1.9(patch_hash=f8a8bfced584be6b0b3d8529985c9c19a0ccb0ace405749a7ab137f1b4cae1e5)
@@ -169,7 +169,7 @@ importers:
         version: 0.23.0(apache-arrow@18.1.0)
       '@openrouter/ai-sdk-provider':
         specifier: ^1.0.0
-        version: 1.5.4(ai@5.0.117(zod@4.3.4))(zod@4.3.4)
+        version: 1.5.4(ai@5.0.117(zod@4.3.5))(zod@4.3.5)
       '@sentry/node':
         specifier: ^10.0.0
         version: 10.32.1
@@ -184,7 +184,7 @@ importers:
         version: 4.12.6
       ai:
         specifier: ^5.0.0
-        version: 5.0.117(zod@4.3.4)
+        version: 5.0.117(zod@4.3.5)
       aws-sdk:
         specifier: ^2.1692.0
         version: 2.1693.0
@@ -241,7 +241,7 @@ importers:
         version: 1.0.3
       zod:
         specifier: ^4.0.0
-        version: 4.3.4
+        version: 4.3.5
     devDependencies:
       '@architect/architect':
         specifier: ^12.0.0
@@ -7349,9 +7349,6 @@ packages:
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
-  zod@4.3.4:
-    resolution: {integrity: sha512-Zw/uYiiyF6pUT1qmKbZziChgNPRu+ZRneAsMUDU6IwmXdWt5JwcUfy2bvLOCUtz5UniaN/Zx5aFttZYbYc7O/A==}
-
   zod@4.3.5:
     resolution: {integrity: sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g==}
 
@@ -7375,13 +7372,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@ai-sdk/gateway@2.0.24(zod@4.3.4)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.1
-      '@ai-sdk/provider-utils': 3.0.20(zod@4.3.4)
-      '@vercel/oidc': 3.0.5
-      zod: 4.3.4
-
   '@ai-sdk/gateway@2.0.24(zod@4.3.5)':
     dependencies:
       '@ai-sdk/provider': 2.0.1
@@ -7389,18 +7379,11 @@ snapshots:
       '@vercel/oidc': 3.0.5
       zod: 4.3.5
 
-  '@ai-sdk/google@2.0.52(zod@4.3.4)':
+  '@ai-sdk/google@2.0.52(zod@4.3.5)':
     dependencies:
       '@ai-sdk/provider': 2.0.1
-      '@ai-sdk/provider-utils': 3.0.20(zod@4.3.4)
-      zod: 4.3.4
-
-  '@ai-sdk/provider-utils@3.0.20(zod@4.3.4)':
-    dependencies:
-      '@ai-sdk/provider': 2.0.1
-      '@standard-schema/spec': 1.1.0
-      eventsource-parser: 3.0.6
-      zod: 4.3.4
+      '@ai-sdk/provider-utils': 3.0.20(zod@4.3.5)
+      zod: 4.3.5
 
   '@ai-sdk/provider-utils@3.0.20(zod@4.3.5)':
     dependencies:
@@ -9544,15 +9527,15 @@ snapshots:
     dependencies:
       '@octokit/openapi-types': 27.0.0
 
-  '@openrouter/ai-sdk-provider@1.5.4(ai@5.0.117(zod@4.3.4))(zod@4.3.4)':
+  '@openrouter/ai-sdk-provider@1.5.4(ai@5.0.117(zod@4.3.5))(zod@4.3.5)':
     dependencies:
       '@openrouter/sdk': 0.1.27
-      ai: 5.0.117(zod@4.3.4)
-      zod: 4.3.4
+      ai: 5.0.117(zod@4.3.5)
+      zod: 4.3.5
 
   '@openrouter/sdk@0.1.27':
     dependencies:
-      zod: 4.3.4
+      zod: 4.3.5
 
   '@opentelemetry/api-logs@0.208.0':
     dependencies:
@@ -11325,14 +11308,6 @@ snapshots:
       - supports-color
 
   agent-base@7.1.4: {}
-
-  ai@5.0.117(zod@4.3.4):
-    dependencies:
-      '@ai-sdk/gateway': 2.0.24(zod@4.3.4)
-      '@ai-sdk/provider': 2.0.1
-      '@ai-sdk/provider-utils': 3.0.20(zod@4.3.4)
-      '@opentelemetry/api': 1.9.0
-      zod: 4.3.4
 
   ai@5.0.117(zod@4.3.5):
     dependencies:
@@ -16395,8 +16370,6 @@ snapshots:
       zod: 4.3.5
 
   zod@3.25.76: {}
-
-  zod@4.3.4: {}
 
   zod@4.3.5: {}
 
