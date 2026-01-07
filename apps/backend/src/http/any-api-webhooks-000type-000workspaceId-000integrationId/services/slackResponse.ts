@@ -98,9 +98,14 @@ export async function updateSlackMessage(
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to update Slack message: ${response.error || "Unknown error"}`
-    );
+    const errorMsg = response.error || "Unknown error";
+    // Log the error for debugging
+    console.error("[Slack Response] Failed to update message:", {
+      error: errorMsg,
+      channel,
+      ts,
+    });
+    throw new Error(`Failed to update Slack message: ${errorMsg}`);
   }
 }
 

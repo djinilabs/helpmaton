@@ -51,14 +51,18 @@ export const SlackManifestDisplay: FC<SlackManifestDisplayProps> = ({
           </button>
         </div>
       </div>
-      <div className="rounded-lg bg-yellow-50 p-4 dark:bg-yellow-900/20">
-        <h4 className="mb-2 text-sm font-semibold text-yellow-900 dark:text-yellow-200">
-          ⚠️ Important Note
+      <div className="rounded-lg border-2 border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+        <h4 className="mb-2 text-sm font-bold text-red-900 dark:text-red-200">
+          ⚠️ CRITICAL: Webhook URL Must Be Updated
         </h4>
-        <p className="text-sm text-yellow-800 dark:text-yellow-300">
-          The webhook URL in the manifest contains a placeholder. After creating
-          the integration, you&apos;ll see the real webhook URL and must update it in
-          your Slack app&apos;s Event Subscriptions settings.
+        <p className="mb-2 text-sm text-red-800 dark:text-red-300">
+          The webhook URL in the manifest contains a placeholder (<code className="rounded bg-red-100 px-1 dark:bg-red-900">PLACEHOLDER_INTEGRATION_ID</code>).
+        </p>
+        <p className="mb-2 text-sm text-red-800 dark:text-red-300">
+          <strong>What to expect:</strong> When you create the Slack app from this manifest, Slack will show an error for the webhook URL. This is <strong>EXPECTED and NORMAL</strong>.
+        </p>
+        <p className="text-sm text-red-800 dark:text-red-300">
+          <strong>What you must do:</strong> After creating the integration (step 8), you&apos;ll see the real webhook URL. You <strong>MUST</strong> update it in your Slack app&apos;s &quot;Event Subscriptions&quot; settings, or the bot will not work.
         </p>
       </div>
       <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">

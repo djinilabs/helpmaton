@@ -241,8 +241,18 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
           <div className="space-y-4">
             <div className="rounded-lg bg-green-50 p-4 dark:bg-green-900/20">
               <p className="text-sm text-green-800 dark:text-green-200">
-                ✅ Your Slack integration has been created! Now you need to update
-                the webhook URL in your Slack app settings.
+                ✅ Your Slack integration has been created!
+              </p>
+            </div>
+            <div className="rounded-lg border-2 border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+              <h4 className="mb-2 text-sm font-bold text-red-900 dark:text-red-200">
+                ⚠️ CRITICAL: Update Webhook URL in Slack
+              </h4>
+              <p className="mb-2 text-sm text-red-800 dark:text-red-300">
+                If your Slack app showed an error for the webhook URL when you created it, that was expected. The manifest contained a placeholder URL.
+              </p>
+              <p className="text-sm text-red-800 dark:text-red-300">
+                <strong>You MUST update the webhook URL below in your Slack app settings, or the bot will not work.</strong>
               </p>
             </div>
 

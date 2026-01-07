@@ -57,6 +57,9 @@ async function processDiscordTask(
   // Capture start time for elapsed time calculation
   const startTime = Date.now();
 
+  // Flag to prevent updates after completion/error
+  let isComplete = false;
+
   // Post initial "thinking" message
   try {
     await updateDiscordMessage(
@@ -74,23 +77,37 @@ async function processDiscordTask(
 
   // Helper to update the Discord message with elapsed time
   async function updateDiscordThinkingMessage(): Promise<void> {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    await updateDiscordMessage(
-      safeBotToken,
-      safeApplicationId,
-      safeInteractionToken,
-      `Agent is thinking... (${elapsed}s)`
-    );
+    if (isComplete) {
+      return; // Don't update if already complete
+    }
+    try {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      await updateDiscordMessage(
+        safeBotToken,
+        safeApplicationId,
+        safeInteractionToken,
+        `Agent is thinking... (${elapsed}s)`
+      );
+    } catch (error) {
+      // If update fails, log but don't throw
+      // This prevents the interval from breaking
+      console.error(
+        "[Bot Webhook Queue] Error updating Discord thinking message:",
+        error
+      );
+    }
   }
 
   // Start background task to update message periodically
   const updateInterval = setInterval(() => {
-    updateDiscordThinkingMessage().catch((error) => {
-      console.error(
-        "[Bot Webhook Queue] Error in Discord update interval:",
-        error
-      );
-    });
+    if (!isComplete) {
+      updateDiscordThinkingMessage().catch((error) => {
+        console.error(
+          "[Bot Webhook Queue] Error in Discord update interval:",
+          error
+        );
+      });
+    }
   }, 1500);
 
   try {
@@ -122,7 +139,12 @@ async function processDiscordTask(
       }
     );
 
+    // Stop the interval and mark as complete
     clearInterval(updateInterval);
+    isComplete = true;
+
+    // Wait a bit to ensure any pending interval updates complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Update with complete response
     await updateDiscordMessage(
@@ -138,7 +160,13 @@ async function processDiscordTask(
       lastUsedAt: new Date().toISOString(),
     });
   } catch (error) {
+    // Stop the interval and mark as complete
     clearInterval(updateInterval);
+    isComplete = true;
+
+    // Wait a bit to ensure any pending interval updates complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     // Update with error
     try {
       await updateDiscordMessage(
@@ -204,25 +232,42 @@ async function processSlackTask(
   // Capture start time for elapsed time calculation
   const startTime = Date.now();
 
+  // Flag to prevent updates after completion/error
+  let isComplete = false;
+
   // Helper to update the Slack message with elapsed time
   async function updateSlackThinkingMessage(): Promise<void> {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    await updateSlackMessage(
-      client,
-      safeChannel,
-      safeMessageTs,
-      `Agent is thinking... (${elapsed}s)`
-    );
+    if (isComplete) {
+      return; // Don't update if already complete
+    }
+    try {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      await updateSlackMessage(
+        client,
+        safeChannel,
+        safeMessageTs,
+        `Agent is thinking... (${elapsed}s)`
+      );
+    } catch (error) {
+      // If update fails (e.g., message_not_found), log but don't throw
+      // This prevents the interval from breaking
+      console.error(
+        "[Bot Webhook Queue] Error updating Slack thinking message:",
+        error
+      );
+    }
   }
 
   // Start background task to update message periodically
   const updateInterval = setInterval(() => {
-    updateSlackThinkingMessage().catch((error) => {
-      console.error(
-        "[Bot Webhook Queue] Error in Slack update interval:",
-        error
-      );
-    });
+    if (!isComplete) {
+      updateSlackThinkingMessage().catch((error) => {
+        console.error(
+          "[Bot Webhook Queue] Error in Slack update interval:",
+          error
+        );
+      });
+    }
   }, 1500);
 
   // Get base URL for model referer (used for logging/tracking)
@@ -254,7 +299,12 @@ async function processSlackTask(
       }
     );
 
+    // Stop the interval and mark as complete
     clearInterval(updateInterval);
+    isComplete = true;
+
+    // Wait a bit to ensure any pending interval updates complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Update with complete response
     await updateSlackMessage(
@@ -270,7 +320,13 @@ async function processSlackTask(
       lastUsedAt: new Date().toISOString(),
     });
   } catch (error) {
+    // Stop the interval and mark as complete
     clearInterval(updateInterval);
+    isComplete = true;
+
+    // Wait a bit to ensure any pending interval updates complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
     // Update with error
     try {
       await updateSlackMessage(
