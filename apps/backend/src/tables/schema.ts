@@ -467,7 +467,7 @@ export const tableSchemas = {
     platform: z.enum(["slack", "discord"]), // platform type
     name: z.string(), // user-friendly name for the integration
     config: z.record(z.string(), z.unknown()), // platform-specific config (encrypted)
-    // Slack: { botToken, signingSecret, teamId?, teamName? }
+    // Slack: { botToken, signingSecret, teamId?, teamName?, botUserId?, messageHistoryCount? }
     // Discord: { botToken, publicKey, applicationId? }
     webhookUrl: z.string().url(), // the webhook URL for this integration
     status: z.enum(["active", "inactive", "error"]).default("active"), // integration status

@@ -106,6 +106,22 @@ export const registerPostWorkspaceIntegrations = (app: express.Application) => {
           ) {
             throw badRequest("config.signingSecret is required for Slack");
           }
+          // Validate messageHistoryCount if provided
+          if (config.messageHistoryCount !== undefined) {
+            if (
+              typeof config.messageHistoryCount !== "number" ||
+              !Number.isInteger(config.messageHistoryCount) ||
+              config.messageHistoryCount < 0 ||
+              config.messageHistoryCount > 100
+            ) {
+              throw badRequest(
+                "config.messageHistoryCount must be an integer between 0 and 100"
+              );
+            }
+          } else {
+            // Set default value of 10
+            config.messageHistoryCount = 10;
+          }
         } else if (platform === "discord") {
           if (!config.botToken || typeof config.botToken !== "string") {
             throw badRequest("config.botToken is required for Discord");

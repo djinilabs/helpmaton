@@ -44,6 +44,7 @@ interface SlackEvent {
     user?: string;
     ts?: string;
     thread_ts?: string;
+    subtype?: string;
   };
   challenge?: string;
 }
@@ -241,12 +242,16 @@ async function handleSlackWebhook(
   integration: BotIntegrationRecord,
   integrationId: string
 ): Promise<APIGatewayProxyResultV2> {
+  const db = await database();
+
   // Extract config
   const config = integration.config as {
     botToken: string;
     signingSecret: string;
     teamId?: string;
     teamName?: string;
+    botUserId?: string;
+    messageHistoryCount?: number;
   };
 
   // Parse request body first to check if it's a URL verification challenge
@@ -315,7 +320,58 @@ async function handleSlackWebhook(
         channel: slackEvent.channel,
         user: slackEvent.user,
         textLength: slackEvent.text.length,
+        subtype: slackEvent.subtype,
       });
+
+      // Initialize Slack client
+      const client = new WebClient(config.botToken);
+
+      // Get or cache bot user ID
+      let botUserId = config.botUserId;
+      if (!botUserId) {
+        try {
+          const authResult = await client.auth.test();
+          if (authResult.ok && authResult.user_id) {
+            botUserId = authResult.user_id;
+            // Update integration config with bot user ID
+            const updatedConfig = {
+              ...config,
+              botUserId,
+            };
+            await db["bot-integration"].update({
+              ...integration,
+              config: updatedConfig,
+            });
+            console.log("[Slack Webhook] Cached bot user ID", { botUserId });
+          } else {
+            console.error(
+              "[Slack Webhook] Failed to get bot user ID",
+              authResult
+            );
+          }
+        } catch (error) {
+          console.error("[Slack Webhook] Error getting bot user ID:", error);
+        }
+      }
+
+      // Skip processing if message is from the bot itself
+      // Check both botUserId match and subtype independently so subtype works even if botUserId is unavailable
+      if (
+        (botUserId && slackEvent.user === botUserId) ||
+        slackEvent.subtype === "bot_message"
+      ) {
+        console.log("[Slack Webhook] Skipping bot's own message", {
+          botUserId,
+          messageUser: slackEvent.user,
+          subtype: slackEvent.subtype,
+        });
+        return {
+          statusCode: 200,
+          body: JSON.stringify({ ok: true }),
+          headers: { "Content-Type": "application/json" },
+        };
+      }
+
       // Extract message text (remove bot mention if present)
       let messageText = slackEvent.text.trim();
       // Remove <@BOT_ID> mentions
@@ -328,9 +384,6 @@ async function handleSlackWebhook(
           headers: { "Content-Type": "application/json" },
         };
       }
-
-      // Initialize Slack client
-      const client = new WebClient(config.botToken);
 
       // Post initial "thinking" message (for immediate feedback)
       let initialMessage: { ts: string; channel: string };

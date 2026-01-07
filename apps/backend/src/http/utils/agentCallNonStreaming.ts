@@ -5,6 +5,7 @@ import type {
   GenerateTextResultWithTotalUsage,
   TokenUsage,
 } from "../../utils/conversationLogger";
+import type { UIMessage } from "../../utils/messageTypes";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 import { setupAgentAndTools, type AgentSetupOptions } from "./agentSetup";
@@ -29,6 +30,7 @@ export interface AgentCallNonStreamingOptions {
   conversationOwnerAgentId?: string;
   userId?: string;
   endpointType?: "bridge" | "webhook" | "test" | "stream";
+  conversationHistory?: UIMessage[];
 }
 
 export interface AgentCallNonStreamingResult {
@@ -84,18 +86,22 @@ export async function callAgentNonStreaming(
     },
   };
 
+  // Build conversation history: previous messages + current message
+  const conversationHistory = options?.conversationHistory || [];
+  const uiMessage = convertTextToUIMessage(message);
+  const allMessages = [...conversationHistory, uiMessage];
+
   const { agent, model, tools, usesByok } = await setupAgentAndTools(
     workspaceId,
     agentId,
-    [], // No conversation history for bridge calls
+    allMessages, // Pass conversation history including current message
     setupOptions
   );
 
-  // Convert message to ModelMessage format
-  const uiMessage = convertTextToUIMessage(message);
-  const modelMessages: ModelMessage[] = convertUIMessagesToModelMessages([
-    uiMessage,
-  ]);
+  // Convert messages to ModelMessage format
+  const modelMessages: ModelMessage[] = convertUIMessagesToModelMessages(
+    allMessages
+  );
 
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =

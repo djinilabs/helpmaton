@@ -36,6 +36,7 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
   const [botToken, setBotToken] = useState("");
   const [signingSecret, setSigningSecret] = useState("");
   const [integrationName, setIntegrationName] = useState("");
+  const [messageHistoryCount, setMessageHistoryCount] = useState(10);
   const [manifestData, setManifestData] = useState<Awaited<
     ReturnType<typeof generateSlackManifest>
   > | null>(null);
@@ -87,6 +88,15 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
       return;
     }
 
+    if (
+      messageHistoryCount < 0 ||
+      messageHistoryCount > 100 ||
+      !Number.isInteger(messageHistoryCount)
+    ) {
+      toast.error("Message history count must be between 0 and 100");
+      return;
+    }
+
     try {
       const input: CreateIntegrationInput = {
         platform: "slack",
@@ -95,6 +105,7 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
         config: {
           botToken,
           signingSecret,
+          messageHistoryCount,
         },
       };
       const integration = await createIntegration(workspaceId, input);
@@ -218,6 +229,24 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
               />
               <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                 Found in Slack app settings → &quot;Basic Information&quot; → &quot;App Credentials&quot; → &quot;Signing Secret&quot;
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                Message History Count
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={messageHistoryCount}
+                onChange={(e) =>
+                  setMessageHistoryCount(parseInt(e.target.value, 10) || 0)
+                }
+                className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+              />
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                Number of previous messages to include as context (0-100). Default: 10.
               </p>
             </div>
             <div className="flex gap-2">

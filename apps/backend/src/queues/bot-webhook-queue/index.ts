@@ -10,6 +10,7 @@ import {
   type BotWebhookTaskMessage,
 } from "../../utils/botWebhookQueue";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
+import type { UIMessage } from "../../utils/messageTypes";
 import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
 
 /**
@@ -227,6 +228,15 @@ async function processSlackTask(
     throw new Error(`Integration not found: ${message.integrationId}`);
   }
 
+  const config = integration.config as {
+    botToken: string;
+    signingSecret: string;
+    teamId?: string;
+    teamName?: string;
+    botUserId?: string;
+    messageHistoryCount?: number;
+  };
+
   const client = new WebClient(safeBotToken);
 
   // Capture start time for elapsed time calculation
@@ -285,8 +295,128 @@ async function processSlackTask(
       ? "https://staging-api.helpmaton.com"
       : "http://localhost:3333";
 
+  // Fetch message history if configured
+  let conversationHistory: UIMessage[] = [];
+  const messageHistoryCount = config.messageHistoryCount ?? 10;
+  if (messageHistoryCount > 0) {
+    try {
+      // Get bot user ID if not already cached
+      let botUserId = config.botUserId;
+      if (!botUserId) {
+        const authResult = await client.auth.test();
+        if (authResult.ok && authResult.user_id) {
+          botUserId = authResult.user_id;
+          // Update integration config with bot user ID
+          const updatedConfig = {
+            ...config,
+            botUserId,
+          };
+          await db["bot-integration"].update({
+            ...integration,
+            config: updatedConfig,
+          });
+        }
+      }
+
+      // Fetch conversation history
+      const historyParams: {
+        channel: string;
+        limit: number;
+        latest?: string;
+        oldest?: string;
+      } = {
+        channel: safeChannel,
+        limit: messageHistoryCount,
+        latest: safeMessageTs,
+      };
+
+      // If in a thread, fetch thread history
+      if (threadTs) {
+        const threadHistory = await client.conversations.replies({
+          channel: safeChannel,
+          ts: threadTs,
+          limit: messageHistoryCount + 1, // +1 to account for the thread parent
+        });
+
+        if (threadHistory.ok && threadHistory.messages) {
+          // Filter out the current message, then convert
+          // Include bot messages in history as assistant messages for context
+          const messages = threadHistory.messages
+            .filter((msg) => {
+              // Exclude current message
+              if (msg.ts === safeMessageTs) {
+                return false;
+              }
+              // Exclude messages without text
+              if (!msg.text) {
+                return false;
+              }
+              return true;
+            })
+            .slice(-messageHistoryCount) // Take last N messages
+            .map((msg): UIMessage => {
+              // Determine role: if it's from bot, it's assistant, otherwise user
+              const isBotMessage =
+                (botUserId && msg.user === botUserId) || !!msg.bot_id;
+              const role = isBotMessage ? "assistant" : "user";
+              return {
+                role,
+                content: msg.text || "",
+              };
+            });
+
+          conversationHistory = messages;
+        }
+      } else {
+        // Fetch channel history
+        const channelHistory = await client.conversations.history(historyParams);
+
+        if (channelHistory.ok && channelHistory.messages) {
+          // Filter out the current message, then convert
+          // Include bot messages in history as assistant messages for context
+          const messages = channelHistory.messages
+            .filter((msg) => {
+              // Exclude current message
+              if (msg.ts === safeMessageTs) {
+                return false;
+              }
+              // Exclude messages without text
+              if (!msg.text) {
+                return false;
+              }
+              // Exclude thread replies (we only want top-level messages)
+              if (msg.thread_ts && msg.thread_ts !== msg.ts) {
+                return false;
+              }
+              return true;
+            })
+            .slice(0, messageHistoryCount) // Take first N messages (they're in reverse chronological order)
+            .reverse() // Reverse to get chronological order (oldest first)
+            .map((msg): UIMessage => {
+              // Determine role: if it's from bot, it's assistant, otherwise user
+              const isBotMessage =
+                (botUserId && msg.user === botUserId) || !!msg.bot_id;
+              const role = isBotMessage ? "assistant" : "user";
+              return {
+                role,
+                content: msg.text || "",
+              };
+            });
+
+          conversationHistory = messages;
+        }
+      }
+    } catch (error) {
+      // Log error but continue without history
+      console.error(
+        "[Bot Webhook Queue] Error fetching message history:",
+        error
+      );
+    }
+  }
+
   try {
-    // Call agent
+    // Call agent with conversation history
     const agentResult = await callAgentNonStreaming(
       workspaceId,
       agentId,
@@ -296,6 +426,7 @@ async function processSlackTask(
         conversationId: conversationId || threadTs || messageTs,
         context,
         endpointType: "webhook",
+        conversationHistory,
       }
     );
 

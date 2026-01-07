@@ -2084,6 +2084,7 @@ export interface CreateIntegrationInput {
     signingSecret?: string;
     teamId?: string;
     teamName?: string;
+    messageHistoryCount?: number;
     // Discord
     publicKey?: string;
     applicationId?: string;
