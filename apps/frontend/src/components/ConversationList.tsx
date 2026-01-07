@@ -1,5 +1,5 @@
 import { ClockIcon } from "@heroicons/react/24/outline";
-import { useEffect, type FC } from "react";
+import { useEffect, useMemo, type FC } from "react";
 
 import { useAgentConversations } from "../hooks/useAgentConversations";
 import type { Conversation } from "../utils/api";
@@ -33,7 +33,10 @@ export const ConversationList: FC<ConversationListProps> = ({
   } = useAgentConversations(workspaceId, agentId, 50);
 
   // Flatten all conversations from all pages
-  const conversations = data?.pages.flatMap((page) => page.conversations) ?? [];
+  const conversations = useMemo(
+    () => data?.pages.flatMap((page) => page.conversations) ?? [],
+    [data]
+  );
 
   // Track conversation list viewing
   useEffect(() => {

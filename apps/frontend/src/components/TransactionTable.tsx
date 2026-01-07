@@ -1,6 +1,6 @@
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import type { FC } from "react";
-import { lazy, Suspense, useState, useEffect } from "react";
+import { lazy, Suspense, useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 
 import {
@@ -54,12 +54,15 @@ export const TransactionTable: FC<TransactionTableProps> = ({
   } = query;
 
   // Flatten all transactions from all pages
-  const transactions =
-    (data && "pages" in data
-      ? data.pages.flatMap(
-          (page: { transactions: Transaction[] }) => page.transactions
-        )
-      : []) ?? [];
+  const transactions = useMemo(
+    () =>
+      (data && "pages" in data
+        ? data.pages.flatMap(
+            (page: { transactions: Transaction[] }) => page.transactions
+          )
+        : []) ?? [],
+    [data]
+  );
 
   // Track transaction viewing
   useEffect(() => {

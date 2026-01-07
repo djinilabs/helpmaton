@@ -5,6 +5,8 @@ import {
   CreateUsagePlanKeyCommand,
   DeleteUsagePlanKeyCommand,
   GetUsagePlansCommand,
+  GetUsagePlanCommand,
+  UpdateUsagePlanCommand,
   GetApiKeyCommand,
   UpdateApiKeyCommand,
 } from "@aws-sdk/client-api-gateway";
@@ -37,6 +39,45 @@ function getUsagePlanCacheKey(plan: "free" | "starter" | "pro"): string {
 function getApiGatewayClient(): APIGatewayClient {
   const region = process.env.AWS_REGION || "eu-west-2";
   return new APIGatewayClient({ region });
+}
+
+/**
+ * Get REST API ID from environment variable or CloudFormation stack
+ * @returns REST API ID
+ */
+async function getRestApiId(): Promise<string> {
+  // First check environment variable
+  const restApiId = process.env.API_GATEWAY_REST_API_ID;
+  if (restApiId) {
+    console.log(
+      `[apiGatewayUsagePlans] Using REST API ID from environment variable: ${restApiId}`
+    );
+    return restApiId;
+  }
+
+  // Fallback: Try to get from CloudFormation stack
+  // This would require CloudFormation client, but for now we'll throw an error
+  // The environment variable should be set by the plugin
+  throw new Error(
+    "REST_API_ID not found. Set API_GATEWAY_REST_API_ID environment variable."
+  );
+}
+
+/**
+ * Get API stage name from environment variable
+ * @returns Stage name (e.g., "staging", "production")
+ */
+function getApiStageName(): string {
+  // Check environment variables in order of preference
+  const stageName =
+    process.env.ARC_ENV ||
+    process.env.ARC_STAGE ||
+    process.env.ARC_DEPLOY ||
+    process.env.API_STAGE_NAME ||
+    "staging";
+
+  console.log(`[apiGatewayUsagePlans] Using API stage name: ${stageName}`);
+  return stageName;
 }
 
 /**
@@ -122,11 +163,13 @@ async function getUsagePlanId(
 /**
  * Get or create API key for a subscription
  * @param subscriptionId - Subscription ID (without "subscriptions/" prefix)
- * @returns API key ID
+ * @param includeValue - Whether to return the API key value (only available on creation or with includeValue: true)
+ * @returns API key ID, or object with both ID and value if includeValue is true
  */
 export async function getOrCreateApiKeyForSubscription(
-  subscriptionId: string
-): Promise<string> {
+  subscriptionId: string,
+  includeValue: boolean = false
+): Promise<string | { id: string; value: string | undefined }> {
   // Get stack name to make API key names unique per stack
   // This prevents conflicts when multiple stacks run in the same AWS account
   const stackName =
@@ -160,6 +203,31 @@ export async function getOrCreateApiKeyForSubscription(
             console.log(
               `[apiGatewayUsagePlans] Found existing enabled API key for subscription ${subscriptionId}: ${matchingKey.id}`
             );
+            if (includeValue) {
+              // Try to get the value (may not be available for existing keys)
+              try {
+                const getKeyWithValueCommand = new GetApiKeyCommand({
+                  apiKey: matchingKey.id,
+                  includeValue: true,
+                });
+                const keyWithValue = await apiGateway.send(
+                  getKeyWithValueCommand
+                );
+                return {
+                  id: matchingKey.id,
+                  value: keyWithValue.value || undefined,
+                };
+              } catch {
+                // Value not available for existing keys (only on creation)
+                console.warn(
+                  `[apiGatewayUsagePlans] Could not retrieve API key value for existing key ${matchingKey.id}`
+                );
+                return {
+                  id: matchingKey.id,
+                  value: undefined,
+                };
+              }
+            }
             return matchingKey.id;
           } else {
             // Key exists but is disabled - enable it
@@ -182,6 +250,27 @@ export async function getOrCreateApiKeyForSubscription(
             console.log(
               `[apiGatewayUsagePlans] Successfully enabled API key ${matchingKey.id} for subscription ${subscriptionId}`
             );
+            if (includeValue) {
+              // Try to get the value (may not be available)
+              try {
+                const getKeyWithValueCommand = new GetApiKeyCommand({
+                  apiKey: matchingKey.id,
+                  includeValue: true,
+                });
+                const keyWithValue = await apiGateway.send(
+                  getKeyWithValueCommand
+                );
+                return {
+                  id: matchingKey.id,
+                  value: keyWithValue.value || undefined,
+                };
+              } catch {
+                return {
+                  id: matchingKey.id,
+                  value: undefined,
+                };
+              }
+            }
             return matchingKey.id;
           }
         } catch (keyError) {
@@ -223,6 +312,12 @@ export async function getOrCreateApiKeyForSubscription(
       `[apiGatewayUsagePlans] Created API key ${createResponse.id} for subscription ${subscriptionId}`
     );
 
+    if (includeValue) {
+      return {
+        id: createResponse.id,
+        value: createResponse.value || undefined,
+      };
+    }
     return createResponse.id;
   } catch (error) {
     console.error(
@@ -230,6 +325,168 @@ export async function getOrCreateApiKeyForSubscription(
       error
     );
     throw error;
+  }
+}
+
+/**
+ * Ensure usage plan is associated with the API stage
+ * @param usagePlanId - Usage plan ID
+ * @param restApiId - REST API ID
+ * @param stageName - API stage name
+ */
+async function ensureUsagePlanHasApiStage(
+  usagePlanId: string,
+  restApiId: string,
+  stageName: string
+): Promise<void> {
+  const apiGateway = getApiGatewayClient();
+
+  try {
+    // Get the usage plan to check its current API stages
+    const getPlanCommand = new GetUsagePlanCommand({
+      usagePlanId,
+    });
+    const usagePlan = await apiGateway.send(getPlanCommand);
+
+    // Check if the API stage is already associated
+    const apiStages = usagePlan.apiStages || [];
+    const hasStage = apiStages.some(
+      (stage) => stage.apiId === restApiId && stage.stage === stageName
+    );
+
+    if (hasStage) {
+      console.log(
+        `[apiGatewayUsagePlans] Usage plan ${usagePlanId} already has API stage ${restApiId}/${stageName}`
+      );
+      return;
+    }
+
+    // Add the API stage to the usage plan
+    console.log(
+      `[apiGatewayUsagePlans] Adding API stage ${restApiId}/${stageName} to usage plan ${usagePlanId}`
+    );
+
+    // AWS API Gateway requires the format "apiId:stageName" (colon-separated string) for add operations
+    const stageValue = `${restApiId}:${stageName}`;
+
+    const updateCommand = new UpdateUsagePlanCommand({
+      usagePlanId,
+      patchOperations: [
+        {
+          op: "add",
+          path: "/apiStages",
+          value: stageValue,
+        },
+      ],
+    });
+
+    await apiGateway.send(updateCommand);
+
+    console.log(
+      `[apiGatewayUsagePlans] Successfully associated usage plan ${usagePlanId} with API stage ${restApiId}/${stageName}`
+    );
+  } catch (error) {
+    console.error(
+      `[apiGatewayUsagePlans] Error ensuring usage plan ${usagePlanId} has API stage:`,
+      error
+    );
+    // Log warning but don't fail - this is defense in depth
+    console.warn(
+      `[apiGatewayUsagePlans] Continuing despite error (usage plan may already be associated)`
+    );
+  }
+}
+
+/**
+ * Verify API key works by making a canary request
+ * @param subscriptionId - Subscription ID (for getting user info)
+ * @returns true if request succeeds, false otherwise
+ */
+async function verifyApiKeyWithCanaryRequest(
+  subscriptionId: string
+): Promise<boolean> {
+  // Skip in local/test environments
+  const isLocal =
+    process.env.ARC_ENV === "testing" || process.env.NODE_ENV === "test";
+  if (isLocal) {
+    console.log(
+      `[apiGatewayUsagePlans] Skipping canary request in local/test environment`
+    );
+    return true;
+  }
+
+  try {
+    // Get subscription to get userId for generating JWT token
+    const { getSubscriptionById } = await import("./subscriptionUtils");
+    const subscription = await getSubscriptionById(subscriptionId);
+
+    if (!subscription || !subscription.userId) {
+      console.warn(
+        `[apiGatewayUsagePlans] Cannot verify API key: subscription ${subscriptionId} not found or has no userId`
+      );
+      return false;
+    }
+
+    // Get user email for JWT token
+    const { getUserEmailById } = await import("./subscriptionUtils");
+    const userEmail = await getUserEmailById(subscription.userId);
+
+    if (!userEmail) {
+      console.warn(
+        `[apiGatewayUsagePlans] Cannot verify API key: user ${subscription.userId} has no email`
+      );
+      return false;
+    }
+
+    // Generate a temporary JWT token for the canary request
+    const { generateAccessToken } = await import("./tokenUtils");
+    const bearerToken = await generateAccessToken(
+      subscription.userId,
+      userEmail
+    );
+
+    // Get base URL
+    const baseUrl = process.env.BASE_URL || "https://app.helpmaton.com";
+    const url = `${baseUrl.replace(/\/+$/, "")}/api/workspaces`;
+
+    console.log(
+      `[apiGatewayUsagePlans] Making canary request to ${url} to verify API key for subscription ${subscriptionId}`
+    );
+
+    // Make the canary request
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${bearerToken}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const statusCode = response.status;
+
+    if (statusCode >= 200 && statusCode < 300) {
+      console.log(
+        `[apiGatewayUsagePlans] Canary request succeeded (${statusCode}) - API key is properly associated`
+      );
+      return true;
+    } else if (statusCode === 403) {
+      console.warn(
+        `[apiGatewayUsagePlans] Canary request returned 403 - API key may not be properly associated with usage plan/stage`
+      );
+      return false;
+    } else {
+      console.warn(
+        `[apiGatewayUsagePlans] Canary request returned ${statusCode} - unexpected status`
+      );
+      return false;
+    }
+  } catch (error) {
+    console.error(
+      `[apiGatewayUsagePlans] Error making canary request for subscription ${subscriptionId}:`,
+      error instanceof Error ? error.message : String(error)
+    );
+    // Return false on error, but don't throw - this is defense in depth
+    return false;
   }
 }
 
@@ -259,10 +516,28 @@ export async function associateSubscriptionWithPlan(
 
   try {
     // Get or create API key for subscription
-    const apiKeyId = await getOrCreateApiKeyForSubscription(subscriptionId);
+    const apiKeyResult = await getOrCreateApiKeyForSubscription(
+      subscriptionId,
+      false
+    );
+    const apiKeyId =
+      typeof apiKeyResult === "string" ? apiKeyResult : apiKeyResult.id;
 
     // Get usage plan ID for the target plan
     const usagePlanId = await getUsagePlanId(plan);
+
+    // Ensure usage plan is associated with the API stage
+    try {
+      const restApiId = await getRestApiId();
+      const stageName = getApiStageName();
+      await ensureUsagePlanHasApiStage(usagePlanId, restApiId, stageName);
+    } catch (stageError) {
+      // Log warning but don't fail - this is defense in depth
+      console.warn(
+        `[apiGatewayUsagePlans] Could not ensure usage plan has API stage:`,
+        stageError instanceof Error ? stageError.message : String(stageError)
+      );
+    }
 
     // STEP 1: Create new association FIRST (before deleting old ones)
     // This ensures the key is always associated with at least one plan
@@ -349,6 +624,33 @@ export async function associateSubscriptionWithPlan(
     console.log(
       `[apiGatewayUsagePlans] Successfully updated subscription ${subscriptionId} (API key ${apiKeyId}) to ${plan} plan (${usagePlanId})`
     );
+
+    // Verify the API key works with a canary request
+    try {
+      const canarySuccess = await verifyApiKeyWithCanaryRequest(subscriptionId);
+      if (!canarySuccess) {
+        console.warn(
+          `[apiGatewayUsagePlans] Canary request failed for subscription ${subscriptionId} - API key may need time to propagate`
+        );
+      }
+    } catch (canaryError) {
+      // Log warning but don't fail - this is defense in depth
+      console.warn(
+        `[apiGatewayUsagePlans] Error during canary request verification:`,
+        canaryError instanceof Error ? canaryError.message : String(canaryError)
+      );
+    }
+
+    // Wait 3 seconds for API Gateway propagation (only in non-local environments)
+    if (!isLocal) {
+      console.log(
+        `[apiGatewayUsagePlans] Waiting 3 seconds for API Gateway propagation...`
+      );
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      console.log(
+        `[apiGatewayUsagePlans] Finished waiting for API Gateway propagation`
+      );
+    }
 
     // Return the API key ID so it can be stored in the subscription record
     return apiKeyId;
