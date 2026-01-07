@@ -1,0 +1,727 @@
+import { WebClient } from "@slack/web-api";
+import type {
+  APIGatewayProxyEventV2,
+  APIGatewayProxyResultV2,
+} from "aws-lambda";
+
+import { database } from "../../tables";
+import type { BotIntegrationRecord } from "../../tables/schema";
+import { enqueueBotWebhookTask } from "../../utils/botWebhookQueue";
+import { handlingErrors } from "../../utils/handlingErrors";
+import { adaptHttpHandler } from "../../utils/httpEventAdapter";
+import { trackEvent } from "../../utils/tracking";
+
+import {
+  createDiscordDeferredResponse,
+  createDiscordInteractionResponse,
+} from "./services/discordResponse";
+import { verifyDiscordSignature } from "./services/discordVerification";
+import { postSlackMessage } from "./services/slackResponse";
+import { verifySlackSignature } from "./services/slackVerification";
+
+/**
+ * Decodes the request body if it's base64 encoded by API Gateway
+ * Returns the decoded body as a string, ready for JSON parsing or signature verification
+ */
+function decodeRequestBody(event: APIGatewayProxyEventV2): string {
+  let body = event.body || "";
+  if (event.isBase64Encoded && body) {
+    try {
+      body = Buffer.from(body, "base64").toString("utf8");
+    } catch (error) {
+      console.error("Failed to decode base64 body:", error);
+      return "";
+    }
+  }
+  return body;
+}
+
+interface SlackEvent {
+  type: string;
+  event?: {
+    type: string;
+    text?: string;
+    channel?: string;
+    user?: string;
+    ts?: string;
+    thread_ts?: string;
+    subtype?: string;
+  };
+  challenge?: string;
+}
+
+interface DiscordInteraction {
+  type: number;
+  data?: {
+    name?: string;
+    options?: Array<{
+      name: string;
+      value: string;
+    }>;
+  };
+  token?: string;
+  member?: {
+    user?: {
+      id: string;
+      username: string;
+    };
+  };
+  user?: {
+    id: string;
+    username: string;
+  };
+  channel_id?: string;
+  guild_id?: string;
+}
+
+export const handler = adaptHttpHandler(
+  handlingErrors(
+    async (event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> => {
+      // Extract type, workspaceId and integrationId from path parameters
+      const type = event.pathParameters?.type;
+      const workspaceId = event.pathParameters?.workspaceId;
+      const integrationId = event.pathParameters?.integrationId;
+
+      if (!type || !workspaceId || !integrationId) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({
+            error: "Missing type, workspaceId or integrationId",
+          }),
+          headers: { "Content-Type": "application/json" },
+        };
+      }
+
+      // Validate type parameter
+      if (type !== "slack" && type !== "discord") {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({
+            error: "Invalid type. Must be 'slack' or 'discord'",
+          }),
+          headers: { "Content-Type": "application/json" },
+        };
+      }
+
+      // Track webhook received
+      const bodyText = decodeRequestBody(event);
+      let eventType = "unknown";
+      try {
+        const parsedBody = JSON.parse(bodyText);
+        if (type === "slack") {
+          eventType = parsedBody.type || parsedBody.event?.type || "unknown";
+        } else if (type === "discord") {
+          eventType =
+            parsedBody.type === 1
+              ? "ping"
+              : parsedBody.type === 2
+              ? "interaction"
+              : "unknown";
+        }
+      } catch {
+        // Ignore parse errors for tracking
+      }
+
+      trackEvent("bot_webhook_received", {
+        workspace_id: workspaceId,
+        integration_id: integrationId,
+        platform: type,
+        event_type: eventType,
+      });
+
+      // For Discord, handle PING (type 1) requests early for endpoint verification
+      // Discord sends PING requests during endpoint verification, and these must be handled
+      // even if the integration doesn't exist yet or isn't active
+      if (type === "discord") {
+        const bodyText = decodeRequestBody(event);
+        let body: DiscordInteraction | undefined;
+        try {
+          body = JSON.parse(bodyText);
+        } catch {
+          // If we can't parse the body, continue to normal flow which will return an error
+          body = undefined;
+        }
+
+        // If it's a PING request, handle it immediately
+        if (body && body.type === 1) {
+          const db = await database();
+          const integrationPk = `bot-integrations/${workspaceId}/${integrationId}`;
+          const integration = await db["bot-integration"].get(
+            integrationPk,
+            "integration"
+          );
+
+          // If integration exists, verify platform matches and signature
+          if (integration) {
+            if (integration.platform !== "discord") {
+              // Integration exists but platform doesn't match - return 404
+              return {
+                statusCode: 404,
+                body: JSON.stringify({ error: "Integration not found" }),
+                headers: { "Content-Type": "application/json" },
+              };
+            }
+
+            // Integration exists and platform matches - verify signature is required
+            const config = integration.config as {
+              botToken?: string;
+              publicKey?: string;
+              applicationId?: string;
+            };
+            if (config.publicKey) {
+              const signatureValid = verifyDiscordSignature(
+                event,
+                config.publicKey
+              );
+              if (!signatureValid) {
+                // Discord requires signature verification to pass for endpoint verification
+                console.warn(
+                  "Discord PING received but signature verification failed"
+                );
+                trackEvent("bot_webhook_verification_failed", {
+                  workspace_id: workspaceId,
+                  integration_id: integrationId,
+                  platform: "discord",
+                  event_type: "ping",
+                });
+                return {
+                  statusCode: 401,
+                  body: JSON.stringify({ error: "Invalid signature" }),
+                  headers: { "Content-Type": "application/json" },
+                };
+              } else {
+                trackEvent("bot_webhook_verified", {
+                  workspace_id: workspaceId,
+                  integration_id: integrationId,
+                  platform: "discord",
+                  event_type: "ping",
+                });
+              }
+            } else {
+              // Integration exists but no public key - this shouldn't happen
+              console.error(
+                "Discord PING received but integration missing public key"
+              );
+              return {
+                statusCode: 500,
+                body: JSON.stringify({
+                  error: "Integration configuration error",
+                }),
+                headers: { "Content-Type": "application/json" },
+              };
+            }
+          } else {
+            // Integration doesn't exist - Discord requires signature verification
+            // We can't verify without the public key, so return 404
+            // The integration must exist before Discord can verify the endpoint
+            console.warn(
+              "Discord PING received but integration not found - integration must exist for verification"
+            );
+            return {
+              statusCode: 404,
+              body: JSON.stringify({ error: "Integration not found" }),
+              headers: { "Content-Type": "application/json" },
+            };
+          }
+
+          // Return PONG for PING requests with valid signature
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ type: 1 }),
+            headers: { "Content-Type": "application/json" },
+          };
+        }
+      }
+
+      const db = await database();
+
+      const integrationPk = `bot-integrations/${workspaceId}/${integrationId}`;
+      const integration = await db["bot-integration"].get(
+        integrationPk,
+        "integration"
+      );
+
+      if (!integration || integration.platform !== type) {
+        return {
+          statusCode: 404,
+          body: JSON.stringify({ error: "Integration not found" }),
+          headers: { "Content-Type": "application/json" },
+        };
+      }
+
+      if (integration.status !== "active") {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ error: "Integration is not active" }),
+          headers: { "Content-Type": "application/json" },
+        };
+      }
+
+      // Route to platform-specific handlers
+      if (type === "slack") {
+        console.log("[Webhook Handler] Routing to Slack handler", {
+          workspaceId,
+          integrationId,
+          hasBody: !!event.body,
+          bodyLength: event.body?.length || 0,
+          headers: Object.keys(event.headers || {}),
+        });
+        return handleSlackWebhook(event, integration, integrationId);
+      } else {
+        return handleDiscordWebhook(event, integration, integrationId);
+      }
+    }
+  )
+);
+
+/**
+ * Handle Slack webhook events
+ */
+async function handleSlackWebhook(
+  event: APIGatewayProxyEventV2,
+  integration: BotIntegrationRecord,
+  integrationId: string
+): Promise<APIGatewayProxyResultV2> {
+  const db = await database();
+
+  // Extract config
+  const config = integration.config as {
+    botToken: string;
+    signingSecret: string;
+    teamId?: string;
+    teamName?: string;
+    botUserId?: string;
+    messageHistoryCount?: number;
+  };
+
+  // Parse request body first to check if it's a URL verification challenge
+  // URL verification challenges must be handled even if signature verification fails
+  // (similar to Discord's PING handling)
+  const bodyText = decodeRequestBody(event);
+  let body: SlackEvent;
+  try {
+    body = JSON.parse(bodyText);
+  } catch {
+    // If we can't parse the body, continue to signature verification which will fail
+    body = {} as SlackEvent;
+  }
+
+  // Handle URL verification challenge BEFORE signature verification
+  // Slack sends URL verification when you update the webhook URL
+  // This must succeed for Slack to accept the endpoint
+  if (body.type === "url_verification" && body.challenge) {
+    console.log("[Slack Webhook] URL verification challenge received", {
+      challenge: body.challenge,
+    });
+    // Still verify signature if possible, but don't fail on URL verification
+    const signatureValid = verifySlackSignature(event, config.signingSecret);
+    if (!signatureValid) {
+      console.warn(
+        "Slack URL verification received but signature verification failed - allowing for endpoint verification"
+      );
+    } else {
+      console.log("[Slack Webhook] URL verification signature valid");
+    }
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ challenge: body.challenge }),
+      headers: { "Content-Type": "application/json" },
+    };
+  }
+
+  // For all other requests, verify signature
+  const signatureValid = verifySlackSignature(event, config.signingSecret);
+  if (!signatureValid) {
+    trackEvent("bot_webhook_verification_failed", {
+      workspace_id: integration.workspaceId,
+      integration_id: integrationId,
+      platform: "slack",
+      event_type: body.type || "unknown",
+    });
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: "Invalid signature" }),
+      headers: { "Content-Type": "application/json" },
+    };
+  }
+
+  // Track successful verification
+  trackEvent("bot_webhook_verified", {
+    workspace_id: integration.workspaceId,
+    integration_id: integrationId,
+    platform: "slack",
+    event_type: body.type || "unknown",
+  });
+
+  // Handle event callback
+  if (body.type === "event_callback" && body.event) {
+    const slackEvent = body.event;
+    console.log("[Slack Webhook] Event callback received", {
+      eventType: slackEvent.type,
+      hasText: !!slackEvent.text,
+      hasChannel: !!slackEvent.channel,
+      hasUser: !!slackEvent.user,
+    });
+
+    // Handle app_mention and message events
+    // IMPORTANT: When a bot is mentioned, Slack sends BOTH app_mention and message events.
+    // We prioritize app_mention events and skip message events that contain bot mentions
+    // to prevent duplicate responses.
+    if (slackEvent.text && slackEvent.channel && slackEvent.user) {
+      // Initialize Slack client early to get bot user ID for mention checking
+      const client = new WebClient(config.botToken);
+
+      // Get or cache bot user ID
+      let botUserId = config.botUserId;
+      if (!botUserId) {
+        try {
+          const authResult = await client.auth.test();
+          if (authResult.ok && authResult.user_id) {
+            botUserId = authResult.user_id;
+            // Update integration config with bot user ID
+            const updatedConfig = {
+              ...config,
+              botUserId,
+            };
+            await db["bot-integration"].update({
+              ...integration,
+              config: updatedConfig,
+            });
+            console.log("[Slack Webhook] Cached bot user ID", { botUserId });
+          } else {
+            console.error(
+              "[Slack Webhook] Failed to get bot user ID",
+              authResult
+            );
+          }
+        } catch (error) {
+          console.error("[Slack Webhook] Error getting bot user ID:", error);
+        }
+      }
+
+      // For message events (not app_mention), only process if:
+      // 1. It's a DM (channel IDs starting with 'D' are DMs), OR
+      // 2. The bot is mentioned in the message
+      if (slackEvent.type === "message") {
+        const isDM = slackEvent.channel.startsWith("D");
+        const botMentionPattern = botUserId
+          ? new RegExp(`<@${botUserId}>`)
+          : /<@[A-Z0-9]+>/;
+        const hasBotMention = botMentionPattern.test(slackEvent.text);
+
+        // Skip if it's not a DM and bot is not mentioned
+        if (!isDM && !hasBotMention) {
+          console.log(
+            "[Slack Webhook] Skipping message event - bot not mentioned",
+            {
+              channel: slackEvent.channel,
+              user: slackEvent.user,
+              ts: slackEvent.ts,
+              isDM,
+              hasBotMention,
+            }
+          );
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ ok: true }),
+            headers: { "Content-Type": "application/json" },
+          };
+        }
+
+        // If it's a channel message with bot mention, skip it (app_mention will handle it)
+        // This prevents duplicate responses when both app_mention and message events are sent
+        if (!isDM && hasBotMention) {
+          console.log(
+            "[Slack Webhook] Skipping message event with bot mention (app_mention will handle it)",
+            {
+              channel: slackEvent.channel,
+              user: slackEvent.user,
+              ts: slackEvent.ts,
+            }
+          );
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ ok: true }),
+            headers: { "Content-Type": "application/json" },
+          };
+        }
+      }
+
+      // Process app_mention events and message events (DMs or messages with bot mentions)
+      if (slackEvent.type === "app_mention" || slackEvent.type === "message") {
+        console.log("[Slack Webhook] Processing message event", {
+          eventType: slackEvent.type,
+          channel: slackEvent.channel,
+          user: slackEvent.user,
+          textLength: slackEvent.text.length,
+          subtype: slackEvent.subtype,
+        });
+
+        // Skip processing if message is from the bot itself
+        // Check both botUserId match and subtype independently so subtype works even if botUserId is unavailable
+        if (
+          (botUserId && slackEvent.user === botUserId) ||
+          slackEvent.subtype === "bot_message"
+        ) {
+          console.log("[Slack Webhook] Skipping bot's own message", {
+            botUserId,
+            messageUser: slackEvent.user,
+            subtype: slackEvent.subtype,
+          });
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ ok: true }),
+            headers: { "Content-Type": "application/json" },
+          };
+        }
+
+        // Extract message text (remove bot mention if present)
+        let messageText = slackEvent.text.trim();
+        // Remove <@BOT_ID> mentions
+        messageText = messageText.replace(/<@[A-Z0-9]+>/g, "").trim();
+
+        if (!messageText) {
+          return {
+            statusCode: 200,
+            body: JSON.stringify({ ok: true }),
+            headers: { "Content-Type": "application/json" },
+          };
+        }
+
+        // Post initial "thinking" message (for immediate feedback)
+        let initialMessage: { ts: string; channel: string };
+        try {
+          initialMessage = await postSlackMessage(
+            client,
+            slackEvent.channel,
+            "Agent is thinking...",
+            slackEvent.thread_ts
+          );
+        } catch (error) {
+          console.error(
+            "[Slack Webhook] Error posting initial message:",
+            error
+          );
+          // If we can't post the initial message, we can't proceed
+          // Return error response
+          return {
+            statusCode: 500,
+            body: JSON.stringify({
+              ok: false,
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Failed to post message",
+            }),
+            headers: { "Content-Type": "application/json" },
+          };
+        }
+
+        // Enqueue task for async processing
+        try {
+          await enqueueBotWebhookTask(
+            "slack",
+            integrationId,
+            integration.workspaceId,
+            integration.agentId,
+            messageText,
+            {
+              botToken: config.botToken,
+              channel: slackEvent.channel,
+              messageTs: initialMessage.ts,
+              threadTs: slackEvent.thread_ts,
+            },
+            slackEvent.thread_ts || slackEvent.ts
+          );
+        } catch (error) {
+          console.error("[Slack Webhook] Error enqueueing task:", error);
+          // Update message with error
+          try {
+            await postSlackMessage(
+              client,
+              slackEvent.channel,
+              `❌ Error: ${
+                error instanceof Error ? error.message : "Unknown error"
+              }`,
+              slackEvent.thread_ts
+            );
+          } catch (updateError) {
+            console.error(
+              "[Slack Webhook] Error posting error message:",
+              updateError
+            );
+          }
+          // Don't throw - we've already returned ok response
+        }
+      }
+    }
+  }
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ ok: true }),
+    headers: { "Content-Type": "application/json" },
+  };
+}
+
+/**
+ * Handle Discord webhook interactions
+ */
+async function handleDiscordWebhook(
+  event: APIGatewayProxyEventV2,
+  integration: BotIntegrationRecord,
+  integrationId: string
+): Promise<APIGatewayProxyResultV2> {
+  // Extract config
+  const config = integration.config as {
+    botToken: string;
+    publicKey: string;
+    applicationId?: string;
+  };
+
+  // Parse request body first to check if it's a PING
+  const bodyText = decodeRequestBody(event);
+  let body: DiscordInteraction;
+  try {
+    body = JSON.parse(bodyText);
+  } catch {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ error: "Invalid JSON" }),
+      headers: { "Content-Type": "application/json" },
+    };
+  }
+
+  // Handle PING (type 1) - Discord verification (before signature check)
+  // Discord sends PING requests during endpoint verification, and these must be handled
+  // even if signature verification fails (which can happen during initial setup)
+  if (body.type === 1) {
+    // Still verify signature if possible, but don't fail on PING
+    const signatureValid = verifyDiscordSignature(event, config.publicKey);
+    if (!signatureValid) {
+      console.warn(
+        "Discord PING received but signature verification failed - allowing for endpoint verification"
+      );
+    }
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ type: 1 }),
+      headers: { "Content-Type": "application/json" },
+    };
+  }
+
+  // For all other interaction types, verify signature
+  const signatureValid = verifyDiscordSignature(event, config.publicKey);
+  if (!signatureValid) {
+    trackEvent("bot_webhook_verification_failed", {
+      workspace_id: integration.workspaceId,
+      integration_id: integrationId,
+      platform: "discord",
+      event_type: body.type === 2 ? "interaction" : "unknown",
+    });
+    return {
+      statusCode: 401,
+      body: JSON.stringify({ error: "Invalid signature" }),
+      headers: { "Content-Type": "application/json" },
+    };
+  }
+
+  // Track successful verification
+  trackEvent("bot_webhook_verified", {
+    workspace_id: integration.workspaceId,
+    integration_id: integrationId,
+    platform: "discord",
+    event_type: body.type === 2 ? "interaction" : "unknown",
+  });
+
+  // Handle APPLICATION_COMMAND (type 2) - Slash commands
+  if (body.type === 2 && body.data) {
+    const commandName = body.data.name || "";
+    const options = body.data.options || [];
+
+    // Extract message from command options
+    let messageText = "";
+    if (commandName === "ask" || commandName === "chat") {
+      const messageOption = options.find((opt) => opt.name === "message");
+      if (messageOption && typeof messageOption.value === "string") {
+        messageText = messageOption.value;
+      }
+    } else if (commandName) {
+      // For other commands, use command name as message
+      messageText = commandName;
+    }
+
+    if (!messageText) {
+      return {
+        statusCode: 200,
+        body: JSON.stringify(
+          createDiscordInteractionResponse(
+            "Please provide a message to send to the agent.",
+            true
+          )
+        ),
+        headers: { "Content-Type": "application/json" },
+      };
+    }
+
+    // Validate required fields before proceeding
+    if (!body.token) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Missing interaction token" }),
+        headers: { "Content-Type": "application/json" },
+      };
+    }
+
+    if (!config.applicationId) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({
+          error: "Integration missing applicationId",
+        }),
+        headers: { "Content-Type": "application/json" },
+      };
+    }
+
+    // Return deferred response immediately (Discord requires response within 3 seconds)
+    // This acknowledges the interaction and allows up to 15 minutes for follow-up
+    const deferredResponse = createDiscordDeferredResponse();
+
+    // Enqueue task for async processing
+    try {
+      await enqueueBotWebhookTask(
+        "discord",
+        integrationId,
+        integration.workspaceId,
+        integration.agentId,
+        messageText,
+        {
+          interactionToken: body.token,
+          applicationId: config.applicationId,
+          channelId: body.channel_id,
+          botToken: config.botToken,
+        },
+        body.channel_id
+      );
+    } catch (error) {
+      console.error("[Discord Webhook] Error enqueueing task:", error);
+      // Still return deferred response - queue handler will handle errors
+    }
+
+    // Return deferred response immediately (within 3 seconds)
+    return {
+      statusCode: 200,
+      body: JSON.stringify(deferredResponse),
+      headers: { "Content-Type": "application/json" },
+    };
+  }
+
+  // Unknown interaction type
+  return {
+    statusCode: 200,
+    body: JSON.stringify(
+      createDiscordInteractionResponse("Unknown interaction type.", true)
+    ),
+    headers: { "Content-Type": "application/json" },
+  };
+}

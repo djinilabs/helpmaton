@@ -7,6 +7,105 @@ This document provides comprehensive documentation for all Helpmaton API endpoin
 - **Production**: `https://app.helpmaton.com`
 - **Local Development**: `http://localhost:5173` (frontend proxy) or `http://localhost:3333` (direct backend)
 
+## Bot Integrations
+
+Bot integrations allow you to connect your agents to Slack or Discord bots. See [Slack Integration Guide](./slack-integration.md) and [Discord Integration Guide](./discord-integration.md) for setup instructions.
+
+### List Integrations
+
+**Endpoint**: `GET /api/workspaces/:workspaceId/integrations`
+
+**Authentication**: Required (Bearer token or session cookie)
+
+**Response**:
+```json
+[
+  {
+    "id": "integration-id",
+    "platform": "slack",
+    "name": "Support Bot",
+    "agentId": "agent-id",
+    "webhookUrl": "https://api.helpmaton.com/api/webhooks/slack/workspace-id/integration-id",
+    "status": "active",
+    "lastUsedAt": "2024-01-01T00:00:00.000Z",
+    "createdAt": "2024-01-01T00:00:00.000Z"
+  }
+]
+```
+
+### Create Integration
+
+**Endpoint**: `POST /api/workspaces/:workspaceId/integrations`
+
+**Authentication**: Required (Bearer token or session cookie, WRITE permission)
+
+**Request Body**:
+```json
+{
+  "platform": "slack",
+  "name": "Support Bot",
+  "agentId": "agent-id",
+  "config": {
+    "botToken": "xoxb-...",
+    "signingSecret": "..."
+  }
+}
+```
+
+**Response**: Returns the created integration (same format as list)
+
+### Get Integration
+
+**Endpoint**: `GET /api/workspaces/:workspaceId/integrations/:integrationId`
+
+**Authentication**: Required (Bearer token or session cookie)
+
+### Update Integration
+
+**Endpoint**: `PATCH /api/workspaces/:workspaceId/integrations/:integrationId`
+
+**Authentication**: Required (Bearer token or session cookie, WRITE permission)
+
+**Request Body**:
+```json
+{
+  "name": "Updated Name",
+  "status": "inactive",
+  "config": {
+    "botToken": "new-token"
+  }
+}
+```
+
+### Delete Integration
+
+**Endpoint**: `DELETE /api/workspaces/:workspaceId/integrations/:integrationId`
+
+**Authentication**: Required (Bearer token or session cookie, WRITE permission)
+
+### Generate Slack Manifest
+
+**Endpoint**: `POST /api/workspaces/:workspaceId/integrations/slack/manifest`
+
+**Authentication**: Required (Bearer token or session cookie, WRITE permission)
+
+**Request Body**:
+```json
+{
+  "agentId": "agent-id",
+  "agentName": "Support Bot"
+}
+```
+
+**Response**:
+```json
+{
+  "manifest": { ... },
+  "webhookUrl": "https://api.helpmaton.com/api/webhooks/slack/workspace-id/integration-id",
+  "instructions": [ ... ]
+}
+```
+
 ## Authentication
 
 Helpmaton supports multiple authentication methods:

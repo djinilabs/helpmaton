@@ -2056,6 +2056,143 @@ export async function deleteStreamServer(
   );
 }
 
+// Bot Integration Management API
+
+export interface BotIntegration {
+  id: string;
+  platform: "slack" | "discord";
+  name: string;
+  agentId: string;
+  webhookUrl: string;
+  status: "active" | "inactive" | "error";
+  lastUsedAt: string | null;
+  createdAt: string;
+  updatedAt?: string;
+  discordCommand?: {
+    commandName: string;
+    commandId: string;
+  };
+}
+
+export interface CreateIntegrationInput {
+  platform: "slack" | "discord";
+  name: string;
+  agentId: string;
+  config: {
+    // Slack
+    botToken?: string;
+    signingSecret?: string;
+    teamId?: string;
+    teamName?: string;
+    messageHistoryCount?: number;
+    // Discord
+    publicKey?: string;
+    applicationId?: string;
+  };
+}
+
+export interface UpdateIntegrationInput {
+  name?: string;
+  status?: "active" | "inactive" | "error";
+  config?: Partial<CreateIntegrationInput["config"]>;
+}
+
+export interface SlackManifestResponse {
+  manifest: unknown;
+  webhookUrl: string;
+  instructions: string[];
+}
+
+export async function listIntegrations(
+  workspaceId: string
+): Promise<BotIntegration[]> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/integrations`
+  );
+  return response.json();
+}
+
+export async function getIntegration(
+  workspaceId: string,
+  integrationId: string
+): Promise<BotIntegration> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/integrations/${integrationId}`
+  );
+  return response.json();
+}
+
+export async function createIntegration(
+  workspaceId: string,
+  input: CreateIntegrationInput
+): Promise<BotIntegration> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/integrations`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    }
+  );
+  return response.json();
+}
+
+export async function updateIntegration(
+  workspaceId: string,
+  integrationId: string,
+  input: UpdateIntegrationInput
+): Promise<BotIntegration> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/integrations/${integrationId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }
+  );
+  return response.json();
+}
+
+export async function deleteIntegration(
+  workspaceId: string,
+  integrationId: string
+): Promise<void> {
+  await apiFetch(
+    `/api/workspaces/${workspaceId}/integrations/${integrationId}`,
+    {
+      method: "DELETE",
+    }
+  );
+}
+
+export async function registerDiscordCommand(
+  workspaceId: string,
+  integrationId: string,
+  commandName: string
+): Promise<BotIntegration> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/integrations/${integrationId}/discord-command`,
+    {
+      method: "POST",
+      body: JSON.stringify({ commandName }),
+    }
+  );
+  return response.json();
+}
+
+export async function generateSlackManifest(
+  workspaceId: string,
+  agentId: string,
+  agentName?: string
+): Promise<SlackManifestResponse> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/integrations/slack/manifest`,
+    {
+      method: "POST",
+      body: JSON.stringify({ agentId, agentName }),
+    }
+  );
+  return response.json();
+}
+
 // User API Keys API
 
 export interface UserApiKey {

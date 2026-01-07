@@ -305,6 +305,43 @@ Return response
     └─ Format JSON response
 ```
 
+## Bot Integrations (Slack & Discord)
+
+Helpmaton supports connecting agents to Slack and Discord bots, allowing team members and community members to interact with your agents directly in those platforms.
+
+### Slack Integration
+
+Slack bots can be connected to agents using the Slack App Manifest method. The integration handles:
+- Event subscriptions (app_mentions, messages)
+- Signature verification using signing secrets
+- Throttled message updates (1.5s interval) to simulate streaming
+- Markdown to Slack formatting conversion
+
+For detailed setup instructions, see [Slack Integration Guide](../docs/slack-integration.md).
+
+### Discord Integration
+
+Discord bots can be connected to agents using the Interactions Endpoint method. The integration handles:
+- Interaction events (slash commands, mentions)
+- Ed25519 signature verification using public keys
+- Throttled message updates (1.5s interval) to simulate streaming
+- Markdown to Discord formatting conversion
+
+For detailed setup instructions, see [Discord Integration Guide](../docs/discord-integration.md).
+
+### Integration Management
+
+Integrations are managed through the REST API:
+
+- `POST /api/workspaces/:workspaceId/integrations` - Create integration
+- `GET /api/workspaces/:workspaceId/integrations` - List integrations
+- `GET /api/workspaces/:workspaceId/integrations/:integrationId` - Get integration
+- `PATCH /api/workspaces/:workspaceId/integrations/:integrationId` - Update integration
+- `DELETE /api/workspaces/:workspaceId/integrations/:integrationId` - Delete integration
+- `POST /api/workspaces/:workspaceId/integrations/slack/manifest` - Generate Slack manifest
+
+All integration credentials (bot tokens, signing secrets, public keys) are encrypted at rest in the `bot-integration` table.
+
 ## Rate Limiting
 
 Webhook requests are subject to rate limiting based on subscription plan:

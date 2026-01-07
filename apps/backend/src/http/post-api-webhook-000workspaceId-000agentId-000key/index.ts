@@ -1,17 +1,10 @@
-import type { ModelMessage } from "ai";
-import { generateText } from "ai";
 import type {
   APIGatewayProxyEventV2,
   APIGatewayProxyResultV2,
 } from "aws-lambda";
 
-import { MODEL_NAME } from "../../http/utils/agentUtils";
 import {
-  adjustCreditsAfterLLMCall,
-  cleanupReservationOnError,
-  cleanupReservationWithoutTokenUsage,
   enqueueCostVerificationIfNeeded,
-  validateAndReserveCredits,
 } from "../../http/utils/generationCreditManagement";
 import {
   isByokAuthenticationError,
@@ -20,24 +13,19 @@ import {
   handleCreditErrors,
   logErrorDetails,
 } from "../../http/utils/generationErrorHandling";
-import { prepareLLMCall } from "../../http/utils/generationLLMSetup";
 import {
   validateSubscriptionAndLimits,
   trackSuccessfulRequest,
 } from "../../http/utils/generationRequestTracking";
-import { extractTokenUsageAndCosts } from "../../http/utils/generationTokenExtraction";
 import { reconstructToolCallsFromResults } from "../../http/utils/generationToolReconstruction";
 import { database } from "../../tables";
 import {
   isMessageContentEmpty,
   startConversation,
   buildConversationErrorInfo,
-  type GenerateTextResultWithTotalUsage,
-  type TokenUsage,
 } from "../../utils/conversationLogger";
 import {
   handlingErrors,
-  isAuthenticationError,
 } from "../../utils/handlingErrors";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
 import type { UIMessage } from "../../utils/messageTypes";
@@ -48,16 +36,14 @@ import {
   getTransactionBuffer,
 } from "../../utils/workspaceCreditContext";
 import { updateTransactionBufferConversationId } from "../../utils/workspaceCreditTransactions";
-import { setupAgentAndTools } from "../utils/agentSetup";
+import { callAgentNonStreaming } from "../utils/agentCallNonStreaming";
 import {
   convertTextToUIMessage,
-  convertUIMessagesToModelMessages,
 } from "../utils/messageConversion";
 import {
   validateWebhookRequest,
   validateWebhookKey,
 } from "../utils/requestValidation";
-import { processSimpleNonStreamingResponse } from "../utils/streaming";
 import {
   formatToolCallMessage,
   formatToolResultMessage,
@@ -195,219 +181,30 @@ export const handler = adaptHttpHandler(
         "webhook"
       );
 
-      // Setup agent, model, and tools with webhook-specific options
-      const { agent, model, tools, usesByok } = await setupAgentAndTools(
-        workspaceId,
-        agentId,
-        [], // Webhook doesn't have conversation history
-        {
-          modelReferer: "http://localhost:3000/api/webhook",
-          callDepth: 0,
-          maxDelegationDepth: 3,
-          context,
-          searchDocumentsOptions: {
-            description:
-              "Search workspace documents using semantic vector search. Returns the most relevant document snippets based on the query.",
-            queryDescription:
-              "The search query or prompt to find relevant document snippets",
-            formatResults: (results) => {
-              return results
-                .map(
-                  (result, index) =>
-                    `[${index + 1}] Document: ${result.documentName}${
-                      result.folderPath ? ` (${result.folderPath})` : ""
-                    }\nSimilarity: ${(result.similarity * 100).toFixed(
-                      1
-                    )}%\nContent:\n${result.snippet}\n`
-                )
-                .join("\n---\n\n");
-            },
-          },
-        }
-      );
-
-      // Log available tools for debugging
-      const availableTools = Object.keys(tools);
-      console.log(
-        `[Webhook Handler] Agent "${agent.name}" (${agentId}) in workspace ${workspaceId} has ${availableTools.length} tool(s) available:`,
-        availableTools.join(", ")
-      );
-      if (agent.notificationChannelId) {
-        console.log(
-          `[Webhook Handler] Notification channel configured: ${agent.notificationChannelId}`
-        );
-      }
-
-      // Convert plain text body to UIMessage format, then to ModelMessage format
+      // Convert plain text body to UIMessage format
       const uiMessage = convertTextToUIMessage(bodyText);
-      const modelMessages: ModelMessage[] = convertUIMessagesToModelMessages([
-        uiMessage,
-      ]);
 
-      // Derive the model name from the agent's modelName if set, otherwise use default
-      const finalModelName =
-        typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
-
-      // Validate credits, spending limits, and reserve credits before LLM call
       // TEMPORARY: This check can be disabled via ENABLE_CREDIT_VALIDATION and ENABLE_SPENDING_LIMIT_CHECKS env vars
       const db = await database();
-      let reservationId: string | undefined;
-      let llmCallAttempted = false;
-      let result: Awaited<ReturnType<typeof generateText>> | undefined;
-      let tokenUsage: TokenUsage | undefined;
-      let openrouterGenerationId: string | undefined;
-      let openrouterGenerationIds: string[] | undefined;
-      let provisionalCostUsd: number | undefined;
-      let generationTimeMs: number | undefined;
+      let agentResult;
+      let usesByok: boolean | undefined;
+      let finalModelName: string | undefined;
 
       try {
-        // Validate credits, spending limits, and reserve credits before LLM call
-        reservationId = await validateAndReserveCredits(
-          db,
-          workspaceId,
-          agentId,
-          "openrouter", // provider
-          finalModelName,
-          modelMessages,
-          agent.systemPrompt,
-          tools,
-          usesByok,
-          "webhook",
-          context
-        );
-
-        // Prepare LLM call (logging and generate options)
-        const generateOptions = prepareLLMCall(
-          agent,
-          tools,
-          modelMessages,
-          "webhook",
-          workspaceId,
-          agentId
-        );
-        // Track generation time
+        // Call agent using the shared non-streaming utility
+        // This handles credit validation, reservation, LLM call, and tool continuation
         const generationStartTime = Date.now();
-        // LLM call succeeded - mark as attempted
-        llmCallAttempted = true;
-        result = await generateText({
-          model: model as unknown as Parameters<
-            typeof generateText
-          >[0]["model"],
-          system: agent.systemPrompt,
-          messages: modelMessages,
-          tools,
-          ...generateOptions,
-        });
-        generationTimeMs = Date.now() - generationStartTime;
-
-        // Extract token usage, generation IDs, and costs
-        // result from generateText has totalUsage property
-        const extractionResult = extractTokenUsageAndCosts(
-          result as unknown as GenerateTextResultWithTotalUsage,
-          undefined,
-          finalModelName,
-          "webhook"
-        );
-        tokenUsage = extractionResult.tokenUsage;
-        openrouterGenerationId = extractionResult.openrouterGenerationId;
-        openrouterGenerationIds = extractionResult.openrouterGenerationIds;
-        provisionalCostUsd = extractionResult.provisionalCostUsd;
-
-        // Adjust credit reservation based on actual cost (Step 2)
-        await adjustCreditsAfterLLMCall(
-          db,
+        agentResult = await callAgentNonStreaming(
           workspaceId,
           agentId,
-          reservationId,
-          "openrouter",
-          finalModelName,
-          tokenUsage,
-          usesByok,
-          openrouterGenerationId,
-          openrouterGenerationIds, // New parameter
-          "webhook",
-          context
+          bodyText,
+          {
+            modelReferer: "http://localhost:3000/api/webhook",
+            context,
+            endpointType: "webhook",
+          }
         );
-
-        // Handle case where no token usage is available
-        if (
-          reservationId &&
-          reservationId !== "byok" &&
-          (!tokenUsage ||
-            (tokenUsage.promptTokens === 0 &&
-              tokenUsage.completionTokens === 0))
-        ) {
-          await cleanupReservationWithoutTokenUsage(
-            db,
-            reservationId,
-            workspaceId,
-            agentId,
-            "webhook"
-          );
-        }
-      } catch (error) {
-        // Comprehensive error logging for debugging
-        logErrorDetails(error, {
-          workspaceId,
-          agentId,
-          usesByok,
-          endpoint: "webhook",
-        });
-
-        // Normalize BYOK error if needed
-        const errorToLog = normalizeByokError(error);
-
-        await persistWebhookConversationError({
-          db,
-          workspaceId,
-          agentId,
-          uiMessage,
-          usesByok,
-          finalModelName,
-          error: errorToLog,
-          awsRequestId,
-        });
-
-        // Check if this is a BYOK authentication error FIRST
-        if (isByokAuthenticationError(error, usesByok)) {
-          return handleByokAuthenticationErrorApiGateway("webhook");
-        }
-
-        // Handle credit errors
-        const creditErrorResult = await handleCreditErrors(
-          error,
-          workspaceId,
-          "webhook"
-        );
-        if (creditErrorResult.handled && creditErrorResult.response) {
-          return creditErrorResult.response as APIGatewayProxyResultV2;
-        }
-
-        // Error after reservation but before or during LLM call
-        if (reservationId && reservationId !== "byok") {
-          await cleanupReservationOnError(
-            db,
-            reservationId,
-            workspaceId,
-            agentId,
-            "openrouter",
-            finalModelName,
-            error,
-            llmCallAttempted,
-            usesByok,
-            "webhook",
-            context
-          );
-        }
-
-        // Re-throw error to be handled by error wrapper
-        throw error;
-      }
-
-      // If we get here, the LLM call succeeded
-      if (!result) {
-        throw new Error("LLM call succeeded but result is undefined");
-      }
+        const generationTimeMs = Date.now() - generationStartTime;
 
       // Track successful LLM request
       await trackSuccessfulRequest(
@@ -417,109 +214,38 @@ export const handler = adaptHttpHandler(
         "webhook"
       );
 
-      // Process simple non-streaming response (no tool continuation)
-      // This might throw NoOutputGeneratedError if there was an error during generation
-      let responseContent: string;
-      try {
-        responseContent = await processSimpleNonStreamingResponse(result);
-      } catch (resultError) {
-        // Check if this is a BYOK authentication error
-        if (usesByok && isAuthenticationError(resultError)) {
-          console.log(
-            "[Webhook Handler] BYOK authentication error detected when processing response:",
-            {
-              workspaceId,
-              agentId,
-              error:
-                resultError instanceof Error
-                  ? resultError.message
-                  : String(resultError),
-              errorType:
-                resultError instanceof Error
-                  ? resultError.constructor.name
-                  : typeof resultError,
-              errorStringified: JSON.stringify(
-                resultError,
-                Object.getOwnPropertyNames(resultError)
-              ),
-            }
-          );
-
-          // For BYOK, when we get a NoOutputGeneratedError, it's almost always because
-          // the original AI_APICallError was thrown but not preserved.
-          // We need to manually construct the original error with the proper structure.
-          let errorToLog = resultError;
-
-          // If it's a NoOutputGeneratedError, construct the original AI_APICallError
-          if (
-            resultError instanceof Error &&
-            (resultError.constructor.name === "NoOutputGeneratedError" ||
-              resultError.name === "AI_NoOutputGeneratedError" ||
-              resultError.message.includes("No output generated"))
-          ) {
-            console.log(
-              "[Webhook Handler] Constructing original AI_APICallError from NoOutputGeneratedError"
-            );
-            // Create a synthetic AI_APICallError with the proper structure
-            const originalError = new Error("No cookie auth credentials found");
-            originalError.name = "AI_APICallError";
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const errorAny = originalError as any;
-            errorAny.statusCode = 401;
-            errorAny.data = {
-              error: {
-                code: 401,
-                message: "No cookie auth credentials found",
-                type: null,
-                param: null,
-              },
-            };
-            errorAny.responseBody =
-              '{"error":{"message":"No cookie auth credentials found","code":401}}';
-            errorToLog = originalError;
-          }
-
-          // Log conversation with error before returning
-          await persistWebhookConversationError({
-            db,
-            workspaceId,
-            agentId,
-            uiMessage,
-            usesByok,
-            finalModelName,
-            error: errorToLog,
-          });
-
-          return {
-            statusCode: 400,
-            headers: {
-              "Content-Type": "text/plain; charset=utf-8",
-            },
-            body: "There is a configuration issue with your OpenRouter API key. Please verify that the key is correct and has the necessary permissions.",
-          };
-        }
-        await persistWebhookConversationError({
-          db,
+        // Get agent info for model name (needed for conversation logging)
+        const { setupAgentAndTools } = await import("../utils/agentSetup");
+        const { agent, usesByok: agentUsesByok } = await setupAgentAndTools(
           workspaceId,
           agentId,
-          uiMessage,
-          usesByok,
-          finalModelName,
-          error: resultError,
-          awsRequestId,
-        });
-        throw resultError;
-      }
+          [],
+          {
+            modelReferer: "http://localhost:3000/api/webhook",
+            callDepth: 0,
+            maxDelegationDepth: 3,
+            context,
+          }
+        );
+        usesByok = agentUsesByok;
+        finalModelName =
+          typeof agent.modelName === "string" ? agent.modelName : "openrouter/gemini-2.0-flash-exp";
 
-      // Extract tool calls and results from generateText result
-      // These might throw NoOutputGeneratedError if there was an error during generation
+        // Extract response content from agent result
+        const responseContent = agentResult.text;
+
+        // Extract tool calls and results from raw result (same logic as before)
       let toolCallsFromResult: unknown[];
       let toolResultsFromResult: unknown[];
       try {
+          if (!agentResult.rawResult) {
+            throw new Error("Raw result not available from agent call");
+          }
+
         // Also extract steps/_steps as the source of truth for tool calls/results
         // generateText returns result.steps (array), streamText returns result._steps.status.value
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
-        const resultAny = result as any;
+          const resultAny = agentResult.rawResult as any;
         // Check both result.steps (generateText) and result._steps.status.value (streamText)
         const stepsValue = Array.isArray(resultAny.steps)
           ? resultAny.steps
@@ -615,13 +341,13 @@ export const handler = adaptHttpHandler(
         if (toolCallsFromSteps.length > 0) {
           toolCallsFromResult = toolCallsFromSteps;
         } else {
-          toolCallsFromResult = result.toolCalls || [];
+            toolCallsFromResult = (agentResult.rawResult as { toolCalls?: unknown[] }).toolCalls || [];
         }
 
         if (toolResultsFromSteps.length > 0) {
           toolResultsFromResult = toolResultsFromSteps;
         } else {
-          toolResultsFromResult = result.toolResults || [];
+            toolResultsFromResult = (agentResult.rawResult as { toolResults?: unknown[] }).toolResults || [];
         }
 
         // DIAGNOSTIC: Log tool calls and results extracted from result
@@ -630,9 +356,9 @@ export const handler = adaptHttpHandler(
           toolCalls: toolCallsFromResult,
           toolResultsCount: toolResultsFromResult.length,
           toolResults: toolResultsFromResult,
-          resultKeys: Object.keys(result),
-          hasToolCalls: "toolCalls" in result,
-          hasToolResults: "toolResults" in result,
+            resultKeys: agentResult.rawResult ? Object.keys(agentResult.rawResult) : [],
+            hasToolCalls: agentResult.rawResult && "toolCalls" in agentResult.rawResult,
+            hasToolResults: agentResult.rawResult && "toolResults" in agentResult.rawResult,
           hasSteps: "steps" in resultAny,
           has_steps: "_steps" in resultAny,
           stepsCount: Array.isArray(stepsValue) ? stepsValue.length : 0,
@@ -751,11 +477,11 @@ export const handler = adaptHttpHandler(
           assistantContent.length > 0
             ? assistantContent
             : responseContent || "",
-        ...(tokenUsage && { tokenUsage }),
+          ...(agentResult.tokenUsage && { tokenUsage: agentResult.tokenUsage }),
         modelName: finalModelName,
         provider: "openrouter",
-        ...(openrouterGenerationId && { openrouterGenerationId }),
-        ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
+          ...(agentResult.openrouterGenerationId && { openrouterGenerationId: agentResult.openrouterGenerationId }),
+          ...(agentResult.provisionalCostUsd !== undefined && { provisionalCostUsd: agentResult.provisionalCostUsd }),
         ...(generationTimeMs !== undefined && { generationTimeMs }),
       };
 
@@ -853,7 +579,7 @@ export const handler = adaptHttpHandler(
           agentId,
           conversationType: "webhook",
           messages: validMessages,
-          tokenUsage,
+            tokenUsage: agentResult.tokenUsage,
           usesByok,
           awsRequestId,
         });
@@ -872,47 +598,17 @@ export const handler = adaptHttpHandler(
           }
         }
 
-        // Update reservation with conversationId so it's available for Step 3
-        if (
-          reservationId &&
-          reservationId !== "byok" &&
-          reservationId !== "zero-cost"
-        ) {
-          try {
-            const reservationPk = `credit-reservations/${reservationId}`;
-            await db["credit-reservations"].update({
-              pk: reservationPk,
-              conversationId,
-            });
-            console.log(
-              "[Webhook Handler] Updated reservation with conversationId:",
-              {
-                reservationId,
-                conversationId,
-              }
-            );
-          } catch (updateError) {
-            // Log but don't fail - this is best effort
-            console.warn(
-              "[Webhook Handler] Failed to update reservation with conversationId:",
-              {
-                reservationId,
-                conversationId,
-                error:
-                  updateError instanceof Error
-                    ? updateError.message
-                    : String(updateError),
-              }
-            );
-          }
-        }
+        // Note: reservationId is handled internally by agentCallNonStreaming
+        // The reservation is updated with conversationId during credit adjustment
 
         // Enqueue cost verification (Step 3) if we have generation IDs
+          // Note: reservationId is handled internally by agentCallNonStreaming
+          // We need to get it from the context if available, but this is optional
         await enqueueCostVerificationIfNeeded(
-          openrouterGenerationId, // Keep for backward compat
-          openrouterGenerationIds, // New parameter
+            agentResult.openrouterGenerationId, // Keep for backward compat
+            agentResult.openrouterGenerationIds, // New parameter
           workspaceId,
-          reservationId,
+            undefined, // reservationId - handled internally by agentCallNonStreaming
           conversationId,
           agentId,
           "webhook"
@@ -955,6 +651,70 @@ export const handler = adaptHttpHandler(
         },
         body: responseContent,
       };
+      } catch (error) {
+        // Comprehensive error logging for debugging
+        logErrorDetails(error, {
+          workspaceId,
+          agentId,
+          usesByok,
+          endpoint: "webhook",
+        });
+
+        // Normalize BYOK error if needed
+        const errorToLog = normalizeByokError(error);
+
+        // Get agent info for error logging
+        try {
+          const { setupAgentAndTools } = await import("../utils/agentSetup");
+          const { agent, usesByok: agentUsesByok } = await setupAgentAndTools(
+            workspaceId,
+            agentId,
+            [],
+            {
+              modelReferer: "http://localhost:3000/api/webhook",
+              callDepth: 0,
+              maxDelegationDepth: 3,
+              context,
+            }
+          );
+          usesByok = agentUsesByok;
+          finalModelName =
+            typeof agent.modelName === "string" ? agent.modelName : "openrouter/gemini-2.0-flash-exp";
+        } catch {
+          // If we can't get agent info, use defaults
+          usesByok = undefined;
+          finalModelName = undefined;
+        }
+
+        await persistWebhookConversationError({
+          db,
+          workspaceId,
+          agentId,
+          uiMessage,
+          usesByok,
+          finalModelName,
+          error: errorToLog,
+          awsRequestId,
+        });
+
+        // Check if this is a BYOK authentication error FIRST
+        if (usesByok !== undefined && isByokAuthenticationError(error, usesByok)) {
+          return handleByokAuthenticationErrorApiGateway("webhook");
+        }
+
+        // Handle credit errors
+        const creditErrorResult = await handleCreditErrors(
+          error,
+          workspaceId,
+          "webhook"
+        );
+        if (creditErrorResult.handled && creditErrorResult.response) {
+          return creditErrorResult.response as APIGatewayProxyResultV2;
+        }
+
+        // Re-throw error to be handled by error wrapper
+        throw error;
+      }
     }
   )
 );

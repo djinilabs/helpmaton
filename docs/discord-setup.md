@@ -13,7 +13,7 @@ To enable Discord notifications, you need to:
 
 ## Step 1: Create a Discord Application
 
-1. Go to the [Discord Developer Portal](https://discord.com/developers/applications)
+1. Go to the <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer">Discord Developer Portal</a>
 2. Click **"New Application"**
 3. Give your application a name (e.g., "Helpmaton Notifications")
 4. Click **"Create"**
@@ -129,7 +129,7 @@ Once configured, your agent will have access to the `send_notification` tool. Wh
 
 ## Additional Resources
 
-- [Discord Developer Documentation](https://discord.com/developers/docs/intro)
-- [Discord Bot Permissions](https://discord.com/developers/docs/topics/permissions)
-- [Discord API Documentation](https://discord.com/developers/docs/reference)
+- <a href="https://discord.com/developers/docs/intro" target="_blank" rel="noopener noreferrer">Discord Developer Documentation</a>
+- <a href="https://discord.com/developers/docs/topics/permissions" target="_blank" rel="noopener noreferrer">Discord Bot Permissions</a>
+- <a href="https://discord.com/developers/docs/reference" target="_blank" rel="noopener noreferrer">Discord API Documentation</a>
 

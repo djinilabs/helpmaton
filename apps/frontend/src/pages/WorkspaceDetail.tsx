@@ -143,7 +143,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
 
   // Check if OpenRouter key exists
   const hasKey = apiKeys?.openrouter || false;
-  
+
   // Check if user is on free plan
   const isFreePlan = subscription?.plan === "free";
 
@@ -185,11 +185,13 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
       {isFreePlan ? (
         <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-5 dark:border-orange-800 dark:bg-orange-950/50">
           <p className="mb-2 text-sm font-semibold text-orange-900 dark:text-orange-50">
-            Bring Your Own Key (BYOK) is only available for Starter and Pro plans
+            Bring Your Own Key (BYOK) is only available for Starter and Pro
+            plans
           </p>
           <p className="mb-3 text-sm text-orange-800 dark:text-orange-200">
-            Upgrade your plan to use your own API keys and pay providers directly while
-            still benefiting from Helpmaton&apos;s infrastructure, analytics, and management features.
+            Upgrade your plan to use your own API keys and pay providers
+            directly while still benefiting from Helpmaton&apos;s
+            infrastructure, analytics, and management features.
           </p>
           <Link
             to="/subscription"
@@ -213,19 +215,23 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
         </div>
       ) : (
         <div className="rounded-xl border border-primary-200 bg-primary-50/50 p-5 dark:border-primary-800 dark:bg-primary-950/50">
-          <p className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-50">Help:</p>
+          <p className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+            Help:
+          </p>
           <ul className="list-inside list-disc space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
             <li>
-              Configure your OpenRouter API key to use your own key for LLM requests
+              Configure your OpenRouter API key to use your own key for LLM
+              requests
             </li>
             <li>
               By default, if you add no key, we will use workspace credits (if
               any)
             </li>
             <li>
-              When you add an OpenRouter key, you are responsible for the billing and
-              correctness of the key. Costs will be applied to your spending rate limits
-              but will not be deducted from workspace credits.
+              When you add an OpenRouter key, you are responsible for the
+              billing and correctness of the key. Costs will be applied to your
+              spending rate limits but will not be deducted from workspace
+              credits.
             </li>
           </ul>
         </div>
@@ -237,8 +243,9 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
             OpenRouter API Key is Configured
           </p>
           <p className="mt-1.5 text-xs text-accent-700 dark:text-accent-400">
-            An OpenRouter API key is currently set for this workspace. Requests will use your key,
-            costs will be applied to spending rate limits, and workspace credits will not be deducted.
+            An OpenRouter API key is currently set for this workspace. Requests
+            will use your key, costs will be applied to spending rate limits,
+            and workspace credits will not be deducted.
           </p>
         </div>
       )}

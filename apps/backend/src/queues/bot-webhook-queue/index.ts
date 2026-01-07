@@ -1,0 +1,582 @@
+import { WebClient } from "@slack/web-api";
+import type { SQSEvent } from "aws-lambda";
+
+import { updateDiscordMessage } from "../../http/any-api-webhooks-000type-000workspaceId-000integrationId/services/discordResponse";
+import { updateSlackMessage } from "../../http/any-api-webhooks-000type-000workspaceId-000integrationId/services/slackResponse";
+import { callAgentNonStreaming } from "../../http/utils/agentCallNonStreaming";
+import { database } from "../../tables";
+import {
+  BotWebhookTaskMessageSchema,
+  type BotWebhookTaskMessage,
+} from "../../utils/botWebhookQueue";
+import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
+import type { UIMessage } from "../../utils/messageTypes";
+import { trackEvent } from "../../utils/tracking";
+import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
+
+/**
+ * Process a Discord webhook task
+ */
+async function processDiscordTask(
+  message: BotWebhookTaskMessage,
+  context: NonNullable<Awaited<ReturnType<typeof getCurrentSQSContext>>>
+): Promise<void> {
+  const {
+    workspaceId,
+    agentId,
+    messageText,
+    interactionToken,
+    applicationId,
+    channelId,
+    botToken,
+    conversationId,
+  } = message;
+
+  if (!interactionToken || !applicationId || !botToken) {
+    throw new Error(
+      "Missing required Discord fields: interactionToken, applicationId, or botToken"
+    );
+  }
+
+  // TypeScript: these are guaranteed to be strings after the check above
+  const safeBotToken: string = botToken;
+  const safeApplicationId: string = applicationId;
+  const safeInteractionToken: string = interactionToken;
+
+  const db = await database();
+
+  // Get integration to access config
+  const integrationPk = `bot-integrations/${workspaceId}/${message.integrationId}`;
+  const integration = await db["bot-integration"].get(
+    integrationPk,
+    "integration"
+  );
+
+  if (!integration || integration.platform !== "discord") {
+    throw new Error(`Integration not found: ${message.integrationId}`);
+  }
+
+  // Capture start time for elapsed time calculation
+  const startTime = Date.now();
+  const processingStartTime = Date.now();
+
+  // Flag to prevent updates after completion/error
+  let isComplete = false;
+
+  // Post initial "thinking" message
+  try {
+    await updateDiscordMessage(
+      safeBotToken,
+      safeApplicationId,
+      safeInteractionToken,
+      "Agent is thinking..."
+    );
+  } catch (error) {
+    console.error(
+      "[Bot Webhook Queue] Error posting initial Discord message:",
+      error
+    );
+  }
+
+  // Helper to update the Discord message with elapsed time
+  async function updateDiscordThinkingMessage(): Promise<void> {
+    if (isComplete) {
+      return; // Don't update if already complete
+    }
+    try {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      await updateDiscordMessage(
+        safeBotToken,
+        safeApplicationId,
+        safeInteractionToken,
+        `Agent is thinking... (${elapsed}s)`
+      );
+    } catch (error) {
+      // If update fails, log but don't throw
+      // This prevents the interval from breaking
+      console.error(
+        "[Bot Webhook Queue] Error updating Discord thinking message:",
+        error
+      );
+    }
+  }
+
+  // Start background task to update message periodically
+  const updateInterval = setInterval(() => {
+    if (!isComplete) {
+      updateDiscordThinkingMessage().catch((error) => {
+        console.error(
+          "[Bot Webhook Queue] Error in Discord update interval:",
+          error
+        );
+      });
+    }
+  }, 1500);
+
+  try {
+    // Get base URL for model referer (used for logging/tracking)
+    // Falls back to BASE_URL if WEBHOOK_BASE_URL is not set
+    const webhookBaseFromEnv = process.env.WEBHOOK_BASE_URL?.trim();
+    const baseUrlFromEnv = process.env.BASE_URL?.trim();
+    const baseUrl: string =
+      webhookBaseFromEnv && webhookBaseFromEnv.length > 0
+        ? webhookBaseFromEnv
+        : baseUrlFromEnv && baseUrlFromEnv.length > 0
+        ? baseUrlFromEnv
+        : process.env.ARC_ENV === "production"
+        ? "https://api.helpmaton.com"
+        : process.env.ARC_ENV === "staging"
+        ? "https://staging-api.helpmaton.com"
+        : "http://localhost:3333"; // Fallback for local development
+
+    // Call agent
+    const agentResult = await callAgentNonStreaming(
+      workspaceId,
+      agentId,
+      messageText,
+      {
+        modelReferer: `${baseUrl}/api/webhooks/discord`,
+        conversationId: conversationId || channelId,
+        context,
+        endpointType: "webhook",
+      }
+    );
+
+    // Stop the interval and mark as complete
+    clearInterval(updateInterval);
+    isComplete = true;
+
+    // Wait a bit to ensure any pending interval updates complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Update with complete response
+    const responseText = agentResult.text || "No response generated.";
+    await updateDiscordMessage(
+      safeBotToken,
+      safeApplicationId,
+      safeInteractionToken,
+      responseText
+    );
+
+    // Update lastUsedAt
+    await db["bot-integration"].update({
+      ...integration,
+      lastUsedAt: new Date().toISOString(),
+    });
+
+    // Track successful processing
+    const processingTimeMs = Date.now() - processingStartTime;
+    trackEvent("bot_webhook_processed", {
+      workspace_id: workspaceId,
+      integration_id: message.integrationId,
+      platform: "discord",
+      agent_id: agentId,
+      processing_time_ms: processingTimeMs,
+      response_length: responseText.length,
+    });
+  } catch (error) {
+    // Stop the interval and mark as complete
+    clearInterval(updateInterval);
+    isComplete = true;
+
+    // Wait a bit to ensure any pending interval updates complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Update with error
+    try {
+      await updateDiscordMessage(
+        safeBotToken,
+        safeApplicationId,
+        safeInteractionToken,
+        `❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    } catch (updateError) {
+      console.error(
+        "[Bot Webhook Queue] Error updating Discord message with error:",
+        updateError
+      );
+    }
+
+    // Track failed processing
+    trackEvent("bot_webhook_processing_failed", {
+      workspace_id: workspaceId,
+      integration_id: message.integrationId,
+      platform: "discord",
+      agent_id: agentId,
+      error_type: error instanceof Error ? error.constructor.name : "Unknown",
+      error_message: error instanceof Error ? error.message : String(error),
+    });
+
+    throw error;
+  }
+}
+
+/**
+ * Process a Slack webhook task
+ */
+async function processSlackTask(
+  message: BotWebhookTaskMessage,
+  context: NonNullable<Awaited<ReturnType<typeof getCurrentSQSContext>>>
+): Promise<void> {
+  const {
+    workspaceId,
+    agentId,
+    messageText,
+    botToken,
+    channel,
+    messageTs,
+    threadTs,
+    conversationId,
+  } = message;
+
+  if (!botToken || !channel || !messageTs) {
+    throw new Error(
+      "Missing required Slack fields: botToken, channel, or messageTs"
+    );
+  }
+
+  // TypeScript: these are guaranteed to be strings after the check above
+  const safeBotToken: string = botToken;
+  const safeChannel: string = channel;
+  const safeMessageTs: string = messageTs;
+
+  const db = await database();
+
+  // Get integration to access config
+  const integrationPk = `bot-integrations/${workspaceId}/${message.integrationId}`;
+  const integration = await db["bot-integration"].get(
+    integrationPk,
+    "integration"
+  );
+
+  if (!integration || integration.platform !== "slack") {
+    throw new Error(`Integration not found: ${message.integrationId}`);
+  }
+
+  const config = integration.config as {
+    botToken: string;
+    signingSecret: string;
+    teamId?: string;
+    teamName?: string;
+    botUserId?: string;
+    messageHistoryCount?: number;
+  };
+
+  const client = new WebClient(safeBotToken);
+
+  // Capture start time for elapsed time calculation
+  const startTime = Date.now();
+  const processingStartTime = Date.now();
+
+  // Flag to prevent updates after completion/error
+  let isComplete = false;
+
+  // Helper to update the Slack message with elapsed time
+  async function updateSlackThinkingMessage(): Promise<void> {
+    if (isComplete) {
+      return; // Don't update if already complete
+    }
+    try {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      await updateSlackMessage(
+        client,
+        safeChannel,
+        safeMessageTs,
+        `Agent is thinking... (${elapsed}s)`
+      );
+    } catch (error) {
+      // If update fails (e.g., message_not_found), log but don't throw
+      // This prevents the interval from breaking
+      console.error(
+        "[Bot Webhook Queue] Error updating Slack thinking message:",
+        error
+      );
+    }
+  }
+
+  // Start background task to update message periodically
+  const updateInterval = setInterval(() => {
+    if (!isComplete) {
+      updateSlackThinkingMessage().catch((error) => {
+        console.error(
+          "[Bot Webhook Queue] Error in Slack update interval:",
+          error
+        );
+      });
+    }
+  }, 1500);
+
+  // Get base URL for model referer (used for logging/tracking)
+  // Falls back to BASE_URL if WEBHOOK_BASE_URL is not set
+  const webhookBaseFromEnv = process.env.WEBHOOK_BASE_URL?.trim();
+  const baseUrlFromEnv = process.env.BASE_URL?.trim();
+  const baseUrl: string =
+    webhookBaseFromEnv && webhookBaseFromEnv.length > 0
+      ? webhookBaseFromEnv
+      : baseUrlFromEnv && baseUrlFromEnv.length > 0
+      ? baseUrlFromEnv
+      : process.env.ARC_ENV === "production"
+      ? "https://api.helpmaton.com"
+      : process.env.ARC_ENV === "staging"
+      ? "https://staging-api.helpmaton.com"
+      : "http://localhost:3333";
+
+  // Fetch message history if configured
+  let conversationHistory: UIMessage[] = [];
+  const messageHistoryCount = config.messageHistoryCount ?? 10;
+  if (messageHistoryCount > 0) {
+    try {
+      // Get bot user ID if not already cached
+      let botUserId = config.botUserId;
+      if (!botUserId) {
+        const authResult = await client.auth.test();
+        if (authResult.ok && authResult.user_id) {
+          botUserId = authResult.user_id;
+          // Update integration config with bot user ID
+          const updatedConfig = {
+            ...config,
+            botUserId,
+          };
+          await db["bot-integration"].update({
+            ...integration,
+            config: updatedConfig,
+          });
+        }
+      }
+
+      // Fetch conversation history
+      const historyParams: {
+        channel: string;
+        limit: number;
+        latest?: string;
+        oldest?: string;
+      } = {
+        channel: safeChannel,
+        limit: messageHistoryCount,
+        latest: safeMessageTs,
+      };
+
+      // If in a thread, fetch thread history
+      if (threadTs) {
+        const threadHistory = await client.conversations.replies({
+          channel: safeChannel,
+          ts: threadTs,
+          limit: messageHistoryCount + 1, // +1 to account for the thread parent
+        });
+
+        if (threadHistory.ok && threadHistory.messages) {
+          // Filter out the current message, then convert
+          // Include bot messages in history as assistant messages for context
+          const messages = threadHistory.messages
+            .filter((msg) => {
+              // Exclude current message
+              if (msg.ts === safeMessageTs) {
+                return false;
+              }
+              // Exclude messages without text
+              if (!msg.text) {
+                return false;
+              }
+              return true;
+            })
+            .slice(-messageHistoryCount) // Take last N messages
+            .map((msg): UIMessage => {
+              // Determine role: if it's from bot, it's assistant, otherwise user
+              const isBotMessage =
+                (botUserId && msg.user === botUserId) || !!msg.bot_id;
+              const role = isBotMessage ? "assistant" : "user";
+              return {
+                role,
+                content: msg.text || "",
+              };
+            });
+
+          conversationHistory = messages;
+        }
+      } else {
+        // Fetch channel history
+        const channelHistory = await client.conversations.history(historyParams);
+
+        if (channelHistory.ok && channelHistory.messages) {
+          // Filter out the current message, then convert
+          // Include bot messages in history as assistant messages for context
+          const messages = channelHistory.messages
+            .filter((msg) => {
+              // Exclude current message
+              if (msg.ts === safeMessageTs) {
+                return false;
+              }
+              // Exclude messages without text
+              if (!msg.text) {
+                return false;
+              }
+              // Exclude thread replies (we only want top-level messages)
+              if (msg.thread_ts && msg.thread_ts !== msg.ts) {
+                return false;
+              }
+              return true;
+            })
+            .slice(0, messageHistoryCount) // Take first N messages (they're in reverse chronological order)
+            .reverse() // Reverse to get chronological order (oldest first)
+            .map((msg): UIMessage => {
+              // Determine role: if it's from bot, it's assistant, otherwise user
+              const isBotMessage =
+                (botUserId && msg.user === botUserId) || !!msg.bot_id;
+              const role = isBotMessage ? "assistant" : "user";
+              return {
+                role,
+                content: msg.text || "",
+              };
+            });
+
+          conversationHistory = messages;
+        }
+      }
+    } catch (error) {
+      // Log error but continue without history
+      console.error(
+        "[Bot Webhook Queue] Error fetching message history:",
+        error
+      );
+    }
+  }
+
+  try {
+    // Call agent with conversation history
+    const agentResult = await callAgentNonStreaming(
+      workspaceId,
+      agentId,
+      messageText,
+      {
+        modelReferer: `${baseUrl}/api/webhooks/slack`,
+        conversationId: conversationId || threadTs || messageTs,
+        context,
+        endpointType: "webhook",
+        conversationHistory,
+      }
+    );
+
+    // Stop the interval and mark as complete
+    clearInterval(updateInterval);
+    isComplete = true;
+
+    // Wait a bit to ensure any pending interval updates complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Update with complete response
+    const responseText = agentResult.text || "No response generated.";
+    await updateSlackMessage(
+      client,
+      safeChannel,
+      safeMessageTs,
+      responseText
+    );
+
+    // Update lastUsedAt
+    await db["bot-integration"].update({
+      ...integration,
+      lastUsedAt: new Date().toISOString(),
+    });
+
+    // Track successful processing
+    const processingTimeMs = Date.now() - processingStartTime;
+    trackEvent("bot_webhook_processed", {
+      workspace_id: workspaceId,
+      integration_id: message.integrationId,
+      platform: "slack",
+      agent_id: agentId,
+      processing_time_ms: processingTimeMs,
+      response_length: responseText.length,
+    });
+  } catch (error) {
+    // Stop the interval and mark as complete
+    clearInterval(updateInterval);
+    isComplete = true;
+
+    // Wait a bit to ensure any pending interval updates complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Update with error
+    try {
+      await updateSlackMessage(
+        client,
+        safeChannel,
+        safeMessageTs,
+        `❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    } catch (updateError) {
+      console.error(
+        "[Bot Webhook Queue] Error updating Slack message with error:",
+        updateError
+      );
+    }
+
+    // Track failed processing
+    trackEvent("bot_webhook_processing_failed", {
+      workspace_id: workspaceId,
+      integration_id: message.integrationId,
+      platform: "slack",
+      agent_id: agentId,
+      error_type: error instanceof Error ? error.constructor.name : "Unknown",
+      error_message: error instanceof Error ? error.message : String(error),
+    });
+
+    throw error;
+  }
+}
+
+/**
+ * Process a single bot webhook task
+ */
+async function processBotWebhookTask(
+  message: BotWebhookTaskMessage,
+  messageId: string
+): Promise<void> {
+  // Get context for workspace credit transactions
+  const context = getCurrentSQSContext(messageId);
+  if (!context) {
+    throw new Error("Context not available for workspace credit transactions");
+  }
+
+  if (message.platform === "discord") {
+    await processDiscordTask(message, context);
+  } else if (message.platform === "slack") {
+    await processSlackTask(message, context);
+  } else {
+    throw new Error(`Unknown platform: ${message.platform}`);
+  }
+}
+
+/**
+ * Handler for bot webhook queue
+ */
+export const handler = handlingSQSErrors(
+  async (event: SQSEvent): Promise<string[]> => {
+    const failedMessageIds: string[] = [];
+
+    for (const record of event.Records) {
+      const messageId = record.messageId || "unknown";
+      try {
+        const body = JSON.parse(record.body);
+        const message = BotWebhookTaskMessageSchema.parse(body);
+
+        console.log("[Bot Webhook Queue] Processing task:", {
+          platform: message.platform,
+          integrationId: message.integrationId,
+          workspaceId: message.workspaceId,
+          agentId: message.agentId,
+        });
+
+        await processBotWebhookTask(message, messageId);
+      } catch (error) {
+        console.error(
+          `[Bot Webhook Queue] Error processing message ${messageId}:`,
+          error
+        );
+        failedMessageIds.push(messageId);
+      }
+    }
+
+    return failedMessageIds;
+  }
+);

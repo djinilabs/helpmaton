@@ -23,6 +23,7 @@ any /api/workspaces
 any /api/workspaces/*
 any /api/authorizer
 any /api/streams/*
+any /api/webhooks/:type/:workspaceId/:integrationId
 any /*
 
 @tables
@@ -143,6 +144,11 @@ agent-delegation-tasks
   pk *String
   sk **String
   ttl TTL
+
+bot-integration
+  pk *String
+  sk **String
+  encrypt true
 
 @tables-indexes
 
@@ -286,6 +292,16 @@ agent-delegation-tasks
   gsi1sk **String
   name byWorkspaceAndAgent
 
+bot-integration
+  workspaceId *String
+  pk **String
+  name byWorkspaceId
+
+bot-integration
+  agentId *String
+  pk **String
+  name byAgentId
+
 @scheduled
 aggregate-token-usage rate(1 day)
 cleanup-expired-reservations rate(10 minutes)
@@ -307,6 +323,9 @@ openrouter-cost-verification-queue
   messageRetentionPeriod 604800
 agent-delegation-queue
   timeout 300
+bot-webhook-queue
+  visibilityTimeout 60
+  messageRetentionPeriod 1209600
 
 @api-throttling
 free
@@ -340,6 +359,7 @@ scheduled summarize-memory-yearly lancedb
 scheduled cleanup-memory-retention lancedb
 
 queue agent-temporal-grain-queue lancedb
+queue bot-webhook-queue lancedb
 
 @plugins
 architect/plugin-typescript
