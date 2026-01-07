@@ -4,6 +4,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { validateCloudflareTurnstile } from "../../../utils/captcha";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { sendTrialCreditRequestNotification } from "../../../utils/trialCreditNotifications";
 import { isUserInTrialPeriod } from "../../../utils/trialPeriod";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
@@ -154,6 +155,16 @@ export const registerPostTrialCreditRequest = (app: express.Application) => {
       await sendTrialCreditRequestNotification(
         workspaceId,
         userEmail
+      );
+
+      // Track trial credit request
+      trackBusinessEvent(
+        "trial_credit",
+        "requested",
+        {
+          workspace_id: workspaceId,
+        },
+        req
       );
 
       res.status(201).json({

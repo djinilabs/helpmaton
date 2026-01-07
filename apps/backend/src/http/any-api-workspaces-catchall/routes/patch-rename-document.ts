@@ -4,6 +4,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { renameDocument, generateUniqueFilename } from "../../../utils/s3";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -143,6 +144,17 @@ export const registerPatchRenameDocument = (app: express.Application) => {
           updatedAt: new Date().toISOString(),
         },
         null
+      );
+
+      // Track document rename
+      trackBusinessEvent(
+        "document",
+        "renamed",
+        {
+          workspace_id: workspaceId,
+          document_id: documentId,
+        },
+        req
       );
 
       res.json({

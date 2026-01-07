@@ -1,6 +1,6 @@
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
-import { lazy, Suspense, useState } from "react";
 import type { FC } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 import {
@@ -13,6 +13,7 @@ import {
   getCostColor,
 } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
+import { trackEvent } from "../utils/tracking";
 
 const ConversationDetailModal = lazy(() =>
   import("./ConversationDetailModal").then((module) => ({
@@ -59,6 +60,25 @@ export const TransactionTable: FC<TransactionTableProps> = ({
           (page: { transactions: Transaction[] }) => page.transactions
         )
       : []) ?? [];
+
+  // Track transaction viewing
+  useEffect(() => {
+    if (data && !isLoading) {
+      const transactionCount = transactions.length;
+      if (agentId) {
+        trackEvent("agent_transactions_viewed", {
+          workspace_id: workspaceId,
+          agent_id: agentId,
+          transaction_count: transactionCount,
+        });
+      } else {
+        trackEvent("workspace_transactions_viewed", {
+          workspace_id: workspaceId,
+          transaction_count: transactionCount,
+        });
+      }
+    }
+  }, [data, isLoading, workspaceId, agentId, transactions]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();

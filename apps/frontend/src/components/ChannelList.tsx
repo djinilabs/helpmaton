@@ -7,6 +7,7 @@ import {
   useTestChannel,
 } from "../hooks/useChannels";
 import type { Channel } from "../utils/api";
+import { trackEvent } from "../utils/tracking";
 
 import { ChannelModal } from "./ChannelModal";
 
@@ -47,6 +48,11 @@ const ChannelItem: FC<ChannelItemProps> = ({
             onClick={async () => {
               try {
                 await testChannel.mutateAsync();
+                trackEvent("channel_tested", {
+                  workspace_id: workspaceId,
+                  channel_id: channel.id,
+                  channel_type: channel.type,
+                });
               } catch {
                 // Error is handled by toast in the hook
               }
@@ -73,6 +79,11 @@ const ChannelItem: FC<ChannelItemProps> = ({
               }
               try {
                 await deleteChannel.mutateAsync();
+                trackEvent("channel_deleted", {
+                  workspace_id: workspaceId,
+                  channel_id: channel.id,
+                  channel_type: channel.type,
+                });
               } catch {
                 // Error is handled by toast in the hook
               }

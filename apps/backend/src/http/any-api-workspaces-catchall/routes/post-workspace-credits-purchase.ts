@@ -10,6 +10,7 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { createCheckout, getVariant } from "../../../utils/lemonSqueezy";
 import { getWorkspaceSubscription } from "../../../utils/subscriptionUtils";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 export function registerPostWorkspaceCreditsPurchase(
@@ -145,6 +146,17 @@ export function registerPostWorkspaceCreditsPurchase(
           checkoutId: checkout.url,
           customPriceInCents,
         }
+      );
+
+      // Track credit purchase initiation
+      trackBusinessEvent(
+        "credits",
+        "purchase_initiated",
+        {
+          workspace_id: workspaceId,
+          amount_usd: amount,
+        },
+        req
       );
 
       res.json({

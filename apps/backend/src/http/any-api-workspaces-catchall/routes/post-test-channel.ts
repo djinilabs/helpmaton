@@ -4,6 +4,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { sendNotification } from "../../../utils/notifications";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -86,6 +87,19 @@ export const registerPostTestChannel = (app: express.Application) => {
 
         try {
           await sendNotification(channel, testMessage);
+
+          // Track channel test
+          trackBusinessEvent(
+            "channel",
+            "tested",
+            {
+              workspace_id: workspaceId,
+              channel_id: channelId,
+              channel_type: channel.type,
+            },
+            req
+          );
+
           res.json({
             success: true,
             message: "Test message sent successfully",

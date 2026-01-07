@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -148,6 +149,18 @@ export const registerPutWorkspaceChannel = (app: express.Application) => {
           updatedBy: req.userRef || "",
           updatedAt: new Date().toISOString(),
         });
+
+        // Track channel update
+        trackBusinessEvent(
+          "channel",
+          "updated",
+          {
+            workspace_id: workspaceId,
+            channel_id: channelId,
+            channel_type: channel.type,
+          },
+          req
+        );
 
         res.json({
           id: updated.channelId,

@@ -9,6 +9,7 @@ import {
 } from "../hooks/useChannels";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import type { Channel } from "../utils/api";
+import { trackEvent } from "../utils/tracking";
 
 interface ChannelModalProps {
   isOpen: boolean;
@@ -121,6 +122,11 @@ export const ChannelModal: FC<ChannelModalProps> = ({
           };
         }
         await updateChannel.mutateAsync(updateData);
+        trackEvent("channel_updated", {
+          workspace_id: workspaceId,
+          channel_id: channel.id,
+          channel_type: channel.type,
+        });
       } else {
         const config = type === "discord"
           ? {
@@ -134,6 +140,11 @@ export const ChannelModal: FC<ChannelModalProps> = ({
           type,
           name: name.trim(),
           config,
+        });
+        trackEvent("channel_created", {
+          workspace_id: workspaceId,
+          channel_id: newChannel.id,
+          channel_type: type,
         });
         setCreatedChannelId(newChannel.id);
         // Don't close immediately - allow user to test
@@ -394,6 +405,11 @@ export const ChannelModal: FC<ChannelModalProps> = ({
                     if (!channelIdForTest) return;
                     try {
                       await testChannel.mutateAsync();
+                      trackEvent("channel_tested", {
+                        workspace_id: workspaceId,
+                        channel_id: channelIdForTest,
+                        channel_type: type,
+                      });
                     } catch {
                       // Error is handled by toast in the hook
                     }

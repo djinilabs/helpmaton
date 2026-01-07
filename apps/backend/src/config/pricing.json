@@ -81,9 +81,9 @@
         },
         "z-ai/glm-4.7": {
           "usd": {
-            "input": 0.39999999999999997,
-            "output": 1.5,
-            "cachedInput": 0.04
+            "input": 0.16,
+            "output": 0.7999999999999999,
+            "cachedInput": 0.016
           }
         },
         "google/gemini-3-flash-preview": {
@@ -368,9 +368,9 @@
         },
         "moonshotai/kimi-k2-thinking": {
           "usd": {
-            "input": 0.39999999999999997,
-            "output": 1.75,
-            "cachedInput": 0.04
+            "input": 0.32,
+            "output": 0.48,
+            "cachedInput": 0.032
           }
         },
         "amazon/nova-premier-v1": {
@@ -586,16 +586,16 @@
         },
         "qwen/qwen3-vl-235b-a22b-thinking": {
           "usd": {
-            "input": 0.3,
-            "output": 1.2,
-            "cachedInput": 0.03
+            "input": 0.44999999999999996,
+            "output": 3.5,
+            "cachedInput": 0.045
           }
         },
         "qwen/qwen3-vl-235b-a22b-instruct": {
           "usd": {
-            "input": 0.19999999999999998,
-            "output": 1.2,
-            "cachedInput": 0.02
+            "input": 0.12,
+            "output": 0.56,
+            "cachedInput": 0.012
           }
         },
         "qwen/qwen3-max": {
@@ -775,9 +775,9 @@
         },
         "nousresearch/hermes-4-405b": {
           "usd": {
-            "input": 0.3,
-            "output": 1.2,
-            "cachedInput": 0.03
+            "input": 1,
+            "output": 3,
+            "cachedInput": 0.1
           }
         },
         "deepseek/deepseek-chat-v3.1": {
@@ -943,9 +943,9 @@
         },
         "z-ai/glm-4.5-air": {
           "usd": {
-            "input": 0.13,
-            "output": 0.85,
-            "cachedInput": 0.013000000000000001
+            "input": 0.049999999999999996,
+            "output": 0.22,
+            "cachedInput": 0.005
           }
         },
         "qwen/qwen3-235b-a22b-thinking-2507": {
@@ -1020,9 +1020,9 @@
         },
         "moonshotai/kimi-k2": {
           "usd": {
-            "input": 0.456,
-            "output": 1.8399999999999999,
-            "cachedInput": 0.0456
+            "input": 0.5,
+            "output": 2.4,
+            "cachedInput": 0.05
           }
         },
         "thudm/glm-4.1v-9b-thinking": {
@@ -1496,9 +1496,9 @@
         },
         "deepseek/deepseek-chat-v3-0324": {
           "usd": {
-            "input": 0.19999999999999998,
-            "output": 0.88,
-            "cachedInput": 0.02
+            "input": 0.19,
+            "output": 0.87,
+            "cachedInput": 0.019000000000000003
           }
         },
         "openai/o1-pro": {
@@ -1729,9 +1729,9 @@
         },
         "qwen/qwen2.5-vl-72b-instruct": {
           "usd": {
-            "input": 0.07,
-            "output": 0.26,
-            "cachedInput": 0.007000000000000001
+            "input": 0.15,
+            "output": 0.6,
+            "cachedInput": 0.015
           }
         },
         "qwen/qwen-plus": {
@@ -1801,9 +1801,9 @@
         },
         "deepseek/deepseek-r1": {
           "usd": {
-            "input": 0.3,
-            "output": 1.2,
-            "cachedInput": 0.03
+            "input": 0.7,
+            "output": 2.4,
+            "cachedInput": 0.06999999999999999
           }
         },
         "minimax/minimax-01": {
@@ -2173,7 +2173,7 @@
         "meta-llama/llama-3.1-8b-instruct": {
           "usd": {
             "input": 0.02,
-            "output": 0.03,
+            "output": 0.049999999999999996,
             "cachedInput": 0.002
           }
         },
@@ -2484,6 +2484,27 @@
             "output": 1.5,
             "cachedInput": 0.05
           }
+        },
+        "allenai/olmo-3.1-32b-think": {
+          "usd": {
+            "input": 0.15,
+            "output": 0.5,
+            "cachedInput": 0.015
+          }
+        },
+        "allenai/olmo-3-32b-think": {
+          "usd": {
+            "input": 0.15,
+            "output": 0.5,
+            "cachedInput": 0.015
+          }
+        },
+        "kwaipilot/kat-coder-pro": {
+          "usd": {
+            "input": 0.207,
+            "output": 0.828,
+            "cachedInput": 0.0207
+          }
         }
       }
     }
@@ -2500,5 +2521,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-05T00:16:44.564Z"
+  "lastUpdated": "2026-01-06T00:15:38.108Z"
 }

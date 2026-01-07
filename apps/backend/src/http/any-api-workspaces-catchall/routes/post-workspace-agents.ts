@@ -10,6 +10,7 @@ import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
 } from "../../../utils/subscriptionUtils";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -209,6 +210,19 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           avatar: avatarPath,
           createdBy: currentUserRef,
         });
+
+        // Track agent creation
+        trackBusinessEvent(
+          "agent",
+          "created",
+          {
+            workspace_id: workspaceId,
+            agent_id: agentId,
+            provider: agent.provider,
+            model_name: agent.modelName || undefined,
+          },
+          req
+        );
 
         res.status(201).json({
           id: agentId,

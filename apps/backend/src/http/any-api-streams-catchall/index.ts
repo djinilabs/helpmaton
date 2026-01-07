@@ -20,6 +20,7 @@ import {
   ensureError,
 } from "../../utils/sentry";
 import { getAllowedOrigins } from "../../utils/streamServerUtils";
+import { trackBusinessEvent } from "../../utils/tracking";
 import { clearCurrentHTTPContext } from "../../utils/workspaceCreditContext";
 import { handleCreditErrors } from "../utils/generationErrorHandling";
 import { authenticateStreamRequest } from "../utils/streamAuthentication";
@@ -211,6 +212,19 @@ const internalHandler = async (
       executionResult.tokenUsage,
       executionResult.streamResult,
       executionResult.generationTimeMs
+    );
+
+    // Track stream endpoint call
+    trackBusinessEvent(
+      "stream_endpoint",
+      "called",
+      {
+        workspace_id: pathParams.workspaceId,
+        agent_id: pathParams.agentId,
+        endpoint_type: pathParams.endpointType,
+        user_id: authResult.userId,
+      },
+      undefined // Stream endpoints use secrets, not standard auth
     );
   } catch (error) {
     const boomed = boomify(error as Error);
