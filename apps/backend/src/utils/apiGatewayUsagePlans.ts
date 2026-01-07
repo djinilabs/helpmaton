@@ -453,14 +453,42 @@ async function verifyApiKeyWithCanaryRequest(
       `[apiGatewayUsagePlans] Making canary request to ${url} to verify API key for subscription ${subscriptionId}`
     );
 
-    // Make the canary request
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${bearerToken}`,
-        "Content-Type": "application/json",
-      },
-    });
+    // Make the canary request with a timeout to prevent hanging
+    // Use a 10 second timeout - API Gateway should respond quickly
+    const CANARY_REQUEST_TIMEOUT_MS = 10000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, CANARY_REQUEST_TIMEOUT_MS);
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${bearerToken}`,
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      // If it's a timeout/abort error, log and return false
+      if (
+        fetchError instanceof Error &&
+        (fetchError.name === "AbortError" ||
+          fetchError.message === "Operation aborted" ||
+          fetchError.message.includes("timeout"))
+      ) {
+        console.warn(
+          `[apiGatewayUsagePlans] Canary request timed out after ${CANARY_REQUEST_TIMEOUT_MS}ms for subscription ${subscriptionId}`
+        );
+        return false;
+      }
+      // Re-throw other errors to be caught by outer catch
+      throw fetchError;
+    }
 
     const statusCode = response.status;
 
