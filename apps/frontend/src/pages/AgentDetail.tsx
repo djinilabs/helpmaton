@@ -326,7 +326,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     updateIntegrationMutation.mutate({ id, status });
   };
 
-  const handleInstallCommand = (integrationId: string, currentCommandName?: string) => {
+  const handleInstallCommand = (
+    integrationId: string,
+    currentCommandName?: string
+  ) => {
     setCommandDialogState({ integrationId, currentCommandName });
   };
 
@@ -407,20 +410,18 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   );
 
   // Knowledge injection state
-  const [enableKnowledgeInjection, setEnableKnowledgeInjection] = useState<boolean>(
-    () => agent?.enableKnowledgeInjection ?? false
-  );
-  const [knowledgeInjectionSnippetCount, setKnowledgeInjectionSnippetCount] = useState<number>(
-    () => agent?.knowledgeInjectionSnippetCount ?? 5
-  );
-  const [enableKnowledgeReranking, setEnableKnowledgeReranking] = useState<boolean>(
-    () => agent?.enableKnowledgeReranking ?? false
-  );
-  const [knowledgeRerankingModel, setKnowledgeRerankingModel] = useState<string | null>(
-    () => agent?.knowledgeRerankingModel || null
-  );
+  const [enableKnowledgeInjection, setEnableKnowledgeInjection] =
+    useState<boolean>(() => agent?.enableKnowledgeInjection ?? false);
+  const [knowledgeInjectionSnippetCount, setKnowledgeInjectionSnippetCount] =
+    useState<number>(() => agent?.knowledgeInjectionSnippetCount ?? 5);
+  const [enableKnowledgeReranking, setEnableKnowledgeReranking] =
+    useState<boolean>(() => agent?.enableKnowledgeReranking ?? false);
+  const [knowledgeRerankingModel, setKnowledgeRerankingModel] = useState<
+    string | null
+  >(() => agent?.knowledgeRerankingModel || null);
   const [rerankingModels, setRerankingModels] = useState<string[]>([]);
-  const [isLoadingRerankingModels, setIsLoadingRerankingModels] = useState(false);
+  const [isLoadingRerankingModels, setIsLoadingRerankingModels] =
+    useState(false);
 
   // Use agent prop directly for clientTools, with local state for editing
   const [clientTools, setClientTools] = useState<ClientTool[]>(
@@ -628,10 +629,18 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   // Synchronize knowledge injection state with agent prop
   useEffect(() => {
     setEnableKnowledgeInjection(agent?.enableKnowledgeInjection ?? false);
-    setKnowledgeInjectionSnippetCount(agent?.knowledgeInjectionSnippetCount ?? 5);
+    setKnowledgeInjectionSnippetCount(
+      agent?.knowledgeInjectionSnippetCount ?? 5
+    );
     setEnableKnowledgeReranking(agent?.enableKnowledgeReranking ?? false);
     setKnowledgeRerankingModel(agent?.knowledgeRerankingModel || null);
-  }, [agent?.id, agent?.enableKnowledgeInjection, agent?.knowledgeInjectionSnippetCount, agent?.enableKnowledgeReranking, agent?.knowledgeRerankingModel]);
+  }, [
+    agent?.id,
+    agent?.enableKnowledgeInjection,
+    agent?.knowledgeInjectionSnippetCount,
+    agent?.enableKnowledgeReranking,
+    agent?.knowledgeRerankingModel,
+  ]);
 
   // Load re-ranking models when re-ranking is enabled
   useEffect(() => {
@@ -978,13 +987,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
         enableKnowledgeReranking: enableKnowledgeInjection
           ? enableKnowledgeReranking
           : false,
-        knowledgeRerankingModel: enableKnowledgeInjection && enableKnowledgeReranking
-          ? knowledgeRerankingModel
-          : null,
+        knowledgeRerankingModel:
+          enableKnowledgeInjection && enableKnowledgeReranking
+            ? knowledgeRerankingModel
+            : null,
       });
       // Sync local state with updated agent data
       setEnableKnowledgeInjection(updated.enableKnowledgeInjection ?? false);
-      setKnowledgeInjectionSnippetCount(updated.knowledgeInjectionSnippetCount ?? 5);
+      setKnowledgeInjectionSnippetCount(
+        updated.knowledgeInjectionSnippetCount ?? 5
+      );
       setEnableKnowledgeReranking(updated.enableKnowledgeReranking ?? false);
       setKnowledgeRerankingModel(updated.knowledgeRerankingModel || null);
     } catch {
@@ -2083,9 +2095,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               >
                 <div className="space-y-4">
                   <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable knowledge injection to automatically retrieve and inject
-                    relevant document snippets from your workspace documents into
-                    user prompts before they are sent to the agent.
+                    Enable knowledge injection to automatically retrieve and
+                    inject relevant document snippets from your workspace
+                    documents into user prompts before they are sent to the
+                    agent.
                   </p>
                   <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                     <p className="text-sm font-semibold dark:text-neutral-300">
@@ -2093,10 +2106,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     </p>
                     <p className="mt-1 text-sm opacity-75 dark:text-neutral-300">
                       Snippets are chunks of text extracted from your uploaded
-                      documents. When documents are uploaded, they are automatically
-                      split into smaller pieces (snippets) and indexed in the vector
-                      database. Each snippet typically contains 100-300 words and
-                      represents a meaningful portion of the document content.
+                      documents. When documents are uploaded, they are
+                      automatically split into smaller pieces (snippets) and
+                      indexed in the vector database. Each snippet typically
+                      contains 100-300 words and represents a meaningful portion
+                      of the document content.
                     </p>
                   </div>
                   <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
@@ -2109,10 +2123,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       className="mt-1 rounded border-2 border-neutral-300"
                     />
                     <div className="flex-1">
-                      <div className="font-bold">Enable Knowledge Injection</div>
+                      <div className="font-bold">
+                        Enable Knowledge Injection
+                      </div>
                       <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                        Automatically inject relevant document snippets into user
-                        prompts
+                        Automatically inject relevant document snippets into
+                        user prompts
                       </div>
                     </div>
                   </label>
@@ -2136,8 +2152,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                         />
                         <p className="text-xs opacity-75 dark:text-neutral-300">
-                          Number of document snippets to retrieve and inject (1-50,
-                          default: 5)
+                          Number of document snippets to retrieve and inject
+                          (1-50, default: 5)
                         </p>
                       </div>
                       <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
@@ -2152,8 +2168,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         <div className="flex-1">
                           <div className="font-bold">Enable Re-ranking</div>
                           <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                            Re-rank retrieved snippets to prioritize the most relevant
-                            ones using a specialized re-ranking model
+                            Re-rank retrieved snippets to prioritize the most
+                            relevant ones using a specialized re-ranking model
                           </div>
                         </div>
                       </label>
@@ -2186,7 +2202,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                               }
                               className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                             >
-                              <option value="">Select a re-ranking model</option>
+                              <option value="">
+                                Select a re-ranking model
+                              </option>
                               {rerankingModels.map((model) => (
                                 <option key={model} value={model}>
                                   {model}
@@ -2210,7 +2228,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     onClick={handleSaveKnowledgeInjection}
                     disabled={
                       updateAgent.isPending ||
-                      (enableKnowledgeReranking &&
+                      (enableKnowledgeInjection &&
+                        enableKnowledgeReranking &&
                         !knowledgeRerankingModel &&
                         rerankingModels.length > 0)
                     }
