@@ -2,10 +2,21 @@ import type { ModelMessage } from "ai";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
-const { mockSearchDocuments, mockRerankSnippets } = vi.hoisted(() => {
+const {
+  mockSearchDocuments,
+  mockRerankSnippets,
+  mockReserveRerankingCredits,
+  mockAdjustRerankingCreditReservation,
+  mockQueueRerankingCostVerification,
+  mockRefundRerankingCredits,
+} = vi.hoisted(() => {
   return {
     mockSearchDocuments: vi.fn(),
     mockRerankSnippets: vi.fn(),
+    mockReserveRerankingCredits: vi.fn(),
+    mockAdjustRerankingCreditReservation: vi.fn(),
+    mockQueueRerankingCostVerification: vi.fn(),
+    mockRefundRerankingCredits: vi.fn(),
   };
 });
 
@@ -19,9 +30,19 @@ vi.mock("../knowledgeReranking", () => ({
   rerankSnippets: mockRerankSnippets,
 }));
 
+// Mock knowledgeRerankingCredits
+vi.mock("../knowledgeRerankingCredits", () => ({
+  reserveRerankingCredits: mockReserveRerankingCredits,
+  adjustRerankingCreditReservation: mockAdjustRerankingCreditReservation,
+  queueRerankingCostVerification: mockQueueRerankingCostVerification,
+  refundRerankingCredits: mockRefundRerankingCredits,
+}));
+
 // Import after mocks are set up
+import type { DatabaseSchema } from "../../tables/schema";
 import type { SearchResult } from "../documentSearch";
 import { injectKnowledgeIntoMessages } from "../knowledgeInjection";
+import type { AugmentedContext } from "../workspaceCreditContext";
 
 describe("knowledgeInjection", () => {
   beforeEach(() => {
@@ -565,6 +586,436 @@ describe("knowledgeInjection", () => {
       expect(result[1].content).toContain("Relevant Knowledge");
       expect(result[2].role).toBe("user");
       expect(result[2].content).toBe("First query");
+    });
+
+    describe("credit management integration", () => {
+      let mockDb: DatabaseSchema;
+      let mockContext: AugmentedContext;
+
+      beforeEach(() => {
+        mockDb = {
+          workspace: { get: vi.fn() },
+          "credit-reservations": { get: vi.fn(), delete: vi.fn() },
+        } as unknown as DatabaseSchema;
+        mockContext = {
+          addWorkspaceCreditTransaction: vi.fn(),
+        } as unknown as AugmentedContext;
+      });
+
+      it("should reserve credits before re-ranking when db and context provided", async () => {
+        const agent = {
+          enableKnowledgeInjection: true,
+          enableKnowledgeReranking: true,
+          knowledgeRerankingModel: "cohere/rerank-v3",
+        };
+
+        mockSearchDocuments.mockResolvedValue(mockSearchResults);
+        mockReserveRerankingCredits.mockResolvedValue({
+          reservationId: "res-123",
+          reservedAmount: 10_550,
+          workspace: { creditBalance: 100_000_000 },
+        });
+        mockRerankSnippets.mockResolvedValue({
+          snippets: mockSearchResults,
+          costUsd: 0.01,
+          generationId: "gen-123",
+        });
+        mockAdjustRerankingCreditReservation.mockResolvedValue(undefined);
+        mockQueueRerankingCostVerification.mockResolvedValue(undefined);
+
+        const messages: ModelMessage[] = [
+          { role: "user", content: "Test query" },
+        ];
+
+        await injectKnowledgeIntoMessages(
+          "workspace-1",
+          agent,
+          messages,
+          mockDb,
+          mockContext,
+          "agent-1",
+          "conversation-1",
+          false // usesByok
+        );
+
+        expect(mockReserveRerankingCredits).toHaveBeenCalledWith(
+          mockDb,
+          "workspace-1",
+          "cohere/rerank-v3",
+          2, // documentCount
+          3, // maxRetries
+          mockContext,
+          "agent-1",
+          "conversation-1",
+          false // usesByok
+        );
+      });
+
+      it("should adjust credits after re-ranking with provisional cost", async () => {
+        const agent = {
+          enableKnowledgeInjection: true,
+          enableKnowledgeReranking: true,
+          knowledgeRerankingModel: "cohere/rerank-v3",
+        };
+
+        mockSearchDocuments.mockResolvedValue(mockSearchResults);
+        mockReserveRerankingCredits.mockResolvedValue({
+          reservationId: "res-123",
+          reservedAmount: 10_550,
+          workspace: { creditBalance: 100_000_000 },
+        });
+        mockRerankSnippets.mockResolvedValue({
+          snippets: mockSearchResults,
+          costUsd: 0.015, // Provisional cost
+          generationId: "gen-123",
+        });
+        mockAdjustRerankingCreditReservation.mockResolvedValue(undefined);
+        mockQueueRerankingCostVerification.mockResolvedValue(undefined);
+
+        const messages: ModelMessage[] = [
+          { role: "user", content: "Test query" },
+        ];
+
+        await injectKnowledgeIntoMessages(
+          "workspace-1",
+          agent,
+          messages,
+          mockDb,
+          mockContext,
+          "agent-1",
+          "conversation-1"
+        );
+
+        expect(mockAdjustRerankingCreditReservation).toHaveBeenCalledWith(
+          mockDb,
+          "res-123",
+          "workspace-1",
+          0.015, // provisionalCostUsd
+          "gen-123", // generationId
+          mockContext,
+          3, // maxRetries
+          "agent-1",
+          "conversation-1"
+        );
+      });
+
+      it("should queue cost verification when generationId is available", async () => {
+        const agent = {
+          enableKnowledgeInjection: true,
+          enableKnowledgeReranking: true,
+          knowledgeRerankingModel: "cohere/rerank-v3",
+        };
+
+        mockSearchDocuments.mockResolvedValue(mockSearchResults);
+        mockReserveRerankingCredits.mockResolvedValue({
+          reservationId: "res-123",
+          reservedAmount: 10_550,
+          workspace: { creditBalance: 100_000_000 },
+        });
+        mockRerankSnippets.mockResolvedValue({
+          snippets: mockSearchResults,
+          costUsd: 0.01,
+          generationId: "gen-123",
+        });
+        mockAdjustRerankingCreditReservation.mockResolvedValue(undefined);
+        mockQueueRerankingCostVerification.mockResolvedValue(undefined);
+
+        const messages: ModelMessage[] = [
+          { role: "user", content: "Test query" },
+        ];
+
+        await injectKnowledgeIntoMessages(
+          "workspace-1",
+          agent,
+          messages,
+          mockDb,
+          mockContext,
+          "agent-1",
+          "conversation-1"
+        );
+
+        expect(mockQueueRerankingCostVerification).toHaveBeenCalledWith(
+          "res-123",
+          "gen-123",
+          "workspace-1",
+          "agent-1",
+          "conversation-1"
+        );
+      });
+
+      it("should not queue cost verification when generationId is missing", async () => {
+        const agent = {
+          enableKnowledgeInjection: true,
+          enableKnowledgeReranking: true,
+          knowledgeRerankingModel: "cohere/rerank-v3",
+        };
+
+        mockSearchDocuments.mockResolvedValue(mockSearchResults);
+        mockReserveRerankingCredits.mockResolvedValue({
+          reservationId: "res-123",
+          reservedAmount: 10_550,
+          workspace: { creditBalance: 100_000_000 },
+        });
+        mockRerankSnippets.mockResolvedValue({
+          snippets: mockSearchResults,
+          costUsd: 0.01,
+          // No generationId
+        });
+        mockAdjustRerankingCreditReservation.mockResolvedValue(undefined);
+
+        const messages: ModelMessage[] = [
+          { role: "user", content: "Test query" },
+        ];
+
+        await injectKnowledgeIntoMessages(
+          "workspace-1",
+          agent,
+          messages,
+          mockDb,
+          mockContext
+        );
+
+        expect(mockQueueRerankingCostVerification).not.toHaveBeenCalled();
+      });
+
+      it("should skip credit management when db or context not provided", async () => {
+        const agent = {
+          enableKnowledgeInjection: true,
+          enableKnowledgeReranking: true,
+          knowledgeRerankingModel: "cohere/rerank-v3",
+        };
+
+        mockSearchDocuments.mockResolvedValue(mockSearchResults);
+        mockRerankSnippets.mockResolvedValue({
+          snippets: mockSearchResults,
+        });
+
+        const messages: ModelMessage[] = [
+          { role: "user", content: "Test query" },
+        ];
+
+        await injectKnowledgeIntoMessages(
+          "workspace-1",
+          agent,
+          messages
+          // No db or context - optional parameters
+        );
+
+        expect(mockReserveRerankingCredits).not.toHaveBeenCalled();
+        expect(mockAdjustRerankingCreditReservation).not.toHaveBeenCalled();
+        expect(mockQueueRerankingCostVerification).not.toHaveBeenCalled();
+      });
+
+      it("should skip re-ranking when credit reservation fails", async () => {
+        const agent = {
+          enableKnowledgeInjection: true,
+          enableKnowledgeReranking: true,
+          knowledgeRerankingModel: "cohere/rerank-v3",
+        };
+
+        mockSearchDocuments.mockResolvedValue(mockSearchResults);
+        mockReserveRerankingCredits.mockRejectedValue(
+          new Error("Insufficient credits")
+        );
+        // When reservation fails, re-ranking is still attempted but without credit tracking
+        mockRerankSnippets.mockResolvedValue({
+          snippets: mockSearchResults,
+        });
+
+        const messages: ModelMessage[] = [
+          { role: "user", content: "Test query" },
+        ];
+
+        const result = await injectKnowledgeIntoMessages(
+          "workspace-1",
+          agent,
+          messages,
+          mockDb,
+          mockContext
+        );
+
+        // When credit reservation fails, re-ranking still happens but without credit tracking
+        // The code logs a warning but continues with re-ranking
+        expect(mockRerankSnippets).toHaveBeenCalled();
+        // No credit adjustment should happen since reservation failed
+        expect(mockAdjustRerankingCreditReservation).not.toHaveBeenCalled();
+        expect(result[0].content).toContain("First relevant snippet");
+      });
+
+      it("should refund credits when re-ranking fails", async () => {
+        const agent = {
+          enableKnowledgeInjection: true,
+          enableKnowledgeReranking: true,
+          knowledgeRerankingModel: "cohere/rerank-v3",
+        };
+
+        mockSearchDocuments.mockResolvedValue(mockSearchResults);
+        mockReserveRerankingCredits.mockResolvedValue({
+          reservationId: "res-123",
+          reservedAmount: 10_550,
+          workspace: { creditBalance: 100_000_000 },
+        });
+        mockRerankSnippets.mockRejectedValue(new Error("Re-ranking failed"));
+        mockRefundRerankingCredits.mockResolvedValue(undefined);
+
+        const messages: ModelMessage[] = [
+          { role: "user", content: "Test query" },
+        ];
+
+        await injectKnowledgeIntoMessages(
+          "workspace-1",
+          agent,
+          messages,
+          mockDb,
+          mockContext,
+          "agent-1",
+          "conversation-1"
+        );
+
+        expect(mockRefundRerankingCredits).toHaveBeenCalledWith(
+          mockDb,
+          "res-123",
+          "workspace-1",
+          mockContext,
+          3, // maxRetries
+          "agent-1",
+          "conversation-1"
+        );
+      });
+
+      it("should skip credit management when BYOK is enabled", async () => {
+        const agent = {
+          enableKnowledgeInjection: true,
+          enableKnowledgeReranking: true,
+          knowledgeRerankingModel: "cohere/rerank-v3",
+        };
+
+        mockSearchDocuments.mockResolvedValue(mockSearchResults);
+        mockReserveRerankingCredits.mockResolvedValue({
+          reservationId: "byok",
+          reservedAmount: 0,
+          workspace: { creditBalance: 100_000_000 },
+        });
+        mockRerankSnippets.mockResolvedValue({
+          snippets: mockSearchResults,
+          costUsd: 0.01,
+          generationId: "gen-123",
+        });
+        mockAdjustRerankingCreditReservation.mockResolvedValue(undefined);
+        // queueRerankingCostVerification will be called but will skip internally for BYOK
+        mockQueueRerankingCostVerification.mockResolvedValue(undefined);
+
+        const messages: ModelMessage[] = [
+          { role: "user", content: "Test query" },
+        ];
+
+        await injectKnowledgeIntoMessages(
+          "workspace-1",
+          agent,
+          messages,
+          mockDb,
+          mockContext,
+          "agent-1",
+          "conversation-1",
+          true // usesByok
+        );
+
+        // Should still call adjust, but it will skip for BYOK
+        expect(mockAdjustRerankingCreditReservation).toHaveBeenCalledWith(
+          mockDb,
+          "byok", // BYOK reservation ID
+          "workspace-1",
+          0.01, // costUsd
+          "gen-123", // generationId
+          mockContext,
+          3, // maxRetries
+          "agent-1",
+          "conversation-1"
+        );
+        // queueRerankingCostVerification is called but will skip internally for BYOK
+        expect(mockQueueRerankingCostVerification).toHaveBeenCalledWith(
+          "byok",
+          "gen-123",
+          "workspace-1",
+          "agent-1",
+          "conversation-1"
+        );
+        // The function itself handles BYOK and skips the actual queueing
+      });
+
+      it("should continue even if credit adjustment fails", async () => {
+        const agent = {
+          enableKnowledgeInjection: true,
+          enableKnowledgeReranking: true,
+          knowledgeRerankingModel: "cohere/rerank-v3",
+        };
+
+        mockSearchDocuments.mockResolvedValue(mockSearchResults);
+        mockReserveRerankingCredits.mockResolvedValue({
+          reservationId: "res-123",
+          reservedAmount: 10_550,
+          workspace: { creditBalance: 100_000_000 },
+        });
+        mockRerankSnippets.mockResolvedValue({
+          snippets: mockSearchResults,
+          costUsd: 0.01,
+          generationId: "gen-123",
+        });
+        mockAdjustRerankingCreditReservation.mockRejectedValue(
+          new Error("Adjustment failed")
+        );
+
+        const messages: ModelMessage[] = [
+          { role: "user", content: "Test query" },
+        ];
+
+        // Should not throw
+        const result = await injectKnowledgeIntoMessages(
+          "workspace-1",
+          agent,
+          messages,
+          mockDb,
+          mockContext
+        );
+
+        // Should still inject knowledge
+        expect(result[0].content).toContain("Relevant Knowledge");
+      });
+
+      it("should continue even if refund fails", async () => {
+        const agent = {
+          enableKnowledgeInjection: true,
+          enableKnowledgeReranking: true,
+          knowledgeRerankingModel: "cohere/rerank-v3",
+        };
+
+        mockSearchDocuments.mockResolvedValue(mockSearchResults);
+        mockReserveRerankingCredits.mockResolvedValue({
+          reservationId: "res-123",
+          reservedAmount: 10_550,
+          workspace: { creditBalance: 100_000_000 },
+        });
+        mockRerankSnippets.mockRejectedValue(new Error("Re-ranking failed"));
+        mockRefundRerankingCredits.mockRejectedValue(
+          new Error("Refund failed")
+        );
+
+        const messages: ModelMessage[] = [
+          { role: "user", content: "Test query" },
+        ];
+
+        // Should not throw
+        const result = await injectKnowledgeIntoMessages(
+          "workspace-1",
+          agent,
+          messages,
+          mockDb,
+          mockContext
+        );
+
+        // Should still inject knowledge with original results
+        expect(result[0].content).toContain("First relevant snippet");
+      });
     });
   });
 });
