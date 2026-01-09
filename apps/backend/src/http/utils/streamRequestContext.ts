@@ -370,6 +370,16 @@ export async function buildStreamRequestContext(
   const { uiMessage, modelMessages, convertedMessages } =
     convertRequestBodyToMessages(bodyText);
 
+  // Inject knowledge from workspace documents if enabled
+  const { injectKnowledgeIntoMessages } = await import(
+    "../../utils/knowledgeInjection"
+  );
+  const modelMessagesWithKnowledge = await injectKnowledgeIntoMessages(
+    workspaceId,
+    agent,
+    modelMessages
+  );
+
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
     typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
@@ -390,7 +400,7 @@ export async function buildStreamRequestContext(
   }
 
   // Check for tool result messages (role: "tool")
-  for (const msg of modelMessages) {
+  for (const msg of modelMessagesWithKnowledge) {
     if (
       msg &&
       typeof msg === "object" &&
@@ -419,7 +429,7 @@ export async function buildStreamRequestContext(
     workspaceId,
     agentId,
     agent,
-    modelMessages,
+    modelMessagesWithKnowledge,
     tools,
     usesByok,
     endpointType,
@@ -442,7 +452,7 @@ export async function buildStreamRequestContext(
     db,
     uiMessage,
     convertedMessages,
-    modelMessages,
+    modelMessages: modelMessagesWithKnowledge,
     agent,
     model,
     tools,

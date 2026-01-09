@@ -936,6 +936,16 @@ export async function callAgentInternal(
     },
   ];
 
+  // Inject knowledge from workspace documents if enabled
+  const { injectKnowledgeIntoMessages } = await import(
+    "../../utils/knowledgeInjection"
+  );
+  const modelMessagesWithKnowledge = await injectKnowledgeIntoMessages(
+    workspaceId,
+    targetAgent,
+    modelMessages
+  );
+
   let reservationId: string | undefined;
   let llmCallAttempted = false;
   let result: Awaited<ReturnType<typeof generateText>> | undefined;
@@ -958,7 +968,7 @@ export async function callAgentInternal(
       targetAgentId,
       agentProvider, // provider
       modelName || MODEL_NAME,
-      modelMessages,
+      modelMessagesWithKnowledge,
       targetAgent.systemPrompt,
       toolDefinitions,
       false // usesByok - delegated calls use workspace API key if available
@@ -981,7 +991,7 @@ export async function callAgentInternal(
       targetAgentId,
       model: MODEL_NAME,
       systemPromptLength: targetAgent.systemPrompt.length,
-      messagesCount: modelMessages.length,
+      messagesCount: modelMessagesWithKnowledge.length,
       toolsCount: tools ? Object.keys(tools).length : 0,
       ...generateOptions,
     });
@@ -1008,7 +1018,7 @@ export async function callAgentInternal(
             typeof generateText
           >[0]["model"],
           system: targetAgent.systemPrompt,
-          messages: modelMessages,
+          messages: modelMessagesWithKnowledge,
           tools,
           ...generateOptions,
         }),

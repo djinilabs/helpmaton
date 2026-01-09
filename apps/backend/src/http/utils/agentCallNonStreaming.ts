@@ -103,6 +103,16 @@ export async function callAgentNonStreaming(
     allMessages
   );
 
+  // Inject knowledge from workspace documents if enabled
+  const { injectKnowledgeIntoMessages } = await import(
+    "../../utils/knowledgeInjection"
+  );
+  const modelMessagesWithKnowledge = await injectKnowledgeIntoMessages(
+    workspaceId,
+    agent,
+    modelMessages
+  );
+
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
     typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
@@ -123,7 +133,7 @@ export async function callAgentNonStreaming(
       agentId,
       "openrouter", // provider
       finalModelName,
-      modelMessages,
+      modelMessagesWithKnowledge,
       agent.systemPrompt,
       tools,
       usesByok,
@@ -135,7 +145,7 @@ export async function callAgentNonStreaming(
     const generateOptions = prepareLLMCall(
       agent,
       tools,
-      modelMessages,
+      modelMessagesWithKnowledge,
       options?.endpointType || "bridge",
       workspaceId,
       agentId
@@ -146,7 +156,7 @@ export async function callAgentNonStreaming(
     result = await generateText({
       model: model as unknown as Parameters<typeof generateText>[0]["model"],
       system: agent.systemPrompt,
-      messages: modelMessages,
+      messages: modelMessagesWithKnowledge,
       tools,
       ...generateOptions,
     });

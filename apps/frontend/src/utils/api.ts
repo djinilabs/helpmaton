@@ -77,6 +77,10 @@ export interface Agent {
   enabledMcpServerIds?: string[];
   enableMemorySearch?: boolean;
   enableSearchDocuments?: boolean;
+  enableKnowledgeInjection?: boolean;
+  knowledgeInjectionSnippetCount?: number;
+  enableKnowledgeReranking?: boolean;
+  knowledgeRerankingModel?: string;
   enableSendEmail?: boolean;
   enableTavilySearch?: boolean;
   searchWebProvider?: "tavily" | "jina" | null;
@@ -114,6 +118,10 @@ export interface UpdateAgentInput {
   enabledMcpServerIds?: string[];
   enableMemorySearch?: boolean;
   enableSearchDocuments?: boolean;
+  enableKnowledgeInjection?: boolean;
+  knowledgeInjectionSnippetCount?: number;
+  enableKnowledgeReranking?: boolean;
+  knowledgeRerankingModel?: string | null;
   enableSendEmail?: boolean;
   enableTavilySearch?: boolean;
   searchWebProvider?: "tavily" | "jina" | null;

@@ -90,6 +90,10 @@ export const tableSchemas = {
     enabledMcpServerIds: z.array(z.string()).optional(), // list of MCP server IDs enabled for this agent
     enableMemorySearch: z.boolean().optional(), // enable memory search tool for this agent (default: false)
     enableSearchDocuments: z.boolean().optional(), // enable document search tool for this agent (default: false)
+    enableKnowledgeInjection: z.boolean().optional(), // enable knowledge injection from workspace documents (default: false)
+    knowledgeInjectionSnippetCount: z.number().int().positive().optional(), // number of document snippets to inject (default: 5)
+    enableKnowledgeReranking: z.boolean().optional(), // enable re-ranking of injected snippets (default: false)
+    knowledgeRerankingModel: z.string().optional(), // re-ranking model name from OpenRouter (required if enableKnowledgeReranking is true)
     enableSendEmail: z.boolean().optional(), // enable email sending tool for this agent (default: false, requires workspace email connection)
     enableTavilySearch: z.boolean().optional(), // @deprecated Use searchWebProvider instead. Legacy field for backward compatibility (default: false)
     searchWebProvider: z.enum(["tavily", "jina"]).optional(), // Web search provider: "tavily" uses Tavily search API, "jina" uses Jina DeepSearch API (default: undefined, no search tool)

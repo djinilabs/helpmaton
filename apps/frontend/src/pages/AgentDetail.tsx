@@ -127,6 +127,8 @@ import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
 import {
   getModelsForProvider,
   getDefaultModelForProvider,
+  fetchAvailableModels,
+  getRerankingModels,
   type Provider,
 } from "../utils/modelConfig";
 import { trackEvent } from "../utils/tracking";
@@ -404,6 +406,22 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     () => agent?.enableExaSearch ?? false
   );
 
+  // Knowledge injection state
+  const [enableKnowledgeInjection, setEnableKnowledgeInjection] = useState<boolean>(
+    () => agent?.enableKnowledgeInjection ?? false
+  );
+  const [knowledgeInjectionSnippetCount, setKnowledgeInjectionSnippetCount] = useState<number>(
+    () => agent?.knowledgeInjectionSnippetCount ?? 5
+  );
+  const [enableKnowledgeReranking, setEnableKnowledgeReranking] = useState<boolean>(
+    () => agent?.enableKnowledgeReranking ?? false
+  );
+  const [knowledgeRerankingModel, setKnowledgeRerankingModel] = useState<string | null>(
+    () => agent?.knowledgeRerankingModel || null
+  );
+  const [rerankingModels, setRerankingModels] = useState<string[]>([]);
+  const [isLoadingRerankingModels, setIsLoadingRerankingModels] = useState(false);
+
   // Use agent prop directly for clientTools, with local state for editing
   const [clientTools, setClientTools] = useState<ClientTool[]>(
     () => agent?.clientTools || []
@@ -606,6 +624,34 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       setEnableSendEmail(currentValue);
     }
   }, [agent?.id, agent?.enableSendEmail]);
+
+  // Synchronize knowledge injection state with agent prop
+  useEffect(() => {
+    setEnableKnowledgeInjection(agent?.enableKnowledgeInjection ?? false);
+    setKnowledgeInjectionSnippetCount(agent?.knowledgeInjectionSnippetCount ?? 5);
+    setEnableKnowledgeReranking(agent?.enableKnowledgeReranking ?? false);
+    setKnowledgeRerankingModel(agent?.knowledgeRerankingModel || null);
+  }, [agent?.id, agent?.enableKnowledgeInjection, agent?.knowledgeInjectionSnippetCount, agent?.enableKnowledgeReranking, agent?.knowledgeRerankingModel]);
+
+  // Load re-ranking models when re-ranking is enabled
+  useEffect(() => {
+    if (enableKnowledgeReranking) {
+      setIsLoadingRerankingModels(true);
+      fetchAvailableModels()
+        .then((models) => {
+          const openrouterModels = models.openrouter?.models || [];
+          const rerankModels = getRerankingModels(openrouterModels);
+          setRerankingModels(rerankModels);
+          setIsLoadingRerankingModels(false);
+        })
+        .catch((error) => {
+          console.error("Failed to load re-ranking models:", error);
+          setIsLoadingRerankingModels(false);
+        });
+    } else {
+      setRerankingModels([]);
+    }
+  }, [enableKnowledgeReranking]);
 
   // Synchronize searchWebProvider state with agent prop using useEffect
   const prevSearchWebProviderRef = useRef<"tavily" | "jina" | null | undefined>(
@@ -919,6 +965,30 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       // Error is handled by toast in the hook
       // Reset ref on error so useEffect can sync properly
       prevEnableSearchDocumentsRef.current = agent?.enableSearchDocuments;
+    }
+  };
+
+  const handleSaveKnowledgeInjection = async () => {
+    try {
+      const updated = await updateAgent.mutateAsync({
+        enableKnowledgeInjection,
+        knowledgeInjectionSnippetCount: enableKnowledgeInjection
+          ? Math.max(1, Math.min(50, knowledgeInjectionSnippetCount))
+          : undefined,
+        enableKnowledgeReranking: enableKnowledgeInjection
+          ? enableKnowledgeReranking
+          : false,
+        knowledgeRerankingModel: enableKnowledgeInjection && enableKnowledgeReranking
+          ? knowledgeRerankingModel
+          : null,
+      });
+      // Sync local state with updated agent data
+      setEnableKnowledgeInjection(updated.enableKnowledgeInjection ?? false);
+      setKnowledgeInjectionSnippetCount(updated.knowledgeInjectionSnippetCount ?? 5);
+      setEnableKnowledgeReranking(updated.enableKnowledgeReranking ?? false);
+      setKnowledgeRerankingModel(updated.knowledgeRerankingModel || null);
+    } catch {
+      // Error is handled by toast in the hook
     }
   };
 
@@ -1989,6 +2059,166 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     {updateAgent.isPending
                       ? "Saving..."
                       : "Save Document Search Setting"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
+          {/* Inject Knowledge Section */}
+          {canEdit && (
+            <AccordionSection
+              id="inject-knowledge"
+              title={
+                <>
+                  <LightBulbIcon className="mr-2 inline-block size-5" />
+                  INJECT KNOWLEDGE
+                </>
+              }
+              isExpanded={expandedSection === "inject-knowledge"}
+              onToggle={() => toggleSection("inject-knowledge")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "inject-knowledge"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Enable knowledge injection to automatically retrieve and inject
+                    relevant document snippets from your workspace documents into
+                    user prompts before they are sent to the agent.
+                  </p>
+                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                    <p className="text-sm font-semibold dark:text-neutral-300">
+                      What are snippets?
+                    </p>
+                    <p className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                      Snippets are chunks of text extracted from your uploaded
+                      documents. When documents are uploaded, they are automatically
+                      split into smaller pieces (snippets) and indexed in the vector
+                      database. Each snippet typically contains 100-300 words and
+                      represents a meaningful portion of the document content.
+                    </p>
+                  </div>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={enableKnowledgeInjection}
+                      onChange={(e) =>
+                        setEnableKnowledgeInjection(e.target.checked)
+                      }
+                      className="mt-1 rounded border-2 border-neutral-300"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">Enable Knowledge Injection</div>
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                        Automatically inject relevant document snippets into user
+                        prompts
+                      </div>
+                    </div>
+                  </label>
+                  {enableKnowledgeInjection && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold dark:text-neutral-300">
+                          Number of Snippets to Inject
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="50"
+                          value={knowledgeInjectionSnippetCount}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value, 10);
+                            if (!isNaN(value) && value >= 1 && value <= 50) {
+                              setKnowledgeInjectionSnippetCount(value);
+                            }
+                          }}
+                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                        />
+                        <p className="text-xs opacity-75 dark:text-neutral-300">
+                          Number of document snippets to retrieve and inject (1-50,
+                          default: 5)
+                        </p>
+                      </div>
+                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                        <input
+                          type="checkbox"
+                          checked={enableKnowledgeReranking}
+                          onChange={(e) =>
+                            setEnableKnowledgeReranking(e.target.checked)
+                          }
+                          className="mt-1 rounded border-2 border-neutral-300"
+                        />
+                        <div className="flex-1">
+                          <div className="font-bold">Enable Re-ranking</div>
+                          <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                            Re-rank retrieved snippets to prioritize the most relevant
+                            ones using a specialized re-ranking model
+                          </div>
+                        </div>
+                      </label>
+                      {enableKnowledgeReranking && (
+                        <div className="space-y-2">
+                          <label className="block text-sm font-semibold dark:text-neutral-300">
+                            Re-ranking Model
+                          </label>
+                          {isLoadingRerankingModels ? (
+                            <div className="text-sm opacity-75 dark:text-neutral-300">
+                              Loading re-ranking models...
+                            </div>
+                          ) : rerankingModels.length === 0 ? (
+                            <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
+                              <p className="text-sm font-semibold text-yellow-900">
+                                No Re-ranking Models Available
+                              </p>
+                              <p className="mt-1 text-sm text-yellow-800">
+                                No re-ranking models were found in the available
+                                OpenRouter models. Re-ranking will be disabled.
+                              </p>
+                            </div>
+                          ) : (
+                            <select
+                              value={knowledgeRerankingModel || ""}
+                              onChange={(e) =>
+                                setKnowledgeRerankingModel(
+                                  e.target.value || null
+                                )
+                              }
+                              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                            >
+                              <option value="">Select a re-ranking model</option>
+                              {rerankingModels.map((model) => (
+                                <option key={model} value={model}>
+                                  {model}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                          {!knowledgeRerankingModel &&
+                            enableKnowledgeReranking &&
+                            rerankingModels.length > 0 && (
+                              <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                                Please select a re-ranking model to enable
+                                re-ranking.
+                              </p>
+                            )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <button
+                    onClick={handleSaveKnowledgeInjection}
+                    disabled={
+                      updateAgent.isPending ||
+                      (enableKnowledgeReranking &&
+                        !knowledgeRerankingModel &&
+                        rerankingModels.length > 0)
+                    }
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Knowledge Injection Settings"}
                   </button>
                 </div>
               </LazyAccordionContent>
