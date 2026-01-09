@@ -28,18 +28,15 @@ function dollarsToMillionths(dollars: number): number {
  * @param documentCount - Number of documents being re-ranked
  * @returns Estimated cost in millionths
  */
-function estimateRerankingCost(
-  model: string,
-  documentCount: number
-): number {
+function estimateRerankingCost(model: string, documentCount: number): number {
   // Get pricing for the re-ranking model
   const pricing = getModelPricing("openrouter", model);
-  
-  let estimatedCostDollars = 0.01; // Default conservative estimate: $0.01 per request
+
+  let estimatedCostDollars: number;
 
   if (pricing?.usd) {
     const currencyPricing = pricing.usd;
-    
+
     // Check for per-request pricing first
     if (currencyPricing.request !== undefined && currencyPricing.request > 0) {
       estimatedCostDollars = currencyPricing.request;
@@ -56,10 +53,7 @@ function estimateRerankingCost(
   } else {
     // No pricing found, use conservative estimate
     const perDocumentEstimate = 0.001;
-    estimatedCostDollars = Math.max(
-      0.01,
-      documentCount * perDocumentEstimate
-    );
+    estimatedCostDollars = Math.max(0.01, documentCount * perDocumentEstimate);
   }
 
   // Apply 5.5% OpenRouter markup
@@ -403,10 +397,9 @@ export async function refundRerankingCredits(
 ): Promise<void> {
   // Handle BYOK case
   if (reservationId === "byok") {
-    console.log(
-      "[refundRerankingCredits] BYOK request, skipping refund",
-      { workspaceId }
-    );
+    console.log("[refundRerankingCredits] BYOK request, skipping refund", {
+      workspaceId,
+    });
     return;
   }
 
@@ -465,8 +458,11 @@ export async function refundRerankingCredits(
   // Delete the reservation
   await db["credit-reservations"].delete(reservationPk);
 
-  console.log("[refundRerankingCredits] Successfully created refund transaction:", {
-    workspaceId,
-    reservationId,
-  });
+  console.log(
+    "[refundRerankingCredits] Successfully created refund transaction:",
+    {
+      workspaceId,
+      reservationId,
+    }
+  );
 }
