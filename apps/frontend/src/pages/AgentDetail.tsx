@@ -2230,8 +2230,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       updateAgent.isPending ||
                       (enableKnowledgeInjection &&
                         enableKnowledgeReranking &&
-                        !knowledgeRerankingModel &&
-                        rerankingModels.length > 0)
+                        ((!knowledgeRerankingModel &&
+                          rerankingModels.length > 0) ||
+                          rerankingModels.length === 0))
                     }
                     className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
                   >

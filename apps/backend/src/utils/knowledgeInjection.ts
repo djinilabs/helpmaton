@@ -10,6 +10,7 @@ import {
   refundRerankingCredits,
   reserveRerankingCredits,
 } from "./knowledgeRerankingCredits";
+import { Sentry, ensureError } from "./sentry";
 import type { AugmentedContext } from "./workspaceCreditContext";
 
 /**
@@ -167,10 +168,23 @@ export async function injectKnowledgeIntoMessages(
             "[knowledgeInjection] Failed to reserve credits for re-ranking:",
             error instanceof Error ? error.message : String(error)
           );
-          // If credit reservation fails (e.g., insufficient credits), skip re-ranking
-          // but continue with knowledge injection using original results
+          Sentry.captureException(ensureError(error), {
+            tags: {
+              context: "knowledge-injection",
+              operation: "reserve-reranking-credits",
+            },
+            extra: {
+              workspaceId,
+              agentId,
+              conversationId,
+              model: agent.knowledgeRerankingModel,
+              documentCount: searchResults.length,
+            },
+          });
+          // If credit reservation fails (e.g., insufficient credits), continue with re-ranking
+          // but without credit tracking (workspace won't be charged)
           console.warn(
-            "[knowledgeInjection] Skipping re-ranking due to credit reservation failure"
+            "[knowledgeInjection] Credit reservation failed, continuing re-ranking without credit tracking"
           );
         }
       }
@@ -215,6 +229,20 @@ export async function injectKnowledgeIntoMessages(
               "[knowledgeInjection] Error adjusting re-ranking credits:",
               error instanceof Error ? error.message : String(error)
             );
+            Sentry.captureException(ensureError(error), {
+              tags: {
+                context: "knowledge-injection",
+                operation: "adjust-reranking-credits",
+              },
+              extra: {
+                workspaceId,
+                agentId,
+                conversationId,
+                reservationId: rerankingReservationId,
+                costUsd: rerankingResult.costUsd,
+                generationId: rerankingResult.generationId,
+              },
+            });
             // Continue even if adjustment fails - transaction will use estimated cost
           }
         }
@@ -223,6 +251,20 @@ export async function injectKnowledgeIntoMessages(
           "[knowledgeInjection] Error during re-ranking, using original results:",
           error instanceof Error ? error.message : String(error)
         );
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            context: "knowledge-injection",
+            operation: "rerank-snippets",
+          },
+          extra: {
+            workspaceId,
+            agentId,
+            conversationId,
+            model: agent.knowledgeRerankingModel,
+            documentCount: searchResults.length,
+            reservationId: rerankingReservationId,
+          },
+        });
         
         // Refund reserved credits if re-ranking fails
         if (db && context && rerankingReservationId) {
@@ -243,6 +285,19 @@ export async function injectKnowledgeIntoMessages(
                 ? refundError.message
                 : String(refundError)
             );
+            Sentry.captureException(ensureError(refundError), {
+              tags: {
+                context: "knowledge-injection",
+                operation: "refund-reranking-credits",
+              },
+              extra: {
+                workspaceId,
+                agentId,
+                conversationId,
+                reservationId: rerankingReservationId,
+                originalError: error instanceof Error ? error.message : String(error),
+              },
+            });
             // Continue even if refund fails - reservation will expire
           }
         }
@@ -282,6 +337,20 @@ export async function injectKnowledgeIntoMessages(
       "[knowledgeInjection] Error during knowledge injection:",
       error instanceof Error ? error.message : String(error)
     );
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "knowledge-injection",
+        operation: "inject-knowledge",
+      },
+      extra: {
+        workspaceId,
+        agentId,
+        conversationId,
+        enableKnowledgeInjection: agent.enableKnowledgeInjection,
+        enableKnowledgeReranking: agent.enableKnowledgeReranking,
+        snippetCount: validSnippetCount,
+      },
+    });
     // Return original messages if injection fails
     return messages;
   }

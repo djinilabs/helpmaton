@@ -309,8 +309,11 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
   if (reservationId) {
     const reservationPk = `credit-reservations/${reservationId}`;
     reservation = await db["credit-reservations"].get(reservationPk);
-    // Re-ranking reservations have provisionalCost field (set in adjustRerankingCreditReservation)
-    // and openrouterGenerationId field, but don't have expectedGenerationCount (which main LLM calls have)
+    // Detect re-ranking reservations:
+    // - Re-ranking reservations have provisionalCost field (set in adjustRerankingCreditReservation)
+    // - They have openrouterGenerationId field matching the generation ID
+    // - They don't have expectedGenerationCount (which main LLM calls have)
+    // NOTE: An explicit isReranking flag would be more robust, but this heuristic works for now
     if (reservation) {
       isReranking =
         reservation.provisionalCost !== undefined &&
@@ -510,24 +513,21 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
             );
 
 
-            // Add re-ranking cost to total
-            // Note: We need to subtract the provisional cost that was already included
-            // and add the final cost. But since we don't track provisional cost in messages,
-            // we'll just add the final cost. The provisional cost adjustment was already
-            // done in Step 2, so we only need to adjust the difference here.
-            // Actually, the conversation cost should already include provisional cost from Step 2
-            // via transactions. So we need to adjust for the difference between final and provisional.
-            // But for simplicity, we'll just add the final cost and let the conversation
-            // cost calculation handle it. Actually, re-ranking costs aren't in messages,
-            // so they're not included in the conversation cost calculation.
-            // We need to add them separately.
+            // Re-ranking cost tracking:
+            // 1. Re-ranking costs are NOT stored in messages (re-ranking happens before LLM call)
+            // 2. Re-ranking costs are stored separately in rerankingCostUsd field
+            // 3. updateConversation() adds rerankingCostUsd to totalCostUsd when calculating conversation cost
+            // 4. When verifying re-ranking costs, we need to:
+            //    - Calculate totalCostUsd from messages (which doesn't include re-ranking)
+            //    - Replace the previous rerankingCostUsd (provisional or final) with the final cost
+            //    - Add the final re-ranking cost to totalCostUsd
             // Get previous re-ranking cost from conversation (if any)
             // This could be provisional cost from Step 2 or final cost from a previous verification
             const previousRerankingCost =
               (current as { rerankingCostUsd?: number }).rerankingCostUsd || 0;
             const finalRerankingCost = openrouterCost;
             
-            // Calculate conversation cost from messages first
+            // Calculate conversation cost from messages first (doesn't include re-ranking)
             let totalCostUsd = 0;
             for (const msg of messages) {
               const messageCost = getMessageCost(msg);
@@ -629,6 +629,9 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
             }
 
             // Include re-ranking cost if it exists
+            // NOTE: rerankingCostUsd is already included in current.costUsd via updateConversation(),
+            // so we need to preserve it when recalculating. The rerankingCostUsd field is stored
+            // separately for tracking purposes, but it's already been added to the conversation cost.
             const rerankingCost =
               (current as { rerankingCostUsd?: number }).rerankingCostUsd || 0;
             totalCostUsd += rerankingCost;

@@ -51,7 +51,7 @@ describe("knowledgeReranking", () => {
       ]);
     });
 
-    it("should filter models containing 'rank' (case-insensitive)", () => {
+    it("should not filter models containing only 'rank' (must contain 'rerank')", () => {
       const models = [
         "openai/gpt-4",
         "cohere/rank-model",
@@ -62,11 +62,8 @@ describe("knowledgeReranking", () => {
 
       const result = getRerankingModels(models);
 
-      expect(result).toEqual([
-        "cohere/rank-model",
-        "jina-ranker-v1",
-        "RANK-MODEL-v2",
-      ]);
+      // Models with only "rank" (not "rerank") should not be included
+      expect(result).toEqual([]);
     });
 
     it("should return empty array when no re-ranking models found", () => {
@@ -92,6 +89,7 @@ describe("knowledgeReranking", () => {
 
       const result = getRerankingModels(models);
 
+      // Models containing "rerank" should be included (even if they also contain "rank")
       expect(result).toEqual([
         "rerank-rank-model",
         "model-with-rerank-and-rank",

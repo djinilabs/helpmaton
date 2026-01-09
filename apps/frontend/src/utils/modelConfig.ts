@@ -150,13 +150,13 @@ export async function getProviderConfigs(): Promise<ModelConfig[]> {
 
 /**
  * Filter available OpenRouter models to find re-ranking models
- * Re-ranking models are identified by containing "rerank" or "rank" in their name (case-insensitive)
+ * Re-ranking models are identified by containing "rerank" in their name (case-insensitive)
  * @param availableModels - Array of available model names from OpenRouter
  * @returns Array of model names that are suitable for re-ranking
  */
 export function getRerankingModels(availableModels: string[]): string[] {
   return availableModels.filter((model) => {
     const lowerModel = model.toLowerCase();
-    return lowerModel.includes("rerank") || lowerModel.includes("rank");
+    return lowerModel.includes("rerank");
   });
 }

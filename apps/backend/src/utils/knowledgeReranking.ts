@@ -2,17 +2,18 @@ import { getWorkspaceApiKey } from "../http/utils/agentUtils";
 import { getDefined } from "../utils";
 
 import type { SearchResult } from "./documentSearch";
+import { Sentry, ensureError } from "./sentry";
 
 /**
  * Filter available OpenRouter models to find re-ranking models
- * Re-ranking models are identified by containing "rerank" or "rank" in their name (case-insensitive)
+ * Re-ranking models are identified by containing "rerank" in their name (case-insensitive)
  * @param availableModels - Array of available model names from OpenRouter
  * @returns Array of model names that are suitable for re-ranking
  */
 export function getRerankingModels(availableModels: string[]): string[] {
   return availableModels.filter((model) => {
     const lowerModel = model.toLowerCase();
-    return lowerModel.includes("rerank") || lowerModel.includes("rank");
+    return lowerModel.includes("rerank");
   });
 }
 
@@ -87,10 +88,26 @@ export async function rerankSnippets(
 
     if (!response.ok) {
       const errorText = await response.text();
+      const error = new Error(
+        `OpenRouter re-ranking API error: ${response.status} ${response.statusText} - ${errorText}`
+      );
       console.error(
         `[knowledgeReranking] OpenRouter re-ranking API error: ${response.status} ${response.statusText}`,
         errorText
       );
+      Sentry.captureException(error, {
+        tags: {
+          context: "knowledge-reranking",
+          operation: "rerank-api-call",
+          statusCode: response.status,
+        },
+        extra: {
+          model,
+          documentCount: snippets.length,
+          workspaceId,
+          errorText,
+        },
+      });
       // Fall back to original order if re-ranking fails
       return {
         snippets,
@@ -105,9 +122,24 @@ export async function rerankSnippets(
     };
 
     if (!data.results || !Array.isArray(data.results)) {
+      const error = new Error(
+        "Invalid response format from OpenRouter re-ranking API: missing or invalid results array"
+      );
       console.warn(
         "[knowledgeReranking] Invalid response format from OpenRouter re-ranking API"
       );
+      Sentry.captureException(error, {
+        tags: {
+          context: "knowledge-reranking",
+          operation: "rerank-response-validation",
+        },
+        extra: {
+          model,
+          documentCount: snippets.length,
+          workspaceId,
+          responseData: data,
+        },
+      });
       return {
         snippets,
       };
@@ -166,6 +198,17 @@ export async function rerankSnippets(
       "[knowledgeReranking] Error calling OpenRouter re-ranking API:",
       error instanceof Error ? error.message : String(error)
     );
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "knowledge-reranking",
+        operation: "rerank-api-call",
+      },
+      extra: {
+        model,
+        documentCount: snippets.length,
+        workspaceId,
+      },
+    });
     // Fall back to original order if re-ranking fails
     return {
       snippets,

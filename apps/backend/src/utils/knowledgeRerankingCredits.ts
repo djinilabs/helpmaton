@@ -32,7 +32,7 @@ function estimateRerankingCost(model: string, documentCount: number): number {
   // Get pricing for the re-ranking model
   const pricing = getModelPricing("openrouter", model);
 
-  let estimatedCostDollars: number;
+  let estimatedCostDollars: number; // Will be set based on pricing or conservative estimate
 
   if (pricing?.usd) {
     const currencyPricing = pricing.usd;
@@ -44,6 +44,8 @@ function estimateRerankingCost(model: string, documentCount: number): number {
       // Estimate based on document count
       // Use per-document pricing if available, otherwise use conservative estimate
       // Most re-ranking models charge per document or per request
+      // NOTE: These estimates ($0.001 per document, $0.01 minimum) are conservative defaults
+      // when actual OpenRouter pricing is not available. Actual costs may vary.
       const perDocumentEstimate = 0.001; // $0.001 per document
       estimatedCostDollars = Math.max(
         0.01, // Minimum $0.01 per request
@@ -160,7 +162,7 @@ export async function adjustRerankingCreditReservation(
   generationId: string | undefined,
   context: AugmentedContext,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _maxRetries: number = 3,
+  _maxRetries: number = 3, // Not used - transactions don't require retries, kept for API consistency
   agentId?: string,
   conversationId?: string
 ): Promise<void> {
@@ -181,6 +183,26 @@ export async function adjustRerankingCreditReservation(
     console.warn(
       "[adjustRerankingCreditReservation] Reservation not found, creating transaction with provisional cost:",
       { reservationId, workspaceId }
+    );
+
+    // Report data inconsistency to Sentry
+    Sentry.captureException(
+      new Error("Re-ranking credit reservation not found during adjustment"),
+      {
+        tags: {
+          context: "knowledge-reranking-credits",
+          operation: "adjust-reservation-not-found",
+        },
+        extra: {
+          reservationId,
+          workspaceId,
+          agentId,
+          conversationId,
+          provisionalCostUsd,
+          generationId,
+        },
+        level: "warning",
+      }
     );
 
     // Even if reservation is not found, create a transaction to track the API call
@@ -391,7 +413,7 @@ export async function refundRerankingCredits(
   workspaceId: string,
   context: AugmentedContext,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _maxRetries: number = 3,
+  _maxRetries: number = 3, // Not used - transactions don't require retries, kept for API consistency
   agentId?: string,
   conversationId?: string
 ): Promise<void> {
@@ -411,6 +433,24 @@ export async function refundRerankingCredits(
     console.warn(
       "[refundRerankingCredits] Reservation not found, assuming already processed:",
       { reservationId, workspaceId }
+    );
+
+    // Report data inconsistency to Sentry (could indicate double-refund or race condition)
+    Sentry.captureException(
+      new Error("Re-ranking credit reservation not found during refund"),
+      {
+        tags: {
+          context: "knowledge-reranking-credits",
+          operation: "refund-reservation-not-found",
+        },
+        extra: {
+          reservationId,
+          workspaceId,
+          agentId,
+          conversationId,
+        },
+        level: "warning",
+      }
     );
     return;
   }
