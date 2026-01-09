@@ -93,6 +93,12 @@ export interface Agent {
   provider?: string;
   modelName?: string;
   avatar?: string;
+  widgetConfig?: {
+    enabled: boolean;
+    allowedOrigins?: string[];
+    theme?: "light" | "dark" | "auto";
+    position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
+  };
   createdAt: string;
   updatedAt?: string;
 }
@@ -130,6 +136,12 @@ export interface UpdateAgentInput {
   provider?: string;
   modelName?: string | null;
   avatar?: string | null;
+  widgetConfig?: {
+    enabled: boolean;
+    allowedOrigins?: string[];
+    theme?: "light" | "dark" | "auto";
+    position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
+  } | null;
 }
 
 export interface AgentKey {
@@ -137,11 +149,13 @@ export interface AgentKey {
   key?: string; // Only present when key is first created
   name?: string;
   provider?: string;
+  type?: "webhook" | "widget";
   createdAt: string;
 }
 
 export interface CreateAgentKeyInput {
   name?: string;
+  type?: "webhook" | "widget";
 }
 
 export interface Document {

@@ -18,8 +18,9 @@
     }
   },
   "include": [
-    "apps/**/*.ts",
-    "apps/**/*.tsx",
+    "apps/backend/**/*.ts",
+    "apps/frontend/**/*.ts",
+    "apps/frontend/**/*.tsx",
     "tests/**/*.ts",
     "playwright.config.ts"
   ],

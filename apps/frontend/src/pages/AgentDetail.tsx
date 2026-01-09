@@ -203,6 +203,78 @@ const AgentDataLoader: FC<{ workspaceId: string; agentId: string }> = ({
   );
 };
 
+interface WidgetKeyListProps {
+  keys: Array<{
+    id: string;
+    key?: string;
+    name?: string;
+  }>;
+  workspaceId: string;
+  agentId: string;
+}
+
+const WidgetKeyList: FC<WidgetKeyListProps> = ({
+  keys,
+  workspaceId,
+  agentId,
+}) => {
+  if (keys.length === 0) {
+    return (
+      <p className="text-sm opacity-75">
+        No widget keys. Generate one to get started.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {keys.map((keyData) => {
+        const WidgetKeyItem: FC = () => {
+          const deleteKey = useDeleteAgentKey(
+            workspaceId,
+            agentId,
+            keyData.id
+          );
+          return (
+            <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
+              <div>
+                <p className="text-sm font-medium">
+                  {keyData.name || "Widget Key"}
+                </p>
+                <p className="text-xs opacity-75">
+                  {keyData.key
+                    ? `${keyData.key.substring(0, 20)}...`
+                    : "Key hidden"}
+                </p>
+              </div>
+              <button
+                onClick={async () => {
+                  if (
+                    confirm(
+                      "Are you sure you want to delete this widget key?"
+                    )
+                  ) {
+                    try {
+                      await deleteKey.mutateAsync();
+                    } catch {
+                      // Error handled by toast
+                    }
+                  }
+                }}
+                disabled={deleteKey.isPending}
+                className="text-xs text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+              >
+                {deleteKey.isPending ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          );
+        };
+        return <WidgetKeyItem key={keyData.id} />;
+      })}
+    </div>
+  );
+};
+
 interface AgentDetailContentProps {
   workspace: ReturnType<typeof useWorkspace>["data"];
   agent: ReturnType<typeof useAgent>["data"];
@@ -408,6 +480,19 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   const [clientTools, setClientTools] = useState<ClientTool[]>(
     () => agent?.clientTools || []
   );
+
+  // Widget configuration state
+  const [widgetConfig, setWidgetConfig] = useState<{
+    enabled: boolean;
+    allowedOrigins?: string[];
+    theme?: "light" | "dark" | "auto";
+    position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
+  }>(() => ({
+    enabled: agent?.widgetConfig?.enabled || false,
+    allowedOrigins: agent?.widgetConfig?.allowedOrigins,
+    theme: agent?.widgetConfig?.theme || "auto",
+    position: agent?.widgetConfig?.position || "bottom-right",
+  }));
 
   // Model state - provider is always "openrouter", only modelName can be changed
   const provider: Provider = "openrouter";
@@ -658,6 +743,25 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     const currentValue = agent?.clientTools || [];
     setClientTools(currentValue);
   }, [agent?.id, agent?.clientTools]);
+
+  // Synchronize widgetConfig state with agent prop using useEffect
+  useEffect(() => {
+    if (agent?.widgetConfig) {
+      setWidgetConfig({
+        enabled: agent.widgetConfig.enabled || false,
+        allowedOrigins: agent.widgetConfig.allowedOrigins,
+        theme: agent.widgetConfig.theme || "auto",
+        position: agent.widgetConfig.position || "bottom-right",
+      });
+    } else {
+      setWidgetConfig({
+        enabled: false,
+        allowedOrigins: undefined,
+        theme: "auto",
+        position: "bottom-right",
+      });
+    }
+  }, [agent?.id, agent?.widgetConfig]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -1007,6 +1111,27 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       });
       // Sync local state with updated agent data
       setClientTools(updated.clientTools || []);
+    } catch {
+      // Error is handled by toast in the hook
+    }
+  };
+
+  const handleSaveWidgetConfig = async () => {
+    try {
+      const updated = await updateAgent.mutateAsync({
+        widgetConfig: widgetConfig.enabled ? widgetConfig : null,
+      });
+      // Sync local state with updated agent data
+      if (updated.widgetConfig) {
+        setWidgetConfig(updated.widgetConfig);
+      } else {
+        setWidgetConfig({
+          enabled: false,
+          allowedOrigins: undefined,
+          theme: "auto",
+          position: "bottom-right",
+        });
+      }
     } catch {
       // Error is handled by toast in the hook
     }
@@ -2346,6 +2471,249 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   >
                     {updateAgent.isPending ? "Saving..." : "Save Client Tools"}
                   </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
+          {/* Embeddable Widget Section */}
+          {canEdit && (
+            <AccordionSection
+              id="embeddable-widget"
+              title={
+                <>
+                  <LinkIcon className="mr-2 inline-block size-5" />
+                  EMBEDDABLE WIDGET
+                </>
+              }
+              isExpanded={expandedSection === "embeddable-widget"}
+              onToggle={() => toggleSection("embeddable-widget")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "embeddable-widget"}
+              >
+                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
+                  Embed a chat interface in your website or web app. The widget
+                  uses a Web Component with Shadow DOM for style isolation and
+                  supports client-side tool execution.
+                </p>
+                <div className="space-y-4">
+                  {/* Enable Widget Toggle */}
+                  <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
+                    <div>
+                      <label
+                        htmlFor="widget-enabled"
+                        className="text-sm font-medium"
+                      >
+                        Enable Widget
+                      </label>
+                      <p className="text-xs opacity-75">
+                        Allow this agent to be embedded as a widget
+                      </p>
+                    </div>
+                    <input
+                      id="widget-enabled"
+                      type="checkbox"
+                      checked={widgetConfig.enabled}
+                      onChange={(e) =>
+                        setWidgetConfig({
+                          ...widgetConfig,
+                          enabled: e.target.checked,
+                        })
+                      }
+                      className="text-primary focus:ring-primary size-5 rounded border-neutral-300 dark:border-neutral-700"
+                    />
+                  </div>
+
+                  {widgetConfig.enabled && (
+                    <>
+                      {/* Allowed Origins */}
+                      <div>
+                        <label
+                          htmlFor="widget-allowed-origins"
+                          className="mb-2 block text-sm font-medium"
+                        >
+                          Allowed CORS Origins
+                        </label>
+                        <input
+                          id="widget-allowed-origins"
+                          type="text"
+                          placeholder='e.g., https://example.com, https://app.example.com or "*" for all'
+                          value={
+                            widgetConfig.allowedOrigins?.join(", ") || ""
+                          }
+                          onChange={(e) => {
+                            const value = e.target.value.trim();
+                            setWidgetConfig({
+                              ...widgetConfig,
+                              allowedOrigins:
+                                value === "" || value === "*"
+                                  ? value === "*"
+                                    ? ["*"]
+                                    : undefined
+                                  : value.split(",").map((s) => s.trim()),
+                            });
+                          }}
+                          className="focus:border-primary focus:ring-primary w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                        />
+                        <p className="mt-1 text-xs opacity-75">
+                          Comma-separated list of allowed origins, or &quot;*&quot; for
+                          all origins
+                        </p>
+                      </div>
+
+                      {/* Theme Selector */}
+                      <div>
+                        <label
+                          htmlFor="widget-theme"
+                          className="mb-2 block text-sm font-medium"
+                        >
+                          Theme
+                        </label>
+                        <select
+                          id="widget-theme"
+                          value={widgetConfig.theme || "auto"}
+                          onChange={(e) =>
+                            setWidgetConfig({
+                              ...widgetConfig,
+                              theme: e.target.value as
+                                | "light"
+                                | "dark"
+                                | "auto",
+                            })
+                          }
+                          className="focus:border-primary focus:ring-primary w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                        >
+                          <option value="auto">Auto (system preference)</option>
+                          <option value="light">Light</option>
+                          <option value="dark">Dark</option>
+                        </select>
+                      </div>
+
+                      {/* Position Selector */}
+                      <div>
+                        <label
+                          htmlFor="widget-position"
+                          className="mb-2 block text-sm font-medium"
+                        >
+                          Position
+                        </label>
+                        <select
+                          id="widget-position"
+                          value={widgetConfig.position || "bottom-right"}
+                          onChange={(e) =>
+                            setWidgetConfig({
+                              ...widgetConfig,
+                              position: e.target.value as
+                                | "bottom-right"
+                                | "bottom-left"
+                                | "top-right"
+                                | "top-left",
+                            })
+                          }
+                          className="focus:border-primary focus:ring-primary w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                        >
+                          <option value="bottom-right">Bottom Right</option>
+                          <option value="bottom-left">Bottom Left</option>
+                          <option value="top-right">Top Right</option>
+                          <option value="top-left">Top Left</option>
+                        </select>
+                      </div>
+
+                      {/* Widget Keys */}
+                      <div>
+                        <div className="mb-2 flex items-center justify-between">
+                          <label className="text-sm font-medium">
+                            Widget Keys
+                          </label>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await createKey.mutateAsync({
+                                  type: "widget",
+                                  name: "Widget Key",
+                                });
+                                // Key creation handled by toast in hook
+                              } catch {
+                                // Error handled by toast
+                              }
+                            }}
+                            disabled={createKey.isPending}
+                            className="bg-primary hover:bg-primary/90 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {createKey.isPending
+                              ? "Creating..."
+                              : "Generate Widget Key"}
+                          </button>
+                        </div>
+                        <WidgetKeyList
+                          keys={keys?.filter((k) => k.type === "widget") || []}
+                          workspaceId={workspaceId}
+                          agentId={agentId}
+                        />
+                      </div>
+
+                      {/* Code Snippet */}
+                      {keys?.some((k) => k.type === "widget") && (
+                        <div>
+                          <label className="mb-2 block text-sm font-medium">
+                            Embed Code
+                          </label>
+                          <div className="relative">
+                            <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-neutral-900">
+                              <code>{`<script src="https://app.helpmaton.com/widget.js"></script>
+<script>
+  AgentWidget.init({
+    apiKey: "${keys?.find((k) => k.type === "widget")?.key || "YOUR_WIDGET_KEY"}",
+    workspaceId: "${workspaceId}",
+    agentId: "${agentId}",
+    tools: {
+      // Add your tool functions here
+      // Example:
+      // addToCart: async (productId) => {
+      //   await myAppStore.dispatch('addToCart', productId);
+      //   return "Added to cart successfully";
+      // }
+    }
+  });
+</script>`}</code>
+                            </pre>
+                            <button
+                              onClick={() => {
+                                const snippet = `<script src="https://app.helpmaton.com/widget.js"></script>
+<script>
+  AgentWidget.init({
+    apiKey: "${keys?.find((k) => k.type === "widget")?.key || "YOUR_WIDGET_KEY"}",
+    workspaceId: "${workspaceId}",
+    agentId: "${agentId}",
+    tools: {
+      // Add your tool functions here
+    }
+  });
+</script>`;
+                                navigator.clipboard.writeText(snippet);
+                                // You might want to add a toast here
+                              }}
+                              className="bg-primary hover:bg-primary/90 absolute right-2 top-2 rounded px-2 py-1 text-xs text-white"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Save Button */}
+                      <button
+                        onClick={handleSaveWidgetConfig}
+                        disabled={updateAgent.isPending}
+                        className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {updateAgent.isPending
+                          ? "Saving..."
+                          : "Save Widget Configuration"}
+                      </button>
+                    </>
+                  )}
                 </div>
               </LazyAccordionContent>
             </AccordionSection>

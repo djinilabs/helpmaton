@@ -111,6 +111,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           fetchWebProvider,
           enableExaSearch,
           clientTools,
+          widgetConfig,
           temperature,
           topP,
           topK,
@@ -306,6 +307,60 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           }
         }
 
+        // Validate widgetConfig if provided
+        if (widgetConfig !== undefined) {
+          if (widgetConfig !== null && typeof widgetConfig !== "object") {
+            throw badRequest("widgetConfig must be an object or null");
+          }
+          if (widgetConfig) {
+            if (
+              "enabled" in widgetConfig &&
+              typeof widgetConfig.enabled !== "boolean"
+            ) {
+              throw badRequest("widgetConfig.enabled must be a boolean");
+            }
+            if (
+              "allowedOrigins" in widgetConfig &&
+              widgetConfig.allowedOrigins !== undefined &&
+              !Array.isArray(widgetConfig.allowedOrigins)
+            ) {
+              throw badRequest(
+                "widgetConfig.allowedOrigins must be an array of strings"
+              );
+            }
+            if (
+              widgetConfig.allowedOrigins &&
+              !widgetConfig.allowedOrigins.every(
+                (origin: unknown) => typeof origin === "string"
+              )
+            ) {
+              throw badRequest(
+                "All items in widgetConfig.allowedOrigins must be strings"
+              );
+            }
+            if (
+              "theme" in widgetConfig &&
+              widgetConfig.theme !== undefined &&
+              !["light", "dark", "auto"].includes(widgetConfig.theme)
+            ) {
+              throw badRequest(
+                "widgetConfig.theme must be 'light', 'dark', or 'auto'"
+              );
+            }
+            if (
+              "position" in widgetConfig &&
+              widgetConfig.position !== undefined &&
+              !["bottom-right", "bottom-left", "top-right", "top-left"].includes(
+                widgetConfig.position
+              )
+            ) {
+              throw badRequest(
+                "widgetConfig.position must be 'bottom-right', 'bottom-left', 'top-right', or 'top-left'"
+              );
+            }
+          }
+        }
+
         // Validate model configuration fields if provided (null is allowed to clear values)
         if (temperature !== undefined && temperature !== null) {
           if (
@@ -479,6 +534,12 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
               : agent.enableExaSearch,
           clientTools:
             clientTools !== undefined ? clientTools : agent.clientTools,
+          widgetConfig:
+            widgetConfig !== undefined
+              ? widgetConfig === null
+                ? undefined
+                : widgetConfig
+              : agent.widgetConfig,
           spendingLimits:
             spendingLimits !== undefined
               ? spendingLimits

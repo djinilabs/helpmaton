@@ -21,6 +21,12 @@ interface AgentChatProps {
   agentId: string;
   api?: string; // Optional custom API endpoint URL
   onClear?: () => void; // Callback when conversation is cleared
+  tools?: Record<
+    string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Tool functions can have any signature
+    (...args: any[]) => Promise<any>
+  >; // Optional client-side tool functions
+  agent?: { name?: string; avatar?: string }; // Optional agent data (if provided, useAgent hook is not required)
 }
 
 /**
@@ -45,8 +51,14 @@ export const AgentChat: FC<AgentChatProps> = ({
   agentId,
   api,
   onClear,
+  tools,
+  agent: agentProp,
 }) => {
-  const { data: agent } = useAgent(workspaceId, agentId);
+  // Use agent prop if provided, otherwise fetch from API
+  // Note: useAgent uses useSuspenseQuery, so we can't conditionally disable it
+  // If agentProp is provided, we'll use it and ignore the hook result
+  const { data: agentFromHook } = useAgent(workspaceId, agentId);
+  const agent = agentProp || agentFromHook;
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
@@ -142,13 +154,54 @@ export const AgentChat: FC<AgentChatProps> = ({
       sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
       onToolCall: async ({ toolCall }) => {
         console.log("[AgentChat] Tool call:", toolCall);
-        // Immediately respond with error for any tool call
-        addToolOutput({
-          tool: toolCall.toolName,
-          toolCallId: toolCall.toolCallId,
-          state: "output-error",
-          errorText: `Tool '${toolCall.toolName}' is not defined on the client`,
-        });
+
+        // If tools are provided, try to execute the tool
+        if (tools && toolCall.toolName in tools) {
+          try {
+            const toolFunction = tools[toolCall.toolName];
+            // Extract args from toolCall - AI SDK uses different property names
+            // Check for 'args', 'input', or access via index signature
+            const toolCallAny = toolCall as unknown as {
+              toolName: string;
+              toolCallId: string;
+              args?: Record<string, unknown>;
+              input?: Record<string, unknown>;
+              [key: string]: unknown;
+            };
+            const args = (toolCallAny.args ||
+              toolCallAny.input ||
+              {}) as Record<string, unknown>;
+            const result = await toolFunction(...Object.values(args));
+
+            // Return successful result
+            // AI SDK expects 'output' property, not 'result'
+            addToolOutput({
+              tool: toolCall.toolName,
+              toolCallId: toolCall.toolCallId,
+              state: "output-available",
+              output:
+                typeof result === "string" ? result : JSON.stringify(result),
+            });
+          } catch (error) {
+            // Return error result
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            addToolOutput({
+              tool: toolCall.toolName,
+              toolCallId: toolCall.toolCallId,
+              state: "output-error",
+              errorText: `Error executing tool: ${errorMessage}`,
+            });
+          }
+        } else {
+          // No tools provided or tool not found - return error
+          addToolOutput({
+            tool: toolCall.toolName,
+            toolCallId: toolCall.toolCallId,
+            state: "output-error",
+            errorText: `Tool '${toolCall.toolName}' is not defined on the client`,
+          });
+        }
       },
       onError: (error) => {
         console.error("Chat error:", error);

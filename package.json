@@ -32,7 +32,7 @@
     "dev:backend:sandbox": "cd apps/backend && ARC_DB_PATH=./db pnpm arc sandbox",
     "dev:frontend": "cd apps/frontend && pnpm dev",
     "dev:dbadmin": "dynamodb-admin --dynamo-endpoint=http://localhost:6000",
-    "build": "pnpm generate:openapi && cd apps/frontend && pnpm build",
+    "build": "pnpm generate:openapi && cd apps/frontend && pnpm build && cd ../widget && pnpm build",
     "typecheck": "tsc --noEmit",
     "lint": "pnpm eslint",
     "test": "cd apps/backend && pnpm test",

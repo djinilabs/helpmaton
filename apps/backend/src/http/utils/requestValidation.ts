@@ -332,10 +332,44 @@ export async function validateWebhookKey(
   });
 
   const agentKey = keysQuery.items.find(
-    (k) => k.key === key && k.workspaceId === workspaceId
+    (k) =>
+      k.key === key &&
+      k.workspaceId === workspaceId &&
+      (k.type === "webhook" || !k.type) // Default to webhook if type not set (backward compatibility)
   );
 
   if (!agentKey) {
     throw unauthorized("Invalid webhook key");
+  }
+}
+
+/**
+ * Validates widget key against the database
+ */
+export async function validateWidgetKey(
+  workspaceId: string,
+  agentId: string,
+  key: string
+): Promise<void> {
+  const db = await database();
+
+  // Query agent-key table by agentId using GSI
+  const keysQuery = await db["agent-key"].query({
+    IndexName: "byAgentId",
+    KeyConditionExpression: "agentId = :agentId",
+    ExpressionAttributeValues: {
+      ":agentId": agentId,
+    },
+  });
+
+  const agentKey = keysQuery.items.find(
+    (k) =>
+      k.key === key &&
+      k.workspaceId === workspaceId &&
+      k.type === "widget"
+  );
+
+  if (!agentKey) {
+    throw unauthorized("Invalid widget key");
   }
 }
