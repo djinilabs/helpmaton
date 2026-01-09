@@ -2,9 +2,13 @@
 
 ## Current Status
 
-**Status**: Slack DM Support Fix - Completed ✅
+**Status**: Knowledge Injection Unit Test Coverage - Completed ✅
 
 **Latest Work**:
+
+1. **Knowledge Injection Unit Test Coverage**: Created comprehensive unit tests for all new backend knowledge injection features. Implemented 39 tests across two test files covering knowledge reranking and knowledge injection functionality. All tests pass, covering edge cases, error handling, API integration, and fallback behaviors. Tests follow existing codebase patterns using vitest with proper mocking of dependencies.
+
+**Previous Work**: Slack DM Support Fix - Completed ✅
 
 1. **Slack DM Support Fix**: Fixed Slack app manifest to enable direct messages (DMs) to bots. Added `app_home` configuration with `messages_tab_enabled: true` and `messages_tab_read_only_enabled: false` to the manifest generation. This allows users to send DMs to Slack bots created with the generated manifest. Previously, users could only interact with bots in channels where the bot was invited, but DMs were disabled by default. Added test coverage to verify the app_home configuration is included in generated manifests.
 
@@ -188,7 +192,12 @@
     - Error responses include appropriate CORS headers based on endpoint type
     - All error paths properly handled for both invocation methods
 
-**Files Created** (Latest - Webhook Handler Unification):
+**Files Created** (Latest - Knowledge Injection Unit Tests):
+
+- `apps/backend/src/utils/__tests__/knowledgeReranking.test.ts` - Comprehensive unit tests for re-ranking functionality (18 tests)
+- `apps/backend/src/utils/__tests__/knowledgeInjection.test.ts` - Comprehensive unit tests for knowledge injection functionality (21 tests)
+
+**Files Created** (Previous - Webhook Handler Unification):
 
 - `apps/backend/src/http/any-api-webhooks-000type-000workspaceId-000integrationId/index.ts` - Unified webhook handler for Slack and Discord (routes based on :type parameter)
 - `apps/backend/src/http/any-api-webhooks-000type-000workspaceId-000integrationId/services/slackVerification.ts` - Slack signature verification
@@ -331,7 +340,9 @@
 - Local Development: Automatic detection, uses appropriate streaming method
 - URL Discovery: Supports `STREAMING_FUNCTION_URL` env var, CloudFormation stack outputs, with 5-minute cache TTL
 
-**Verification** (Latest - Webhook Handler Unification): All tests passing (2255 tests), typecheck and lint clean ✅
+**Verification** (Latest - Knowledge Injection Unit Tests): All tests passing (39 tests for knowledge injection features), typecheck and lint clean ✅
+
+**Verification** (Previous - Webhook Handler Unification): All tests passing (2255 tests), typecheck and lint clean ✅
 
 **Verification** (Previous - Slack/Discord Integration): All tests passing (2121 tests), typecheck and lint clean ✅
 
@@ -1357,6 +1368,38 @@ Fixed issue where LanceDB search returns metadata with null values. Root cause: 
 The SQS queue processing now supports partial batch failures, allowing successful messages to be deleted from the queue while failed ones are retried individually. This prevents unnecessary reprocessing of successfully processed messages and improves efficiency.
 
 **Recent Fixes (Latest)**:
+
+- **Knowledge Injection Unit Test Coverage** (Latest)
+
+  - **Overview**: Created comprehensive unit test coverage for all knowledge injection backend features
+  - **Test Files Created**:
+    - `apps/backend/src/utils/__tests__/knowledgeReranking.test.ts` - 18 tests covering `getRerankingModels()` and `rerankSnippets()` functions
+    - `apps/backend/src/utils/__tests__/knowledgeInjection.test.ts` - 21 tests covering `injectKnowledgeIntoMessages()` function
+  - **Test Coverage**:
+    - **knowledgeReranking.test.ts**:
+      - Model filtering (case-insensitive matching for "rerank" and "rank")
+      - API key handling (workspace vs system keys)
+      - Re-ranking logic (snippet reordering, similarity score updates)
+      - Error handling (API errors, network errors, invalid responses)
+      - Edge cases (empty snippets, out-of-bounds indices, missing API keys)
+      - Request body validation
+    - **knowledgeInjection.test.ts**:
+      - Feature toggling (enabled/disabled behavior)
+      - Query extraction (string and array content formats)
+      - Snippet count configuration and validation (clamping to 1-50 range)
+      - Document search integration
+      - Re-ranking integration (when enabled/disabled)
+      - Knowledge prompt formatting (with/without folder paths)
+      - Message injection positioning (before first user message)
+      - Error handling (search failures, re-ranking failures)
+      - Edge cases (empty queries, no results, multiple user messages)
+  - **Test Patterns**:
+    - Uses vitest with `vi.hoisted()` for dependency mocking
+    - Follows existing codebase test structure and patterns
+    - Comprehensive mocking of external dependencies (fetch, documentSearch, knowledgeReranking)
+    - Proper cleanup with `beforeEach` hooks
+  - **Verification**: All 39 tests pass, typecheck and lint clean ✅
+  - **Impact**: Ensures knowledge injection features are robust, well-tested, and maintainable
 
 - **ECR Image Cleanup Strategy Implementation** (December 18, 2025)
 
