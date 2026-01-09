@@ -2,9 +2,13 @@
 
 ## Current Status
 
-**Status**: Knowledge Injection Unit Test Coverage - Completed ✅
+**Status**: Knowledge Injection Credit Management - Completed ✅
 
 **Latest Work**:
+
+1. **Knowledge Injection Credit Management**: Implemented comprehensive credit management for knowledge injection re-ranking feature. Added 3-step cost verification pattern (estimate, provisional adjustment, async final verification) for OpenRouter re-ranking API calls. Created `knowledgeRerankingCredits.ts` utility with credit reservation, adjustment, queuing, and refund functions. Integrated credit checks into `injectKnowledgeIntoMessages` to ensure workspaces are charged for re-ranking usage and have sufficient credits before API calls. Extended cost verification queue to handle re-ranking costs separately from LLM generation costs. Added `rerankingCostUsd` field to conversation schema and updated conversation logger to include re-ranking costs in total. All credit management functions include comprehensive unit tests (30 new tests) covering pricing, BYOK handling, error scenarios, and edge cases. All tests passing (2332 tests), typecheck and lint clean.
+
+**Previous Work**: Knowledge Injection Unit Test Coverage - Completed ✅
 
 1. **Knowledge Injection Unit Test Coverage**: Created comprehensive unit tests for all new backend knowledge injection features. Implemented 39 tests across two test files covering knowledge reranking and knowledge injection functionality. All tests pass, covering edge cases, error handling, API integration, and fallback behaviors. Tests follow existing codebase patterns using vitest with proper mocking of dependencies.
 
@@ -192,10 +196,15 @@
     - Error responses include appropriate CORS headers based on endpoint type
     - All error paths properly handled for both invocation methods
 
-**Files Created** (Latest - Knowledge Injection Unit Tests):
+**Files Created** (Latest - Knowledge Injection Credit Management):
+
+- `apps/backend/src/utils/knowledgeRerankingCredits.ts` - Credit management utilities for re-ranking (reservation, adjustment, queuing, refund)
+- `apps/backend/src/utils/__tests__/knowledgeRerankingCredits.test.ts` - Comprehensive unit tests for credit management (20 tests)
+
+**Files Created** (Previous - Knowledge Injection Unit Tests):
 
 - `apps/backend/src/utils/__tests__/knowledgeReranking.test.ts` - Comprehensive unit tests for re-ranking functionality (18 tests)
-- `apps/backend/src/utils/__tests__/knowledgeInjection.test.ts` - Comprehensive unit tests for knowledge injection functionality (21 tests)
+- `apps/backend/src/utils/__tests__/knowledgeInjection.test.ts` - Comprehensive unit tests for knowledge injection functionality (21 tests, expanded to 31 with credit management integration tests)
 
 **Files Created** (Previous - Webhook Handler Unification):
 
@@ -253,7 +262,18 @@
 - `apps/backend/src/http/utils/__tests__/streamExecution.test.ts` - Unit tests
 - `apps/backend/src/http/utils/__tests__/streamEventNormalization.test.ts` - Unit tests
 
-**Files Modified** (Latest - Webhook Handler Unification):
+**Files Modified** (Latest - Knowledge Injection Credit Management):
+
+- `apps/backend/src/utils/knowledgeInjection.ts` - Integrated credit management functions (reservation, adjustment, queuing, refund)
+- `apps/backend/src/utils/__tests__/knowledgeInjection.test.ts` - Added 10 new integration tests for credit management
+- `apps/backend/src/tables/schema.ts` - Added `rerankingCostUsd` to `agent-conversations` schema and `provisionalCost` to `credit-reservations` schema
+- `apps/backend/src/utils/conversationLogger.ts` - Include re-ranking costs in total conversation cost calculation
+- `apps/backend/src/queues/openrouter-cost-verification-queue/index.ts` - Extended to handle re-ranking cost verification (detects re-ranking reservations, updates conversation `rerankingCostUsd`)
+- `apps/backend/src/http/utils/streamRequestContext.ts` - Pass `db`, `context`, `agentId`, `conversationId`, and `usesByok` to `injectKnowledgeIntoMessages`
+- `apps/backend/src/http/utils/agentCallNonStreaming.ts` - Pass credit management parameters to `injectKnowledgeIntoMessages`
+- `apps/backend/src/http/utils/agentUtils.ts` - Pass credit management parameters to `injectKnowledgeIntoMessages`
+
+**Files Modified** (Previous - Webhook Handler Unification):
 
 - `apps/backend/app.arc` - Replaced separate Slack and Discord webhook routes with unified route `any /api/webhooks/:type/:workspaceId/:integrationId`
 - `apps/backend/src/queues/bot-webhook-queue/index.ts` - Updated imports to reference unified handler service files
@@ -340,7 +360,9 @@
 - Local Development: Automatic detection, uses appropriate streaming method
 - URL Discovery: Supports `STREAMING_FUNCTION_URL` env var, CloudFormation stack outputs, with 5-minute cache TTL
 
-**Verification** (Latest - Knowledge Injection Unit Tests): All tests passing (39 tests for knowledge injection features), typecheck and lint clean ✅
+**Verification** (Latest - Knowledge Injection Credit Management): All tests passing (2332 tests total, including 30 new credit management tests), typecheck and lint clean ✅
+
+**Verification** (Previous - Knowledge Injection Unit Tests): All tests passing (39 tests for knowledge injection features), typecheck and lint clean ✅
 
 **Verification** (Previous - Webhook Handler Unification): All tests passing (2255 tests), typecheck and lint clean ✅
 
@@ -1369,7 +1391,64 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 
 **Recent Fixes (Latest)**:
 
-- **Knowledge Injection Unit Test Coverage** (Latest)
+- **Knowledge Injection Credit Management** (Latest)
+
+  - **Overview**: Implemented comprehensive credit management system for knowledge injection re-ranking feature
+  - **Key Features**:
+    - **3-Step Cost Verification Pattern**: Estimate → Provisional Adjustment → Async Final Verification (same pattern as LLM generation)
+    - **Credit Reservation**: Reserves credits before re-ranking API call based on estimated cost (document count, model pricing)
+    - **Provisional Adjustment**: Adjusts credits based on cost returned in OpenRouter API response
+    - **Async Cost Verification**: Queues cost verification using OpenRouter `generationId` for final authoritative cost
+    - **Credit Refunds**: Automatically refunds reserved credits if re-ranking fails
+    - **BYOK Support**: Skips credit management when workspace uses their own OpenRouter API key
+  - **Implementation Details**:
+    - Created `knowledgeRerankingCredits.ts` utility with 4 main functions:
+      - `reserveRerankingCredits()`: Estimates cost and reserves credits atomically
+      - `adjustRerankingCreditReservation()`: Adjusts credits based on provisional cost from API
+      - `queueRerankingCostVerification()`: Queues async cost verification using generationId
+      - `refundRerankingCredits()`: Refunds reserved credits on failure
+    - Integrated credit management into `injectKnowledgeIntoMessages()`:
+      - Reserves credits before re-ranking call
+      - Adjusts credits after API response (if provisional cost available)
+      - Queues async verification if generationId available
+      - Refunds credits if re-ranking fails
+    - Extended cost verification queue to handle re-ranking:
+      - Detects re-ranking reservations using `provisionalCost` and `openrouterGenerationId` fields
+      - Finalizes credit reservation immediately (single generation, no multi-generation tracking)
+      - Updates conversation `rerankingCostUsd` field directly
+    - Updated conversation logger to include re-ranking costs in total conversation cost
+  - **Database Schema Changes**:
+    - Added `rerankingCostUsd` field to `agent-conversations` schema (tracked separately from LLM costs)
+    - Added `provisionalCost` field to `credit-reservations` schema (for identifying re-ranking reservations)
+  - **Test Coverage**:
+    - Created `knowledgeRerankingCredits.test.ts` with 20 comprehensive tests:
+      - Credit reservation (with/without pricing, BYOK handling, insufficient credits)
+      - Credit adjustment (provisional cost, refunds, no adjustment scenarios)
+      - Cost verification queuing (success, BYOK skip, error handling)
+      - Credit refunds (success, BYOK skip, missing reservation)
+    - Updated `knowledgeInjection.test.ts` with 10 new integration tests:
+      - Credit reservation before re-ranking
+      - Credit adjustment after re-ranking
+      - Cost verification queuing
+      - BYOK scenarios (skips credit management)
+      - Error handling (reservation failures, adjustment failures, refund failures)
+      - Graceful degradation when credit management fails
+  - **Files Created**:
+    - `apps/backend/src/utils/knowledgeRerankingCredits.ts` - Credit management utilities for re-ranking
+    - `apps/backend/src/utils/__tests__/knowledgeRerankingCredits.test.ts` - Comprehensive unit tests (20 tests)
+  - **Files Modified**:
+    - `apps/backend/src/utils/knowledgeInjection.ts` - Integrated credit management functions
+    - `apps/backend/src/utils/__tests__/knowledgeInjection.test.ts` - Added credit management integration tests (10 new tests)
+    - `apps/backend/src/tables/schema.ts` - Added `rerankingCostUsd` and `provisionalCost` fields
+    - `apps/backend/src/utils/conversationLogger.ts` - Include re-ranking costs in total conversation cost
+    - `apps/backend/src/queues/openrouter-cost-verification-queue/index.ts` - Handle re-ranking cost verification
+    - `apps/backend/src/http/utils/streamRequestContext.ts` - Pass credit management parameters
+    - `apps/backend/src/http/utils/agentCallNonStreaming.ts` - Pass credit management parameters
+    - `apps/backend/src/http/utils/agentUtils.ts` - Pass credit management parameters
+  - **Verification**: All 2332 tests pass, typecheck and lint clean ✅
+  - **Impact**: Ensures workspaces are properly charged for re-ranking usage and prevents API calls when insufficient credits are available
+
+- **Knowledge Injection Unit Test Coverage** (Previous)
 
   - **Overview**: Created comprehensive unit test coverage for all knowledge injection backend features
   - **Test Files Created**:
