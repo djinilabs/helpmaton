@@ -1,7 +1,11 @@
 import { unauthorized } from "@hapi/boom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { createAPIGatewayEventV2, createMockDatabase } from "../../utils/__tests__/test-helpers";
+import {
+  createAPIGatewayEventV2,
+  createMockDatabase,
+} from "../../utils/__tests__/test-helpers";
+// eslint-disable-next-line import/order
 import { createMockResponseStream } from "../../utils/streamResponseStream";
 
 // Mock dependencies using vi.hoisted
@@ -79,6 +83,7 @@ vi.mock("../../../utils/sentry", () => ({
 }));
 
 vi.mock("../../../utils/posthog", () => ({
+  initPostHog: vi.fn(),
   flushPostHog: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -120,7 +125,7 @@ describe("post-api-widget-000workspaceId-000agentId-000key handler", () => {
     const mockDb = createMockDatabase();
     mockDb.agent.get = vi.fn().mockResolvedValue(mockAgent);
     mockDatabase.mockResolvedValue(mockDb);
-    
+
     // Use workspaceId to avoid unused variable error
     void workspaceId;
 
@@ -155,7 +160,6 @@ describe("post-api-widget-000workspaceId-000agentId-000key handler", () => {
     const agentId = "agent-456";
     const key = "invalid-key";
 
-     
     mockValidateWidgetKey.mockRejectedValue(unauthorized("Invalid widget key"));
 
     const event = createAPIGatewayEventV2({
@@ -234,7 +238,7 @@ describe("post-api-widget-000workspaceId-000agentId-000key handler", () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-456";
     const key = "widget-key-789";
-    
+
     // Use variables to avoid unused variable errors
     void workspaceId;
     void agentId;

@@ -1,4 +1,3 @@
-import { unauthorized } from "@hapi/boom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock database
@@ -30,7 +29,7 @@ describe("validateWidgetKey", () => {
     vi.clearAllMocks();
     // Reset modules to clear the once() cache from database function
     vi.resetModules();
-    
+
     // Re-import validateWidgetKey after resetting modules
     const module = await import("../../requestValidation");
     validateWidgetKey = module.validateWidgetKey;
@@ -102,7 +101,10 @@ describe("validateWidgetKey", () => {
       await validateWidgetKey("workspace-123", "agent-456", "invalid-key");
     } catch (error) {
       // Check if it's a boom error with statusCode
-      const boomError = error as { output?: { statusCode?: number }; isBoom?: boolean };
+      const boomError = error as {
+        output?: { statusCode?: number };
+        isBoom?: boolean;
+      };
       if (boomError.isBoom && boomError.output) {
         expect(boomError.output.statusCode).toBe(401);
       } else {

@@ -4021,6 +4021,76 @@
         ]
       }
     },
+    "/api/workspaces/{workspaceId}/integrations/{integrationId}/discord-command": {
+      "post": {
+        "summary": "Register a Discord slash command",
+        "description": "Creates or updates a Discord slash command for a bot integration",
+        "tags": [
+          "Integrations"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "integrationId",
+            "in": "path",
+            "required": true,
+            "description": "Integration ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "commandName"
+                ],
+                "properties": {
+                  "commandName": {
+                    "type": "string",
+                    "description": "The name of the command (e.g., \"chat\")"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Command registered successfully"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/documents": {
       "post": {
         "summary": "Upload workspace documents",
@@ -5395,6 +5465,15 @@
                     "type": "string",
                     "description": "Provider for the key",
                     "default": "google"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "webhook",
+                      "widget"
+                    ],
+                    "description": "Key type - 'webhook' for webhook authentication, 'widget' for widget authentication",
+                    "default": "webhook"
                   }
                 }
               }
@@ -5422,6 +5501,14 @@
                     },
                     "provider": {
                       "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "webhook",
+                        "widget"
+                      ],
+                      "description": "Key type"
                     },
                     "createdAt": {
                       "type": "string",
@@ -5514,6 +5601,15 @@
                           "provider": {
                             "type": "string",
                             "default": "google"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "webhook",
+                              "widget"
+                            ],
+                            "description": "Key type",
+                            "default": "webhook"
                           },
                           "createdAt": {
                             "type": "string",
@@ -8167,137 +8263,6 @@
         }
       }
     },
-    "/api/stream-url": {
-      "get": {
-        "summary": "Get streaming function URL",
-        "description": "Returns the Lambda Function URL for streaming agent interactions",
-        "tags": [
-          "Streaming"
-        ],
-        "responses": {
-          "200": {
-            "description": "Streaming function URL",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "url": {
-                      "type": "string",
-                      "description": "The Lambda Function URL for streaming"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Streaming function URL not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "406": {
-            "description": "Method not allowed",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/models": {
-      "get": {
-        "summary": "Get available models",
-        "description": "Returns a list of available OpenRouter AI models and their default model",
-        "tags": [
-          "Usage"
-        ],
-        "responses": {
-          "200": {
-            "description": "Available OpenRouter models",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ModelsResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
-    "/api/pricing": {
-      "get": {
-        "summary": "Get OpenRouter model pricing",
-        "description": "Returns pricing information for all available OpenRouter AI models",
-        "tags": [
-          "Usage"
-        ],
-        "responses": {
-          "200": {
-            "description": "OpenRouter model pricing",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "openrouter": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "object",
-                        "properties": {
-                          "input": {
-                            "type": "number",
-                            "description": "Price per 1M input tokens (USD)"
-                          },
-                          "output": {
-                            "type": "number",
-                            "description": "Price per 1M output tokens (USD)"
-                          },
-                          "cachedInput": {
-                            "type": "number",
-                            "description": "Price per 1M cached input tokens (USD, optional)"
-                          },
-                          "tiers": {
-                            "type": "array",
-                            "description": "Tiered pricing structure (optional)"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "500": {
-            "$ref": "#/components/responses/InternalServerError"
-          }
-        }
-      }
-    },
     "/api/usage": {
       "get": {
         "summary": "Get usage statistics",
@@ -8360,6 +8325,137 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/stream-url": {
+      "get": {
+        "summary": "Get streaming function URL",
+        "description": "Returns the Lambda Function URL for streaming agent interactions",
+        "tags": [
+          "Streaming"
+        ],
+        "responses": {
+          "200": {
+            "description": "Streaming function URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "The Lambda Function URL for streaming"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Streaming function URL not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "406": {
+            "description": "Method not allowed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pricing": {
+      "get": {
+        "summary": "Get OpenRouter model pricing",
+        "description": "Returns pricing information for all available OpenRouter AI models",
+        "tags": [
+          "Usage"
+        ],
+        "responses": {
+          "200": {
+            "description": "OpenRouter model pricing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "openrouter": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "input": {
+                            "type": "number",
+                            "description": "Price per 1M input tokens (USD)"
+                          },
+                          "output": {
+                            "type": "number",
+                            "description": "Price per 1M output tokens (USD)"
+                          },
+                          "cachedInput": {
+                            "type": "number",
+                            "description": "Price per 1M cached input tokens (USD, optional)"
+                          },
+                          "tiers": {
+                            "type": "array",
+                            "description": "Tiered pricing structure (optional)"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "get": {
+        "summary": "Get available models",
+        "description": "Returns a list of available OpenRouter AI models and their default model",
+        "tags": [
+          "Usage"
+        ],
+        "responses": {
+          "200": {
+            "description": "Available OpenRouter models",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelsResponse"
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"

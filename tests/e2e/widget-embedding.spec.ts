@@ -18,10 +18,7 @@ import { WorkspacesPage } from "./pages/workspaces-page";
 testWithUserManagement.describe("Widget Embedding", () => {
   testWithUserManagement(
     "should configure widget settings and generate embed code",
-    async ({ page, userManagement }) => {
-      // Create and login user
-      const user = await userManagement.createAndLoginUser();
-
+    async ({ page }) => {
       // Navigate to workspaces
       const workspacesPage = new WorkspacesPage(page);
       await workspacesPage.goto();
@@ -52,7 +49,7 @@ testWithUserManagement.describe("Widget Embedding", () => {
         .or(page.locator('text="Embeddable Widget"').first());
 
       // If it's an accordion, click to expand
-      if (await widgetSection.getAttribute("aria-expanded") === "false") {
+      if ((await widgetSection.getAttribute("aria-expanded")) === "false") {
         await widgetSection.click();
       }
 
@@ -105,7 +102,7 @@ testWithUserManagement.describe("Widget Embedding", () => {
 
       // Verify embed code is displayed
       const embedCode = page
-        .locator('code, pre')
+        .locator("code, pre")
         .filter({ hasText: /AgentWidget|agent-chat-widget|widget\.js/i })
         .first();
 
@@ -119,10 +116,7 @@ testWithUserManagement.describe("Widget Embedding", () => {
 
   testWithUserManagement(
     "should embed widget in HTML page and verify it loads",
-    async ({ page, userManagement, context }) => {
-      // Create and login user
-      const user = await userManagement.createAndLoginUser();
-
+    async ({ page, context }) => {
       // Navigate to workspaces
       const workspacesPage = new WorkspacesPage(page);
       await workspacesPage.goto();
@@ -155,16 +149,13 @@ testWithUserManagement.describe("Widget Embedding", () => {
         throw new Error("Could not extract workspace or agent ID from URL");
       }
 
-      const workspaceId = workspaceMatch[1];
-      const agentId = agentMatch[1];
-
       // Enable widget and generate key
       const widgetSection = page
         .getByRole("button", { name: /Embeddable Widget/i })
         .or(page.locator('text="Embeddable Widget"').first());
 
       if (await widgetSection.isVisible()) {
-        if (await widgetSection.getAttribute("aria-expanded") === "false") {
+        if ((await widgetSection.getAttribute("aria-expanded")) === "false") {
           await widgetSection.click();
         }
 
@@ -173,7 +164,10 @@ testWithUserManagement.describe("Widget Embedding", () => {
           .filter({ hasText: /enable/i })
           .first();
 
-        if (await enableToggle.isVisible() && !(await enableToggle.isChecked())) {
+        if (
+          (await enableToggle.isVisible()) &&
+          !(await enableToggle.isChecked())
+        ) {
           await enableToggle.check();
         }
 
@@ -216,7 +210,9 @@ testWithUserManagement.describe("Widget Embedding", () => {
 
       // Verify the page loads
       expect(await testPage.title()).toBe("Widget Test Page");
-      expect(await testPage.locator("h1").textContent()).toBe("Widget Test Page");
+      expect(await testPage.locator("h1").textContent()).toBe(
+        "Widget Test Page"
+      );
 
       await testPage.close();
     }
