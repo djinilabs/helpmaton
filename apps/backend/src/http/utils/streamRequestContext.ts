@@ -377,7 +377,12 @@ export async function buildStreamRequestContext(
   const modelMessagesWithKnowledge = await injectKnowledgeIntoMessages(
     workspaceId,
     agent,
-    modelMessages
+    modelMessages,
+    db,
+    lambdaContext,
+    agentId,
+    conversationId,
+    usesByok
   );
 
   // Derive the model name from the agent's modelName if set, otherwise use default

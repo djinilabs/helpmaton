@@ -355,7 +355,7 @@ describe("knowledgeInjection", () => {
       };
 
       mockSearchDocuments.mockResolvedValue(mockSearchResults);
-      mockRerankSnippets.mockResolvedValue(rerankedResults);
+      mockRerankSnippets.mockResolvedValue({ snippets: rerankedResults });
 
       const messages: ModelMessage[] = [
         { role: "user", content: "Test query" },

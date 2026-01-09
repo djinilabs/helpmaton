@@ -110,7 +110,12 @@ export async function callAgentNonStreaming(
   const modelMessagesWithKnowledge = await injectKnowledgeIntoMessages(
     workspaceId,
     agent,
-    modelMessages
+    modelMessages,
+    db,
+    options?.context,
+    agentId,
+    options?.conversationId,
+    usesByok
   );
 
   // Derive the model name from the agent's modelName if set, otherwise use default

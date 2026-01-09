@@ -17,21 +17,32 @@ export function getRerankingModels(availableModels: string[]): string[] {
 }
 
 /**
+ * Result from re-ranking API call
+ */
+export interface RerankingResult {
+  snippets: SearchResult[];
+  costUsd?: number; // Provisional cost from API response (in USD)
+  generationId?: string; // Generation ID for async cost verification
+}
+
+/**
  * Re-rank document snippets using OpenRouter re-ranking API
  * @param query - The search query text
  * @param snippets - Array of search results to re-rank
  * @param model - Re-ranking model name from OpenRouter
  * @param workspaceId - Workspace ID for API key lookup (optional)
- * @returns Re-ranked snippets with updated similarity scores
+ * @returns Re-ranked snippets with cost and generationId information
  */
 export async function rerankSnippets(
   query: string,
   snippets: SearchResult[],
   model: string,
   workspaceId?: string
-): Promise<SearchResult[]> {
+): Promise<RerankingResult> {
   if (snippets.length === 0) {
-    return [];
+    return {
+      snippets: [],
+    };
   }
 
   // Get API key - try workspace key first, fall back to system key
@@ -81,18 +92,42 @@ export async function rerankSnippets(
         errorText
       );
       // Fall back to original order if re-ranking fails
-      return snippets;
+      return {
+        snippets,
+      };
     }
 
     const data = (await response.json()) as {
       results?: Array<{ index: number; relevance_score: number }>;
+      cost?: number; // Provisional cost in USD
+      id?: string; // Generation ID
+      generationId?: string; // Alternative field name for generation ID
     };
 
     if (!data.results || !Array.isArray(data.results)) {
       console.warn(
         "[knowledgeReranking] Invalid response format from OpenRouter re-ranking API"
       );
-      return snippets;
+      return {
+        snippets,
+      };
+    }
+
+    // Extract cost and generationId from response
+    const costUsd = data.cost;
+    const generationId = data.id || data.generationId;
+
+    if (costUsd !== undefined) {
+      console.log("[knowledgeReranking] Extracted cost from response:", {
+        costUsd,
+        generationId,
+      });
+    }
+
+    if (generationId) {
+      console.log("[knowledgeReranking] Extracted generationId from response:", {
+        generationId,
+      });
     }
 
     // Re-order snippets based on re-ranking results
@@ -121,13 +156,19 @@ export async function rerankSnippets(
       }
     }
 
-    return rerankedSnippets;
+    return {
+      snippets: rerankedSnippets,
+      ...(costUsd !== undefined && { costUsd }),
+      ...(generationId && { generationId }),
+    };
   } catch (error) {
     console.error(
       "[knowledgeReranking] Error calling OpenRouter re-ranking API:",
       error instanceof Error ? error.message : String(error)
     );
     // Fall back to original order if re-ranking fails
-    return snippets;
+    return {
+      snippets,
+    };
   }
 }

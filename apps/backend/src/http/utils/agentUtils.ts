@@ -943,7 +943,12 @@ export async function callAgentInternal(
   const modelMessagesWithKnowledge = await injectKnowledgeIntoMessages(
     workspaceId,
     targetAgent,
-    modelMessages
+    modelMessages,
+    db,
+    context,
+    targetAgentId,
+    conversationId,
+    usesByok
   );
 
   let reservationId: string | undefined;

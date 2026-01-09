@@ -1,7 +1,16 @@
 import type { ModelMessage } from "ai";
 
+import type { DatabaseSchema } from "../tables/schema";
+
 import { searchDocuments, type SearchResult } from "./documentSearch";
 import { rerankSnippets } from "./knowledgeReranking";
+import {
+  adjustRerankingCreditReservation,
+  queueRerankingCostVerification,
+  refundRerankingCredits,
+  reserveRerankingCredits,
+} from "./knowledgeRerankingCredits";
+import type { AugmentedContext } from "./workspaceCreditContext";
 
 /**
  * Format search results into a structured knowledge prompt
@@ -78,13 +87,23 @@ function extractQueryFromMessages(messages: ModelMessage[]): string {
  * @param workspaceId - Workspace ID for document search
  * @param agent - Agent configuration
  * @param messages - Array of model messages to inject knowledge into
+ * @param db - Database instance (optional, required for credit management)
+ * @param context - Augmented Lambda context (optional, required for credit transactions)
+ * @param agentId - Agent ID (optional, for credit tracking)
+ * @param conversationId - Conversation ID (optional, for credit tracking)
+ * @param usesByok - Whether workspace is using their own API key (optional)
  * @returns Updated array of model messages with knowledge injected
  */
 export async function injectKnowledgeIntoMessages(
   workspaceId: string,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Agent type varies across codebase
   agent: any,
-  messages: ModelMessage[]
+  messages: ModelMessage[],
+  db?: DatabaseSchema,
+  context?: AugmentedContext,
+  agentId?: string,
+  conversationId?: string,
+  usesByok?: boolean
 ): Promise<ModelMessage[]> {
   // Check if knowledge injection is enabled
   if (!agent.enableKnowledgeInjection) {
@@ -118,19 +137,116 @@ export async function injectKnowledgeIntoMessages(
 
     // Re-rank if enabled
     let finalResults = searchResults;
+    let rerankingReservationId: string | undefined;
+    
     if (agent.enableKnowledgeReranking && agent.knowledgeRerankingModel) {
+      // Step 1: Reserve credits before re-ranking call
+      if (db && context) {
+        try {
+          const reservation = await reserveRerankingCredits(
+            db,
+            workspaceId,
+            agent.knowledgeRerankingModel,
+            searchResults.length,
+            3, // maxRetries
+            context,
+            agentId,
+            conversationId,
+            usesByok
+          );
+          rerankingReservationId = reservation.reservationId;
+          console.log(
+            "[knowledgeInjection] Reserved credits for re-ranking:",
+            {
+              reservationId: rerankingReservationId,
+              reservedAmount: reservation.reservedAmount,
+            }
+          );
+        } catch (error) {
+          console.error(
+            "[knowledgeInjection] Failed to reserve credits for re-ranking:",
+            error instanceof Error ? error.message : String(error)
+          );
+          // If credit reservation fails (e.g., insufficient credits), skip re-ranking
+          // but continue with knowledge injection using original results
+          console.warn(
+            "[knowledgeInjection] Skipping re-ranking due to credit reservation failure"
+          );
+        }
+      }
+
+      // Step 2: Make re-ranking API call
       try {
-        finalResults = await rerankSnippets(
+        const rerankingResult = await rerankSnippets(
           query,
           searchResults,
           agent.knowledgeRerankingModel,
           workspaceId
         );
+        finalResults = rerankingResult.snippets;
+
+        // Step 2: Adjust credits based on provisional cost
+        if (db && context && rerankingReservationId) {
+          try {
+            await adjustRerankingCreditReservation(
+              db,
+              rerankingReservationId,
+              workspaceId,
+              rerankingResult.costUsd,
+              rerankingResult.generationId,
+              context,
+              3, // maxRetries
+              agentId,
+              conversationId
+            );
+
+            // Step 3: Queue async cost verification if generationId is available
+            if (rerankingResult.generationId) {
+              await queueRerankingCostVerification(
+                rerankingReservationId,
+                rerankingResult.generationId,
+                workspaceId,
+                agentId,
+                conversationId
+              );
+            }
+          } catch (error) {
+            console.error(
+              "[knowledgeInjection] Error adjusting re-ranking credits:",
+              error instanceof Error ? error.message : String(error)
+            );
+            // Continue even if adjustment fails - transaction will use estimated cost
+          }
+        }
       } catch (error) {
         console.error(
           "[knowledgeInjection] Error during re-ranking, using original results:",
           error instanceof Error ? error.message : String(error)
         );
+        
+        // Refund reserved credits if re-ranking fails
+        if (db && context && rerankingReservationId) {
+          try {
+            await refundRerankingCredits(
+              db,
+              rerankingReservationId,
+              workspaceId,
+              context,
+              3, // maxRetries
+              agentId,
+              conversationId
+            );
+          } catch (refundError) {
+            console.error(
+              "[knowledgeInjection] Error refunding re-ranking credits:",
+              refundError instanceof Error
+                ? refundError.message
+                : String(refundError)
+            );
+            // Continue even if refund fails - reservation will expire
+          }
+        }
+        
         // Fall back to original results if re-ranking fails
         finalResults = searchResults;
       }

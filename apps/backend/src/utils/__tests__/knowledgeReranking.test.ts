@@ -127,7 +127,7 @@ describe("knowledgeReranking", () => {
     it("should return empty array for empty snippets", async () => {
       const result = await rerankSnippets("query", [], "model", "workspace-1");
 
-      expect(result).toEqual([]);
+      expect(result).toEqual({ snippets: [] });
       expect(global.fetch).not.toHaveBeenCalled();
     });
 
@@ -217,14 +217,14 @@ describe("knowledgeReranking", () => {
         "rerank-model"
       );
 
-      expect(result).toHaveLength(3);
+      expect(result.snippets).toHaveLength(3);
       // Should be re-ordered by relevance_score (descending)
-      expect(result[0].snippet).toBe("Second snippet content"); // index 1, score 0.95
-      expect(result[0].similarity).toBe(0.95);
-      expect(result[1].snippet).toBe("First snippet content"); // index 0, score 0.85
-      expect(result[1].similarity).toBe(0.85);
-      expect(result[2].snippet).toBe("Third snippet content"); // index 2, score 0.75
-      expect(result[2].similarity).toBe(0.75);
+      expect(result.snippets[0].snippet).toBe("Second snippet content"); // index 1, score 0.95
+      expect(result.snippets[0].similarity).toBe(0.95);
+      expect(result.snippets[1].snippet).toBe("First snippet content"); // index 0, score 0.85
+      expect(result.snippets[1].similarity).toBe(0.85);
+      expect(result.snippets[2].snippet).toBe("Third snippet content"); // index 2, score 0.75
+      expect(result.snippets[2].similarity).toBe(0.75);
     });
 
     it("should update similarity scores with re-ranking scores", async () => {
@@ -243,8 +243,8 @@ describe("knowledgeReranking", () => {
         "rerank-model"
       );
 
-      expect(result[0].similarity).toBe(0.99);
-      expect(result[0].snippet).toBe("First snippet content");
+      expect(result.snippets[0].similarity).toBe(0.99);
+      expect(result.snippets[0].snippet).toBe("First snippet content");
     });
 
     it("should include snippets not in re-ranking results", async () => {
@@ -263,15 +263,15 @@ describe("knowledgeReranking", () => {
         "rerank-model"
       );
 
-      expect(result).toHaveLength(3);
-      expect(result[0].snippet).toBe("Second snippet content");
+      expect(result.snippets).toHaveLength(3);
+      expect(result.snippets[0].snippet).toBe("Second snippet content");
       // Other snippets should be appended
-      expect(result.some((r) => r.snippet === "First snippet content")).toBe(
-        true
-      );
-      expect(result.some((r) => r.snippet === "Third snippet content")).toBe(
-        true
-      );
+      expect(
+        result.snippets.some((r) => r.snippet === "First snippet content")
+      ).toBe(true);
+      expect(
+        result.snippets.some((r) => r.snippet === "Third snippet content")
+      ).toBe(true);
     });
 
     it("should fall back to original order on API error", async () => {
@@ -289,7 +289,7 @@ describe("knowledgeReranking", () => {
       );
 
       // Should return original snippets in original order
-      expect(result).toEqual(mockSnippets);
+      expect(result.snippets).toEqual(mockSnippets);
     });
 
     it("should fall back to original order on network error", async () => {
@@ -304,7 +304,7 @@ describe("knowledgeReranking", () => {
       );
 
       // Should return original snippets in original order
-      expect(result).toEqual(mockSnippets);
+      expect(result.snippets).toEqual(mockSnippets);
     });
 
     it("should fall back to original order on invalid response format", async () => {
@@ -320,7 +320,7 @@ describe("knowledgeReranking", () => {
       );
 
       // Should return original snippets in original order
-      expect(result).toEqual(mockSnippets);
+      expect(result.snippets).toEqual(mockSnippets);
     });
 
     it("should fall back to original order when results is not an array", async () => {
@@ -336,7 +336,7 @@ describe("knowledgeReranking", () => {
       );
 
       // Should return original snippets in original order
-      expect(result).toEqual(mockSnippets);
+      expect(result.snippets).toEqual(mockSnippets);
     });
 
     it("should handle out-of-bounds indices in re-ranking results", async () => {
@@ -360,8 +360,8 @@ describe("knowledgeReranking", () => {
       );
 
       // Should only include valid indices
-      expect(result.length).toBeGreaterThanOrEqual(1);
-      expect(result[0].snippet).toBe("Second snippet content");
+      expect(result.snippets.length).toBeGreaterThanOrEqual(1);
+      expect(result.snippets[0].snippet).toBe("Second snippet content");
     });
 
     it("should send correct request body to OpenRouter API", async () => {

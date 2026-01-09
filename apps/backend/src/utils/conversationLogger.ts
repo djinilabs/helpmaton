@@ -1794,6 +1794,9 @@ export async function startConversation(
     }
   }
 
+  // Note: Re-ranking costs are not included here since they're added later via cost verification queue
+  // Re-ranking costs are stored in rerankingCostUsd field and added in updateConversation
+
   // Initialize awsRequestIds array if awsRequestId is provided
   const awsRequestIds = data.awsRequestId ? [data.awsRequestId] : undefined;
 
@@ -2179,6 +2182,13 @@ export async function updateConversation(
         }
       }
 
+      // Include re-ranking costs if they exist (stored separately since re-ranking happens before LLM call)
+      const rerankingCostUsd =
+        (existing as { rerankingCostUsd?: number }).rerankingCostUsd || 0;
+      if (rerankingCostUsd > 0) {
+        totalCostUsd += rerankingCostUsd;
+      }
+
       // Update awsRequestIds array - append new request ID if provided
       const existingRequestIds =
         (existing as { awsRequestIds?: string[] }).awsRequestIds || [];
@@ -2216,6 +2226,10 @@ export async function updateConversation(
         );
       }
 
+      // Preserve re-ranking costs if they exist
+      const existingRerankingCost =
+        (existing as { rerankingCostUsd?: number }).rerankingCostUsd;
+
       // Update conversation, preserving existing fields including delegations
       const conversationRecord = {
         pk,
@@ -2235,6 +2249,10 @@ export async function updateConversation(
         error: error ?? (existing as { error?: ConversationErrorInfo }).error,
         startedAt: existing.startedAt,
         awsRequestIds: updatedRequestIds,
+        // Preserve re-ranking costs if they exist
+        ...(existingRerankingCost !== undefined
+          ? { rerankingCostUsd: existingRerankingCost }
+          : {}),
         // Always preserve delegations if they exist (even if empty array)
         // This is critical to prevent overwriting delegations added by trackDelegation
         ...(existingDelegations !== undefined

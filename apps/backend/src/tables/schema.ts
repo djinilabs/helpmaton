@@ -208,6 +208,7 @@ export const tableSchemas = {
       })
       .optional(),
     costUsd: z.number().int().optional(), // cost in USD in millionths
+    rerankingCostUsd: z.number().int().optional(), // re-ranking cost in USD in millionths (tracked separately since re-ranking happens before LLM call)
     totalGenerationTimeMs: z.number().optional(), // sum of all generation times in milliseconds
     awsRequestIds: z.array(z.string()).optional(), // array of AWS Lambda/API Gateway request IDs that added messages to this conversation
     delegations: z
@@ -251,6 +252,7 @@ export const tableSchemas = {
     modelName: z.string().optional(), // Model used (for tracking)
     tokenUsageBasedCost: z.number().int().optional(), // Cost calculated from token usage (step 2) in millionths
     openrouterCost: z.number().int().optional(), // Cost from OpenRouter API (step 3) in millionths
+    provisionalCost: z.number().int().optional(), // Provisional cost from API response (step 2) in millionths (used for re-ranking)
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),
