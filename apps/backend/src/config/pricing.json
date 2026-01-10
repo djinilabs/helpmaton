@@ -2512,6 +2512,20 @@
             "output": 0.6,
             "cachedInput": 0.02
           }
+        },
+        "allenai/molmo-2-8b": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          }
+        },
+        "nex-agi/deepseek-v3.1-nex-n1": {
+          "usd": {
+            "input": 0.27,
+            "output": 1,
+            "cachedInput": 0.027000000000000003
+          }
         }
       }
     }
@@ -2528,5 +2542,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-09T00:15:14.956Z"
+  "lastUpdated": "2026-01-10T00:15:04.645Z"
 }
