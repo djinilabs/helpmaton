@@ -2526,6 +2526,13 @@
             "output": 1,
             "cachedInput": 0.027000000000000003
           }
+        },
+        "allenai/molmo-2-8b:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          }
         }
       }
     }
@@ -2542,5 +2549,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-10T00:15:04.645Z"
+  "lastUpdated": "2026-01-11T00:16:51.422Z"
 }
