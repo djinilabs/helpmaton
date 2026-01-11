@@ -111,7 +111,6 @@ const internalHandler = async (
     // Use awslambda.HttpResponseStream.from if available, otherwise stream is already ready
     if (
       typeof awslambda !== "undefined" &&
-      awslambda &&
       awslambda.HttpResponseStream &&
       typeof awslambda.HttpResponseStream.from === "function"
     ) {

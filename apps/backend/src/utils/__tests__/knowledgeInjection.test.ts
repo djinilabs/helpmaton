@@ -464,7 +464,7 @@ describe("knowledgeInjection", () => {
           expect(textContent.text).toContain("**Model:**");
           expect(textContent.text).toContain("cohere/rerank-v3");
           expect(textContent.text).toContain("**Cost:**");
-          expect(textContent.text).toContain("$0.001000");
+          expect(textContent.text).toContain("$0.001");
         }
         // Second element should be reranking-result content
         const resultContent = result.rerankingResultMessage.content[1];

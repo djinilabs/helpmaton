@@ -17,6 +17,7 @@ import type {
   RerankingResultContent,
   UIMessage,
 } from "./messageTypes";
+import { getModelPricing } from "./pricing";
 import { Sentry, ensureError } from "./sentry";
 import type { AugmentedContext } from "./workspaceCreditContext";
 
@@ -305,6 +306,30 @@ export async function injectKnowledgeIntoMessages(
         console.log(
           "[knowledgeInjection] BYOK enabled, skipping credit reservation for re-ranking"
         );
+
+        // Sanity check: ensure BYOK reranking is actually configured
+        // Without this, BYOK workspaces could see unclear downstream errors
+        if (!agent.knowledgeRerankingModel) {
+          const byokConfigError = new Error(
+            "BYOK is enabled for this workspace, but no knowledge reranking model is configured. " +
+              "Please configure a reranking provider/API key in the workspace settings."
+          );
+
+          Sentry.captureException(byokConfigError, {
+            tags: {
+              context: "knowledge-injection",
+              operation: "reserve-reranking-credits",
+              errorType: "ByokConfigurationError",
+            },
+            extra: {
+              workspaceId,
+              agentId,
+              conversationId,
+            },
+          });
+
+          throw byokConfigError;
+        }
       }
 
         // Create re-ranking request message with text representation
@@ -347,7 +372,6 @@ export async function injectKnowledgeIntoMessages(
             costInMillionths = toMillionths(rerankingResult.costUsd);
           } else {
             // Fallback: calculate from pricing config if not provided or invalid
-            const { getModelPricing } = await import("./pricing");
             const modelPricing = getModelPricing("openrouter", agent.knowledgeRerankingModel);
             if (modelPricing?.usd?.request !== undefined) {
               const baseCost = modelPricing.usd.request;
@@ -363,15 +387,21 @@ export async function injectKnowledgeIntoMessages(
                 }
               );
             } else {
-              // Last resort: default to 0 if we can't calculate
-              console.warn(
-                "[knowledgeInjection] Could not determine re-ranking cost, defaulting to 0:",
-                {
-                  model: agent.knowledgeRerankingModel,
-                  costUsd: rerankingResult.costUsd,
-                }
+              // Last resort: fail rather than silently defaulting to 0 to avoid undercharging
+              const message =
+                "Could not determine re-ranking cost: no cost from provider and no pricing configuration available.";
+              console.error("[knowledgeInjection] " + message, {
+                model: agent.knowledgeRerankingModel,
+                costUsd: rerankingResult.costUsd,
+              });
+              Sentry.captureException(
+                ensureError(
+                  new Error(
+                    `${message} model=${agent.knowledgeRerankingModel}, costUsd=${rerankingResult.costUsd}`
+                  )
+                )
               );
-              costInMillionths = 0;
+              throw new Error(message);
             }
           }
 

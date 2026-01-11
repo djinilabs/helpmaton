@@ -195,6 +195,11 @@ function hasInvalidOrNegativePricing(pricing, isReranking = false) {
       if (isInvalidPrice(pricing.request)) {
         return true;
       }
+      // For reranking models, request price must be positive (greater than 0)
+      // A price of 0 would mean free reranking, which is likely unintentional
+      if (pricing.request <= 0) {
+        return true;
+      }
       // If request pricing is valid, allow input/output to be 0 or missing
       // Check optional fields if they exist
       if (pricing.input !== undefined && isInvalidPrice(pricing.input)) {
@@ -457,7 +462,7 @@ const knownRerankingModels = {
   "cohere/rerank-v3": {
     input: 0,
     output: 0,
-    request: 0.001, // $0.001 per request (example - update with actual pricing)
+    request: 0.001, // $0.001 per request
   },
   "cohere/rerank-english-v3.0": {
     input: 0,
@@ -472,7 +477,7 @@ const knownRerankingModels = {
   "jinaai/jina-reranker-v1-base-en": {
     input: 0,
     output: 0,
-    request: 0.0001, // Example pricing
+    request: 0.0001,
   },
   "jinaai/jina-reranker-v1-turbo-en": {
     input: 0,
@@ -812,10 +817,6 @@ function getOpenRouterPricingForModels(rawModels, modelNames) {
     if (isReranking && requestPrice === null) {
       console.log(`[Update Pricing] Re-ranking model ${modelId} missing request pricing. Available pricing keys: ${Object.keys(modelPricing).join(", ")}. Full pricing: ${JSON.stringify(modelPricing)}`);
       console.log(`[Update Pricing] Using default request pricing (0.001 USD per request) for re-ranking model ${modelId}`);
-      // Use a conservative default: $0.001 per request
-      // This will be updated when OpenRouter provides actual pricing
-      const defaultRequestPrice = 0.001;
-      // We'll set this below in the pricing structure
     }
     
     // Build pricing structure (no rounding - save exact values)

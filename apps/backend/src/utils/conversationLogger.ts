@@ -1774,7 +1774,11 @@ export async function startConversation(
       // For assistant messages: use costUsd
       if (messageCost.costUsd !== undefined) {
         // Check if this is a reranking cost (from system message with reranking-result)
-        // getMessageCost() only returns a cost for system messages if they have reranking-result content
+        // IMPORTANT: getMessageCost() only returns a cost for system messages if they have
+        // reranking-result content (see messageCostCalculation.ts lines 118-138).
+        // This means message.role === "system" && messageCost.costUsd !== undefined
+        // is a reliable indicator of reranking costs. If getMessageCost() behavior changes
+        // to return costs for other system message types, this logic must be updated.
         if (message.role === "system") {
           rerankingCostUsd += messageCost.costUsd;
           console.log(

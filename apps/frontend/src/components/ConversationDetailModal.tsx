@@ -628,23 +628,24 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                     </span>
                   </div>
                 )}
-                {conversationDetail.rerankingCostUsd !== undefined && (
-                  <div>
-                    <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400">
-                      <CurrencyDollarIcon className="size-3.5" />
-                      Reranking Cost
+                {conversationDetail.rerankingCostUsd !== undefined &&
+                  conversationDetail.rerankingCostUsd !== null && (
+                    <div>
+                      <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                        <CurrencyDollarIcon className="size-3.5" />
+                        Reranking Cost
+                      </div>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
+                          conversationDetail.rerankingCostUsd / 1_000_000
+                        )}`}
+                      >
+                        <CurrencyDollarIcon className="size-3" />
+                        {formatCurrency(conversationDetail.rerankingCostUsd, "usd", 10)}
+                        <span className="ml-1 text-[10px]">✓</span>
+                      </span>
                     </div>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
-                        conversationDetail.rerankingCostUsd / 1_000_000
-                      )}`}
-                    >
-                      <CurrencyDollarIcon className="size-3" />
-                      {formatCurrency(conversationDetail.rerankingCostUsd, "usd", 10)}
-                      <span className="ml-1 text-[10px]">✓</span>
-                    </span>
-                  </div>
-                )}
+                  )}
               </div>
             </div>
           )}
