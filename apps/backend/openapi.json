@@ -8442,7 +8442,7 @@
     "/api/models": {
       "get": {
         "summary": "Get available models",
-        "description": "Returns a list of available OpenRouter AI models and their default model",
+        "description": "Returns a list of available OpenRouter AI models and their default model, including re-ranking models from pricing.json",
         "tags": [
           "Usage"
         ],

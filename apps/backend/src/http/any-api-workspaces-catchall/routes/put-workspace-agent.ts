@@ -104,6 +104,11 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           enabledMcpServerIds,
           enableMemorySearch,
           enableSearchDocuments,
+          enableKnowledgeInjection,
+          knowledgeInjectionSnippetCount,
+          knowledgeInjectionMinSimilarity,
+          enableKnowledgeReranking,
+          knowledgeRerankingModel,
           enableSendEmail,
           enableTavilySearch,
           searchWebProvider,
@@ -378,6 +383,16 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           }
         }
 
+        if (knowledgeInjectionMinSimilarity !== undefined && knowledgeInjectionMinSimilarity !== null) {
+          if (
+            typeof knowledgeInjectionMinSimilarity !== "number" ||
+            knowledgeInjectionMinSimilarity < 0 ||
+            knowledgeInjectionMinSimilarity > 1
+          ) {
+            throw badRequest("knowledgeInjectionMinSimilarity must be a number between 0 and 1");
+          }
+        }
+
         if (topK !== undefined && topK !== null) {
           if (
             typeof topK !== "number" ||
@@ -518,6 +533,30 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             enableSearchDocuments !== undefined
               ? enableSearchDocuments
               : agent.enableSearchDocuments,
+          enableKnowledgeInjection:
+            enableKnowledgeInjection !== undefined
+              ? enableKnowledgeInjection
+              : agent.enableKnowledgeInjection,
+          knowledgeInjectionSnippetCount:
+            knowledgeInjectionSnippetCount !== undefined
+              ? knowledgeInjectionSnippetCount
+              : agent.knowledgeInjectionSnippetCount,
+          knowledgeInjectionMinSimilarity:
+            knowledgeInjectionMinSimilarity !== undefined
+              ? knowledgeInjectionMinSimilarity === null
+                ? undefined
+                : knowledgeInjectionMinSimilarity
+              : agent.knowledgeInjectionMinSimilarity,
+          enableKnowledgeReranking:
+            enableKnowledgeReranking !== undefined
+              ? enableKnowledgeReranking
+              : agent.enableKnowledgeReranking,
+          knowledgeRerankingModel:
+            knowledgeRerankingModel !== undefined
+              ? knowledgeRerankingModel === null
+                ? undefined
+                : knowledgeRerankingModel
+              : agent.knowledgeRerankingModel,
           enableSendEmail:
             enableSendEmail !== undefined
               ? enableSendEmail
@@ -605,6 +644,13 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           enabledMcpServerIds: updated.enabledMcpServerIds ?? [],
           enableMemorySearch: updated.enableMemorySearch ?? false,
           enableSearchDocuments: updated.enableSearchDocuments ?? false,
+          enableKnowledgeInjection: updated.enableKnowledgeInjection ?? false,
+          knowledgeInjectionSnippetCount:
+            updated.knowledgeInjectionSnippetCount ?? undefined,
+          knowledgeInjectionMinSimilarity:
+            updated.knowledgeInjectionMinSimilarity ?? undefined,
+          enableKnowledgeReranking: updated.enableKnowledgeReranking ?? false,
+          knowledgeRerankingModel: updated.knowledgeRerankingModel ?? undefined,
           enableSendEmail: updated.enableSendEmail ?? false,
           enableTavilySearch: updated.enableTavilySearch ?? false,
           searchWebProvider: updated.searchWebProvider ?? null,

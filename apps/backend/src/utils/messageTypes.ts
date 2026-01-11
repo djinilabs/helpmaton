@@ -2,6 +2,8 @@
  * Type definitions for message conversion utilities
  */
 
+import type { SearchResult } from "./documentSearch";
+
 export type TextContent = string | { type: "text"; text: string };
 
 export type ToolCallContent = {
@@ -21,11 +23,35 @@ export type ToolResultContent = {
   costUsd?: number; // Cost in millionths (e.g., 8000 = $0.008)
 };
 
+export type RerankingRequestContent = {
+  type: "reranking-request";
+  query: string;
+  model: string;
+  documentCount: number;
+  documentNames: string[]; // Just document names, not full snippets
+};
+
+export type RerankingResultContent = {
+  type: "reranking-result";
+  model: string;
+  documentCount: number;
+  costUsd: number; // Cost in millionths (e.g., 1000 = $0.001)
+  generationId?: string; // Generation ID for cost verification
+  executionTimeMs?: number; // Duration in milliseconds
+  rerankedDocuments: Array<{
+    documentName: string;
+    relevanceScore: number;
+  }>;
+  error?: string; // Error message if re-ranking failed
+};
+
 export type UIMessage =
   | {
       role: "user";
       content: string | Array<{ type: "text"; text: string }>;
       awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
+      knowledgeInjection?: true; // Marker for knowledge injection messages
+      knowledgeSnippets?: SearchResult[]; // Original snippets for reuse
     }
   | {
       role: "assistant";
@@ -49,7 +75,13 @@ export type UIMessage =
     }
   | {
       role: "system";
-      content: string;
+      content:
+        | string
+        | Array<
+            | { type: "text"; text: string }
+            | RerankingRequestContent
+            | RerankingResultContent
+          >;
       awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
     }
   | {

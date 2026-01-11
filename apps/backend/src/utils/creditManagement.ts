@@ -275,6 +275,8 @@ export async function reserveCredits(
       currency: updated.currency,
       expires,
       expiresHour, // For GSI querying
+      provider: provider || undefined,
+      modelName: modelName || undefined,
     });
 
     console.log("[reserveCredits] Successfully reserved credits:", {

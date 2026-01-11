@@ -91,6 +91,26 @@ export async function callAgentNonStreaming(
   const uiMessage = convertTextToUIMessage(message);
   const allMessages = [...conversationHistory, uiMessage];
 
+  // Fetch existing conversation messages to check for existing knowledge injection
+  let existingConversationMessages: UIMessage[] | undefined;
+  if (options?.conversationId) {
+    try {
+      const conversationPk = `conversations/${workspaceId}/${agentId}/${options.conversationId}`;
+      const existingConversation = await db["agent-conversations"].get(
+        conversationPk
+      );
+      if (existingConversation && existingConversation.messages) {
+        existingConversationMessages = existingConversation.messages as UIMessage[];
+      }
+    } catch (error) {
+      // If conversation doesn't exist yet or fetch fails, that's okay - we'll create new knowledge injection
+      console.log(
+        "[callAgentNonStreaming] Could not fetch existing conversation messages:",
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  }
+
   const { agent, model, tools, usesByok } = await setupAgentAndTools(
     workspaceId,
     agentId,
@@ -102,6 +122,24 @@ export async function callAgentNonStreaming(
   const modelMessages: ModelMessage[] = convertUIMessagesToModelMessages(
     allMessages
   );
+
+  // Inject knowledge from workspace documents if enabled
+  const { injectKnowledgeIntoMessages } = await import(
+    "../../utils/knowledgeInjection"
+  );
+  const knowledgeInjectionResult = await injectKnowledgeIntoMessages(
+    workspaceId,
+    agent,
+    modelMessages,
+    db,
+    options?.context,
+    agentId,
+    options?.conversationId,
+    usesByok,
+    existingConversationMessages
+  );
+
+  const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
 
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
@@ -123,7 +161,7 @@ export async function callAgentNonStreaming(
       agentId,
       "openrouter", // provider
       finalModelName,
-      modelMessages,
+      modelMessagesWithKnowledge,
       agent.systemPrompt,
       tools,
       usesByok,
@@ -135,7 +173,7 @@ export async function callAgentNonStreaming(
     const generateOptions = prepareLLMCall(
       agent,
       tools,
-      modelMessages,
+      modelMessagesWithKnowledge,
       options?.endpointType || "bridge",
       workspaceId,
       agentId
@@ -146,7 +184,7 @@ export async function callAgentNonStreaming(
     result = await generateText({
       model: model as unknown as Parameters<typeof generateText>[0]["model"],
       system: agent.systemPrompt,
-      messages: modelMessages,
+      messages: modelMessagesWithKnowledge,
       tools,
       ...generateOptions,
     });

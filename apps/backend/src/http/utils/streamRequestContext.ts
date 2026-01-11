@@ -370,6 +370,76 @@ export async function buildStreamRequestContext(
   const { uiMessage, modelMessages, convertedMessages } =
     convertRequestBodyToMessages(bodyText);
 
+  // Fetch existing conversation messages to check for existing knowledge injection
+  let existingConversationMessages: UIMessage[] | undefined;
+  try {
+    const conversationPk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
+    const existingConversation = await db["agent-conversations"].get(
+      conversationPk
+    );
+    if (existingConversation && existingConversation.messages) {
+      existingConversationMessages = existingConversation.messages as UIMessage[];
+    }
+  } catch (error) {
+    // If conversation doesn't exist yet or fetch fails, that's okay - we'll create new knowledge injection
+    console.log(
+      "[buildStreamRequestContext] Could not fetch existing conversation messages:",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+
+  // Inject knowledge from workspace documents if enabled
+  const { injectKnowledgeIntoMessages } = await import(
+    "../../utils/knowledgeInjection"
+  );
+  const knowledgeInjectionResult = await injectKnowledgeIntoMessages(
+    workspaceId,
+    agent,
+    modelMessages,
+    db,
+    lambdaContext,
+    agentId,
+    conversationId,
+    usesByok,
+    existingConversationMessages
+  );
+
+  const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
+  const knowledgeInjectionMessage = knowledgeInjectionResult.knowledgeInjectionMessage;
+  const rerankingRequestMessage = knowledgeInjectionResult.rerankingRequestMessage;
+  const rerankingResultMessage = knowledgeInjectionResult.rerankingResultMessage;
+
+  // Add re-ranking and knowledge injection messages to convertedMessages if they exist
+  let updatedConvertedMessages = convertedMessages;
+  
+  // Find insertion point (before first user message)
+  const userMessageIndex = convertedMessages.findIndex(
+    (msg) => msg.role === "user"
+  );
+
+  // Build array of messages to insert (in order: reranking request, reranking result, knowledge injection)
+  const messagesToInsert: typeof convertedMessages = [];
+  if (rerankingRequestMessage) {
+    messagesToInsert.push(rerankingRequestMessage);
+  }
+  if (rerankingResultMessage) {
+    messagesToInsert.push(rerankingResultMessage);
+  }
+  if (knowledgeInjectionMessage) {
+    messagesToInsert.push(knowledgeInjectionMessage);
+  }
+
+  if (messagesToInsert.length > 0) {
+    if (userMessageIndex === -1) {
+      // No user message found, prepend all messages
+      updatedConvertedMessages = [...messagesToInsert, ...convertedMessages];
+    } else {
+      // Insert before first user message
+      updatedConvertedMessages = [...convertedMessages];
+      updatedConvertedMessages.splice(userMessageIndex, 0, ...messagesToInsert);
+    }
+  }
+
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
     typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
@@ -390,7 +460,7 @@ export async function buildStreamRequestContext(
   }
 
   // Check for tool result messages (role: "tool")
-  for (const msg of modelMessages) {
+  for (const msg of modelMessagesWithKnowledge) {
     if (
       msg &&
       typeof msg === "object" &&
@@ -419,7 +489,7 @@ export async function buildStreamRequestContext(
     workspaceId,
     agentId,
     agent,
-    modelMessages,
+    modelMessagesWithKnowledge,
     tools,
     usesByok,
     endpointType,
@@ -441,8 +511,8 @@ export async function buildStreamRequestContext(
     subscriptionId,
     db,
     uiMessage,
-    convertedMessages,
-    modelMessages,
+    convertedMessages: updatedConvertedMessages,
+    modelMessages: modelMessagesWithKnowledge,
     agent,
     model,
     tools,

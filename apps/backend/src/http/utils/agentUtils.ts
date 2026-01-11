@@ -936,6 +936,47 @@ export async function callAgentInternal(
     },
   ];
 
+  // Fetch existing conversation messages to check for existing knowledge injection
+  let existingConversationMessages: UIMessage[] | undefined;
+  if (conversationId) {
+    try {
+      const conversationPk = `conversations/${workspaceId}/${targetAgentId}/${conversationId}`;
+      const existingConversation = await db["agent-conversations"].get(
+        conversationPk
+      );
+      if (existingConversation && existingConversation.messages) {
+        existingConversationMessages = existingConversation.messages as UIMessage[];
+      }
+    } catch (error) {
+      // If conversation doesn't exist yet or fetch fails, that's okay - we'll create new knowledge injection
+      console.log(
+        "[callAgentInternal] Could not fetch existing conversation messages:",
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  }
+
+  // Inject knowledge from workspace documents if enabled
+  const { injectKnowledgeIntoMessages } = await import(
+    "../../utils/knowledgeInjection"
+  );
+  const knowledgeInjectionResult = await injectKnowledgeIntoMessages(
+    workspaceId,
+    targetAgent,
+    modelMessages,
+    db,
+    context,
+    targetAgentId,
+    conversationId,
+    usesByok,
+    existingConversationMessages
+  );
+
+  const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
+  const knowledgeInjectionMessage = knowledgeInjectionResult.knowledgeInjectionMessage;
+  const rerankingRequestMessage = knowledgeInjectionResult.rerankingRequestMessage;
+  const rerankingResultMessage = knowledgeInjectionResult.rerankingResultMessage;
+
   let reservationId: string | undefined;
   let llmCallAttempted = false;
   let result: Awaited<ReturnType<typeof generateText>> | undefined;
@@ -958,7 +999,7 @@ export async function callAgentInternal(
       targetAgentId,
       agentProvider, // provider
       modelName || MODEL_NAME,
-      modelMessages,
+      modelMessagesWithKnowledge,
       targetAgent.systemPrompt,
       toolDefinitions,
       false // usesByok - delegated calls use workspace API key if available
@@ -981,7 +1022,7 @@ export async function callAgentInternal(
       targetAgentId,
       model: MODEL_NAME,
       systemPromptLength: targetAgent.systemPrompt.length,
-      messagesCount: modelMessages.length,
+      messagesCount: modelMessagesWithKnowledge.length,
       toolsCount: tools ? Object.keys(tools).length : 0,
       ...generateOptions,
     });
@@ -1008,7 +1049,7 @@ export async function callAgentInternal(
             typeof generateText
           >[0]["model"],
           system: targetAgent.systemPrompt,
-          messages: modelMessages,
+          messages: modelMessagesWithKnowledge,
           tools,
           ...generateOptions,
         }),
@@ -1126,7 +1167,18 @@ export async function callAgentInternal(
       const delegationConversationId = randomUUID();
 
       // Build messages for the target agent's conversation
-      const targetAgentMessages: UIMessage[] = [
+      // Include re-ranking and knowledge injection messages if they exist
+      const targetAgentMessages: UIMessage[] = [];
+      if (rerankingRequestMessage) {
+        targetAgentMessages.push(rerankingRequestMessage);
+      }
+      if (rerankingResultMessage) {
+        targetAgentMessages.push(rerankingResultMessage);
+      }
+      if (knowledgeInjectionMessage) {
+        targetAgentMessages.push(knowledgeInjectionMessage);
+      }
+      targetAgentMessages.push(
         {
           role: "user",
           content: message,
@@ -1141,8 +1193,8 @@ export async function callAgentInternal(
           ...(provisionalCostUsd !== undefined && {
             provisionalCostUsd,
           }),
-        },
-      ];
+        }
+      );
 
       // Update/create conversation for target agent
       await updateConversation(

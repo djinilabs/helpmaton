@@ -300,12 +300,46 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
 
   const db = await database();
 
-  // If reservation exists, atomically add this cost
+  // Check if this is a re-ranking cost verification
+  // Re-ranking reservations have provisionalCost field set and openrouterGenerationId
+  let isReranking = false;
+  let reservation: Awaited<
+    ReturnType<typeof db["credit-reservations"]["get"]>
+  > | null = null;
   if (reservationId) {
+    const reservationPk = `credit-reservations/${reservationId}`;
+    reservation = await db["credit-reservations"].get(reservationPk);
+    // Detect re-ranking reservations:
+    // - Re-ranking reservations have provisionalCost field (set in adjustRerankingCreditReservation)
+    // - They have openrouterGenerationId field matching the generation ID
+    // - They don't have expectedGenerationCount (which main LLM calls have)
+    // NOTE: An explicit isReranking flag would be more robust, but this heuristic works for now
+    if (reservation) {
+      isReranking =
+        reservation.provisionalCost !== undefined &&
+        reservation.openrouterGenerationId === openrouterGenerationId &&
+        !reservation.expectedGenerationCount;
+
+      if (isReranking) {
+        console.log(
+          "[Cost Verification] Detected re-ranking cost verification:",
+          {
+            reservationId,
+            openrouterGenerationId,
+            provisionalCost: reservation.provisionalCost,
+          }
+        );
+      }
+    }
+  }
+
+  // If reservation exists, atomically add this cost
+  if (reservationId && !isReranking) {
+    // For main LLM calls, use the existing multi-generation verification logic
     const reservationPk = `credit-reservations/${reservationId}`;
 
     // Atomically update reservation with this generation's cost
-    const reservation = await db["credit-reservations"].atomicUpdate(
+    const updatedReservation = await db["credit-reservations"].atomicUpdate(
       reservationPk,
       undefined,
       async (current) => {
@@ -363,22 +397,22 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
 
     // If all generations verified, finalize now
     if (
-      reservation?.allGenerationsVerified &&
-      reservation.totalOpenrouterCost !== undefined
+      updatedReservation?.allGenerationsVerified &&
+      updatedReservation.totalOpenrouterCost !== undefined
     ) {
       console.log(
         "[Cost Verification] All generations verified, finalizing reservation:",
         {
           reservationId,
-          totalCost: reservation.totalOpenrouterCost,
-          verifiedCount: reservation.verifiedGenerationIds?.length || 0,
+          totalCost: updatedReservation.totalOpenrouterCost,
+          verifiedCount: updatedReservation.verifiedGenerationIds?.length || 0,
         }
       );
 
       await finalizeCreditReservation(
         db,
         reservationId,
-        reservation.totalOpenrouterCost,
+        updatedReservation.totalOpenrouterCost,
         context,
         3
       );
@@ -387,11 +421,24 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
         "[Cost Verification] Reservation updated, waiting for remaining generations:",
         {
           reservationId,
-          verifiedCount: reservation?.verifiedGenerationIds?.length || 0,
-          expectedCount: reservation?.expectedGenerationCount || 0,
+          verifiedCount: updatedReservation?.verifiedGenerationIds?.length || 0,
+          expectedCount: updatedReservation?.expectedGenerationCount || 0,
         }
       );
     }
+  } else if (reservationId && isReranking) {
+    // For re-ranking, finalize immediately (single generation)
+    console.log(
+      "[Cost Verification] Re-ranking cost verification, finalizing reservation:",
+      {
+        reservationId,
+        openrouterGenerationId,
+        finalCost: openrouterCost,
+        provisionalCost: reservation?.provisionalCost || undefined,
+      }
+    );
+
+    await finalizeCreditReservation(db, reservationId, openrouterCost, context, 3);
   } else {
     // No reservation (BYOK case) - just log
     console.log(
@@ -449,88 +496,171 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
           const messages = (current.messages || []) as UIMessage[];
           let messageUpdated = false;
 
-          // Find and update the message with matching generation ID
-          // IMPORTANT: finalCostUsd must be the ACTUAL cost from OpenRouter API (with 5.5% markup),
-          // NOT the transaction amount (difference/refund) from finalizeCreditReservation.
-          // The transaction amount is only used for credit balance adjustments, not for message costs.
-          const updatedMessages = messages.map((msg) => {
-            if (
-              msg.role === "assistant" &&
-              "openrouterGenerationId" in msg &&
-              msg.openrouterGenerationId === openrouterGenerationId
-            ) {
-              messageUpdated = true;
-              return {
-                ...msg,
-                // Use the actual cost fetched from OpenRouter API, not any transaction/refund amount
-                finalCostUsd: openrouterCost,
-              };
-            }
-            return msg;
-          });
-
-          if (!messageUpdated) {
-            console.warn(
-              "[Cost Verification] Message with generation ID not found in conversation:",
+          if (isReranking) {
+            // For re-ranking, we don't have a message to update
+            // Instead, we need to add the re-ranking cost to the conversation total
+            // Re-ranking costs are tracked separately and added to conversation costUsd
+            console.log(
+              "[Cost Verification] Re-ranking cost verification, updating conversation cost:",
               {
                 conversationId,
                 agentId,
                 workspaceId,
                 openrouterGenerationId,
-                messageCount: messages.length,
+                rerankingCost: openrouterCost,
+                previousCostUsd: current.costUsd,
               }
             );
-            return current;
-          }
 
-          // Recalculate conversation cost from 0 using getMessageCost() helper for ALL messages
-          // IMPORTANT: Always recalculate from scratch, do NOT use current.costUsd
-          // Use getMessageCost() helper to get best available cost for each message
-          // This prefers finalCostUsd > provisionalCostUsd > calculated from tokenUsage
-          // Also includes tool costs from tool-result content items (individual costs per tool)
-          let totalCostUsd = 0;
-          for (const msg of updatedMessages) {
-            // Use getMessageCost() helper to get best available cost
-            const messageCost = getMessageCost(msg);
 
-            if (messageCost) {
-              // For assistant messages: use costUsd
-              if (messageCost.costUsd !== undefined) {
-                totalCostUsd += messageCost.costUsd;
-            }
-
-              // For tool messages: sum individual tool costs
-              if (messageCost.toolCosts) {
-                for (const toolCost of messageCost.toolCosts) {
-                  totalCostUsd += toolCost.costUsd;
+            // Re-ranking cost tracking:
+            // 1. Re-ranking costs are NOT stored in messages (re-ranking happens before LLM call)
+            // 2. Re-ranking costs are stored separately in rerankingCostUsd field
+            // 3. updateConversation() adds rerankingCostUsd to totalCostUsd when calculating conversation cost
+            // 4. When verifying re-ranking costs, we need to:
+            //    - Calculate totalCostUsd from messages (which doesn't include re-ranking)
+            //    - Replace the previous rerankingCostUsd (provisional or final) with the final cost
+            //    - Add the final re-ranking cost to totalCostUsd
+            // Get previous re-ranking cost from conversation (if any)
+            // This could be provisional cost from Step 2 or final cost from a previous verification
+            const previousRerankingCost =
+              (current as { rerankingCostUsd?: number }).rerankingCostUsd || 0;
+            const finalRerankingCost = openrouterCost;
+            
+            // Calculate conversation cost from messages first (doesn't include re-ranking)
+            let totalCostUsd = 0;
+            for (const msg of messages) {
+              const messageCost = getMessageCost(msg);
+              if (messageCost) {
+                if (messageCost.costUsd !== undefined) {
+                  totalCostUsd += messageCost.costUsd;
+                }
+                if (messageCost.toolCosts) {
+                  for (const toolCost of messageCost.toolCosts) {
+                    totalCostUsd += toolCost.costUsd;
+                  }
                 }
               }
             }
-          }
+            
+            // Replace previous re-ranking cost (provisional or final) with final cost
+            // Remove previous cost and add final cost
+            totalCostUsd = totalCostUsd - previousRerankingCost + finalRerankingCost;
 
-          console.log("[Cost Verification] Updated message with final cost:", {
-            conversationId,
-            agentId,
-            workspaceId,
-            openrouterGenerationId,
-            finalCostUsd: openrouterCost, // Actual cost from OpenRouter API (with 5.5% markup)
-            totalCostUsd,
-            previousCostUsd: current.costUsd,
-            messageCount: updatedMessages.length,
-            messagesWithFinalCost: updatedMessages.filter(
-              (msg) =>
+            console.log(
+              "[Cost Verification] Updated conversation with re-ranking cost:",
+              {
+                conversationId,
+                agentId,
+                workspaceId,
+                openrouterGenerationId,
+                finalRerankingCost: openrouterCost,
+                previousRerankingCost,
+                costAdjustment: finalRerankingCost - previousRerankingCost,
+                totalCostUsd,
+                previousTotalCostUsd: current.costUsd,
+              }
+            );
+
+            return {
+              ...current,
+              costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
+              rerankingCostUsd: finalRerankingCost, // Store final re-ranking cost for future reference
+            };
+          } else {
+            // For main LLM calls, update the message with final cost
+            // Find and update the message with matching generation ID
+            // IMPORTANT: finalCostUsd must be the ACTUAL cost from OpenRouter API (with 5.5% markup),
+            // NOT the transaction amount (difference/refund) from finalizeCreditReservation.
+            // The transaction amount is only used for credit balance adjustments, not for message costs.
+            const updatedMessages = messages.map((msg) => {
+              if (
                 msg.role === "assistant" &&
-                "finalCostUsd" in msg &&
-                typeof msg.finalCostUsd === "number"
-            ).length,
-            note: "finalCostUsd is the actual cost, NOT a transaction/refund amount. Conversation costUsd is sum of all message finalCostUsd values.",
-          });
+                "openrouterGenerationId" in msg &&
+                msg.openrouterGenerationId === openrouterGenerationId
+              ) {
+                messageUpdated = true;
+                return {
+                  ...msg,
+                  // Use the actual cost fetched from OpenRouter API, not any transaction/refund amount
+                  finalCostUsd: openrouterCost,
+                };
+              }
+              return msg;
+            });
 
-          return {
-            ...current,
-            messages: updatedMessages as unknown[],
-            costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
-          };
+            if (!messageUpdated) {
+              console.warn(
+                "[Cost Verification] Message with generation ID not found in conversation:",
+                {
+                  conversationId,
+                  agentId,
+                  workspaceId,
+                  openrouterGenerationId,
+                  messageCount: messages.length,
+                }
+              );
+              return current;
+            }
+
+            // Recalculate conversation cost from 0 using getMessageCost() helper for ALL messages
+            // IMPORTANT: Always recalculate from scratch, do NOT use current.costUsd
+            // Use getMessageCost() helper to get best available cost for each message
+            // This prefers finalCostUsd > provisionalCostUsd > calculated from tokenUsage
+            // Also includes tool costs from tool-result content items (individual costs per tool)
+            let totalCostUsd = 0;
+            for (const msg of updatedMessages) {
+              // Use getMessageCost() helper to get best available cost
+              const messageCost = getMessageCost(msg);
+
+              if (messageCost) {
+                // For assistant messages: use costUsd
+                if (messageCost.costUsd !== undefined) {
+                  totalCostUsd += messageCost.costUsd;
+                }
+
+                // For tool messages: sum individual tool costs
+                if (messageCost.toolCosts) {
+                  for (const toolCost of messageCost.toolCosts) {
+                    totalCostUsd += toolCost.costUsd;
+                  }
+                }
+              }
+            }
+
+            // Include re-ranking cost if it exists
+            // NOTE: rerankingCostUsd is already included in current.costUsd via updateConversation(),
+            // so we need to preserve it when recalculating. The rerankingCostUsd field is stored
+            // separately for tracking purposes, but it's already been added to the conversation cost.
+            const rerankingCost =
+              (current as { rerankingCostUsd?: number }).rerankingCostUsd || 0;
+            totalCostUsd += rerankingCost;
+
+            console.log("[Cost Verification] Updated message with final cost:", {
+              conversationId,
+              agentId,
+              workspaceId,
+              openrouterGenerationId,
+              finalCostUsd: openrouterCost, // Actual cost from OpenRouter API (with 5.5% markup)
+              totalCostUsd,
+              previousCostUsd: current.costUsd,
+              rerankingCost,
+              messageCount: updatedMessages.length,
+              messagesWithFinalCost: updatedMessages.filter(
+                (msg) =>
+                  msg.role === "assistant" &&
+                  "finalCostUsd" in msg &&
+                  typeof msg.finalCostUsd === "number"
+              ).length,
+              note: "finalCostUsd is the actual cost, NOT a transaction/refund amount. Conversation costUsd is sum of all message finalCostUsd values plus re-ranking costs.",
+            });
+
+            return {
+              ...current,
+              messages: updatedMessages as unknown[],
+              costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
+            };
+          }
         }
       );
     } catch (error) {

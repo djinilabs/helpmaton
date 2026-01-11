@@ -141,6 +141,7 @@ export const registerGetAgentConversation = (app: express.Application) => {
         delegations: conversation.delegations || [],
         modelName: conversation.modelName ?? null,
         provider: conversation.provider ?? null,
+        rerankingCostUsd: conversation.rerankingCostUsd ?? null,
       });
     })
   );

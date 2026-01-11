@@ -1765,6 +1765,7 @@ export async function startConversation(
   // Also includes tool costs from tool-result content items (individual costs per tool)
   let totalCostUsd = 0;
   let totalGenerationTimeMs = 0;
+  let rerankingCostUsd = 0;
   for (const message of expandedMessages) {
     // Use getMessageCost() helper to get best available cost
     const messageCost = getMessageCost(message);
@@ -1772,7 +1773,24 @@ export async function startConversation(
     if (messageCost) {
       // For assistant messages: use costUsd
       if (messageCost.costUsd !== undefined) {
-        totalCostUsd += messageCost.costUsd;
+        // Check if this is a reranking cost (from system message with reranking-result)
+        // IMPORTANT: getMessageCost() only returns a cost for system messages if they have
+        // reranking-result content (see messageCostCalculation.ts lines 118-138).
+        // This means message.role === "system" && messageCost.costUsd !== undefined
+        // is a reliable indicator of reranking costs. If getMessageCost() behavior changes
+        // to return costs for other system message types, this logic must be updated.
+        if (message.role === "system") {
+          rerankingCostUsd += messageCost.costUsd;
+          console.log(
+            "[startConversation] Extracted reranking cost from system message:",
+            {
+              costUsd: messageCost.costUsd,
+              totalRerankingCostUsd: rerankingCostUsd,
+            }
+          );
+        } else {
+          totalCostUsd += messageCost.costUsd;
+        }
       }
 
       // For tool messages: sum individual tool costs
@@ -1794,6 +1812,19 @@ export async function startConversation(
     }
   }
 
+  // Re-ranking costs are stored separately in rerankingCostUsd field
+  // Add them to totalCostUsd for the conversation total
+  if (rerankingCostUsd > 0) {
+    totalCostUsd += rerankingCostUsd;
+    console.log(
+      "[startConversation] Final reranking cost and total cost:",
+      {
+        rerankingCostUsd,
+        totalCostUsd,
+      }
+    );
+  }
+
   // Initialize awsRequestIds array if awsRequestId is provided
   const awsRequestIds = data.awsRequestId ? [data.awsRequestId] : undefined;
 
@@ -1808,6 +1839,7 @@ export async function startConversation(
     usesByok: data.usesByok,
     error: data.error,
     costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
+    rerankingCostUsd: rerankingCostUsd > 0 ? rerankingCostUsd : undefined,
     totalGenerationTimeMs:
       totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
     awsRequestIds,
@@ -2045,6 +2077,7 @@ export async function updateConversation(
         // Also includes tool costs from tool-result content items (individual costs per tool)
         let totalCostUsd = 0;
         let totalGenerationTimeMs = 0;
+        let rerankingCostUsd = 0;
         for (const message of expandedMessages) {
           // Use getMessageCost() helper to get best available cost
           const messageCost = getMessageCost(message);
@@ -2052,7 +2085,20 @@ export async function updateConversation(
           if (messageCost) {
             // For assistant messages: use costUsd
             if (messageCost.costUsd !== undefined) {
-              totalCostUsd += messageCost.costUsd;
+              // Check if this is a reranking cost (from system message with reranking-result)
+              // getMessageCost() only returns a cost for system messages if they have reranking-result content
+              if (message.role === "system") {
+                rerankingCostUsd += messageCost.costUsd;
+                console.log(
+                  "[updateConversation] Extracted reranking cost from system message (new conversation):",
+                  {
+                    costUsd: messageCost.costUsd,
+                    totalRerankingCostUsd: rerankingCostUsd,
+                  }
+                );
+              } else {
+                totalCostUsd += messageCost.costUsd;
+              }
             }
 
             // For tool messages: sum individual tool costs
@@ -2074,6 +2120,19 @@ export async function updateConversation(
           }
         }
 
+        // Re-ranking costs are stored separately in rerankingCostUsd field
+        // Add them to totalCostUsd for the conversation total
+        if (rerankingCostUsd > 0) {
+          totalCostUsd += rerankingCostUsd;
+          console.log(
+            "[updateConversation] Final reranking cost and total cost (new conversation):",
+            {
+              rerankingCostUsd,
+              totalCostUsd,
+            }
+          );
+        }
+
         // Initialize awsRequestIds array if awsRequestId is provided
         const awsRequestIds = awsRequestId ? [awsRequestId] : undefined;
 
@@ -2091,6 +2150,7 @@ export async function updateConversation(
           usesByok: usesByok,
           error,
           costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
+          rerankingCostUsd: rerankingCostUsd > 0 ? rerankingCostUsd : undefined,
           totalGenerationTimeMs:
             totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
           awsRequestIds,
@@ -2150,6 +2210,7 @@ export async function updateConversation(
       // Also includes tool costs from tool-result content items (individual costs per tool)
       let totalCostUsd = 0;
       let totalGenerationTimeMs = 0;
+      let extractedRerankingCostUsd = 0;
       for (const message of expandedAllMessages) {
         // Use getMessageCost() helper to get best available cost
         const messageCost = getMessageCost(message);
@@ -2157,7 +2218,20 @@ export async function updateConversation(
         if (messageCost) {
           // For assistant messages: use costUsd
           if (messageCost.costUsd !== undefined) {
-            totalCostUsd += messageCost.costUsd;
+            // Check if this is a reranking cost (from system message with reranking-result)
+            // getMessageCost() only returns a cost for system messages if they have reranking-result content
+            if (message.role === "system") {
+              extractedRerankingCostUsd += messageCost.costUsd;
+              console.log(
+                "[updateConversation] Extracted reranking cost from system message:",
+                {
+                  costUsd: messageCost.costUsd,
+                  totalExtractedRerankingCostUsd: extractedRerankingCostUsd,
+                }
+              );
+            } else {
+              totalCostUsd += messageCost.costUsd;
+            }
           }
 
           // For tool messages: sum individual tool costs
@@ -2177,6 +2251,32 @@ export async function updateConversation(
             totalGenerationTimeMs += message.generationTimeMs;
           }
         }
+      }
+
+      // Use extracted reranking cost from messages, or preserve existing if already set (from cost verification)
+      // Prefer existing rerankingCostUsd if it exists (may be from cost verification queue with final cost)
+      // Otherwise use extracted cost from messages
+      const existingRerankingCost =
+        (existing as { rerankingCostUsd?: number }).rerankingCostUsd;
+      const finalRerankingCostUsd =
+        existingRerankingCost !== undefined
+          ? existingRerankingCost
+          : extractedRerankingCostUsd > 0
+          ? extractedRerankingCostUsd
+          : undefined;
+
+      console.log(
+        "[updateConversation] Reranking cost calculation:",
+        {
+          existingRerankingCost,
+          extractedRerankingCostUsd,
+          finalRerankingCostUsd,
+        }
+      );
+
+      // Include re-ranking costs in total (stored separately since re-ranking happens before LLM call)
+      if (finalRerankingCostUsd !== undefined && finalRerankingCostUsd > 0) {
+        totalCostUsd += finalRerankingCostUsd;
       }
 
       // Update awsRequestIds array - append new request ID if provided
@@ -2228,6 +2328,7 @@ export async function updateConversation(
         lastMessageAt: now,
         expires: calculateTTL(),
         costUsd: totalCostUsd > 0 ? totalCostUsd : undefined,
+        rerankingCostUsd: finalRerankingCostUsd,
         totalGenerationTimeMs:
           totalGenerationTimeMs > 0 ? totalGenerationTimeMs : undefined,
         usesByok:

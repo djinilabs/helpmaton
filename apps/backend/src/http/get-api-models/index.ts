@@ -10,7 +10,7 @@ import { getDefaultModel } from "../utils/modelFactory";
  * /api/models:
  *   get:
  *     summary: Get available models
- *     description: Returns a list of available OpenRouter AI models and their default model
+ *     description: Returns a list of available OpenRouter AI models and their default model, including re-ranking models from pricing.json
  *     tags:
  *       - Usage
  *     responses:
@@ -38,13 +38,15 @@ export const handler = adaptHttpHandler(
     const providerPricing = pricingConfig.providers[provider];
     if (providerPricing) {
       // Get all models from pricing config - includes all models regardless of pricing values
-      const models = Object.keys(providerPricing.models).sort();
-      if (models.length > 0) {
+      // Re-ranking models are now included in pricing.json, so no need to fetch from OpenRouter API
+      const allModels = Object.keys(providerPricing.models).sort();
+
+      if (allModels.length > 0) {
         // Use shared utility function to get default model
         const defaultModel = getDefaultModel(provider);
 
         availableModels[provider] = {
-          models,
+          models: allModels,
           defaultModel,
         };
       }

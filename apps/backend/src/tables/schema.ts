@@ -90,6 +90,11 @@ export const tableSchemas = {
     enabledMcpServerIds: z.array(z.string()).optional(), // list of MCP server IDs enabled for this agent
     enableMemorySearch: z.boolean().optional(), // enable memory search tool for this agent (default: false)
     enableSearchDocuments: z.boolean().optional(), // enable document search tool for this agent (default: false)
+    enableKnowledgeInjection: z.boolean().optional(), // enable knowledge injection from workspace documents (default: false)
+    knowledgeInjectionSnippetCount: z.number().int().positive().optional(), // number of document snippets to inject (default: 5)
+    knowledgeInjectionMinSimilarity: z.number().min(0).max(1).optional(), // minimum similarity score (0-1) required for snippets to be included (default: 0)
+    enableKnowledgeReranking: z.boolean().optional(), // enable re-ranking of injected snippets (default: false)
+    knowledgeRerankingModel: z.string().optional(), // re-ranking model name from OpenRouter (required if enableKnowledgeReranking is true)
     enableSendEmail: z.boolean().optional(), // enable email sending tool for this agent (default: false, requires workspace email connection)
     enableTavilySearch: z.boolean().optional(), // @deprecated Use searchWebProvider instead. Legacy field for backward compatibility (default: false)
     searchWebProvider: z.enum(["tavily", "jina"]).optional(), // Web search provider: "tavily" uses Tavily search API, "jina" uses Jina DeepSearch API (default: undefined, no search tool)
@@ -215,6 +220,7 @@ export const tableSchemas = {
       })
       .optional(),
     costUsd: z.number().int().optional(), // cost in USD in millionths
+    rerankingCostUsd: z.number().int().optional(), // re-ranking cost in USD in millionths (tracked separately since re-ranking happens before LLM call)
     totalGenerationTimeMs: z.number().optional(), // sum of all generation times in milliseconds
     awsRequestIds: z.array(z.string()).optional(), // array of AWS Lambda/API Gateway request IDs that added messages to this conversation
     delegations: z
@@ -258,6 +264,7 @@ export const tableSchemas = {
     modelName: z.string().optional(), // Model used (for tracking)
     tokenUsageBasedCost: z.number().int().optional(), // Cost calculated from token usage (step 2) in millionths
     openrouterCost: z.number().int().optional(), // Cost from OpenRouter API (step 3) in millionths
+    provisionalCost: z.number().int().optional(), // Provisional cost from API response (step 2) in millionths (used for re-ranking)
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),
