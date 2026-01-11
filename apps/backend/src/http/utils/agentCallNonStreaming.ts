@@ -140,25 +140,6 @@ export async function callAgentNonStreaming(
   );
 
   const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
-  const knowledgeInjectionMessage = knowledgeInjectionResult.knowledgeInjectionMessage;
-
-  // Add knowledge injection message to allMessages if it exists
-  // This ensures it's included in conversation history for future calls
-  let updatedAllMessages = allMessages;
-  if (knowledgeInjectionMessage) {
-    // Insert knowledge injection message before the user's message
-    const userMessageIndex = updatedAllMessages.findIndex(
-      (msg) => msg.role === "user" && !("knowledgeInjection" in msg && msg.knowledgeInjection === true)
-    );
-    if (userMessageIndex === -1) {
-      // No user message found, prepend knowledge injection message
-      updatedAllMessages = [knowledgeInjectionMessage, ...updatedAllMessages];
-    } else {
-      // Insert before first non-knowledge-injection user message
-      updatedAllMessages = [...updatedAllMessages];
-      updatedAllMessages.splice(userMessageIndex, 0, knowledgeInjectionMessage);
-    }
-  }
 
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =

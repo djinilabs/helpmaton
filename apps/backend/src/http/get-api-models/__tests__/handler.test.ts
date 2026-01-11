@@ -227,6 +227,50 @@ describe("get-api-models handler", () => {
     ]);
   });
 
+  it("should include re-ranking models from pricing config", async () => {
+    const mockPricingConfig = {
+      providers: {
+        openrouter: {
+          models: {
+            "google/gemini-2.5-flash": {
+              usd: { input: 0.075, output: 0.3, cachedInput: 0.0075 },
+            },
+            "cohere/rerank-v3": {
+              usd: { input: 0, output: 0, request: 0.001 },
+            },
+            "jinaai/jina-reranker-v1-base-en": {
+              usd: { input: 0, output: 0, request: 0.0001 },
+            },
+          },
+        },
+      },
+      lastUpdated: "2024-01-01",
+    };
+
+    mockLoadPricingConfig.mockReturnValue(mockPricingConfig);
+    mockGetDefaultModel.mockReturnValue("google/gemini-2.5-flash");
+
+    const event = createAPIGatewayEventV2({
+      routeKey: "GET /api/models",
+      rawPath: "/api/models",
+    });
+
+    const result = (await handler(event, mockContext, mockCallback)) as {
+      statusCode: number;
+      headers: Record<string, string>;
+      body: string;
+    };
+
+    expect(result.statusCode).toBe(200);
+    const body = JSON.parse(result.body || "{}");
+    expect(body.openrouter).toBeDefined();
+    expect(body.openrouter.models).toHaveLength(3);
+    // Verify re-ranking models are included
+    expect(body.openrouter.models).toContain("cohere/rerank-v3");
+    expect(body.openrouter.models).toContain("jinaai/jina-reranker-v1-base-en");
+    expect(body.openrouter.models).toContain("google/gemini-2.5-flash");
+  });
+
   it("should handle errors from loadPricingConfig", async () => {
     const error = new Error("Failed to load pricing config");
     mockLoadPricingConfig.mockImplementation(() => {

@@ -2,6 +2,8 @@ import type { ModelMessage } from "ai";
 
 import type { DatabaseSchema } from "../tables/schema";
 
+import { fromMillionths, toMillionths } from "./creditConversions";
+import { InsufficientCreditsError } from "./creditErrors";
 import { searchDocuments, type SearchResult } from "./documentSearch";
 import { rerankSnippets } from "./knowledgeReranking";
 import {
@@ -10,7 +12,12 @@ import {
   refundRerankingCredits,
   reserveRerankingCredits,
 } from "./knowledgeRerankingCredits";
-import type { UIMessage } from "./messageTypes";
+import type {
+  RerankingRequestContent,
+  RerankingResultContent,
+  UIMessage,
+} from "./messageTypes";
+import { getModelPricing } from "./pricing";
 import { Sentry, ensureError } from "./sentry";
 import type { AugmentedContext } from "./workspaceCreditContext";
 
@@ -107,6 +114,8 @@ function extractQueryFromMessages(messages: ModelMessage[]): string {
 export interface KnowledgeInjectionResult {
   modelMessages: ModelMessage[];
   knowledgeInjectionMessage: UIMessage | null;
+  rerankingRequestMessage?: UIMessage; // Message showing the re-ranking request
+  rerankingResultMessage?: UIMessage; // Message showing the re-ranking response with cost
 }
 
 /**
@@ -140,11 +149,16 @@ export async function injectKnowledgeIntoMessages(
     return {
       modelMessages: messages,
       knowledgeInjectionMessage: null,
+      rerankingRequestMessage: undefined,
+      rerankingResultMessage: undefined,
     };
   }
 
   // Check for existing knowledge injection message in conversation
   let finalResults: SearchResult[] | undefined;
+  let rerankingRequestMessage: UIMessage | undefined;
+  let rerankingResultMessage: UIMessage | undefined;
+
   if (existingConversationMessages && existingConversationMessages.length > 0) {
     const existingKnowledgeMessage =
       findExistingKnowledgeInjectionMessage(existingConversationMessages);
@@ -172,6 +186,8 @@ export async function injectKnowledgeIntoMessages(
     return {
       modelMessages: messages,
       knowledgeInjectionMessage: null,
+      rerankingRequestMessage: undefined,
+      rerankingResultMessage: undefined,
     };
   }
 
@@ -195,6 +211,8 @@ export async function injectKnowledgeIntoMessages(
         return {
           modelMessages: messages,
           knowledgeInjectionMessage: null,
+          rerankingRequestMessage: undefined,
+          rerankingResultMessage: undefined,
         };
       }
 
@@ -205,7 +223,14 @@ export async function injectKnowledgeIntoMessages(
 
       if (agent.enableKnowledgeReranking && agent.knowledgeRerankingModel) {
       // Step 1: Reserve credits before re-ranking call
-      if (db && context) {
+      // Credit reservation is required unless BYOK is enabled
+      if (!usesByok) {
+        if (!db || !context) {
+          throw new Error(
+            "Database and context are required for re-ranking credit reservation"
+          );
+        }
+
         try {
           const reservation = await reserveRerankingCredits(
             db,
@@ -227,11 +252,40 @@ export async function injectKnowledgeIntoMessages(
             }
           );
         } catch (error) {
+          const errorObj = ensureError(error);
+          
+          // If it's an InsufficientCreditsError, rethrow it to fail the request
+          // This matches the behavior of regular LLM calls
+          if (errorObj instanceof InsufficientCreditsError) {
+            console.error(
+              "[knowledgeInjection] Insufficient credits for re-ranking, failing request:",
+              errorObj.message
+            );
+            Sentry.captureException(errorObj, {
+              tags: {
+                context: "knowledge-injection",
+                operation: "reserve-reranking-credits",
+                errorType: "InsufficientCreditsError",
+              },
+              extra: {
+                workspaceId,
+                agentId,
+                conversationId,
+                model: agent.knowledgeRerankingModel,
+                documentCount: searchResults.length,
+                required: errorObj.required,
+                available: errorObj.available,
+              },
+            });
+            throw errorObj;
+          }
+
+          // For other errors (e.g., database errors), log and fail the request
           console.error(
             "[knowledgeInjection] Failed to reserve credits for re-ranking:",
-            error instanceof Error ? error.message : String(error)
+            errorObj.message
           );
-          Sentry.captureException(ensureError(error), {
+          Sentry.captureException(errorObj, {
             tags: {
               context: "knowledge-injection",
               operation: "reserve-reranking-credits",
@@ -244,15 +298,63 @@ export async function injectKnowledgeIntoMessages(
               documentCount: searchResults.length,
             },
           });
-          // If credit reservation fails (e.g., insufficient credits), continue with re-ranking
-          // but without credit tracking (workspace won't be charged)
-          console.warn(
-            "[knowledgeInjection] Credit reservation failed, continuing re-ranking without credit tracking"
+          // Rethrow to fail the request
+          throw errorObj;
+        }
+      } else {
+        // BYOK: Skip credit reservation (workspace pays directly)
+        console.log(
+          "[knowledgeInjection] BYOK enabled, skipping credit reservation for re-ranking"
+        );
+
+        // Sanity check: ensure BYOK reranking is actually configured
+        // Without this, BYOK workspaces could see unclear downstream errors
+        if (!agent.knowledgeRerankingModel) {
+          const byokConfigError = new Error(
+            "BYOK is enabled for this workspace, but no knowledge reranking model is configured. " +
+              "Please configure a reranking provider/API key in the workspace settings."
           );
+
+          Sentry.captureException(byokConfigError, {
+            tags: {
+              context: "knowledge-injection",
+              operation: "reserve-reranking-credits",
+              errorType: "ByokConfigurationError",
+            },
+            extra: {
+              workspaceId,
+              agentId,
+              conversationId,
+            },
+          });
+
+          throw byokConfigError;
         }
       }
 
+        // Create re-ranking request message with text representation
+        const documentNames = finalResults.map((result) => result.documentName);
+        const rerankingRequestContent: RerankingRequestContent = {
+          type: "reranking-request",
+          query,
+          model: agent.knowledgeRerankingModel,
+          documentCount: finalResults.length,
+          documentNames,
+        };
+
+        // Create user-friendly text representation with clear model indication
+        const requestText = `**Re-ranking Request**\n\n- **Model:** ${agent.knowledgeRerankingModel}\n- **Documents:** ${finalResults.length} document${finalResults.length !== 1 ? "s" : ""}\n- **Query:** "${query}"`;
+
+        rerankingRequestMessage = {
+          role: "system",
+          content: [
+            { type: "text", text: requestText },
+            rerankingRequestContent,
+          ],
+        };
+
         // Step 2: Make re-ranking API call
+        const rerankingStartTime = Date.now();
         try {
           const rerankingResult = await rerankSnippets(
             query,
@@ -260,7 +362,75 @@ export async function injectKnowledgeIntoMessages(
             agent.knowledgeRerankingModel,
             workspaceId
           );
+          const rerankingExecutionTime = Date.now() - rerankingStartTime;
           finalResults = rerankingResult.snippets;
+
+          // Create re-ranking result message
+          // Always calculate cost - if costUsd is undefined, calculate from pricing config as fallback
+          let costInMillionths: number;
+          if (rerankingResult.costUsd !== undefined && rerankingResult.costUsd >= 0) {
+            costInMillionths = toMillionths(rerankingResult.costUsd);
+          } else {
+            // Fallback: calculate from pricing config if not provided or invalid
+            const modelPricing = getModelPricing("openrouter", agent.knowledgeRerankingModel);
+            if (modelPricing?.usd?.request !== undefined) {
+              const baseCost = modelPricing.usd.request;
+              const costWithMarkup = baseCost * 1.055; // Apply 5.5% markup
+              costInMillionths = toMillionths(costWithMarkup);
+              console.log(
+                "[knowledgeInjection] Cost not in reranking result, calculated from pricing config:",
+                {
+                  model: agent.knowledgeRerankingModel,
+                  requestPrice: modelPricing.usd.request,
+                  costWithMarkup,
+                  costInMillionths,
+                }
+              );
+            } else {
+              // Last resort: fail rather than silently defaulting to 0 to avoid undercharging
+              const message =
+                "Could not determine re-ranking cost: no cost from provider and no pricing configuration available.";
+              console.error("[knowledgeInjection] " + message, {
+                model: agent.knowledgeRerankingModel,
+                costUsd: rerankingResult.costUsd,
+              });
+              Sentry.captureException(
+                ensureError(
+                  new Error(
+                    `${message} model=${agent.knowledgeRerankingModel}, costUsd=${rerankingResult.costUsd}`
+                  )
+                )
+              );
+              throw new Error(message);
+            }
+          }
+
+          const rerankingResultContent: RerankingResultContent = {
+            type: "reranking-result",
+            model: agent.knowledgeRerankingModel,
+            documentCount: rerankingResult.snippets.length,
+            costUsd: costInMillionths, // Always set (calculated above)
+            ...(rerankingResult.generationId && {
+              generationId: rerankingResult.generationId,
+            }),
+            executionTimeMs: rerankingExecutionTime,
+            rerankedDocuments: rerankingResult.snippets.map((snippet) => ({
+              documentName: snippet.documentName,
+              relevanceScore: snippet.similarity,
+            })),
+          };
+
+          // Create user-friendly text representation with clear model and cost
+          const costDisplay = `$${fromMillionths(costInMillionths).toFixed(6)}`;
+          const resultText = `**Re-ranking Result**\n\n- **Model:** ${agent.knowledgeRerankingModel}\n- **Cost:** ${costDisplay}\n- **Documents Re-ranked:** ${rerankingResult.snippets.length} document${rerankingResult.snippets.length !== 1 ? "s" : ""}`;
+
+          rerankingResultMessage = {
+            role: "system",
+            content: [
+              { type: "text", text: resultText },
+              rerankingResultContent,
+            ],
+          };
 
           // Step 2: Adjust credits based on provisional cost
           if (db && context && rerankingReservationId) {
@@ -310,6 +480,7 @@ export async function injectKnowledgeIntoMessages(
             }
           }
         } catch (error) {
+          const rerankingExecutionTime = Date.now() - rerankingStartTime;
           console.error(
             "[knowledgeInjection] Error during re-ranking, using original results:",
             error instanceof Error ? error.message : String(error)
@@ -328,6 +499,31 @@ export async function injectKnowledgeIntoMessages(
               reservationId: rerankingReservationId,
             },
           });
+
+          // Create error result message
+          const rerankingResultContent: RerankingResultContent = {
+            type: "reranking-result",
+            model: agent.knowledgeRerankingModel,
+            documentCount: finalResults.length,
+            costUsd: 0, // No cost if re-ranking failed
+            executionTimeMs: rerankingExecutionTime,
+            rerankedDocuments: finalResults.map((snippet) => ({
+              documentName: snippet.documentName,
+              relevanceScore: snippet.similarity, // Use original similarity scores
+            })),
+            error: error instanceof Error ? error.message : String(error),
+          };
+
+          // Create user-friendly text representation for error case with model and cost
+          const errorText = `**Re-ranking Result (Failed)**\n\n- **Model:** ${agent.knowledgeRerankingModel}\n- **Cost:** $0.000000\n- **Error:** ${error instanceof Error ? error.message : String(error)}\n- **Action:** Using original document order`;
+
+          rerankingResultMessage = {
+            role: "system",
+            content: [
+              { type: "text", text: errorText },
+              rerankingResultContent,
+            ],
+          };
 
           // Refund reserved credits if re-ranking fails
           if (db && context && rerankingReservationId) {
@@ -390,6 +586,8 @@ export async function injectKnowledgeIntoMessages(
       return {
         modelMessages: messages,
         knowledgeInjectionMessage: null,
+        rerankingRequestMessage: undefined,
+        rerankingResultMessage: undefined,
       };
     }
   }
@@ -399,6 +597,8 @@ export async function injectKnowledgeIntoMessages(
     return {
       modelMessages: messages,
       knowledgeInjectionMessage: null,
+      rerankingRequestMessage: undefined,
+      rerankingResultMessage: undefined,
     };
   }
 
@@ -413,6 +613,8 @@ export async function injectKnowledgeIntoMessages(
     return {
       modelMessages: messages,
       knowledgeInjectionMessage: null,
+      rerankingRequestMessage: undefined,
+      rerankingResultMessage: undefined,
     };
   }
 
@@ -424,6 +626,8 @@ export async function injectKnowledgeIntoMessages(
       return {
         modelMessages: messages,
         knowledgeInjectionMessage: null,
+        rerankingRequestMessage: undefined,
+        rerankingResultMessage: undefined,
       };
     }
 
@@ -449,6 +653,8 @@ export async function injectKnowledgeIntoMessages(
       return {
         modelMessages: [knowledgeModelMessage, ...messages],
         knowledgeInjectionMessage: knowledgeUIMessage,
+        rerankingRequestMessage,
+        rerankingResultMessage,
       };
     }
 
@@ -459,6 +665,8 @@ export async function injectKnowledgeIntoMessages(
     return {
       modelMessages: updatedMessages,
       knowledgeInjectionMessage: knowledgeUIMessage,
+      rerankingRequestMessage,
+      rerankingResultMessage,
     };
   } catch (error) {
     console.error(
@@ -482,6 +690,8 @@ export async function injectKnowledgeIntoMessages(
     return {
       modelMessages: messages,
       knowledgeInjectionMessage: null,
+      rerankingRequestMessage: undefined,
+      rerankingResultMessage: undefined,
     };
   }
 }

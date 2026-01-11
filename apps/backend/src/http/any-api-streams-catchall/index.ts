@@ -109,7 +109,11 @@ const internalHandler = async (
     );
 
     // Use awslambda.HttpResponseStream.from if available, otherwise stream is already ready
-    if (typeof awslambda !== "undefined" && awslambda) {
+    if (
+      typeof awslambda !== "undefined" &&
+      awslambda.HttpResponseStream &&
+      typeof awslambda.HttpResponseStream.from === "function"
+    ) {
       responseStream = awslambda.HttpResponseStream.from(responseStream, {
         statusCode: 406,
         headers: errorHeaders,
@@ -273,7 +277,12 @@ const internalHandler = async (
               await persistConversationError(context, error);
             }
 
-            if (typeof awslambda !== "undefined" && awslambda) {
+            if (
+              typeof awslambda !== "undefined" &&
+              awslambda &&
+              awslambda.HttpResponseStream &&
+              typeof awslambda.HttpResponseStream.from === "function"
+            ) {
               // Merge CORS headers with existing headers
               const errorHeaders = mergeCorsHeaders(
                 pathParams?.endpointType || "stream",
@@ -310,7 +319,12 @@ const internalHandler = async (
       await persistConversationError(context, error);
     }
     try {
-      if (typeof awslambda !== "undefined" && awslambda) {
+      if (
+        typeof awslambda !== "undefined" &&
+        awslambda &&
+        awslambda.HttpResponseStream &&
+        typeof awslambda.HttpResponseStream.from === "function"
+      ) {
         // Merge CORS headers with existing headers
         const errorHeaders = mergeCorsHeaders(
           pathParams?.endpointType || "stream",

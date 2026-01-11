@@ -2,6 +2,7 @@ import { getWorkspaceApiKey } from "../http/utils/agentUtils";
 import { getDefined } from "../utils";
 
 import type { SearchResult } from "./documentSearch";
+import { getModelPricing } from "./pricing";
 import { Sentry, ensureError } from "./sentry";
 
 /**
@@ -146,11 +147,38 @@ export async function rerankSnippets(
     }
 
     // Extract cost and generationId from response
-    const costUsd = data.cost;
+    let costUsd = data.cost;
     const generationId = data.id || data.generationId;
 
-    if (costUsd !== undefined) {
-      console.log("[knowledgeReranking] Extracted cost from response:", {
+    // If cost is not in the API response, calculate it from pricing config
+    // Re-ranking models use per-request pricing
+    if (costUsd === undefined) {
+      const modelPricing = getModelPricing("openrouter", model);
+      if (modelPricing?.usd?.request !== undefined) {
+        // Apply 5.5% OpenRouter markup to match credit reservation logic
+        // This ensures consistency between displayed cost and actual charges
+        const baseCost = modelPricing.usd.request;
+        costUsd = baseCost * 1.055;
+        console.log(
+          "[knowledgeReranking] Cost not in API response, calculated from pricing config with markup:",
+          {
+            model,
+            requestPrice: modelPricing.usd.request,
+            baseCost,
+            costUsd,
+            markup: "5.5%",
+          }
+        );
+      } else {
+        console.warn(
+          "[knowledgeReranking] Cost not in API response and no pricing config found:",
+          {
+            model,
+          }
+        );
+      }
+    } else {
+      console.log("[knowledgeReranking] Extracted cost from API response:", {
         costUsd,
         generationId,
       });
@@ -188,6 +216,8 @@ export async function rerankSnippets(
       }
     }
 
+    // Always include costUsd if it was calculated (even if 0, though that shouldn't happen)
+    // This ensures the cost is always available for display
     return {
       snippets: rerankedSnippets,
       ...(costUsd !== undefined && { costUsd }),

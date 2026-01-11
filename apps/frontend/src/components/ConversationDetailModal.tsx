@@ -1,4 +1,13 @@
-import { CheckCircleIcon } from "@heroicons/react/24/outline";
+import {
+  CheckCircleIcon,
+  ClipboardDocumentIcon,
+  ClockIcon,
+  ChatBubbleLeftRightIcon,
+  TagIcon,
+  BoltIcon,
+  CpuChipIcon,
+  CurrencyDollarIcon,
+} from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import type { FC, JSX } from "react";
 import ReactMarkdown from "react-markdown";
@@ -8,7 +17,12 @@ import remarkGfm from "remark-gfm";
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useAgentConversation } from "../hooks/useAgentConversations";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useToast } from "../hooks/useToast";
 import type { Conversation } from "../utils/api";
+import {
+  getTokenUsageColor,
+  getCostColor,
+} from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
 import { getMessageCost } from "../utils/messageCost";
 
@@ -34,6 +48,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
   );
   const { registerDialog, unregisterDialog } = useDialogTracking();
   const [showRawJson, setShowRawJson] = useState(false);
+  const toast = useToast();
 
   useEscapeKey(isOpen, onClose);
 
@@ -53,6 +68,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
   // Shared markdown component configuration
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markdownComponents: Record<string, React.ComponentType<any>> = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     code: (props: any) => {
       const { className, children, ...rest } = props;
       const isInline =
@@ -76,6 +92,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
         </code>
       );
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     p: ({ children }: any) => (
       <p className="mb-2 last:mb-0">{children}</p>
     ),
@@ -279,6 +296,104 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
     return parts.length > 0 ? `${total} (${parts.join(", ")})` : total;
   };
 
+  // Calculate token-based cost from all messages and track provisional/final status
+  const calculateTokenBasedCost = (): {
+    cost: number;
+    isFinal: boolean | undefined;
+  } | undefined => {
+    if (!conversationDetail?.messages || !Array.isArray(conversationDetail.messages)) {
+      return undefined;
+    }
+
+    let totalCostMillionths = 0;
+    let hasFinalCost = false;
+    let hasProvisionalCost = false;
+    let hasCalculatedCost = false;
+
+    for (const message of conversationDetail.messages) {
+      const messageCost = getMessageCost(message);
+      if (messageCost?.costUsd !== undefined) {
+        // costUsd is already in millionths
+        totalCostMillionths += messageCost.costUsd;
+        if (messageCost.isFinal === true) {
+          hasFinalCost = true;
+        } else if (messageCost.isFinal === false) {
+          hasProvisionalCost = true;
+        } else {
+          hasCalculatedCost = true;
+        }
+      }
+    }
+
+    if (totalCostMillionths === 0) {
+      return undefined;
+    }
+
+    // Determine overall status: final if all are final, provisional if any are provisional, otherwise calculated
+    let isFinal: boolean | undefined;
+    if (hasProvisionalCost) {
+      isFinal = false; // Has at least one provisional cost
+    } else if (hasFinalCost && !hasCalculatedCost) {
+      isFinal = true; // All costs are final
+    } else {
+      isFinal = undefined; // Has calculated costs or mix
+    }
+
+    return {
+      cost: totalCostMillionths,
+      isFinal,
+    };
+  };
+
+  const tokenBasedCost = calculateTokenBasedCost();
+
+  // Calculate total cost (sum of all costs) and track provisional/final status
+  const calculateTotalCost = (): {
+    cost: number;
+    isFinal: boolean | undefined;
+  } | undefined => {
+    let totalMillionths = 0;
+    let hasAnyCost = false;
+    let hasProvisionalCost = false;
+    let hasFinalCost = false;
+
+    if (tokenBasedCost !== undefined) {
+      totalMillionths += tokenBasedCost.cost;
+      hasAnyCost = true;
+      if (tokenBasedCost.isFinal === false) {
+        hasProvisionalCost = true;
+      } else if (tokenBasedCost.isFinal === true) {
+        hasFinalCost = true;
+      }
+    }
+    if (conversationDetail?.costUsd !== undefined) {
+      // costUsd is in millionths - assume final if it exists (it's the backend total)
+      totalMillionths += conversationDetail.costUsd;
+      hasAnyCost = true;
+      hasFinalCost = true; // Backend total is typically final
+    }
+    if (conversationDetail?.rerankingCostUsd !== undefined) {
+      // rerankingCostUsd is in millionths - assume final (reranking costs are typically final)
+      totalMillionths += conversationDetail.rerankingCostUsd;
+      hasAnyCost = true;
+      hasFinalCost = true;
+    }
+
+    if (!hasAnyCost) {
+      return undefined;
+    }
+
+    // Determine overall status: provisional if any component is provisional, otherwise final
+    const isFinal = hasProvisionalCost ? false : (hasFinalCost ? true : undefined);
+
+    return {
+      cost: totalMillionths,
+      isFinal,
+    };
+  };
+
+  const totalCost = calculateTotalCost();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
@@ -303,89 +418,237 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
         </div>
 
         {/* Conversation Metadata */}
-        <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
-                Type
-              </div>
-              <div className="inline-block rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50">
-                {conversationDetail.conversationType}
-              </div>
-            </div>
-            <div>
-              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
-                Messages
-              </div>
-              <div className="text-neutral-900 dark:text-neutral-50">
-                {conversationDetail.messageCount}
-              </div>
-            </div>
-            <div>
-              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
-                Started
-              </div>
-              <div className="text-xs text-neutral-600 dark:text-neutral-300">
-                {formatDate(conversationDetail.startedAt)}
-              </div>
-            </div>
-            <div>
-              <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
-                Last Message
-              </div>
-              <div className="text-xs text-neutral-600 dark:text-neutral-300">
-                {formatDate(conversationDetail.lastMessageAt)}
-              </div>
-            </div>
-            {conversationDetail.tokenUsage && (
-              <div className="col-span-2">
-                <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
-                  Token Usage
-                </div>
-                <div className="font-mono text-xs text-neutral-600 dark:text-neutral-300">
-                  Total:{" "}
-                  {conversationDetail.tokenUsage.totalTokens.toLocaleString()} |
-                  Prompt:{" "}
-                  {conversationDetail.tokenUsage.promptTokens.toLocaleString()}{" "}
-                  | Completion:{" "}
-                  {conversationDetail.tokenUsage.completionTokens.toLocaleString()}
-                  {conversationDetail.tokenUsage &&
-                    "reasoningTokens" in conversationDetail.tokenUsage &&
-                    typeof conversationDetail.tokenUsage.reasoningTokens ===
-                      "number" &&
-                    conversationDetail.tokenUsage.reasoningTokens > 0 && (
-                      <>
-                        {" "}
-                        | Reasoning:{" "}
-                        {conversationDetail.tokenUsage.reasoningTokens.toLocaleString()}
-                      </>
-                    )}
-                  {conversationDetail.tokenUsage &&
-                    "cachedPromptTokens" in conversationDetail.tokenUsage &&
-                    typeof conversationDetail.tokenUsage.cachedPromptTokens ===
-                      "number" &&
-                    conversationDetail.tokenUsage.cachedPromptTokens > 0 && (
-                      <>
-                        {" "}
-                        | Cached:{" "}
-                        {conversationDetail.tokenUsage.cachedPromptTokens.toLocaleString()}
-                      </>
-                    )}
-                </div>
-              </div>
-            )}
-            {conversationDetail.totalGenerationTimeMs !== undefined && (
+        <div className="mb-4 space-y-4">
+          {/* Basic Information */}
+          <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+              <ChatBubbleLeftRightIcon className="size-4" />
+              Basic Information
+            </h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
-                  Total Generation Time
+                <div className="mb-1 flex items-center gap-1.5 font-medium text-neutral-700 dark:text-neutral-300">
+                  <TagIcon className="size-3.5" />
+                  Type
+                </div>
+                <div className="inline-block rounded border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50">
+                  {conversationDetail.conversationType}
+                </div>
+              </div>
+              <div>
+                <div className="mb-1 flex items-center gap-1.5 font-medium text-neutral-700 dark:text-neutral-300">
+                  <ChatBubbleLeftRightIcon className="size-3.5" />
+                  Messages
                 </div>
                 <div className="text-neutral-900 dark:text-neutral-50">
-                  {(conversationDetail.totalGenerationTimeMs / 1000).toFixed(2)}
-                  s
+                  {conversationDetail.messageCount ??
+                    (Array.isArray(conversationDetail.messages)
+                      ? conversationDetail.messages.length
+                      : 0)}
                 </div>
               </div>
-            )}
+              <div>
+                <div className="mb-1 flex items-center gap-1.5 font-medium text-neutral-700 dark:text-neutral-300">
+                  <ClockIcon className="size-3.5" />
+                  Started
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  <ClockIcon className="size-3" />
+                  {formatDate(conversationDetail.startedAt)}
+                </div>
+              </div>
+              <div>
+                <div className="mb-1 flex items-center gap-1.5 font-medium text-neutral-700 dark:text-neutral-300">
+                  <ClockIcon className="size-3.5" />
+                  Last Message
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  <ClockIcon className="size-3" />
+                  {formatDate(conversationDetail.lastMessageAt)}
+                </div>
+              </div>
+            </div>
           </div>
+
+          {/* Performance Metrics */}
+          {(conversationDetail.totalGenerationTimeMs !== undefined ||
+            conversationDetail.tokenUsage) && (
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                <BoltIcon className="size-4" />
+                Performance
+              </h3>
+              <div className="space-y-3">
+                {conversationDetail.totalGenerationTimeMs !== undefined && (
+                  <div>
+                    <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                      <BoltIcon className="size-3.5" />
+                      Total Generation Time
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                      <BoltIcon className="size-3" />
+                      {(conversationDetail.totalGenerationTimeMs / 1000).toFixed(2)}s
+                    </div>
+                  </div>
+                )}
+                {conversationDetail.tokenUsage && (
+                  <div>
+                    <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                      <CpuChipIcon className="size-3.5" />
+                      Token Usage
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span
+                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                          conversationDetail.tokenUsage.promptTokens
+                        )}`}
+                      >
+                        P:{" "}
+                        {conversationDetail.tokenUsage.promptTokens.toLocaleString()}
+                      </span>
+                      <span
+                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                          conversationDetail.tokenUsage.completionTokens
+                        )}`}
+                      >
+                        C:{" "}
+                        {conversationDetail.tokenUsage.completionTokens.toLocaleString()}
+                      </span>
+                      {conversationDetail.tokenUsage &&
+                        "reasoningTokens" in conversationDetail.tokenUsage &&
+                        typeof conversationDetail.tokenUsage.reasoningTokens ===
+                          "number" &&
+                        conversationDetail.tokenUsage.reasoningTokens > 0 && (
+                          <span
+                            className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                              conversationDetail.tokenUsage.reasoningTokens
+                            )}`}
+                          >
+                            R:{" "}
+                            {conversationDetail.tokenUsage.reasoningTokens.toLocaleString()}
+                          </span>
+                        )}
+                      {conversationDetail.tokenUsage &&
+                        "cachedPromptTokens" in conversationDetail.tokenUsage &&
+                        typeof conversationDetail.tokenUsage.cachedPromptTokens ===
+                          "number" &&
+                        conversationDetail.tokenUsage.cachedPromptTokens > 0 && (
+                          <span
+                            className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                              conversationDetail.tokenUsage.cachedPromptTokens
+                            )}`}
+                          >
+                            Cache:{" "}
+                            {conversationDetail.tokenUsage.cachedPromptTokens.toLocaleString()}
+                          </span>
+                        )}
+                      <span
+                        className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
+                          conversationDetail.tokenUsage.totalTokens
+                        )}`}
+                      >
+                        Total:{" "}
+                        {conversationDetail.tokenUsage.totalTokens.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Costs */}
+          {(tokenBasedCost !== undefined ||
+            conversationDetail.costUsd !== undefined ||
+            conversationDetail.rerankingCostUsd !== undefined) && (
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+              <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                <CurrencyDollarIcon className="size-4" />
+                Costs
+              </h3>
+              {totalCost !== undefined && (
+                <div className="mb-3 border-b border-neutral-200 pb-3 dark:border-neutral-700">
+                  <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+                    <CurrencyDollarIcon className="size-4" />
+                    Total Cost
+                  </div>
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-lg border-2 px-3 py-1 text-sm font-bold ${getCostColor(
+                      totalCost.cost / 1_000_000
+                    )}`}
+                  >
+                    <CurrencyDollarIcon className="size-4" />
+                    {formatCurrency(totalCost.cost, "usd", 10)}
+                    {totalCost.isFinal === true && (
+                      <span className="ml-1 text-xs">✓</span>
+                    )}
+                    {totalCost.isFinal === false && (
+                      <span className="ml-1 text-xs">(provisional)</span>
+                    )}
+                  </span>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {tokenBasedCost !== undefined && (
+                  <div>
+                    <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                      <CurrencyDollarIcon className="size-3.5" />
+                      Token-Based Cost
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
+                        tokenBasedCost.cost / 1_000_000
+                      )}`}
+                    >
+                      <CurrencyDollarIcon className="size-3" />
+                      {formatCurrency(tokenBasedCost.cost, "usd", 10)}
+                      {tokenBasedCost.isFinal === true && (
+                        <span className="ml-1 text-[10px]">✓</span>
+                      )}
+                      {tokenBasedCost.isFinal === false && (
+                        <span className="ml-1 text-[10px]">(provisional)</span>
+                      )}
+                    </span>
+                  </div>
+                )}
+                {conversationDetail.costUsd !== undefined && (
+                  <div>
+                    <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                      <CurrencyDollarIcon className="size-3.5" />
+                      Conversation Cost
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
+                        conversationDetail.costUsd / 1_000_000
+                      )}`}
+                    >
+                      <CurrencyDollarIcon className="size-3" />
+                      {formatCurrency(conversationDetail.costUsd, "usd", 10)}
+                      <span className="ml-1 text-[10px]">✓</span>
+                    </span>
+                  </div>
+                )}
+                {conversationDetail.rerankingCostUsd !== undefined &&
+                  conversationDetail.rerankingCostUsd !== null && (
+                    <div>
+                      <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                        <CurrencyDollarIcon className="size-3.5" />
+                        Reranking Cost
+                      </div>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
+                          conversationDetail.rerankingCostUsd / 1_000_000
+                        )}`}
+                      >
+                        <CurrencyDollarIcon className="size-3" />
+                        {formatCurrency(conversationDetail.rerankingCostUsd, "usd", 10)}
+                        <span className="ml-1 text-[10px]">✓</span>
+                      </span>
+                    </div>
+                  )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Delegations Section */}
@@ -534,6 +797,20 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
         {showRawJson ? (
           /* Raw JSON View */
           <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="mb-2 flex items-center justify-end">
+              <button
+                onClick={() => {
+                  const jsonString = JSON.stringify(conversationDetail, null, 2);
+                  navigator.clipboard.writeText(jsonString);
+                  toast.success("JSON copied to clipboard");
+                }}
+                className="flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                title="Copy JSON to clipboard"
+              >
+                <ClipboardDocumentIcon className="size-4" />
+                Copy JSON
+              </button>
+            </div>
             <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs text-neutral-900 dark:text-neutral-50">
               {JSON.stringify(conversationDetail, null, 2)}
             </pre>

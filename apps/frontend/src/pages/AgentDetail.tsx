@@ -1678,6 +1678,317 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             </AccordionSection>
           )}
 
+          {/* Inject Knowledge Section */}
+          {canEdit && (
+            <AccordionSection
+              id="inject-knowledge"
+              title={
+                <>
+                  <LightBulbIcon className="mr-2 inline-block size-5" />
+                  INJECT KNOWLEDGE
+                </>
+              }
+              isExpanded={expandedSection === "inject-knowledge"}
+              onToggle={() => toggleSection("inject-knowledge")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "inject-knowledge"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Enable knowledge injection to automatically retrieve and
+                    inject relevant document snippets from your workspace
+                    documents into user prompts before they are sent to the
+                    agent.
+                  </p>
+                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                    <p className="text-sm font-semibold dark:text-neutral-300">
+                      What are snippets?
+                    </p>
+                    <p className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                      Snippets are chunks of text extracted from your uploaded
+                      documents. When documents are uploaded, they are
+                      automatically split into smaller pieces (snippets) and
+                      indexed in the vector database. Each snippet typically
+                      contains 100-300 words and represents a meaningful portion
+                      of the document content.
+                    </p>
+                  </div>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={enableKnowledgeInjection}
+                      onChange={(e) =>
+                        setEnableKnowledgeInjection(e.target.checked)
+                      }
+                      className="mt-1 rounded border-2 border-neutral-300"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">
+                        Enable Knowledge Injection
+                      </div>
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                        Automatically inject relevant document snippets into
+                        user prompts
+                      </div>
+                    </div>
+                  </label>
+                  {enableKnowledgeInjection && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold dark:text-neutral-300">
+                          Number of Snippets to Inject
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="50"
+                          value={knowledgeInjectionSnippetCount}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value, 10);
+                            if (!isNaN(value) && value >= 1 && value <= 50) {
+                              setKnowledgeInjectionSnippetCount(value);
+                            }
+                          }}
+                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                        />
+                        <p className="text-xs opacity-75 dark:text-neutral-300">
+                          Number of document snippets to retrieve and inject
+                          (1-50, default: 5)
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold dark:text-neutral-300">
+                          Minimum Similarity Score
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={knowledgeInjectionMinSimilarity}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value) && value >= 0 && value <= 1) {
+                              setKnowledgeInjectionMinSimilarity(value);
+                            }
+                          }}
+                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                        />
+                        <p className="text-xs opacity-75 dark:text-neutral-300">
+                          Similarity score (0-1) measures how closely a
+                          document snippet matches your query. Higher scores
+                          (closer to 1) indicate more relevant content.
+                          Snippets below this threshold will be excluded.
+                          (default: 0)
+                        </p>
+                      </div>
+                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                        <input
+                          type="checkbox"
+                          checked={enableKnowledgeReranking}
+                          onChange={(e) =>
+                            setEnableKnowledgeReranking(e.target.checked)
+                          }
+                          className="mt-1 rounded border-2 border-neutral-300"
+                        />
+                        <div className="flex-1">
+                          <div className="font-bold">Enable Re-ranking</div>
+                          <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                            Re-rank retrieved snippets to prioritize the most
+                            relevant ones using a specialized re-ranking model
+                          </div>
+                        </div>
+                      </label>
+                      {enableKnowledgeReranking && (
+                        <div className="space-y-2">
+                          <label className="block text-sm font-semibold dark:text-neutral-300">
+                            Re-ranking Model
+                          </label>
+                          {isLoadingRerankingModels ? (
+                            <div className="text-sm opacity-75 dark:text-neutral-300">
+                              Loading re-ranking models...
+                            </div>
+                          ) : rerankingModels.length === 0 ? (
+                            <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
+                              <p className="text-sm font-semibold text-yellow-900">
+                                No Re-ranking Models Available
+                              </p>
+                              <p className="mt-1 text-sm text-yellow-800">
+                                No re-ranking models were found in the available
+                                OpenRouter models. Re-ranking will be disabled.
+                              </p>
+                            </div>
+                          ) : (
+                            <select
+                              value={knowledgeRerankingModel || ""}
+                              onChange={(e) =>
+                                setKnowledgeRerankingModel(
+                                  e.target.value || null
+                                )
+                              }
+                              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                            >
+                              <option value="">
+                                Select a re-ranking model
+                              </option>
+                              {rerankingModels.map((model) => (
+                                <option key={model} value={model}>
+                                  {model}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                          {!knowledgeRerankingModel &&
+                            enableKnowledgeReranking &&
+                            rerankingModels.length > 0 && (
+                              <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                                Please select a re-ranking model to enable
+                                re-ranking.
+                              </p>
+                            )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <button
+                    onClick={handleSaveKnowledgeInjection}
+                    disabled={
+                      updateAgent.isPending ||
+                      (enableKnowledgeInjection &&
+                        enableKnowledgeReranking &&
+                        ((!knowledgeRerankingModel &&
+                          rerankingModels.length > 0) ||
+                          rerankingModels.length === 0))
+                    }
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Knowledge Injection Settings"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
+          {/* Document Search Tool Section */}
+          {canEdit && (
+            <AccordionSection
+              id="document-search"
+              title={
+                <>
+                  <DocumentMagnifyingGlassIcon className="mr-2 inline-block size-5" />
+                  DOCUMENT SEARCH TOOL
+                </>
+              }
+              isExpanded={expandedSection === "document-search"}
+              onToggle={() => toggleSection("document-search")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "document-search"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Enable the document search tool to allow this agent to
+                    search workspace documents using semantic vector search.
+                  </p>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={enableSearchDocuments}
+                      onChange={(e) =>
+                        setEnableSearchDocuments(e.target.checked)
+                      }
+                      className="mt-1 rounded border-2 border-neutral-300"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">Enable Document Search</div>
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                        Allow this agent to use the search_documents tool to
+                        search workspace documents
+                      </div>
+                    </div>
+                  </label>
+                  <button
+                    onClick={handleSaveSearchDocuments}
+                    disabled={updateAgent.isPending}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Document Search Setting"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
+          {/* Memory Search Tool Section */}
+          {canEdit && (
+            <AccordionSection
+              id="memory-search"
+              title={
+                <>
+                  <MagnifyingGlassIcon className="mr-2 inline-block size-5" />
+                  MEMORY SEARCH TOOL
+                </>
+              }
+              isExpanded={expandedSection === "memory-search"}
+              onToggle={() => toggleSection("memory-search")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "memory-search"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Enable the memory search tool to allow this agent to search
+                    its factual memory across different time periods and recall
+                    past conversations.
+                  </p>
+                  <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
+                    <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-yellow-900">
+                      <ExclamationTriangleIcon className="size-4" />
+                      Privacy Warning
+                    </p>
+                    <p className="text-sm text-yellow-900">
+                      Activating the memory search tool may result in data
+                      leakage between users. The agent will be able to search
+                      and recall information from all conversations, which could
+                      expose sensitive information across different user
+                      sessions. Only enable this if you understand the privacy
+                      implications.
+                    </p>
+                  </div>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={enableMemorySearch}
+                      onChange={(e) => setEnableMemorySearch(e.target.checked)}
+                      className="mt-1 rounded border-2 border-neutral-300"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">Enable Memory Search</div>
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                        Allow this agent to use the search_memory tool to recall
+                        past conversations and information
+                      </div>
+                    </div>
+                  </label>
+                  <button
+                    onClick={handleSaveMemorySearch}
+                    disabled={updateAgent.isPending}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Memory Search Setting"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
+
           {/* Advanced Section */}
           {canEdit && (
             <AccordionSection
@@ -1968,317 +2279,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     servers in the workspace settings to enable them for agents.
                   </p>
                 )}
-              </LazyAccordionContent>
-            </AccordionSection>
-          )}
-
-          {/* Memory Search Tool Section */}
-          {canEdit && (
-            <AccordionSection
-              id="memory-search"
-              title={
-                <>
-                  <MagnifyingGlassIcon className="mr-2 inline-block size-5" />
-                  MEMORY SEARCH TOOL
-                </>
-              }
-              isExpanded={expandedSection === "memory-search"}
-              onToggle={() => toggleSection("memory-search")}
-            >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "memory-search"}
-              >
-                <div className="space-y-4">
-                  <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable the memory search tool to allow this agent to search
-                    its factual memory across different time periods and recall
-                    past conversations.
-                  </p>
-                  <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
-                    <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-yellow-900">
-                      <ExclamationTriangleIcon className="size-4" />
-                      Privacy Warning
-                    </p>
-                    <p className="text-sm text-yellow-900">
-                      Activating the memory search tool may result in data
-                      leakage between users. The agent will be able to search
-                      and recall information from all conversations, which could
-                      expose sensitive information across different user
-                      sessions. Only enable this if you understand the privacy
-                      implications.
-                    </p>
-                  </div>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-                    <input
-                      type="checkbox"
-                      checked={enableMemorySearch}
-                      onChange={(e) => setEnableMemorySearch(e.target.checked)}
-                      className="mt-1 rounded border-2 border-neutral-300"
-                    />
-                    <div className="flex-1">
-                      <div className="font-bold">Enable Memory Search</div>
-                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                        Allow this agent to use the search_memory tool to recall
-                        past conversations and information
-                      </div>
-                    </div>
-                  </label>
-                  <button
-                    onClick={handleSaveMemorySearch}
-                    disabled={updateAgent.isPending}
-                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {updateAgent.isPending
-                      ? "Saving..."
-                      : "Save Memory Search Setting"}
-                  </button>
-                </div>
-              </LazyAccordionContent>
-            </AccordionSection>
-          )}
-
-          {/* Document Search Tool Section */}
-          {canEdit && (
-            <AccordionSection
-              id="document-search"
-              title={
-                <>
-                  <DocumentMagnifyingGlassIcon className="mr-2 inline-block size-5" />
-                  DOCUMENT SEARCH TOOL
-                </>
-              }
-              isExpanded={expandedSection === "document-search"}
-              onToggle={() => toggleSection("document-search")}
-            >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "document-search"}
-              >
-                <div className="space-y-4">
-                  <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable the document search tool to allow this agent to
-                    search workspace documents using semantic vector search.
-                  </p>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-                    <input
-                      type="checkbox"
-                      checked={enableSearchDocuments}
-                      onChange={(e) =>
-                        setEnableSearchDocuments(e.target.checked)
-                      }
-                      className="mt-1 rounded border-2 border-neutral-300"
-                    />
-                    <div className="flex-1">
-                      <div className="font-bold">Enable Document Search</div>
-                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                        Allow this agent to use the search_documents tool to
-                        search workspace documents
-                      </div>
-                    </div>
-                  </label>
-                  <button
-                    onClick={handleSaveSearchDocuments}
-                    disabled={updateAgent.isPending}
-                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {updateAgent.isPending
-                      ? "Saving..."
-                      : "Save Document Search Setting"}
-                  </button>
-                </div>
-              </LazyAccordionContent>
-            </AccordionSection>
-          )}
-
-          {/* Inject Knowledge Section */}
-          {canEdit && (
-            <AccordionSection
-              id="inject-knowledge"
-              title={
-                <>
-                  <LightBulbIcon className="mr-2 inline-block size-5" />
-                  INJECT KNOWLEDGE
-                </>
-              }
-              isExpanded={expandedSection === "inject-knowledge"}
-              onToggle={() => toggleSection("inject-knowledge")}
-            >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "inject-knowledge"}
-              >
-                <div className="space-y-4">
-                  <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable knowledge injection to automatically retrieve and
-                    inject relevant document snippets from your workspace
-                    documents into user prompts before they are sent to the
-                    agent.
-                  </p>
-                  <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
-                    <p className="text-sm font-semibold dark:text-neutral-300">
-                      What are snippets?
-                    </p>
-                    <p className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                      Snippets are chunks of text extracted from your uploaded
-                      documents. When documents are uploaded, they are
-                      automatically split into smaller pieces (snippets) and
-                      indexed in the vector database. Each snippet typically
-                      contains 100-300 words and represents a meaningful portion
-                      of the document content.
-                    </p>
-                  </div>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-                    <input
-                      type="checkbox"
-                      checked={enableKnowledgeInjection}
-                      onChange={(e) =>
-                        setEnableKnowledgeInjection(e.target.checked)
-                      }
-                      className="mt-1 rounded border-2 border-neutral-300"
-                    />
-                    <div className="flex-1">
-                      <div className="font-bold">
-                        Enable Knowledge Injection
-                      </div>
-                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                        Automatically inject relevant document snippets into
-                        user prompts
-                      </div>
-                    </div>
-                  </label>
-                  {enableKnowledgeInjection && (
-                    <>
-                      <div className="space-y-2">
-                        <label className="block text-sm font-semibold dark:text-neutral-300">
-                          Number of Snippets to Inject
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="50"
-                          value={knowledgeInjectionSnippetCount}
-                          onChange={(e) => {
-                            const value = parseInt(e.target.value, 10);
-                            if (!isNaN(value) && value >= 1 && value <= 50) {
-                              setKnowledgeInjectionSnippetCount(value);
-                            }
-                          }}
-                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-                        />
-                        <p className="text-xs opacity-75 dark:text-neutral-300">
-                          Number of document snippets to retrieve and inject
-                          (1-50, default: 5)
-                        </p>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="block text-sm font-semibold dark:text-neutral-300">
-                          Minimum Similarity Score
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="1"
-                          step="0.01"
-                          value={knowledgeInjectionMinSimilarity}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value);
-                            if (!isNaN(value) && value >= 0 && value <= 1) {
-                              setKnowledgeInjectionMinSimilarity(value);
-                            }
-                          }}
-                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-                        />
-                        <p className="text-xs opacity-75 dark:text-neutral-300">
-                          Similarity score (0-1) measures how closely a
-                          document snippet matches your query. Higher scores
-                          (closer to 1) indicate more relevant content.
-                          Snippets below this threshold will be excluded.
-                          (default: 0)
-                        </p>
-                      </div>
-                      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-                        <input
-                          type="checkbox"
-                          checked={enableKnowledgeReranking}
-                          onChange={(e) =>
-                            setEnableKnowledgeReranking(e.target.checked)
-                          }
-                          className="mt-1 rounded border-2 border-neutral-300"
-                        />
-                        <div className="flex-1">
-                          <div className="font-bold">Enable Re-ranking</div>
-                          <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                            Re-rank retrieved snippets to prioritize the most
-                            relevant ones using a specialized re-ranking model
-                          </div>
-                        </div>
-                      </label>
-                      {enableKnowledgeReranking && (
-                        <div className="space-y-2">
-                          <label className="block text-sm font-semibold dark:text-neutral-300">
-                            Re-ranking Model
-                          </label>
-                          {isLoadingRerankingModels ? (
-                            <div className="text-sm opacity-75 dark:text-neutral-300">
-                              Loading re-ranking models...
-                            </div>
-                          ) : rerankingModels.length === 0 ? (
-                            <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
-                              <p className="text-sm font-semibold text-yellow-900">
-                                No Re-ranking Models Available
-                              </p>
-                              <p className="mt-1 text-sm text-yellow-800">
-                                No re-ranking models were found in the available
-                                OpenRouter models. Re-ranking will be disabled.
-                              </p>
-                            </div>
-                          ) : (
-                            <select
-                              value={knowledgeRerankingModel || ""}
-                              onChange={(e) =>
-                                setKnowledgeRerankingModel(
-                                  e.target.value || null
-                                )
-                              }
-                              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-                            >
-                              <option value="">
-                                Select a re-ranking model
-                              </option>
-                              {rerankingModels.map((model) => (
-                                <option key={model} value={model}>
-                                  {model}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                          {!knowledgeRerankingModel &&
-                            enableKnowledgeReranking &&
-                            rerankingModels.length > 0 && (
-                              <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                                Please select a re-ranking model to enable
-                                re-ranking.
-                              </p>
-                            )}
-                        </div>
-                      )}
-                    </>
-                  )}
-                  <button
-                    onClick={handleSaveKnowledgeInjection}
-                    disabled={
-                      updateAgent.isPending ||
-                      (enableKnowledgeInjection &&
-                        enableKnowledgeReranking &&
-                        ((!knowledgeRerankingModel &&
-                          rerankingModels.length > 0) ||
-                          rerankingModels.length === 0))
-                    }
-                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {updateAgent.isPending
-                      ? "Saving..."
-                      : "Save Knowledge Injection Settings"}
-                  </button>
-                </div>
               </LazyAccordionContent>
             </AccordionSection>
           )}

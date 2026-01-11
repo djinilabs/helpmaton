@@ -153,6 +153,7 @@ export const registerGetAgentConversations = (app: express.Application) => {
             messageCount: Array.isArray(c.messages) ? c.messages.length : 0,
             tokenUsage: c.tokenUsage || null,
             costUsd: c.costUsd,
+            rerankingCostUsd: c.rerankingCostUsd,
             hasError: !!c.error,
             totalGenerationTimeMs: c.totalGenerationTimeMs || undefined,
           };

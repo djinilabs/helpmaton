@@ -83,7 +83,7 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      expect(result).toEqual(messages);
+      expect(result.modelMessages).toEqual(messages);
       expect(mockSearchDocuments).not.toHaveBeenCalled();
     });
 
@@ -103,7 +103,7 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      expect(result).toEqual(messages);
+      expect(result.modelMessages).toEqual(messages);
       expect(mockSearchDocuments).not.toHaveBeenCalled();
     });
 
@@ -122,7 +122,7 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      expect(result).toEqual(messages);
+      expect(result.modelMessages).toEqual(messages);
       expect(mockSearchDocuments).not.toHaveBeenCalled();
     });
 
@@ -144,7 +144,7 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      expect(result).toEqual(messages);
+      expect(result.modelMessages).toEqual(messages);
       expect(mockSearchDocuments).toHaveBeenCalledWith(
         "workspace-1",
         "Test query",
@@ -172,17 +172,17 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      expect(result).toHaveLength(4);
-      expect(result[0].role).toBe("system");
-      expect(result[1].role).toBe("user");
+      expect(result.modelMessages).toHaveLength(4);
+      expect(result.modelMessages[0].role).toBe("system");
+      expect(result.modelMessages[1].role).toBe("user");
       // Knowledge injection message should be before the original user message
-      expect(typeof result[1].content).toBe("string");
-      expect(result[1].content).toContain("Relevant Knowledge from Workspace Documents");
-      expect(result[1].content).toContain("First relevant snippet");
-      expect(result[1].content).toContain("Second relevant snippet");
-      expect(result[2].role).toBe("user");
-      expect(result[2].content).toBe("Test query");
-      expect(result[3].role).toBe("assistant");
+      expect(typeof result.modelMessages[1].content).toBe("string");
+      expect(result.modelMessages[1].content).toContain("Relevant Knowledge from Workspace Documents");
+      expect(result.modelMessages[1].content).toContain("First relevant snippet");
+      expect(result.modelMessages[1].content).toContain("Second relevant snippet");
+      expect(result.modelMessages[2].role).toBe("user");
+      expect(result.modelMessages[2].content).toBe("Test query");
+      expect(result.modelMessages[3].role).toBe("assistant");
     });
 
     it("should use default snippet count of 5 when not specified", async () => {
@@ -375,8 +375,26 @@ describe("knowledgeInjection", () => {
         knowledgeRerankingModel: "cohere/rerank-v3",
       };
 
+      const mockDb: DatabaseSchema = {
+        workspace: { get: vi.fn() },
+        "credit-reservations": { get: vi.fn(), delete: vi.fn() },
+      } as unknown as DatabaseSchema;
+
+      const mockContext: AugmentedContext = {
+        addWorkspaceCreditTransaction: vi.fn(),
+      } as unknown as AugmentedContext;
+
       mockSearchDocuments.mockResolvedValue(mockSearchResults);
-      mockRerankSnippets.mockResolvedValue({ snippets: rerankedResults });
+      mockReserveRerankingCredits.mockResolvedValue({
+        reservationId: "res-123",
+        reservedAmount: 1000,
+        workspace: { creditBalance: 100_000_000 },
+      });
+      mockRerankSnippets.mockResolvedValue({
+        snippets: rerankedResults,
+        costUsd: 0.001,
+        generationId: "gen-123",
+      });
 
       const messages: ModelMessage[] = [
         { role: "user", content: "Test query" },
@@ -385,7 +403,9 @@ describe("knowledgeInjection", () => {
       const result = await injectKnowledgeIntoMessages(
         "workspace-1",
         agent,
-        messages
+        messages,
+        mockDb,
+        mockContext
       );
 
       expect(mockRerankSnippets).toHaveBeenCalledWith(
@@ -396,8 +416,72 @@ describe("knowledgeInjection", () => {
       );
 
       // Should use re-ranked results
-      expect(result[0].content).toContain("Second relevant snippet");
-      expect(result[0].content).toContain("First relevant snippet");
+      expect(result.modelMessages[0].content).toContain("Second relevant snippet");
+      expect(result.modelMessages[0].content).toContain("First relevant snippet");
+
+      // Should create re-ranking request message
+      expect(result.rerankingRequestMessage).toBeDefined();
+      expect(result.rerankingRequestMessage?.role).toBe("system");
+      if (
+        result.rerankingRequestMessage &&
+        Array.isArray(result.rerankingRequestMessage.content)
+      ) {
+        // First element should be text content
+        expect(result.rerankingRequestMessage.content[0]).toHaveProperty("type", "text");
+        // Second element should be reranking-request content
+        const requestContent = result.rerankingRequestMessage.content[1];
+        expect(requestContent).toHaveProperty("type", "reranking-request");
+        if (
+          typeof requestContent === "object" &&
+          requestContent !== null &&
+          "type" in requestContent &&
+          requestContent.type === "reranking-request"
+        ) {
+          expect(requestContent.query).toBe("Test query");
+          expect(requestContent.model).toBe("cohere/rerank-v3");
+          expect(requestContent.documentCount).toBe(2);
+          expect(requestContent.documentNames).toBeDefined();
+          expect(Array.isArray(requestContent.documentNames)).toBe(true);
+        }
+      }
+
+      // Should create re-ranking result message
+      expect(result.rerankingResultMessage).toBeDefined();
+      expect(result.rerankingResultMessage?.role).toBe("system");
+      if (
+        result.rerankingResultMessage &&
+        Array.isArray(result.rerankingResultMessage.content)
+      ) {
+        // First element should be text content with model and cost
+        const textContent = result.rerankingResultMessage.content[0];
+        expect(textContent).toHaveProperty("type", "text");
+        if (
+          typeof textContent === "object" &&
+          textContent !== null &&
+          "type" in textContent &&
+          textContent.type === "text"
+        ) {
+          expect(textContent.text).toContain("**Model:**");
+          expect(textContent.text).toContain("cohere/rerank-v3");
+          expect(textContent.text).toContain("**Cost:**");
+          expect(textContent.text).toContain("$0.001");
+        }
+        // Second element should be reranking-result content
+        const resultContent = result.rerankingResultMessage.content[1];
+        expect(resultContent).toHaveProperty("type", "reranking-result");
+        if (
+          typeof resultContent === "object" &&
+          resultContent !== null &&
+          "type" in resultContent &&
+          resultContent.type === "reranking-result"
+        ) {
+          expect(resultContent.model).toBe("cohere/rerank-v3");
+          expect(resultContent.documentCount).toBe(2);
+          expect(resultContent.costUsd).toBe(1000); // 0.001 USD = 1000 millionths
+          expect(resultContent.generationId).toBe("gen-123");
+          expect(resultContent.rerankedDocuments).toHaveLength(2);
+        }
+      }
     });
 
     it("should fall back to original results if re-ranking fails", async () => {
@@ -407,8 +491,85 @@ describe("knowledgeInjection", () => {
         knowledgeRerankingModel: "cohere/rerank-v3",
       };
 
+      const mockDb: DatabaseSchema = {
+        workspace: { get: vi.fn() },
+        "credit-reservations": { get: vi.fn(), delete: vi.fn() },
+      } as unknown as DatabaseSchema;
+
+      const mockContext: AugmentedContext = {
+        addWorkspaceCreditTransaction: vi.fn(),
+      } as unknown as AugmentedContext;
+
       mockSearchDocuments.mockResolvedValue(mockSearchResults);
+      mockReserveRerankingCredits.mockResolvedValue({
+        reservationId: "res-123",
+        reservedAmount: 1000,
+        workspace: { creditBalance: 100_000_000 },
+      });
       mockRerankSnippets.mockRejectedValue(new Error("Re-ranking failed"));
+
+      const messages: ModelMessage[] = [
+        { role: "user", content: "Test query" },
+      ];
+
+      const result = await injectKnowledgeIntoMessages(
+        "workspace-1",
+        agent,
+        messages,
+        mockDb,
+        mockContext
+      );
+
+      // Should still create re-ranking request message
+      expect(result.rerankingRequestMessage).toBeDefined();
+
+      // Should create error result message
+      expect(result.rerankingResultMessage).toBeDefined();
+      if (
+        result.rerankingResultMessage &&
+        Array.isArray(result.rerankingResultMessage.content)
+      ) {
+        // First element should be text content with model, cost, and error
+        const textContent = result.rerankingResultMessage.content[0];
+        expect(textContent).toHaveProperty("type", "text");
+        if (
+          typeof textContent === "object" &&
+          textContent !== null &&
+          "type" in textContent &&
+          textContent.type === "text"
+        ) {
+          expect(textContent.text).toContain("**Model:**");
+          expect(textContent.text).toContain("cohere/rerank-v3");
+          expect(textContent.text).toContain("**Cost:**");
+          expect(textContent.text).toContain("$0.000000");
+          expect(textContent.text).toContain("**Error:**");
+          expect(textContent.text).toContain("Re-ranking failed");
+        }
+        // Second element should be reranking-result content
+        const resultContent = result.rerankingResultMessage.content[1];
+        if (
+          typeof resultContent === "object" &&
+          resultContent !== null &&
+          "type" in resultContent &&
+          resultContent.type === "reranking-result"
+        ) {
+          expect(resultContent.error).toBeDefined();
+          expect(resultContent.costUsd).toBe(0); // No cost if re-ranking failed
+        }
+      }
+
+      // Should use original results
+      expect(result.modelMessages[0].content).toContain("First relevant snippet");
+      expect(result.modelMessages[0].content).toContain("Second relevant snippet");
+    });
+
+    it("should not create re-ranking messages when re-ranking is disabled", async () => {
+      const agent = {
+        enableKnowledgeInjection: true,
+        enableKnowledgeReranking: false,
+      };
+
+      mockSearchDocuments.mockResolvedValue(mockSearchResults);
 
       const messages: ModelMessage[] = [
         { role: "user", content: "Test query" },
@@ -420,9 +581,15 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      // Should use original results (not re-ranked)
-      expect(result[0].content).toContain("First relevant snippet");
-      expect(result[0].content).toContain("Second relevant snippet");
+      // Should not call re-ranking
+      expect(mockRerankSnippets).not.toHaveBeenCalled();
+
+      // Should not create re-ranking messages
+      expect(result.rerankingRequestMessage).toBeUndefined();
+      expect(result.rerankingResultMessage).toBeUndefined();
+
+      // Should still create knowledge injection message
+      expect(result.knowledgeInjectionMessage).toBeDefined();
     });
 
     it("should format knowledge prompt correctly", async () => {
@@ -442,7 +609,7 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      const knowledgeContent = result[0].content as string;
+      const knowledgeContent = result.modelMessages[0].content as string;
       expect(knowledgeContent).toContain("## Relevant Knowledge from Workspace Documents");
       expect(knowledgeContent).toContain("[1] Document: Document 1 (/folder1)");
       expect(knowledgeContent).toContain("Similarity: 90.0%");
@@ -482,7 +649,7 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      const knowledgeContent = result[0].content as string;
+      const knowledgeContent = result.modelMessages[0].content as string;
       expect(knowledgeContent).toContain(
         "[1] Document: Document (/path/to/folder)"
       );
@@ -515,7 +682,7 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      const knowledgeContent = result[0].content as string;
+      const knowledgeContent = result.modelMessages[0].content as string;
       expect(knowledgeContent).toContain("[1] Document: Document");
       expect(knowledgeContent).not.toContain("()");
     });
@@ -538,7 +705,7 @@ describe("knowledgeInjection", () => {
       );
 
       // Should return original messages on error
-      expect(result).toEqual(messages);
+      expect(result.modelMessages).toEqual(messages);
     });
 
     it("should return original messages when no user message exists (no query to search)", async () => {
@@ -557,7 +724,7 @@ describe("knowledgeInjection", () => {
       );
 
       // Should return original messages since there's no query to search for
-      expect(result).toEqual(messages);
+      expect(result.modelMessages).toEqual(messages);
       expect(mockSearchDocuments).not.toHaveBeenCalled();
     });
 
@@ -582,10 +749,10 @@ describe("knowledgeInjection", () => {
       );
 
       // Knowledge should be injected before the FIRST user message
-      expect(result[1].role).toBe("user");
-      expect(result[1].content).toContain("Relevant Knowledge");
-      expect(result[2].role).toBe("user");
-      expect(result[2].content).toBe("First query");
+      expect(result.modelMessages[1].role).toBe("user");
+      expect(result.modelMessages[1].content).toContain("Relevant Knowledge");
+      expect(result.modelMessages[2].role).toBe("user");
+      expect(result.modelMessages[2].content).toBe("First query");
     });
 
     describe("credit management integration", () => {
@@ -817,7 +984,7 @@ describe("knowledgeInjection", () => {
         mockReserveRerankingCredits.mockRejectedValue(
           new Error("Insufficient credits")
         );
-        // When reservation fails, re-ranking is still attempted but without credit tracking
+        // When reservation fails, the error is caught and original messages are returned
         mockRerankSnippets.mockResolvedValue({
           snippets: mockSearchResults,
         });
@@ -826,6 +993,7 @@ describe("knowledgeInjection", () => {
           { role: "user", content: "Test query" },
         ];
 
+        // When credit reservation fails, the error is caught and original messages are returned
         const result = await injectKnowledgeIntoMessages(
           "workspace-1",
           agent,
@@ -834,12 +1002,12 @@ describe("knowledgeInjection", () => {
           mockContext
         );
 
-        // When credit reservation fails, re-ranking still happens but without credit tracking
-        // The code logs a warning but continues with re-ranking
-        expect(mockRerankSnippets).toHaveBeenCalled();
+        // Should return original messages when credit reservation fails
+        expect(result.modelMessages).toEqual(messages);
+        // Re-ranking should not be called when reservation fails
+        expect(mockRerankSnippets).not.toHaveBeenCalled();
         // No credit adjustment should happen since reservation failed
         expect(mockAdjustRerankingCreditReservation).not.toHaveBeenCalled();
-        expect(result[0].content).toContain("First relevant snippet");
       });
 
       it("should refund credits when re-ranking fails", async () => {
@@ -891,18 +1059,13 @@ describe("knowledgeInjection", () => {
         };
 
         mockSearchDocuments.mockResolvedValue(mockSearchResults);
-        mockReserveRerankingCredits.mockResolvedValue({
-          reservationId: "byok",
-          reservedAmount: 0,
-          workspace: { creditBalance: 100_000_000 },
-        });
+        // When BYOK is enabled, reserveRerankingCredits is not called
         mockRerankSnippets.mockResolvedValue({
           snippets: mockSearchResults,
           costUsd: 0.01,
           generationId: "gen-123",
         });
         mockAdjustRerankingCreditReservation.mockResolvedValue(undefined);
-        // queueRerankingCostVerification will be called but will skip internally for BYOK
         mockQueueRerankingCostVerification.mockResolvedValue(undefined);
 
         const messages: ModelMessage[] = [
@@ -920,27 +1083,13 @@ describe("knowledgeInjection", () => {
           true // usesByok
         );
 
-        // Should still call adjust, but it will skip for BYOK
-        expect(mockAdjustRerankingCreditReservation).toHaveBeenCalledWith(
-          mockDb,
-          "byok", // BYOK reservation ID
-          "workspace-1",
-          0.01, // costUsd
-          "gen-123", // generationId
-          mockContext,
-          3, // maxRetries
-          "agent-1",
-          "conversation-1"
-        );
-        // queueRerankingCostVerification is called but will skip internally for BYOK
-        expect(mockQueueRerankingCostVerification).toHaveBeenCalledWith(
-          "byok",
-          "gen-123",
-          "workspace-1",
-          "agent-1",
-          "conversation-1"
-        );
-        // The function itself handles BYOK and skips the actual queueing
+        // When BYOK is enabled, credit reservation is skipped, so rerankingReservationId is undefined
+        // Therefore adjustRerankingCreditReservation should not be called
+        expect(mockReserveRerankingCredits).not.toHaveBeenCalled();
+        expect(mockAdjustRerankingCreditReservation).not.toHaveBeenCalled();
+        expect(mockQueueRerankingCostVerification).not.toHaveBeenCalled();
+        // Re-ranking still happens, just without credit tracking
+        expect(mockRerankSnippets).toHaveBeenCalled();
       });
 
       it("should continue even if credit adjustment fails", async () => {
@@ -979,7 +1128,7 @@ describe("knowledgeInjection", () => {
         );
 
         // Should still inject knowledge
-        expect(result[0].content).toContain("Relevant Knowledge");
+        expect(result.modelMessages[0].content).toContain("Relevant Knowledge");
       });
 
       it("should continue even if refund fails", async () => {
@@ -1014,7 +1163,7 @@ describe("knowledgeInjection", () => {
         );
 
         // Should still inject knowledge with original results
-        expect(result[0].content).toContain("First relevant snippet");
+        expect(result.modelMessages[0].content).toContain("First relevant snippet");
       });
     });
   });
