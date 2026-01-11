@@ -414,6 +414,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     useState<boolean>(() => agent?.enableKnowledgeInjection ?? false);
   const [knowledgeInjectionSnippetCount, setKnowledgeInjectionSnippetCount] =
     useState<number>(() => agent?.knowledgeInjectionSnippetCount ?? 5);
+  const [knowledgeInjectionMinSimilarity, setKnowledgeInjectionMinSimilarity] =
+    useState<number>(() => agent?.knowledgeInjectionMinSimilarity ?? 0);
   const [enableKnowledgeReranking, setEnableKnowledgeReranking] =
     useState<boolean>(() => agent?.enableKnowledgeReranking ?? false);
   const [knowledgeRerankingModel, setKnowledgeRerankingModel] = useState<
@@ -632,12 +634,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     setKnowledgeInjectionSnippetCount(
       agent?.knowledgeInjectionSnippetCount ?? 5
     );
+    setKnowledgeInjectionMinSimilarity(
+      agent?.knowledgeInjectionMinSimilarity ?? 0
+    );
     setEnableKnowledgeReranking(agent?.enableKnowledgeReranking ?? false);
     setKnowledgeRerankingModel(agent?.knowledgeRerankingModel || null);
   }, [
     agent?.id,
     agent?.enableKnowledgeInjection,
     agent?.knowledgeInjectionSnippetCount,
+    agent?.knowledgeInjectionMinSimilarity,
     agent?.enableKnowledgeReranking,
     agent?.knowledgeRerankingModel,
   ]);
@@ -984,6 +990,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
         knowledgeInjectionSnippetCount: enableKnowledgeInjection
           ? Math.max(1, Math.min(50, knowledgeInjectionSnippetCount))
           : undefined,
+        knowledgeInjectionMinSimilarity: enableKnowledgeInjection
+          ? Math.max(0, Math.min(1, knowledgeInjectionMinSimilarity))
+          : undefined,
         enableKnowledgeReranking: enableKnowledgeInjection
           ? enableKnowledgeReranking
           : false,
@@ -996,6 +1005,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       setEnableKnowledgeInjection(updated.enableKnowledgeInjection ?? false);
       setKnowledgeInjectionSnippetCount(
         updated.knowledgeInjectionSnippetCount ?? 5
+      );
+      setKnowledgeInjectionMinSimilarity(
+        updated.knowledgeInjectionMinSimilarity ?? 0
       );
       setEnableKnowledgeReranking(updated.enableKnowledgeReranking ?? false);
       setKnowledgeRerankingModel(updated.knowledgeRerankingModel || null);
@@ -2154,6 +2166,32 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         <p className="text-xs opacity-75 dark:text-neutral-300">
                           Number of document snippets to retrieve and inject
                           (1-50, default: 5)
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-sm font-semibold dark:text-neutral-300">
+                          Minimum Similarity Score
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={knowledgeInjectionMinSimilarity}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value) && value >= 0 && value <= 1) {
+                              setKnowledgeInjectionMinSimilarity(value);
+                            }
+                          }}
+                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                        />
+                        <p className="text-xs opacity-75 dark:text-neutral-300">
+                          Similarity score (0-1) measures how closely a
+                          document snippet matches your query. Higher scores
+                          (closer to 1) indicate more relevant content.
+                          Snippets below this threshold will be excluded.
+                          (default: 0)
                         </p>
                       </div>
                       <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">

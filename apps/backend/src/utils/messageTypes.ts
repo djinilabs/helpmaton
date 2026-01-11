@@ -2,6 +2,8 @@
  * Type definitions for message conversion utilities
  */
 
+import type { SearchResult } from "./documentSearch";
+
 export type TextContent = string | { type: "text"; text: string };
 
 export type ToolCallContent = {
@@ -26,6 +28,8 @@ export type UIMessage =
       role: "user";
       content: string | Array<{ type: "text"; text: string }>;
       awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
+      knowledgeInjection?: true; // Marker for knowledge injection messages
+      knowledgeSnippets?: SearchResult[]; // Original snippets for reuse
     }
   | {
       role: "assistant";

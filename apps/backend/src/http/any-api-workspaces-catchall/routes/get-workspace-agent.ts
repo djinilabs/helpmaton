@@ -120,6 +120,13 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           enabledMcpServerIds: agent.enabledMcpServerIds ?? [],
           enableMemorySearch: agent.enableMemorySearch ?? false,
           enableSearchDocuments: agent.enableSearchDocuments ?? false,
+          enableKnowledgeInjection: agent.enableKnowledgeInjection ?? false,
+          knowledgeInjectionSnippetCount:
+            agent.knowledgeInjectionSnippetCount ?? undefined,
+          knowledgeInjectionMinSimilarity:
+            agent.knowledgeInjectionMinSimilarity ?? undefined,
+          enableKnowledgeReranking: agent.enableKnowledgeReranking ?? false,
+          knowledgeRerankingModel: agent.knowledgeRerankingModel ?? undefined,
           enableSendEmail: agent.enableSendEmail ?? false,
           enableTavilySearch: agent.enableTavilySearch ?? false,
           searchWebProvider: searchWebProvider ?? null,

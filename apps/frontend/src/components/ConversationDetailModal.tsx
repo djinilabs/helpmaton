@@ -50,6 +50,37 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
     return new Date(dateString).toLocaleString();
   };
 
+  // Shared markdown component configuration
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const markdownComponents: Record<string, React.ComponentType<any>> = {
+    code: (props: any) => {
+      const { className, children, ...rest } = props;
+      const isInline =
+        !className || !className.includes("language-");
+      if (isInline) {
+        return (
+          <code
+            className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+            {...rest}
+          >
+            {children}
+          </code>
+        );
+      }
+      return (
+        <code
+          className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+          {...rest}
+        >
+          {children}
+        </code>
+      );
+    },
+    p: ({ children }: any) => (
+      <p className="mb-2 last:mb-0">{children}</p>
+    ),
+  };
+
   const renderMessageContent = (content: unknown): JSX.Element | string => {
     if (typeof content === "string") {
       return content;
@@ -61,7 +92,12 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
             if (typeof item === "string") {
               return (
                 <div key={itemIndex} className="text-sm">
-                  {item}
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {item}
+                  </ReactMarkdown>
                 </div>
               );
             }
@@ -160,36 +196,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                             <div className="rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
-                                components={{
-                                  code: (props) => {
-                                    const { className, children, ...rest } =
-                                      props;
-                                    const isInline =
-                                      !className ||
-                                      !className.includes("language-");
-                                    if (isInline) {
-                                      return (
-                                        <code
-                                          className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
-                                          {...rest}
-                                        >
-                                          {children}
-                                        </code>
-                                      );
-                                    }
-                                    return (
-                                      <code
-                                        className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
-                                        {...rest}
-                                      >
-                                        {children}
-                                      </code>
-                                    );
-                                  },
-                                  p: ({ children }) => (
-                                    <p className="mb-2 last:mb-0">{children}</p>
-                                  ),
-                                }}
+                                components={markdownComponents}
                               >
                                 {result}
                               </ReactMarkdown>
@@ -209,7 +216,12 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
               if ("text" in item && typeof item.text === "string") {
                 return (
                   <div key={itemIndex} className="text-sm">
-                    {item.text}
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={markdownComponents}
+                    >
+                      {item.text}
+                    </ReactMarkdown>
                   </div>
                 );
               }
@@ -545,6 +557,114 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                       ) {
                         const role = message.role as string;
                         const content = message.content;
+
+                        // Check if this is a knowledge injection message
+                        const isKnowledgeInjection =
+                          role === "user" &&
+                          "knowledgeInjection" in message &&
+                          (message as { knowledgeInjection?: boolean })
+                            .knowledgeInjection === true;
+
+                        // Get snippet count for knowledge injection messages
+                        const snippetCount =
+                          isKnowledgeInjection &&
+                          "knowledgeSnippets" in message &&
+                          Array.isArray(
+                            (message as { knowledgeSnippets?: unknown })
+                              .knowledgeSnippets
+                          )
+                            ? (
+                                (message as { knowledgeSnippets: unknown[] })
+                                  .knowledgeSnippets
+                              ).length
+                            : 0;
+
+                        // Special rendering for knowledge injection messages
+                        if (isKnowledgeInjection) {
+                          const knowledgeMessage = message as {
+                            role: "user";
+                            content?: string | Array<{ type: string; text?: string }>;
+                            knowledgeInjection?: boolean;
+                            knowledgeSnippets?: Array<{
+                              snippet: string;
+                              documentName: string;
+                              documentId: string;
+                              folderPath: string;
+                              similarity: number;
+                            }>;
+                          };
+
+                          const snippets = knowledgeMessage.knowledgeSnippets || [];
+
+                          return (
+                            <div key={index} className="max-w-full">
+                              <details className="rounded-xl border border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950">
+                                <summary className="cursor-pointer p-4">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-lg">📚</span>
+                                    <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                                      Knowledge from workspace documents
+                                      {snippetCount > 0 &&
+                                        ` (${snippetCount} snippet${snippetCount !== 1 ? "s" : ""})`}
+                                    </span>
+                                  </div>
+                                </summary>
+                                <div className="border-t border-purple-200 p-4 dark:border-purple-800">
+                                  <div className="space-y-3">
+                                    {snippets.length > 0 ? (
+                                      snippets.map((snippet, snippetIndex) => {
+                                        const similarityPercent = (
+                                          snippet.similarity * 100
+                                        ).toFixed(1);
+                                        return (
+                                          <details
+                                            key={snippetIndex}
+                                            className="rounded-lg border border-purple-300 bg-purple-100 dark:border-purple-700 dark:bg-purple-900"
+                                          >
+                                            <summary className="cursor-pointer p-3">
+                                              <div className="flex items-start justify-between gap-2">
+                                                <div className="flex-1">
+                                                  <div className="text-xs font-semibold text-purple-800 dark:text-purple-200">
+                                                    {snippet.documentName}
+                                                    {snippet.folderPath && (
+                                                      <span className="ml-2 font-normal text-purple-600 dark:text-purple-400">
+                                                        ({snippet.folderPath})
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  <div className="mt-1 text-xs text-purple-700 dark:text-purple-300">
+                                                    Similarity: {similarityPercent}%
+                                                  </div>
+                                                </div>
+                                                <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
+                                                  #{snippetIndex + 1}
+                                                </span>
+                                              </div>
+                                            </summary>
+                                            <div className="border-t border-purple-300 p-3 dark:border-purple-700">
+                                              <div className="text-sm text-purple-900 dark:text-purple-100">
+                                                <ReactMarkdown
+                                                  remarkPlugins={[remarkGfm]}
+                                                  components={markdownComponents}
+                                                >
+                                                  {snippet.snippet}
+                                                </ReactMarkdown>
+                                              </div>
+                                            </div>
+                                          </details>
+                                        );
+                                      })
+                                    ) : (
+                                      <div className="text-sm text-purple-700 dark:text-purple-300">
+                                        No snippets available
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </details>
+                            </div>
+                          );
+                        }
                         const tokenUsage =
                           "tokenUsage" in message
                             ? formatTokenUsage(message.tokenUsage)
@@ -644,51 +764,10 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                 const renderedContent =
                                   renderMessageContent(content);
                                 if (typeof renderedContent === "string") {
-                                  if (role === "user") {
-                                    return (
-                                      <div className="whitespace-pre-wrap">
-                                        {renderedContent}
-                                      </div>
-                                    );
-                                  }
                                   return renderedContent.trim() ? (
                                     <ReactMarkdown
                                       remarkPlugins={[remarkGfm]}
-                                      components={{
-                                        code: (props) => {
-                                          const {
-                                            className,
-                                            children,
-                                            ...rest
-                                          } = props;
-                                          const isInline =
-                                            !className ||
-                                            !className.includes("language-");
-                                          if (isInline) {
-                                            return (
-                                              <code
-                                                className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
-                                                {...rest}
-                                              >
-                                                {children}
-                                              </code>
-                                            );
-                                          }
-                                          return (
-                                            <code
-                                              className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
-                                              {...rest}
-                                            >
-                                              {children}
-                                            </code>
-                                          );
-                                        },
-                                        p: ({ children }) => (
-                                          <p className="mb-2 last:mb-0">
-                                            {children}
-                                          </p>
-                                        ),
-                                      }}
+                                      components={markdownComponents}
                                     >
                                       {renderedContent}
                                     </ReactMarkdown>

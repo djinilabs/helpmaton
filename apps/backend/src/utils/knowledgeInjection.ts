@@ -10,6 +10,7 @@ import {
   refundRerankingCredits,
   reserveRerankingCredits,
 } from "./knowledgeRerankingCredits";
+import type { UIMessage } from "./messageTypes";
 import { Sentry, ensureError } from "./sentry";
 import type { AugmentedContext } from "./workspaceCreditContext";
 
@@ -51,12 +52,30 @@ Please use this information to provide a comprehensive and accurate response to 
 }
 
 /**
+ * Find existing knowledge injection message in conversation
+ * @param messages - Array of UI messages from conversation
+ * @returns Knowledge injection message if found, null otherwise
+ */
+function findExistingKnowledgeInjectionMessage(
+  messages: UIMessage[]
+): UIMessage | null {
+  return (
+    messages.find(
+      (msg) =>
+        msg.role === "user" &&
+        "knowledgeInjection" in msg &&
+        msg.knowledgeInjection === true
+    ) || null
+  );
+}
+
+/**
  * Extract query text from the first user message in the conversation
  * @param messages - Array of model messages
  * @returns Query text extracted from the first user message, or empty string if not found
  */
 function extractQueryFromMessages(messages: ModelMessage[]): string {
-  // Find the first user message
+  // Find the first user message (skip knowledge injection messages)
   const firstUserMessage = messages.find(
     (msg) => msg.role === "user"
   );
@@ -83,6 +102,14 @@ function extractQueryFromMessages(messages: ModelMessage[]): string {
 }
 
 /**
+ * Result from knowledge injection
+ */
+export interface KnowledgeInjectionResult {
+  modelMessages: ModelMessage[];
+  knowledgeInjectionMessage: UIMessage | null;
+}
+
+/**
  * Inject knowledge from workspace documents into the conversation messages
  * Knowledge is injected as a new user message before the first user message
  * @param workspaceId - Workspace ID for document search
@@ -93,7 +120,8 @@ function extractQueryFromMessages(messages: ModelMessage[]): string {
  * @param agentId - Agent ID (optional, for credit tracking)
  * @param conversationId - Conversation ID (optional, for credit tracking)
  * @param usesByok - Whether workspace is using their own API key (optional)
- * @returns Updated array of model messages with knowledge injected
+ * @param existingConversationMessages - Existing UI messages from conversation (optional, for reuse)
+ * @returns Updated array of model messages with knowledge injected, and knowledge injection UI message
  */
 export async function injectKnowledgeIntoMessages(
   workspaceId: string,
@@ -104,43 +132,78 @@ export async function injectKnowledgeIntoMessages(
   context?: AugmentedContext,
   agentId?: string,
   conversationId?: string,
-  usesByok?: boolean
-): Promise<ModelMessage[]> {
+  usesByok?: boolean,
+  existingConversationMessages?: UIMessage[]
+): Promise<KnowledgeInjectionResult> {
   // Check if knowledge injection is enabled
   if (!agent.enableKnowledgeInjection) {
-    return messages;
+    return {
+      modelMessages: messages,
+      knowledgeInjectionMessage: null,
+    };
+  }
+
+  // Check for existing knowledge injection message in conversation
+  let finalResults: SearchResult[] | undefined;
+  if (existingConversationMessages && existingConversationMessages.length > 0) {
+    const existingKnowledgeMessage =
+      findExistingKnowledgeInjectionMessage(existingConversationMessages);
+    if (
+      existingKnowledgeMessage &&
+      existingKnowledgeMessage.role === "user" &&
+      existingKnowledgeMessage.knowledgeInjection === true &&
+      existingKnowledgeMessage.knowledgeSnippets &&
+      Array.isArray(existingKnowledgeMessage.knowledgeSnippets)
+    ) {
+      // Reuse existing snippets
+      console.log(
+        "[knowledgeInjection] Reusing existing knowledge injection message with",
+        existingKnowledgeMessage.knowledgeSnippets.length,
+        "snippets"
+      );
+      finalResults = existingKnowledgeMessage.knowledgeSnippets;
+    }
   }
 
   // Extract query from first user message
   const query = extractQueryFromMessages(messages);
   if (!query || query.length === 0) {
     // No query to search for, skip injection
-    return messages;
+    return {
+      modelMessages: messages,
+      knowledgeInjectionMessage: null,
+    };
   }
 
-  // Get snippet count (default: 5)
-  const snippetCount = agent.knowledgeInjectionSnippetCount ?? 5;
-  // Clamp to valid range (1-50)
-  const validSnippetCount = Math.max(1, Math.min(50, snippetCount));
+  // If we don't have existing results, perform search
+  if (!finalResults) {
+    // Get snippet count (default: 5)
+    const snippetCount = agent.knowledgeInjectionSnippetCount ?? 5;
+    // Clamp to valid range (1-50)
+    const validSnippetCount = Math.max(1, Math.min(50, snippetCount));
 
-  try {
-    // Search for relevant documents
-    const searchResults = await searchDocuments(
-      workspaceId,
-      query,
-      validSnippetCount
-    );
+    try {
+      // Search for relevant documents
+      const searchResults = await searchDocuments(
+        workspaceId,
+        query,
+        validSnippetCount
+      );
 
-    if (searchResults.length === 0) {
-      // No documents found, skip injection
-      return messages;
-    }
+      if (searchResults.length === 0) {
+        // No documents found, skip injection
+        return {
+          modelMessages: messages,
+          knowledgeInjectionMessage: null,
+        };
+      }
 
-    // Re-rank if enabled
-    let finalResults = searchResults;
-    let rerankingReservationId: string | undefined;
-    
-    if (agent.enableKnowledgeReranking && agent.knowledgeRerankingModel) {
+      finalResults = searchResults;
+
+      // Re-rank if enabled (only if we just searched, not if reusing existing)
+      let rerankingReservationId: string | undefined;
+
+      if (agent.enableKnowledgeReranking && agent.knowledgeRerankingModel) {
       // Step 1: Reserve credits before re-ranking call
       if (db && context) {
         try {
@@ -189,149 +252,214 @@ export async function injectKnowledgeIntoMessages(
         }
       }
 
-      // Step 2: Make re-ranking API call
-      try {
-        const rerankingResult = await rerankSnippets(
-          query,
-          searchResults,
-          agent.knowledgeRerankingModel,
-          workspaceId
-        );
-        finalResults = rerankingResult.snippets;
+        // Step 2: Make re-ranking API call
+        try {
+          const rerankingResult = await rerankSnippets(
+            query,
+            finalResults,
+            agent.knowledgeRerankingModel,
+            workspaceId
+          );
+          finalResults = rerankingResult.snippets;
 
-        // Step 2: Adjust credits based on provisional cost
-        if (db && context && rerankingReservationId) {
-          try {
-            await adjustRerankingCreditReservation(
-              db,
-              rerankingReservationId,
-              workspaceId,
-              rerankingResult.costUsd,
-              rerankingResult.generationId,
-              context,
-              3, // maxRetries
-              agentId,
-              conversationId
-            );
-
-            // Step 3: Queue async cost verification if generationId is available
-            if (rerankingResult.generationId) {
-              await queueRerankingCostVerification(
+          // Step 2: Adjust credits based on provisional cost
+          if (db && context && rerankingReservationId) {
+            try {
+              await adjustRerankingCreditReservation(
+                db,
                 rerankingReservationId,
-                rerankingResult.generationId,
                 workspaceId,
+                rerankingResult.costUsd,
+                rerankingResult.generationId,
+                context,
+                3, // maxRetries
                 agentId,
                 conversationId
               );
+
+              // Step 3: Queue async cost verification if generationId is available
+              if (rerankingResult.generationId) {
+                await queueRerankingCostVerification(
+                  rerankingReservationId,
+                  rerankingResult.generationId,
+                  workspaceId,
+                  agentId,
+                  conversationId
+                );
+              }
+            } catch (error) {
+              console.error(
+                "[knowledgeInjection] Error adjusting re-ranking credits:",
+                error instanceof Error ? error.message : String(error)
+              );
+              Sentry.captureException(ensureError(error), {
+                tags: {
+                  context: "knowledge-injection",
+                  operation: "adjust-reranking-credits",
+                },
+                extra: {
+                  workspaceId,
+                  agentId,
+                  conversationId,
+                  reservationId: rerankingReservationId,
+                  costUsd: rerankingResult.costUsd,
+                  generationId: rerankingResult.generationId,
+                },
+              });
+              // Continue even if adjustment fails - transaction will use estimated cost
             }
-          } catch (error) {
-            console.error(
-              "[knowledgeInjection] Error adjusting re-ranking credits:",
-              error instanceof Error ? error.message : String(error)
-            );
-            Sentry.captureException(ensureError(error), {
-              tags: {
-                context: "knowledge-injection",
-                operation: "adjust-reranking-credits",
-              },
-              extra: {
-                workspaceId,
-                agentId,
-                conversationId,
-                reservationId: rerankingReservationId,
-                costUsd: rerankingResult.costUsd,
-                generationId: rerankingResult.generationId,
-              },
-            });
-            // Continue even if adjustment fails - transaction will use estimated cost
           }
-        }
-      } catch (error) {
-        console.error(
-          "[knowledgeInjection] Error during re-ranking, using original results:",
-          error instanceof Error ? error.message : String(error)
-        );
-        Sentry.captureException(ensureError(error), {
-          tags: {
-            context: "knowledge-injection",
-            operation: "rerank-snippets",
-          },
-          extra: {
-            workspaceId,
-            agentId,
-            conversationId,
-            model: agent.knowledgeRerankingModel,
-            documentCount: searchResults.length,
-            reservationId: rerankingReservationId,
-          },
-        });
-        
-        // Refund reserved credits if re-ranking fails
-        if (db && context && rerankingReservationId) {
-          try {
-            await refundRerankingCredits(
-              db,
-              rerankingReservationId,
+        } catch (error) {
+          console.error(
+            "[knowledgeInjection] Error during re-ranking, using original results:",
+            error instanceof Error ? error.message : String(error)
+          );
+          Sentry.captureException(ensureError(error), {
+            tags: {
+              context: "knowledge-injection",
+              operation: "rerank-snippets",
+            },
+            extra: {
               workspaceId,
-              context,
-              3, // maxRetries
               agentId,
-              conversationId
-            );
-          } catch (refundError) {
-            console.error(
-              "[knowledgeInjection] Error refunding re-ranking credits:",
-              refundError instanceof Error
-                ? refundError.message
-                : String(refundError)
-            );
-            Sentry.captureException(ensureError(refundError), {
-              tags: {
-                context: "knowledge-injection",
-                operation: "refund-reranking-credits",
-              },
-              extra: {
+              conversationId,
+              model: agent.knowledgeRerankingModel,
+              documentCount: finalResults.length,
+              reservationId: rerankingReservationId,
+            },
+          });
+
+          // Refund reserved credits if re-ranking fails
+          if (db && context && rerankingReservationId) {
+            try {
+              await refundRerankingCredits(
+                db,
+                rerankingReservationId,
                 workspaceId,
+                context,
+                3, // maxRetries
                 agentId,
-                conversationId,
-                reservationId: rerankingReservationId,
-                originalError: error instanceof Error ? error.message : String(error),
-              },
-            });
-            // Continue even if refund fails - reservation will expire
+                conversationId
+              );
+            } catch (refundError) {
+              console.error(
+                "[knowledgeInjection] Error refunding re-ranking credits:",
+                refundError instanceof Error
+                  ? refundError.message
+                  : String(refundError)
+              );
+              Sentry.captureException(ensureError(refundError), {
+                tags: {
+                  context: "knowledge-injection",
+                  operation: "refund-reranking-credits",
+                },
+                extra: {
+                  workspaceId,
+                  agentId,
+                  conversationId,
+                  reservationId: rerankingReservationId,
+                  originalError: error instanceof Error ? error.message : String(error),
+                },
+              });
+              // Continue even if refund fails - reservation will expire
+            }
           }
+
+          // Fall back to original results if re-ranking fails
+          // finalResults already has the original searchResults
         }
-        
-        // Fall back to original results if re-ranking fails
-        finalResults = searchResults;
       }
+    } catch (error) {
+      console.error(
+        "[knowledgeInjection] Error during document search:",
+        error instanceof Error ? error.message : String(error)
+      );
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "knowledge-injection",
+          operation: "search-documents",
+        },
+        extra: {
+          workspaceId,
+          agentId,
+          conversationId,
+          query,
+        },
+      });
+      // Return original messages if search fails
+      return {
+        modelMessages: messages,
+        knowledgeInjectionMessage: null,
+      };
     }
+  }
+
+  // At this point, finalResults should be set
+  if (!finalResults || finalResults.length === 0) {
+    return {
+      modelMessages: messages,
+      knowledgeInjectionMessage: null,
+    };
+  }
+
+  // Filter snippets by minimum similarity score
+  const minSimilarity = agent.knowledgeInjectionMinSimilarity ?? 0;
+  const filteredResults = finalResults.filter(
+    (result) => result.similarity >= minSimilarity
+  );
+
+  // If filtering results in empty array, return early
+  if (filteredResults.length === 0) {
+    return {
+      modelMessages: messages,
+      knowledgeInjectionMessage: null,
+    };
+  }
+
+  try {
 
     // Format knowledge prompt
-    const knowledgePrompt = formatKnowledgePrompt(finalResults);
+    const knowledgePrompt = formatKnowledgePrompt(filteredResults);
     if (!knowledgePrompt || knowledgePrompt.length === 0) {
-      return messages;
+      return {
+        modelMessages: messages,
+        knowledgeInjectionMessage: null,
+      };
     }
 
-    // Create knowledge injection message
-    const knowledgeMessage: ModelMessage = {
+    // Create knowledge injection ModelMessage for LLM
+    const knowledgeModelMessage: ModelMessage = {
       role: "user",
       content: knowledgePrompt,
     };
 
-    // Find the index of the first user message
+    // Create knowledge injection UIMessage for conversation logging
+    const knowledgeUIMessage: UIMessage = {
+      role: "user",
+      content: knowledgePrompt,
+      knowledgeInjection: true,
+      knowledgeSnippets: filteredResults,
+    };
+
+    // Find the index of the first user message (skip any existing knowledge injection messages)
     const firstUserIndex = messages.findIndex((msg) => msg.role === "user");
 
     if (firstUserIndex === -1) {
       // No user message found, prepend knowledge message
-      return [knowledgeMessage, ...messages];
+      return {
+        modelMessages: [knowledgeModelMessage, ...messages],
+        knowledgeInjectionMessage: knowledgeUIMessage,
+      };
     }
 
     // Insert knowledge message before the first user message
     const updatedMessages = [...messages];
-    updatedMessages.splice(firstUserIndex, 0, knowledgeMessage);
+    updatedMessages.splice(firstUserIndex, 0, knowledgeModelMessage);
 
-    return updatedMessages;
+    return {
+      modelMessages: updatedMessages,
+      knowledgeInjectionMessage: knowledgeUIMessage,
+    };
   } catch (error) {
     console.error(
       "[knowledgeInjection] Error during knowledge injection:",
@@ -348,10 +476,12 @@ export async function injectKnowledgeIntoMessages(
         conversationId,
         enableKnowledgeInjection: agent.enableKnowledgeInjection,
         enableKnowledgeReranking: agent.enableKnowledgeReranking,
-        snippetCount: validSnippetCount,
       },
     });
     // Return original messages if injection fails
-    return messages;
+    return {
+      modelMessages: messages,
+      knowledgeInjectionMessage: null,
+    };
   }
 }

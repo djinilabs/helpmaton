@@ -108,7 +108,7 @@ const AgentModalContent: FC<{
               onClick={onPromptGeneratorOpen}
               className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
-              ✨ Get Help
+              ✨ Generate with AI
             </button>
             <button
               type="button"
@@ -175,7 +175,9 @@ const AgentModalContent: FC<{
           Select the AI model to use for this agent. Default: {defaultModel}
         </p>
         {modelLoadError && (
-          <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">{modelLoadError}</p>
+          <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+            {modelLoadError}
+          </p>
         )}
       </div>
       <div>
@@ -202,7 +204,8 @@ const AgentModalContent: FC<{
           </button>
         </div>
         <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-          Choose an avatar image for this agent. If not selected, a random avatar will be assigned.
+          Choose an avatar image for this agent. If not selected, a random
+          avatar will be assigned.
         </p>
       </div>
       <div>
@@ -276,9 +279,7 @@ export const AgentModal: FC<AgentModalProps> = ({
   const [modelName, setModelName] = useState<string | null>(
     agent?.modelName || null
   );
-  const [avatar, setAvatar] = useState<string | null>(
-    agent?.avatar || null
-  );
+  const [avatar, setAvatar] = useState<string | null>(agent?.avatar || null);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isPromptGeneratorOpen, setIsPromptGeneratorOpen] = useState(false);
   const [isAvatarSelectorOpen, setIsAvatarSelectorOpen] = useState(false);

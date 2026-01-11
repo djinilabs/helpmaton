@@ -936,11 +936,31 @@ export async function callAgentInternal(
     },
   ];
 
+  // Fetch existing conversation messages to check for existing knowledge injection
+  let existingConversationMessages: UIMessage[] | undefined;
+  if (conversationId) {
+    try {
+      const conversationPk = `conversations/${workspaceId}/${targetAgentId}/${conversationId}`;
+      const existingConversation = await db["agent-conversations"].get(
+        conversationPk
+      );
+      if (existingConversation && existingConversation.messages) {
+        existingConversationMessages = existingConversation.messages as UIMessage[];
+      }
+    } catch (error) {
+      // If conversation doesn't exist yet or fetch fails, that's okay - we'll create new knowledge injection
+      console.log(
+        "[callAgentInternal] Could not fetch existing conversation messages:",
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  }
+
   // Inject knowledge from workspace documents if enabled
   const { injectKnowledgeIntoMessages } = await import(
     "../../utils/knowledgeInjection"
   );
-  const modelMessagesWithKnowledge = await injectKnowledgeIntoMessages(
+  const knowledgeInjectionResult = await injectKnowledgeIntoMessages(
     workspaceId,
     targetAgent,
     modelMessages,
@@ -948,8 +968,12 @@ export async function callAgentInternal(
     context,
     targetAgentId,
     conversationId,
-    usesByok
+    usesByok,
+    existingConversationMessages
   );
+
+  const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
+  const knowledgeInjectionMessage = knowledgeInjectionResult.knowledgeInjectionMessage;
 
   let reservationId: string | undefined;
   let llmCallAttempted = false;
@@ -1141,7 +1165,12 @@ export async function callAgentInternal(
       const delegationConversationId = randomUUID();
 
       // Build messages for the target agent's conversation
-      const targetAgentMessages: UIMessage[] = [
+      // Include knowledge injection message if it exists
+      const targetAgentMessages: UIMessage[] = [];
+      if (knowledgeInjectionMessage) {
+        targetAgentMessages.push(knowledgeInjectionMessage);
+      }
+      targetAgentMessages.push(
         {
           role: "user",
           content: message,
@@ -1156,8 +1185,8 @@ export async function callAgentInternal(
           ...(provisionalCostUsd !== undefined && {
             provisionalCostUsd,
           }),
-        },
-      ];
+        }
+      );
 
       // Update/create conversation for target agent
       await updateConversation(

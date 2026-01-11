@@ -370,11 +370,29 @@ export async function buildStreamRequestContext(
   const { uiMessage, modelMessages, convertedMessages } =
     convertRequestBodyToMessages(bodyText);
 
+  // Fetch existing conversation messages to check for existing knowledge injection
+  let existingConversationMessages: UIMessage[] | undefined;
+  try {
+    const conversationPk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
+    const existingConversation = await db["agent-conversations"].get(
+      conversationPk
+    );
+    if (existingConversation && existingConversation.messages) {
+      existingConversationMessages = existingConversation.messages as UIMessage[];
+    }
+  } catch (error) {
+    // If conversation doesn't exist yet or fetch fails, that's okay - we'll create new knowledge injection
+    console.log(
+      "[buildStreamRequestContext] Could not fetch existing conversation messages:",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+
   // Inject knowledge from workspace documents if enabled
   const { injectKnowledgeIntoMessages } = await import(
     "../../utils/knowledgeInjection"
   );
-  const modelMessagesWithKnowledge = await injectKnowledgeIntoMessages(
+  const knowledgeInjectionResult = await injectKnowledgeIntoMessages(
     workspaceId,
     agent,
     modelMessages,
@@ -382,8 +400,29 @@ export async function buildStreamRequestContext(
     lambdaContext,
     agentId,
     conversationId,
-    usesByok
+    usesByok,
+    existingConversationMessages
   );
+
+  const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
+  const knowledgeInjectionMessage = knowledgeInjectionResult.knowledgeInjectionMessage;
+
+  // Add knowledge injection message to convertedMessages if it exists
+  let updatedConvertedMessages = convertedMessages;
+  if (knowledgeInjectionMessage) {
+    // Insert knowledge injection message before the user's message
+    const userMessageIndex = convertedMessages.findIndex(
+      (msg) => msg.role === "user"
+    );
+    if (userMessageIndex === -1) {
+      // No user message found, prepend knowledge injection message
+      updatedConvertedMessages = [knowledgeInjectionMessage, ...convertedMessages];
+    } else {
+      // Insert before first user message
+      updatedConvertedMessages = [...convertedMessages];
+      updatedConvertedMessages.splice(userMessageIndex, 0, knowledgeInjectionMessage);
+    }
+  }
 
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
@@ -456,7 +495,7 @@ export async function buildStreamRequestContext(
     subscriptionId,
     db,
     uiMessage,
-    convertedMessages,
+    convertedMessages: updatedConvertedMessages,
     modelMessages: modelMessagesWithKnowledge,
     agent,
     model,

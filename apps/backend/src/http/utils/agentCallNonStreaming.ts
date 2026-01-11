@@ -91,6 +91,26 @@ export async function callAgentNonStreaming(
   const uiMessage = convertTextToUIMessage(message);
   const allMessages = [...conversationHistory, uiMessage];
 
+  // Fetch existing conversation messages to check for existing knowledge injection
+  let existingConversationMessages: UIMessage[] | undefined;
+  if (options?.conversationId) {
+    try {
+      const conversationPk = `conversations/${workspaceId}/${agentId}/${options.conversationId}`;
+      const existingConversation = await db["agent-conversations"].get(
+        conversationPk
+      );
+      if (existingConversation && existingConversation.messages) {
+        existingConversationMessages = existingConversation.messages as UIMessage[];
+      }
+    } catch (error) {
+      // If conversation doesn't exist yet or fetch fails, that's okay - we'll create new knowledge injection
+      console.log(
+        "[callAgentNonStreaming] Could not fetch existing conversation messages:",
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  }
+
   const { agent, model, tools, usesByok } = await setupAgentAndTools(
     workspaceId,
     agentId,
@@ -107,7 +127,7 @@ export async function callAgentNonStreaming(
   const { injectKnowledgeIntoMessages } = await import(
     "../../utils/knowledgeInjection"
   );
-  const modelMessagesWithKnowledge = await injectKnowledgeIntoMessages(
+  const knowledgeInjectionResult = await injectKnowledgeIntoMessages(
     workspaceId,
     agent,
     modelMessages,
@@ -115,8 +135,30 @@ export async function callAgentNonStreaming(
     options?.context,
     agentId,
     options?.conversationId,
-    usesByok
+    usesByok,
+    existingConversationMessages
   );
+
+  const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
+  const knowledgeInjectionMessage = knowledgeInjectionResult.knowledgeInjectionMessage;
+
+  // Add knowledge injection message to allMessages if it exists
+  // This ensures it's included in conversation history for future calls
+  let updatedAllMessages = allMessages;
+  if (knowledgeInjectionMessage) {
+    // Insert knowledge injection message before the user's message
+    const userMessageIndex = updatedAllMessages.findIndex(
+      (msg) => msg.role === "user" && !("knowledgeInjection" in msg && msg.knowledgeInjection === true)
+    );
+    if (userMessageIndex === -1) {
+      // No user message found, prepend knowledge injection message
+      updatedAllMessages = [knowledgeInjectionMessage, ...updatedAllMessages];
+    } else {
+      // Insert before first non-knowledge-injection user message
+      updatedAllMessages = [...updatedAllMessages];
+      updatedAllMessages.splice(userMessageIndex, 0, knowledgeInjectionMessage);
+    }
+  }
 
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =

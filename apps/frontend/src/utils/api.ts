@@ -79,6 +79,7 @@ export interface Agent {
   enableSearchDocuments?: boolean;
   enableKnowledgeInjection?: boolean;
   knowledgeInjectionSnippetCount?: number;
+  knowledgeInjectionMinSimilarity?: number;
   enableKnowledgeReranking?: boolean;
   knowledgeRerankingModel?: string;
   enableSendEmail?: boolean;
@@ -120,6 +121,7 @@ export interface UpdateAgentInput {
   enableSearchDocuments?: boolean;
   enableKnowledgeInjection?: boolean;
   knowledgeInjectionSnippetCount?: number;
+  knowledgeInjectionMinSimilarity?: number;
   enableKnowledgeReranking?: boolean;
   knowledgeRerankingModel?: string | null;
   enableSendEmail?: boolean;
