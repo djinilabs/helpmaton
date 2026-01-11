@@ -1,13 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 describe("AgentWidget.init", () => {
   beforeEach(() => {
     // Clear any existing widget instances
     document.body.innerHTML = "";
-    // Reset custom elements registry
-    if (customElements.get("agent-chat-widget")) {
-      customElements.undefine("agent-chat-widget");
-    }
+    // Note: customElements.undefine is not a standard API and not available in jsdom
+    // We rely on dynamic imports to get fresh module instances
   });
 
   afterEach(() => {

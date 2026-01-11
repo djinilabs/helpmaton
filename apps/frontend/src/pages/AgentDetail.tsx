@@ -19,6 +19,7 @@ import {
   CurrencyDollarIcon,
   BeakerIcon,
   WrenchScrewdriverIcon,
+  ArrowTopRightOnSquareIcon,
 } from "@heroicons/react/24/outline";
 import {
   useQueryErrorResetBoundary,
@@ -2990,16 +2991,30 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         </div>
                       )}
 
-                      {/* Save Button */}
-                      <button
-                        onClick={handleSaveWidgetConfig}
-                        disabled={updateAgent.isPending}
-                        className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {updateAgent.isPending
-                          ? "Saving..."
-                          : "Save Widget Configuration"}
-                      </button>
+                      {/* Preview and Save Buttons */}
+                      <div className="flex gap-3">
+                        {keys?.some((k) => k.type === "widget") && (
+                          <button
+                            onClick={() => {
+                              const previewUrl = `/workspaces/${workspaceId}/agents/${agentId}/widget-preview`;
+                              window.open(previewUrl, "_blank", "noopener,noreferrer");
+                            }}
+                            className="flex items-center gap-2 rounded-xl border-2 border-primary-600 bg-white px-4 py-2.5 font-semibold text-primary-600 transition-all duration-200 hover:bg-primary-50 dark:border-primary-400 dark:bg-neutral-900 dark:text-primary-400 dark:hover:bg-neutral-800"
+                          >
+                            <ArrowTopRightOnSquareIcon className="size-5" />
+                            Preview Widget
+                          </button>
+                        )}
+                        <button
+                          onClick={handleSaveWidgetConfig}
+                          disabled={updateAgent.isPending}
+                          className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {updateAgent.isPending
+                            ? "Saving..."
+                            : "Save Widget Configuration"}
+                        </button>
+                      </div>
                     </>
                   )}
                 </div>

@@ -26,12 +26,17 @@ export class AgentChatWidget extends HTMLElement {
   private reactRoot: Root | null = null;
   private config: WidgetConfig | null = null;
   private baseUrl: string;
+  private _shadowRoot: ShadowRoot | null = null;
   declare shadowRoot: ShadowRoot; // Declare shadowRoot (it's defined in HTMLElement)
 
   constructor() {
     super();
     // Create shadow DOM
-    this.shadowRoot = this.attachShadow({ mode: "open" });
+    // attachShadow returns the ShadowRoot and sets the shadowRoot property
+    // Store it in a private property for jsdom compatibility
+    const shadow = this.attachShadow({ mode: "open" });
+    // In jsdom, shadowRoot might be read-only, so we use the returned value
+    this._shadowRoot = shadow;
     
     // Determine base URL
     // Use data-base-url attribute if provided, otherwise use current origin or default
@@ -43,21 +48,22 @@ export class AgentChatWidget extends HTMLElement {
         : "https://app.helpmaton.com");
 
     // Inject styles
-    injectStyles(this.shadowRoot);
+    injectStyles(shadow);
 
     // Create container for React
     const container = document.createElement("div");
     container.className = "agent-chat-widget";
-    this.shadowRoot.appendChild(container);
+    shadow.appendChild(container);
 
     // Retarget events for React
-    retargetEvents(this.shadowRoot);
+    retargetEvents(shadow);
   }
 
   connectedCallback() {
     // Initialize React root when element is connected
     if (!this.reactRoot && this.config) {
-      const container = this.shadowRoot.querySelector(".agent-chat-widget");
+      const shadow = this._shadowRoot || this.shadowRoot;
+      const container = shadow.querySelector(".agent-chat-widget");
       if (container) {
         this.reactRoot = createRoot(container);
         this.render();
@@ -77,7 +83,8 @@ export class AgentChatWidget extends HTMLElement {
     this.config = config;
     
     // Apply position styles
-    const container = this.shadowRoot.querySelector(".agent-chat-widget");
+    const shadow = this._shadowRoot || this.shadowRoot;
+    const container = shadow.querySelector(".agent-chat-widget");
     if (container) {
       const position = config.position || "bottom-right";
       const styles: Record<string, string> = {
@@ -109,7 +116,8 @@ export class AgentChatWidget extends HTMLElement {
 
     // Render if already connected
     if (this.isConnected && !this.reactRoot) {
-      const container = this.shadowRoot.querySelector(".agent-chat-widget");
+      const shadow = this._shadowRoot || this.shadowRoot;
+      const container = shadow.querySelector(".agent-chat-widget");
       if (container) {
         this.reactRoot = createRoot(container);
         this.render();
