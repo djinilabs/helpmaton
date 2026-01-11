@@ -18,7 +18,10 @@ import { WorkspacesPage } from "./pages/workspaces-page";
 testWithUserManagement.describe("Widget Embedding", () => {
   testWithUserManagement(
     "should configure widget settings and generate embed code",
-    async ({ page }) => {
+    async ({ page, userManagement }) => {
+      // Create and login user
+      await userManagement.createAndLoginUser();
+
       // Navigate to workspaces
       const workspacesPage = new WorkspacesPage(page);
       await workspacesPage.goto();
@@ -42,16 +45,8 @@ testWithUserManagement.describe("Widget Embedding", () => {
       const agentDetailPage = new AgentDetailPage(page);
       await agentDetailPage.waitForPageLoad();
 
-      // Find and expand the "Embeddable Widget" section
-      // Look for the accordion or section that contains "Embeddable Widget"
-      const widgetSection = page
-        .getByRole("button", { name: /Embeddable Widget/i })
-        .or(page.locator('text="Embeddable Widget"').first());
-
-      // If it's an accordion, click to expand
-      if ((await widgetSection.getAttribute("aria-expanded")) === "false") {
-        await widgetSection.click();
-      }
+      // Find and expand the "EMBEDDABLE WIDGET" section using the accordion ID
+      await agentDetailPage.expandAccordion("EMBEDDABLE WIDGET");
 
       // Enable widget
       const enableToggle = page
@@ -116,7 +111,10 @@ testWithUserManagement.describe("Widget Embedding", () => {
 
   testWithUserManagement(
     "should embed widget in HTML page and verify it loads",
-    async ({ page, context }) => {
+    async ({ page, context, userManagement }) => {
+      // Create and login user
+      await userManagement.createAndLoginUser();
+
       // Navigate to workspaces
       const workspacesPage = new WorkspacesPage(page);
       await workspacesPage.goto();
@@ -150,35 +148,27 @@ testWithUserManagement.describe("Widget Embedding", () => {
       }
 
       // Enable widget and generate key
-      const widgetSection = page
-        .getByRole("button", { name: /Embeddable Widget/i })
-        .or(page.locator('text="Embeddable Widget"').first());
+      await agentDetailPage.expandAccordion("EMBEDDABLE WIDGET");
 
-      if (await widgetSection.isVisible()) {
-        if ((await widgetSection.getAttribute("aria-expanded")) === "false") {
-          await widgetSection.click();
-        }
+      const enableToggle = page
+        .locator('input[type="checkbox"]')
+        .filter({ has: page.locator('label:has-text("Enable")') })
+        .first();
 
-        const enableToggle = page
-          .locator('input[type="checkbox"]')
-          .filter({ hasText: /enable/i })
-          .first();
+      if (
+        (await enableToggle.isVisible({ timeout: 5000 })) &&
+        !(await enableToggle.isChecked())
+      ) {
+        await enableToggle.check();
+      }
 
-        if (
-          (await enableToggle.isVisible()) &&
-          !(await enableToggle.isChecked())
-        ) {
-          await enableToggle.check();
-        }
+      const generateKeyButton = page
+        .getByRole("button", { name: /generate.*widget.*key/i })
+        .first();
 
-        const generateKeyButton = page
-          .getByRole("button", { name: /generate.*widget.*key/i })
-          .first();
-
-        if (await generateKeyButton.isVisible()) {
-          await generateKeyButton.click();
-          await page.waitForTimeout(2000);
-        }
+      if (await generateKeyButton.isVisible()) {
+        await generateKeyButton.click();
+        await page.waitForTimeout(2000);
       }
 
       // Extract widget key from the page (from the embed code or key list)
@@ -190,7 +180,7 @@ testWithUserManagement.describe("Widget Embedding", () => {
         <!DOCTYPE html>
         <html>
           <head>
-            <title>Widget Test</title>
+            <title>Widget Test Page</title>
           </head>
           <body>
             <h1>Widget Test Page</h1>
