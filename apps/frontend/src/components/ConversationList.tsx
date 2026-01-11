@@ -193,19 +193,31 @@ export const ConversationList: FC<ConversationListProps> = ({
                       {conversation.messageCount !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {conversation.hasError && (
-                      <div className="inline-flex items-center gap-1 rounded-lg border border-error-200 bg-error-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-error-800 dark:border-error-800 dark:bg-error-900 dark:text-error-200">
-                        Error
-                      </div>
-                    )}
-                    {conversation.costUsd !== undefined && (
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-2">
+                      {conversation.hasError && (
+                        <div className="inline-flex items-center gap-1 rounded-lg border border-error-200 bg-error-100 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-error-800 dark:border-error-800 dark:bg-error-900 dark:text-error-200">
+                          Error
+                        </div>
+                      )}
+                      {conversation.costUsd !== undefined && (
+                        <span
+                          className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
+                            conversation.costUsd
+                          )}`}
+                        >
+                          {formatCurrency(conversation.costUsd, "usd", 10)}
+                        </span>
+                      )}
+                    </div>
+                    {conversation.rerankingCostUsd !== undefined && (
                       <span
-                        className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
-                          conversation.costUsd
+                        className={`rounded-lg border px-2 py-0.5 text-[10px] font-medium ${getCostColor(
+                          conversation.rerankingCostUsd
                         )}`}
+                        title="Reranking cost"
                       >
-                        {formatCurrency(conversation.costUsd, "usd", 10)}
+                        Rerank: {formatCurrency(conversation.rerankingCostUsd, "usd", 10)}
                       </span>
                     )}
                   </div>

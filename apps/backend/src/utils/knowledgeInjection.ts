@@ -341,15 +341,45 @@ export async function injectKnowledgeIntoMessages(
           finalResults = rerankingResult.snippets;
 
           // Create re-ranking result message
-          const costInMillionths = rerankingResult.costUsd
-            ? toMillionths(rerankingResult.costUsd)
-            : undefined;
+          // Always calculate cost - if costUsd is undefined, calculate from pricing config as fallback
+          let costInMillionths: number;
+          if (rerankingResult.costUsd !== undefined && rerankingResult.costUsd >= 0) {
+            costInMillionths = toMillionths(rerankingResult.costUsd);
+          } else {
+            // Fallback: calculate from pricing config if not provided or invalid
+            const { getModelPricing } = await import("./pricing");
+            const modelPricing = getModelPricing("openrouter", agent.knowledgeRerankingModel);
+            if (modelPricing?.usd?.request !== undefined) {
+              const baseCost = modelPricing.usd.request;
+              const costWithMarkup = baseCost * 1.055; // Apply 5.5% markup
+              costInMillionths = toMillionths(costWithMarkup);
+              console.log(
+                "[knowledgeInjection] Cost not in reranking result, calculated from pricing config:",
+                {
+                  model: agent.knowledgeRerankingModel,
+                  requestPrice: modelPricing.usd.request,
+                  costWithMarkup,
+                  costInMillionths,
+                }
+              );
+            } else {
+              // Last resort: default to 0 if we can't calculate
+              console.warn(
+                "[knowledgeInjection] Could not determine re-ranking cost, defaulting to 0:",
+                {
+                  model: agent.knowledgeRerankingModel,
+                  costUsd: rerankingResult.costUsd,
+                }
+              );
+              costInMillionths = 0;
+            }
+          }
 
           const rerankingResultContent: RerankingResultContent = {
             type: "reranking-result",
             model: agent.knowledgeRerankingModel,
             documentCount: rerankingResult.snippets.length,
-            costUsd: costInMillionths ?? 0, // Default to 0 if cost not available
+            costUsd: costInMillionths, // Always set (calculated above)
             ...(rerankingResult.generationId && {
               generationId: rerankingResult.generationId,
             }),
@@ -361,9 +391,7 @@ export async function injectKnowledgeIntoMessages(
           };
 
           // Create user-friendly text representation with clear model and cost
-          const costDisplay = costInMillionths
-            ? `$${fromMillionths(costInMillionths).toFixed(6)}`
-            : "$0.000000";
+          const costDisplay = `$${fromMillionths(costInMillionths).toFixed(6)}`;
           const resultText = `**Re-ranking Result**\n\n- **Model:** ${agent.knowledgeRerankingModel}\n- **Cost:** ${costDisplay}\n- **Documents Re-ranked:** ${rerankingResult.snippets.length} document${rerankingResult.snippets.length !== 1 ? "s" : ""}`;
 
           rerankingResultMessage = {

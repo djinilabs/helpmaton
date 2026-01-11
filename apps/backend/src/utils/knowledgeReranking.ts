@@ -216,9 +216,11 @@ export async function rerankSnippets(
       }
     }
 
+    // Always include costUsd if it was calculated (even if 0, though that shouldn't happen)
+    // This ensures the cost is always available for display
     return {
       snippets: rerankedSnippets,
-      ...(costUsd !== undefined && costUsd >= 0 && { costUsd }),
+      ...(costUsd !== undefined && { costUsd }),
       ...(generationId && { generationId }),
     };
   } catch (error) {

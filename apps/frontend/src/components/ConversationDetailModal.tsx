@@ -1,4 +1,4 @@
-import { CheckCircleIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon, ClipboardDocumentIcon } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import type { FC, JSX } from "react";
 import ReactMarkdown from "react-markdown";
@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import { useDialogTracking } from "../contexts/DialogContext";
 import { useAgentConversation } from "../hooks/useAgentConversations";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useToast } from "../hooks/useToast";
 import type { Conversation } from "../utils/api";
 import { formatCurrency } from "../utils/currency";
 import { getMessageCost } from "../utils/messageCost";
@@ -34,6 +35,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
   );
   const { registerDialog, unregisterDialog } = useDialogTracking();
   const [showRawJson, setShowRawJson] = useState(false);
+  const toast = useToast();
 
   useEscapeKey(isOpen, onClose);
 
@@ -385,6 +387,26 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                 </div>
               </div>
             )}
+            {conversationDetail.costUsd !== undefined && (
+              <div>
+                <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
+                  Total Cost
+                </div>
+                <div className="text-neutral-900 dark:text-neutral-50">
+                  {formatCurrency(conversationDetail.costUsd, "usd", 10)}
+                </div>
+              </div>
+            )}
+            {conversationDetail.rerankingCostUsd !== undefined && (
+              <div>
+                <div className="mb-1 font-medium text-neutral-700 dark:text-neutral-300">
+                  Reranking Cost
+                </div>
+                <div className="text-neutral-900 dark:text-neutral-50">
+                  {formatCurrency(conversationDetail.rerankingCostUsd, "usd", 10)}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -534,6 +556,20 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
         {showRawJson ? (
           /* Raw JSON View */
           <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+            <div className="mb-2 flex items-center justify-end">
+              <button
+                onClick={() => {
+                  const jsonString = JSON.stringify(conversationDetail, null, 2);
+                  navigator.clipboard.writeText(jsonString);
+                  toast.success("JSON copied to clipboard");
+                }}
+                className="flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                title="Copy JSON to clipboard"
+              >
+                <ClipboardDocumentIcon className="size-4" />
+                Copy JSON
+              </button>
+            </div>
             <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs text-neutral-900 dark:text-neutral-50">
               {JSON.stringify(conversationDetail, null, 2)}
             </pre>

@@ -823,6 +823,7 @@ export interface Conversation {
     totalTokens: number;
   } | null;
   costUsd?: number;
+  rerankingCostUsd?: number;
   hasError?: boolean;
   error?: ConversationError | null;
   totalGenerationTimeMs?: number;
