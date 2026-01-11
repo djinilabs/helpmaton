@@ -235,11 +235,51 @@ export async function adjustRerankingCreditReservation(
     return;
   }
 
-  // Use provisional cost if available, otherwise use reserved amount
-  const provisionalCost =
-    provisionalCostUsd !== undefined
-      ? Math.ceil(dollarsToMillionths(provisionalCostUsd) * 1.055)
-      : reservation.reservedAmount;
+  // Use provisional cost if available from API response
+  // Otherwise, try to use request pricing from config
+  // Finally, fall back to reserved amount
+  let provisionalCost: number;
+  if (provisionalCostUsd !== undefined) {
+    provisionalCost = Math.ceil(dollarsToMillionths(provisionalCostUsd) * 1.055);
+  } else {
+    // Try to get request pricing from config as fallback
+    const modelName = reservation.modelName;
+    if (modelName) {
+      const pricing = getModelPricing("openrouter", modelName);
+      if (pricing?.usd?.request !== undefined && pricing.usd.request > 0) {
+        // Use request pricing from config with 5.5% markup
+        const requestCostDollars = pricing.usd.request;
+        provisionalCost = Math.ceil(dollarsToMillionths(requestCostDollars) * 1.055);
+        console.log(
+          "[adjustRerankingCreditReservation] Using request pricing from config as provisional cost:",
+          {
+            modelName,
+            requestCostDollars,
+            provisionalCost,
+          }
+        );
+      } else {
+        // Fall back to reserved amount
+        provisionalCost = reservation.reservedAmount;
+        console.log(
+          "[adjustRerankingCreditReservation] No request pricing in config, using reserved amount:",
+          {
+            modelName,
+            reservedAmount: reservation.reservedAmount,
+          }
+        );
+      }
+    } else {
+      // No model name, fall back to reserved amount
+      provisionalCost = reservation.reservedAmount;
+      console.log(
+        "[adjustRerankingCreditReservation] No model name in reservation, using reserved amount:",
+        {
+          reservedAmount: reservation.reservedAmount,
+        }
+      );
+    }
+  }
 
   // Calculate difference between provisional and reserved amount
   const difference = provisionalCost - reservation.reservedAmount;

@@ -58,6 +58,20 @@ function isExcludedModel(modelName) {
 }
 
 /**
+ * Check if a model is a re-ranking model
+ * Re-ranking models are identified by containing "rerank" in their name (case-insensitive)
+ * @param {string} modelName - The model name to check
+ * @returns {boolean} True if the model is a re-ranking model
+ */
+function isRerankingModel(modelName) {
+  if (!modelName || typeof modelName !== 'string') {
+    return false;
+  }
+  const lowerModel = modelName.toLowerCase();
+  return lowerModel.includes("rerank");
+}
+
+/**
  * Validate that all required API keys are defined
  * Throws an error and exits if any are missing
  */
@@ -164,15 +178,58 @@ function isInvalidPrice(value) {
 /**
  * Check if pricing structure contains any invalid or negative prices
  * Supports both flat pricing and tiered pricing
+ * For re-ranking models, allows request-only pricing (input/output can be 0 or missing)
  * @param {Object} pricing - Pricing structure (flat or tiered)
+ * @param {boolean} isReranking - Whether this is a re-ranking model
  * @returns {boolean} True if any price is invalid or negative
  */
-function hasInvalidOrNegativePricing(pricing) {
+function hasInvalidOrNegativePricing(pricing, isReranking = false) {
   if (!pricing || typeof pricing !== 'object') {
     return false;
   }
 
-  // Handle flat pricing
+  // For re-ranking models, allow request-only pricing
+  if (isReranking) {
+    // Re-ranking models must have at least request pricing
+    if (pricing.request !== undefined) {
+      if (isInvalidPrice(pricing.request)) {
+        return true;
+      }
+      // If request pricing is valid, allow input/output to be 0 or missing
+      // Check optional fields if they exist
+      if (pricing.input !== undefined && isInvalidPrice(pricing.input)) {
+        return true;
+      }
+      if (pricing.output !== undefined && isInvalidPrice(pricing.output)) {
+        return true;
+      }
+      if (pricing.cachedInput !== undefined && isInvalidPrice(pricing.cachedInput)) {
+        return true;
+      }
+      if (pricing.reasoning !== undefined && isInvalidPrice(pricing.reasoning)) {
+        return true;
+      }
+      return false;
+    }
+    // If no request pricing, check if input/output are provided and valid
+    if (pricing.input !== undefined || pricing.output !== undefined) {
+      if (isInvalidPrice(pricing.input) || isInvalidPrice(pricing.output)) {
+        return true;
+      }
+      // Check optional fields if they exist
+      if (pricing.cachedInput !== undefined && isInvalidPrice(pricing.cachedInput)) {
+        return true;
+      }
+      if (pricing.reasoning !== undefined && isInvalidPrice(pricing.reasoning)) {
+        return true;
+      }
+      return false;
+    }
+    // Re-ranking model with no pricing at all is invalid
+    return true;
+  }
+
+  // Handle flat pricing for non-reranking models
   if (pricing.input !== undefined || pricing.output !== undefined) {
     // Check if input or output are invalid (required fields)
     if (isInvalidPrice(pricing.input) || isInvalidPrice(pricing.output)) {
@@ -362,6 +419,14 @@ async function getOpenRouterModels() {
     throw new Error("No valid model IDs found in OpenRouter API response");
   }
 
+  // Check for re-ranking models in the raw API response
+  const rerankingModelsInApi = modelNames.filter(modelName => isRerankingModel(modelName));
+  if (rerankingModelsInApi.length > 0) {
+    console.log(`[Update Pricing] Found ${rerankingModelsInApi.length} re-ranking model(s) in OpenRouter API: ${rerankingModelsInApi.join(", ")}`);
+  } else {
+    console.log(`[Update Pricing] No re-ranking models found in OpenRouter API response (checked ${modelNames.length} models)`);
+  }
+
   // Filter out excluded models
   const filteredModels = modelNames.filter(modelName => !isExcludedModel(modelName));
   
@@ -376,6 +441,45 @@ async function getOpenRouterModels() {
 
   return { models: filteredModels, rawModels: models };
 }
+
+/**
+ * Known re-ranking models and their pricing
+ * Re-ranking models are not included in OpenRouter's /api/v1/models endpoint
+ * but are available via /api/v1/rerank endpoint
+ * Pricing is per-request (not per-token)
+ * 
+ * To add a new re-ranking model:
+ * 1. Verify it's available on OpenRouter's rerank endpoint
+ * 2. Add it here with request pricing (per-request cost in USD)
+ * 3. Set input/output to 0 since re-ranking uses per-request pricing
+ */
+const knownRerankingModels = {
+  "cohere/rerank-v3": {
+    input: 0,
+    output: 0,
+    request: 0.001, // $0.001 per request (example - update with actual pricing)
+  },
+  "cohere/rerank-english-v3.0": {
+    input: 0,
+    output: 0,
+    request: 0.001,
+  },
+  "cohere/rerank-multilingual-v3.0": {
+    input: 0,
+    output: 0,
+    request: 0.001,
+  },
+  "jinaai/jina-reranker-v1-base-en": {
+    input: 0,
+    output: 0,
+    request: 0.0001, // Example pricing
+  },
+  "jinaai/jina-reranker-v1-turbo-en": {
+    input: 0,
+    output: 0,
+    request: 0.0002,
+  },
+};
 
 /**
  * Known Google pricing (per 1M tokens)
@@ -563,11 +667,21 @@ function getOpenRouterPricingForModels(rawModels, modelNames) {
     }
   }
   
+  let rerankingModelCount = 0;
+  let processedRerankingModels = 0;
+  
   for (const modelId of modelNames) {
     // Skip excluded models
     if (isExcludedModel(modelId)) {
       console.log(`[Update Pricing] Skipping excluded OpenRouter model ${modelId} in pricing lookup`);
       continue;
+    }
+    
+    // Check if this is a re-ranking model for logging (declare here so it's available throughout the loop)
+    const isReranking = isRerankingModel(modelId);
+    if (isReranking) {
+      rerankingModelCount++;
+      console.log(`[Update Pricing] Found re-ranking model: ${modelId}`);
     }
     
     const model = modelMap.get(modelId);
@@ -651,17 +765,20 @@ function getOpenRouterPricingForModels(rawModels, modelNames) {
     const requestPriceRaw = getPriceValue(
       modelPricing,
       'request',
-      'request_price'
+      'request_price',
+      'per_request',  // Alternative field name
+      'perRequest'    // Alternative field name (camelCase)
     );
     
-    // Debug logging for first few models
-    if (Object.keys(pricing).length < 3) {
-      console.log(`[Update Pricing] Debug - ${modelId} raw prices (per token):`, {
+    // Debug logging for re-ranking models and first few models
+    if (isReranking || Object.keys(pricing).length < 3) {
+      console.log(`[Update Pricing] Debug - ${modelId}${isReranking ? ' (re-ranking)' : ''} raw prices:`, {
         inputPriceRaw,
         outputPriceRaw,
         cachedInputPriceRaw,
         requestPriceRaw,
-        pricingKeys: Object.keys(modelPricing)
+        pricingKeys: Object.keys(modelPricing),
+        fullPricing: isReranking ? JSON.stringify(modelPricing, null, 2) : undefined
       });
     }
     
@@ -683,32 +800,62 @@ function getOpenRouterPricingForModels(rawModels, modelNames) {
     };
     const requestPrice = parseRequestPrice(requestPriceRaw);
     
-    if (inputPrice === null || outputPrice === null) {
+    // For re-ranking models, allow request-only pricing (input/output can be 0 or missing)
+    // For regular models, require both input and output pricing
+    if (!isReranking && (inputPrice === null || outputPrice === null)) {
       console.log(`[Update Pricing] Missing required pricing fields for OpenRouter model ${modelId} (pricing: ${JSON.stringify(modelPricing)})`);
       continue;
     }
     
-    // Build pricing structure (no rounding - save exact values)
-    const pricingStructure = {
-      input: inputPrice,
-      output: outputPrice,
-    };
+    // For re-ranking models, if request pricing is missing, use a default estimate
+    // This allows re-ranking models to be included even if OpenRouter doesn't provide pricing
+    if (isReranking && requestPrice === null) {
+      console.log(`[Update Pricing] Re-ranking model ${modelId} missing request pricing. Available pricing keys: ${Object.keys(modelPricing).join(", ")}. Full pricing: ${JSON.stringify(modelPricing)}`);
+      console.log(`[Update Pricing] Using default request pricing (0.001 USD per request) for re-ranking model ${modelId}`);
+      // Use a conservative default: $0.001 per request
+      // This will be updated when OpenRouter provides actual pricing
+      const defaultRequestPrice = 0.001;
+      // We'll set this below in the pricing structure
+    }
     
-    // Add cached input pricing if provided, otherwise calculate as 10% of input
+    // Build pricing structure (no rounding - save exact values)
+    const pricingStructure = {};
+    
+    // For re-ranking models, set input/output to 0 if not provided
+    // For regular models, use the parsed prices
+    if (isReranking) {
+      pricingStructure.input = inputPrice !== null ? inputPrice : 0;
+      pricingStructure.output = outputPrice !== null ? outputPrice : 0;
+    } else {
+      pricingStructure.input = inputPrice;
+      pricingStructure.output = outputPrice;
+    }
+    
+    // Add cached input pricing if provided
+    // For re-ranking models, skip cached input calculation if input is 0
     if (cachedInputPrice !== null) {
       pricingStructure.cachedInput = cachedInputPrice;
-    } else {
-      pricingStructure.cachedInput = inputPrice * 0.1; // 10% of input, no rounding
-      console.log(`[Update Pricing] Calculated cachedInput pricing for ${modelId}: ${pricingStructure.cachedInput} (10% of input ${pricingStructure.input})`);
+    } else if (!isReranking || pricingStructure.input > 0) {
+      // Only calculate cached input if not a re-ranking model, or if re-ranking model has input pricing
+      pricingStructure.cachedInput = pricingStructure.input * 0.1; // 10% of input, no rounding
+      if (isReranking) {
+        console.log(`[Update Pricing] Calculated cachedInput pricing for re-ranking model ${modelId}: ${pricingStructure.cachedInput} (10% of input ${pricingStructure.input})`);
+      } else {
+        console.log(`[Update Pricing] Calculated cachedInput pricing for ${modelId}: ${pricingStructure.cachedInput} (10% of input ${pricingStructure.input})`);
+      }
     }
     
     // Add request pricing if provided (per-request, not per token)
-    if (requestPrice !== null && requestPrice !== 0) {
+    // For re-ranking models without request pricing, use default estimate
+    if (isReranking && requestPrice === null) {
+      pricingStructure.request = 0.001; // Default: $0.001 per request
+      console.log(`[Update Pricing] Using default request pricing for re-ranking model ${modelId}: 0.001 USD per request`);
+    } else if (requestPrice !== null && requestPrice !== 0) {
       pricingStructure.request = requestPrice;
     }
     
     // Skip models with invalid or negative pricing
-    if (hasInvalidOrNegativePricing(pricingStructure)) {
+    if (hasInvalidOrNegativePricing(pricingStructure, isReranking)) {
       console.log(`[Update Pricing] Skipping OpenRouter model ${modelId} due to invalid or negative pricing`);
       continue;
     }
@@ -716,6 +863,15 @@ function getOpenRouterPricingForModels(rawModels, modelNames) {
     // Check for tiered pricing (OpenRouter may provide this in the future)
     // For now, we use flat pricing structure
     pricing[modelId] = pricingStructure;
+    
+    if (isReranking) {
+      processedRerankingModels++;
+      console.log(`[Update Pricing] Successfully processed re-ranking model ${modelId} with pricing:`, JSON.stringify(pricingStructure));
+    }
+  }
+  
+  if (rerankingModelCount > 0) {
+    console.log(`[Update Pricing] Re-ranking models summary: Found ${rerankingModelCount} re-ranking models, successfully processed ${processedRerankingModels}`);
   }
   
   return pricing;
@@ -810,11 +966,39 @@ async function fetchOpenRouterPricing() {
   // Get pricing for available models
   const pricing = getOpenRouterPricingForModels(rawModels, models);
   
-  // Also include models from existing pricing.json that exist in OpenRouter
-  // This ensures we update existing models even if they're not in the current API response
+  // Add known re-ranking models (not in /api/v1/models endpoint but available via /api/v1/rerank)
+  // Re-ranking models use per-request pricing, not per-token pricing
   const pricingPath = join(__dirname, "../apps/backend/src/config/pricing.json");
   const currentPricing = loadPricingFileOrCreateDefault(pricingPath);
   const existingOpenRouterModels = Object.keys(currentPricing.providers?.openrouter?.models || {});
+  
+  // Add known re-ranking models - always include them if they're in the known list
+  // This ensures re-ranking models are available even though they're not in the /api/v1/models endpoint
+  for (const [modelName, modelPricing] of Object.entries(knownRerankingModels)) {
+    // Skip excluded models
+    if (isExcludedModel(modelName)) {
+      continue;
+    }
+    
+    // Only add if it's not already in pricing (from API models, though re-ranking models won't be there)
+    if (!pricing[modelName]) {
+      // Deep copy to avoid mutating the original
+      const pricingCopy = JSON.parse(JSON.stringify(modelPricing));
+      
+      // Skip models with invalid or negative pricing
+      if (hasInvalidOrNegativePricing(pricingCopy, true)) { // true = isReranking
+        console.log(`[Update Pricing] Skipping known re-ranking model ${modelName} due to invalid or negative pricing`);
+        continue;
+      }
+      
+      pricing[modelName] = pricingCopy;
+      const action = existingOpenRouterModels.includes(modelName) ? "Updated" : "Added";
+      console.log(`[Update Pricing] ${action} known re-ranking model ${modelName} with pricing:`, JSON.stringify(pricingCopy));
+    }
+  }
+  
+  // Also include models from existing pricing.json that exist in OpenRouter
+  // This ensures we update existing models even if they're not in the current API response
   if (existingOpenRouterModels.length > 0) {
     
     // For each existing model, check if it's in the API response but not yet in pricing
@@ -916,8 +1100,11 @@ function mergePricingIntoConfig(currentPricing, fetchedPricing) {
         continue;
       }
       
+      // Check if this is a re-ranking model
+      const isReranking = isRerankingModel(modelName);
+      
       // Skip models with invalid or negative pricing
-      if (hasInvalidOrNegativePricing(pricing)) {
+      if (hasInvalidOrNegativePricing(pricing, isReranking)) {
         console.log(`[Update Pricing] Skipping OpenRouter model ${modelName} in merge due to invalid or negative pricing`);
         continue;
       }
@@ -1011,7 +1198,10 @@ function removeInvalidOrNegativePricingModels(pricing) {
       
       const usdPricing = model.usd;
       
-      if (usdPricing && hasInvalidOrNegativePricing(usdPricing)) {
+      // Check if this is a re-ranking model
+      const isReranking = isRerankingModel(modelName);
+      
+      if (usdPricing && hasInvalidOrNegativePricing(usdPricing, isReranking)) {
         modelsToRemove.push(modelName);
         console.log(`[Update Pricing] Model ${providerName}/${modelName} has invalid or negative pricing and will be removed:`, JSON.stringify(usdPricing));
       }
