@@ -3,6 +3,7 @@ import type { ModelMessage } from "ai";
 import type { DatabaseSchema } from "../tables/schema";
 
 import { fromMillionths, toMillionths } from "./creditConversions";
+import { InsufficientCreditsError } from "./creditErrors";
 import { searchDocuments, type SearchResult } from "./documentSearch";
 import { rerankSnippets } from "./knowledgeReranking";
 import {
@@ -221,7 +222,14 @@ export async function injectKnowledgeIntoMessages(
 
       if (agent.enableKnowledgeReranking && agent.knowledgeRerankingModel) {
       // Step 1: Reserve credits before re-ranking call
-      if (db && context) {
+      // Credit reservation is required unless BYOK is enabled
+      if (!usesByok) {
+        if (!db || !context) {
+          throw new Error(
+            "Database and context are required for re-ranking credit reservation"
+          );
+        }
+
         try {
           const reservation = await reserveRerankingCredits(
             db,
@@ -243,11 +251,40 @@ export async function injectKnowledgeIntoMessages(
             }
           );
         } catch (error) {
+          const errorObj = ensureError(error);
+          
+          // If it's an InsufficientCreditsError, rethrow it to fail the request
+          // This matches the behavior of regular LLM calls
+          if (errorObj instanceof InsufficientCreditsError) {
+            console.error(
+              "[knowledgeInjection] Insufficient credits for re-ranking, failing request:",
+              errorObj.message
+            );
+            Sentry.captureException(errorObj, {
+              tags: {
+                context: "knowledge-injection",
+                operation: "reserve-reranking-credits",
+                errorType: "InsufficientCreditsError",
+              },
+              extra: {
+                workspaceId,
+                agentId,
+                conversationId,
+                model: agent.knowledgeRerankingModel,
+                documentCount: searchResults.length,
+                required: errorObj.required,
+                available: errorObj.available,
+              },
+            });
+            throw errorObj;
+          }
+
+          // For other errors (e.g., database errors), log and fail the request
           console.error(
             "[knowledgeInjection] Failed to reserve credits for re-ranking:",
-            error instanceof Error ? error.message : String(error)
+            errorObj.message
           );
-          Sentry.captureException(ensureError(error), {
+          Sentry.captureException(errorObj, {
             tags: {
               context: "knowledge-injection",
               operation: "reserve-reranking-credits",
@@ -260,12 +297,14 @@ export async function injectKnowledgeIntoMessages(
               documentCount: searchResults.length,
             },
           });
-          // If credit reservation fails (e.g., insufficient credits), continue with re-ranking
-          // but without credit tracking (workspace won't be charged)
-          console.warn(
-            "[knowledgeInjection] Credit reservation failed, continuing re-ranking without credit tracking"
-          );
+          // Rethrow to fail the request
+          throw errorObj;
         }
+      } else {
+        // BYOK: Skip credit reservation (workspace pays directly)
+        console.log(
+          "[knowledgeInjection] BYOK enabled, skipping credit reservation for re-ranking"
+        );
       }
 
         // Create re-ranking request message with text representation
