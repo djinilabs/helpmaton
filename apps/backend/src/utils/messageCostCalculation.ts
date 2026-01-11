@@ -115,6 +115,28 @@ export function getMessageCost(
     return undefined;
   }
 
-  // Other message types (user, system) have no costs
+  if (message.role === "system") {
+    // For system messages, check for re-ranking result content
+    if (Array.isArray(message.content)) {
+      for (const item of message.content) {
+        if (
+          typeof item === "object" &&
+          item !== null &&
+          "type" in item &&
+          item.type === "reranking-result" &&
+          "costUsd" in item &&
+          typeof item.costUsd === "number"
+        ) {
+          // Return re-ranking cost
+          return {
+            costUsd: item.costUsd,
+            isFinal: true, // Re-ranking costs are final (from API response)
+          };
+        }
+      }
+    }
+  }
+
+  // Other message types (user) have no costs
   return undefined;
 }

@@ -974,6 +974,8 @@ export async function callAgentInternal(
 
   const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
   const knowledgeInjectionMessage = knowledgeInjectionResult.knowledgeInjectionMessage;
+  const rerankingRequestMessage = knowledgeInjectionResult.rerankingRequestMessage;
+  const rerankingResultMessage = knowledgeInjectionResult.rerankingResultMessage;
 
   let reservationId: string | undefined;
   let llmCallAttempted = false;
@@ -1165,8 +1167,14 @@ export async function callAgentInternal(
       const delegationConversationId = randomUUID();
 
       // Build messages for the target agent's conversation
-      // Include knowledge injection message if it exists
+      // Include re-ranking and knowledge injection messages if they exist
       const targetAgentMessages: UIMessage[] = [];
+      if (rerankingRequestMessage) {
+        targetAgentMessages.push(rerankingRequestMessage);
+      }
+      if (rerankingResultMessage) {
+        targetAgentMessages.push(rerankingResultMessage);
+      }
       if (knowledgeInjectionMessage) {
         targetAgentMessages.push(knowledgeInjectionMessage);
       }

@@ -406,21 +406,37 @@ export async function buildStreamRequestContext(
 
   const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
   const knowledgeInjectionMessage = knowledgeInjectionResult.knowledgeInjectionMessage;
+  const rerankingRequestMessage = knowledgeInjectionResult.rerankingRequestMessage;
+  const rerankingResultMessage = knowledgeInjectionResult.rerankingResultMessage;
 
-  // Add knowledge injection message to convertedMessages if it exists
+  // Add re-ranking and knowledge injection messages to convertedMessages if they exist
   let updatedConvertedMessages = convertedMessages;
+  
+  // Find insertion point (before first user message)
+  const userMessageIndex = convertedMessages.findIndex(
+    (msg) => msg.role === "user"
+  );
+
+  // Build array of messages to insert (in order: reranking request, reranking result, knowledge injection)
+  const messagesToInsert: typeof convertedMessages = [];
+  if (rerankingRequestMessage) {
+    messagesToInsert.push(rerankingRequestMessage);
+  }
+  if (rerankingResultMessage) {
+    messagesToInsert.push(rerankingResultMessage);
+  }
   if (knowledgeInjectionMessage) {
-    // Insert knowledge injection message before the user's message
-    const userMessageIndex = convertedMessages.findIndex(
-      (msg) => msg.role === "user"
-    );
+    messagesToInsert.push(knowledgeInjectionMessage);
+  }
+
+  if (messagesToInsert.length > 0) {
     if (userMessageIndex === -1) {
-      // No user message found, prepend knowledge injection message
-      updatedConvertedMessages = [knowledgeInjectionMessage, ...convertedMessages];
+      // No user message found, prepend all messages
+      updatedConvertedMessages = [...messagesToInsert, ...convertedMessages];
     } else {
       // Insert before first user message
       updatedConvertedMessages = [...convertedMessages];
-      updatedConvertedMessages.splice(userMessageIndex, 0, knowledgeInjectionMessage);
+      updatedConvertedMessages.splice(userMessageIndex, 0, ...messagesToInsert);
     }
   }
 

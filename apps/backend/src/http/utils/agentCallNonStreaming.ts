@@ -141,22 +141,38 @@ export async function callAgentNonStreaming(
 
   const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
   const knowledgeInjectionMessage = knowledgeInjectionResult.knowledgeInjectionMessage;
+  const rerankingRequestMessage = knowledgeInjectionResult.rerankingRequestMessage;
+  const rerankingResultMessage = knowledgeInjectionResult.rerankingResultMessage;
 
-  // Add knowledge injection message to allMessages if it exists
-  // This ensures it's included in conversation history for future calls
+  // Add re-ranking and knowledge injection messages to allMessages if they exist
+  // This ensures they're included in conversation history for future calls
   let updatedAllMessages = allMessages;
+  
+  // Find insertion point (before first non-knowledge-injection user message)
+  const userMessageIndex = updatedAllMessages.findIndex(
+    (msg) => msg.role === "user" && !("knowledgeInjection" in msg && msg.knowledgeInjection === true)
+  );
+
+  // Build array of messages to insert (in order: reranking request, reranking result, knowledge injection)
+  const messagesToInsert: typeof allMessages = [];
+  if (rerankingRequestMessage) {
+    messagesToInsert.push(rerankingRequestMessage);
+  }
+  if (rerankingResultMessage) {
+    messagesToInsert.push(rerankingResultMessage);
+  }
   if (knowledgeInjectionMessage) {
-    // Insert knowledge injection message before the user's message
-    const userMessageIndex = updatedAllMessages.findIndex(
-      (msg) => msg.role === "user" && !("knowledgeInjection" in msg && msg.knowledgeInjection === true)
-    );
+    messagesToInsert.push(knowledgeInjectionMessage);
+  }
+
+  if (messagesToInsert.length > 0) {
     if (userMessageIndex === -1) {
-      // No user message found, prepend knowledge injection message
-      updatedAllMessages = [knowledgeInjectionMessage, ...updatedAllMessages];
+      // No user message found, prepend all messages
+      updatedAllMessages = [...messagesToInsert, ...updatedAllMessages];
     } else {
       // Insert before first non-knowledge-injection user message
       updatedAllMessages = [...updatedAllMessages];
-      updatedAllMessages.splice(userMessageIndex, 0, knowledgeInjectionMessage);
+      updatedAllMessages.splice(userMessageIndex, 0, ...messagesToInsert);
     }
   }
 

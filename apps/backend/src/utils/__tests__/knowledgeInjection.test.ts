@@ -172,17 +172,17 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      expect(result).toHaveLength(4);
-      expect(result[0].role).toBe("system");
-      expect(result[1].role).toBe("user");
+      expect(result.modelMessages).toHaveLength(4);
+      expect(result.modelMessages[0].role).toBe("system");
+      expect(result.modelMessages[1].role).toBe("user");
       // Knowledge injection message should be before the original user message
-      expect(typeof result[1].content).toBe("string");
-      expect(result[1].content).toContain("Relevant Knowledge from Workspace Documents");
-      expect(result[1].content).toContain("First relevant snippet");
-      expect(result[1].content).toContain("Second relevant snippet");
-      expect(result[2].role).toBe("user");
-      expect(result[2].content).toBe("Test query");
-      expect(result[3].role).toBe("assistant");
+      expect(typeof result.modelMessages[1].content).toBe("string");
+      expect(result.modelMessages[1].content).toContain("Relevant Knowledge from Workspace Documents");
+      expect(result.modelMessages[1].content).toContain("First relevant snippet");
+      expect(result.modelMessages[1].content).toContain("Second relevant snippet");
+      expect(result.modelMessages[2].role).toBe("user");
+      expect(result.modelMessages[2].content).toBe("Test query");
+      expect(result.modelMessages[3].role).toBe("assistant");
     });
 
     it("should use default snippet count of 5 when not specified", async () => {
@@ -376,7 +376,11 @@ describe("knowledgeInjection", () => {
       };
 
       mockSearchDocuments.mockResolvedValue(mockSearchResults);
-      mockRerankSnippets.mockResolvedValue({ snippets: rerankedResults });
+      mockRerankSnippets.mockResolvedValue({
+        snippets: rerankedResults,
+        costUsd: 0.001,
+        generationId: "gen-123",
+      });
 
       const messages: ModelMessage[] = [
         { role: "user", content: "Test query" },
@@ -396,8 +400,72 @@ describe("knowledgeInjection", () => {
       );
 
       // Should use re-ranked results
-      expect(result[0].content).toContain("Second relevant snippet");
-      expect(result[0].content).toContain("First relevant snippet");
+      expect(result.modelMessages[0].content).toContain("Second relevant snippet");
+      expect(result.modelMessages[0].content).toContain("First relevant snippet");
+
+      // Should create re-ranking request message
+      expect(result.rerankingRequestMessage).toBeDefined();
+      expect(result.rerankingRequestMessage?.role).toBe("system");
+      if (
+        result.rerankingRequestMessage &&
+        Array.isArray(result.rerankingRequestMessage.content)
+      ) {
+        // First element should be text content
+        expect(result.rerankingRequestMessage.content[0]).toHaveProperty("type", "text");
+        // Second element should be reranking-request content
+        const requestContent = result.rerankingRequestMessage.content[1];
+        expect(requestContent).toHaveProperty("type", "reranking-request");
+        if (
+          typeof requestContent === "object" &&
+          requestContent !== null &&
+          "type" in requestContent &&
+          requestContent.type === "reranking-request"
+        ) {
+          expect(requestContent.query).toBe("Test query");
+          expect(requestContent.model).toBe("cohere/rerank-v3");
+          expect(requestContent.documentCount).toBe(2);
+          expect(requestContent.documentNames).toBeDefined();
+          expect(Array.isArray(requestContent.documentNames)).toBe(true);
+        }
+      }
+
+      // Should create re-ranking result message
+      expect(result.rerankingResultMessage).toBeDefined();
+      expect(result.rerankingResultMessage?.role).toBe("system");
+      if (
+        result.rerankingResultMessage &&
+        Array.isArray(result.rerankingResultMessage.content)
+      ) {
+        // First element should be text content with model and cost
+        const textContent = result.rerankingResultMessage.content[0];
+        expect(textContent).toHaveProperty("type", "text");
+        if (
+          typeof textContent === "object" &&
+          textContent !== null &&
+          "type" in textContent &&
+          textContent.type === "text"
+        ) {
+          expect(textContent.text).toContain("**Model:**");
+          expect(textContent.text).toContain("cohere/rerank-v3");
+          expect(textContent.text).toContain("**Cost:**");
+          expect(textContent.text).toContain("$0.001000");
+        }
+        // Second element should be reranking-result content
+        const resultContent = result.rerankingResultMessage.content[1];
+        expect(resultContent).toHaveProperty("type", "reranking-result");
+        if (
+          typeof resultContent === "object" &&
+          resultContent !== null &&
+          "type" in resultContent &&
+          resultContent.type === "reranking-result"
+        ) {
+          expect(resultContent.model).toBe("cohere/rerank-v3");
+          expect(resultContent.documentCount).toBe(2);
+          expect(resultContent.costUsd).toBe(1000); // 0.001 USD = 1000 millionths
+          expect(resultContent.generationId).toBe("gen-123");
+          expect(resultContent.rerankedDocuments).toHaveLength(2);
+        }
+      }
     });
 
     it("should fall back to original results if re-ranking fails", async () => {
@@ -420,9 +488,76 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      // Should use original results (not re-ranked)
-      expect(result[0].content).toContain("First relevant snippet");
-      expect(result[0].content).toContain("Second relevant snippet");
+      // Should still create re-ranking request message
+      expect(result.rerankingRequestMessage).toBeDefined();
+
+      // Should create error result message
+      expect(result.rerankingResultMessage).toBeDefined();
+      if (
+        result.rerankingResultMessage &&
+        Array.isArray(result.rerankingResultMessage.content)
+      ) {
+        // First element should be text content with model, cost, and error
+        const textContent = result.rerankingResultMessage.content[0];
+        expect(textContent).toHaveProperty("type", "text");
+        if (
+          typeof textContent === "object" &&
+          textContent !== null &&
+          "type" in textContent &&
+          textContent.type === "text"
+        ) {
+          expect(textContent.text).toContain("**Model:**");
+          expect(textContent.text).toContain("cohere/rerank-v3");
+          expect(textContent.text).toContain("**Cost:**");
+          expect(textContent.text).toContain("$0.000000");
+          expect(textContent.text).toContain("**Error:**");
+          expect(textContent.text).toContain("Re-ranking failed");
+        }
+        // Second element should be reranking-result content
+        const resultContent = result.rerankingResultMessage.content[1];
+        if (
+          typeof resultContent === "object" &&
+          resultContent !== null &&
+          "type" in resultContent &&
+          resultContent.type === "reranking-result"
+        ) {
+          expect(resultContent.error).toBeDefined();
+          expect(resultContent.costUsd).toBe(0); // No cost if re-ranking failed
+        }
+      }
+
+      // Should use original results
+      expect(result.modelMessages[0].content).toContain("First relevant snippet");
+      expect(result.modelMessages[0].content).toContain("Second relevant snippet");
+    });
+
+    it("should not create re-ranking messages when re-ranking is disabled", async () => {
+      const agent = {
+        enableKnowledgeInjection: true,
+        enableKnowledgeReranking: false,
+      };
+
+      mockSearchDocuments.mockResolvedValue(mockSearchResults);
+
+      const messages: ModelMessage[] = [
+        { role: "user", content: "Test query" },
+      ];
+
+      const result = await injectKnowledgeIntoMessages(
+        "workspace-1",
+        agent,
+        messages
+      );
+
+      // Should not call re-ranking
+      expect(mockRerankSnippets).not.toHaveBeenCalled();
+
+      // Should not create re-ranking messages
+      expect(result.rerankingRequestMessage).toBeUndefined();
+      expect(result.rerankingResultMessage).toBeUndefined();
+
+      // Should still create knowledge injection message
+      expect(result.knowledgeInjectionMessage).toBeDefined();
     });
 
     it("should format knowledge prompt correctly", async () => {
@@ -442,7 +577,7 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      const knowledgeContent = result[0].content as string;
+      const knowledgeContent = result.modelMessages[0].content as string;
       expect(knowledgeContent).toContain("## Relevant Knowledge from Workspace Documents");
       expect(knowledgeContent).toContain("[1] Document: Document 1 (/folder1)");
       expect(knowledgeContent).toContain("Similarity: 90.0%");
@@ -482,7 +617,7 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      const knowledgeContent = result[0].content as string;
+      const knowledgeContent = result.modelMessages[0].content as string;
       expect(knowledgeContent).toContain(
         "[1] Document: Document (/path/to/folder)"
       );
@@ -515,7 +650,7 @@ describe("knowledgeInjection", () => {
         messages
       );
 
-      const knowledgeContent = result[0].content as string;
+      const knowledgeContent = result.modelMessages[0].content as string;
       expect(knowledgeContent).toContain("[1] Document: Document");
       expect(knowledgeContent).not.toContain("()");
     });
@@ -582,10 +717,10 @@ describe("knowledgeInjection", () => {
       );
 
       // Knowledge should be injected before the FIRST user message
-      expect(result[1].role).toBe("user");
-      expect(result[1].content).toContain("Relevant Knowledge");
-      expect(result[2].role).toBe("user");
-      expect(result[2].content).toBe("First query");
+      expect(result.modelMessages[1].role).toBe("user");
+      expect(result.modelMessages[1].content).toContain("Relevant Knowledge");
+      expect(result.modelMessages[2].role).toBe("user");
+      expect(result.modelMessages[2].content).toBe("First query");
     });
 
     describe("credit management integration", () => {
@@ -839,7 +974,7 @@ describe("knowledgeInjection", () => {
         expect(mockRerankSnippets).toHaveBeenCalled();
         // No credit adjustment should happen since reservation failed
         expect(mockAdjustRerankingCreditReservation).not.toHaveBeenCalled();
-        expect(result[0].content).toContain("First relevant snippet");
+        expect(result.modelMessages[0].content).toContain("First relevant snippet");
       });
 
       it("should refund credits when re-ranking fails", async () => {
@@ -979,7 +1114,7 @@ describe("knowledgeInjection", () => {
         );
 
         // Should still inject knowledge
-        expect(result[0].content).toContain("Relevant Knowledge");
+        expect(result.modelMessages[0].content).toContain("Relevant Knowledge");
       });
 
       it("should continue even if refund fails", async () => {
@@ -1014,7 +1149,7 @@ describe("knowledgeInjection", () => {
         );
 
         // Should still inject knowledge with original results
-        expect(result[0].content).toContain("First relevant snippet");
+        expect(result.modelMessages[0].content).toContain("First relevant snippet");
       });
     });
   });
