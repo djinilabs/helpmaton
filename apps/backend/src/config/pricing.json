@@ -2533,6 +2533,41 @@
             "output": 0,
             "cachedInput": 0
           }
+        },
+        "cohere/rerank-v3": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "request": 0.001
+          }
+        },
+        "cohere/rerank-english-v3.0": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "request": 0.001
+          }
+        },
+        "cohere/rerank-multilingual-v3.0": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "request": 0.001
+          }
+        },
+        "jinaai/jina-reranker-v1-base-en": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "request": 0.0001
+          }
+        },
+        "jinaai/jina-reranker-v1-turbo-en": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "request": 0.0002
+          }
         }
       }
     }
@@ -2549,5 +2584,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-11T00:16:51.422Z"
+  "lastUpdated": "2026-01-11T11:51:45.720Z"
 }
