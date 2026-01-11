@@ -31,7 +31,7 @@ export class AgentChatWidget extends HTMLElement {
     super();
     // Create shadow DOM
     this.shadowRoot = this.attachShadow({ mode: "open" });
-    
+
     // Determine base URL
     // Use data-base-url attribute if provided, otherwise use current origin or default
     const dataBaseUrl = this.getAttribute("data-base-url");
@@ -74,7 +74,7 @@ export class AgentChatWidget extends HTMLElement {
 
   init(config: WidgetConfig) {
     this.config = config;
-    
+
     // Apply position styles
     const container = this.shadowRoot.querySelector(".agent-chat-widget");
     if (container) {
