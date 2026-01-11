@@ -2959,8 +2959,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     tools: {
       // Add your tool functions here
       // Example:
-      // addToCart: async (productId) => {
-      //   await myAppStore.dispatch('addToCart', productId);
+      // addToCart: async ({ productId, quantity }) => {
+      //   await myAppStore.dispatch('addToCart', productId, quantity);
       //   return "Added to cart successfully";
       // }
     }
@@ -2977,6 +2977,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     agentId: "${agentId}",
     tools: {
       // Add your tool functions here
+      // Tool functions receive an object argument and destructure what they need
+      // Example: async ({ productId, quantity }) => { ... }
     }
   });
 </script>`;

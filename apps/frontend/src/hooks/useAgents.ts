@@ -1,5 +1,6 @@
 import {
   useSuspenseQuery,
+  useQuery,
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
@@ -35,6 +36,29 @@ export function useAgent(workspaceId: string, agentId: string) {
   return useSuspenseQuery({
     queryKey: ["workspaces", workspaceId, "agents", agentId],
     queryFn: () => getAgent(workspaceId, agentId),
+  });
+}
+
+/**
+ * Optional version of useAgent that uses useQuery instead of useSuspenseQuery.
+ * This allows the query to be disabled or fail without throwing, which is useful
+ * in widget contexts where authentication may not be available.
+ * 
+ * Note: This hook always uses useQuery (not useSuspenseQuery) to avoid throwing errors
+ * in widget contexts. For normal app usage where suspense is desired, use useAgent instead.
+ * 
+ * @param skip - If true, the query will be disabled and won't execute (widget context)
+ */
+export function useAgentOptional(
+  workspaceId: string,
+  agentId: string,
+  skip: boolean = false
+) {
+  return useQuery({
+    queryKey: ["workspaces", workspaceId, "agents", agentId],
+    queryFn: () => getAgent(workspaceId, agentId),
+    enabled: !skip, // Disable query when skip is true (e.g., when agent prop is provided)
+    retry: false, // Don't retry on failure in widget context
   });
 }
 

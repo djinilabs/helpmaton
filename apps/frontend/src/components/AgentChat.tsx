@@ -9,7 +9,7 @@ import type { FC } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { useAgent } from "../hooks/useAgents";
+import { useAgentOptional } from "../hooks/useAgents";
 import { getAccessToken } from "../utils/api";
 import { getDefaultAvatar } from "../utils/avatarUtils";
 import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
@@ -55,9 +55,16 @@ export const AgentChat: FC<AgentChatProps> = ({
   agent: agentProp,
 }) => {
   // Use agent prop if provided, otherwise fetch from API
-  // Note: useAgent uses useSuspenseQuery, so we can't conditionally disable it
-  // If agentProp is provided, we'll use it and ignore the hook result
-  const { data: agentFromHook } = useAgent(workspaceId, agentId);
+  // When agentProp is provided (e.g., in widget context), skip the query to avoid auth errors
+  // Always call useAgentOptional to satisfy rules of hooks
+  // When agentProp is provided, the query is disabled (skip=true), preventing API calls
+  // When agentProp is not provided, the query runs (skip=false) for normal app usage
+  // Note: We lose suspense behavior in normal app usage, but the query will still work
+  const { data: agentFromHook } = useAgentOptional(
+    workspaceId,
+    agentId,
+    !!agentProp // Skip query if agentProp is provided (widget context)
+  );
   const agent = agentProp || agentFromHook;
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -171,7 +178,10 @@ export const AgentChat: FC<AgentChatProps> = ({
             const args = (toolCallAny.args ||
               toolCallAny.input ||
               {}) as Record<string, unknown>;
-            const result = await toolFunction(...Object.values(args));
+            // Pass the entire args object as a single argument
+            // This is the standard pattern for AI SDK tool handlers
+            // Tool functions should destructure what they need: async ({ param1, param2 }) => {...}
+            const result = await toolFunction(args);
 
             // Return successful result
             // AI SDK expects 'output' property, not 'result'
