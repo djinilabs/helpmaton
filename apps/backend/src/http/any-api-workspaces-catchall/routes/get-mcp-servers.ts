@@ -86,11 +86,21 @@ export const registerGetMcpServers = (app: express.Application) => {
         // Return servers without sensitive config data
         const servers = result.items.map((server) => {
           const serverId = server.pk.replace(`mcp-servers/${workspaceId}/`, "");
+          const config = server.config as {
+            accessToken?: string;
+            email?: string;
+          };
+          const oauthConnected =
+            server.authType === "oauth" && !!config.accessToken;
+
           return {
             id: serverId,
             name: server.name,
             url: server.url,
             authType: server.authType,
+            serviceType: server.serviceType,
+            oauthConnected:
+              server.authType === "oauth" ? oauthConnected : undefined,
             createdAt: server.createdAt,
             updatedAt: server.updatedAt,
           };

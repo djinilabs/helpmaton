@@ -22,7 +22,7 @@ export async function getMcpServer(
  * Build authentication headers for MCP server request
  */
 function buildAuthHeaders(
-  authType: "none" | "header" | "basic",
+  authType: "none" | "header" | "basic" | "oauth",
   config: Record<string, unknown>
 ): Record<string, string> {
   const headers: Record<string, string> = {
@@ -65,6 +65,13 @@ async function callMcpServer(
   params?: Record<string, unknown>
 ): Promise<unknown> {
   const url = server.url;
+  if (!url) {
+    throw new Error("MCP server URL is required for external servers");
+  }
+  // OAuth servers don't use this function - they have dedicated tools
+  if (server.authType === "oauth") {
+    throw new Error("OAuth MCP servers should use dedicated tools, not generic MCP calls");
+  }
   const headers = buildAuthHeaders(server.authType, server.config);
 
   // MCP protocol uses JSON-RPC 2.0
@@ -222,10 +229,45 @@ export async function createMcpServerTools(
       continue;
     }
 
-    // Create a tool with a unique name based on server ID
-    // Sanitize server ID to ensure valid tool name (alphanumeric and underscores only)
-    const toolName = `mcp_${serverId.replace(/[^a-zA-Z0-9]/g, "_")}`;
-    tools[toolName] = createMcpServerTool(workspaceId, serverId, server.name);
+    // Check if this is an OAuth-based MCP server with dedicated tools
+    if (server.authType === "oauth" && server.serviceType === "google-drive") {
+      // Check for OAuth connection
+      const config = server.config as {
+        accessToken?: string;
+      };
+
+      if (!config.accessToken) {
+        console.warn(
+          `MCP server ${serverId} (Google Drive) is not connected, skipping tools`
+        );
+        continue;
+      }
+
+      // Import Google Drive tools dynamically to avoid circular dependencies
+      const {
+        createGoogleDriveListTool,
+        createGoogleDriveReadTool,
+        createGoogleDriveSearchTool,
+      } = await import("./googleDriveTools");
+
+      // Create dedicated Google Drive tools
+      // Type assertion needed because tool return types are complex
+      const listTool = createGoogleDriveListTool(workspaceId, serverId);
+      const readTool = createGoogleDriveReadTool(workspaceId, serverId);
+      const searchTool = createGoogleDriveSearchTool(workspaceId, serverId);
+      
+      tools[`google_drive_list_${serverId.replace(/[^a-zA-Z0-9]/g, "_")}`] =
+        listTool as ReturnType<typeof createMcpServerTool>;
+      tools[`google_drive_read_${serverId.replace(/[^a-zA-Z0-9]/g, "_")}`] =
+        readTool as ReturnType<typeof createMcpServerTool>;
+      tools[`google_drive_search_${serverId.replace(/[^a-zA-Z0-9]/g, "_")}`] =
+        searchTool as ReturnType<typeof createMcpServerTool>;
+    } else {
+      // Create a generic MCP tool for external servers
+      // Sanitize server ID to ensure valid tool name (alphanumeric and underscores only)
+      const toolName = `mcp_${serverId.replace(/[^a-zA-Z0-9]/g, "_")}`;
+      tools[toolName] = createMcpServerTool(workspaceId, serverId, server.name);
+    }
   }
 
   return tools;

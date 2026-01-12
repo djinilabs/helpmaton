@@ -30,7 +30,8 @@ export const McpServerModal: FC<McpServerModalProps> = ({
 
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
-  const [authType, setAuthType] = useState<"none" | "header" | "basic">("none");
+  const [authType, setAuthType] = useState<"none" | "header" | "basic" | "oauth">("none");
+  const [serviceType, setServiceType] = useState<"external" | "google-drive">("external");
   const [headerValue, setHeaderValue] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -40,8 +41,9 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     if (isOpen) {
       if (server) {
         setName(server.name);
-        setUrl(server.url);
+        setUrl(server.url || "");
         setAuthType(server.authType);
+        setServiceType(server.serviceType || "external");
         // Don't populate sensitive fields when editing
         setHeaderValue("");
         setUsername("");
@@ -50,6 +52,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         setName("");
         setUrl("");
         setAuthType("none");
+        setServiceType("external");
         setHeaderValue("");
         setUsername("");
         setPassword("");
@@ -80,7 +83,11 @@ export const McpServerModal: FC<McpServerModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !url.trim()) return;
+    if (!name.trim()) return;
+    // URL is required for non-OAuth servers
+    if (authType !== "oauth" && !url.trim()) return;
+    // Service type is required for OAuth servers
+    if (authType === "oauth" && serviceType === "external") return;
 
     // Validate auth config based on authType
     // When creating, auth fields are required
@@ -125,7 +132,8 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         const updateData: {
           name?: string;
           url?: string;
-          authType?: "none" | "header" | "basic";
+          authType?: "none" | "header" | "basic" | "oauth";
+          serviceType?: "external" | "google-drive";
           config?: typeof config;
         } = {
           name: name.trim(),
@@ -137,13 +145,17 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         }
 
         // Only update fields that changed
-        if (server && url !== server.url) {
-          updateData.url = url.trim();
+        if (server && url !== (server.url || "")) {
+          updateData.url = url.trim() || undefined;
           updatedFields.push("url");
         }
         if (server && authType !== server.authType) {
           updateData.authType = authType;
           updatedFields.push("auth_type");
+        }
+        if (server && serviceType !== (server.serviceType || "external")) {
+          updateData.serviceType = serviceType;
+          updatedFields.push("service_type");
         }
         // Only include config if:
         // 1. Auth type changed (need new credentials for new auth type)
@@ -192,11 +204,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           updated_fields: updatedFields,
         });
       } else {
-        // When creating, only send config if authType is not "none"
+        // When creating, only send config if authType is not "none" or "oauth"
         const result = await createServer.mutateAsync({
           name: name.trim(),
-          url: url.trim(),
+          ...(authType !== "oauth" && url.trim() ? { url: url.trim() } : {}),
           authType,
+          ...(authType === "oauth" ? { serviceType } : {}),
           ...(authType === "header" || authType === "basic" ? { config } : {}),
         });
         trackEvent("mcp_server_created", {
@@ -239,23 +252,25 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             />
           </div>
 
-          <div>
-            <label
-              htmlFor="url"
-              className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-            >
-              URL *
-            </label>
-            <input
-              id="url"
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-              placeholder="https://example.com/mcp"
-              required
-            />
-          </div>
+          {authType !== "oauth" && (
+            <div>
+              <label
+                htmlFor="url"
+                className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+              >
+                URL *
+              </label>
+              <input
+                id="url"
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                placeholder="https://example.com/mcp"
+                required
+              />
+            </div>
+          )}
 
           <div>
             <label
@@ -267,17 +282,52 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             <select
               id="authType"
               value={authType}
-              onChange={(e) =>
-                setAuthType(e.target.value as "none" | "header" | "basic")
-              }
+              onChange={(e) => {
+                const newAuthType = e.target.value as "none" | "header" | "basic" | "oauth";
+                setAuthType(newAuthType);
+                // Reset serviceType when switching away from OAuth
+                if (newAuthType !== "oauth") {
+                  setServiceType("external");
+                } else {
+                  // Default to google-drive when selecting OAuth
+                  setServiceType("google-drive");
+                }
+              }}
               className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               required
             >
               <option value="none">None</option>
               <option value="header">Header (Authorization)</option>
               <option value="basic">HTTP Basic Auth</option>
+              <option value="oauth">OAuth</option>
             </select>
           </div>
+
+          {authType === "oauth" && (
+            <div>
+              <label
+                htmlFor="serviceType"
+                className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+              >
+                Service Type *
+              </label>
+              <select
+                id="serviceType"
+                value={serviceType}
+                onChange={(e) =>
+                  setServiceType(e.target.value as "external" | "google-drive")
+                }
+                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                required
+              >
+                <option value="external" disabled>Select a service...</option>
+                <option value="google-drive">Google Drive</option>
+              </select>
+              <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                After creating the server, you&apos;ll need to connect your account via OAuth.
+              </p>
+            </div>
+          )}
 
           {authType === "header" && (
             <div>

@@ -10,6 +10,7 @@ const WorkspaceDetail = lazy(() => import("./pages/WorkspaceDetail"));
 const AgentDetail = lazy(() => import("./pages/AgentDetail"));
 const WidgetPreview = lazy(() => import("./pages/WidgetPreview"));
 const EmailOAuthCallback = lazy(() => import("./pages/EmailOAuthCallback"));
+const McpOAuthCallback = lazy(() => import("./pages/McpOAuthCallback"));
 const SubscriptionManagement = lazy(
   () => import("./pages/SubscriptionManagement")
 );
@@ -40,6 +41,10 @@ export const AppRoutes: FC = () => {
         <Route
           path="/workspaces/:workspaceId/email-oauth-callback"
           element={<EmailOAuthCallback />}
+        />
+        <Route
+          path="/workspaces/:workspaceId/mcp-servers/:serverId/oauth-callback"
+          element={<McpOAuthCallback />}
         />
         <Route
           path="/workspaces/:workspaceId/invites/:token"

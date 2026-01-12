@@ -28,6 +28,8 @@ import { registerGetEmailConnection } from "./routes/get-email-connection";
 import { registerGetEmailOauthAuthorize } from "./routes/get-email-oauth-authorize";
 import { registerGetEmailOauthCallback } from "./routes/get-email-oauth-callback";
 import { registerGetMcpServer } from "./routes/get-mcp-server";
+import { registerGetMcpServerOauthAuthorize } from "./routes/get-mcp-server-oauth-authorize";
+import { registerGetMcpServerOauthStatus } from "./routes/get-mcp-server-oauth-status";
 import { registerGetMcpServers } from "./routes/get-mcp-servers";
 import { registerGetStreamServers } from "./routes/get-stream-servers";
 import { registerGetTrialStatus } from "./routes/get-trial-status";
@@ -61,6 +63,7 @@ import { registerPostAgentSpendingLimits } from "./routes/post-agent-spending-li
 import { registerPostEmailConnection } from "./routes/post-email-connection";
 import { registerPostGeneratePrompt } from "./routes/post-generate-prompt";
 import { registerPostMcpServer } from "./routes/post-mcp-server";
+import { registerPostMcpServerOauthDisconnect } from "./routes/post-mcp-server-oauth-disconnect";
 import { registerPostStreamServers } from "./routes/post-stream-servers";
 import { registerPostTestChannel } from "./routes/post-test-channel";
 import { registerPostTestEmailConnection } from "./routes/post-test-email-connection";
@@ -207,6 +210,9 @@ export const createApp: () => express.Application = () => {
   registerGetAgentUsage(app);
   registerGetMcpServers(app);
   registerGetMcpServer(app);
+  registerGetMcpServerOauthAuthorize(app);
+  registerGetMcpServerOauthStatus(app);
+  registerPostMcpServerOauthDisconnect(app);
   registerPostMcpServer(app);
   registerPutMcpServer(app);
   registerDeleteMcpServer(app);

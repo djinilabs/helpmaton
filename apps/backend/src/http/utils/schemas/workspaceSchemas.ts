@@ -295,18 +295,33 @@ export const createMcpServerSchema = z
     name: z.string().min(1, "name is required and must be a string"),
     url: z
       .string()
-      .url("url is required and must be a valid URL")
-      .min(1, "url is required and must be a string"),
-    authType: z.enum(["none", "header", "basic"]),
+      .url("url must be a valid URL")
+      .optional(),
+    authType: z.enum(["none", "header", "basic", "oauth"]),
+    serviceType: z.enum(["external", "google-drive"]).optional(),
     config: z.record(z.string(), z.unknown()),
   })
-  .strict();
+  .strict()
+  .refine(
+    (data) => {
+      // For OAuth authType, url is optional
+      // For non-OAuth authType, url is required
+      if (data.authType !== "oauth" && !data.url) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "url is required when authType is not 'oauth'",
+    }
+  );
 
 export const updateMcpServerSchema = z
   .object({
     name: z.string().min(1).optional(),
     url: z.string().url().optional(),
-    authType: z.enum(["none", "header", "basic"]).optional(),
+    authType: z.enum(["none", "header", "basic", "oauth"]).optional(),
+    serviceType: z.enum(["external", "google-drive"]).optional(),
     config: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();

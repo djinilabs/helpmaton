@@ -94,7 +94,7 @@ export const registerPutMcpServer = (app: express.Application) => {
     async (req, res, next) => {
       try {
         const body = validateBody(req.body, updateMcpServerSchema);
-        const { name, url, authType, config } = body;
+        const { name, url, authType, serviceType, config } = body;
         const db = await database();
         const workspaceResource = req.workspaceResource;
         if (!workspaceResource) {
@@ -137,9 +137,24 @@ export const registerPutMcpServer = (app: express.Application) => {
           if (typeof authType !== "string") {
             throw badRequest("authType must be a string");
           }
-          if (!["none", "header", "basic"].includes(authType)) {
+          if (!["none", "header", "basic", "oauth"].includes(authType)) {
             throw badRequest(
-              'authType must be one of: "none", "header", "basic"'
+              'authType must be one of: "none", "header", "basic", "oauth"'
+            );
+          }
+        }
+
+        // For OAuth servers, prevent updating OAuth tokens via config
+        // OAuth tokens should only be updated via OAuth endpoints
+        if (server.authType === "oauth" && config !== undefined) {
+          const configObj = config as Record<string, unknown>;
+          if (
+            configObj.accessToken !== undefined ||
+            configObj.refreshToken !== undefined ||
+            configObj.expiresAt !== undefined
+          ) {
+            throw badRequest(
+              "OAuth tokens cannot be updated via this endpoint. Use OAuth endpoints instead."
             );
           }
         }
@@ -174,6 +189,23 @@ export const registerPutMcpServer = (app: express.Application) => {
         }
 
         // Update server
+        // For OAuth servers, merge config but preserve OAuth tokens
+        let finalConfig = config !== undefined ? config : server.config;
+        if (server.authType === "oauth" && config !== undefined) {
+          // Merge config but preserve OAuth tokens
+          const existingConfig = server.config as Record<string, unknown>;
+          const newConfig = config as Record<string, unknown>;
+          finalConfig = {
+            ...existingConfig,
+            ...newConfig,
+            // Preserve OAuth tokens
+            accessToken: existingConfig.accessToken,
+            refreshToken: existingConfig.refreshToken,
+            expiresAt: existingConfig.expiresAt,
+            email: existingConfig.email,
+          };
+        }
+
         const updated = await db["mcp-server"].update({
           pk,
           sk: "server",
@@ -182,9 +214,11 @@ export const registerPutMcpServer = (app: express.Application) => {
           url: url !== undefined ? url : server.url,
           authType:
             authType !== undefined
-              ? (authType as "none" | "header" | "basic")
+              ? (authType as "none" | "header" | "basic" | "oauth")
               : server.authType,
-          config: config !== undefined ? config : server.config,
+          serviceType:
+            serviceType !== undefined ? serviceType : server.serviceType,
+          config: finalConfig,
           updatedBy: req.userRef || "",
           updatedAt: new Date().toISOString(),
         });
@@ -200,11 +234,20 @@ export const registerPutMcpServer = (app: express.Application) => {
           req
         );
 
+        const oauthConfig = updated.config as {
+          accessToken?: string;
+        };
+        const oauthConnected =
+          updated.authType === "oauth" && !!oauthConfig.accessToken;
+
         res.json({
           id: serverId,
           name: updated.name,
           url: updated.url,
           authType: updated.authType,
+          serviceType: updated.serviceType,
+          oauthConnected:
+            updated.authType === "oauth" ? oauthConnected : undefined,
           createdAt: updated.createdAt,
           updatedAt: updated.updatedAt,
         });

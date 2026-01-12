@@ -64,3 +64,7 @@ After completing a task (or significant step), you must:
 ## Lambda handlers and async actions
 
 8. Never ever make async calls where you don't somehow await for. Because lambda functions in production end processing abruptly as soon as the response is returned, all async actions that are pending at that time get cancaled.
+
+## Back-end body schema validation
+
+9. All back-end requests that have a JSON body need to be validated against a Zod schema that is strict, making sure not only that the supplied body has the expected shape, but also that it does not have any extra fields before we start processing the request.

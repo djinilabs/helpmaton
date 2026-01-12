@@ -93,11 +93,21 @@ export const registerGetMcpServer = (app: express.Application) => {
         }
 
         // Return server without sensitive config data
+        // For OAuth servers, check connection status
+        const config = server.config as {
+          accessToken?: string;
+          email?: string;
+        };
+        const oauthConnected =
+          server.authType === "oauth" && !!config.accessToken;
+
         res.json({
           id: serverId,
           name: server.name,
           url: server.url,
           authType: server.authType,
+          serviceType: server.serviceType,
+          oauthConnected: server.authType === "oauth" ? oauthConnected : undefined,
           createdAt: server.createdAt,
           updatedAt: server.updatedAt,
         });

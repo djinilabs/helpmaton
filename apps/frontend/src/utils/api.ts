@@ -1244,16 +1244,19 @@ export async function testEmailConnection(
 export interface McpServer {
   id: string;
   name: string;
-  url: string;
-  authType: "none" | "header" | "basic";
+  url?: string;
+  authType: "none" | "header" | "basic" | "oauth";
+  serviceType?: "external" | "google-drive";
+  oauthConnected?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
 
 export interface CreateMcpServerInput {
   name: string;
-  url: string;
-  authType: "none" | "header" | "basic";
+  url?: string;
+  authType: "none" | "header" | "basic" | "oauth";
+  serviceType?: "external" | "google-drive";
   config?: {
     headerValue?: string;
     username?: string;
@@ -1264,7 +1267,8 @@ export interface CreateMcpServerInput {
 export interface UpdateMcpServerInput {
   name?: string;
   url?: string;
-  authType?: "none" | "header" | "basic";
+  authType?: "none" | "header" | "basic" | "oauth";
+  serviceType?: "external" | "google-drive";
   config?: {
     headerValue?: string;
     username?: string;
@@ -1325,6 +1329,43 @@ export async function deleteMcpServer(
   await apiFetch(`/api/workspaces/${workspaceId}/mcp-servers/${serverId}`, {
     method: "DELETE",
   });
+}
+
+export interface McpOAuthStatus {
+  connected: boolean;
+  email: string | null;
+}
+
+export async function getMcpOAuthStatus(
+  workspaceId: string,
+  serverId: string
+): Promise<McpOAuthStatus> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/mcp-servers/${serverId}/oauth/status`
+  );
+  return response.json();
+}
+
+export async function initiateMcpOAuthFlow(
+  workspaceId: string,
+  serverId: string
+): Promise<{ authUrl: string }> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/mcp-servers/${serverId}/oauth/authorize`
+  );
+  return response.json();
+}
+
+export async function disconnectMcpOAuth(
+  workspaceId: string,
+  serverId: string
+): Promise<void> {
+  await apiFetch(
+    `/api/workspaces/${workspaceId}/mcp-servers/${serverId}/oauth/disconnect`,
+    {
+      method: "POST",
+    }
+  );
 }
 
 export async function initiateOAuthFlow(
