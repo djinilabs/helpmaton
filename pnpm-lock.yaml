@@ -30,7 +30,7 @@ importers:
         version: 7.0.10
       '@posthog/ai':
         specifier: ^7.2.1
-        version: 7.4.0(@ai-sdk/provider@2.0.1)(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(posthog-node@5.20.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(ws@8.19.0)(zod-to-json-schema@3.25.1(zod@4.3.5))
+        version: 7.4.1(@ai-sdk/provider@2.0.1)(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(posthog-node@5.20.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(ws@8.19.0)(zod-to-json-schema@3.25.1(zod@4.3.5))
     devDependencies:
       '@aws-sdk/client-cloudformation':
         specifier: ^3.943.0
@@ -287,7 +287,7 @@ importers:
         version: 2.2.0(react@19.2.3)
       '@scalar/api-reference-react':
         specifier: ^0.8.9
-        version: 0.8.19(axios@1.13.2)(react@19.2.3)(storybook@10.1.11(@testing-library/dom@10.4.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
+        version: 0.8.20(axios@1.13.2)(react@19.2.3)(storybook@10.1.11(@testing-library/dom@10.4.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
       '@sentry/react':
         specifier: ^10.0.0
         version: 10.32.1(react@19.2.3)
@@ -2001,8 +2001,8 @@ packages:
     peerDependencies:
       '@langchain/core': ^1.0.1
 
-  '@langchain/langgraph-sdk@1.5.0':
-    resolution: {integrity: sha512-QThjmdEJiANm+RuI6/vHecVhxv15NW/NcFw205fEWHec1s8FgerDKwQ4B7+n0JNQLmqiVtVybZgEM4PAwpmXjQ==}
+  '@langchain/langgraph-sdk@1.5.2':
+    resolution: {integrity: sha512-ArRnYIqJEUKnS+HFZoTtsIy2Uxy158l5ZTPWNhJkws6FuDEA3q/h6bhvHpZIf5z0JseDHCCoIbx6yOc2RpMpgg==}
     peerDependencies:
       '@langchain/core': ^1.0.1
       react: ^18 || ^19
@@ -2403,8 +2403,8 @@ packages:
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
 
-  '@posthog/ai@7.4.0':
-    resolution: {integrity: sha512-KvmAnXNvJmNW9nQDIIXZ3gSC3vDcEs4PRP53lqYiZsyOCKR2D++4mc/8tL9sDK/3MRsh2khK9fUiNd583d9UiQ==}
+  '@posthog/ai@7.4.1':
+    resolution: {integrity: sha512-Uy11u1grS0DMjiEZbMDH05JV4QoJXMy7o+DDaR86TdUooV80djlTd76Pz6yWnOC/sJod24EvyQu0glcDjprklw==}
     engines: {node: '>=20'}
     peerDependencies:
       '@ai-sdk/provider': ^2.0.0 || ^3.0.0
@@ -2684,18 +2684,18 @@ packages:
     resolution: {integrity: sha512-ai4DJuxsNLUEgJIlYDE3n8/oF47M31Rgjz3LxbefzejxE8LiidUud/fcEzMYtdxqJYi3ketzhSbTWK0o6gg4mQ==}
     engines: {node: '>=20'}
 
-  '@scalar/api-client@2.17.5':
-    resolution: {integrity: sha512-8WH5RMS9E8WRzwqC7hpMkJ2AlCgwFjf1MNbxO61WnXq6BHZeLIhFmZlKtsCX2+7V4K5NR1I+EjhrGf9hX72Obg==}
+  '@scalar/api-client@2.17.6':
+    resolution: {integrity: sha512-72cRTeqcYswnSlij+EdqdiDFQRGfdECOZl8hWF6dJItBge8YB5XLh+OfFzpmC/puvq/fyKiOsPTDw1hcS4OaBA==}
     engines: {node: '>=20'}
 
-  '@scalar/api-reference-react@0.8.19':
-    resolution: {integrity: sha512-TruW/WoElt2pp5VGrdIr8O9hH4CTDIxy2IjG5hEHJPrZnCL78HB6FdFWLU37qexdKBRTSl4yiKEEgy/kirbgKQ==}
+  '@scalar/api-reference-react@0.8.20':
+    resolution: {integrity: sha512-s8zQUUoyy4HHgD5wclN35l9yc8LsJC9Zvgpg/y2e9GZ29PWRR+PCBc3xcWx3oa5zAT7tB4A+Y1HToKPTupBJFw==}
     engines: {node: '>=20'}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
 
-  '@scalar/api-reference@1.43.0':
-    resolution: {integrity: sha512-/PuswaYL8fXwlOH7d4fVsNgaQbLoPv+siUUkHMA7tQfQNvwjZ9DDL1ebI8Yl4nhcfG5bx4CEpLdqt4AeNDCFeA==}
+  '@scalar/api-reference@1.43.1':
+    resolution: {integrity: sha512-ZY7dOEBmhuccze4/lEKihOfvd/Qi5/JLBvd/PJwbRCIf5Js8FBVR+eRW2S0m/GGj7wSeDwUVqx1G+Ryr5QrB2A==}
     engines: {node: '>=20'}
 
   '@scalar/code-highlight@0.2.2':
@@ -10729,7 +10729,7 @@ snapshots:
       '@langchain/core': 1.1.12(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.16.0(ws@8.19.0)(zod@4.3.5))
       uuid: 10.0.0
 
-  '@langchain/langgraph-sdk@1.5.0(@langchain/core@1.1.12(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.16.0(ws@8.19.0)(zod@4.3.5)))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+  '@langchain/langgraph-sdk@1.5.2(@langchain/core@1.1.12(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.16.0(ws@8.19.0)(zod@4.3.5)))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
     dependencies:
       p-queue: 9.1.0
       p-retry: 7.1.1
@@ -10743,7 +10743,7 @@ snapshots:
     dependencies:
       '@langchain/core': 1.1.12(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.16.0(ws@8.19.0)(zod@4.3.5))
       '@langchain/langgraph-checkpoint': 1.0.0(@langchain/core@1.1.12(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.16.0(ws@8.19.0)(zod@4.3.5)))
-      '@langchain/langgraph-sdk': 1.5.0(@langchain/core@1.1.12(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.16.0(ws@8.19.0)(zod@4.3.5)))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@langchain/langgraph-sdk': 1.5.2(@langchain/core@1.1.12(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.16.0(ws@8.19.0)(zod@4.3.5)))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       uuid: 10.0.0
       zod: 4.3.5
     optionalDependencies:
@@ -11180,7 +11180,7 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
-  '@posthog/ai@7.4.0(@ai-sdk/provider@2.0.1)(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(posthog-node@5.20.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(ws@8.19.0)(zod-to-json-schema@3.25.1(zod@4.3.5))':
+  '@posthog/ai@7.4.1(@ai-sdk/provider@2.0.1)(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(posthog-node@5.20.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(ws@8.19.0)(zod-to-json-schema@3.25.1(zod@4.3.5))':
     dependencies:
       '@anthropic-ai/sdk': 0.71.2(zod@4.3.5)
       '@google/genai': 1.35.0
@@ -11391,7 +11391,7 @@ snapshots:
     dependencies:
       zod: 4.3.5
 
-  '@scalar/api-client@2.17.5(axios@1.13.2)(storybook@10.1.11(@testing-library/dom@10.4.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)':
+  '@scalar/api-client@2.17.6(axios@1.13.2)(storybook@10.1.11(@testing-library/dom@10.4.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)':
     dependencies:
       '@headlessui/tailwindcss': 0.2.2(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))
       '@headlessui/vue': 1.7.23(vue@3.5.26(typescript@5.9.3))
@@ -11449,9 +11449,9 @@ snapshots:
       - typescript
       - universal-cookie
 
-  '@scalar/api-reference-react@0.8.19(axios@1.13.2)(react@19.2.3)(storybook@10.1.11(@testing-library/dom@10.4.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)':
+  '@scalar/api-reference-react@0.8.20(axios@1.13.2)(react@19.2.3)(storybook@10.1.11(@testing-library/dom@10.4.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)':
     dependencies:
-      '@scalar/api-reference': 1.43.0(axios@1.13.2)(storybook@10.1.11(@testing-library/dom@10.4.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
+      '@scalar/api-reference': 1.43.1(axios@1.13.2)(storybook@10.1.11(@testing-library/dom@10.4.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
       '@scalar/types': 0.5.6
       react: 19.2.3
     transitivePeerDependencies:
@@ -11471,11 +11471,11 @@ snapshots:
       - typescript
       - universal-cookie
 
-  '@scalar/api-reference@1.43.0(axios@1.13.2)(storybook@10.1.11(@testing-library/dom@10.4.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)':
+  '@scalar/api-reference@1.43.1(axios@1.13.2)(storybook@10.1.11(@testing-library/dom@10.4.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)':
     dependencies:
       '@floating-ui/vue': 1.1.9(vue@3.5.26(typescript@5.9.3))
       '@headlessui/vue': 1.7.23(vue@3.5.26(typescript@5.9.3))
-      '@scalar/api-client': 2.17.5(axios@1.13.2)(storybook@10.1.11(@testing-library/dom@10.4.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
+      '@scalar/api-client': 2.17.6(axios@1.13.2)(storybook@10.1.11(@testing-library/dom@10.4.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(tailwindcss@3.4.19(tsx@4.21.0)(yaml@2.8.2))(typescript@5.9.3)
       '@scalar/code-highlight': 0.2.2
       '@scalar/components': 0.16.16(storybook@10.1.11(@testing-library/dom@10.4.1)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(typescript@5.9.3)
       '@scalar/helpers': 0.2.6
