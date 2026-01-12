@@ -134,10 +134,9 @@ export class WorkspaceDetailPage extends BasePage {
 
     // After creating an agent, the UI navigates to the agent detail page
     // Wait for navigation to the agent detail page
-    await this.page.waitForURL(
-      /\/workspaces\/[^/]+\/agents\/[^/]+$/,
-      { timeout: 15000 }
-    );
+    await this.page.waitForURL(/\/workspaces\/[^/]+\/agents\/[^/]+$/, {
+      timeout: 15000,
+    });
 
     // Extract workspace ID and agent ID from the current URL
     const currentUrl = this.page.url();
@@ -554,11 +553,11 @@ export class WorkspaceDetailPage extends BasePage {
       .locator('div.bg-neutral-50:has(h3:has-text("Add Spending Limit"))')
       .or(this.page.locator('div:has(h3:has-text("Add Spending Limit"))'))
       .first();
-    
+
     const amountInput = formContainer
       .locator('input[type="text"][aria-label*="Amount"]')
       .first();
-    
+
     await this.waitForElement(amountInput, 10000);
     // Clear the input and fill with the amount value
     await amountInput.clear();
