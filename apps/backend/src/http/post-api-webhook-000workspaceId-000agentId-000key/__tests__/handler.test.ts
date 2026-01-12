@@ -195,6 +195,16 @@ vi.mock("../../utils/generationCreditManagement", () => ({
   validateAndReserveCredits: mockValidateCreditsAndLimitsAndReserve,
 }));
 
+// Mock crypto.randomUUID to return predictable values for tests
+const mockRandomUUID = vi.fn();
+vi.mock("crypto", async () => {
+  const actual = await vi.importActual<typeof import("crypto")>("crypto");
+  return {
+    ...actual,
+    randomUUID: () => mockRandomUUID(),
+  };
+});
+
 // Import the handler after mocks are set up
 import { handler } from "../index";
 
@@ -204,6 +214,9 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset randomUUID mock to return predictable values
+    // Each test can override this if needed
+    mockRandomUUID.mockReturnValue("ff028639-8bb4-43f0-87fa-0618dada653c");
   });
 
   it("should successfully process webhook request and return response", async () => {
@@ -1248,6 +1261,8 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
     mockFormatToolResultMessage.mockReturnValue(formattedToolResultMessage);
 
     mockEnqueueCostVerificationIfNeeded.mockResolvedValue(undefined);
+    // Mock randomUUID to return the expected conversationId for this test
+    mockRandomUUID.mockReturnValue("conversation-id-steps");
     mockStartConversation.mockResolvedValue("conversation-id-steps");
 
     const mockDb = createMockDatabase();
@@ -1420,6 +1435,8 @@ describe("post-api-webhook-000workspaceId-000agentId-000key handler", () => {
       provisionalCostUsd: expectedCostUsd,
     });
 
+    // Mock randomUUID to return the expected conversationId for this test
+    mockRandomUUID.mockReturnValue("conversation-id-789");
     mockEnqueueCostVerificationIfNeeded.mockResolvedValue(undefined);
     mockStartConversation.mockResolvedValue("conversation-id-789");
 
