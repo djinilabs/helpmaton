@@ -514,6 +514,21 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     theme: agent?.widgetConfig?.theme || "auto",
   }));
 
+  // Widget customization options (ephemeral - not persisted)
+  const [widgetCustomization, setWidgetCustomization] = useState<{
+    primaryColor?: string;
+    backgroundColor?: string;
+    textColor?: string;
+    borderColor?: string;
+    borderRadius?: string;
+  }>(() => ({
+    primaryColor: "#3b82f6",
+    backgroundColor: "#ffffff",
+    textColor: "#1f2937",
+    borderColor: "#e5e7eb",
+    borderRadius: "8px",
+  }));
+
   // Model state - provider is always "openrouter", only modelName can be changed
   const provider: Provider = "openrouter";
   const [modelName, setModelName] = useState<string | null>(() => {
@@ -2874,6 +2889,183 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         </select>
                       </div>
 
+                      {/* Widget Customization Options */}
+                      <div className="space-y-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900">
+                        <h3 className="text-sm font-semibold">
+                          Customization Options
+                        </h3>
+                        <p className="text-xs opacity-75">
+                          These options are included in the embed code and preview.
+                          They are not saved to the agent configuration.
+                        </p>
+
+                        {/* Colors */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label
+                              htmlFor="widget-primary-color"
+                              className="mb-1 block text-xs font-medium"
+                            >
+                              Primary Color
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                id="widget-primary-color"
+                                type="color"
+                                value={widgetCustomization.primaryColor || "#3b82f6"}
+                                onChange={(e) =>
+                                  setWidgetCustomization({
+                                    ...widgetCustomization,
+                                    primaryColor: e.target.value,
+                                  })
+                                }
+                                className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                              />
+                              <input
+                                type="text"
+                                value={widgetCustomization.primaryColor || "#3b82f6"}
+                                onChange={(e) =>
+                                  setWidgetCustomization({
+                                    ...widgetCustomization,
+                                    primaryColor: e.target.value,
+                                  })
+                                }
+                                placeholder="#3b82f6"
+                                className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label
+                              htmlFor="widget-background-color"
+                              className="mb-1 block text-xs font-medium"
+                            >
+                              Background Color
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                id="widget-background-color"
+                                type="color"
+                                value={widgetCustomization.backgroundColor || "#ffffff"}
+                                onChange={(e) =>
+                                  setWidgetCustomization({
+                                    ...widgetCustomization,
+                                    backgroundColor: e.target.value,
+                                  })
+                                }
+                                className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                              />
+                              <input
+                                type="text"
+                                value={widgetCustomization.backgroundColor || "#ffffff"}
+                                onChange={(e) =>
+                                  setWidgetCustomization({
+                                    ...widgetCustomization,
+                                    backgroundColor: e.target.value,
+                                  })
+                                }
+                                placeholder="#ffffff"
+                                className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label
+                              htmlFor="widget-text-color"
+                              className="mb-1 block text-xs font-medium"
+                            >
+                              Text Color
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                id="widget-text-color"
+                                type="color"
+                                value={widgetCustomization.textColor || "#1f2937"}
+                                onChange={(e) =>
+                                  setWidgetCustomization({
+                                    ...widgetCustomization,
+                                    textColor: e.target.value,
+                                  })
+                                }
+                                className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                              />
+                              <input
+                                type="text"
+                                value={widgetCustomization.textColor || "#1f2937"}
+                                onChange={(e) =>
+                                  setWidgetCustomization({
+                                    ...widgetCustomization,
+                                    textColor: e.target.value,
+                                  })
+                                }
+                                placeholder="#1f2937"
+                                className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label
+                              htmlFor="widget-border-color"
+                              className="mb-1 block text-xs font-medium"
+                            >
+                              Border Color
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                id="widget-border-color"
+                                type="color"
+                                value={widgetCustomization.borderColor || "#e5e7eb"}
+                                onChange={(e) =>
+                                  setWidgetCustomization({
+                                    ...widgetCustomization,
+                                    borderColor: e.target.value,
+                                  })
+                                }
+                                className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                              />
+                              <input
+                                type="text"
+                                value={widgetCustomization.borderColor || "#e5e7eb"}
+                                onChange={(e) =>
+                                  setWidgetCustomization({
+                                    ...widgetCustomization,
+                                    borderColor: e.target.value,
+                                  })
+                                }
+                                placeholder="#e5e7eb"
+                                className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Border Radius */}
+                        <div>
+                          <label
+                            htmlFor="widget-border-radius"
+                            className="mb-1 block text-xs font-medium"
+                          >
+                            Border Radius
+                          </label>
+                          <input
+                            id="widget-border-radius"
+                            type="text"
+                            value={widgetCustomization.borderRadius || "8px"}
+                            onChange={(e) =>
+                              setWidgetCustomization({
+                                ...widgetCustomization,
+                                borderRadius: e.target.value,
+                              })
+                            }
+                            placeholder="8px"
+                            className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                          />
+                        </div>
+                      </div>
+
                       {/* Widget Keys */}
                       <div>
                         <div className="mb-2 flex items-center justify-between">
@@ -2908,24 +3100,27 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       </div>
 
                       {/* Code Snippet */}
-                      {keys?.some((k) => k.type === "widget") && (
-                        <div>
-                          <label className="mb-2 block text-sm font-medium">
-                            Embed Code
-                          </label>
-                          <div className="relative">
-                            <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-neutral-900">
-                              <code>{`<!-- Create a container for the widget -->
-<!-- You can customize the container ID, position, and size to match your design -->
-<div id="helpmaton-widget-container" style="position: fixed; bottom: 20px; right: 20px; width: 400px; height: 600px; z-index: 9999;"></div>
+                      {keys?.some((k) => k.type === "widget") && (() => {
+                        const widgetKey = keys?.find((k) => k.type === "widget")?.key || "YOUR_WIDGET_KEY";
+                        const customizationOptions = [
+                          widgetCustomization.primaryColor ? `    primaryColor: "${widgetCustomization.primaryColor}",` : null,
+                          widgetCustomization.backgroundColor ? `    backgroundColor: "${widgetCustomization.backgroundColor}",` : null,
+                          widgetCustomization.textColor ? `    textColor: "${widgetCustomization.textColor}",` : null,
+                          widgetCustomization.borderColor ? `    borderColor: "${widgetCustomization.borderColor}",` : null,
+                          widgetCustomization.borderRadius ? `    borderRadius: "${widgetCustomization.borderRadius}",` : null,
+                        ].filter(Boolean).join("\n");
+                        
+                        const embedCode = `<!-- Create a container for the widget -->
+<!-- The widget will expand to fill the container's available space -->
+<div id="helpmaton-widget-container" style="width: 100%; height: 100%;"></div>
 
 <script src="https://app.helpmaton.com/widget.js"></script>
 <script>
   AgentWidget.init({
-    apiKey: "${keys?.find((k) => k.type === "widget")?.key || "YOUR_WIDGET_KEY"}",
+    apiKey: "${widgetKey}",
     workspaceId: "${workspaceId}",
     agentId: "${agentId}",
-    containerId: "helpmaton-widget-container", // Must match the container div ID above
+    containerId: "helpmaton-widget-container", // Must match the container div ID above${customizationOptions ? `\n${customizationOptions}` : ""}
     tools: {
       // Add your tool functions here
       // Example:
@@ -2935,45 +3130,54 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       // }
     }
   });
-</script>`}</code>
-                            </pre>
-                            <button
-                              onClick={() => {
-                                const snippet = `<!-- Create a container for the widget -->
-<!-- You can customize the container ID, position, and size to match your design -->
-<div id="helpmaton-widget-container" style="position: fixed; bottom: 20px; right: 20px; width: 400px; height: 600px; z-index: 9999;"></div>
-
-<script src="https://app.helpmaton.com/widget.js"></script>
-<script>
-  AgentWidget.init({
-    apiKey: "${keys?.find((k) => k.type === "widget")?.key || "YOUR_WIDGET_KEY"}",
-    workspaceId: "${workspaceId}",
-    agentId: "${agentId}",
-    containerId: "helpmaton-widget-container", // Must match the container div ID above
-    tools: {
-      // Add your tool functions here
-      // Tool functions receive an object argument and destructure what they need
-      // Example: async ({ productId, quantity }) => { ... }
-    }
-  });
 </script>`;
-                                navigator.clipboard.writeText(snippet);
-                                // You might want to add a toast here
-                              }}
-                              className="bg-primary hover:bg-primary/90 absolute right-2 top-2 rounded px-2 py-1 text-xs text-white"
-                            >
-                              Copy
-                            </button>
+                        
+                        return (
+                          <div>
+                            <label className="mb-2 block text-sm font-medium">
+                              Embed Code
+                            </label>
+                            <div className="relative">
+                              <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-neutral-900">
+                                <code>{embedCode}</code>
+                              </pre>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(embedCode);
+                                  // You might want to add a toast here
+                                }}
+                                className="bg-primary hover:bg-primary/90 absolute right-2 top-2 rounded px-2 py-1 text-xs text-white"
+                              >
+                                Copy
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* Preview and Save Buttons */}
                       <div className="flex gap-3">
                         {keys?.some((k) => k.type === "widget") && (
                           <button
                             onClick={() => {
-                              const previewUrl = `/workspaces/${workspaceId}/agents/${agentId}/widget-preview`;
+                              const params = new URLSearchParams();
+                              if (widgetCustomization.primaryColor) {
+                                params.set("primaryColor", widgetCustomization.primaryColor);
+                              }
+                              if (widgetCustomization.backgroundColor) {
+                                params.set("backgroundColor", widgetCustomization.backgroundColor);
+                              }
+                              if (widgetCustomization.textColor) {
+                                params.set("textColor", widgetCustomization.textColor);
+                              }
+                              if (widgetCustomization.borderColor) {
+                                params.set("borderColor", widgetCustomization.borderColor);
+                              }
+                              if (widgetCustomization.borderRadius) {
+                                params.set("borderRadius", widgetCustomization.borderRadius);
+                              }
+                              const queryString = params.toString();
+                              const previewUrl = `/workspaces/${workspaceId}/agents/${agentId}/widget-preview${queryString ? `?${queryString}` : ""}`;
                               window.open(previewUrl, "_blank", "noopener,noreferrer");
                             }}
                             className="flex items-center gap-2 rounded-xl border-2 border-primary-600 bg-white px-4 py-2.5 font-semibold text-primary-600 transition-all duration-200 hover:bg-primary-50 dark:border-primary-400 dark:bg-neutral-900 dark:text-primary-400 dark:hover:bg-neutral-800"

@@ -58,9 +58,28 @@ export const WidgetContainer: FC<WidgetContainerProps> = ({
     },
   };
 
+  // Build CSS variables for customization
+  const cssVariables: React.CSSProperties = {};
+  if (config.primaryColor) {
+    cssVariables["--widget-primary-color" as any] = config.primaryColor;
+  }
+  if (config.backgroundColor) {
+    cssVariables["--widget-background-color" as any] = config.backgroundColor;
+  }
+  if (config.textColor) {
+    cssVariables["--widget-text-color" as any] = config.textColor;
+  }
+  if (config.borderColor) {
+    cssVariables["--widget-border-color" as any] = config.borderColor;
+  }
+
   return (
-    <QueryClientProvider client={widgetQueryClient}>
-      <AgentChat {...agentChatProps} />
-    </QueryClientProvider>
+    <div style={{ ...cssVariables, width: "100%", height: "100%", display: "flex", flexDirection: "column", minHeight: "100%" }}>
+      <QueryClientProvider client={widgetQueryClient}>
+        <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", minHeight: "100%" }}>
+          <AgentChat {...agentChatProps} />
+        </div>
+      </QueryClientProvider>
+    </div>
   );
 };

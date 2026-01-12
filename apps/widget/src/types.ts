@@ -4,6 +4,11 @@ export interface WidgetConfig {
   agentId: string;
   tools?: Record<string, (...args: any[]) => Promise<any>>;
   theme?: "light" | "dark" | "auto";
+  primaryColor?: string;
+  backgroundColor?: string;
+  textColor?: string;
+  borderColor?: string;
+  borderRadius?: string;
 }
 
 export interface AgentWidgetInitOptions extends WidgetConfig {
@@ -11,4 +16,5 @@ export interface AgentWidgetInitOptions extends WidgetConfig {
   baseUrl?: string;
   // Container ID where the widget should be placed (required)
   containerId: string;
+  // Customization options are inherited from WidgetConfig
 }

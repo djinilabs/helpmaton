@@ -34,41 +34,46 @@ export function init(options: AgentWidgetInitOptions): void {
     widgetInstance = null;
   }
 
-  // Create widget element
-  const widgetElement = document.createElement("agent-chat-widget");
-  
-  // Set base URL if provided
-  if (options.baseUrl) {
-    widgetElement.setAttribute("data-base-url", options.baseUrl);
-  }
-
-  // Append to container (not body)
-  container.appendChild(widgetElement);
-
   // Initialize widget
-  // Wait for custom element to be defined if needed
+  // Wait for custom element to be defined before creating element
+  const initConfig = {
+    apiKey: options.apiKey,
+    workspaceId: options.workspaceId,
+    agentId: options.agentId,
+    tools: options.tools,
+    theme: options.theme,
+    primaryColor: options.primaryColor,
+    backgroundColor: options.backgroundColor,
+    textColor: options.textColor,
+    borderColor: options.borderColor,
+    borderRadius: options.borderRadius,
+  };
+
+  const createAndInitWidget = () => {
+    // Create widget element
+    const widgetElement = document.createElement("agent-chat-widget");
+
+    // Append to container first
+    container.appendChild(widgetElement);
+    
+    // Set base URL if provided (after appending)
+    if (options.baseUrl) {
+      widgetElement.setAttribute("data-base-url", options.baseUrl);
+    }
+
+    // Initialize widget
+    (widgetElement as any).init(initConfig);
+    widgetInstance = widgetElement;
+  };
+
   if (customElements.get("agent-chat-widget")) {
-    (widgetElement as any).init({
-      apiKey: options.apiKey,
-      workspaceId: options.workspaceId,
-      agentId: options.agentId,
-      tools: options.tools,
-      theme: options.theme,
-    });
+    createAndInitWidget();
   } else {
     // If custom element not yet defined, wait for it
     customElements.whenDefined("agent-chat-widget").then(() => {
-      (widgetElement as any).init({
-        apiKey: options.apiKey,
-        workspaceId: options.workspaceId,
-        agentId: options.agentId,
-        tools: options.tools,
-        theme: options.theme,
-      });
+      createAndInitWidget();
     });
   }
-
-  widgetInstance = widgetElement;
 }
 
 // Export init function globally

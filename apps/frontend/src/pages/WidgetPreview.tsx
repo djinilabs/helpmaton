@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FC } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { LoadingScreen } from "../components/LoadingScreen";
 import { useAgent, useAgentKeys } from "../hooks/useAgents";
@@ -14,6 +14,11 @@ declare global {
         workspaceId: string;
         agentId: string;
         theme?: "light" | "dark" | "auto";
+        primaryColor?: string;
+        backgroundColor?: string;
+        textColor?: string;
+        borderColor?: string;
+        borderRadius?: string;
         tools?: Record<string, (...args: unknown[]) => Promise<unknown>>;
         baseUrl?: string;
         containerId: string;
@@ -27,6 +32,7 @@ const WidgetPreview: FC = () => {
     workspaceId: string;
     agentId: string;
   }>();
+  const [searchParams] = useSearchParams();
 
   const { data: agent } = useAgent(workspaceId!, agentId!);
   const { data: keys } = useAgentKeys(workspaceId!, agentId!);
@@ -112,7 +118,8 @@ const WidgetPreview: FC = () => {
       if (!container) {
         container = document.createElement("div");
         container.id = containerId;
-        // Position container in bottom right
+        // Position container in bottom right for demo
+        // The widget will expand to fill this container
         container.style.position = "fixed";
         container.style.bottom = "20px";
         container.style.right = "20px";
@@ -124,11 +131,23 @@ const WidgetPreview: FC = () => {
 
       if (window.AgentWidget) {
         try {
+          // Read customization options from query params
+          const primaryColor = searchParams.get("primaryColor") || undefined;
+          const backgroundColor = searchParams.get("backgroundColor") || undefined;
+          const textColor = searchParams.get("textColor") || undefined;
+          const borderColor = searchParams.get("borderColor") || undefined;
+          const borderRadius = searchParams.get("borderRadius") || undefined;
+
           window.AgentWidget.init({
             apiKey: widgetKey.key!,
             workspaceId,
             agentId,
             theme: agent.widgetConfig?.theme || "auto",
+            primaryColor,
+            backgroundColor,
+            textColor,
+            borderColor,
+            borderRadius,
             baseUrl: window.location.origin,
             containerId,
           });
@@ -158,6 +177,7 @@ const WidgetPreview: FC = () => {
     widgetInitialized,
     workspaceId,
     agentId,
+    searchParams,
   ]);
 
   if (scriptError) {
