@@ -31,7 +31,6 @@ import { useState, Suspense, useRef, useEffect, lazy } from "react";
 import type { FC } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
-import { useLocalPreference } from "../hooks/useLocalPreference";
 
 import { AccordionSection } from "../components/AccordionSection";
 import { ClientToolEditor } from "../components/ClientToolEditor";
@@ -108,6 +107,7 @@ import {
 } from "../hooks/useAgents";
 import { useEmailConnection } from "../hooks/useEmailConnection";
 import { useEscapeKey } from "../hooks/useEscapeKey";
+import { useLocalPreference } from "../hooks/useLocalPreference";
 import { useMcpServers } from "../hooks/useMcpServers";
 import {
   useStreamServer,
@@ -2967,7 +2967,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                       />
                                       {/* Preview with opacity */}
                                       <div
-                                        className="absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700 pointer-events-none"
+                                        className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
                                         style={{
                                           background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
                                           backgroundSize: "8px 8px",
@@ -2975,7 +2975,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                         }}
                                       >
                                         <div
-                                          className="h-full w-full rounded"
+                                          className="size-full rounded"
                                           style={{
                                             backgroundColor: hexToRgba(hex, opacity),
                                           }}
@@ -3049,7 +3049,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                       />
                                       {/* Preview with opacity */}
                                       <div
-                                        className="absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700 pointer-events-none"
+                                        className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
                                         style={{
                                           background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
                                           backgroundSize: "8px 8px",
@@ -3057,7 +3057,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                         }}
                                       >
                                         <div
-                                          className="h-full w-full rounded"
+                                          className="size-full rounded"
                                           style={{
                                             backgroundColor: hexToRgba(hex, opacity),
                                           }}
@@ -3131,7 +3131,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                       />
                                       {/* Preview with opacity */}
                                       <div
-                                        className="absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700 pointer-events-none"
+                                        className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
                                         style={{
                                           background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
                                           backgroundSize: "8px 8px",
@@ -3139,7 +3139,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                         }}
                                       >
                                         <div
-                                          className="h-full w-full rounded"
+                                          className="size-full rounded"
                                           style={{
                                             backgroundColor: hexToRgba(hex, opacity),
                                           }}
@@ -3213,7 +3213,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                       />
                                       {/* Preview with opacity */}
                                       <div
-                                        className="absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700 pointer-events-none"
+                                        className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
                                         style={{
                                           background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
                                           backgroundSize: "8px 8px",
@@ -3221,7 +3221,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                         }}
                                       >
                                         <div
-                                          className="h-full w-full rounded"
+                                          className="size-full rounded"
                                           style={{
                                             backgroundColor: hexToRgba(hex, opacity),
                                           }}
@@ -3351,7 +3351,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                         }}
                                         className="flex-1"
                                       />
-                                      <span className="w-12 text-xs text-right">{numericValue}px</span>
+                                      <span className="w-12 text-right text-xs">{numericValue}px</span>
                                     </div>
                                   </div>
                                 );
@@ -3387,7 +3387,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                         />
                                         {/* Preview with opacity */}
                                         <div
-                                          className="absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700 pointer-events-none"
+                                          className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
                                           style={{
                                             background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
                                             backgroundSize: "8px 8px",
@@ -3395,7 +3395,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                           }}
                                         >
                                           <div
-                                            className="h-full w-full rounded"
+                                            className="size-full rounded"
                                             style={{
                                               backgroundColor: hexToRgba(hex, opacity),
                                             }}

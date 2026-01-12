@@ -28,6 +28,25 @@ import {
   computeCorsHeaders,
   mergeCorsHeaders,
 } from "../utils/streamCorsHeaders";
+import {
+  writeErrorResponse,
+  persistConversationError,
+} from "../utils/streamErrorHandling";
+import {
+  setupWorkspaceCreditContext,
+  normalizeEventToHttpV2,
+  ensureRequestContextHttp,
+} from "../utils/streamEventNormalization";
+import { executeStream } from "../utils/streamExecution";
+import {
+  buildStreamRequestContext,
+  type StreamRequestContext,
+} from "../utils/streamRequestContext";
+import {
+  createResponseStream,
+  writeChunkToStream,
+  type HttpResponseStream,
+} from "../utils/streamResponseStream";
 
 /**
  * Extracts widget path parameters from rawPath when pathParameters is not available
@@ -59,27 +78,9 @@ function extractWidgetPathParametersFromRawPath(rawPath: string): {
   }
   return {};
 }
-import {
-  writeErrorResponse,
-  persistConversationError,
-} from "../utils/streamErrorHandling";
-import {
-  setupWorkspaceCreditContext,
-
-  normalizeEventToHttpV2,
-  ensureRequestContextHttp} from "../utils/streamEventNormalization";
-import { executeStream } from "../utils/streamExecution";
-import {
-  buildStreamRequestContext,
-  type StreamRequestContext,
-} from "../utils/streamRequestContext";
-import {
-  createResponseStream,
-  writeChunkToStream,
-  type HttpResponseStream,
-} from "../utils/streamResponseStream";
 
 // Declare global awslambda for Lambda Function URL streaming
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 declare const awslambda:
   | {
       streamifyResponse: <TEvent, TStream extends HttpResponseStream>(
