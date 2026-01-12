@@ -9,7 +9,7 @@
 - **Max Attempts**: 4 total (1 initial + 3 retries)
 - **Backoff Strategy**: Exponential with jitter
   - Attempt 1: 1s delay
-  - Attempt 2: 2s delay  
+  - Attempt 2: 2s delay
   - Attempt 3: 4s delay
   - Attempt 4: 8s delay (capped at 10s max)
 - **Retry Condition**: Only retries if `isRetryableError()` returns `true`
@@ -52,6 +52,7 @@ The `isRetryableError()` function classifies these as retryable:
 ### Problem
 
 Before the fix, if conversation creation failed with a non-retryable error:
+
 1. Application-level: Failed immediately (not retried)
 2. Queue processor: Marked task as "failed"
 3. SQS: Retried the message indefinitely (no dead letter queue)
@@ -62,6 +63,7 @@ Before the fix, if conversation creation failed with a non-retryable error:
 **1. Improved Error Classification**
 
 Updated `isRetryableError()` to recognize DynamoDB throttling and service errors:
+
 - DynamoDB throttling errors are now classified as retryable (transient)
 - DynamoDB service errors are now classified as retryable (transient)
 - Permanent errors (validation, permissions) still fail immediately
@@ -69,6 +71,7 @@ Updated `isRetryableError()` to recognize DynamoDB throttling and service errors
 **2. Preserved Error Metadata**
 
 When conversation creation fails, we now:
+
 - Preserve the original error name/type
 - Include error in `cause` property
 - This allows proper error classification by `isRetryableError()`
@@ -93,6 +96,7 @@ agent-delegation-queue
 ```
 
 This would:
+
 - Prevent infinite retries
 - Capture permanently failed messages for investigation
 - Provide visibility into persistent failures
@@ -100,6 +104,7 @@ This would:
 ### 2. Monitoring
 
 Add CloudWatch alarms for:
+
 - High failure rates in delegation queue
 - Messages in dead letter queue (if added)
 - Conversation creation failures
@@ -107,6 +112,7 @@ Add CloudWatch alarms for:
 ### 3. Error Tracking
 
 The current implementation:
+
 - Logs all errors with full context
 - Tracks delegations with "failed" status
 - Reports to Sentry via `handlingSQSErrors`
@@ -116,6 +122,7 @@ The current implementation:
 ### File: `apps/backend/src/queues/agent-delegation-queue/index.ts`
 
 **Updated `isRetryableError()` function**:
+
 - Added DynamoDB throttling error detection
 - Added DynamoDB service error detection
 - Checks both error name and message for better coverage
@@ -123,6 +130,7 @@ The current implementation:
 ### File: `apps/backend/src/http/utils/agentUtils.ts`
 
 **Updated conversation creation error handling**:
+
 - Preserves original error name/type
 - Includes error in `cause` property
 - Better error context for classification
