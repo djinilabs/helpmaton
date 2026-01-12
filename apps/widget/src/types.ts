@@ -9,6 +9,9 @@ export interface WidgetConfig {
   textColor?: string;
   borderColor?: string;
   borderRadius?: string;
+  outerBorderEnabled?: boolean;
+  internalBorderThickness?: string;
+  internalBorderColor?: string;
 }
 
 export interface AgentWidgetInitOptions extends WidgetConfig {

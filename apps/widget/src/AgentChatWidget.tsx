@@ -215,11 +215,16 @@ export class AgentChatWidget extends HTMLElement {
         container.style.borderRadius = this.config.borderRadius;
       }
 
-      // Apply border color
-      if (this.config.borderColor) {
-        container.style.borderColor = this.config.borderColor;
-        container.style.borderWidth = "1px";
-        container.style.borderStyle = "solid";
+      // Apply outer border (only if enabled)
+      if (this.config.outerBorderEnabled !== false) {
+        if (this.config.borderColor) {
+          container.style.borderColor = this.config.borderColor;
+          container.style.borderWidth = "1px";
+          container.style.borderStyle = "solid";
+        }
+      } else {
+        // Explicitly remove border if disabled
+        container.style.border = "none";
       }
 
       // Apply background color
@@ -266,6 +271,11 @@ export class AgentChatWidget extends HTMLElement {
     // Override button colors with primary color
     if (this.config.primaryColor) {
       const darkerPrimary = this.adjustColorBrightness(this.config.primaryColor, -15);
+      const evenDarkerPrimary = this.adjustColorBrightness(this.config.primaryColor, -25);
+      
+      // Extract RGB values for shadow (remove alpha for shadow)
+      const primaryRgb = this.extractRgb(this.config.primaryColor);
+      
       cssRules.push(`
         .bg-gradient-primary,
         button.bg-gradient-primary,
@@ -277,7 +287,27 @@ export class AgentChatWidget extends HTMLElement {
         .bg-gradient-primary:hover,
         button.bg-gradient-primary:hover {
           background: ${darkerPrimary} !important;
-          background-image: linear-gradient(to right, ${darkerPrimary}, ${this.adjustColorBrightness(this.config.primaryColor, -25)}) !important;
+          background-image: linear-gradient(to right, ${darkerPrimary}, ${evenDarkerPrimary}) !important;
+        }
+        /* Override shadow-colored to use primary color */
+        .shadow-colored,
+        [class*="shadow-colored"] {
+          box-shadow: 0 8px 24px rgba(${primaryRgb}, 0.25), 0 4px 8px rgba(${primaryRgb}, 0.2) !important;
+        }
+        .shadow-colored:hover {
+          box-shadow: 0 12px 32px rgba(${primaryRgb}, 0.3), 0 6px 12px rgba(${primaryRgb}, 0.25) !important;
+        }
+        /* Override focus ring colors to use primary color */
+        .focus\\:ring-primary-500:focus,
+        .focus\\:ring-primary-400:focus,
+        [class*="focus:ring-primary"]:focus {
+          --tw-ring-color: ${this.config.primaryColor} !important;
+          ring-color: ${this.config.primaryColor} !important;
+        }
+        .focus\\:border-primary-600:focus,
+        .focus\\:border-primary-500:focus,
+        [class*="focus:border-primary"]:focus {
+          border-color: ${this.config.primaryColor} !important;
         }
       `);
     }
@@ -309,23 +339,63 @@ export class AgentChatWidget extends HTMLElement {
         .agent-chat-widget .bg-white,
         .agent-chat-widget .dark\\:bg-neutral-900,
         .agent-chat-widget .bg-neutral-50,
+        .agent-chat-widget .bg-neutral-100,
+        .agent-chat-widget .bg-neutral-800,
         .agent-chat-widget form,
         .agent-chat-widget textarea,
-        .agent-chat-widget input {
+        .agent-chat-widget input,
+        /* Assistant message bubbles */
+        .agent-chat-widget [class*="bg-neutral-100"],
+        .agent-chat-widget [class*="bg-neutral-800"],
+        .agent-chat-widget [class*="dark:bg-neutral-800"] {
           background-color: ${this.config.backgroundColor} !important;
         }
       `);
     }
 
-    // Override border colors if specified
-    if (this.config.borderColor) {
+    // Override internal border colors and thickness if specified
+    if (this.config.internalBorderColor || this.config.internalBorderThickness) {
+      const borderColor = this.config.internalBorderColor || this.config.borderColor || "#e5e7eb";
+      const borderThickness = this.config.internalBorderThickness || "2px";
       cssRules.push(`
         .agent-chat-widget .border-neutral-300,
         .agent-chat-widget .border-neutral-700,
         .agent-chat-widget .dark\\:border-neutral-700,
+        .agent-chat-widget .border-2,
+        .agent-chat-widget .border-neutral-400,
         .agent-chat-widget textarea,
-        .agent-chat-widget input {
+        .agent-chat-widget input,
+        .agent-chat-widget form,
+        /* Override focus border colors */
+        .agent-chat-widget textarea:focus,
+        .agent-chat-widget input:focus {
+          border-color: ${borderColor} !important;
+          border-width: ${borderThickness} !important;
+        }
+        /* Override focus ring to use internal border color */
+        .agent-chat-widget textarea:focus,
+        .agent-chat-widget input:focus {
+          --tw-ring-color: ${borderColor} !important;
+          ring-color: ${borderColor} !important;
+        }
+      `);
+    } else if (this.config.borderColor) {
+      // Fallback to outer border color for internal borders if no internal color specified
+      cssRules.push(`
+        .agent-chat-widget .border-neutral-300,
+        .agent-chat-widget .border-neutral-700,
+        .agent-chat-widget .dark\\:border-neutral-700,
+        .agent-chat-widget .border-2,
+        .agent-chat-widget textarea,
+        .agent-chat-widget input,
+        .agent-chat-widget textarea:focus,
+        .agent-chat-widget input:focus {
           border-color: ${this.config.borderColor} !important;
+        }
+        .agent-chat-widget textarea:focus,
+        .agent-chat-widget input:focus {
+          --tw-ring-color: ${this.config.borderColor} !important;
+          ring-color: ${this.config.borderColor} !important;
         }
       `);
     }
@@ -340,20 +410,52 @@ export class AgentChatWidget extends HTMLElement {
 
   private adjustColorBrightness(color: string, percent: number): string {
     // Adjust color brightness by percentage (-100 to 100)
-    // Remove # if present
+    // Handle both hex and rgba formats
+    const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+    
+    if (rgbaMatch) {
+      // RGBA format
+      const r = parseInt(rgbaMatch[1]);
+      const g = parseInt(rgbaMatch[2]);
+      const b = parseInt(rgbaMatch[3]);
+      const a = rgbaMatch[4] ? parseFloat(rgbaMatch[4]) : 1;
+      
+      const factor = 1 + percent / 100;
+      const newR = Math.max(0, Math.min(255, Math.round(r * factor)));
+      const newG = Math.max(0, Math.min(255, Math.round(g * factor)));
+      const newB = Math.max(0, Math.min(255, Math.round(b * factor)));
+      
+      return `rgba(${newR}, ${newG}, ${newB}, ${a})`;
+    } else {
+      // Hex format
+      const hex = color.replace("#", "");
+      const num = parseInt(hex, 16);
+      const r = (num >> 16) & 255;
+      const g = (num >> 8) & 255;
+      const b = num & 255;
+      
+      const factor = 1 + percent / 100;
+      const newR = Math.max(0, Math.min(255, Math.round(r * factor)));
+      const newG = Math.max(0, Math.min(255, Math.round(g * factor)));
+      const newB = Math.max(0, Math.min(255, Math.round(b * factor)));
+      
+      return `#${((1 << 24) + (newR << 16) + (newG << 8) + newB).toString(16).slice(1)}`;
+    }
+  }
+
+  private extractRgb(color: string): string {
+    // Extract RGB values from hex or rgba format for use in rgba() shadows
+    const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (rgbaMatch) {
+      return `${rgbaMatch[1]}, ${rgbaMatch[2]}, ${rgbaMatch[3]}`;
+    }
+    
+    // Hex format
     const hex = color.replace("#", "");
-    const num = parseInt(hex, 16);
-    const r = (num >> 16) & 255;
-    const g = (num >> 8) & 255;
-    const b = num & 255;
-    
-    // Adjust brightness
-    const factor = 1 + percent / 100;
-    const newR = Math.max(0, Math.min(255, Math.round(r * factor)));
-    const newG = Math.max(0, Math.min(255, Math.round(g * factor)));
-    const newB = Math.max(0, Math.min(255, Math.round(b * factor)));
-    
-    return `#${((1 << 24) + (newR << 16) + (newG << 8) + newB).toString(16).slice(1)}`;
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return `${r}, ${g}, ${b}`;
   }
 
   private render() {

@@ -31,6 +31,8 @@ import { useState, Suspense, useRef, useEffect, lazy } from "react";
 import type { FC } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
+import { useLocalPreference } from "../hooks/useLocalPreference";
+
 import { AccordionSection } from "../components/AccordionSection";
 import { ClientToolEditor } from "../components/ClientToolEditor";
 import { ErrorBoundary } from "../components/ErrorBoundary";
@@ -514,20 +516,26 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     theme: agent?.widgetConfig?.theme || "auto",
   }));
 
-  // Widget customization options (ephemeral - not persisted)
-  const [widgetCustomization, setWidgetCustomization] = useState<{
+  // Widget customization options (saved locally per agent)
+  const [widgetCustomization, setWidgetCustomization] = useLocalPreference<{
     primaryColor?: string;
     backgroundColor?: string;
     textColor?: string;
     borderColor?: string;
     borderRadius?: string;
-  }>(() => ({
+    outerBorderEnabled?: boolean;
+    internalBorderThickness?: string;
+    internalBorderColor?: string;
+  }>(`widget-customization-${agentId}`, {
     primaryColor: "#3b82f6",
     backgroundColor: "#ffffff",
     textColor: "#1f2937",
     borderColor: "#e5e7eb",
     borderRadius: "8px",
-  }));
+    outerBorderEnabled: true,
+    internalBorderThickness: "2px",
+    internalBorderColor: "#e5e7eb",
+  });
 
   // Model state - provider is always "openrouter", only modelName can be changed
   const provider: Provider = "openrouter";
@@ -2896,11 +2904,39 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         </h3>
                         <p className="text-xs opacity-75">
                           These options are included in the embed code and preview.
-                          They are not saved to the agent configuration.
+                          They are saved locally in your browser and persist across sessions.
+                          Colors support hex (#rrggbb) or rgba(r, g, b, a) format.
                         </p>
 
-                        {/* Colors */}
-                        <div className="grid grid-cols-2 gap-4">
+                        {/* Helper function to parse color and opacity */}
+                        {(() => {
+                          const parseColor = (color?: string) => {
+                            if (!color) return { hex: "#000000", opacity: 1 };
+                            // Check if it's rgba
+                            const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+                            if (rgbaMatch) {
+                              const r = parseInt(rgbaMatch[1]);
+                              const g = parseInt(rgbaMatch[2]);
+                              const b = parseInt(rgbaMatch[3]);
+                              const a = rgbaMatch[4] ? parseFloat(rgbaMatch[4]) : 1;
+                              const hex = `#${[r, g, b].map(x => x.toString(16).padStart(2, "0")).join("")}`;
+                              return { hex, opacity: a };
+                            }
+                            // Assume hex
+                            return { hex: color, opacity: 1 };
+                          };
+
+                          const hexToRgba = (hex: string, opacity: number) => {
+                            const r = parseInt(hex.slice(1, 3), 16);
+                            const g = parseInt(hex.slice(3, 5), 16);
+                            const b = parseInt(hex.slice(5, 7), 16);
+                            return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                          };
+
+                          return (
+                            <>
+                              {/* Colors */}
+                              <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label
                               htmlFor="widget-primary-color"
@@ -2908,32 +2944,79 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                             >
                               Primary Color
                             </label>
-                            <div className="flex gap-2">
-                              <input
-                                id="widget-primary-color"
-                                type="color"
-                                value={widgetCustomization.primaryColor || "#3b82f6"}
-                                onChange={(e) =>
-                                  setWidgetCustomization({
-                                    ...widgetCustomization,
-                                    primaryColor: e.target.value,
-                                  })
-                                }
-                                className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
-                              />
-                              <input
-                                type="text"
-                                value={widgetCustomization.primaryColor || "#3b82f6"}
-                                onChange={(e) =>
-                                  setWidgetCustomization({
-                                    ...widgetCustomization,
-                                    primaryColor: e.target.value,
-                                  })
-                                }
-                                placeholder="#3b82f6"
-                                className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
-                              />
-                            </div>
+                            {(() => {
+                              const { hex, opacity } = parseColor(widgetCustomization.primaryColor);
+                              return (
+                                <div className="space-y-2">
+                                  <div className="flex gap-2">
+                                    <div className="relative">
+                                      <input
+                                        id="widget-primary-color"
+                                        type="color"
+                                        value={hex}
+                                        onChange={(e) => {
+                                          const newColor = opacity < 1 
+                                            ? hexToRgba(e.target.value, opacity)
+                                            : e.target.value;
+                                          setWidgetCustomization({
+                                            ...widgetCustomization,
+                                            primaryColor: newColor,
+                                          });
+                                        }}
+                                        className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                      />
+                                      {/* Preview with opacity */}
+                                      <div
+                                        className="absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700 pointer-events-none"
+                                        style={{
+                                          background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
+                                          backgroundSize: "8px 8px",
+                                          backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
+                                        }}
+                                      >
+                                        <div
+                                          className="h-full w-full rounded"
+                                          style={{
+                                            backgroundColor: hexToRgba(hex, opacity),
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={widgetCustomization.primaryColor || "#3b82f6"}
+                                      onChange={(e) =>
+                                        setWidgetCustomization({
+                                          ...widgetCustomization,
+                                          primaryColor: e.target.value,
+                                        })
+                                      }
+                                      placeholder="#3b82f6 or rgba(...)"
+                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <label className="text-xs">Opacity:</label>
+                                    <input
+                                      type="range"
+                                      min="0"
+                                      max="1"
+                                      step="0.01"
+                                      value={opacity}
+                                      onChange={(e) => {
+                                        const newOpacity = parseFloat(e.target.value);
+                                        setWidgetCustomization({
+                                          ...widgetCustomization,
+                                          primaryColor: hexToRgba(hex, newOpacity),
+                                        });
+                                      }}
+                                      className="flex-1"
+                                    />
+                                    <span className="w-12 text-xs">{Math.round(opacity * 100)}%</span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           <div>
@@ -2943,32 +3026,79 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                             >
                               Background Color
                             </label>
-                            <div className="flex gap-2">
-                              <input
-                                id="widget-background-color"
-                                type="color"
-                                value={widgetCustomization.backgroundColor || "#ffffff"}
-                                onChange={(e) =>
-                                  setWidgetCustomization({
-                                    ...widgetCustomization,
-                                    backgroundColor: e.target.value,
-                                  })
-                                }
-                                className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
-                              />
-                              <input
-                                type="text"
-                                value={widgetCustomization.backgroundColor || "#ffffff"}
-                                onChange={(e) =>
-                                  setWidgetCustomization({
-                                    ...widgetCustomization,
-                                    backgroundColor: e.target.value,
-                                  })
-                                }
-                                placeholder="#ffffff"
-                                className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
-                              />
-                            </div>
+                            {(() => {
+                              const { hex, opacity } = parseColor(widgetCustomization.backgroundColor);
+                              return (
+                                <div className="space-y-2">
+                                  <div className="flex gap-2">
+                                    <div className="relative">
+                                      <input
+                                        id="widget-background-color"
+                                        type="color"
+                                        value={hex}
+                                        onChange={(e) => {
+                                          const newColor = opacity < 1 
+                                            ? hexToRgba(e.target.value, opacity)
+                                            : e.target.value;
+                                          setWidgetCustomization({
+                                            ...widgetCustomization,
+                                            backgroundColor: newColor,
+                                          });
+                                        }}
+                                        className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                      />
+                                      {/* Preview with opacity */}
+                                      <div
+                                        className="absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700 pointer-events-none"
+                                        style={{
+                                          background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
+                                          backgroundSize: "8px 8px",
+                                          backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
+                                        }}
+                                      >
+                                        <div
+                                          className="h-full w-full rounded"
+                                          style={{
+                                            backgroundColor: hexToRgba(hex, opacity),
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={widgetCustomization.backgroundColor || "#ffffff"}
+                                      onChange={(e) =>
+                                        setWidgetCustomization({
+                                          ...widgetCustomization,
+                                          backgroundColor: e.target.value,
+                                        })
+                                      }
+                                      placeholder="#ffffff or rgba(...)"
+                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <label className="text-xs">Opacity:</label>
+                                    <input
+                                      type="range"
+                                      min="0"
+                                      max="1"
+                                      step="0.01"
+                                      value={opacity}
+                                      onChange={(e) => {
+                                        const newOpacity = parseFloat(e.target.value);
+                                        setWidgetCustomization({
+                                          ...widgetCustomization,
+                                          backgroundColor: hexToRgba(hex, newOpacity),
+                                        });
+                                      }}
+                                      className="flex-1"
+                                    />
+                                    <span className="w-12 text-xs">{Math.round(opacity * 100)}%</span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           <div>
@@ -2978,32 +3108,79 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                             >
                               Text Color
                             </label>
-                            <div className="flex gap-2">
-                              <input
-                                id="widget-text-color"
-                                type="color"
-                                value={widgetCustomization.textColor || "#1f2937"}
-                                onChange={(e) =>
-                                  setWidgetCustomization({
-                                    ...widgetCustomization,
-                                    textColor: e.target.value,
-                                  })
-                                }
-                                className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
-                              />
-                              <input
-                                type="text"
-                                value={widgetCustomization.textColor || "#1f2937"}
-                                onChange={(e) =>
-                                  setWidgetCustomization({
-                                    ...widgetCustomization,
-                                    textColor: e.target.value,
-                                  })
-                                }
-                                placeholder="#1f2937"
-                                className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
-                              />
-                            </div>
+                            {(() => {
+                              const { hex, opacity } = parseColor(widgetCustomization.textColor);
+                              return (
+                                <div className="space-y-2">
+                                  <div className="flex gap-2">
+                                    <div className="relative">
+                                      <input
+                                        id="widget-text-color"
+                                        type="color"
+                                        value={hex}
+                                        onChange={(e) => {
+                                          const newColor = opacity < 1 
+                                            ? hexToRgba(e.target.value, opacity)
+                                            : e.target.value;
+                                          setWidgetCustomization({
+                                            ...widgetCustomization,
+                                            textColor: newColor,
+                                          });
+                                        }}
+                                        className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                      />
+                                      {/* Preview with opacity */}
+                                      <div
+                                        className="absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700 pointer-events-none"
+                                        style={{
+                                          background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
+                                          backgroundSize: "8px 8px",
+                                          backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
+                                        }}
+                                      >
+                                        <div
+                                          className="h-full w-full rounded"
+                                          style={{
+                                            backgroundColor: hexToRgba(hex, opacity),
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={widgetCustomization.textColor || "#1f2937"}
+                                      onChange={(e) =>
+                                        setWidgetCustomization({
+                                          ...widgetCustomization,
+                                          textColor: e.target.value,
+                                        })
+                                      }
+                                      placeholder="#1f2937 or rgba(...)"
+                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <label className="text-xs">Opacity:</label>
+                                    <input
+                                      type="range"
+                                      min="0"
+                                      max="1"
+                                      step="0.01"
+                                      value={opacity}
+                                      onChange={(e) => {
+                                        const newOpacity = parseFloat(e.target.value);
+                                        setWidgetCustomization({
+                                          ...widgetCustomization,
+                                          textColor: hexToRgba(hex, newOpacity),
+                                        });
+                                      }}
+                                      className="flex-1"
+                                    />
+                                    <span className="w-12 text-xs">{Math.round(opacity * 100)}%</span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           <div>
@@ -3011,34 +3188,81 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                               htmlFor="widget-border-color"
                               className="mb-1 block text-xs font-medium"
                             >
-                              Border Color
+                              Outer Border Color
                             </label>
-                            <div className="flex gap-2">
-                              <input
-                                id="widget-border-color"
-                                type="color"
-                                value={widgetCustomization.borderColor || "#e5e7eb"}
-                                onChange={(e) =>
-                                  setWidgetCustomization({
-                                    ...widgetCustomization,
-                                    borderColor: e.target.value,
-                                  })
-                                }
-                                className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
-                              />
-                              <input
-                                type="text"
-                                value={widgetCustomization.borderColor || "#e5e7eb"}
-                                onChange={(e) =>
-                                  setWidgetCustomization({
-                                    ...widgetCustomization,
-                                    borderColor: e.target.value,
-                                  })
-                                }
-                                placeholder="#e5e7eb"
-                                className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
-                              />
-                            </div>
+                            {(() => {
+                              const { hex, opacity } = parseColor(widgetCustomization.borderColor);
+                              return (
+                                <div className="space-y-2">
+                                  <div className="flex gap-2">
+                                    <div className="relative">
+                                      <input
+                                        id="widget-border-color"
+                                        type="color"
+                                        value={hex}
+                                        onChange={(e) => {
+                                          const newColor = opacity < 1 
+                                            ? hexToRgba(e.target.value, opacity)
+                                            : e.target.value;
+                                          setWidgetCustomization({
+                                            ...widgetCustomization,
+                                            borderColor: newColor,
+                                          });
+                                        }}
+                                        className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                      />
+                                      {/* Preview with opacity */}
+                                      <div
+                                        className="absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700 pointer-events-none"
+                                        style={{
+                                          background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
+                                          backgroundSize: "8px 8px",
+                                          backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
+                                        }}
+                                      >
+                                        <div
+                                          className="h-full w-full rounded"
+                                          style={{
+                                            backgroundColor: hexToRgba(hex, opacity),
+                                          }}
+                                        />
+                                      </div>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={widgetCustomization.borderColor || "#e5e7eb"}
+                                      onChange={(e) =>
+                                        setWidgetCustomization({
+                                          ...widgetCustomization,
+                                          borderColor: e.target.value,
+                                        })
+                                      }
+                                      placeholder="#e5e7eb or rgba(...)"
+                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                    />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <label className="text-xs">Opacity:</label>
+                                    <input
+                                      type="range"
+                                      min="0"
+                                      max="1"
+                                      step="0.01"
+                                      value={opacity}
+                                      onChange={(e) => {
+                                        const newOpacity = parseFloat(e.target.value);
+                                        setWidgetCustomization({
+                                          ...widgetCustomization,
+                                          borderColor: hexToRgba(hex, newOpacity),
+                                        });
+                                      }}
+                                      className="flex-1"
+                                    />
+                                    <span className="w-12 text-xs">{Math.round(opacity * 100)}%</span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
 
@@ -3064,6 +3288,161 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                             className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
                           />
                         </div>
+
+                        {/* Outer Border Toggle */}
+                        <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                          <div>
+                            <label
+                              htmlFor="widget-outer-border"
+                              className="text-xs font-medium"
+                            >
+                              Outer Border
+                            </label>
+                            <p className="text-xs opacity-75">
+                              Show border around the widget container
+                            </p>
+                          </div>
+                          <input
+                            id="widget-outer-border"
+                            type="checkbox"
+                            checked={widgetCustomization.outerBorderEnabled !== false}
+                            onChange={(e) =>
+                              setWidgetCustomization({
+                                ...widgetCustomization,
+                                outerBorderEnabled: e.target.checked,
+                              })
+                            }
+                            className="text-primary focus:ring-primary size-5 rounded border-neutral-300 dark:border-neutral-700"
+                          />
+                        </div>
+
+                        {/* Internal Border */}
+                        <div className="space-y-2">
+                          <label className="block text-xs font-medium">
+                            Internal Border
+                          </label>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label
+                                htmlFor="widget-internal-border-thickness"
+                                className="mb-1 block text-xs font-medium"
+                              >
+                                Thickness
+                              </label>
+                              {(() => {
+                                const thicknessValue = widgetCustomization.internalBorderThickness || "2px";
+                                const numericValue = parseInt(thicknessValue.replace("px", "")) || 2;
+                                return (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        id="widget-internal-border-thickness"
+                                        type="range"
+                                        min="0"
+                                        max="10"
+                                        step="1"
+                                        value={numericValue}
+                                        onChange={(e) => {
+                                          const value = parseInt(e.target.value);
+                                          setWidgetCustomization({
+                                            ...widgetCustomization,
+                                            internalBorderThickness: `${value}px`,
+                                          });
+                                        }}
+                                        className="flex-1"
+                                      />
+                                      <span className="w-12 text-xs text-right">{numericValue}px</span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                            <div>
+                              <label
+                                htmlFor="widget-internal-border-color"
+                                className="mb-1 block text-xs font-medium"
+                              >
+                                Color
+                              </label>
+                              {(() => {
+                                const { hex, opacity } = parseColor(widgetCustomization.internalBorderColor);
+                                return (
+                                  <div className="space-y-2">
+                                    <div className="flex gap-2">
+                                      <div className="relative">
+                                        <input
+                                          id="widget-internal-border-color"
+                                          type="color"
+                                          value={hex}
+                                          onChange={(e) => {
+                                            const newColor = opacity < 1 
+                                              ? hexToRgba(e.target.value, opacity)
+                                              : e.target.value;
+                                            setWidgetCustomization({
+                                              ...widgetCustomization,
+                                              internalBorderColor: newColor,
+                                            });
+                                          }}
+                                          className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                        />
+                                        {/* Preview with opacity */}
+                                        <div
+                                          className="absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700 pointer-events-none"
+                                          style={{
+                                            background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
+                                            backgroundSize: "8px 8px",
+                                            backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
+                                          }}
+                                        >
+                                          <div
+                                            className="h-full w-full rounded"
+                                            style={{
+                                              backgroundColor: hexToRgba(hex, opacity),
+                                            }}
+                                          />
+                                        </div>
+                                      </div>
+                                      <input
+                                        type="text"
+                                        value={widgetCustomization.internalBorderColor || "#e5e7eb"}
+                                        onChange={(e) =>
+                                          setWidgetCustomization({
+                                            ...widgetCustomization,
+                                            internalBorderColor: e.target.value,
+                                          })
+                                        }
+                                        placeholder="#e5e7eb or rgba(...)"
+                                        className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <label className="text-xs">Opacity:</label>
+                                      <input
+                                        type="range"
+                                        min="0"
+                                        max="1"
+                                        step="0.01"
+                                        value={opacity}
+                                        onChange={(e) => {
+                                          const newOpacity = parseFloat(e.target.value);
+                                          setWidgetCustomization({
+                                            ...widgetCustomization,
+                                            internalBorderColor: hexToRgba(hex, newOpacity),
+                                          });
+                                        }}
+                                        className="flex-1"
+                                      />
+                                      <span className="w-12 text-xs">{Math.round(opacity * 100)}%</span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+                            </>
+                          );
+                        })()}
                       </div>
 
                       {/* Widget Keys */}
@@ -3108,6 +3487,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           widgetCustomization.textColor ? `    textColor: "${widgetCustomization.textColor}",` : null,
                           widgetCustomization.borderColor ? `    borderColor: "${widgetCustomization.borderColor}",` : null,
                           widgetCustomization.borderRadius ? `    borderRadius: "${widgetCustomization.borderRadius}",` : null,
+                          widgetCustomization.outerBorderEnabled !== undefined ? `    outerBorderEnabled: ${widgetCustomization.outerBorderEnabled},` : null,
+                          widgetCustomization.internalBorderThickness ? `    internalBorderThickness: "${widgetCustomization.internalBorderThickness}",` : null,
+                          widgetCustomization.internalBorderColor ? `    internalBorderColor: "${widgetCustomization.internalBorderColor}",` : null,
                         ].filter(Boolean).join("\n");
                         
                         const embedCode = `<!-- Create a container for the widget -->
@@ -3175,6 +3557,15 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                               }
                               if (widgetCustomization.borderRadius) {
                                 params.set("borderRadius", widgetCustomization.borderRadius);
+                              }
+                              if (widgetCustomization.outerBorderEnabled !== undefined) {
+                                params.set("outerBorderEnabled", String(widgetCustomization.outerBorderEnabled));
+                              }
+                              if (widgetCustomization.internalBorderThickness) {
+                                params.set("internalBorderThickness", widgetCustomization.internalBorderThickness);
+                              }
+                              if (widgetCustomization.internalBorderColor) {
+                                params.set("internalBorderColor", widgetCustomization.internalBorderColor);
                               }
                               const queryString = params.toString();
                               const previewUrl = `/workspaces/${workspaceId}/agents/${agentId}/widget-preview${queryString ? `?${queryString}` : ""}`;

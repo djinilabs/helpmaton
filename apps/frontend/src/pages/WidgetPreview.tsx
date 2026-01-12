@@ -19,6 +19,9 @@ declare global {
         textColor?: string;
         borderColor?: string;
         borderRadius?: string;
+        outerBorderEnabled?: boolean;
+        internalBorderThickness?: string;
+        internalBorderColor?: string;
         tools?: Record<string, (...args: unknown[]) => Promise<unknown>>;
         baseUrl?: string;
         containerId: string;
@@ -137,6 +140,9 @@ const WidgetPreview: FC = () => {
           const textColor = searchParams.get("textColor") || undefined;
           const borderColor = searchParams.get("borderColor") || undefined;
           const borderRadius = searchParams.get("borderRadius") || undefined;
+          const outerBorderEnabled = searchParams.get("outerBorderEnabled") === "true" ? true : searchParams.get("outerBorderEnabled") === "false" ? false : undefined;
+          const internalBorderThickness = searchParams.get("internalBorderThickness") || undefined;
+          const internalBorderColor = searchParams.get("internalBorderColor") || undefined;
 
           window.AgentWidget.init({
             apiKey: widgetKey.key!,
@@ -148,6 +154,9 @@ const WidgetPreview: FC = () => {
             textColor,
             borderColor,
             borderRadius,
+            outerBorderEnabled,
+            internalBorderThickness,
+            internalBorderColor,
             baseUrl: window.location.origin,
             containerId,
           });

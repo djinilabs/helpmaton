@@ -430,7 +430,7 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
       overflow-x: hidden;
     }
   `,t.appendChild(a);const i=Array.from(document.querySelectorAll('link[rel="stylesheet"]'));for(const f of i){const p=f.getAttribute("href");if(p&&(p.includes("index")||p.includes("assets")||p.endsWith(".css")))try{const g=p.startsWith("http")?p:new URL(p,window.location.origin).href,y=await fetch(g);if(y.ok){const b=await y.text();if(b.includes(".flex")||b.includes("tailwind")||b.includes("@tailwind")||b.length>1e4){const S=document.createElement("style");S.textContent=b,t.appendChild(S),console.log("[Widget] Successfully loaded CSS from:",p);return}}}catch(g){console.debug("[Widget] Could not load stylesheet:",p,g)}}const u=Array.from(document.querySelectorAll("style"));for(const f of u){const p=f.textContent||"";if(p.length>1e3&&(p.includes(".flex")||p.includes("@tailwind"))){const g=document.createElement("style");g.textContent=p,t.appendChild(g),console.log("[Widget] Successfully extracted CSS from inline style element");return}}try{const f=Array.from(document.styleSheets);let p="";for(const g of f)try{const y=Array.from(g.cssRules||g.rules||[]);for(const b of y)p+=b.cssText+`
-`}catch{continue}if(p.length>1e3){const g=document.createElement("style");g.textContent=p,t.appendChild(g),console.log("[Widget] Successfully extracted CSS from document stylesheets");return}}catch(f){console.debug("[Widget] Could not extract CSS from stylesheets:",f)}console.warn("[Widget] Tailwind CSS not found. Widget may not display correctly. Make sure the frontend is built.")};class cB extends HTMLElement{constructor(){super();zb(this,"reactRoot",null);zb(this,"config",null);zb(this,"baseUrl");zb(this,"_shadowRoot",null);const i=this.attachShadow({mode:"open"});this._shadowRoot=i,this.baseUrl=typeof window<"u"&&window.location.origin?window.location.origin:"https://app.helpmaton.com",sB(i).catch(f=>{console.error("[Widget] Failed to inject styles:",f)});const u=document.createElement("div");u.className="agent-chat-widget",i.appendChild(u),ID(i)}connectedCallback(){const i=this.getAttribute("data-base-url");if(i&&(this.baseUrl=i),this.style.display="block",this.style.width="100%",this.style.height="100%",this.style.minHeight="100%",this.applyContainerStyles(),!this.reactRoot&&this.config){const f=(this._shadowRoot||this.shadowRoot).querySelector(".agent-chat-widget");f&&(this.reactRoot=S2.createRoot(f),this.render())}}disconnectedCallback(){this.reactRoot&&(this.reactRoot.unmount(),this.reactRoot=null)}init(i){if(this.config=i,this.applyContainerStyles(),this.isConnected&&!this.reactRoot){const f=(this._shadowRoot||this.shadowRoot).querySelector(".agent-chat-widget");f&&(this.reactRoot=S2.createRoot(f),this.render())}else this.isConnected&&this.reactRoot&&this.render()}applyContainerStyles(){if(!this.config)return;const i=this._shadowRoot||this.shadowRoot;if(!i)return;const u=i.querySelector(".agent-chat-widget");u&&(this.config.borderRadius&&(u.style.borderRadius=this.config.borderRadius),this.config.borderColor&&(u.style.borderColor=this.config.borderColor,u.style.borderWidth="1px",u.style.borderStyle="solid"),this.config.backgroundColor&&(u.style.backgroundColor=this.config.backgroundColor)),this.injectCustomColors(i)}injectCustomColors(i){if(!this.config)return;const u=i.getElementById("widget-custom-colors");u&&u.remove();const f=[],p=[];if(this.config.primaryColor&&p.push(`--widget-primary-color: ${this.config.primaryColor}`),this.config.backgroundColor&&p.push(`--widget-background-color: ${this.config.backgroundColor}`),this.config.textColor&&p.push(`--widget-text-color: ${this.config.textColor}`),this.config.borderColor&&p.push(`--widget-border-color: ${this.config.borderColor}`),p.length>0&&f.push(`:host { ${p.join("; ")} }`),this.config.primaryColor){const g=this.adjustColorBrightness(this.config.primaryColor,-15);f.push(`
+`}catch{continue}if(p.length>1e3){const g=document.createElement("style");g.textContent=p,t.appendChild(g),console.log("[Widget] Successfully extracted CSS from document stylesheets");return}}catch(f){console.debug("[Widget] Could not extract CSS from stylesheets:",f)}console.warn("[Widget] Tailwind CSS not found. Widget may not display correctly. Make sure the frontend is built.")};class cB extends HTMLElement{constructor(){super();zb(this,"reactRoot",null);zb(this,"config",null);zb(this,"baseUrl");zb(this,"_shadowRoot",null);const i=this.attachShadow({mode:"open"});this._shadowRoot=i,this.baseUrl=typeof window<"u"&&window.location.origin?window.location.origin:"https://app.helpmaton.com",sB(i).catch(f=>{console.error("[Widget] Failed to inject styles:",f)});const u=document.createElement("div");u.className="agent-chat-widget",i.appendChild(u),ID(i)}connectedCallback(){const i=this.getAttribute("data-base-url");if(i&&(this.baseUrl=i),this.style.display="block",this.style.width="100%",this.style.height="100%",this.style.minHeight="100%",this.applyContainerStyles(),!this.reactRoot&&this.config){const f=(this._shadowRoot||this.shadowRoot).querySelector(".agent-chat-widget");f&&(this.reactRoot=S2.createRoot(f),this.render())}}disconnectedCallback(){this.reactRoot&&(this.reactRoot.unmount(),this.reactRoot=null)}init(i){if(this.config=i,this.applyContainerStyles(),this.isConnected&&!this.reactRoot){const f=(this._shadowRoot||this.shadowRoot).querySelector(".agent-chat-widget");f&&(this.reactRoot=S2.createRoot(f),this.render())}else this.isConnected&&this.reactRoot&&this.render()}applyContainerStyles(){if(!this.config)return;const i=this._shadowRoot||this.shadowRoot;if(!i)return;const u=i.querySelector(".agent-chat-widget");u&&(this.config.borderRadius&&(u.style.borderRadius=this.config.borderRadius),this.config.outerBorderEnabled!==!1?this.config.borderColor&&(u.style.borderColor=this.config.borderColor,u.style.borderWidth="1px",u.style.borderStyle="solid"):u.style.border="none",this.config.backgroundColor&&(u.style.backgroundColor=this.config.backgroundColor)),this.injectCustomColors(i)}injectCustomColors(i){if(!this.config)return;const u=i.getElementById("widget-custom-colors");u&&u.remove();const f=[],p=[];if(this.config.primaryColor&&p.push(`--widget-primary-color: ${this.config.primaryColor}`),this.config.backgroundColor&&p.push(`--widget-background-color: ${this.config.backgroundColor}`),this.config.textColor&&p.push(`--widget-text-color: ${this.config.textColor}`),this.config.borderColor&&p.push(`--widget-border-color: ${this.config.borderColor}`),p.length>0&&f.push(`:host { ${p.join("; ")} }`),this.config.primaryColor){const g=this.adjustColorBrightness(this.config.primaryColor,-15),y=this.adjustColorBrightness(this.config.primaryColor,-25),b=this.extractRgb(this.config.primaryColor);f.push(`
         .bg-gradient-primary,
         button.bg-gradient-primary,
         button[class*="bg-gradient-primary"],
@@ -441,7 +441,27 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
         .bg-gradient-primary:hover,
         button.bg-gradient-primary:hover {
           background: ${g} !important;
-          background-image: linear-gradient(to right, ${g}, ${this.adjustColorBrightness(this.config.primaryColor,-25)}) !important;
+          background-image: linear-gradient(to right, ${g}, ${y}) !important;
+        }
+        /* Override shadow-colored to use primary color */
+        .shadow-colored,
+        [class*="shadow-colored"] {
+          box-shadow: 0 8px 24px rgba(${b}, 0.25), 0 4px 8px rgba(${b}, 0.2) !important;
+        }
+        .shadow-colored:hover {
+          box-shadow: 0 12px 32px rgba(${b}, 0.3), 0 6px 12px rgba(${b}, 0.25) !important;
+        }
+        /* Override focus ring colors to use primary color */
+        .focus\\:ring-primary-500:focus,
+        .focus\\:ring-primary-400:focus,
+        [class*="focus:ring-primary"]:focus {
+          --tw-ring-color: ${this.config.primaryColor} !important;
+          ring-color: ${this.config.primaryColor} !important;
+        }
+        .focus\\:border-primary-600:focus,
+        .focus\\:border-primary-500:focus,
+        [class*="focus:border-primary"]:focus {
+          border-color: ${this.config.primaryColor} !important;
         }
       `)}if(this.config.textColor&&f.push(`
         .agent-chat-widget p,
@@ -463,18 +483,53 @@ Set the \`cycles\` parameter to \`"ref"\` to resolve cyclical schemas with defs.
         .agent-chat-widget .bg-white,
         .agent-chat-widget .dark\\:bg-neutral-900,
         .agent-chat-widget .bg-neutral-50,
+        .agent-chat-widget .bg-neutral-100,
+        .agent-chat-widget .bg-neutral-800,
         .agent-chat-widget form,
         .agent-chat-widget textarea,
-        .agent-chat-widget input {
+        .agent-chat-widget input,
+        /* Assistant message bubbles */
+        .agent-chat-widget [class*="bg-neutral-100"],
+        .agent-chat-widget [class*="bg-neutral-800"],
+        .agent-chat-widget [class*="dark:bg-neutral-800"] {
           background-color: ${this.config.backgroundColor} !important;
         }
-      `),this.config.borderColor&&f.push(`
+      `),this.config.internalBorderColor||this.config.internalBorderThickness){const g=this.config.internalBorderColor||this.config.borderColor||"#e5e7eb",y=this.config.internalBorderThickness||"2px";f.push(`
         .agent-chat-widget .border-neutral-300,
         .agent-chat-widget .border-neutral-700,
         .agent-chat-widget .dark\\:border-neutral-700,
+        .agent-chat-widget .border-2,
+        .agent-chat-widget .border-neutral-400,
         .agent-chat-widget textarea,
-        .agent-chat-widget input {
+        .agent-chat-widget input,
+        .agent-chat-widget form,
+        /* Override focus border colors */
+        .agent-chat-widget textarea:focus,
+        .agent-chat-widget input:focus {
+          border-color: ${g} !important;
+          border-width: ${y} !important;
+        }
+        /* Override focus ring to use internal border color */
+        .agent-chat-widget textarea:focus,
+        .agent-chat-widget input:focus {
+          --tw-ring-color: ${g} !important;
+          ring-color: ${g} !important;
+        }
+      `)}else this.config.borderColor&&f.push(`
+        .agent-chat-widget .border-neutral-300,
+        .agent-chat-widget .border-neutral-700,
+        .agent-chat-widget .dark\\:border-neutral-700,
+        .agent-chat-widget .border-2,
+        .agent-chat-widget textarea,
+        .agent-chat-widget input,
+        .agent-chat-widget textarea:focus,
+        .agent-chat-widget input:focus {
           border-color: ${this.config.borderColor} !important;
         }
-      `),f.length>0){const g=document.createElement("style");g.id="widget-custom-colors",g.textContent=f.join(`
-`),i.appendChild(g)}}adjustColorBrightness(i,u){const f=i.replace("#",""),p=parseInt(f,16),g=p>>16&255,y=p>>8&255,b=p&255,S=1+u/100,w=Math.max(0,Math.min(255,Math.round(g*S))),_=Math.max(0,Math.min(255,Math.round(y*S))),A=Math.max(0,Math.min(255,Math.round(b*S)));return`#${(16777216+(w<<16)+(_<<8)+A).toString(16).slice(1)}`}render(){!this.reactRoot||!this.config||(this.applyContainerStyles(),this.reactRoot.render(ne.jsx(uB,{config:this.config,baseUrl:this.baseUrl})))}}typeof window<"u"&&!customElements.get("agent-chat-widget")&&customElements.define("agent-chat-widget",cB);let x1=null;function T_(t){if(!t.apiKey||!t.workspaceId||!t.agentId)throw new Error("AgentWidget.init requires apiKey, workspaceId, and agentId");if(!t.containerId)throw new Error("AgentWidget.init requires containerId");const a=document.getElementById(t.containerId);if(!a)throw new Error(`Container with id "${t.containerId}" not found. Please create a container element with this ID.`);x1&&(x1.remove(),x1=null);const i={apiKey:t.apiKey,workspaceId:t.workspaceId,agentId:t.agentId,tools:t.tools,theme:t.theme,primaryColor:t.primaryColor,backgroundColor:t.backgroundColor,textColor:t.textColor,borderColor:t.borderColor,borderRadius:t.borderRadius},u=()=>{const f=document.createElement("agent-chat-widget");a.appendChild(f),t.baseUrl&&f.setAttribute("data-base-url",t.baseUrl),f.init(i),x1=f};customElements.get("agent-chat-widget")?u():customElements.whenDefined("agent-chat-widget").then(()=>{u()})}typeof window<"u"&&(window.AgentWidget={init:T_});const fB={init:T_};return cn.default=fB,cn.init=T_,Object.defineProperties(cn,{__esModule:{value:!0},[Symbol.toStringTag]:{value:"Module"}}),cn}({});
+        .agent-chat-widget textarea:focus,
+        .agent-chat-widget input:focus {
+          --tw-ring-color: ${this.config.borderColor} !important;
+          ring-color: ${this.config.borderColor} !important;
+        }
+      `);if(f.length>0){const g=document.createElement("style");g.id="widget-custom-colors",g.textContent=f.join(`
+`),i.appendChild(g)}}adjustColorBrightness(i,u){const f=i.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);if(f){const p=parseInt(f[1]),g=parseInt(f[2]),y=parseInt(f[3]),b=f[4]?parseFloat(f[4]):1,S=1+u/100,w=Math.max(0,Math.min(255,Math.round(p*S))),_=Math.max(0,Math.min(255,Math.round(g*S))),A=Math.max(0,Math.min(255,Math.round(y*S)));return`rgba(${w}, ${_}, ${A}, ${b})`}else{const p=i.replace("#",""),g=parseInt(p,16),y=g>>16&255,b=g>>8&255,S=g&255,w=1+u/100,_=Math.max(0,Math.min(255,Math.round(y*w))),A=Math.max(0,Math.min(255,Math.round(b*w))),z=Math.max(0,Math.min(255,Math.round(S*w)));return`#${(16777216+(_<<16)+(A<<8)+z).toString(16).slice(1)}`}}extractRgb(i){const u=i.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);if(u)return`${u[1]}, ${u[2]}, ${u[3]}`;const f=i.replace("#",""),p=parseInt(f.slice(0,2),16),g=parseInt(f.slice(2,4),16),y=parseInt(f.slice(4,6),16);return`${p}, ${g}, ${y}`}render(){!this.reactRoot||!this.config||(this.applyContainerStyles(),this.reactRoot.render(ne.jsx(uB,{config:this.config,baseUrl:this.baseUrl})))}}typeof window<"u"&&!customElements.get("agent-chat-widget")&&customElements.define("agent-chat-widget",cB);let x1=null;function T_(t){if(!t.apiKey||!t.workspaceId||!t.agentId)throw new Error("AgentWidget.init requires apiKey, workspaceId, and agentId");if(!t.containerId)throw new Error("AgentWidget.init requires containerId");const a=document.getElementById(t.containerId);if(!a)throw new Error(`Container with id "${t.containerId}" not found. Please create a container element with this ID.`);x1&&(x1.remove(),x1=null);const i={apiKey:t.apiKey,workspaceId:t.workspaceId,agentId:t.agentId,tools:t.tools,theme:t.theme,primaryColor:t.primaryColor,backgroundColor:t.backgroundColor,textColor:t.textColor,borderColor:t.borderColor,borderRadius:t.borderRadius,outerBorderEnabled:t.outerBorderEnabled,internalBorderThickness:t.internalBorderThickness,internalBorderColor:t.internalBorderColor},u=()=>{const f=document.createElement("agent-chat-widget");a.appendChild(f),t.baseUrl&&f.setAttribute("data-base-url",t.baseUrl),f.init(i),x1=f};customElements.get("agent-chat-widget")?u():customElements.whenDefined("agent-chat-widget").then(()=>{u()})}typeof window<"u"&&(window.AgentWidget={init:T_});const fB={init:T_};return cn.default=fB,cn.init=T_,Object.defineProperties(cn,{__esModule:{value:!0},[Symbol.toStringTag]:{value:"Module"}}),cn}({});

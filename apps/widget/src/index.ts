@@ -47,6 +47,9 @@ export function init(options: AgentWidgetInitOptions): void {
     textColor: options.textColor,
     borderColor: options.borderColor,
     borderRadius: options.borderRadius,
+    outerBorderEnabled: options.outerBorderEnabled,
+    internalBorderThickness: options.internalBorderThickness,
+    internalBorderColor: options.internalBorderColor,
   };
 
   const createAndInitWidget = () => {
