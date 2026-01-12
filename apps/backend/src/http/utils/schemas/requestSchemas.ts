@@ -11,7 +11,7 @@ const uiMessageContentSchema = z.union([
       z.object({
         type: z.literal("text"),
         text: z.string(),
-      }),
+      }).strict(),
       z.record(z.string(), z.unknown()), // Allow other content types (tool calls, tool results, etc.)
     ])
   ),
@@ -38,6 +38,7 @@ const uiMessageSchema = z.object({
       reasoningTokens: z.number().optional(),
       cachedPromptTokens: z.number().optional(),
     })
+    .strict()
     .optional(),
   modelName: z.string().optional(),
   provider: z.string().optional(),
@@ -45,10 +46,12 @@ const uiMessageSchema = z.object({
   provisionalCostUsd: z.number().optional(),
   finalCostUsd: z.number().optional(),
   generationTimeMs: z.number().optional(),
-}).refine(
-  (data) => data.content !== undefined || data.parts !== undefined,
-  { message: "Message must have either 'content' or 'parts'" }
-);
+})
+  .passthrough() // Allow extra fields for ai-sdk compatibility
+  .refine(
+    (data) => data.content !== undefined || data.parts !== undefined,
+    { message: "Message must have either 'content' or 'parts'" }
+  );
 
 /**
  * Schema for stream request body

@@ -28,13 +28,13 @@ const clientToolSchema = z.object({
     ),
   description: z.string().min(1),
   parameters: z.record(z.string(), z.unknown()),
-});
+}).strict();
 
 // Spending limit schema
 const spendingLimitSchema = z.object({
   timeFrame: z.enum(["daily", "weekly", "monthly"]),
   amount: z.number().int().nonnegative(),
-});
+}).strict();
 
 /**
  * Workspace schemas
@@ -101,6 +101,7 @@ export const updateAgentSchema = z
           .enum(["bottom-right", "bottom-left", "top-right", "top-left"])
           .optional(),
       })
+      .strict()
       .nullable()
       .optional(),
     temperature: z.number().nullable().optional(),
@@ -391,9 +392,10 @@ export const purchaseCreditsSchema = z
       .refine((val) => val >= 1, {
         message: "Minimum purchase amount is 1 USD",
       })
-      .refine((val) => /^\d+(\.\d{1,2})?$/.test(String(val)), {
-        message: "Amount must have at most 2 decimal places",
-      }),
+      .refine(
+        (val) => Math.round(val * 100) === val * 100,
+        { message: "Amount must have at most 2 decimal places" }
+      ),
   })
   .strict();
 

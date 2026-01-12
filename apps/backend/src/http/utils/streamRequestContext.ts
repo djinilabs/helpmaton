@@ -166,6 +166,7 @@ function convertRequestBodyToMessages(bodyText: string): {
                 content: z.union([z.string(), z.array(z.unknown())]).optional(),
                 parts: z.array(z.unknown()).optional(),
               })
+              .passthrough() // Allow extra fields for ai-sdk format compatibility
               .refine(
                 (data) =>
                   data.content !== undefined || data.parts !== undefined,

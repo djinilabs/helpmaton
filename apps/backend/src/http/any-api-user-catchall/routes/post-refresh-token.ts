@@ -65,11 +65,8 @@ export const registerPostRefreshToken = (app: express.Application) => {
       const body = validateBody(req.body || {}, refreshTokenSchema);
       const { refreshToken } = body;
 
-      // Trim whitespace (in case of any encoding/parsing issues)
-      const trimmedToken = refreshToken.trim();
-
-      // Use trimmed token for the rest of the function
-      const tokenToValidate = trimmedToken;
+      // Token is already trimmed by the schema transform
+      const tokenToValidate = refreshToken;
 
       // Query refresh token using GSI for fast O(1) lookup
       // We use a deterministic SHA256 hash of the token for the GSI partition key
