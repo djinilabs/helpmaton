@@ -90,6 +90,7 @@ export const updateAgentSchema = z.object({
         .enum(["bottom-right", "bottom-left", "top-right", "top-left"])
         .optional(),
     })
+    .nullable()
     .optional(),
   temperature: z.number().nullable().optional(),
   topP: z.number().nullable().optional(),
@@ -302,25 +303,9 @@ export const createAgentKeySchema = z.object({
 
 export const updateApiKeySchema = z.object({
   key: z.string(), // Allow empty string for deletion
-  provider: z
-    .string()
-    .min(1, "provider is required")
-    .refine(
-      (val) =>
-        [
-          "openai",
-          "anthropic",
-          "google",
-          "mistral",
-          "cohere",
-          "openrouter",
-          "tavily",
-          "exa",
-        ].includes(val),
-      {
-        message: "provider must be one of: openai, anthropic, google, mistral, cohere, openrouter, tavily, exa",
-      }
-    ),
+  provider: z.enum(["openrouter"], {
+    message: "Only OpenRouter is supported for BYOK (Bring Your Own Key)",
+  }),
 }).strict();
 
 /**

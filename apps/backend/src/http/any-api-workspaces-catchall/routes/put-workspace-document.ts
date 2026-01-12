@@ -171,8 +171,8 @@ export const registerPutWorkspaceDocument = (app: express.Application) => {
         }
       }
 
-      // Handle file upload (takes precedence over content if both are provided)
-      if (req.file) {
+      // Handle file upload (only if content field was not provided)
+      if (newContent === undefined && req.file) {
         newContent = req.file.buffer;
         newSize = req.file.size;
         newContentType = req.file.mimetype || "text/plain";

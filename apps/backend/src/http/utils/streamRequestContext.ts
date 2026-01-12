@@ -163,7 +163,10 @@ function convertRequestBodyToMessages(bodyText: string): {
             // Allow content or parts (ai-sdk uses parts)
             content: z.union([z.string(), z.array(z.unknown())]).optional(),
             parts: z.array(z.unknown()).optional(),
-          })
+          }).refine(
+            (data) => data.content !== undefined || data.parts !== undefined,
+            { message: "Message must have either 'content' or 'parts'" }
+          )
         ).min(1);
         // Use parse (not strict) for ai-sdk compatibility, but validate structure
         const validated = arraySchema.parse(parsed);
