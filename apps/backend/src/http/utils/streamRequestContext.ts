@@ -157,22 +157,29 @@ function convertRequestBodyToMessages(bodyText: string): {
         // For array format (ai-sdk), validate core structure
         // Note: ai-sdk messages have 'parts' and other fields, so we validate
         // the structure but allow extra fields (ai-sdk format compatibility)
-        const arraySchema = z.array(
-          z.object({
-            role: z.enum(["user", "assistant", "system", "tool"]),
-            // Allow content or parts (ai-sdk uses parts)
-            content: z.union([z.string(), z.array(z.unknown())]).optional(),
-            parts: z.array(z.unknown()).optional(),
-          }).refine(
-            (data) => data.content !== undefined || data.parts !== undefined,
-            { message: "Message must have either 'content' or 'parts'" }
+        const arraySchema = z
+          .array(
+            z
+              .object({
+                role: z.enum(["user", "assistant", "system", "tool"]),
+                // Allow content or parts (ai-sdk uses parts)
+                content: z.union([z.string(), z.array(z.unknown())]).optional(),
+                parts: z.array(z.unknown()).optional(),
+              })
+              .refine(
+                (data) =>
+                  data.content !== undefined || data.parts !== undefined,
+                { message: "Message must have either 'content' or 'parts'" }
+              )
           )
-        ).min(1);
+          .min(1);
         // Use parse (not strict) for ai-sdk compatibility, but validate structure
         const validated = arraySchema.parse(parsed);
         messages = validated as UIMessage[];
       } else {
-        throw badRequest("Invalid message array format: each message must have a 'role' property");
+        throw badRequest(
+          "Invalid message array format: each message must have a 'role' property"
+        );
       }
     }
     // Check if it's an object with a 'messages' property (from useChat with full state)
@@ -189,13 +196,17 @@ function convertRequestBodyToMessages(bodyText: string): {
         // Re-throw validation errors
         throw badRequest(
           error instanceof z.ZodError
-            ? `Validation failed: ${error.issues.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ")}`
+            ? `Validation failed: ${error.issues
+                .map((e) => `${e.path.join(".")}: ${e.message}`)
+                .join("; ")}`
             : "Invalid request body format"
         );
       }
     } else {
       // Invalid JSON structure - throw validation error
-      throw badRequest("Request body must be either plain text, an array of messages, or an object with a 'messages' property");
+      throw badRequest(
+        "Request body must be either plain text, an array of messages, or an object with a 'messages' property"
+      );
     }
   }
 
@@ -408,7 +419,8 @@ export async function buildStreamRequestContext(
       conversationPk
     );
     if (existingConversation && existingConversation.messages) {
-      existingConversationMessages = existingConversation.messages as UIMessage[];
+      existingConversationMessages =
+        existingConversation.messages as UIMessage[];
     }
   } catch (error) {
     // If conversation doesn't exist yet or fetch fails, that's okay - we'll create new knowledge injection
@@ -435,13 +447,16 @@ export async function buildStreamRequestContext(
   );
 
   const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
-  const knowledgeInjectionMessage = knowledgeInjectionResult.knowledgeInjectionMessage;
-  const rerankingRequestMessage = knowledgeInjectionResult.rerankingRequestMessage;
-  const rerankingResultMessage = knowledgeInjectionResult.rerankingResultMessage;
+  const knowledgeInjectionMessage =
+    knowledgeInjectionResult.knowledgeInjectionMessage;
+  const rerankingRequestMessage =
+    knowledgeInjectionResult.rerankingRequestMessage;
+  const rerankingResultMessage =
+    knowledgeInjectionResult.rerankingResultMessage;
 
   // Add re-ranking and knowledge injection messages to convertedMessages if they exist
   let updatedConvertedMessages = convertedMessages;
-  
+
   // Find insertion point (before first user message)
   const userMessageIndex = convertedMessages.findIndex(
     (msg) => msg.role === "user"

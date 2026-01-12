@@ -153,11 +153,18 @@ export const registerPutWorkspaceDocument = (app: express.Application) => {
 
       // Validate JSON fields in req.body (multipart/form-data may have file fields)
       // Extract only the JSON fields we care about for validation
-      const jsonFields: { name?: string; content?: string; folderPath?: string } = {};
-      if (req.body.name !== undefined) jsonFields.name = req.body.name as string;
-      if (req.body.content !== undefined) jsonFields.content = req.body.content as string;
-      if (req.body.folderPath !== undefined) jsonFields.folderPath = req.body.folderPath as string;
-      
+      const jsonFields: {
+        name?: string;
+        content?: string;
+        folderPath?: string;
+      } = {};
+      if (req.body.name !== undefined)
+        jsonFields.name = req.body.name as string;
+      if (req.body.content !== undefined)
+        jsonFields.content = req.body.content as string;
+      if (req.body.folderPath !== undefined)
+        jsonFields.folderPath = req.body.folderPath as string;
+
       // Validate JSON fields if any are present
       if (Object.keys(jsonFields).length > 0) {
         const validated = validateBody(jsonFields, updateDocumentSchema);
