@@ -1,3 +1,4 @@
+import "./AgentChatWidget"; // Import to register the custom element
 import type { AgentWidgetInitOptions } from "./types";
 
 // Global widget instance

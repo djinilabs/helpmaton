@@ -27,6 +27,7 @@ interface AgentChatProps {
     (...args: any[]) => Promise<any>
   >; // Optional client-side tool functions
   agent?: { name?: string; avatar?: string }; // Optional agent data (if provided, useAgent hook is not required)
+  isWidget?: boolean; // If true, hide test message and use widget-appropriate styling
 }
 
 /**
@@ -53,6 +54,7 @@ export const AgentChat: FC<AgentChatProps> = ({
   onClear,
   tools,
   agent: agentProp,
+  isWidget = false,
 }) => {
   // Use agent prop if provided, otherwise fetch from API
   // When agentProp is provided (e.g., in widget context), skip the query to avoid auth errors
@@ -69,6 +71,8 @@ export const AgentChat: FC<AgentChatProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [input, setInput] = useState("");
+  // State to track API errors that might not be caught by useChat
+  const [apiError, setApiError] = useState<Error | null>(null);
 
   // Generate and memoize conversation ID for this chat instance
   const conversationId = useMemo(() => generateUUID(), []);
@@ -131,10 +135,74 @@ export const AgentChat: FC<AgentChatProps> = ({
         }
       }
 
-      return globalFetch(input, {
-        ...init,
-        headers,
-      });
+      try {
+        const response = await globalFetch(input, {
+          ...init,
+          headers,
+        });
+
+        // Check for error responses (non-2xx status codes)
+        if (!response.ok) {
+          let errorMessage = `Request failed with status ${response.status}`;
+          
+          // Try to parse error message from JSON response
+          try {
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.includes("application/json")) {
+              // Clone the response to read it without consuming the original
+              const clonedResponse = response.clone();
+              const errorData = await clonedResponse.json();
+              if (errorData.error) {
+                errorMessage = typeof errorData.error === "string" 
+                  ? errorData.error 
+                  : errorData.error.message || errorMessage;
+              } else if (errorData.message) {
+                errorMessage = errorData.message;
+              }
+            } else {
+              // Try to get text response
+              const clonedResponse = response.clone();
+              const text = await clonedResponse.text();
+              if (text) {
+                // Try to parse as JSON if it looks like JSON
+                try {
+                  const parsed = JSON.parse(text);
+                  if (parsed.error) {
+                    errorMessage = typeof parsed.error === "string"
+                      ? parsed.error
+                      : parsed.error.message || errorMessage;
+                  } else if (parsed.message) {
+                    errorMessage = parsed.message;
+                  }
+                } catch {
+                  // Not JSON, use text as error message if it's not too long
+                  if (text.length < 500) {
+                    errorMessage = text;
+                  }
+                }
+              }
+            }
+          } catch (parseError) {
+            // If we can't parse the error, use the default message
+            console.error("[AgentChat] Error parsing error response:", parseError);
+          }
+
+          // Set the error state so it can be displayed in the UI
+          setApiError(new Error(errorMessage));
+        } else {
+          // Clear error on successful response
+          setApiError(null);
+        }
+
+        return response;
+      } catch (fetchError) {
+        // Network errors or other fetch failures
+        const errorMessage = fetchError instanceof Error 
+          ? fetchError.message 
+          : "Failed to send request";
+        setApiError(new Error(errorMessage));
+        throw fetchError;
+      }
     };
   }, [conversationId]);
 
@@ -215,6 +283,8 @@ export const AgentChat: FC<AgentChatProps> = ({
       },
       onError: (error) => {
         console.error("Chat error:", error);
+        // Also set the error state so it's displayed
+        setApiError(error instanceof Error ? error : new Error(String(error)));
       },
     });
 
@@ -255,6 +325,8 @@ export const AgentChat: FC<AgentChatProps> = ({
   const handleSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
     if (!input.trim() || isLoading) return;
+    // Clear any previous errors when sending a new message
+    setApiError(null);
     sendMessage({ text: input });
     setInput("");
     // Reset textarea height after clearing input
@@ -263,6 +335,7 @@ export const AgentChat: FC<AgentChatProps> = ({
 
   const handleClearConversation = () => {
     setMessages([]);
+    setApiError(null); // Clear API errors when clearing conversation
     // Notify parent to remount component, which will clear errors
     onClear?.();
   };
@@ -300,14 +373,31 @@ export const AgentChat: FC<AgentChatProps> = ({
 
   return (
     <div className="flex h-[600px] flex-col rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900">
-      <div className="rounded-t-2xl border-b-2 border-neutral-300 bg-neutral-100 p-5 dark:border-neutral-700 dark:bg-neutral-800">
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-base font-bold text-neutral-800 dark:text-neutral-200">
-            Test your agent by having a conversation. This chat interface lets
-            you interact with the agent in real-time to verify its behavior and
-            responses before deploying it.
-          </p>
-          {messages.length > 0 && (
+      {!isWidget && (
+        <div className="rounded-t-2xl border-b-2 border-neutral-300 bg-neutral-100 p-5 dark:border-neutral-700 dark:bg-neutral-800">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-base font-bold text-neutral-800 dark:text-neutral-200">
+              Test your agent by having a conversation. This chat interface lets
+              you interact with the agent in real-time to verify its behavior and
+              responses before deploying it.
+            </p>
+            {messages.length > 0 && (
+              <button
+                onClick={handleClearConversation}
+                disabled={isLoading}
+                className="flex shrink-0 items-center gap-2 rounded-lg border-2 border-neutral-300 bg-white px-3 py-2 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                title="Clear conversation"
+              >
+                <TrashIcon className="size-4" />
+                <span className="hidden sm:inline">Clear</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {isWidget && messages.length > 0 && (
+        <div className="rounded-t-2xl border-b-2 border-neutral-300 bg-neutral-100 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+          <div className="flex items-center justify-end">
             <button
               onClick={handleClearConversation}
               disabled={isLoading}
@@ -317,21 +407,21 @@ export const AgentChat: FC<AgentChatProps> = ({
               <TrashIcon className="size-4" />
               <span className="hidden sm:inline">Clear</span>
             </button>
-          )}
+          </div>
         </div>
-      </div>
+      )}
       {/* Messages Container */}
       <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto bg-white p-4 dark:bg-neutral-900"
       >
-        {error && (
+        {(error || apiError) && (
           <div className="mb-4 rounded-xl border-2 border-error-300 bg-error-100 p-5 dark:border-error-800 dark:bg-error-900">
             <div className="text-base font-bold text-error-900 dark:text-error-50">
               Error
             </div>
             <div className="mt-2 text-sm font-medium text-error-800 dark:text-error-100">
-              {error.message}
+              {(error || apiError)?.message || "An error occurred"}
             </div>
           </div>
         )}

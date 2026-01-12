@@ -667,6 +667,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           provider: updated.provider,
           modelName: updated.modelName ?? null,
           avatar: updated.avatar ?? null,
+          widgetConfig: updated.widgetConfig ?? undefined,
           createdAt: updated.createdAt,
           updatedAt: updated.updatedAt,
         };

@@ -13,6 +13,8 @@ export default defineConfig({
     },
     rollupOptions: {
       output: {
+        // Output as widget.js instead of widget.iife.js
+        entryFileNames: "widget.js",
         // Ensure the bundle is self-contained
         inlineDynamicImports: true,
       },

@@ -23,6 +23,9 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
     /^\/workspaces\/[^/]+\/invites\/[^/]+$/
   );
 
+  // Allow widget preview route without authentication and without layout
+  const isWidgetPreviewRoute = location.pathname.includes("/widget-preview");
+
   // Allow API docs route without authentication (but still show layout)
   const isApiDocsRoute = location.pathname.startsWith("/docs/api");
 
@@ -32,6 +35,15 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
 
   // If it's an invite route, allow it through without requiring authentication
   if (isInviteRoute) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <main className="flex-1">{children}</main>
+      </div>
+    );
+  }
+
+  // If it's a widget preview route, allow it through without requiring authentication and without layout
+  if (isWidgetPreviewRoute) {
     return (
       <div className="flex min-h-screen flex-col">
         <main className="flex-1">{children}</main>

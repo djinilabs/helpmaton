@@ -5,21 +5,92 @@ import { WidgetContainer } from "./widget-container";
 import type { WidgetConfig } from "./types";
 
 // Inject Tailwind CSS into shadow root
-// For now, we'll use a minimal CSS approach or extract from main app
-// TODO: Extract Tailwind CSS from main app build or bundle separately
-const injectStyles = (shadowRoot: ShadowRoot): void => {
+// Try multiple methods to load CSS: from stylesheet links, from style elements, or extract from document
+const injectStyles = async (shadowRoot: ShadowRoot): Promise<void> => {
+  // First, add minimal critical styles with fallback background
   const style = document.createElement("style");
-  // Minimal styles - in production, inject full Tailwind CSS
   style.textContent = `
     /* Widget container styles */
     .agent-chat-widget {
       position: fixed;
       z-index: 9999;
       font-family: system-ui, -apple-system, sans-serif;
+      background: white;
+    }
+    /* Ensure the widget has a background even if Tailwind doesn't load */
+    .agent-chat-widget * {
+      box-sizing: border-box;
     }
     /* Position styles will be applied via inline styles */
   `;
   shadowRoot.appendChild(style);
+  
+  // Method 1: Try to find and load CSS from stylesheet links
+  const stylesheetLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
+  for (const link of stylesheetLinks) {
+    const href = link.getAttribute("href");
+    if (href && (href.includes("index") || href.includes("assets") || href.endsWith(".css"))) {
+      try {
+        const url = href.startsWith("http") ? href : new URL(href, window.location.origin).href;
+        const response = await fetch(url);
+        if (response.ok) {
+          const cssText = await response.text();
+          // Only use if it looks like Tailwind (contains utility classes or is large enough)
+          if (cssText.includes(".flex") || cssText.includes("tailwind") || cssText.includes("@tailwind") || cssText.length > 10000) {
+            const fullStyle = document.createElement("style");
+            fullStyle.textContent = cssText;
+            shadowRoot.appendChild(fullStyle);
+            console.log("[Widget] Successfully loaded CSS from:", href);
+            return;
+          }
+        }
+      } catch (error) {
+        // Continue to next stylesheet
+        console.debug("[Widget] Could not load stylesheet:", href, error);
+      }
+    }
+  }
+  
+  // Method 2: Try to extract CSS from inline style elements (if any)
+  const styleElements = Array.from(document.querySelectorAll('style'));
+  for (const styleEl of styleElements) {
+    const cssText = styleEl.textContent || "";
+    if (cssText.length > 1000 && (cssText.includes(".flex") || cssText.includes("@tailwind"))) {
+      const fullStyle = document.createElement("style");
+      fullStyle.textContent = cssText;
+      shadowRoot.appendChild(fullStyle);
+      console.log("[Widget] Successfully extracted CSS from inline style element");
+      return;
+    }
+  }
+  
+  // Method 3: Try to get CSS from document stylesheets (if accessible)
+  try {
+    const sheets = Array.from(document.styleSheets);
+    let allCss = "";
+    for (const sheet of sheets) {
+      try {
+        const rules = Array.from(sheet.cssRules || sheet.rules || []);
+        for (const rule of rules) {
+          allCss += rule.cssText + "\n";
+        }
+      } catch (e) {
+        // Cross-origin stylesheets will throw, skip them
+        continue;
+      }
+    }
+    if (allCss.length > 1000) {
+      const fullStyle = document.createElement("style");
+      fullStyle.textContent = allCss;
+      shadowRoot.appendChild(fullStyle);
+      console.log("[Widget] Successfully extracted CSS from document stylesheets");
+      return;
+    }
+  } catch (error) {
+    console.debug("[Widget] Could not extract CSS from stylesheets:", error);
+  }
+  
+  console.warn("[Widget] Tailwind CSS not found. Widget may not display correctly. Make sure the frontend is built.");
 };
 
 export class AgentChatWidget extends HTMLElement {
@@ -47,8 +118,10 @@ export class AgentChatWidget extends HTMLElement {
         ? window.location.origin
         : "https://app.helpmaton.com");
 
-    // Inject styles
-    injectStyles(shadow);
+    // Inject styles (async, but we don't wait for it)
+    injectStyles(shadow).catch((error) => {
+      console.error("[Widget] Failed to inject styles:", error);
+    });
 
     // Create container for React
     const container = document.createElement("div");

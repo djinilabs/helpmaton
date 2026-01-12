@@ -28,6 +28,37 @@ import {
   computeCorsHeaders,
   mergeCorsHeaders,
 } from "../utils/streamCorsHeaders";
+
+/**
+ * Extracts widget path parameters from rawPath when pathParameters is not available
+ * Pattern: /api/widget/:workspaceId/:agentId/:key
+ */
+function extractWidgetPathParametersFromRawPath(rawPath: string): {
+  workspaceId?: string;
+  agentId?: string;
+  key?: string;
+} {
+  if (!rawPath) {
+    return {};
+  }
+
+  // Remove query parameters if present
+  const pathWithoutQuery = rawPath.split("?")[0];
+
+  // Pattern: /api/widget/:workspaceId/:agentId/:key
+  // Also handle optional trailing slash
+  const match = pathWithoutQuery.match(
+    /^\/api\/widget\/([^/]+)\/([^/]+)\/([^/]+)\/?$/
+  );
+  if (match) {
+    return {
+      workspaceId: match[1],
+      agentId: match[2],
+      key: match[3],
+    };
+  }
+  return {};
+}
 import {
   writeErrorResponse,
   persistConversationError,
@@ -43,6 +74,7 @@ import {
   type StreamRequestContext,
 } from "../utils/streamRequestContext";
 import {
+  createResponseStream,
   writeChunkToStream,
   type HttpResponseStream,
 } from "../utils/streamResponseStream";
@@ -80,9 +112,49 @@ const internalHandler = async (
   const httpV2Event = ensureRequestContextHttp(event);
 
   // Extract path parameters
-  const workspaceId = httpV2Event.pathParameters?.workspaceId;
-  const agentId = httpV2Event.pathParameters?.agentId;
-  const key = httpV2Event.pathParameters?.key;
+  // When using Lambda URLs with HTTP_PROXY, pathParameters may not be populated
+  // so we fall back to extracting from rawPath
+  let workspaceId = httpV2Event.pathParameters?.workspaceId;
+  let agentId = httpV2Event.pathParameters?.agentId;
+  let key = httpV2Event.pathParameters?.key;
+
+  if (!workspaceId || !agentId || !key) {
+    // Try multiple possible path locations in the event
+    const possiblePaths = [
+      httpV2Event.rawPath,
+      httpV2Event.requestContext?.http?.path,
+      httpV2Event.routeKey?.split(" ")[1], // routeKey format: "POST /path"
+    ].filter(Boolean) as string[];
+
+    console.log(
+      "[Widget Handler] Path parameters missing, attempting extraction:",
+      {
+        pathParameters: httpV2Event.pathParameters,
+        possiblePaths,
+        fullEvent: JSON.stringify(httpV2Event, null, 2),
+      }
+    );
+
+    // Try each possible path until we find one that works
+    for (const path of possiblePaths) {
+      const extracted = extractWidgetPathParametersFromRawPath(path);
+      if (extracted.workspaceId && extracted.agentId && extracted.key) {
+        workspaceId = extracted.workspaceId;
+        agentId = extracted.agentId;
+        key = extracted.key;
+        console.log(
+          "[Widget Handler] Successfully extracted from path:",
+          path,
+          {
+            workspaceId,
+            agentId,
+            key,
+          }
+        );
+        break;
+      }
+    }
+  }
 
   if (!workspaceId || !agentId || !key) {
     const origin =
@@ -96,12 +168,8 @@ const internalHandler = async (
       }
     );
 
-    if (typeof awslambda !== "undefined" && awslambda) {
-      responseStream = awslambda.HttpResponseStream.from(responseStream, {
-        statusCode: 400,
-        headers: errorHeaders,
-      });
-    }
+    // Use createResponseStream to ensure status code is always set
+    responseStream = createResponseStream(responseStream, errorHeaders, 400);
     const errorResponse = JSON.stringify({
       error: "workspaceId, agentId, and key are required in the URL path",
     });
@@ -127,12 +195,19 @@ const internalHandler = async (
       headers: corsHeaders,
       body: "",
     };
-    if (typeof awslambda !== "undefined" && awslambda) {
-      responseStream = awslambda.HttpResponseStream.from(responseStream, {
-        statusCode: optionsResponse.statusCode,
-        headers: optionsResponse.headers,
-      });
+    // Use createResponseStream to ensure status code is always set
+    // Convert headers to Record<string, string> (APIGatewayProxyResultV2 allows number/boolean)
+    const headersAsStrings: Record<string, string> = {};
+    if (optionsResponse.headers) {
+      for (const [key, value] of Object.entries(optionsResponse.headers)) {
+        headersAsStrings[key] = String(value);
+      }
     }
+    responseStream = createResponseStream(
+      responseStream,
+      headersAsStrings,
+      optionsResponse.statusCode
+    );
     await writeChunkToStream(responseStream, optionsResponse.body || "");
     responseStream.end();
     return;
@@ -169,12 +244,8 @@ const internalHandler = async (
         "Content-Type": "application/json",
       }
     );
-    if (typeof awslambda !== "undefined" && awslambda) {
-      responseStream = awslambda.HttpResponseStream.from(responseStream, {
-        statusCode: 404,
-        headers: errorHeaders,
-      });
-    }
+    // Use createResponseStream to ensure status code is always set
+    responseStream = createResponseStream(responseStream, errorHeaders, 404);
     const errorResponse = JSON.stringify({
       error: "Agent not found",
     });
@@ -193,12 +264,8 @@ const internalHandler = async (
         "Content-Type": "application/json",
       }
     );
-    if (typeof awslambda !== "undefined" && awslambda) {
-      responseStream = awslambda.HttpResponseStream.from(responseStream, {
-        statusCode: 403,
-        headers: errorHeaders,
-      });
-    }
+    // Use createResponseStream to ensure status code is always set
+    responseStream = createResponseStream(responseStream, errorHeaders, 403);
     const errorResponse = JSON.stringify({
       error: "Widget is not enabled for this agent",
     });
@@ -221,12 +288,8 @@ const internalHandler = async (
         "Content-Type": "application/json",
       }
     );
-    if (typeof awslambda !== "undefined" && awslambda) {
-      responseStream = awslambda.HttpResponseStream.from(responseStream, {
-        statusCode: 401,
-        headers: errorHeaders,
-      });
-    }
+    // Use createResponseStream to ensure status code is always set
+    responseStream = createResponseStream(responseStream, errorHeaders, 401);
     const errorResponse = JSON.stringify({
       error: error instanceof Error ? error.message : "Invalid widget key",
     });
@@ -237,12 +300,8 @@ const internalHandler = async (
 
   // Set CORS headers immediately before any async operations
   const corsHeaders = computeCorsHeaders("stream", origin, allowedOrigins);
-  if (typeof awslambda !== "undefined" && awslambda) {
-    responseStream = awslambda.HttpResponseStream.from(responseStream, {
-      statusCode: 200,
-      headers: corsHeaders,
-    });
-  }
+  // Use createResponseStream to ensure status code is always set
+  responseStream = createResponseStream(responseStream, corsHeaders, 200);
 
   let context: StreamRequestContext | undefined;
 
@@ -337,24 +396,20 @@ const internalHandler = async (
               await persistConversationError(context, error);
             }
 
-            if (typeof awslambda !== "undefined" && awslambda) {
-              const errorHeaders = mergeCorsHeaders(
-                "stream",
-                origin,
-                allowedOrigins,
-                {
-                  "Content-Type": "text/event-stream; charset=utf-8",
-                }
-              );
-              responseStream = awslambda.HttpResponseStream.from(
-                responseStream,
-                {
-                  statusCode:
-                    (response as { statusCode?: number }).statusCode || 402,
-                  headers: errorHeaders,
-                }
-              );
-            }
+            const errorHeaders = mergeCorsHeaders(
+              "stream",
+              origin,
+              allowedOrigins,
+              {
+                "Content-Type": "text/event-stream; charset=utf-8",
+              }
+            );
+            // Use createResponseStream to ensure status code is always set
+            responseStream = createResponseStream(
+              responseStream,
+              errorHeaders,
+              (response as { statusCode?: number }).statusCode || 402
+            );
             await writeErrorResponse(responseStream, new Error(errorMessage));
             responseStream.end();
             return;
@@ -382,12 +437,12 @@ const internalHandler = async (
       }
     );
 
-    if (typeof awslambda !== "undefined" && awslambda) {
-      responseStream = awslambda.HttpResponseStream.from(responseStream, {
-        statusCode: boomed.output.statusCode || 500,
-        headers: errorHeaders,
-      });
-    }
+    // Use createResponseStream to ensure status code is always set
+    responseStream = createResponseStream(
+      responseStream,
+      errorHeaders,
+      boomed.output.statusCode || 500
+    );
 
     await writeErrorResponse(
       responseStream,
