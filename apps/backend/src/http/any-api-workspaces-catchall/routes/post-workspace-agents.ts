@@ -107,7 +107,7 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
     async (req, res, next) => {
       try {
         const body = validateBody(req.body, createAgentSchema);
-        const { name, systemPrompt, modelName, clientTools, avatar } = body;
+        const { name, systemPrompt, notificationChannelId, modelName, clientTools, avatar } = body;
 
         const db = await database();
         const workspaceResource = req.workspaceResource;
@@ -132,11 +132,26 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
         const agentPk = `agents/${workspaceId}/${agentId}`;
         const agentSk = "agent";
 
-        // Validate modelName if provided
-        if (modelName !== undefined && modelName !== null) {
-          if (typeof modelName !== "string" || modelName.trim().length === 0) {
-            throw badRequest("modelName must be a non-empty string or null");
+        // Validate notificationChannelId if provided (Zod already validated the type)
+        if (
+          notificationChannelId !== undefined &&
+          notificationChannelId !== null
+        ) {
+          // Verify channel exists and belongs to workspace
+          const channelPk = `output-channels/${workspaceId}/${notificationChannelId}`;
+          const channel = await db["output_channel"].get(channelPk, "channel");
+          if (!channel) {
+            throw badRequest("Notification channel not found");
           }
+          if (channel.workspaceId !== workspaceId) {
+            throw badRequest(
+              "Notification channel does not belong to this workspace"
+            );
+          }
+        }
+
+        // Validate modelName if provided (Zod already validated the type)
+        if (modelName !== undefined && modelName !== null) {
           // Validate model exists in pricing config
           const { getModelPricing } = await import("../../../utils/pricing");
           const pricing = getModelPricing("google", modelName.trim());
@@ -147,12 +162,9 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           }
         }
 
-        // Validate avatar if provided, otherwise assign random
+        // Validate avatar if provided, otherwise assign random (Zod already validated the type)
         let avatarPath: string | undefined;
         if (avatar !== undefined && avatar !== null) {
-          if (typeof avatar !== "string") {
-            throw badRequest("avatar must be a string or null");
-          }
           if (!isValidAvatar(avatar)) {
             throw badRequest(
               `Invalid avatar path. Avatar must be one of the available logo paths.`
@@ -172,6 +184,10 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           name,
           systemPrompt,
           provider: "google", // Default to Google provider
+          notificationChannelId:
+            notificationChannelId !== undefined && notificationChannelId !== null
+              ? notificationChannelId
+              : undefined,
           modelName:
             typeof modelName === "string" && modelName.trim()
               ? modelName.trim()

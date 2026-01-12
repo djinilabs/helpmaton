@@ -64,9 +64,10 @@ export const createAgentSchema = z
     systemPrompt: z
       .string()
       .min(1, "systemPrompt is required and must be a string"),
-    modelName: z.string().optional(),
+    notificationChannelId: z.string().nullable().optional(),
+    modelName: z.string().nullable().optional(),
     clientTools: z.array(clientToolSchema).optional(),
-    avatar: z.string().optional(),
+    avatar: z.string().nullable().optional(),
   })
   .strict();
 
