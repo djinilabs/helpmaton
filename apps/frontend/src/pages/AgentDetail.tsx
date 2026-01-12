@@ -2916,6 +2916,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           <div className="relative">
                             <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-neutral-900">
                               <code>{`<!-- Create a container for the widget -->
+<!-- You can customize the container ID, position, and size to match your design -->
 <div id="helpmaton-widget-container" style="position: fixed; bottom: 20px; right: 20px; width: 400px; height: 600px; z-index: 9999;"></div>
 
 <script src="https://app.helpmaton.com/widget.js"></script>
@@ -2924,7 +2925,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     apiKey: "${keys?.find((k) => k.type === "widget")?.key || "YOUR_WIDGET_KEY"}",
     workspaceId: "${workspaceId}",
     agentId: "${agentId}",
-    containerId: "helpmaton-widget-container",
+    containerId: "helpmaton-widget-container", // Must match the container div ID above
     tools: {
       // Add your tool functions here
       // Example:
@@ -2939,6 +2940,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                             <button
                               onClick={() => {
                                 const snippet = `<!-- Create a container for the widget -->
+<!-- You can customize the container ID, position, and size to match your design -->
 <div id="helpmaton-widget-container" style="position: fixed; bottom: 20px; right: 20px; width: 400px; height: 600px; z-index: 9999;"></div>
 
 <script src="https://app.helpmaton.com/widget.js"></script>
@@ -2947,7 +2949,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     apiKey: "${keys?.find((k) => k.type === "widget")?.key || "YOUR_WIDGET_KEY"}",
     workspaceId: "${workspaceId}",
     agentId: "${agentId}",
-    containerId: "helpmaton-widget-container",
+    containerId: "helpmaton-widget-container", // Must match the container div ID above
     tools: {
       // Add your tool functions here
       // Tool functions receive an object argument and destructure what they need
