@@ -134,10 +134,9 @@ export class WorkspaceDetailPage extends BasePage {
 
     // After creating an agent, the UI navigates to the agent detail page
     // Wait for navigation to the agent detail page
-    await this.page.waitForURL(
-      /\/workspaces\/[^/]+\/agents\/[^/]+$/,
-      { timeout: 15000 }
-    );
+    await this.page.waitForURL(/\/workspaces\/[^/]+\/agents\/[^/]+$/, {
+      timeout: 15000,
+    });
 
     // Extract workspace ID and agent ID from the current URL
     const currentUrl = this.page.url();
@@ -547,13 +546,22 @@ export class WorkspaceDetailPage extends BasePage {
     await this.waitForElement(timeFrameSelect, 10000);
     await timeFrameSelect.selectOption(timeFrame);
 
-    // Find amount input (number input in the form)
-    const amountInput = this.page
-      .locator('input[type="number"]')
-      .filter({ hasNotText: "amount" })
-      .last();
-    await this.waitForElement(amountInput);
-    await this.fillInput(amountInput, amount.toString());
+    // Find amount input (text input in the Slider component)
+    // The Slider component uses input[type="text"] with aria-label containing "Amount (USD) (text input)"
+    // Find it within the form container that has the "Add Spending Limit" heading
+    const formContainer = this.page
+      .locator('div.bg-neutral-50:has(h3:has-text("Add Spending Limit"))')
+      .or(this.page.locator('div:has(h3:has-text("Add Spending Limit"))'))
+      .first();
+
+    const amountInput = formContainer
+      .locator('input[type="text"][aria-label*="Amount"]')
+      .first();
+
+    await this.waitForElement(amountInput, 10000);
+    // Clear the input and fill with the amount value
+    await amountInput.clear();
+    await amountInput.fill(amount.toString());
 
     // Click "Add" button to submit
     const addButton = this.page.locator(

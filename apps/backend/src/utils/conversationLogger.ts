@@ -1735,9 +1735,11 @@ export async function startConversation(
   data: Omit<
     ConversationLogData,
     "conversationId" | "startedAt" | "lastMessageAt"
-  >
+  > & {
+    conversationId?: string; // Optional: if provided, use it; otherwise generate one
+  }
 ): Promise<string> {
-  const conversationId = randomUUID();
+  const conversationId = data.conversationId || randomUUID();
   const now = new Date().toISOString();
   const pk = `conversations/${data.workspaceId}/${data.agentId}/${conversationId}`;
 

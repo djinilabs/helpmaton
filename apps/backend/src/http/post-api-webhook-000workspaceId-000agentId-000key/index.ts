@@ -1,3 +1,5 @@
+import { randomUUID } from "crypto";
+
 import type {
   APIGatewayProxyEventV2,
   APIGatewayProxyResultV2,
@@ -184,6 +186,11 @@ export const handler = adaptHttpHandler(
       // Convert plain text body to UIMessage format
       const uiMessage = convertTextToUIMessage(bodyText);
 
+      // Generate conversationId BEFORE calling the agent
+      // This ensures delegation tools (like call_agent_async) have access to conversationId
+      // for proper tracking in the delegations array
+      const conversationId = randomUUID();
+
       // TEMPORARY: This check can be disabled via ENABLE_CREDIT_VALIDATION and ENABLE_SPENDING_LIMIT_CHECKS env vars
       const db = await database();
       let agentResult;
@@ -193,6 +200,7 @@ export const handler = adaptHttpHandler(
       try {
         // Call agent using the shared non-streaming utility
         // This handles credit validation, reservation, LLM call, and tool continuation
+        // Pass conversationId so delegation tools can track delegations properly
         const generationStartTime = Date.now();
         agentResult = await callAgentNonStreaming(
           workspaceId,
@@ -202,6 +210,7 @@ export const handler = adaptHttpHandler(
             modelReferer: "http://localhost:3000/api/webhook",
             context,
             endpointType: "webhook",
+            conversationId, // Pass conversationId so delegation tools can use it
           }
         );
         const generationTimeMs = Date.now() - generationStartTime;
@@ -574,15 +583,30 @@ export const handler = adaptHttpHandler(
           }
         );
 
-        const conversationId = await startConversation(db, {
+        // Use the pre-generated conversationId instead of creating a new one
+        // This ensures delegation tracking works correctly (delegation tasks created during
+        // the agent call will have the same conversationId)
+        const createdConversationId = await startConversation(db, {
           workspaceId,
           agentId,
+          conversationId, // Use the pre-generated conversationId
           conversationType: "webhook",
           messages: validMessages,
-            tokenUsage: agentResult.tokenUsage,
+          tokenUsage: agentResult.tokenUsage,
           usesByok,
           awsRequestId,
         });
+        
+        // Verify the conversationId matches (should always be the same)
+        if (createdConversationId !== conversationId) {
+          console.warn(
+            "[Webhook Handler] ConversationId mismatch - this should not happen:",
+            {
+              expected: conversationId,
+              actual: createdConversationId,
+            }
+          );
+        }
 
         // Update transaction buffer with conversationId for any transactions that don't have it
         // This ensures workspace transactions include the conversationId even though they were

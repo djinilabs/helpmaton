@@ -72,48 +72,45 @@ export class HomePage extends BasePage {
       outputTokens?: number;
     } = {};
 
-    try {
-      // Look for token statistics in the usage stats component
-      // The UsageStats component displays tokens and cost
-      const tokenElements = this.page.locator("text=/tokens/i");
-      const tokenCount = await tokenElements.count();
+    // Helper function to extract a stat value by label
+    const extractStatValue = async (
+      labelText: string,
+      isNumber: boolean = true
+    ): Promise<number | undefined> => {
+      try {
+        // Find the container that has the label text
+        // The structure is: container div > label div (with text) > value div (with text-3xl)
+        const container = this.page
+          .locator(`.rounded-xl:has-text("${labelText}")`)
+          .first();
 
-      if (tokenCount > 0) {
-        // Try to extract total tokens
-        const totalTokensText = await this.page
-          .locator("text=/total.*tokens/i")
-          .first()
-          .textContent()
-          .catch(() => null);
+        if (await container.isVisible({ timeout: 5000 })) {
+          // Find the value div within this container (the one with text-3xl class)
+          const valueDiv = container.locator(".text-3xl").first();
+          const valueText = await valueDiv.textContent().catch(() => null);
 
-        if (totalTokensText) {
-          const match = totalTokensText.match(/[\d,]+/);
-          if (match) {
-            stats.totalTokens = parseInt(match[0].replace(/,/g, ""), 10);
+          if (valueText) {
+            // Remove commas, currency symbols, and whitespace
+            const cleaned = valueText.replace(/[$,\s]/g, "").trim();
+            const parsed = isNumber
+              ? parseInt(cleaned, 10)
+              : parseFloat(cleaned);
+            if (!isNaN(parsed)) {
+              return parsed;
+            }
           }
         }
+      } catch {
+        // Stat not found
       }
-    } catch {
-      // Token stat not found
-    }
+      return undefined;
+    };
 
-    try {
-      // Look for cost information
-      const costText = await this.page
-        .locator("text=/USD|\\$|cost/i")
-        .first()
-        .textContent()
-        .catch(() => null);
-
-      if (costText) {
-        const match = costText.match(/[\d.]+/);
-        if (match) {
-          stats.totalCost = parseFloat(match[0]);
-        }
-      }
-    } catch {
-      // Cost stat not found
-    }
+    // Extract each stat value
+    stats.inputTokens = await extractStatValue("Input Tokens", true);
+    stats.outputTokens = await extractStatValue("Output Tokens", true);
+    stats.totalTokens = await extractStatValue("Total Tokens", true);
+    stats.totalCost = await extractStatValue("Total Cost", false);
 
     return stats;
   }
@@ -138,13 +135,3 @@ export class HomePage extends BasePage {
     return await this.getElementText(heading);
   }
 }
-
-
-
-
-
-
-
-
-
-
