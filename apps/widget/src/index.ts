@@ -16,6 +16,18 @@ export function init(options: AgentWidgetInitOptions): void {
     );
   }
 
+  if (!options.containerId) {
+    throw new Error("AgentWidget.init requires containerId");
+  }
+
+  // Find the container element
+  const container = document.getElementById(options.containerId);
+  if (!container) {
+    throw new Error(
+      `Container with id "${options.containerId}" not found. Please create a container element with this ID.`
+    );
+  }
+
   // Remove existing widget if present
   if (widgetInstance) {
     widgetInstance.remove();
@@ -30,8 +42,8 @@ export function init(options: AgentWidgetInitOptions): void {
     widgetElement.setAttribute("data-base-url", options.baseUrl);
   }
 
-  // Append to body
-  document.body.appendChild(widgetElement);
+  // Append to container (not body)
+  container.appendChild(widgetElement);
 
   // Initialize widget
   // Wait for custom element to be defined if needed
@@ -42,7 +54,6 @@ export function init(options: AgentWidgetInitOptions): void {
       agentId: options.agentId,
       tools: options.tools,
       theme: options.theme,
-      position: options.position,
     });
   } else {
     // If custom element not yet defined, wait for it
@@ -53,7 +64,6 @@ export function init(options: AgentWidgetInitOptions): void {
         agentId: options.agentId,
         tools: options.tools,
         theme: options.theme,
-        position: options.position,
       });
     });
   }

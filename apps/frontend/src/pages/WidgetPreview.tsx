@@ -14,9 +14,9 @@ declare global {
         workspaceId: string;
         agentId: string;
         theme?: "light" | "dark" | "auto";
-        position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
         tools?: Record<string, (...args: unknown[]) => Promise<unknown>>;
         baseUrl?: string;
+        containerId: string;
       }) => void;
     };
   }
@@ -106,6 +106,22 @@ const WidgetPreview: FC = () => {
         return;
       }
 
+      // Ensure widget container exists
+      const containerId = "helpmaton-widget-container";
+      let container = document.getElementById(containerId);
+      if (!container) {
+        container = document.createElement("div");
+        container.id = containerId;
+        // Position container in bottom right
+        container.style.position = "fixed";
+        container.style.bottom = "20px";
+        container.style.right = "20px";
+        container.style.width = "400px";
+        container.style.height = "600px";
+        container.style.zIndex = "9999";
+        document.body.appendChild(container);
+      }
+
       if (window.AgentWidget) {
         try {
           window.AgentWidget.init({
@@ -113,8 +129,8 @@ const WidgetPreview: FC = () => {
             workspaceId,
             agentId,
             theme: agent.widgetConfig?.theme || "auto",
-            position: agent.widgetConfig?.position || "bottom-right",
             baseUrl: window.location.origin,
+            containerId,
           });
           setTimeout(() => {
             setWidgetInitialized(true);

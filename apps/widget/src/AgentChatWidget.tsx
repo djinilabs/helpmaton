@@ -12,16 +12,24 @@ const injectStyles = async (shadowRoot: ShadowRoot): Promise<void> => {
   style.textContent = `
     /* Widget container styles */
     .agent-chat-widget {
-      position: fixed;
-      z-index: 9999;
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
       font-family: system-ui, -apple-system, sans-serif;
       background: white;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
     /* Ensure the widget has a background even if Tailwind doesn't load */
     .agent-chat-widget * {
       box-sizing: border-box;
     }
-    /* Position styles will be applied via inline styles */
+    /* Prevent horizontal overflow */
+    .agent-chat-widget > * {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
   `;
   shadowRoot.appendChild(style);
   
@@ -154,38 +162,6 @@ export class AgentChatWidget extends HTMLElement {
 
   init(config: WidgetConfig) {
     this.config = config;
-    
-    // Apply position styles
-    const shadow = this._shadowRoot || this.shadowRoot;
-    const container = shadow.querySelector(".agent-chat-widget");
-    if (container) {
-      const position = config.position || "bottom-right";
-      const styles: Record<string, string> = {
-        position: "fixed",
-        zIndex: "9999",
-      };
-
-      switch (position) {
-        case "bottom-right":
-          styles.bottom = "20px";
-          styles.right = "20px";
-          break;
-        case "bottom-left":
-          styles.bottom = "20px";
-          styles.left = "20px";
-          break;
-        case "top-right":
-          styles.top = "20px";
-          styles.right = "20px";
-          break;
-        case "top-left":
-          styles.top = "20px";
-          styles.left = "20px";
-          break;
-      }
-
-      Object.assign((container as HTMLElement).style, styles);
-    }
 
     // Render if already connected
     if (this.isConnected && !this.reactRoot) {

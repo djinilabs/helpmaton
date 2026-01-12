@@ -508,12 +508,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     enabled: boolean;
     allowedOrigins?: string[];
     theme?: "light" | "dark" | "auto";
-    position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   }>(() => ({
     enabled: agent?.widgetConfig?.enabled || false,
     allowedOrigins: agent?.widgetConfig?.allowedOrigins,
     theme: agent?.widgetConfig?.theme || "auto",
-    position: agent?.widgetConfig?.position || "bottom-right",
   }));
 
   // Model state - provider is always "openrouter", only modelName can be changed
@@ -813,14 +811,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
         enabled: agent.widgetConfig.enabled || false,
         allowedOrigins: agent.widgetConfig.allowedOrigins,
         theme: agent.widgetConfig.theme || "auto",
-        position: agent.widgetConfig.position || "bottom-right",
       });
     } else {
       setWidgetConfig({
         enabled: false,
         allowedOrigins: undefined,
         theme: "auto",
-        position: "bottom-right",
       });
     }
   }, [agent?.id, agent?.widgetConfig]);
@@ -1224,7 +1220,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           enabled: false,
           allowedOrigins: undefined,
           theme: "auto",
-          position: "bottom-right",
         });
       }
     } catch {
@@ -2879,36 +2874,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         </select>
                       </div>
 
-                      {/* Position Selector */}
-                      <div>
-                        <label
-                          htmlFor="widget-position"
-                          className="mb-2 block text-sm font-medium"
-                        >
-                          Position
-                        </label>
-                        <select
-                          id="widget-position"
-                          value={widgetConfig.position || "bottom-right"}
-                          onChange={(e) =>
-                            setWidgetConfig({
-                              ...widgetConfig,
-                              position: e.target.value as
-                                | "bottom-right"
-                                | "bottom-left"
-                                | "top-right"
-                                | "top-left",
-                            })
-                          }
-                          className="focus:border-primary focus:ring-primary w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
-                        >
-                          <option value="bottom-right">Bottom Right</option>
-                          <option value="bottom-left">Bottom Left</option>
-                          <option value="top-right">Top Right</option>
-                          <option value="top-left">Top Left</option>
-                        </select>
-                      </div>
-
                       {/* Widget Keys */}
                       <div>
                         <div className="mb-2 flex items-center justify-between">
@@ -2950,12 +2915,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           </label>
                           <div className="relative">
                             <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-neutral-900">
-                              <code>{`<script src="https://app.helpmaton.com/widget.js"></script>
+                              <code>{`<!-- Create a container for the widget -->
+<div id="helpmaton-widget-container" style="position: fixed; bottom: 20px; right: 20px; width: 400px; height: 600px; z-index: 9999;"></div>
+
+<script src="https://app.helpmaton.com/widget.js"></script>
 <script>
   AgentWidget.init({
     apiKey: "${keys?.find((k) => k.type === "widget")?.key || "YOUR_WIDGET_KEY"}",
     workspaceId: "${workspaceId}",
     agentId: "${agentId}",
+    containerId: "helpmaton-widget-container",
     tools: {
       // Add your tool functions here
       // Example:
@@ -2969,12 +2938,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                             </pre>
                             <button
                               onClick={() => {
-                                const snippet = `<script src="https://app.helpmaton.com/widget.js"></script>
+                                const snippet = `<!-- Create a container for the widget -->
+<div id="helpmaton-widget-container" style="position: fixed; bottom: 20px; right: 20px; width: 400px; height: 600px; z-index: 9999;"></div>
+
+<script src="https://app.helpmaton.com/widget.js"></script>
 <script>
   AgentWidget.init({
     apiKey: "${keys?.find((k) => k.type === "widget")?.key || "YOUR_WIDGET_KEY"}",
     workspaceId: "${workspaceId}",
     agentId: "${agentId}",
+    containerId: "helpmaton-widget-container",
     tools: {
       // Add your tool functions here
       // Tool functions receive an object argument and destructure what they need

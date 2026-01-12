@@ -372,7 +372,7 @@ export const AgentChat: FC<AgentChatProps> = ({
   }, [input]);
 
   return (
-    <div className="flex h-[600px] flex-col rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900">
+    <div className={`flex ${isWidget ? "h-full" : "h-[600px]"} flex-col rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900`}>
       {!isWidget && (
         <div className="rounded-t-2xl border-b-2 border-neutral-300 bg-neutral-100 p-5 dark:border-neutral-700 dark:bg-neutral-800">
           <div className="flex items-center justify-between gap-4">
