@@ -4,6 +4,8 @@ import { useAgentMemory } from "../hooks/useAgentMemory";
 import type { TemporalGrain } from "../utils/api";
 import { trackEvent } from "../utils/tracking";
 
+import { Slider } from "./Slider";
+
 interface AgentMemoryRecordsProps {
   workspaceId: string;
   agentId: string;
@@ -112,21 +114,13 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
-              Max Results
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="200"
+            <Slider
+              label="Max Results"
               value={maxResults}
-              onChange={(e) => {
-                const value = parseInt(e.target.value, 10);
-                if (!isNaN(value) && value > 0) {
-                  setMaxResults(Math.min(value, 200));
-                }
-              }}
-              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              min={1}
+              max={200}
+              step={1}
+              onChange={(value) => setMaxResults(value ?? 50)}
             />
           </div>
         </div>
@@ -150,38 +144,24 @@ export const AgentMemoryRecords: FC<AgentMemoryRecordsProps> = ({
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
-              Minimum Days Ago
-            </label>
-            <input
-              type="number"
-              min="0"
+            <Slider
+              label="Minimum Days Ago"
               value={minimumDaysAgo}
-              onChange={(e) => {
-                const value = parseInt(e.target.value, 10);
-                if (!isNaN(value) && value >= 0) {
-                  setMinimumDaysAgo(value);
-                }
-              }}
-              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              min={0}
+              max={365}
+              step={1}
+              onChange={(value) => setMinimumDaysAgo(value ?? 0)}
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-semibold dark:text-neutral-300">
-              Maximum Days Ago
-            </label>
-            <input
-              type="number"
-              min="0"
+            <Slider
+              label="Maximum Days Ago"
               value={maximumDaysAgo}
-              onChange={(e) => {
-                const value = parseInt(e.target.value, 10);
-                if (!isNaN(value) && value >= 0) {
-                  setMaximumDaysAgo(value);
-                }
-              }}
-              className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              min={0}
+              max={365}
+              step={1}
+              onChange={(value) => setMaximumDaysAgo(value ?? 365)}
             />
           </div>
         </div>

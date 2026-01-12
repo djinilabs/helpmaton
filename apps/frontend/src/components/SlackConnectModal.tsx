@@ -14,6 +14,7 @@ import {
 import { trackEvent } from "../utils/tracking";
 
 import { SlackManifestDisplay } from "./SlackManifestDisplay";
+import { Slider } from "./Slider";
 
 interface SlackConnectModalProps {
   workspaceId: string;
@@ -245,18 +246,13 @@ export const SlackConnectModal: FC<SlackConnectModalProps> = ({
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                Message History Count
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="100"
+              <Slider
+                label="Message History Count"
                 value={messageHistoryCount}
-                onChange={(e) =>
-                  setMessageHistoryCount(parseInt(e.target.value, 10) || 0)
-                }
-                className="mt-1 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
+                min={0}
+                max={100}
+                step={1}
+                onChange={(value) => setMessageHistoryCount(value ?? 10)}
               />
               <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                 Number of previous messages to include as context (0-100). Default: 10.

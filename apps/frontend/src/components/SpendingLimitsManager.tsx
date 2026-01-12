@@ -14,6 +14,8 @@ import type { SpendingLimit } from "../utils/api";
 import { getTimeFrameColor } from "../utils/colorUtils";
 import { formatCurrency, fromMillionths, toMillionths } from "../utils/currency";
 
+import { Slider } from "./Slider";
+
 interface SpendingLimitsManagerProps {
   workspaceId: string;
   agentId?: string;
@@ -136,8 +138,7 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
 
   return (
     <div className="mb-8 rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Spending Limits</h2>
+      <div className="mb-4 flex items-center justify-end">
         {canEdit &&
           !isAdding &&
           spendingLimits.length > 0 &&
@@ -205,19 +206,16 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
               </select>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                Amount (USD)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={newLimit.amount}
-                onChange={(e) =>
-                  setNewLimit({ ...newLimit, amount: e.target.value })
+              <Slider
+                label="Amount (USD)"
+                value={newLimit.amount ? parseFloat(newLimit.amount) : undefined}
+                min={0}
+                max={10000}
+                step={0.01}
+                onChange={(value) =>
+                  setNewLimit({ ...newLimit, amount: value?.toString() ?? "" })
                 }
-                className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-                placeholder="0.00"
+                formatValue={(v) => `$${v.toFixed(2)}`}
               />
             </div>
             <div className="flex gap-3">
@@ -271,13 +269,13 @@ export const SpendingLimitsManager: FC<SpendingLimitsManagerProps> = ({
                           ?.label || limit.timeFrame.toUpperCase()}
                       </span>
                     </div>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={editAmount}
-                      onChange={(e) => setEditAmount(e.target.value)}
-                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    <Slider
+                      value={editAmount ? parseFloat(editAmount) : undefined}
+                      min={0}
+                      max={10000}
+                      step={0.01}
+                      onChange={(value) => setEditAmount(value?.toString() ?? "")}
+                      formatValue={(v) => `$${v.toFixed(2)}`}
                     />
                   </div>
                   <div className="flex gap-2">

@@ -39,6 +39,7 @@ import { LazyAccordionContent } from "../components/LazyAccordionContent";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { QueryPanel } from "../components/QueryPanel";
 import { SectionGroup } from "../components/SectionGroup";
+import { Slider } from "../components/Slider";
 // Lazy load accordion components
 const AgentChatWithFunctionUrl = lazy(() =>
   import("../components/AgentChatWithFunctionUrl").then((module) => ({
@@ -1880,21 +1881,13 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   {enableKnowledgeInjection && (
                     <>
                       <div className="space-y-2">
-                        <label className="block text-sm font-semibold dark:text-neutral-300">
-                          Number of Snippets to Inject
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="50"
+                        <Slider
+                          label="Number of Snippets to Inject"
                           value={knowledgeInjectionSnippetCount}
-                          onChange={(e) => {
-                            const value = parseInt(e.target.value, 10);
-                            if (!isNaN(value) && value >= 1 && value <= 50) {
-                              setKnowledgeInjectionSnippetCount(value);
-                            }
-                          }}
-                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                          min={1}
+                          max={50}
+                          step={1}
+                          onChange={(value) => setKnowledgeInjectionSnippetCount(value ?? 5)}
                         />
                         <p className="text-xs opacity-75 dark:text-neutral-300">
                           Number of document snippets to retrieve and inject
@@ -1902,22 +1895,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <label className="block text-sm font-semibold dark:text-neutral-300">
-                          Minimum Similarity Score
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          max="1"
-                          step="0.01"
+                        <Slider
+                          label="Minimum Similarity Score"
                           value={knowledgeInjectionMinSimilarity}
-                          onChange={(e) => {
-                            const value = parseFloat(e.target.value);
-                            if (!isNaN(value) && value >= 0 && value <= 1) {
-                              setKnowledgeInjectionMinSimilarity(value);
-                            }
-                          }}
-                          className="w-full rounded-xl border-2 border-neutral-300 bg-white px-3 py-2 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          onChange={(value) => setKnowledgeInjectionMinSimilarity(value ?? 0)}
+                          formatValue={(v) => `${Math.round(v * 100)}%`}
                         />
                         <p className="text-xs opacity-75 dark:text-neutral-300">
                           Similarity score (0-1) measures how closely a
@@ -2164,22 +2149,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       higher values (1.5-2) create more creative and varied
                       responses. Default: model default (~1.0)
                     </p>
-                    <input
-                      type="number"
-                      min="0"
-                      max="2"
-                      step="0.1"
-                      value={temperature ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value.trim();
-                        if (!value) {
-                          setTemperature(undefined);
-                        } else {
-                          const parsed = parseFloat(value);
-                          setTemperature(isNaN(parsed) ? undefined : parsed);
-                        }
-                      }}
-                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    <Slider
+                      value={temperature}
+                      min={0}
+                      max={2}
+                      step={0.1}
+                      onChange={setTemperature}
                       placeholder="Model default"
                     />
                   </div>
@@ -2195,22 +2170,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       produce more focused outputs, higher values (0.9-1.0)
                       allow more diversity. Default: model default (~0.95)
                     </p>
-                    <input
-                      type="number"
-                      min="0"
-                      max="1"
-                      step="0.05"
-                      value={topP ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value.trim();
-                        if (!value) {
-                          setTopP(undefined);
-                        } else {
-                          const parsed = parseFloat(value);
-                          setTopP(isNaN(parsed) ? undefined : parsed);
-                        }
-                      }}
-                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    <Slider
+                      value={topP}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={setTopP}
                       placeholder="Model default"
                     />
                   </div>
@@ -2226,21 +2191,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       outputs, higher values (50-100) allow more diversity.
                       Default: model default
                     </p>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={topK ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value.trim();
-                        if (!value) {
-                          setTopK(undefined);
-                        } else {
-                          const parsed = parseInt(value, 10);
-                          setTopK(isNaN(parsed) ? undefined : parsed);
-                        }
-                      }}
-                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    <Slider
+                      value={topK}
+                      min={1}
+                      max={100}
+                      step={1}
+                      onChange={setTopK}
                       placeholder="Model default"
                     />
                   </div>
@@ -2256,23 +2212,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       values allow longer responses but may increase costs.
                       Default: model default
                     </p>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={maxOutputTokens ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value.trim();
-                        if (!value) {
-                          setMaxOutputTokens(undefined);
-                        } else {
-                          const parsed = parseInt(value, 10);
-                          setMaxOutputTokens(
-                            isNaN(parsed) ? undefined : parsed
-                          );
-                        }
-                      }}
-                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    <Slider
+                      value={maxOutputTokens}
+                      min={1}
+                      max={8192}
+                      step={1}
+                      onChange={setMaxOutputTokens}
                       placeholder="Model default"
                     />
                   </div>
@@ -2308,23 +2253,12 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       receive results, and continue processing. Higher values
                       allow more complex multi-step operations. Default: 5
                     </p>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={maxToolRoundtrips ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value.trim();
-                        if (!value) {
-                          setMaxToolRoundtrips(undefined);
-                        } else {
-                          const parsed = parseInt(value, 10);
-                          setMaxToolRoundtrips(
-                            isNaN(parsed) ? undefined : parsed
-                          );
-                        }
-                      }}
-                      className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    <Slider
+                      value={maxToolRoundtrips}
+                      min={1}
+                      max={50}
+                      step={1}
+                      onChange={setMaxToolRoundtrips}
                       placeholder="5"
                     />
                   </div>
@@ -2995,25 +2929,22 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                       className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
                                     />
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <label className="text-xs">Opacity:</label>
-                                    <input
-                                      type="range"
-                                      min="0"
-                                      max="1"
-                                      step="0.01"
-                                      value={opacity}
-                                      onChange={(e) => {
-                                        const newOpacity = parseFloat(e.target.value);
-                                        setWidgetCustomization({
-                                          ...widgetCustomization,
-                                          primaryColor: hexToRgba(hex, newOpacity),
-                                        });
-                                      }}
-                                      className="flex-1"
-                                    />
-                                    <span className="w-12 text-xs">{Math.round(opacity * 100)}%</span>
-                                  </div>
+                                  <Slider
+                                    label="Opacity"
+                                    value={opacity}
+                                    min={0}
+                                    max={1}
+                                    step={0.01}
+                                    onChange={(value) => {
+                                      const newOpacity = value ?? 1;
+                                      setWidgetCustomization({
+                                        ...widgetCustomization,
+                                        primaryColor: hexToRgba(hex, newOpacity),
+                                      });
+                                    }}
+                                    formatValue={(v) => `${Math.round(v * 100)}%`}
+                                    className="text-xs"
+                                  />
                                 </div>
                               );
                             })()}
@@ -3077,25 +3008,22 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                       className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
                                     />
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <label className="text-xs">Opacity:</label>
-                                    <input
-                                      type="range"
-                                      min="0"
-                                      max="1"
-                                      step="0.01"
-                                      value={opacity}
-                                      onChange={(e) => {
-                                        const newOpacity = parseFloat(e.target.value);
-                                        setWidgetCustomization({
-                                          ...widgetCustomization,
-                                          backgroundColor: hexToRgba(hex, newOpacity),
-                                        });
-                                      }}
-                                      className="flex-1"
-                                    />
-                                    <span className="w-12 text-xs">{Math.round(opacity * 100)}%</span>
-                                  </div>
+                                  <Slider
+                                    label="Opacity"
+                                    value={opacity}
+                                    min={0}
+                                    max={1}
+                                    step={0.01}
+                                    onChange={(value) => {
+                                      const newOpacity = value ?? 1;
+                                      setWidgetCustomization({
+                                        ...widgetCustomization,
+                                        backgroundColor: hexToRgba(hex, newOpacity),
+                                      });
+                                    }}
+                                    formatValue={(v) => `${Math.round(v * 100)}%`}
+                                    className="text-xs"
+                                  />
                                 </div>
                               );
                             })()}
@@ -3159,25 +3087,22 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                       className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
                                     />
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <label className="text-xs">Opacity:</label>
-                                    <input
-                                      type="range"
-                                      min="0"
-                                      max="1"
-                                      step="0.01"
-                                      value={opacity}
-                                      onChange={(e) => {
-                                        const newOpacity = parseFloat(e.target.value);
-                                        setWidgetCustomization({
-                                          ...widgetCustomization,
-                                          textColor: hexToRgba(hex, newOpacity),
-                                        });
-                                      }}
-                                      className="flex-1"
-                                    />
-                                    <span className="w-12 text-xs">{Math.round(opacity * 100)}%</span>
-                                  </div>
+                                  <Slider
+                                    label="Opacity"
+                                    value={opacity}
+                                    min={0}
+                                    max={1}
+                                    step={0.01}
+                                    onChange={(value) => {
+                                      const newOpacity = value ?? 1;
+                                      setWidgetCustomization({
+                                        ...widgetCustomization,
+                                        textColor: hexToRgba(hex, newOpacity),
+                                      });
+                                    }}
+                                    formatValue={(v) => `${Math.round(v * 100)}%`}
+                                    className="text-xs"
+                                  />
                                 </div>
                               );
                             })()}
@@ -3241,25 +3166,22 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                       className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
                                     />
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <label className="text-xs">Opacity:</label>
-                                    <input
-                                      type="range"
-                                      min="0"
-                                      max="1"
-                                      step="0.01"
-                                      value={opacity}
-                                      onChange={(e) => {
-                                        const newOpacity = parseFloat(e.target.value);
-                                        setWidgetCustomization({
-                                          ...widgetCustomization,
-                                          borderColor: hexToRgba(hex, newOpacity),
-                                        });
-                                      }}
-                                      className="flex-1"
-                                    />
-                                    <span className="w-12 text-xs">{Math.round(opacity * 100)}%</span>
-                                  </div>
+                                  <Slider
+                                    label="Opacity"
+                                    value={opacity}
+                                    min={0}
+                                    max={1}
+                                    step={0.01}
+                                    onChange={(value) => {
+                                      const newOpacity = value ?? 1;
+                                      setWidgetCustomization({
+                                        ...widgetCustomization,
+                                        borderColor: hexToRgba(hex, newOpacity),
+                                      });
+                                    }}
+                                    formatValue={(v) => `${Math.round(v * 100)}%`}
+                                    className="text-xs"
+                                  />
                                 </div>
                               );
                             })()}
@@ -3333,27 +3255,22 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                 const thicknessValue = widgetCustomization.internalBorderThickness || "2px";
                                 const numericValue = parseInt(thicknessValue.replace("px", "")) || 2;
                                 return (
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                      <input
-                                        id="widget-internal-border-thickness"
-                                        type="range"
-                                        min="0"
-                                        max="10"
-                                        step="1"
-                                        value={numericValue}
-                                        onChange={(e) => {
-                                          const value = parseInt(e.target.value);
-                                          setWidgetCustomization({
-                                            ...widgetCustomization,
-                                            internalBorderThickness: `${value}px`,
-                                          });
-                                        }}
-                                        className="flex-1"
-                                      />
-                                      <span className="w-12 text-right text-xs">{numericValue}px</span>
-                                    </div>
-                                  </div>
+                                  <Slider
+                                    id="widget-internal-border-thickness"
+                                    value={numericValue}
+                                    min={0}
+                                    max={10}
+                                    step={1}
+                                    onChange={(value) => {
+                                      const newValue = value ?? 2;
+                                      setWidgetCustomization({
+                                        ...widgetCustomization,
+                                        internalBorderThickness: `${newValue}px`,
+                                      });
+                                    }}
+                                    formatValue={(v) => `${v}px`}
+                                    className="text-xs"
+                                  />
                                 );
                               })()}
                             </div>
@@ -3415,25 +3332,22 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                                         className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
                                       />
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      <label className="text-xs">Opacity:</label>
-                                      <input
-                                        type="range"
-                                        min="0"
-                                        max="1"
-                                        step="0.01"
-                                        value={opacity}
-                                        onChange={(e) => {
-                                          const newOpacity = parseFloat(e.target.value);
-                                          setWidgetCustomization({
-                                            ...widgetCustomization,
-                                            internalBorderColor: hexToRgba(hex, newOpacity),
-                                          });
-                                        }}
-                                        className="flex-1"
-                                      />
-                                      <span className="w-12 text-xs">{Math.round(opacity * 100)}%</span>
-                                    </div>
+                                    <Slider
+                                      label="Opacity"
+                                      value={opacity}
+                                      min={0}
+                                      max={1}
+                                      step={0.01}
+                                      onChange={(value) => {
+                                        const newOpacity = value ?? 1;
+                                        setWidgetCustomization({
+                                          ...widgetCustomization,
+                                          internalBorderColor: hexToRgba(hex, newOpacity),
+                                        });
+                                      }}
+                                      formatValue={(v) => `${Math.round(v * 100)}%`}
+                                      className="text-xs"
+                                    />
                                   </div>
                                 );
                               })()}
