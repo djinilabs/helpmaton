@@ -73,21 +73,28 @@ export class HomePage extends BasePage {
     } = {};
 
     // Helper function to extract a stat value by label
-    const extractStatValue = async (labelText: string, isNumber: boolean = true): Promise<number | undefined> => {
+    const extractStatValue = async (
+      labelText: string,
+      isNumber: boolean = true
+    ): Promise<number | undefined> => {
       try {
         // Find the container that has the label text
         // The structure is: container div > label div (with text) > value div (with text-3xl)
-        const container = this.page.locator(`.rounded-xl:has-text("${labelText}")`).first();
-        
+        const container = this.page
+          .locator(`.rounded-xl:has-text("${labelText}")`)
+          .first();
+
         if (await container.isVisible({ timeout: 5000 })) {
           // Find the value div within this container (the one with text-3xl class)
-          const valueDiv = container.locator('.text-3xl').first();
+          const valueDiv = container.locator(".text-3xl").first();
           const valueText = await valueDiv.textContent().catch(() => null);
-          
+
           if (valueText) {
             // Remove commas, currency symbols, and whitespace
-            const cleaned = valueText.replace(/[$,\s]/g, '').trim();
-            const parsed = isNumber ? parseInt(cleaned, 10) : parseFloat(cleaned);
+            const cleaned = valueText.replace(/[$,\s]/g, "").trim();
+            const parsed = isNumber
+              ? parseInt(cleaned, 10)
+              : parseFloat(cleaned);
             if (!isNaN(parsed)) {
               return parsed;
             }
@@ -128,13 +135,3 @@ export class HomePage extends BasePage {
     return await this.getElementText(heading);
   }
 }
-
-
-
-
-
-
-
-
-
-
