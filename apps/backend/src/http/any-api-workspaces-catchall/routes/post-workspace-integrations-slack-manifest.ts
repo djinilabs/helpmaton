@@ -1,8 +1,10 @@
-import { badRequest, unauthorized } from "@hapi/boom";
+import { unauthorized } from "@hapi/boom";
 import express from "express";
 
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
+import { createIntegrationSlackManifestSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -26,11 +28,8 @@ export const registerPostWorkspaceIntegrationsSlackManifest = (
     async (req, res, next) => {
       try {
         const { workspaceId } = req.params;
-        const { agentId, agentName } = req.body;
-
-        if (!agentId || typeof agentId !== "string") {
-          throw badRequest("agentId is required and must be a string");
-        }
+        const body = validateBody(req.body, createIntegrationSlackManifestSchema);
+        const { agentId, agentName } = body;
 
         const currentUserRef = req.userRef;
         if (!currentUserRef) {

@@ -5,6 +5,8 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { isValidAvatar } from "../../../utils/avatarUtils";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
+import { updateAgentSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -95,6 +97,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
+        const body = validateBody(req.body, updateAgentSchema);
         const {
           name,
           systemPrompt,
@@ -125,7 +128,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           maxToolRoundtrips,
           modelName,
           avatar,
-        } = req.body;
+        } = body;
         const db = await database();
         const workspaceResource = req.workspaceResource;
         if (!workspaceResource) {
@@ -140,14 +143,11 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           throw resourceGone("Agent not found");
         }
 
-        // Validate notificationChannelId if provided
+        // Validate notificationChannelId if provided (Zod already validated the type)
         if (
           notificationChannelId !== undefined &&
           notificationChannelId !== null
         ) {
-          if (typeof notificationChannelId !== "string") {
-            throw badRequest("notificationChannelId must be a string or null");
-          }
           // Verify channel exists and belongs to workspace
           const channelPk = `output-channels/${workspaceId}/${notificationChannelId}`;
           const channel = await db["output_channel"].get(channelPk, "channel");
@@ -312,59 +312,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           }
         }
 
-        // Validate widgetConfig if provided
-        if (widgetConfig !== undefined) {
-          if (widgetConfig !== null && typeof widgetConfig !== "object") {
-            throw badRequest("widgetConfig must be an object or null");
-          }
-          if (widgetConfig) {
-            if (
-              "enabled" in widgetConfig &&
-              typeof widgetConfig.enabled !== "boolean"
-            ) {
-              throw badRequest("widgetConfig.enabled must be a boolean");
-            }
-            if (
-              "allowedOrigins" in widgetConfig &&
-              widgetConfig.allowedOrigins !== undefined &&
-              !Array.isArray(widgetConfig.allowedOrigins)
-            ) {
-              throw badRequest(
-                "widgetConfig.allowedOrigins must be an array of strings"
-              );
-            }
-            if (
-              widgetConfig.allowedOrigins &&
-              !widgetConfig.allowedOrigins.every(
-                (origin: unknown) => typeof origin === "string"
-              )
-            ) {
-              throw badRequest(
-                "All items in widgetConfig.allowedOrigins must be strings"
-              );
-            }
-            if (
-              "theme" in widgetConfig &&
-              widgetConfig.theme !== undefined &&
-              !["light", "dark", "auto"].includes(widgetConfig.theme)
-            ) {
-              throw badRequest(
-                "widgetConfig.theme must be 'light', 'dark', or 'auto'"
-              );
-            }
-            if (
-              "position" in widgetConfig &&
-              widgetConfig.position !== undefined &&
-              !["bottom-right", "bottom-left", "top-right", "top-left"].includes(
-                widgetConfig.position
-              )
-            ) {
-              throw badRequest(
-                "widgetConfig.position must be 'bottom-right', 'bottom-left', 'top-right', or 'top-left'"
-              );
-            }
-          }
-        }
+        // widgetConfig is already validated by Zod schema
 
         // Validate model configuration fields if provided (null is allowed to clear values)
         if (temperature !== undefined && temperature !== null) {

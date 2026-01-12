@@ -3,6 +3,8 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { validateBody } from "../../utils/bodyValidation";
+import { updateWorkspaceSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -63,7 +65,8 @@ export const registerPutWorkspace = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
-        const { name, description } = req.body;
+        const body = validateBody(req.body, updateWorkspaceSchema);
+        const { name, description } = body;
         const db = await database();
         const workspaceResource = req.workspaceResource;
         if (!workspaceResource) {

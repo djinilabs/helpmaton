@@ -4,9 +4,9 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { getWorkspaceSubscription } from "../../../utils/subscriptionUtils";
+import { validateBody } from "../../utils/bodyValidation";
+import { updateApiKeySchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
-
-import { isValidProvider, VALID_PROVIDERS } from "./workspaceApiKeyUtils";
 
 /**
  * @openapi
@@ -76,22 +76,8 @@ export const registerPutWorkspaceApiKey = (app: express.Application) => {
           throw badRequest("Workspace resource not found");
         }
         const workspaceId = req.params.workspaceId;
-        const { key, provider } = req.body;
-
-        if (key === undefined) {
-          throw badRequest("key is required");
-        }
-
-        if (!provider || typeof provider !== "string") {
-          throw badRequest("provider is required");
-        }
-
-        // Validate provider is one of the supported values
-        if (!isValidProvider(provider)) {
-          throw badRequest(
-            `provider must be one of: ${VALID_PROVIDERS.join(", ")}`
-          );
-        }
+        const body = validateBody(req.body, updateApiKeySchema);
+        const { key, provider } = body;
 
         const currentUserRef = req.userRef;
         if (!currentUserRef) {

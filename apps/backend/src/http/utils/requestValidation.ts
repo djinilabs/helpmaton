@@ -6,6 +6,8 @@ import { isUserAuthorized } from "../../tables/permissions";
 import { PERMISSION_LEVELS } from "../../tables/schema";
 import type { RequestParams } from "../../utils/messageTypes";
 
+import { parseAndValidateBody } from "./bodyValidation";
+import { streamRequestSchema } from "./schemas/requestSchemas";
 import { requireSession, userRef } from "./session";
 
 
@@ -140,25 +142,14 @@ export function validateRequest(event: APIGatewayProxyEventV2): RequestParams {
   }
 
   // Parse and validate request body
-  let messages: unknown[] = [];
-  let conversationId: string | undefined;
-  if (event.body) {
-    const bodyText = event.isBase64Encoded
-      ? Buffer.from(event.body, "base64").toString()
-      : event.body;
-    const body = JSON.parse(bodyText) as {
-      messages?: unknown[];
-      conversationId?: string;
-    };
-    messages = body.messages || [];
-    conversationId = body.conversationId;
-  }
+  const body = parseAndValidateBody(event, streamRequestSchema);
 
-  if (!Array.isArray(messages) || messages.length === 0) {
-    throw badRequest("messages array is required");
-  }
-
-  return { workspaceId, agentId, messages, conversationId };
+  return {
+    workspaceId,
+    agentId,
+    messages: body.messages,
+    conversationId: body.conversationId,
+  };
 }
 
 /**

@@ -1,10 +1,12 @@
-import { badRequest, forbidden, resourceGone } from "@hapi/boom";
+import { forbidden, resourceGone } from "@hapi/boom";
 import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { renameDocument, generateUniqueFilename } from "../../../utils/s3";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
+import { renameDocumentSchema } from "../../utils/schemas/workspaceSchemas";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -106,10 +108,8 @@ export const registerPatchRenameDocument = (app: express.Application) => {
         throw forbidden("Document does not belong to this workspace");
       }
 
-      const newName = req.body.name as string;
-      if (!newName || typeof newName !== "string") {
-        throw badRequest("name is required");
-      }
+      const body = validateBody(req.body, renameDocumentSchema);
+      const newName = body.name;
 
       // Use name as new filename (with extension from original if not present)
       const originalExt = document.filename.substring(

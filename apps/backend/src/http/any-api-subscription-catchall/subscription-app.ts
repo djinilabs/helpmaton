@@ -40,7 +40,9 @@ import {
   getSubscriptionMcpServers,
 } from "../../utils/subscriptionUtils";
 import { verifyAccessToken } from "../../utils/tokenUtils";
+import { validateBody } from "../utils/bodyValidation";
 import { expressErrorHandler } from "../utils/errorHandler";
+import { modifySubscriptionSchema } from "../utils/schemas/subscriptionSchemas";
 import { userRef } from "../utils/session";
 
 // Helper to handle errors: boomify, log, then pass to next
@@ -544,10 +546,8 @@ export const createApp: () => express.Application = () => {
       }
       const currentUserId = currentUserRef.replace("users/", "");
 
-      const { plan } = req.body;
-      if (plan !== "starter" && plan !== "pro") {
-        throw badRequest('Plan must be "starter" or "pro"');
-      }
+      const body = validateBody(req.body, modifySubscriptionSchema);
+      const { plan } = body;
 
       // Get variant ID for the plan
       const variantId =
@@ -880,10 +880,8 @@ export const createApp: () => express.Application = () => {
       }
       const currentUserId = currentUserRef.replace("users/", "");
 
-      const { plan } = req.body;
-      if (plan !== "starter" && plan !== "pro") {
-        throw badRequest('Plan must be "starter" or "pro"');
-      }
+      const body = validateBody(req.body, modifySubscriptionSchema);
+      const { plan } = body;
 
       // Get user's subscription
       const subscription = await getUserSubscription(currentUserId);

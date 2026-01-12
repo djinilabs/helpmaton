@@ -2,6 +2,8 @@ import { badRequest } from "@hapi/boom";
 import express from "express";
 
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { validateBody } from "../../utils/bodyValidation";
+import { createStreamServerSchema } from "../../utils/schemas/workspaceSchemas";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -73,26 +75,13 @@ export const registerPostStreamServers = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     asyncHandler(async (req, res) => {
       const { workspaceId, agentId } = req.params;
-      const { allowedOrigins } = req.body;
 
       if (!workspaceId || !agentId) {
         throw badRequest("workspaceId and agentId are required");
       }
 
-      if (!Array.isArray(allowedOrigins)) {
-        throw badRequest("allowedOrigins must be an array");
-      }
-
-      // Validate each origin string
-      const isValidOrigin = (origin: string) =>
-        origin === "*" ||
-        (typeof origin === "string" &&
-          (origin.startsWith("http://") || origin.startsWith("https://")));
-      if (!allowedOrigins.every(isValidOrigin)) {
-        throw badRequest(
-          "Each allowedOrigin must be '*' or a string starting with 'http://' or 'https://'"
-        );
-      }
+      const body = validateBody(req.body, createStreamServerSchema);
+      const { allowedOrigins } = body;
 
       // Validate that agent exists and belongs to workspace
       const { validateWorkspaceAndAgent } = await import(

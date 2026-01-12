@@ -10,6 +10,8 @@ import {
   ensureWorkspaceSubscription,
 } from "../../../utils/subscriptionUtils";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
+import { createChannelSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -93,16 +95,8 @@ export const registerPostWorkspaceChannels = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
-        const { type, name, config } = req.body;
-        if (!type || typeof type !== "string") {
-          throw badRequest("type is required and must be a string");
-        }
-        if (!name || typeof name !== "string") {
-          throw badRequest("name is required and must be a string");
-        }
-        if (!config || typeof config !== "object") {
-          throw badRequest("config is required and must be an object");
-        }
+        const body = validateBody(req.body, createChannelSchema);
+        const { type, name, config } = body;
 
         // Validate type-specific config
         if (type === "discord") {

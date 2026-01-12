@@ -4,6 +4,8 @@ import express from "express";
 import { database } from "../../../tables";
 import { ensureAuthorization } from "../../../tables/permissions";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { validateBody } from "../../utils/bodyValidation";
+import { createMemberSchema } from "../../utils/schemas/workspaceSchemas";
 import { userRef } from "../../utils/session";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
@@ -80,21 +82,8 @@ export const registerPostWorkspaceMembers = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
-        const { userId, permissionLevel } = req.body;
-        if (!userId || typeof userId !== "string") {
-          throw badRequest("userId is required and must be a string");
-        }
-        if (
-          permissionLevel !== undefined &&
-          (typeof permissionLevel !== "number" ||
-            (permissionLevel !== PERMISSION_LEVELS.READ &&
-              permissionLevel !== PERMISSION_LEVELS.WRITE &&
-              permissionLevel !== PERMISSION_LEVELS.OWNER))
-        ) {
-          throw badRequest(
-            "permissionLevel must be 1 (READ), 2 (WRITE), or 3 (OWNER)"
-          );
-        }
+        const body = validateBody(req.body, createMemberSchema);
+        const { userId, permissionLevel } = body;
 
         const db = await database();
         const workspaceResource = req.workspaceResource;

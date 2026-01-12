@@ -3,6 +3,8 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { validateBody } from "../../utils/bodyValidation";
+import { updateEmailConnectionSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -75,7 +77,8 @@ export const registerPutEmailConnection = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
-        const { name, config } = req.body;
+        const body = validateBody(req.body, updateEmailConnectionSchema);
+        const { name, config } = body;
         const db = await database();
         const workspaceResource = req.workspaceResource;
         if (!workspaceResource) {

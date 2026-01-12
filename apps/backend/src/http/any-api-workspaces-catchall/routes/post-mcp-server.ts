@@ -10,6 +10,8 @@ import {
   ensureWorkspaceSubscription,
 } from "../../../utils/subscriptionUtils";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
+import { createMcpServerSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -103,30 +105,8 @@ export const registerPostMcpServer = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
-        const { name, url, authType, config } = req.body;
-        if (!name || typeof name !== "string") {
-          throw badRequest("name is required and must be a string");
-        }
-        if (!url || typeof url !== "string") {
-          throw badRequest("url is required and must be a string");
-        }
-        // Validate URL format
-        try {
-          new URL(url);
-        } catch {
-          throw badRequest("url must be a valid URL");
-        }
-        if (!authType || typeof authType !== "string") {
-          throw badRequest("authType is required and must be a string");
-        }
-        if (!["none", "header", "basic"].includes(authType)) {
-          throw badRequest(
-            'authType must be one of: "none", "header", "basic"'
-          );
-        }
-        if (typeof config !== "object" || config === null) {
-          throw badRequest("config is required and must be a non-null object");
-        }
+        const body = validateBody(req.body, createMcpServerSchema);
+        const { name, url, authType, config } = body;
 
         // Validate config based on authType
         if (authType === "header") {

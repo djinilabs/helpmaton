@@ -13,6 +13,8 @@ import {
   uploadDocument,
 } from "../../../utils/s3";
 import { Sentry, ensureError } from "../../../utils/sentry";
+import { validateBody } from "../../utils/bodyValidation";
+import { updateDocumentSchema } from "../../utils/schemas/workspaceSchemas";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 // Configure multer for file uploads
@@ -149,58 +151,68 @@ export const registerPutWorkspaceDocument = (app: express.Application) => {
       let newContentType = document.contentType;
       let newName = document.name;
 
-      // Handle content update
-      if (req.body.content !== undefined) {
-        newContent = req.body.content as string;
-        newSize = Buffer.byteLength(newContent, "utf-8");
-      } else if (req.file) {
+      // Validate JSON fields in req.body (multipart/form-data may have file fields)
+      // Extract only the JSON fields we care about for validation
+      const jsonFields: { name?: string; content?: string; folderPath?: string } = {};
+      if (req.body.name !== undefined) jsonFields.name = req.body.name as string;
+      if (req.body.content !== undefined) jsonFields.content = req.body.content as string;
+      if (req.body.folderPath !== undefined) jsonFields.folderPath = req.body.folderPath as string;
+      
+      // Validate JSON fields if any are present
+      if (Object.keys(jsonFields).length > 0) {
+        const validated = validateBody(jsonFields, updateDocumentSchema);
+        if (validated.name !== undefined) newName = validated.name;
+        if (validated.content !== undefined) {
+          newContent = validated.content;
+          newSize = Buffer.byteLength(newContent, "utf-8");
+        }
+        if (validated.folderPath !== undefined) {
+          newFolderPath = normalizeFolderPath(validated.folderPath);
+        }
+      }
+
+      // Handle file upload (takes precedence over content if both are provided)
+      if (req.file) {
         newContent = req.file.buffer;
         newSize = req.file.size;
         newContentType = req.file.mimetype || "text/plain";
       }
 
-      // Handle name update
-      if (req.body.name !== undefined) {
-        newName = req.body.name as string;
-        // If name changed, we need to rename the file in S3
-        if (newName !== document.name) {
-          // Use name as new filename (with extension from original if not present)
-          const originalExt = document.filename.substring(
-            document.filename.lastIndexOf(".")
-          );
-          const nameWithExt = newName.includes(".")
-            ? newName
-            : `${newName}${originalExt}`;
+      // Handle name update (already validated above)
+      if (newName !== document.name) {
+        // Use name as new filename (with extension from original if not present)
+        const originalExt = document.filename.substring(
+          document.filename.lastIndexOf(".")
+        );
+        const nameWithExt = newName.includes(".")
+          ? newName
+          : `${newName}${originalExt}`;
 
-          // Check for conflicts in current folder
-          const uniqueFilename = await generateUniqueFilename(
-            workspaceId,
-            nameWithExt,
-            newFolderPath
-          );
+        // Check for conflicts in current folder
+        const uniqueFilename = await generateUniqueFilename(
+          workspaceId,
+          nameWithExt,
+          newFolderPath
+        );
 
-          newFilename = uniqueFilename;
-          newS3Key = await renameDocument(
-            workspaceId,
-            document.s3Key,
-            uniqueFilename,
-            newFolderPath
-          );
-        }
+        newFilename = uniqueFilename;
+        newS3Key = await renameDocument(
+          workspaceId,
+          document.s3Key,
+          uniqueFilename,
+          newFolderPath
+        );
       }
 
-      // Handle folder move
-      if (req.body.folderPath !== undefined) {
-        newFolderPath = normalizeFolderPath(req.body.folderPath as string);
-        if (newFolderPath !== document.folderPath) {
-          // Move file in S3
-          newS3Key = await renameDocument(
-            workspaceId,
-            document.s3Key,
-            newFilename,
-            newFolderPath
-          );
-        }
+      // Handle folder move (already validated and set above)
+      if (newFolderPath !== document.folderPath) {
+        // Move file in S3
+        newS3Key = await renameDocument(
+          workspaceId,
+          document.s3Key,
+          newFilename,
+          newFolderPath
+        );
       }
 
       // Update content in S3 if provided

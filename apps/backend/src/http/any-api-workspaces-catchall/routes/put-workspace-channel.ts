@@ -4,6 +4,8 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
+import { updateChannelSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -84,7 +86,8 @@ export const registerPutWorkspaceChannel = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
-        const { name, config } = req.body;
+        const body = validateBody(req.body, updateChannelSchema);
+        const { name, config } = body;
         const db = await database();
         const workspaceResource = req.workspaceResource;
         if (!workspaceResource) {

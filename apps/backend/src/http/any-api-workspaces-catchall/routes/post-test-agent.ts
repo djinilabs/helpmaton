@@ -19,6 +19,7 @@ import { trackBusinessEvent } from "../../../utils/tracking";
 import { getContextFromRequestId } from "../../../utils/workspaceCreditContext";
 import { setupAgentAndTools } from "../../utils/agentSetup";
 import { MODEL_NAME } from "../../utils/agentUtils";
+import { validateBody } from "../../utils/bodyValidation";
 import {
   adjustCreditsAfterLLMCall,
   cleanupReservationOnError,
@@ -40,6 +41,7 @@ import {
 } from "../../utils/generationRequestTracking";
 import { extractTokenUsageAndCosts } from "../../utils/generationTokenExtraction";
 import { convertAiSdkUIMessagesToUIMessages } from "../../utils/messageConversion";
+import { testAgentRequestSchema } from "../../utils/schemas/requestSchemas";
 import { extractUserId } from "../../utils/session";
 import {
   formatToolCallMessage,
@@ -335,15 +337,13 @@ export const registerPostTestAgent = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.READ),
     asyncHandler(async (req, res) => {
       const { workspaceId, agentId } = req.params;
-      const { messages } = req.body;
-
+      
       if (!workspaceId || !agentId) {
         throw badRequest("workspaceId and agentId are required");
       }
 
-      if (!Array.isArray(messages) || messages.length === 0) {
-        throw badRequest("messages array is required");
-      }
+      const validatedBody = validateBody(req.body, testAgentRequestSchema);
+      const { messages } = validatedBody;
 
       // Read and validate X-Conversation-Id header
       const conversationId =
