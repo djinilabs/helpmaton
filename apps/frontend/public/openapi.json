@@ -5465,6 +5465,15 @@
                     "type": "string",
                     "description": "Provider for the key",
                     "default": "google"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "webhook",
+                      "widget"
+                    ],
+                    "description": "Key type - 'webhook' for webhook authentication, 'widget' for widget authentication",
+                    "default": "webhook"
                   }
                 }
               }
@@ -5492,6 +5501,14 @@
                     },
                     "provider": {
                       "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "webhook",
+                        "widget"
+                      ],
+                      "description": "Key type"
                     },
                     "createdAt": {
                       "type": "string",
@@ -5584,6 +5601,15 @@
                           "provider": {
                             "type": "string",
                             "default": "google"
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "webhook",
+                              "widget"
+                            ],
+                            "description": "Key type",
+                            "default": "webhook"
                           },
                           "createdAt": {
                             "type": "string",

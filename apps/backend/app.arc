@@ -7,6 +7,7 @@ spa true
 @http
 post /api/webhooks/lemonsqueezy
 post /api/webhook/:workspaceId/:agentId/:key
+post /api/widget/:workspaceId/:agentId/:key
 post /api/scrape
 get /api/usage
 get /api/models

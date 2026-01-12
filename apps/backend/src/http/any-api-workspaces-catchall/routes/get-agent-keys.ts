@@ -49,12 +49,17 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *                       name:
  *                         type: string
  *                         nullable: true
- *                       provider:
- *                         type: string
- *                         default: google
- *                       createdAt:
- *                         type: string
- *                         format: date-time
+     *                       provider:
+     *                         type: string
+     *                         default: google
+     *                       type:
+     *                         type: string
+     *                         enum: [webhook, widget]
+     *                         description: Key type
+     *                         default: webhook
+     *                       createdAt:
+     *                         type: string
+     *                         format: date-time
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       401:
@@ -114,6 +119,7 @@ export const registerGetAgentKeys = (app: express.Application) => {
               key: k.key,
               name: k.name,
               provider: k.provider || "google",
+              type: k.type || "webhook",
               createdAt: k.createdAt,
             };
           });

@@ -8,6 +8,7 @@ const Home = lazy(() => import("./pages/Home"));
 const Workspaces = lazy(() => import("./pages/Workspaces"));
 const WorkspaceDetail = lazy(() => import("./pages/WorkspaceDetail"));
 const AgentDetail = lazy(() => import("./pages/AgentDetail"));
+const WidgetPreview = lazy(() => import("./pages/WidgetPreview"));
 const EmailOAuthCallback = lazy(() => import("./pages/EmailOAuthCallback"));
 const SubscriptionManagement = lazy(
   () => import("./pages/SubscriptionManagement")
@@ -31,6 +32,10 @@ export const AppRoutes: FC = () => {
         <Route
           path="/workspaces/:workspaceId/agents/:agentId"
           element={<AgentDetail />}
+        />
+        <Route
+          path="/workspaces/:workspaceId/agents/:agentId/widget-preview"
+          element={<WidgetPreview />}
         />
         <Route
           path="/workspaces/:workspaceId/email-oauth-callback"

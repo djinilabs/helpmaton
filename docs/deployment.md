@@ -311,7 +311,7 @@ export LEMON_SQUEEZY_PRO_VARIANT_ID="67891"
 export LEMON_SQUEEZY_CREDIT_VARIANT_ID="123456"
 
 # Build frontend
-pnpm build
+pnpm build:frontend
 
 # Deploy backend
 cd apps/backend

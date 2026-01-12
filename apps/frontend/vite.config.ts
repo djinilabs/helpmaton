@@ -87,6 +87,11 @@ export default defineConfig(({ mode }) => {
             });
           },
         },
+        // Proxy widget.js from backend/public in development
+        "/widget.js": {
+          target: "http://localhost:3333",
+          changeOrigin: true,
+        },
       },
     },
   };

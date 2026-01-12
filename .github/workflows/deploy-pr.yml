@@ -339,7 +339,7 @@ jobs:
           else
             echo "✅ CLOUDFLARE_TURNSTILE_SITE_KEY is set (length: ${#CLOUDFLARE_TURNSTILE_SITE_KEY})"
           fi
-          pnpm build
+          pnpm build:frontend
           cd apps/backend
 
           # Set ARC_STACK_NAME so the lambda-urls plugin can determine the DNS name at plugin time

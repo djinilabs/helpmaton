@@ -1,0 +1,30 @@
+{
+  "name": "@helpmaton/widget",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build && node -e \"const fs = require('fs'); const path = require('path'); const targetDir = path.resolve(__dirname, '../frontend/public'); if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true }); fs.copyFileSync(path.resolve(__dirname, '../backend/public/widget.js'), path.join(targetDir, 'widget.js'));\"",
+    "dev": "vite build --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@ai-sdk/react": "^1.0.0",
+    "ai": "^4.0.0",
+    "react-shadow-dom-retarget-events": "^1.0.0",
+    "@tanstack/react-query": "^5.90.9"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "vitest": "^2.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "jsdom": "^24.0.0"
+  }
+}

@@ -143,6 +143,7 @@ export const registerGetWorkspaceAgent = (app: express.Application) => {
           provider: agent.provider,
           modelName: agent.modelName ?? null,
           avatar: agent.avatar ?? null,
+          widgetConfig: agent.widgetConfig ?? undefined,
           createdAt: agent.createdAt,
           updatedAt: agent.updatedAt,
         });

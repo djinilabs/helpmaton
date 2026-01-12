@@ -126,6 +126,16 @@ export const tableSchemas = {
         })
       )
       .optional(), // User-defined client-side tools
+    widgetConfig: z
+      .object({
+        enabled: z.boolean().default(false), // Whether widget is enabled
+        allowedOrigins: z.array(z.string()).optional(), // CORS origins, empty = all origins
+        theme: z.enum(["light", "dark", "auto"]).optional(), // Widget theme
+        position: z
+          .enum(["bottom-right", "bottom-left", "top-right", "top-left"])
+          .optional(), // Widget position
+      })
+      .optional(), // Widget configuration
     avatar: z.string().optional(), // Avatar image path (e.g., "/images/helpmaton_logo_10.svg")
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
@@ -149,6 +159,7 @@ export const tableSchemas = {
     key: z.string(), // the actual key value
     name: z.string().optional(), // optional key name/description
     provider: z.enum(["google"]).default("google"), // provider name (only "google" supported)
+    type: z.enum(["webhook", "widget"]).default("webhook"), // key type: webhook or widget
     version: z.number().default(1),
     createdAt: z.string().datetime().default(new Date().toISOString()),
   }),

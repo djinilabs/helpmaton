@@ -411,7 +411,7 @@ jobs:
           else
             echo "✅ CLOUDFLARE_TURNSTILE_SITE_KEY is set (length: ${#CLOUDFLARE_TURNSTILE_SITE_KEY})"
           fi
-          pnpm build
+          pnpm build:frontend
           cd apps/backend
           export LAMBDA_IMAGE_TAG="${{ github.sha }}"
           export LAMBDA_IMAGES_ECR_REPOSITORY="helpmaton-lambda-images"

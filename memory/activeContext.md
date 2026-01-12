@@ -2,9 +2,62 @@
 
 ## Current Status
 
-**Status**: Knowledge Injection Credit Management - Completed ✅
+**Status**: Agent Chat Widget - Completed ✅
 
 **Latest Work**:
+
+1. **Agent Chat Widget Implementation**: Implemented a complete embeddable chat widget that users can integrate into their own websites. The widget is a self-contained Web Component that can be embedded via a simple script tag.
+
+   - **Widget Package** (`apps/widget/`):
+     - Custom Web Component (`AgentChatWidget`) using Shadow DOM for style isolation
+     - React-based chat interface reusing `AgentChat` component from frontend
+     - Builds to IIFE bundle (`widget.js`) for easy embedding
+     - Supports container-based positioning (embedding site controls placement)
+     - Requires `containerId` parameter - widget appends to provided container element
+     - Injects Tailwind CSS dynamically from host page or falls back to minimal styles
+     - Includes QueryClientProvider for React Query support in isolated context
+   
+   - **Backend API** (`post /api/widget/:workspaceId/:agentId/:key`):
+     - Widget-specific endpoint with key-based authentication
+     - Validates widget keys (type: "widget") via `validateWidgetKey` utility
+     - Supports CORS with configurable allowed origins from agent `widgetConfig`
+     - Path parameter extraction with fallback for dev environments (Vite proxy)
+     - Proper error status codes (400, 401, 403, 404) using `createResponseStream`
+     - Streaming support via Lambda Function URLs
+   
+   - **Widget Configuration**:
+     - `widgetConfig` schema on agent entity: `enabled`, `allowedOrigins`, `theme`
+     - Removed `position` from config (now controlled by embedding site's container)
+     - UI in AgentDetail page for enabling widget, setting CORS origins, and theme
+     - Widget key generation (type: "widget") separate from webhook keys
+   
+   - **Widget Preview Page**:
+     - Standalone demo page (`/workspaces/:workspaceId/agents/:agentId/widget-preview`)
+     - Generic e-commerce product page example (no Helpmaton branding)
+     - Creates container in bottom-right corner (400px × 600px)
+     - Loads widget script and initializes with container ID
+     - Bypasses main app layout (no Header/Footer/LocationBar)
+   
+   - **Error Handling**:
+     - Frontend displays API errors in chat UI (red error box)
+     - Custom fetch wrapper detects non-2xx responses and parses JSON error messages
+     - Backend returns proper HTTP status codes (not 200 for errors)
+     - Path parameter extraction with multiple fallback methods
+   
+   - **Embed Code**:
+     - Updated embed code examples show container creation with positioning
+     - Includes script tag and initialization with `containerId`
+     - Users can customize container ID, position, and size
+   
+   - **Technical Details**:
+     - Widget uses Shadow DOM for style isolation
+     - React rendered inside Shadow DOM with event retargeting
+     - QueryClientProvider wraps AgentChat for React Query support
+     - CSS loaded dynamically from host page or extracted from document stylesheets
+     - Widget respects container dimensions (100% width/height, no horizontal overflow)
+     - AgentChat component uses `h-full` in widget mode instead of fixed height
+
+**Previous Work**: Knowledge Injection Credit Management - Completed ✅
 
 1. **Knowledge Injection Credit Management**: Implemented comprehensive credit management for knowledge injection re-ranking feature. Added 3-step cost verification pattern (estimate, provisional adjustment, async final verification) for OpenRouter re-ranking API calls. Created `knowledgeRerankingCredits.ts` utility with credit reservation, adjustment, queuing, and refund functions. Integrated credit checks into `injectKnowledgeIntoMessages` to ensure workspaces are charged for re-ranking usage and have sufficient credits before API calls. Extended cost verification queue to handle re-ranking costs separately from LLM generation costs. Added `rerankingCostUsd` field to conversation schema and updated conversation logger to include re-ranking costs in total. All credit management functions include comprehensive unit tests (30 new tests) covering pricing, BYOK handling, error scenarios, and edge cases. All tests passing (2332 tests), typecheck and lint clean.
 

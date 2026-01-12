@@ -44,10 +44,15 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *               name:
  *                 type: string
  *                 description: Optional name for the key
- *               provider:
- *                 type: string
- *                 description: Provider for the key
- *                 default: google
+     *               provider:
+     *                 type: string
+     *                 description: Provider for the key
+     *                 default: google
+     *               type:
+     *                 type: string
+     *                 enum: [webhook, widget]
+     *                 description: Key type - 'webhook' for webhook authentication, 'widget' for widget authentication
+     *                 default: webhook
  *     responses:
  *       201:
  *         description: Agent key created successfully
@@ -64,11 +69,15 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *                 name:
  *                   type: string
  *                   nullable: true
- *                 provider:
- *                   type: string
- *                 createdAt:
- *                   type: string
- *                   format: date-time
+     *                 provider:
+     *                   type: string
+     *                 type:
+     *                   type: string
+     *                   enum: [webhook, widget]
+     *                   description: Key type
+     *                 createdAt:
+     *                   type: string
+     *                   format: date-time
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       401:
@@ -106,10 +115,15 @@ export const registerPostAgentKeys = (app: express.Application) => {
           throw resourceGone("Agent not found");
         }
 
-        const { name, provider } = req.body;
+        const { name, provider, type } = req.body;
         const currentUserRef = req.userRef;
         if (!currentUserRef) {
           throw unauthorized();
+        }
+
+        // Validate type if provided
+        if (type !== undefined && type !== "webhook" && type !== "widget") {
+          throw badRequest("type must be 'webhook' or 'widget'");
         }
 
         // Ensure workspace has a subscription and check agent key limit
@@ -135,6 +149,7 @@ export const registerPostAgentKeys = (app: express.Application) => {
           key: keyValue,
           name: name || undefined,
           provider: provider || "google",
+          type: type || "webhook", // Default to webhook for backward compatibility
           createdBy: currentUserRef,
         });
 
@@ -143,6 +158,7 @@ export const registerPostAgentKeys = (app: express.Application) => {
           key: keyValue,
           name: agentKey.name,
           provider: agentKey.provider,
+          type: agentKey.type || "webhook",
           createdAt: agentKey.createdAt,
         });
       } catch (error) {
