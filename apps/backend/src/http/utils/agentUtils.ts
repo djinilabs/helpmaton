@@ -1225,17 +1225,41 @@ export async function callAgentInternal(
           : undefined,
       });
     } catch (conversationError) {
-      // Log but don't fail - conversation logging is best-effort
+      // Log the error and re-throw to ensure the queue processor knows about the failure
+      // This ensures data consistency: if we can't create the target agent's conversation,
+      // the delegation should be marked as failed so it can be retried
+      const errorMessage =
+        conversationError instanceof Error
+          ? conversationError.message
+          : String(conversationError);
+      const errorName =
+        conversationError instanceof Error ? conversationError.name : "Error";
+      
       console.error(
         "[callAgentInternal] Error creating conversation for target agent:",
         {
-          error:
-            conversationError instanceof Error
-              ? conversationError.message
-              : String(conversationError),
+          error: errorMessage,
+          errorName,
           workspaceId,
           targetAgentId,
         }
+      );
+      
+      // Preserve the original error if it's already an Error instance
+      // This helps with error classification (retryable vs permanent)
+      if (conversationError instanceof Error) {
+        // Wrap with additional context but preserve error type/name
+        const wrappedError = new Error(
+          `Failed to create conversation for target agent: ${errorMessage}`
+        );
+        wrappedError.name = errorName;
+        wrappedError.cause = conversationError;
+        throw wrappedError;
+      }
+      
+      // Re-throw with context for non-Error values
+      throw new Error(
+        `Failed to create conversation for target agent: ${errorMessage}`
       );
     }
 

@@ -30,6 +30,7 @@ function isRetryableError(error: unknown): boolean {
   }
 
   const message = error.message.toLowerCase();
+  const errorName = error.name?.toLowerCase() || "";
 
   // Retry on timeouts
   if (message.includes("timeout")) {
@@ -57,6 +58,30 @@ function isRetryableError(error: unknown): boolean {
     message.includes("502") ||
     message.includes("503") ||
     message.includes("504")
+  ) {
+    return true;
+  }
+
+  // Retry on DynamoDB throttling errors (transient)
+  if (
+    errorName.includes("provisionedthroughputexceeded") ||
+    errorName.includes("throttling") ||
+    errorName.includes("throttled") ||
+    message.includes("provisionedthroughputexceeded") ||
+    message.includes("throttling") ||
+    message.includes("throttled") ||
+    message.includes("throughput") ||
+    message.includes("too many requests")
+  ) {
+    return true;
+  }
+
+  // Retry on DynamoDB service errors (transient)
+  if (
+    errorName.includes("serviceunavailable") ||
+    errorName.includes("internalservererror") ||
+    message.includes("service unavailable") ||
+    message.includes("internal server error")
   ) {
     return true;
   }
