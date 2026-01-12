@@ -13,6 +13,8 @@ import {
   handleError,
   requireAuth,
 } from "../../any-api-workspaces-catchall/middleware";
+import { validateBody } from "../../utils/bodyValidation";
+import { createUserApiKeySchema } from "../../utils/schemas/userSchemas";
 
 /**
  * @openapi
@@ -74,7 +76,8 @@ export const registerPostUserApiKeys = (app: express.Application) => {
       }
 
       const userId = userRef.replace("users/", "");
-      const { name } = req.body || {};
+      const body = validateBody(req.body || {}, createUserApiKeySchema);
+      const { name } = body;
 
       // Generate API key
       const apiKey = generateApiKey();

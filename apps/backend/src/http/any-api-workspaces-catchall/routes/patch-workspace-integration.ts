@@ -4,6 +4,8 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
+import { updateIntegrationSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -25,7 +27,8 @@ export const registerPatchWorkspaceIntegration = (app: express.Application) => {
     async (req, res, next) => {
       try {
         const { workspaceId, integrationId } = req.params;
-        const { name, status, config } = req.body;
+        const body = validateBody(req.body, updateIntegrationSchema);
+        const { name, status, config } = body;
         const db = await database();
 
         const integrationPk = `bot-integrations/${workspaceId}/${integrationId}`;

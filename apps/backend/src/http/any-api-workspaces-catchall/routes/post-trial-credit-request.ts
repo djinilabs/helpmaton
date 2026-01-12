@@ -7,6 +7,8 @@ import { validateCloudflareTurnstile } from "../../../utils/captcha";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { sendTrialCreditRequestNotification } from "../../../utils/trialCreditNotifications";
 import { isUserInTrialPeriod } from "../../../utils/trialPeriod";
+import { validateBody } from "../../utils/bodyValidation";
+import { trialCreditRequestSchema } from "../../utils/schemas/workspaceSchemas";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -113,10 +115,8 @@ export const registerPostTrialCreditRequest = (app: express.Application) => {
       }
 
       // Validate CAPTCHA token
-      const { captchaToken } = req.body;
-      if (!captchaToken || typeof captchaToken !== "string") {
-        throw badRequest("CAPTCHA token is required");
-      }
+      const body = validateBody(req.body, trialCreditRequestSchema);
+      const { captchaToken } = body;
 
       // Get user IP from request
       const userIp = req.ip || req.socket.remoteAddress || "unknown";

@@ -9,7 +9,9 @@ import {
   incrementPromptGenerationBucket,
 } from "../../../utils/requestTracking";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
 import { createModel } from "../../utils/modelFactory";
+import { generatePromptRequestSchema } from "../../utils/schemas/requestSchemas";
 import { extractUserId } from "../../utils/session";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
@@ -84,10 +86,8 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
-        const { goal, agentId } = req.body;
-        if (!goal || typeof goal !== "string" || goal.trim().length === 0) {
-          throw badRequest("goal is required and must be a non-empty string");
-        }
+        const body = validateBody(req.body, generatePromptRequestSchema);
+        const { goal, agentId } = body;
 
         const workspaceResource = req.workspaceResource;
         if (!workspaceResource) {

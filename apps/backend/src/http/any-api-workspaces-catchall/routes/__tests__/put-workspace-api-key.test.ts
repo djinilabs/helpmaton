@@ -241,7 +241,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
         output: expect.objectContaining({
           statusCode: 400,
           payload: expect.objectContaining({
-            message: expect.stringContaining("provider is required"),
+            message: expect.stringContaining("provider"),
           }),
         }),
       })
@@ -346,7 +346,7 @@ describe("PUT /api/workspaces/:workspaceId/api-key", () => {
         output: expect.objectContaining({
           statusCode: 400,
           payload: expect.objectContaining({
-            message: expect.stringContaining("key is required"),
+            message: expect.stringContaining("key"),
           }),
         }),
       })

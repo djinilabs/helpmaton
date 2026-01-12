@@ -6,6 +6,8 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
+import { createIntegrationSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -67,21 +69,9 @@ export const registerPostWorkspaceIntegrations = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
-        const { platform, name, agentId, config } = req.body;
+        const body = validateBody(req.body, createIntegrationSchema);
+        const { platform, name, agentId, config } = body;
         const workspaceId = req.params.workspaceId;
-
-        if (!platform || (platform !== "slack" && platform !== "discord")) {
-          throw badRequest("platform must be 'slack' or 'discord'");
-        }
-        if (!name || typeof name !== "string") {
-          throw badRequest("name is required and must be a string");
-        }
-        if (!agentId || typeof agentId !== "string") {
-          throw badRequest("agentId is required and must be a string");
-        }
-        if (!config || typeof config !== "object") {
-          throw badRequest("config is required and must be an object");
-        }
 
         const db = await database();
         const currentUserRef = req.userRef;

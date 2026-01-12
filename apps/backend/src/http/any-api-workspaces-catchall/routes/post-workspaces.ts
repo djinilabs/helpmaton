@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 
-import { badRequest, unauthorized } from "@hapi/boom";
+import { unauthorized } from "@hapi/boom";
 import express from "express";
 
 import { database } from "../../../tables";
@@ -11,6 +11,8 @@ import {
   getUserSubscription,
 } from "../../../utils/subscriptionUtils";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
+import { createWorkspaceSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth } from "../middleware";
 
 /**
@@ -46,10 +48,8 @@ import { handleError, requireAuth } from "../middleware";
 export const registerPostWorkspaces = (app: express.Application) => {
   app.post("/api/workspaces", requireAuth, async (req, res, next) => {
     try {
-      const { name, description } = req.body;
-      if (!name || typeof name !== "string") {
-        throw badRequest("name is required and must be a string");
-      }
+      const body = validateBody(req.body, createWorkspaceSchema);
+      const { name, description } = body;
 
       const db = await database();
       const userRef = req.userRef;

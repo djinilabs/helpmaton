@@ -3,6 +3,8 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { validateBody } from "../../utils/bodyValidation";
+import { createEmailConnectionSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -113,20 +115,9 @@ export const registerPostEmailConnection = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
-        const { type, name, config } = req.body;
-        if (!type || typeof type !== "string") {
-          throw badRequest("type is required and must be a string");
-        }
-        if (!["gmail", "outlook", "smtp"].includes(type)) {
-          throw badRequest('type must be one of: "gmail", "outlook", "smtp"');
-        }
+        const body = validateBody(req.body, createEmailConnectionSchema);
+        const { type, name, config } = body;
         const emailConnectionType = type as "gmail" | "outlook" | "smtp";
-        if (!name || typeof name !== "string") {
-          throw badRequest("name is required and must be a string");
-        }
-        if (!config || typeof config !== "object") {
-          throw badRequest("config is required and must be an object");
-        }
 
         // Validate type-specific config
         if (type === "smtp") {

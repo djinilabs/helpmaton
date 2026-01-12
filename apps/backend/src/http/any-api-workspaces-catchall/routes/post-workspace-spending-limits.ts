@@ -5,6 +5,8 @@ import { database } from "../../../tables";
 import type { WorkspaceRecord } from "../../../tables/schema";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { addSpendingLimit } from "../../../utils/spendingLimitsManagement";
+import { validateBody } from "../../utils/bodyValidation";
+import { createSpendingLimitSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -73,17 +75,8 @@ export const registerPostWorkspaceSpendingLimits = (
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
-        const { timeFrame, amount } = req.body;
-        if (!timeFrame || !["daily", "weekly", "monthly"].includes(timeFrame)) {
-          throw badRequest(
-            "timeFrame is required and must be 'daily', 'weekly', or 'monthly'"
-          );
-        }
-        if (typeof amount !== "number" || amount < 0 || !Number.isInteger(amount)) {
-          throw badRequest(
-            "amount is required and must be a non-negative integer (millionths)"
-          );
-        }
+        const body = validateBody(req.body, createSpendingLimitSchema);
+        const { timeFrame, amount } = body;
 
         const db = await database();
         const workspaceResource = req.workspaceResource;

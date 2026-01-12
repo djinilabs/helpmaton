@@ -5,6 +5,8 @@ import { database } from "../../../tables";
 import type { AgentRecord } from "../../../tables/schema";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { updateSpendingLimit } from "../../../utils/spendingLimitsManagement";
+import { validateBody } from "../../utils/bodyValidation";
+import { updateAgentSpendingLimitSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -93,12 +95,8 @@ export const registerPutAgentSpendingLimits = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
-        const { amount } = req.body;
-        if (typeof amount !== "number" || amount < 0 || !Number.isInteger(amount)) {
-          throw badRequest(
-            "amount is required and must be a non-negative integer (millionths)"
-          );
-        }
+        const body = validateBody(req.body, updateAgentSpendingLimitSchema);
+        const { amount } = body;
 
         const timeFrame = req.params.timeFrame;
         if (!["daily", "weekly", "monthly"].includes(timeFrame)) {

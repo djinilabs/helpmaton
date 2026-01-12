@@ -9,6 +9,8 @@ import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
 } from "../../../utils/subscriptionUtils";
+import { validateBody } from "../../utils/bodyValidation";
+import { createAgentKeySchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -115,15 +117,11 @@ export const registerPostAgentKeys = (app: express.Application) => {
           throw resourceGone("Agent not found");
         }
 
-        const { name, provider, type } = req.body;
+        const body = validateBody(req.body || {}, createAgentKeySchema);
+        const { name, provider, type } = body;
         const currentUserRef = req.userRef;
         if (!currentUserRef) {
           throw unauthorized();
-        }
-
-        // Validate type if provided
-        if (type !== undefined && type !== "webhook" && type !== "widget") {
-          throw badRequest("type must be 'webhook' or 'widget'");
         }
 
         // Ensure workspace has a subscription and check agent key limit

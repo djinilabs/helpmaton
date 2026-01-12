@@ -11,6 +11,8 @@ import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { createCheckout, getVariant } from "../../../utils/lemonSqueezy";
 import { getWorkspaceSubscription } from "../../../utils/subscriptionUtils";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
+import { purchaseCreditsSchema } from "../../utils/schemas/workspaceSchemas";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 
 export function registerPostWorkspaceCreditsPurchase(
@@ -24,21 +26,8 @@ export function registerPostWorkspaceCreditsPurchase(
       const workspaceId = req.params.workspaceId;
 
       // Validate request body
-      const { amount } = req.body;
-      if (typeof amount !== "number" || amount <= 0) {
-        throw badRequest("Amount must be a positive number");
-      }
-
-      // Minimum amount validation (1 USD)
-      if (amount < 1) {
-        throw badRequest("Minimum purchase amount is 1 USD");
-      }
-
-      // Validate amount has at most 2 decimal places
-      // Use regex to avoid floating-point precision issues
-      if (!/^\d+(\.\d{1,2})?$/.test(String(amount))) {
-        throw badRequest("Amount must have at most 2 decimal places");
-      }
+      const body = validateBody(req.body, purchaseCreditsSchema);
+      const { amount } = body;
 
       // Workspace access is already checked by requirePermission middleware
       const workspacePk = `workspaces/${workspaceId}`;

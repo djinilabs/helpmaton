@@ -1,4 +1,4 @@
-import { badRequest, boomify } from "@hapi/boom";
+import { boomify } from "@hapi/boom";
 import serverlessExpress from "@vendia/serverless-express";
 import type {
   APIGatewayProxyHandlerV2,
@@ -31,8 +31,10 @@ import { setupResourceBlocking } from "../../utils/puppeteerResourceBlocking";
 import { ensureError, flushSentry, Sentry } from "../../utils/sentry";
 import { trackBusinessEvent } from "../../utils/tracking";
 import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
+import { validateBody } from "../utils/bodyValidation";
 import { expressErrorHandler } from "../utils/errorHandler";
 import { extractWorkspaceContextFromToken } from "../utils/jwtUtils";
+import { scrapeRequestSchema } from "../utils/schemas/requestSchemas";
 
 // Re-export for backward compatibility
 export { parseProxyUrl, getRandomProxyUrl, aomToXml, escapeXml };
@@ -123,14 +125,9 @@ function createApp(): express.Application {
         throw new Error("Context not properly configured for credits.");
       }
 
-      const { url } = req.body;
-      if (!url || typeof url !== "string") throw badRequest("url is required");
-      if (url.length > 2048) throw badRequest("url too long");
-      try {
-        new URL(url);
-      } catch {
-        throw badRequest("invalid URL");
-      }
+      // Validate request body
+      const body = validateBody(req.body, scrapeRequestSchema);
+      const { url } = body;
 
       // --- 2. Credit Reservation ---
       const scrapeCostMillionthUsd = 5000;

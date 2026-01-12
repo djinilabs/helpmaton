@@ -18,6 +18,8 @@ import {
   ensureWorkspaceSubscription,
 } from "../../../utils/subscriptionUtils";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
+import { createDocumentSchema, textDocumentsArraySchema } from "../../utils/schemas/workspaceSchemas";
 import { asyncHandler, requireAuth, requirePermission } from "../middleware";
 import { calculateDocumentMetrics } from "../utils";
 
@@ -111,13 +113,31 @@ export const registerPostWorkspaceDocuments = (app: express.Application) => {
     asyncHandler(async (req, res) => {
       const db = await database();
       const workspaceId = req.params.workspaceId;
+      
+      // Validate JSON fields in req.body (multipart/form-data may have file fields)
+      const jsonFields: { folderPath?: string } = {};
+      if (req.body.folderPath !== undefined) {
+        jsonFields.folderPath = req.body.folderPath as string;
+      }
+      const validatedFields = Object.keys(jsonFields).length > 0
+        ? validateBody(jsonFields, createDocumentSchema)
+        : { folderPath: undefined };
+      
       const folderPath = normalizeFolderPath(
-        (req.body.folderPath as string) || ""
+        validatedFields.folderPath || ""
       );
       const files = req.files as Express.Multer.File[];
-      const textDocuments = req.body.textDocuments
-        ? JSON.parse(req.body.textDocuments as string)
-        : [];
+      
+      // Validate textDocuments if present
+      let textDocuments: Array<{ name: string; content: string }> = [];
+      if (req.body.textDocuments) {
+        try {
+          const parsed = JSON.parse(req.body.textDocuments as string);
+          textDocuments = validateBody(parsed, textDocumentsArraySchema);
+        } catch {
+          throw badRequest("textDocuments must be a valid JSON array");
+        }
+      }
 
       // Ensure workspace has a subscription and check limits before uploading
       const userRef = req.userRef;

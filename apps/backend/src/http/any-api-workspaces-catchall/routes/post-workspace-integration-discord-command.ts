@@ -5,6 +5,8 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { deleteDiscordCommand, makeDiscordRequest } from "../../../utils/discordApi";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
+import { createIntegrationDiscordCommandSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 interface DiscordCommand {
@@ -98,11 +100,8 @@ export const registerPostWorkspaceIntegrationDiscordCommand = (
     async (req, res, next) => {
       try {
         const { workspaceId, integrationId } = req.params;
-        const { commandName } = req.body;
-
-        if (!commandName || typeof commandName !== "string") {
-          throw badRequest("commandName is required and must be a string");
-        }
+        const body = validateBody(req.body, createIntegrationDiscordCommandSchema);
+        const { commandName } = body;
 
         // Validate command name
         validateCommandName(commandName);

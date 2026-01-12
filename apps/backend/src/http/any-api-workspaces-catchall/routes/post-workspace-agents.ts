@@ -11,6 +11,8 @@ import {
   ensureWorkspaceSubscription,
 } from "../../../utils/subscriptionUtils";
 import { trackBusinessEvent } from "../../../utils/tracking";
+import { validateBody } from "../../utils/bodyValidation";
+import { createAgentSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -104,40 +106,8 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {
       try {
-        const { name, systemPrompt, modelName, clientTools, avatar } = req.body;
-        if (!name || typeof name !== "string") {
-          throw badRequest("name is required and must be a string");
-        }
-        if (!systemPrompt || typeof systemPrompt !== "string") {
-          throw badRequest("systemPrompt is required and must be a string");
-        }
-
-        // Validate clientTools if provided
-        if (clientTools !== undefined) {
-          if (!Array.isArray(clientTools)) {
-            throw badRequest("clientTools must be an array");
-          }
-          for (const tool of clientTools) {
-            if (
-              !tool ||
-              typeof tool !== "object" ||
-              typeof tool.name !== "string" ||
-              typeof tool.description !== "string" ||
-              !tool.parameters ||
-              typeof tool.parameters !== "object"
-            ) {
-              throw badRequest(
-                "Each client tool must have name, description (both strings) and parameters (object)"
-              );
-            }
-            // Validate name is a valid JavaScript identifier
-            if (!/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(tool.name)) {
-              throw badRequest(
-                `Tool name "${tool.name}" must be a valid JavaScript identifier (letters, numbers, underscore, $; no spaces or special characters)`
-              );
-            }
-          }
-        }
+        const body = validateBody(req.body, createAgentSchema);
+        const { name, systemPrompt, notificationChannelId, modelName, clientTools, avatar } = body;
 
         const db = await database();
         const workspaceResource = req.workspaceResource;
@@ -162,11 +132,26 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
         const agentPk = `agents/${workspaceId}/${agentId}`;
         const agentSk = "agent";
 
-        // Validate modelName if provided
-        if (modelName !== undefined && modelName !== null) {
-          if (typeof modelName !== "string" || modelName.trim().length === 0) {
-            throw badRequest("modelName must be a non-empty string or null");
+        // Validate notificationChannelId if provided (Zod already validated the type)
+        if (
+          notificationChannelId !== undefined &&
+          notificationChannelId !== null
+        ) {
+          // Verify channel exists and belongs to workspace
+          const channelPk = `output-channels/${workspaceId}/${notificationChannelId}`;
+          const channel = await db["output_channel"].get(channelPk, "channel");
+          if (!channel) {
+            throw badRequest("Notification channel not found");
           }
+          if (channel.workspaceId !== workspaceId) {
+            throw badRequest(
+              "Notification channel does not belong to this workspace"
+            );
+          }
+        }
+
+        // Validate modelName if provided (Zod already validated the type)
+        if (modelName !== undefined && modelName !== null) {
           // Validate model exists in pricing config
           const { getModelPricing } = await import("../../../utils/pricing");
           const pricing = getModelPricing("google", modelName.trim());
@@ -177,12 +162,9 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           }
         }
 
-        // Validate avatar if provided, otherwise assign random
+        // Validate avatar if provided, otherwise assign random (Zod already validated the type)
         let avatarPath: string | undefined;
         if (avatar !== undefined && avatar !== null) {
-          if (typeof avatar !== "string") {
-            throw badRequest("avatar must be a string or null");
-          }
           if (!isValidAvatar(avatar)) {
             throw badRequest(
               `Invalid avatar path. Avatar must be one of the available logo paths.`
@@ -202,6 +184,10 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           name,
           systemPrompt,
           provider: "google", // Default to Google provider
+          notificationChannelId:
+            notificationChannelId !== undefined && notificationChannelId !== null
+              ? notificationChannelId
+              : undefined,
           modelName:
             typeof modelName === "string" && modelName.trim()
               ? modelName.trim()

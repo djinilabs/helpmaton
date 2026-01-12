@@ -2,6 +2,7 @@ import { badRequest } from "@hapi/boom";
 import { convertToModelMessages } from "ai";
 import type { ModelMessage } from "ai";
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
+import { z } from "zod";
 
 import { setupAgentAndTools } from "../../http/utils/agentSetup";
 import {
@@ -18,6 +19,7 @@ import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { MODEL_NAME } from "./agentUtils";
 import { validateAndReserveCredits } from "./generationCreditManagement";
 import { validateSubscriptionAndLimits } from "./generationRequestTracking";
+import { streamRequestSchema } from "./schemas/requestSchemas";
 import type { EndpointType } from "./streamEndpointDetection";
 import type { PathParameters } from "./streamPathExtraction";
 
@@ -122,6 +124,7 @@ function extractRequestBody(
  * Converts the request body to model messages
  * Supports both plain text and JSON message arrays (for tool results)
  * When messages are from useChat, they are in ai-sdk UIMessage format
+ * JSON bodies are strictly validated with Zod schemas
  */
 function convertRequestBodyToMessages(bodyText: string): {
   uiMessage: UIMessage;
@@ -130,9 +133,18 @@ function convertRequestBodyToMessages(bodyText: string): {
 } {
   // Try to parse as JSON first (for messages with tool results)
   let messages: UIMessage[] | null = null;
-  try {
-    const parsed = JSON.parse(bodyText);
+  let parsed: unknown = null;
+  let isJson = false;
 
+  try {
+    parsed = JSON.parse(bodyText);
+    isJson = true;
+  } catch {
+    // Not JSON, treat as plain text
+  }
+
+  // If it's JSON, validate it strictly
+  if (isJson && parsed !== null) {
     // Check if it's an array of messages (from useChat)
     if (Array.isArray(parsed) && parsed.length > 0) {
       // Validate that it looks like UIMessage array
@@ -140,33 +152,63 @@ function convertRequestBodyToMessages(bodyText: string): {
       if (
         typeof firstMessage === "object" &&
         firstMessage !== null &&
-        "role" in firstMessage &&
-        "content" in firstMessage
+        "role" in firstMessage
       ) {
-        messages = parsed as UIMessage[];
+        // For array format (ai-sdk), validate core structure
+        // Note: ai-sdk messages have 'parts' and other fields, so we validate
+        // the structure but allow extra fields (ai-sdk format compatibility)
+        const arraySchema = z
+          .array(
+            z
+              .object({
+                role: z.enum(["user", "assistant", "system", "tool"]),
+                // Allow content or parts (ai-sdk uses parts)
+                content: z.union([z.string(), z.array(z.unknown())]).optional(),
+                parts: z.array(z.unknown()).optional(),
+              })
+              .passthrough() // Allow extra fields for ai-sdk format compatibility
+              .refine(
+                (data) =>
+                  data.content !== undefined || data.parts !== undefined,
+                { message: "Message must have either 'content' or 'parts'" }
+              )
+          )
+          .min(1);
+        // Use parse (not strict) for ai-sdk compatibility, but validate structure
+        const validated = arraySchema.parse(parsed);
+        messages = validated as UIMessage[];
+      } else {
+        throw badRequest(
+          "Invalid message array format: each message must have a 'role' property"
+        );
       }
     }
     // Check if it's an object with a 'messages' property (from useChat with full state)
     else if (
       typeof parsed === "object" &&
       parsed !== null &&
-      "messages" in parsed &&
-      Array.isArray(parsed.messages) &&
-      parsed.messages.length > 0
+      "messages" in parsed
     ) {
-      // Extract the messages array from the object
-      const messagesArray = parsed.messages;
-      const firstMessage = messagesArray[0];
-      if (
-        typeof firstMessage === "object" &&
-        firstMessage !== null &&
-        "role" in firstMessage
-      ) {
-        messages = messagesArray as UIMessage[];
+      // Validate with streamRequestSchema (strict) - this is our own format
+      try {
+        const validated = streamRequestSchema.parse(parsed);
+        messages = validated.messages as UIMessage[];
+      } catch (error) {
+        // Re-throw validation errors
+        throw badRequest(
+          error instanceof z.ZodError
+            ? `Validation failed: ${error.issues
+                .map((e) => `${e.path.join(".")}: ${e.message}`)
+                .join("; ")}`
+            : "Invalid request body format"
+        );
       }
+    } else {
+      // Invalid JSON structure - throw validation error
+      throw badRequest(
+        "Request body must be either plain text, an array of messages, or an object with a 'messages' property"
+      );
     }
-  } catch {
-    // Not JSON, treat as plain text
   }
 
   // If we have parsed messages, use them; otherwise treat as plain text
@@ -378,7 +420,8 @@ export async function buildStreamRequestContext(
       conversationPk
     );
     if (existingConversation && existingConversation.messages) {
-      existingConversationMessages = existingConversation.messages as UIMessage[];
+      existingConversationMessages =
+        existingConversation.messages as UIMessage[];
     }
   } catch (error) {
     // If conversation doesn't exist yet or fetch fails, that's okay - we'll create new knowledge injection
@@ -405,13 +448,16 @@ export async function buildStreamRequestContext(
   );
 
   const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
-  const knowledgeInjectionMessage = knowledgeInjectionResult.knowledgeInjectionMessage;
-  const rerankingRequestMessage = knowledgeInjectionResult.rerankingRequestMessage;
-  const rerankingResultMessage = knowledgeInjectionResult.rerankingResultMessage;
+  const knowledgeInjectionMessage =
+    knowledgeInjectionResult.knowledgeInjectionMessage;
+  const rerankingRequestMessage =
+    knowledgeInjectionResult.rerankingRequestMessage;
+  const rerankingResultMessage =
+    knowledgeInjectionResult.rerankingResultMessage;
 
   // Add re-ranking and knowledge injection messages to convertedMessages if they exist
   let updatedConvertedMessages = convertedMessages;
-  
+
   // Find insertion point (before first user message)
   const userMessageIndex = convertedMessages.findIndex(
     (msg) => msg.role === "user"

@@ -11,6 +11,8 @@ import {
   createWorkspaceInvite,
   sendInviteEmail,
 } from "../../../utils/workspaceInvites";
+import { validateBody } from "../../utils/bodyValidation";
+import { createInviteSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -87,24 +89,9 @@ export const registerPostWorkspaceInvite = (app: express.Application) => {
     requirePermission(PERMISSION_LEVELS.OWNER),
     async (req, res, next) => {
       try {
-        const { email, permissionLevel } = req.body;
+        const body = validateBody(req.body, createInviteSchema);
+        const { email, permissionLevel } = body;
         const { workspaceId } = req.params;
-
-        if (!email || typeof email !== "string") {
-          throw badRequest("email is required and must be a string");
-        }
-
-        if (
-          permissionLevel !== undefined &&
-          (typeof permissionLevel !== "number" ||
-            (permissionLevel !== PERMISSION_LEVELS.READ &&
-              permissionLevel !== PERMISSION_LEVELS.WRITE &&
-              permissionLevel !== PERMISSION_LEVELS.OWNER))
-        ) {
-          throw badRequest(
-            "permissionLevel must be 1 (READ), 2 (WRITE), or 3 (OWNER)"
-          );
-        }
 
         const db = await database();
         const workspaceResource = req.workspaceResource;
