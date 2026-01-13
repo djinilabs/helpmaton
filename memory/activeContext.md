@@ -2,9 +2,60 @@
 
 ## Current Status
 
-**Status**: Agent Chat Widget - Completed ✅
+**Status**: Google Drive MCP Server Integration - Completed ✅
 
 **Latest Work**:
+
+1. **Google Drive MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Drive, allowing agents to list, read, and search files in users' Google Drive accounts. The infrastructure is reusable for other OAuth-based MCP servers.
+
+   - **Database Schema Updates**:
+     - Extended `mcp-server` table schema to support OAuth authentication
+     - Added `authType: "oauth"` option alongside existing "none", "header", "basic"
+     - Added `serviceType` field ("external" or "google-drive") to differentiate service types
+     - Made `url` optional for OAuth-based servers (not needed for built-in services)
+     - OAuth credentials (accessToken, refreshToken, expiresAt, email) stored encrypted in `config` field
+   
+   - **OAuth Infrastructure**:
+     - Reusable OAuth utilities in `utils/oauth/mcp/` for MCP-specific OAuth flows
+     - Google Drive OAuth implementation using `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`
+     - State token generation with workspaceId and serverId encoded
+     - OAuth callback handler at `/api/mcp/oauth/:serviceType/callback`
+     - Token refresh logic with automatic retry on authentication errors
+   
+   - **Google Drive API Client**:
+     - Robust error handling with exponential backoff for recoverable errors (429, 503)
+     - Automatic token refresh on authentication errors (401, 403)
+     - Support for Google Docs (exports as plain text), Google Sheets (exports as CSV), Google Slides (exports as plain text)
+     - Full-text search support using `drive` scope (required for fullText search)
+     - Request timeout handling (30 seconds)
+   
+   - **Agent Tools**:
+     - Three dedicated tools for Google Drive: `google_drive_list_{serverName}`, `google_drive_read_{serverName}`, `google_drive_search_{serverName}`
+     - Tool names use sanitized server name (not serverId) for better readability
+     - Tools only exposed when OAuth connection is active
+     - Parameter validation with support for both camelCase and snake_case parameter names
+   
+   - **UI Improvements**:
+     - Simplified MCP server creation flow: service type selector first (Google Drive or Custom MCP)
+     - For Google Drive: no URL or auth type selection needed (OAuth only)
+     - For Custom MCP: shows URL field and auth type selector (none, header, basic - no OAuth)
+     - MCP server list shows connection status and service type
+     - "Connect", "Reconnect", and "Disconnect" buttons for OAuth servers
+     - Dark mode support throughout MCP server UI
+     - Tools Help Dialog shows specific Google Drive tools (not generic MCP interface) when Google Drive server is enabled
+   
+   - **Error Handling**:
+     - Graceful handling of deleted MCP servers in agent configuration (auto-cleanup)
+     - Clear error messages for token revocation (prompts user to reconnect)
+     - Better error messages for missing/invalid parameters
+     - Improved tool descriptions to accurately reflect capabilities (including Google Sheets support)
+   
+   - **Environment Configuration**:
+     - Added `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` to deploy workflows
+     - Added to esbuild config for environment variable injection
+     - Updated all references from Gmail-specific env vars to Google OAuth env vars
+
+**Previous Work**: Agent Chat Widget - Completed ✅
 
 1. **Agent Chat Widget Implementation**: Implemented a complete embeddable chat widget that users can integrate into their own websites. The widget is a self-contained Web Component that can be embedded via a simple script tag.
 
