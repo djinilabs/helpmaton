@@ -1,5 +1,8 @@
+import { randomBytes, randomUUID } from "crypto";
+
 import awsLite from "@aws-lite/client";
 import s3Plugin from "@aws-lite/s3";
+import AWS from "aws-sdk";
 
 // Use bucket name with period to force path-style addressing for local S3 servers
 const BUCKET_NAME = (
@@ -332,4 +335,174 @@ export async function renameDocument(
   });
 
   return newKey;
+}
+
+/**
+ * Generate a high-entropy filename for conversation files
+ * Uses randomUUID() + randomBytes() for unguessable filenames
+ */
+function generateHighEntropyFilename(fileExtension?: string): string {
+  const uuid = randomUUID();
+  const additionalEntropy = randomBytes(16).toString("hex");
+  const baseFilename = `${uuid}-${additionalEntropy}`;
+
+  if (fileExtension) {
+    // Ensure extension starts with a dot
+    const ext = fileExtension.startsWith(".")
+      ? fileExtension
+      : `.${fileExtension}`;
+    return `${baseFilename}${ext}`;
+  }
+
+  return baseFilename;
+}
+
+/**
+ * Build S3 key for conversation files with nested path structure
+ */
+function buildConversationFileKey(
+  workspaceId: string,
+  agentId: string,
+  conversationId: string,
+  filename: string
+): string {
+  return `conversation-files/${workspaceId}/${agentId}/${conversationId}/${filename}`;
+}
+
+/**
+ * Get AWS SDK S3 client for presigned URL generation
+ * Uses AWS SDK v2 for presigned POST URL support
+ */
+function getAwsSdkS3Client(): AWS.S3 {
+  const arcEnv = process.env.ARC_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  const isLocal =
+    arcEnv === "testing" ||
+    (arcEnv !== "production" && nodeEnv !== "production");
+
+  const config: AWS.S3.ClientConfiguration = {};
+
+  if (isLocal) {
+    // Local development with s3rver
+    const endpoint =
+      process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
+    config.endpoint = endpoint;
+    config.accessKeyId = "S3RVER";
+    config.secretAccessKey = "S3RVER";
+    config.region = "us-east-1";
+    config.s3ForcePathStyle = true; // Force path-style for local S3
+  } else {
+    // Production - use explicit credentials from environment variables
+    const region =
+      process.env.HELPMATON_S3_REGION || process.env.AWS_REGION || "eu-west-2";
+    config.region = region;
+
+    // Use S3-specific credentials if provided, otherwise fall back to standard AWS credentials
+    const accessKeyId =
+      process.env.HELPMATON_S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey =
+      process.env.HELPMATON_S3_SECRET_ACCESS_KEY ||
+      process.env.AWS_SECRET_ACCESS_KEY;
+
+    if (accessKeyId && secretAccessKey) {
+      config.accessKeyId = accessKeyId;
+      config.secretAccessKey = secretAccessKey;
+    }
+  }
+
+  return new AWS.S3(config);
+}
+
+/**
+ * Generate a presigned POST URL for uploading conversation files to S3
+ * @param workspaceId - Workspace ID
+ * @param agentId - Agent ID
+ * @param conversationId - Conversation ID
+ * @param contentType - File content type (e.g., "image/jpeg", "application/pdf")
+ * @param fileExtension - Optional file extension (e.g., "jpg", "pdf")
+ * @param expiresIn - URL expiration time in seconds (default: 300 = 5 minutes)
+ * @param maxFileSize - Maximum file size in bytes (default: 10MB)
+ * @returns Presigned POST URL data including upload URL, form fields, and final S3 URL
+ */
+export async function generatePresignedPostUrl(
+  workspaceId: string,
+  agentId: string,
+  conversationId: string,
+  contentType: string,
+  fileExtension?: string,
+  expiresIn: number = 300,
+  maxFileSize: number = 10 * 1024 * 1024 // 10MB
+): Promise<{
+  uploadUrl: string;
+  fields: Record<string, string>;
+  finalUrl: string;
+  expiresIn: number;
+}> {
+  // Generate high-entropy filename
+  const filename = generateHighEntropyFilename(fileExtension);
+  const key = buildConversationFileKey(
+    workspaceId,
+    agentId,
+    conversationId,
+    filename
+  );
+
+  // Get AWS SDK S3 client
+  const s3 = getAwsSdkS3Client();
+
+  // Create presigned POST parameters
+  const params: AWS.S3.PresignedPost.Params = {
+    Bucket: BUCKET_NAME,
+    Fields: {
+      key,
+      "Content-Type": contentType,
+    },
+    Conditions: [
+      ["content-length-range", 0, maxFileSize], // Max file size
+      ["eq", "$Content-Type", contentType], // Exact content type match
+      ["eq", "$key", key], // Exact key match
+    ],
+    Expires: expiresIn,
+  };
+
+  // Generate presigned POST URL
+  const presignedPost = await new Promise<AWS.S3.PresignedPost>(
+    (resolve, reject) => {
+      s3.createPresignedPost(params, (err, data) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(data);
+        }
+      });
+    }
+  );
+
+  // Construct final S3 URL
+  // For local S3, use the endpoint directly
+  // For production, construct the S3 URL
+  const arcEnv = process.env.ARC_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  const isLocal =
+    arcEnv === "testing" ||
+    (arcEnv !== "production" && nodeEnv !== "production");
+
+  let finalUrl: string;
+  if (isLocal) {
+    const endpoint =
+      process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
+    finalUrl = `${endpoint}/${BUCKET_NAME}/${key}`;
+  } else {
+    const region =
+      process.env.HELPMATON_S3_REGION || process.env.AWS_REGION || "eu-west-2";
+    // Use path-style URL (bucket name with dots forces path-style)
+    finalUrl = `https://s3.${region}.amazonaws.com/${BUCKET_NAME}/${key}`;
+  }
+
+  return {
+    uploadUrl: presignedPost.url,
+    fields: presignedPost.fields,
+    finalUrl,
+    expiresIn,
+  };
 }
