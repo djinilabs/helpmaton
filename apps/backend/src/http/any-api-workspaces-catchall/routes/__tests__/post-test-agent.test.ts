@@ -147,7 +147,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
 
         // Convert messages to ModelMessage format
         const { convertToModelMessages } = await import("ai");
-        const modelMessages = convertToModelMessages(
+        const modelMessages = await convertToModelMessages(
           messages as Array<Omit<import("ai").UIMessage, "id">>
         );
 
@@ -477,7 +477,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
       tools: {},
       usesByok: false,
     });
-    mockConvertToModelMessages.mockReturnValue([
+    mockConvertToModelMessages.mockResolvedValue([
       { role: "user", content: "Hello" },
     ]);
     mockValidateCreditsAndLimitsAndReserve.mockRejectedValue(
@@ -530,7 +530,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
       tools: {},
       usesByok: false,
     });
-    mockConvertToModelMessages.mockReturnValue([
+    mockConvertToModelMessages.mockResolvedValue([
       { role: "user", content: "Hello" },
     ]);
     mockValidateCreditsAndLimitsAndReserve.mockRejectedValue(
@@ -592,7 +592,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
       tools: {},
       usesByok: false,
     });
-    mockConvertToModelMessages.mockImplementation(() => {
+    mockConvertToModelMessages.mockImplementation(async () => {
       throw new Error("Invalid message format");
     });
 
@@ -640,7 +640,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
       tools: {},
       usesByok: false,
     });
-    mockConvertToModelMessages.mockReturnValue([
+    mockConvertToModelMessages.mockResolvedValue([
       { role: "user", content: "Hello" },
     ]);
     mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
@@ -727,7 +727,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
       tools: {},
       usesByok: false,
     });
-    mockConvertToModelMessages.mockReturnValue([
+    mockConvertToModelMessages.mockResolvedValue([
       { role: "user", content: "Hello" },
     ]);
     mockValidateCreditsAndLimitsAndReserve.mockResolvedValue(null);
