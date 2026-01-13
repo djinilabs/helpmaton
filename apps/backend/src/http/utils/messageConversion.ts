@@ -428,6 +428,42 @@ export function convertUIMessagesToModelMessages(
               typeof part.text === "string"
             ) {
               textParts.push(part.text);
+            } else if ("image" in part && typeof part.image === "string") {
+              // Handle image type (from schema: { type: "image", image: "https://..." })
+              // Note: Schema allows this format even though TypeScript types use FileContent
+              const imagePart = part as {
+                type: string;
+                image: string;
+                mediaType?: unknown;
+              };
+              const imageUrl = imagePart.image;
+
+              // Validate that image URL is an S3 URL, not base64/data URL
+              // Reject base64/data URLs
+              if (
+                imageUrl.startsWith("data:") ||
+                imageUrl.startsWith("data;")
+              ) {
+                throw new Error(
+                  "Inline image data (base64/data URLs) is not allowed. Images must be uploaded to S3 first."
+                );
+              }
+
+              // Ensure it's a valid URL
+              if (
+                !imageUrl.startsWith("http://") &&
+                !imageUrl.startsWith("https://")
+              ) {
+                throw new Error(
+                  "Image URL must be a valid HTTP/HTTPS URL"
+                );
+              }
+
+              // Use ImagePart for images
+              imageParts.push({
+                type: "image",
+                image: imageUrl,
+              } as ImagePart);
             } else if (partType === "file" && "file" in part) {
               // Handle file type
               const filePart = part as {

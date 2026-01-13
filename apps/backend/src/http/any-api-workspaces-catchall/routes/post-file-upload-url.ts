@@ -6,7 +6,7 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { generatePresignedPostUrl } from "../../../utils/s3";
 import { validateBody } from "../../utils/bodyValidation";
-import { handleError, requireAuth, requirePermission } from "../middleware";
+import { asyncHandler, handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
  * Sets CORS headers for the file upload URL endpoint
@@ -34,12 +34,6 @@ function setCorsHeaders(
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization, X-Requested-With, Origin, Accept"
   );
-
-  // Handle OPTIONS preflight request
-  if (req.method === "OPTIONS") {
-    res.status(200).end();
-    return;
-  }
 
   next();
 }
@@ -139,9 +133,18 @@ const fileUploadUrlRequestSchema = z
  *         description: CORS headers returned
  */
 export const registerPostFileUploadUrl = (app: express.Application) => {
+  // Register OPTIONS handler for CORS preflight requests
+  app.options(
+    "/api/workspaces/:workspaceId/agents/:agentId/conversations/:conversationId/files/upload-url",
+    setCorsHeaders,
+    asyncHandler(async (req, res) => {
+      res.status(200).end();
+    })
+  );
+
   app.post(
     "/api/workspaces/:workspaceId/agents/:agentId/conversations/:conversationId/files/upload-url",
-    setCorsHeaders, // Handle CORS and OPTIONS before auth
+    setCorsHeaders, // Handle CORS before auth
     requireAuth,
     requirePermission(PERMISSION_LEVELS.WRITE),
     async (req, res, next) => {

@@ -235,4 +235,58 @@ describe("convertUIMessagesToModelMessages - File Parts", () => {
     expect(content[0]).toMatchObject({ type: "text", text: "Please review" });
     expect(content[1]).toMatchObject({ type: "file" });
   });
+
+  it("should handle type: image with image property (schema format)", () => {
+    // This tests the schema format { type: "image", image: "https://..." }
+    // which is allowed by the request schema but not in TypeScript types
+    const messages = [
+      {
+        role: "user" as const,
+        content: [
+          { type: "text", text: "Look at this image" },
+          {
+            type: "image",
+            image: "https://s3.amazonaws.com/bucket/photo.jpg",
+            mediaType: "image/jpeg",
+          },
+        ],
+      },
+    ];
+
+    const result = convertUIMessagesToModelMessages(
+      messages as unknown as UIMessage[]
+    );
+
+    expect(result).toHaveLength(1);
+    const userMessage = result[0] as UserModelMessage;
+    expect(userMessage.role).toBe("user");
+    expect(Array.isArray(userMessage.content)).toBe(true);
+
+    const content = userMessage.content as Array<unknown>;
+    expect(content).toHaveLength(2);
+    expect(content[0]).toEqual({ type: "text", text: "Look at this image" });
+    expect(content[1]).toMatchObject({
+      type: "image",
+      image: "https://s3.amazonaws.com/bucket/photo.jpg",
+    });
+  });
+
+  it("should reject type: image with base64/data URL", () => {
+    const messages = [
+      {
+        role: "user" as const,
+        content: [
+          {
+            type: "image",
+            image: "data:image/jpeg;base64,/9j/4AAQSkZJRg==",
+            mediaType: "image/jpeg",
+          },
+        ],
+      },
+    ];
+
+    expect(() =>
+      convertUIMessagesToModelMessages(messages as unknown as UIMessage[])
+    ).toThrow("Inline image data (base64/data URLs) is not allowed");
+  });
 });

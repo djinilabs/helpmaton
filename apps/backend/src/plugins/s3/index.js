@@ -73,16 +73,14 @@ function pkg({
     Type: 'AWS::S3::BucketLifecycleConfiguration',
     Properties: {
       Bucket: { Ref: bucketResourceId },
-      LifecycleConfiguration: {
-        Rules: [
-          {
-            Id: 'DeleteConversationFilesAfter30Days',
-            Status: 'Enabled',
-            Prefix: 'conversation-files/',
-            ExpirationInDays: 30,
-          },
-        ],
-      },
+      Rules: [
+        {
+          Id: 'DeleteConversationFilesAfter30Days',
+          Status: 'Enabled',
+          Prefix: 'conversation-files/',
+          ExpirationInDays: 30,
+        },
+      ],
     },
   };
 
