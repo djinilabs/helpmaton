@@ -126,11 +126,11 @@ function extractRequestBody(
  * When messages are from useChat, they are in ai-sdk UIMessage format
  * JSON bodies are strictly validated with Zod schemas
  */
-function convertRequestBodyToMessages(bodyText: string): {
+async function convertRequestBodyToMessages(bodyText: string): Promise<{
   uiMessage: UIMessage;
   modelMessages: ModelMessage[];
   convertedMessages: UIMessage[];
-} {
+}> {
   // Try to parse as JSON first (for messages with tool results)
   let messages: UIMessage[] | null = null;
   let parsed: unknown = null;
@@ -244,7 +244,7 @@ function convertRequestBodyToMessages(bodyText: string): {
       if (isAiSdkFormat) {
         // Messages from useChat are in ai-sdk UIMessage format with 'parts'
         // Use convertToModelMessages from ai-sdk
-        modelMessages = convertToModelMessages(
+        modelMessages = await convertToModelMessages(
           messages as unknown as Array<Omit<import("ai").UIMessage, "id">>
         );
       } else {
@@ -410,7 +410,7 @@ export async function buildStreamRequestContext(
   }
 
   const { uiMessage, modelMessages, convertedMessages } =
-    convertRequestBodyToMessages(bodyText);
+    await convertRequestBodyToMessages(bodyText);
 
   // Add timestamps to user messages that don't have them
   const now = new Date().toISOString();

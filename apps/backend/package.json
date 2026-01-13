@@ -4,7 +4,7 @@
   "description": "A fresh new Architect project!",
   "dependencies": {
     "@20minutes/s3rver": "^4.0.1",
-    "@ai-sdk/google": "^2.0.31",
+    "@ai-sdk/google": "^3.0.0",
     "@architect/functions": "^8.1.6",
     "@auth/core": "^0.41.0",
     "@auth/dynamodb-adapter": "^2.7.4",
@@ -26,7 +26,7 @@
     "@sparticuz/chromium": "^143.0.0",
     "@tavily/core": "^0.6.3",
     "@vendia/serverless-express": "^4.12.6",
-    "ai": "^5.0.0",
+    "ai": "^6.0.0",
     "aws-sdk": "^2.1692.0",
     "chalk": "^5.0.0",
     "express": "^5.0.0",

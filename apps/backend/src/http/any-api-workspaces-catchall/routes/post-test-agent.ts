@@ -432,7 +432,7 @@ export const registerPostTestAgent = (app: express.Application) => {
       try {
         // Messages from useChat are already in ai-sdk UIMessage format
         // Convert them to ModelMessage format using ai-sdk utility
-        modelMessages = convertToModelMessages(
+        modelMessages = await convertToModelMessages(
           messages as Array<Omit<import("ai").UIMessage, "id">>
         );
       } catch (error) {

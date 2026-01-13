@@ -73,7 +73,9 @@
       "sharp"
     ],
     "overrides": {
-      "@types/node": "24.10.4"
+      "@types/node": "24.10.4",
+      "vite": "^7.2.2",
+      "next": "^16.0.7"
     }
   },
   "devDependencies": {
