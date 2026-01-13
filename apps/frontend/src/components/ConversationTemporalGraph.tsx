@@ -1,7 +1,4 @@
-import {
-  CheckCircleIcon,
-  ClockIcon,
-} from "@heroicons/react/24/outline";
+import { CheckCircleIcon, ClockIcon } from "@heroicons/react/24/outline";
 import { useMemo, useState, useRef } from "react";
 import type { FC } from "react";
 import ReactMarkdown from "react-markdown";
@@ -274,11 +271,15 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
       acc.cumulativeY += currentBarHeight + spacing;
       return acc;
     },
-    { positions: [] as Array<{ y: number; barHeight: number; isUser: boolean }>, cumulativeY: 0 }
+    {
+      positions: [] as Array<{ y: number; barHeight: number; isUser: boolean }>,
+      cumulativeY: 0,
+    }
   ).positions;
 
   const totalHeight = messagePositions.reduce(
-    (sum, pos, idx) => sum + pos.barHeight + (idx < messagePositions.length - 1 ? spacing : 0),
+    (sum, pos, idx) =>
+      sum + pos.barHeight + (idx < messagePositions.length - 1 ? spacing : 0),
     0
   );
   const height = Math.max(totalHeight + padding.top + padding.bottom, 200);
@@ -668,163 +669,148 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
           })}
 
           {/* Message bars */}
-          {graphMessages.map(
-            ({ message, index, startTime, duration }, i) => {
-              const position = messagePositions[i];
-              const y = padding.top + position.y;
-              const barHeight = position.barHeight;
-              const isUser = position.isUser;
-              const x = padding.left + getXPosition(startTime);
-              const barWidth = Math.max((duration / timeRange) * graphWidth, 2); // Minimum 2px width
+          {graphMessages.map(({ message, index, startTime, duration }, i) => {
+            const position = messagePositions[i];
+            const y = padding.top + position.y;
+            const barHeight = position.barHeight;
+            const isUser = position.isUser;
+            const x = padding.left + getXPosition(startTime);
+            const barWidth = Math.max((duration / timeRange) * graphWidth, 2); // Minimum 2px width
 
-              // Check if assistant message has tool calls
-              let roleKey: string = message.role;
-              if (message.role === "assistant") {
-                const content = message.content;
-                const hasToolCall = Array.isArray(content)
-                  ? content.some(
-                      (item) =>
-                        typeof item === "object" &&
-                        item !== null &&
-                        "type" in item &&
-                        item.type === "tool-call"
-                    )
-                  : false;
-                if (hasToolCall) {
-                  roleKey = "assistant-tool";
-                }
+            // Check if assistant message has tool calls
+            let roleKey: string = message.role;
+            if (message.role === "assistant") {
+              const content = message.content;
+              const hasToolCall = Array.isArray(content)
+                ? content.some(
+                    (item) =>
+                      typeof item === "object" &&
+                      item !== null &&
+                      "type" in item &&
+                      item.type === "tool-call"
+                  )
+                : false;
+              if (hasToolCall) {
+                roleKey = "assistant-tool";
               }
+            }
 
-              const colors = MESSAGE_COLORS[
-                roleKey as keyof typeof MESSAGE_COLORS
-              ] ||
-                MESSAGE_COLORS[message.role] || {
-                  base: "#6b7280",
-                  light: "#9ca3af",
-                  dark: "#4b5563",
-                };
-              const label = `${MESSAGE_LABELS[message.role] || message.role} #${
-                index + 1
-              }`;
+            const colors = MESSAGE_COLORS[
+              roleKey as keyof typeof MESSAGE_COLORS
+            ] ||
+              MESSAGE_COLORS[message.role] || {
+                base: "#6b7280",
+                light: "#9ca3af",
+                dark: "#4b5563",
+              };
+            const label = `${MESSAGE_LABELS[message.role] || message.role} #${
+              index + 1
+            }`;
 
-              return (
-                <g key={`message-${i}`}>
-                  {/* Message bar with gradient and shadow */}
+            return (
+              <g key={`message-${i}`}>
+                {/* Message bar with gradient and shadow */}
+                <rect
+                  x={x}
+                  y={y}
+                  width={barWidth}
+                  height={barHeight}
+                  fill={`url(#gradient-${roleKey})`}
+                  rx={isUser ? 8 : 4}
+                  ry={isUser ? 8 : 4}
+                  filter="url(#barShadow)"
+                  style={{ cursor: "pointer" }}
+                  className="transition-opacity duration-200 hover:opacity-90"
+                />
+                {/* Subtle border for definition (only for non-user and non-assistant-tool messages) */}
+                {message.role !== "user" && roleKey !== "assistant-tool" && (
                   <rect
                     x={x}
                     y={y}
                     width={barWidth}
                     height={barHeight}
-                    fill={`url(#gradient-${roleKey})`}
-                    rx={isUser ? 8 : 4}
-                    ry={isUser ? 8 : 4}
-                    filter="url(#barShadow)"
+                    fill="none"
+                    stroke={colors.dark}
+                    strokeWidth={0.5}
+                    strokeOpacity={0.3}
+                    rx={4}
+                    ry={4}
                     style={{ cursor: "pointer" }}
-                    className="transition-opacity duration-200 hover:opacity-90"
                   />
-                  {/* Subtle border for definition (only for non-user and non-assistant-tool messages) */}
-                  {message.role !== "user" && roleKey !== "assistant-tool" && (
-                    <rect
-                      x={x}
-                      y={y}
-                      width={barWidth}
-                      height={barHeight}
-                      fill="none"
-                      stroke={colors.dark}
-                      strokeWidth={0.5}
-                      strokeOpacity={0.3}
-                      rx={4}
-                      ry={4}
-                      style={{ cursor: "pointer" }}
+                )}
+                {/* User icon for user messages - positioned at the start of the bar */}
+                {isUser && (
+                  <g>
+                    {/* User circle background */}
+                    <circle
+                      cx={x}
+                      cy={y + barHeight / 2}
+                      r={10}
+                      fill="white"
+                      fillOpacity="0.95"
+                      stroke="#0d9488"
+                      strokeWidth={1.5}
                     />
-                  )}
-                  {/* User icon for user messages - positioned at the start of the bar */}
-                  {isUser && (
-                    <g>
-                      {/* User circle background */}
-                      <circle
-                        cx={x}
-                        cy={y + barHeight / 2}
-                        r={10}
-                        fill="white"
-                        fillOpacity="0.95"
-                        stroke="#0d9488"
-                        strokeWidth={1.5}
-                      />
-                      {/* User head */}
-                      <circle
-                        cx={x}
-                        cy={y + barHeight / 2 - 3}
-                        r={3}
-                        fill="none"
-                        stroke="#0d9488"
-                        strokeWidth={1.2}
-                      />
-                      {/* User body (shoulders) */}
-                      <path
-                        d={`M ${x - 3.5} ${
-                          y + barHeight / 2 + 0.5
-                        } A 3.5 3.5 0 0 0 ${x + 3.5} ${
-                          y + barHeight / 2 + 0.5
-                        }`}
-                        fill="none"
-                        stroke="#0d9488"
-                        strokeWidth={1.2}
-                        strokeLinecap="round"
-                      />
-                    </g>
-                  )}
-                  {/* Message label on the left */}
-                  <text
-                    x={padding.left - 10}
-                    y={y + barHeight / 2}
-                    textAnchor="end"
-                    dominantBaseline="middle"
-                    className="fill-neutral-700 text-xs font-medium dark:fill-neutral-300"
-                  >
-                    {label}
-                  </text>
-                  {/* Hoverable area */}
-                  <rect
-                    x={x}
-                    y={y}
-                    width={barWidth}
-                    height={barHeight}
-                    fill="transparent"
-                    style={{ cursor: "pointer" }}
-                    onMouseEnter={() => {
-                      if (svgRef.current && containerRef.current) {
-                        const containerRect =
-                          containerRef.current.getBoundingClientRect();
-                        // Convert SVG coordinates to container-relative coordinates
-                        const svgPointCenter = svgRef.current.createSVGPoint();
-                        svgPointCenter.x = x + barWidth / 2;
-                        svgPointCenter.y = y + barHeight; // Bottom of the bar
-                        const ctm = svgRef.current.getScreenCTM();
-                        if (ctm) {
-                          const screenPoint =
-                            svgPointCenter.matrixTransform(ctm);
-                          setHoveredMessage({
-                            message,
-                            index,
-                            barX: screenPoint.x - containerRect.left,
-                            barY: screenPoint.y - containerRect.top,
-                            barWidth,
-                            barHeight,
-                          });
-                        } else {
-                          // Fallback: use percentage-based positioning
-                          setHoveredMessage({
-                            message,
-                            index,
-                            barX: x + barWidth / 2,
-                            barY: y + barHeight,
-                            barWidth,
-                            barHeight,
-                          });
-                        }
+                    {/* User head */}
+                    <circle
+                      cx={x}
+                      cy={y + barHeight / 2 - 3}
+                      r={3}
+                      fill="none"
+                      stroke="#0d9488"
+                      strokeWidth={1.2}
+                    />
+                    {/* User body (shoulders) */}
+                    <path
+                      d={`M ${x - 3.5} ${
+                        y + barHeight / 2 + 0.5
+                      } A 3.5 3.5 0 0 0 ${x + 3.5} ${y + barHeight / 2 + 0.5}`}
+                      fill="none"
+                      stroke="#0d9488"
+                      strokeWidth={1.2}
+                      strokeLinecap="round"
+                    />
+                  </g>
+                )}
+                {/* Message label on the left */}
+                <text
+                  x={padding.left - 10}
+                  y={y + barHeight / 2}
+                  textAnchor="end"
+                  dominantBaseline="middle"
+                  className="fill-neutral-700 text-xs font-medium dark:fill-neutral-300"
+                >
+                  {label}
+                </text>
+                {/* Hoverable area */}
+                <rect
+                  x={x}
+                  y={y}
+                  width={barWidth}
+                  height={barHeight}
+                  fill="transparent"
+                  style={{ cursor: "pointer" }}
+                  onMouseEnter={() => {
+                    if (svgRef.current && containerRef.current) {
+                      const containerRect =
+                        containerRef.current.getBoundingClientRect();
+                      // Convert SVG coordinates to container-relative coordinates
+                      const svgPointCenter = svgRef.current.createSVGPoint();
+                      svgPointCenter.x = x + barWidth / 2;
+                      svgPointCenter.y = y + barHeight; // Bottom of the bar
+                      const ctm = svgRef.current.getScreenCTM();
+                      if (ctm) {
+                        const screenPoint = svgPointCenter.matrixTransform(ctm);
+                        setHoveredMessage({
+                          message,
+                          index,
+                          barX: screenPoint.x - containerRect.left,
+                          barY: screenPoint.y - containerRect.top,
+                          barWidth,
+                          barHeight,
+                        });
                       } else {
-                        // Fallback: use SVG coordinates directly
+                        // Fallback: use percentage-based positioning
                         setHoveredMessage({
                           message,
                           index,
@@ -834,15 +820,25 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                           barHeight,
                         });
                       }
-                    }}
-                    onMouseLeave={() => {
-                      setHoveredMessage(null);
-                    }}
-                  />
-                </g>
-              );
-            }
-          )}
+                    } else {
+                      // Fallback: use SVG coordinates directly
+                      setHoveredMessage({
+                        message,
+                        index,
+                        barX: x + barWidth / 2,
+                        barY: y + barHeight,
+                        barWidth,
+                        barHeight,
+                      });
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    setHoveredMessage(null);
+                  }}
+                />
+              </g>
+            );
+          })}
 
           {/* Y-axis label - positioned at the top left, outside the chart area */}
           <text
