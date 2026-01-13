@@ -2,6 +2,7 @@ import { badRequest, boomify, forbidden, unauthorized } from "@hapi/boom";
 import express from "express";
 
 import { isUserAuthorized } from "../../tables/permissions";
+import { ensureError } from "../../utils/sentry";
 import { verifyAccessToken } from "../../utils/tokenUtils";
 import { requireSessionFromRequest, userRef } from "../utils/session";
 
@@ -14,7 +15,7 @@ export const handleError = (
   context?: string
 ) => {
   // First, boomify the error
-  const boomError = boomify(error as Error);
+  const boomError = boomify(ensureError(error));
 
   // Then, log the error
   const logContext = context ? `[${context}]` : "";

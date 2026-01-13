@@ -30,7 +30,7 @@ export async function writeErrorResponse(
 ): Promise<void> {
   const errorMessage = error instanceof Error ? error.message : String(error);
   // Boomify the original error to check if it's a server error
-  const boomed = boomify(error as Error);
+  const boomed = boomify(ensureError(error));
   const errorChunk = `data: ${JSON.stringify({
     type: "error",
     errorText: errorMessage,

@@ -384,7 +384,7 @@ export const handler = async (
   } catch (error) {
     console.error("[api-authorizer] Error in authorizer:", error);
 
-    const boomed = boomify(error as Error);
+    const boomed = boomify(ensureError(error));
 
     // Log error details including status code
     console.error("[api-authorizer] Error details:", {

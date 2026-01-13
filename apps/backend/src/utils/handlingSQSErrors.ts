@@ -95,7 +95,7 @@ export const handlingSQSErrors = (
           failedMessageIds.push(messageId);
 
           // Log error for this specific record
-          const boomed = boomify(error as Error);
+          const boomed = boomify(ensureError(error));
           console.error(
             `[SQS Handler] Error processing message ${messageId}:`,
             {
@@ -157,7 +157,7 @@ export const handlingSQSErrors = (
       };
     } catch (error) {
       // Unexpected error - treat all messages as failed
-      const boomed = boomify(error as Error);
+      const boomed = boomify(ensureError(error));
 
       // Always log the full error details
       console.error("SQS function error:", {

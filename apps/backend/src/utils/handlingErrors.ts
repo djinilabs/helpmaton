@@ -308,7 +308,7 @@ export const handlingErrors = (
       return result as APIGatewayProxyResultV2;
     } catch (error) {
       hadError = true; // Used in finally block for commitContextTransactions
-      const boomed = boomify(error as Error);
+      const boomed = boomify(ensureError(error));
 
       // Always log the full error details
       console.error("Lambda handler error:", {
@@ -452,7 +452,7 @@ export const handlingHttpAsyncErrors = (
       return result;
     } catch (error) {
       hadError = true;
-      const boomed = boomify(error as Error);
+      const boomed = boomify(ensureError(error));
 
       if (boomed.isServer) {
         console.error(boomed);
@@ -525,7 +525,7 @@ export const handlingHttpErrors = (userHandler: HttpHandler): HttpHandler => {
     try {
       userHandler(req, res, next);
     } catch (error) {
-      const boomed = boomify(error as Error);
+      const boomed = boomify(ensureError(error));
 
       if (boomed.isServer) {
         console.error(boomed);
@@ -605,7 +605,7 @@ export const handlingScheduledErrors = (
       await wrappedHandler(event);
     } catch (error) {
       hadError = true;
-      const boomed = boomify(error as Error);
+      const boomed = boomify(ensureError(error));
 
       // Always log the full error details
       console.error("Scheduled function error:", {

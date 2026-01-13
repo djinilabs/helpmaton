@@ -289,7 +289,7 @@ const internalHandler = async (
       responseStream.end();
       return;
     }
-    const boomed = boomify(error as Error);
+    const boomed = boomify(ensureError(error));
     console.error("[Stream Handler] Unhandled error:", boomed);
     if (boomed.isServer) {
       Sentry.captureException(ensureError(error), {

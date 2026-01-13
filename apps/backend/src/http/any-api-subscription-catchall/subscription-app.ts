@@ -16,6 +16,7 @@ import {
   listSubscriptionsByCustomer,
   updateSubscriptionVariant,
 } from "../../utils/lemonSqueezy";
+import { ensureError } from "../../utils/sentry";
 import { getPlanLimits } from "../../utils/subscriptionPlans";
 import {
   checkGracePeriod,
@@ -52,7 +53,7 @@ const handleError = (
   context?: string
 ) => {
   // First, boomify the error
-  const boomError = boomify(error as Error);
+  const boomError = boomify(ensureError(error));
 
   // Then, log the error
   const logContext = context ? `[${context}]` : "";

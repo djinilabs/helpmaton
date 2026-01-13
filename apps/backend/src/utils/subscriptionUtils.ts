@@ -12,6 +12,7 @@ import {
 } from "../tables/schema";
 
 import { associateSubscriptionWithPlan } from "./apiGatewayUsagePlans";
+import { ensureError } from "./sentry";
 import { getPlanLimits, isFreePlanExpired } from "./subscriptionPlans";
 
 /**
@@ -633,7 +634,7 @@ export async function validateCanAddAsManager(
     // If user has a free subscription, they can be added (they'll leave their free subscription)
   } catch (error) {
     // Boomify the error to normalize it
-    const boomError = boomify(error as Error);
+    const boomError = boomify(ensureError(error));
 
     // Only ignore if it's a Boom "not found" error (user has no subscription)
     if (boomError.output.statusCode === 404) {
@@ -872,7 +873,7 @@ export async function getUserByEmail(
     }
     // For unexpected errors, boomify to normalize them
     // Server errors (5xx) should be thrown, client errors (4xx) can be returned as undefined
-    const boomError = boomify(error as Error);
+    const boomError = boomify(ensureError(error));
     if (boomError.output.statusCode >= 500) {
       throw boomError;
     }

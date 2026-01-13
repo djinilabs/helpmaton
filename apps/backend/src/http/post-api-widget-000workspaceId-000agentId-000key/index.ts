@@ -372,7 +372,7 @@ const internalHandler = async (
       responseStream.end();
       return;
     }
-    const boomed = boomify(error as Error);
+    const boomed = boomify(ensureError(error));
     console.error("[Widget Handler] Unhandled error:", boomed);
 
     if (boomed.isServer) {

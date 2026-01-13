@@ -19,7 +19,7 @@ export const expressErrorHandler: ErrorRequestHandler = async (
   _next
 ) => {
   // First, boomify the error (defensive - in case error wasn't already boomified)
-  const boomError = boomify(error as Error);
+  const boomError = boomify(ensureError(error));
 
   // Then, log the error
   console.error("[Express Error Handler] Error caught:", {
