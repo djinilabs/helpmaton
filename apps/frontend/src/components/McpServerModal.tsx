@@ -29,7 +29,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
   const updateServer = useUpdateMcpServer(workspaceId);
 
   const [name, setName] = useState("");
-  const [mcpType, setMcpType] = useState<"google-drive" | "gmail" | "google-calendar" | "custom">("google-drive"); // Service type for new servers
+  const [mcpType, setMcpType] = useState<"google-drive" | "gmail" | "google-calendar" | "notion" | "custom">("google-drive"); // Service type for new servers
   const [url, setUrl] = useState("");
   const [authType, setAuthType] = useState<"none" | "header" | "basic">("none");
   const [headerValue, setHeaderValue] = useState("");
@@ -51,6 +51,9 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           // OAuth servers don't have authType in the UI
         } else if (server.authType === "oauth" && server.serviceType === "google-calendar") {
           setMcpType("google-calendar");
+          // OAuth servers don't have authType in the UI
+        } else if (server.authType === "oauth" && server.serviceType === "notion") {
+          setMcpType("notion");
           // OAuth servers don't have authType in the UI
         } else {
           setMcpType("custom");
@@ -147,7 +150,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           name?: string;
           url?: string;
           authType?: "none" | "header" | "basic" | "oauth";
-          serviceType?: "external" | "google-drive";
+          serviceType?: "external" | "google-drive" | "gmail" | "google-calendar" | "notion";
           config?: typeof config;
         } = {
           name: name.trim(),
@@ -159,7 +162,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         }
 
         // Determine if this is an OAuth server
-        const isOAuthServer = server?.authType === "oauth" && server?.serviceType === "google-drive";
+        const isOAuthServer = server?.authType === "oauth" && (
+          server?.serviceType === "google-drive" ||
+          server?.serviceType === "gmail" ||
+          server?.serviceType === "google-calendar" ||
+          server?.serviceType === "notion"
+        );
         
         // OAuth servers can only update name (OAuth connection is managed separately)
         // Custom MCP servers can update URL and auth
@@ -266,6 +274,20 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             auth_type: "oauth",
             service_type: "google-calendar",
           });
+        } else if (mcpType === "notion") {
+          // Notion - OAuth-based
+          const result = await createServer.mutateAsync({
+            name: name.trim(),
+            authType: "oauth",
+            serviceType: "notion",
+            config: {}, // Empty config for OAuth servers (credentials set via OAuth flow)
+          });
+          trackEvent("mcp_server_created", {
+            workspace_id: workspaceId,
+            server_id: result.id,
+            auth_type: "oauth",
+            service_type: "notion",
+          });
         } else {
           // Custom MCP - external server
           const result = await createServer.mutateAsync({
@@ -329,10 +351,10 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 id="mcpType"
                 value={mcpType}
                 onChange={(e) => {
-                  const newType = e.target.value as "google-drive" | "gmail" | "google-calendar" | "custom";
+                  const newType = e.target.value as "google-drive" | "gmail" | "google-calendar" | "notion" | "custom";
                   setMcpType(newType);
                   // Reset auth type when switching
-                  if (newType === "google-drive" || newType === "gmail" || newType === "google-calendar") {
+                  if (newType === "google-drive" || newType === "gmail" || newType === "google-calendar" || newType === "notion") {
                     setAuthType("none");
                     setUrl("");
                   } else {
@@ -345,6 +367,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 <option value="google-drive">Google Drive</option>
                 <option value="gmail">Gmail</option>
                 <option value="google-calendar">Google Calendar</option>
+                <option value="notion">Notion</option>
                 <option value="custom">Custom MCP</option>
               </select>
               {mcpType === "google-drive" && (
@@ -360,6 +383,11 @@ export const McpServerModal: FC<McpServerModalProps> = ({
               {mcpType === "google-calendar" && (
                 <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
                   After creating the server, you&apos;ll need to connect your Google Calendar account via OAuth.
+                </p>
+              )}
+              {mcpType === "notion" && (
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  After creating the server, you&apos;ll need to connect your Notion account via OAuth.
                 </p>
               )}
             </div>

@@ -98,6 +98,11 @@ export const registerGetMcpServerOauthAuthorize = (
             "../../../utils/oauth/mcp/google-calendar"
           );
           authUrl = generateGoogleCalendarAuthUrl(workspaceId, serverId);
+        } else if (server.serviceType === "notion") {
+          const { generateNotionAuthUrl } = await import(
+            "../../../utils/oauth/mcp/notion"
+          );
+          authUrl = generateNotionAuthUrl(workspaceId, serverId);
         } else {
           throw badRequest(
             `Unsupported service type: ${server.serviceType || "unknown"}`

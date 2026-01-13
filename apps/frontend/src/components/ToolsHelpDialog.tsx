@@ -517,30 +517,91 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
             </div>
           ))}
 
-          {enabledMcpServers.length > 0 && (
-            <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-              <h3 className="mb-4 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
-                🔌 MCP Server Tools
-              </h3>
-              <div className="space-y-3">
-                {enabledMcpServers.map((server) => {
-                  const serverNameSanitized = server.name
-                    .replace(/[^a-zA-Z0-9]/g, "_")
-                    .toLowerCase();
-                  const isGoogleDrive =
-                    server.authType === "oauth" &&
-                    server.serviceType === "google-drive" &&
-                    server.oauthConnected;
-                  const isGmail =
-                    server.authType === "oauth" &&
-                    server.serviceType === "gmail" &&
-                    server.oauthConnected;
+          {enabledMcpServers.length > 0 && (() => {
+            // Group servers by serviceType for conflict detection
+            const serversByServiceType = new Map<
+              string,
+              Array<typeof enabledMcpServers[0]>
+            >();
+
+            for (const server of enabledMcpServers) {
+              // Determine grouping key
+              let groupKey: string;
+              if (
+                server.authType === "oauth" &&
+                server.serviceType &&
+                ["google-drive", "gmail", "google-calendar", "notion"].includes(
+                  server.serviceType
+                ) &&
+                server.oauthConnected
+              ) {
+                // OAuth servers with specific serviceTypes
+                groupKey = server.serviceType;
+              } else {
+                // Generic MCP servers (all grouped together)
+                groupKey = "__generic__";
+              }
+
+              if (!serversByServiceType.has(groupKey)) {
+                serversByServiceType.set(groupKey, []);
+              }
+              serversByServiceType.get(groupKey)!.push(server);
+            }
+
+            // Helper function to get tool name suffix
+            const getToolNameSuffix = (server: typeof enabledMcpServers[0]) => {
+              let groupKey: string;
+              if (
+                server.authType === "oauth" &&
+                server.serviceType &&
+                ["google-drive", "gmail", "google-calendar", "notion"].includes(
+                  server.serviceType
+                ) &&
+                server.oauthConnected
+              ) {
+                groupKey = server.serviceType;
+              } else {
+                groupKey = "__generic__";
+              }
+
+              const sameTypeServers = serversByServiceType.get(groupKey) || [];
+              const hasConflict = sameTypeServers.length > 1;
+              const serverNameSanitized = server.name
+                .replace(/[^a-zA-Z0-9]/g, "_")
+                .toLowerCase();
+              return hasConflict ? `_${serverNameSanitized}` : "";
+            };
+
+            return (
+              <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+                <h3 className="mb-4 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
+                  🔌 MCP Server Tools
+                </h3>
+                <div className="space-y-3">
+                  {enabledMcpServers.map((server) => {
+                    const suffix = getToolNameSuffix(server);
+                    const isGoogleDrive =
+                      server.authType === "oauth" &&
+                      server.serviceType === "google-drive" &&
+                      server.oauthConnected;
+                    const isGmail =
+                      server.authType === "oauth" &&
+                      server.serviceType === "gmail" &&
+                      server.oauthConnected;
+                    const isGoogleCalendar =
+                      server.authType === "oauth" &&
+                      server.serviceType === "google-calendar" &&
+                      server.oauthConnected;
+                    const isNotion =
+                      server.authType === "oauth" &&
+                      server.serviceType === "notion" &&
+                      server.oauthConnected;
 
                   if (isGoogleDrive) {
                     // Show specific Google Drive tools
                     const googleDriveTools = [
                       {
-                        name: `google_drive_list_${serverNameSanitized}`,
+                        name: `google_drive_list${suffix}`,
                         description:
                           "List files in Google Drive. Returns a list of files with their metadata (id, name, mimeType, size, etc.). Supports pagination with pageToken.",
                         parameters: [
@@ -561,7 +622,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                         ],
                       },
                       {
-                        name: `google_drive_read_${serverNameSanitized}`,
+                        name: `google_drive_read${suffix}`,
                         description:
                           "Read the content of a file from Google Drive. Supports text files, Google Docs (exports as plain text), Google Sheets (exports as CSV), and Google Slides (exports as plain text).",
                         parameters: [
@@ -581,7 +642,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                         ],
                       },
                       {
-                        name: `google_drive_search_${serverNameSanitized}`,
+                        name: `google_drive_search${suffix}`,
                         description:
                           "Search for files in Google Drive by name or content. Returns a list of matching files with their metadata.",
                         parameters: [
@@ -680,7 +741,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                     // Show specific Gmail tools
                     const gmailTools = [
                       {
-                        name: `gmail_list_${serverNameSanitized}`,
+                        name: `gmail_list${suffix}`,
                         description:
                           "List emails in Gmail. Returns a list of messages with their metadata (id, threadId, from, subject, date, snippet). Supports pagination with pageToken and optional search query.",
                         parameters: [
@@ -701,7 +762,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                         ],
                       },
                       {
-                        name: `gmail_search_${serverNameSanitized}`,
+                        name: `gmail_search${suffix}`,
                         description:
                           "Search for emails in Gmail using Gmail search syntax. Returns a list of matching messages with their metadata. Examples: 'from:example@gmail.com', 'subject:meeting', 'is:unread', 'has:attachment'.",
                         parameters: [
@@ -722,7 +783,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                         ],
                       },
                       {
-                        name: `gmail_read_${serverNameSanitized}`,
+                        name: `gmail_read${suffix}`,
                         description:
                           "Read the full content of an email from Gmail. Returns the complete email with headers, body (text and HTML), and attachment information.",
                         parameters: [
@@ -809,7 +870,602 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                     );
                   }
 
+                  if (isGoogleCalendar) {
+                    // Show specific Google Calendar tools
+                    const googleCalendarTools = [
+                      {
+                        name: `google_calendar_list${suffix}`,
+                        description:
+                          "List events from Google Calendar. Returns a list of events with their metadata (id, summary, start, end, etc.). Supports pagination with pageToken and optional time range filtering.",
+                        parameters: [
+                          {
+                            name: "calendarId",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Calendar ID (default: 'primary' for user's primary calendar)",
+                          },
+                          {
+                            name: "timeMin",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Lower bound (exclusive) for an event's start time in RFC3339 format (e.g., '2024-01-01T00:00:00Z')",
+                          },
+                          {
+                            name: "timeMax",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Upper bound (exclusive) for an event's end time in RFC3339 format (e.g., '2024-12-31T23:59:59Z')",
+                          },
+                          {
+                            name: "maxResults",
+                            type: "number",
+                            required: false,
+                            description:
+                              "Maximum number of events to return (default: 100, max: 2500)",
+                          },
+                          {
+                            name: "pageToken",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Token specifying which result page to return (from previous list response)",
+                          },
+                        ],
+                      },
+                      {
+                        name: `google_calendar_read${suffix}`,
+                        description:
+                          "Read the full details of an event from Google Calendar. Returns the complete event with all metadata including summary, description, start/end times, attendees, location, etc.",
+                        parameters: [
+                          {
+                            name: "eventId",
+                            type: "string",
+                            required: true,
+                            description: "The Google Calendar event ID to read",
+                          },
+                          {
+                            name: "calendarId",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Calendar ID (default: 'primary' for user's primary calendar)",
+                          },
+                        ],
+                      },
+                      {
+                        name: `google_calendar_search${suffix}`,
+                        description:
+                          "Search for events in Google Calendar by query string. Returns a list of matching events with their metadata. The query searches in event summary, description, and location fields.",
+                        parameters: [
+                          {
+                            name: "query",
+                            type: "string",
+                            required: true,
+                            description:
+                              "REQUIRED: Search query string to find events by summary, description, or location. Example: 'meeting' or 'project review'",
+                          },
+                          {
+                            name: "calendarId",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Calendar ID (default: 'primary' for user's primary calendar)",
+                          },
+                          {
+                            name: "timeMin",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Lower bound (exclusive) for an event's start time in RFC3339 format",
+                          },
+                          {
+                            name: "timeMax",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Upper bound (exclusive) for an event's end time in RFC3339 format",
+                          },
+                        ],
+                      },
+                      {
+                        name: `google_calendar_create${suffix}`,
+                        description:
+                          "Create a new event in Google Calendar. Returns the created event with all metadata including the event ID.",
+                        parameters: [
+                          {
+                            name: "summary",
+                            type: "string",
+                            required: true,
+                            description: "REQUIRED: Event title/summary",
+                          },
+                          {
+                            name: "description",
+                            type: "string",
+                            required: false,
+                            description: "Event description",
+                          },
+                          {
+                            name: "location",
+                            type: "string",
+                            required: false,
+                            description: "Event location",
+                          },
+                          {
+                            name: "start",
+                            type: "object",
+                            required: true,
+                            description:
+                              "REQUIRED: Event start time (dateTime in RFC3339 format or date in YYYY-MM-DD for all-day events)",
+                          },
+                          {
+                            name: "end",
+                            type: "object",
+                            required: true,
+                            description:
+                              "REQUIRED: Event end time (dateTime in RFC3339 format or date in YYYY-MM-DD for all-day events)",
+                          },
+                          {
+                            name: "attendees",
+                            type: "array",
+                            required: false,
+                            description: "List of event attendees (email addresses)",
+                          },
+                        ],
+                      },
+                      {
+                        name: `google_calendar_update${suffix}`,
+                        description:
+                          "Update an existing event in Google Calendar. Returns the updated event with all metadata. Only provide fields that should be updated.",
+                        parameters: [
+                          {
+                            name: "eventId",
+                            type: "string",
+                            required: true,
+                            description:
+                              "REQUIRED: The Google Calendar event ID to update",
+                          },
+                          {
+                            name: "summary",
+                            type: "string",
+                            required: false,
+                            description: "Event title/summary",
+                          },
+                          {
+                            name: "description",
+                            type: "string",
+                            required: false,
+                            description: "Event description",
+                          },
+                          {
+                            name: "location",
+                            type: "string",
+                            required: false,
+                            description: "Event location",
+                          },
+                          {
+                            name: "start",
+                            type: "object",
+                            required: false,
+                            description: "Event start time",
+                          },
+                          {
+                            name: "end",
+                            type: "object",
+                            required: false,
+                            description: "Event end time",
+                          },
+                        ],
+                      },
+                      {
+                        name: `google_calendar_delete${suffix}`,
+                        description:
+                          "Delete an event from Google Calendar. Returns a success message if the event was deleted.",
+                        parameters: [
+                          {
+                            name: "eventId",
+                            type: "string",
+                            required: true,
+                            description:
+                              "REQUIRED: The Google Calendar event ID to delete",
+                          },
+                          {
+                            name: "calendarId",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Calendar ID (default: 'primary' for user's primary calendar)",
+                          },
+                        ],
+                      },
+                    ];
+
+                    return (
+                      <div key={server.id} className="space-y-3">
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950">
+                          <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                            📅 Google Calendar: {server.name}
+                          </p>
+                          <p className="mt-1 text-xs text-blue-800 dark:text-blue-200">
+                            {server.oauthConnected
+                              ? "Connected"
+                              : "Not connected - connect to enable tools"}
+                          </p>
+                        </div>
+                        {server.oauthConnected &&
+                          googleCalendarTools.map((tool) => (
+                            <div
+                              key={tool.name}
+                              className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+                            >
+                              <div className="mb-2 flex items-start justify-between">
+                                <code className="rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-lg font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                                  {tool.name}
+                                </code>
+                                <span className="rounded border border-green-300 bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:border-green-700 dark:bg-green-900 dark:text-green-200">
+                                  Available
+                                </span>
+                              </div>
+                              <p className="mb-3 text-sm text-neutral-700 dark:text-neutral-300">
+                                {tool.description}
+                              </p>
+                              <p className="mb-3 inline-block rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
+                                Available (Google Calendar &quot;{server.name}&quot;
+                                connected)
+                              </p>
+                              <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                                <p className="mb-2 text-xs font-semibold text-neutral-900 dark:text-neutral-50">
+                                  Parameters:
+                                </p>
+                                <div className="space-y-2">
+                                  {tool.parameters.map((param, index) => (
+                                    <div
+                                      key={index}
+                                      className="rounded border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                    >
+                                      <div className="mb-1 flex items-center gap-2">
+                                        <code className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                                          {param.name}
+                                        </code>
+                                        <span className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-300">
+                                          {param.type}
+                                        </span>
+                                        {param.required ? (
+                                          <span className="rounded border border-red-300 bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
+                                            Required
+                                          </span>
+                                        ) : (
+                                          <span className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                                            Optional
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-neutral-600 dark:text-neutral-300">
+                                        {param.description}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    );
+                  }
+
+                  if (isNotion) {
+                    // Show specific Notion tools
+                    const notionTools = [
+                      {
+                        name: `notion_read${suffix}`,
+                        description:
+                          "Read a Notion page by its ID. Returns the full page content including properties, metadata, and URL.",
+                        parameters: [
+                          {
+                            name: "pageId",
+                            type: "string",
+                            required: true,
+                            description: "The Notion page ID to read",
+                          },
+                        ],
+                      },
+                      {
+                        name: `notion_search${suffix}`,
+                        description:
+                          "Search for pages, databases, and data sources in Notion. Returns a list of matching results with their metadata. Empty query returns all accessible pages/databases.",
+                        parameters: [
+                          {
+                            name: "query",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Search query string (optional, empty query returns all accessible pages/databases)",
+                          },
+                          {
+                            name: "filter",
+                            type: "object",
+                            required: false,
+                            description:
+                              "Filter results by object type (page, database, or data_source)",
+                          },
+                          {
+                            name: "sort",
+                            type: "object",
+                            required: false,
+                            description:
+                              "Sort results by last edited time (ascending or descending)",
+                          },
+                          {
+                            name: "startCursor",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Pagination cursor from previous search response",
+                          },
+                          {
+                            name: "pageSize",
+                            type: "number",
+                            required: false,
+                            description:
+                              "Maximum number of results to return (default: 100, max: 100)",
+                          },
+                        ],
+                      },
+                      {
+                        name: `notion_create${suffix}`,
+                        description:
+                          "Create a new page in Notion. Supports simplified parameters: use 'name' for the page title and 'content' (string) for text content. The page will be created at workspace level by default. For advanced use, you can specify 'parent' (page, database, data source, or workspace), 'properties' (full Notion properties object), and 'children' (array of block objects).",
+                        parameters: [
+                          {
+                            name: "name",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Optional: Page title/name. If provided, will be used as the page title. If 'properties' is also provided, 'name' will be ignored.",
+                          },
+                          {
+                            name: "content",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Optional: Simple text content for the page. If provided, will be converted to paragraph blocks (split by newlines). If 'children' is also provided, 'content' will be ignored.",
+                          },
+                          {
+                            name: "parent",
+                            type: "object",
+                            required: false,
+                            description:
+                              "Optional: Parent reference. If not provided, defaults to workspace level. Format: For 'workspace': { type: 'workspace', workspace: true }. For 'page_id': { type: 'page_id', page_id: 'page-uuid' }. For 'database_id': { type: 'database_id', database_id: 'database-uuid' }. For 'data_source_id': { type: 'data_source_id', data_source_id: 'datasource-uuid' }. For 'block_id': { type: 'block_id', block_id: 'block-uuid' }.",
+                          },
+                          {
+                            name: "properties",
+                            type: "object",
+                            required: false,
+                            description:
+                              "Optional: Page properties object. If not provided but 'name' is provided, will create a title property. For database/data source pages, properties must match the schema.",
+                          },
+                          {
+                            name: "children",
+                            type: "array",
+                            required: false,
+                            description:
+                              "Optional array of block objects to add as content to the page. Each block should have 'object': 'block', 'type' (e.g., 'paragraph', 'heading_1', 'heading_2', 'heading_3', 'bulleted_list_item', 'numbered_list_item', 'to_do', 'quote', 'code'), and type-specific properties. For paragraphs, use 'paragraph' type with 'text' array containing text objects with 'type': 'text' and 'text': { 'content': 'your text' }.",
+                          },
+                        ],
+                      },
+                      {
+                        name: `notion_update${suffix}`,
+                        description:
+                          "Update a Notion page's properties. Only provide the properties that should be updated.",
+                        parameters: [
+                          {
+                            name: "pageId",
+                            type: "string",
+                            required: true,
+                            description: "REQUIRED: The Notion page ID to update",
+                          },
+                          {
+                            name: "properties",
+                            type: "object",
+                            required: false,
+                            description:
+                              "Properties to update (optional, only include fields to change)",
+                          },
+                          {
+                            name: "archived",
+                            type: "boolean",
+                            required: false,
+                            description: "Set to true to archive the page",
+                          },
+                        ],
+                      },
+                      {
+                        name: `notion_query_database${suffix}`,
+                        description:
+                          "Query a Notion database to retrieve pages that match the specified filters and sorts.",
+                        parameters: [
+                          {
+                            name: "databaseId",
+                            type: "string",
+                            required: true,
+                            description: "REQUIRED: The Notion database ID to query",
+                          },
+                          {
+                            name: "filter",
+                            type: "object",
+                            required: false,
+                            description: "Filter object to match pages (optional)",
+                          },
+                          {
+                            name: "sorts",
+                            type: "array",
+                            required: false,
+                            description: "Array of sort objects (optional)",
+                          },
+                          {
+                            name: "startCursor",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Pagination cursor from previous query response",
+                          },
+                          {
+                            name: "pageSize",
+                            type: "number",
+                            required: false,
+                            description:
+                              "Maximum number of results to return (default: 100, max: 100)",
+                          },
+                        ],
+                      },
+                      {
+                        name: `notion_create_database_page${suffix}`,
+                        description:
+                          "Create a new page in a Notion database. Properties must match the database schema.",
+                        parameters: [
+                          {
+                            name: "databaseId",
+                            type: "string",
+                            required: true,
+                            description: "REQUIRED: The Notion database ID",
+                          },
+                          {
+                            name: "properties",
+                            type: "object",
+                            required: true,
+                            description:
+                              "REQUIRED: Page properties object that matches the database schema",
+                          },
+                        ],
+                      },
+                      {
+                        name: `notion_update_database_page${suffix}`,
+                        description:
+                          "Update a page in a Notion database. Only provide the properties that should be updated.",
+                        parameters: [
+                          {
+                            name: "pageId",
+                            type: "string",
+                            required: true,
+                            description: "REQUIRED: The Notion page ID to update",
+                          },
+                          {
+                            name: "properties",
+                            type: "object",
+                            required: true,
+                            description:
+                              "Properties to update (must match database schema)",
+                          },
+                        ],
+                      },
+                      {
+                        name: `notion_append_blocks${suffix}`,
+                        description:
+                          "Append content blocks (paragraphs, headings, lists, etc.) to an existing Notion page. Use this to add text, headings, lists, and other content to a page after it's been created.",
+                        parameters: [
+                          {
+                            name: "pageId",
+                            type: "string",
+                            required: true,
+                            description: "REQUIRED: The Notion page ID to append blocks to",
+                          },
+                          {
+                            name: "children",
+                            type: "array",
+                            required: true,
+                            description:
+                              "REQUIRED: Array of block objects to append. Each block should have 'object': 'block', 'type' (e.g., 'paragraph', 'heading_1', 'heading_2', 'heading_3', 'bulleted_list_item', 'numbered_list_item', 'to_do', 'quote', 'code'), and type-specific properties. For paragraphs, use 'paragraph' type with 'text' array containing text objects with 'type': 'text' and 'text': { 'content': 'your text' }.",
+                          },
+                          {
+                            name: "after",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Optional block ID to insert blocks after. If not provided, blocks are appended at the end.",
+                          },
+                        ],
+                      },
+                    ];
+
+                    return (
+                      <div key={server.id} className="space-y-3">
+                        <div className="rounded-lg border border-purple-200 bg-purple-50 p-3 dark:border-purple-800 dark:bg-purple-950">
+                          <p className="text-sm font-semibold text-purple-900 dark:text-purple-100">
+                            📝 Notion: {server.name}
+                          </p>
+                          <p className="mt-1 text-xs text-purple-800 dark:text-purple-200">
+                            {server.oauthConnected
+                              ? "Connected"
+                              : "Not connected - connect to enable tools"}
+                          </p>
+                        </div>
+                        {server.oauthConnected &&
+                          notionTools.map((tool) => (
+                            <div
+                              key={tool.name}
+                              className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+                            >
+                              <div className="mb-2 flex items-start justify-between">
+                                <code className="rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-lg font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                                  {tool.name}
+                                </code>
+                                <span className="rounded border border-green-300 bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:border-green-700 dark:bg-green-900 dark:text-green-200">
+                                  Available
+                                </span>
+                              </div>
+                              <p className="mb-3 text-sm text-neutral-700 dark:text-neutral-300">
+                                {tool.description}
+                              </p>
+                              <p className="mb-3 inline-block rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
+                                Available (Notion &quot;{server.name}&quot;
+                                connected)
+                              </p>
+                              <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                                <p className="mb-2 text-xs font-semibold text-neutral-900 dark:text-neutral-50">
+                                  Parameters:
+                                </p>
+                                <div className="space-y-2">
+                                  {tool.parameters.map((param, index) => (
+                                    <div
+                                      key={index}
+                                      className="rounded border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                    >
+                                      <div className="mb-1 flex items-center gap-2">
+                                        <code className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                                          {param.name}
+                                        </code>
+                                        <span className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-300">
+                                          {param.type}
+                                        </span>
+                                        {param.required ? (
+                                          <span className="rounded border border-red-300 bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
+                                            Required
+                                          </span>
+                                        ) : (
+                                          <span className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                                            Optional
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-neutral-600 dark:text-neutral-300">
+                                        {param.description}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    );
+                  }
+
                   // Generic MCP server tool
+                  const serverNameSanitized = server.name
+                    .replace(/[^a-zA-Z0-9]/g, "_")
+                    .toLowerCase();
                   const toolName = `mcp_${serverNameSanitized}`;
                   return (
                     <div
@@ -873,9 +1529,10 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                     </div>
                   );
                 })}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {enabledMcpServerIds.length === 0 && (
             <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">

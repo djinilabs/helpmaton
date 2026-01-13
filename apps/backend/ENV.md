@@ -440,6 +440,54 @@ These environment variables are used by the frontend application and must be pre
   - Production: `https://app.helpmaton.com`
 - **Note**: Used to redirect users back to the frontend after OAuth flow completes
 
+## MCP Server OAuth Configuration
+
+### `GOOGLE_OAUTH_CLIENT_ID`
+
+- **Description**: Google OAuth 2.0 client ID for Google Drive, Gmail, and Google Calendar MCP servers
+- **Required**: No (required only if using Google OAuth-based MCP servers)
+- **Example**: `123456789-abcdefghijklmnop.apps.googleusercontent.com`
+- **How to obtain**:
+  1. Go to [Google Cloud Console](https://console.cloud.google.com)
+  2. Create a new project or select an existing one
+  3. Enable the required APIs (Drive API, Gmail API, Calendar API)
+  4. Go to "Credentials" → "Create Credentials" → "OAuth client ID"
+  5. Configure OAuth consent screen if not already done
+  6. Select "Web application" as application type
+  7. Add authorized redirect URIs:
+     - `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/google-drive/callback`
+     - `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/gmail/callback`
+     - `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/google-calendar/callback`
+  8. Copy the Client ID
+
+### `GOOGLE_OAUTH_CLIENT_SECRET`
+
+- **Description**: Google OAuth 2.0 client secret for Google Drive, Gmail, and Google Calendar MCP servers
+- **Required**: No (required only if using Google OAuth-based MCP servers)
+- **Example**: `GOCSPX-abcdefghijklmnopqrstuvwxyz`
+- **How to obtain**: Created together with `GOOGLE_OAUTH_CLIENT_ID` (see above)
+- **Note**: Keep this secret secure and never commit it to version control
+
+### `NOTION_OAUTH_CLIENT_ID`
+
+- **Description**: Notion OAuth 2.0 client ID for Notion MCP servers
+- **Required**: No (required only if using Notion MCP servers)
+- **Example**: `12345678-1234-1234-1234-123456789abc`
+- **How to obtain**:
+  1. Go to [Notion Integrations](https://www.notion.com/my-integrations)
+  2. Click "+ New integration"
+  3. Select "Public" as the integration type
+  4. Provide your company name, website, and redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/notion/callback`
+  5. Copy the OAuth client ID from the "Secrets" tab
+
+### `NOTION_OAUTH_CLIENT_SECRET`
+
+- **Description**: Notion OAuth 2.0 client secret for Notion MCP servers
+- **Required**: No (required only if using Notion MCP servers)
+- **Example**: `secret_abcdefghijklmnopqrstuvwxyz1234567890`
+- **How to obtain**: Found in the "Secrets" tab of your Notion integration settings
+- **Note**: Keep this secret secure and never commit it to version control
+
 ## S3 Configuration
 
 The S3 integration is used for storing workspace documents. This integration operates outside of Architect's built-in S3 plugin and requires separate AWS credentials.

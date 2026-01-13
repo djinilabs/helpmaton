@@ -212,16 +212,157 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
           );
 
           if (validMcpServers.length > 0) {
+            // Group servers by serviceType for conflict detection
+            const serversByServiceType = new Map<
+              string,
+              Array<typeof validMcpServers[0]>
+            >();
+
+            for (const server of validMcpServers) {
+              if (!server) continue;
+
+              // Check for OAuth connection
+              const config = server.config as { accessToken?: string };
+              const hasOAuthConnection = !!config.accessToken;
+
+              // Skip OAuth servers without connection
+              if (server.authType === "oauth" && !hasOAuthConnection) {
+                continue;
+              }
+
+              // Determine grouping key
+              let groupKey: string;
+              if (
+                server.authType === "oauth" &&
+                server.serviceType &&
+                ["google-drive", "gmail", "google-calendar", "notion"].includes(
+                  server.serviceType
+                )
+              ) {
+                // OAuth servers with specific serviceTypes
+                groupKey = server.serviceType;
+              } else {
+                // Generic MCP servers (all grouped together)
+                groupKey = "__generic__";
+              }
+
+              if (!serversByServiceType.has(groupKey)) {
+                serversByServiceType.set(groupKey, []);
+              }
+              serversByServiceType.get(groupKey)!.push(server);
+            }
+
             toolsInfo.push("## MCP Server Tools");
             for (const server of validMcpServers) {
               if (server) {
-                const toolName = `mcp_${server.pk
-                  .replace(`mcp-servers/${workspaceId}/`, "")
-                  .replace(/[^a-zA-Z0-9]/g, "_")}`;
-                availableTools.push(toolName);
-                toolsInfo.push(
-                  `- **${toolName}**: Available. Call MCP server "${server.name}".`
-                );
+                // Check for OAuth connection
+                const config = server.config as {
+                  accessToken?: string;
+                };
+                const hasOAuthConnection = !!config.accessToken;
+
+                // Skip OAuth servers without connection
+                if (server.authType === "oauth" && !hasOAuthConnection) {
+                  continue;
+                }
+
+                // Determine if there's a conflict (multiple servers of same type)
+                let groupKey: string;
+                if (
+                  server.authType === "oauth" &&
+                  server.serviceType &&
+                  ["google-drive", "gmail", "google-calendar", "notion"].includes(
+                    server.serviceType
+                  )
+                ) {
+                  groupKey = server.serviceType;
+                } else {
+                  groupKey = "__generic__";
+                }
+
+                const sameTypeServers = serversByServiceType.get(groupKey) || [];
+                const hasConflict = sameTypeServers.length > 1;
+                const serverNameSanitized = server.name
+                  .replace(/[^a-zA-Z0-9]/g, "_")
+                  .toLowerCase();
+                const suffix = hasConflict ? `_${serverNameSanitized}` : "";
+
+                if (
+                  server.authType === "oauth" &&
+                  server.serviceType === "google-drive" &&
+                  hasOAuthConnection
+                ) {
+                  // Google Drive specific tools
+                  const googleDriveTools = [
+                    `google_drive_list${suffix}`,
+                    `google_drive_read${suffix}`,
+                    `google_drive_search${suffix}`,
+                  ];
+                  availableTools.push(...googleDriveTools);
+                  toolsInfo.push(
+                    `- **Google Drive (${server.name})**: ${googleDriveTools.join(", ")}`
+                  );
+                } else if (
+                  server.authType === "oauth" &&
+                  server.serviceType === "gmail" &&
+                  hasOAuthConnection
+                ) {
+                  // Gmail specific tools
+                  const gmailTools = [
+                    `gmail_list${suffix}`,
+                    `gmail_read${suffix}`,
+                    `gmail_search${suffix}`,
+                  ];
+                  availableTools.push(...gmailTools);
+                  toolsInfo.push(
+                    `- **Gmail (${server.name})**: ${gmailTools.join(", ")}`
+                  );
+                } else if (
+                  server.authType === "oauth" &&
+                  server.serviceType === "google-calendar" &&
+                  hasOAuthConnection
+                ) {
+                  // Google Calendar specific tools
+                  const googleCalendarTools = [
+                    `google_calendar_list${suffix}`,
+                    `google_calendar_read${suffix}`,
+                    `google_calendar_search${suffix}`,
+                    `google_calendar_create${suffix}`,
+                    `google_calendar_update${suffix}`,
+                    `google_calendar_delete${suffix}`,
+                  ];
+                  availableTools.push(...googleCalendarTools);
+                  toolsInfo.push(
+                    `- **Google Calendar (${server.name})**: ${googleCalendarTools.join(", ")}`
+                  );
+                } else if (
+                  server.authType === "oauth" &&
+                  server.serviceType === "notion" &&
+                  hasOAuthConnection
+                ) {
+                  // Notion specific tools
+                  const notionTools = [
+                    `notion_read${suffix}`,
+                    `notion_search${suffix}`,
+                    `notion_create${suffix}`,
+                    `notion_update${suffix}`,
+                    `notion_query_database${suffix}`,
+                    `notion_create_database_page${suffix}`,
+                    `notion_update_database_page${suffix}`,
+                    `notion_append_blocks${suffix}`,
+                  ];
+                  availableTools.push(...notionTools);
+                  toolsInfo.push(
+                    `- **Notion (${server.name})**: ${notionTools.join(", ")}`
+                  );
+                } else {
+                  // Generic MCP server tool
+                  const toolName = `mcp_${serverNameSanitized}`;
+                  availableTools.push(toolName);
+                  toolsInfo.push(
+                    `- **${toolName}**: Available. Call MCP server "${server.name}".`
+                  );
+                }
               }
             }
           }

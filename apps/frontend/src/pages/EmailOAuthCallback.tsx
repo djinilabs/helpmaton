@@ -50,10 +50,10 @@ const EmailOAuthCallback = () => {
 
   if (!workspaceId && !error && !success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft">
-          <h1 className="mb-4 text-2xl font-semibold">Connecting...</h1>
-          <p className="text-sm">
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-neutral-950">
+        <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+          <h1 className="mb-4 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">Connecting...</h1>
+          <p className="text-sm text-neutral-700 dark:text-neutral-300">
             Please wait while we complete the connection.
           </p>
         </div>
@@ -63,10 +63,10 @@ const EmailOAuthCallback = () => {
 
   if (status === "error") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft">
-          <h1 className="mb-4 text-2xl font-semibold text-red-600">Error</h1>
-          <p className="mb-4 text-sm">
+      <div className="flex min-h-screen items-center justify-center bg-white dark:bg-neutral-950">
+        <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+          <h1 className="mb-4 text-2xl font-semibold text-red-600 dark:text-red-400">Error</h1>
+          <p className="mb-4 text-sm text-neutral-700 dark:text-neutral-300">
             {errorMessage || "Failed to connect email account."}
           </p>
           {workspaceId && (
@@ -83,14 +83,14 @@ const EmailOAuthCallback = () => {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white">
-      <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft">
-        <h1 className="mb-4 text-2xl font-semibold text-green-600">Success</h1>
-        <p className="mb-4 text-sm">
+    <div className="flex min-h-screen items-center justify-center bg-white dark:bg-neutral-950">
+      <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+        <h1 className="mb-4 text-2xl font-semibold text-green-600 dark:text-green-400">Success</h1>
+        <p className="mb-4 text-sm text-neutral-700 dark:text-neutral-300">
           Your {provider === "gmail" ? "Gmail" : "Outlook"} account has been
           connected successfully!
         </p>
-        <p className="text-xs text-neutral-600">Redirecting to workspace...</p>
+        <p className="text-xs text-neutral-600 dark:text-neutral-400">Redirecting to workspace...</p>
       </div>
     </div>
   );

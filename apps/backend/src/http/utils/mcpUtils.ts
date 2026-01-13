@@ -209,6 +209,13 @@ export function createMcpServerTool(
 }
 
 /**
+ * Sanitize server name for use in tool names
+ */
+function sanitizeServerName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+}
+
+/**
  * Create tools for all enabled MCP servers for an agent
  */
 export async function createMcpServerTools(
@@ -216,6 +223,14 @@ export async function createMcpServerTools(
   enabledMcpServerIds: string[]
 ): Promise<Record<string, ReturnType<typeof createMcpServerTool>>> {
   const tools: Record<string, ReturnType<typeof createMcpServerTool>> = {};
+
+  // First pass: collect all valid servers
+  interface ValidServer {
+    server: McpServerRecord;
+    serverId: string;
+    hasOAuthConnection: boolean;
+  }
+  const validServers: ValidServer[] = [];
 
   for (const serverId of enabledMcpServerIds) {
     const server = await getMcpServer(workspaceId, serverId);
@@ -231,20 +246,86 @@ export async function createMcpServerTools(
       continue;
     }
 
+    // Check for OAuth connection
+    const config = server.config as { accessToken?: string };
+    const hasOAuthConnection = !!config.accessToken;
+
+    // Skip OAuth servers without connection
+    if (server.authType === "oauth" && !hasOAuthConnection) {
+      console.warn(
+        `MCP server ${serverId} (${server.serviceType || "unknown"}) is not connected, skipping tools`
+      );
+      continue;
+    }
+
+    validServers.push({ server, serverId, hasOAuthConnection });
+  }
+
+  // Group servers by serviceType for conflict detection
+  // For OAuth servers with specific serviceTypes, group by serviceType
+  // For generic servers, group all together
+  const serversByServiceType = new Map<
+    string,
+    Array<{ server: McpServerRecord; serverId: string }>
+  >();
+
+  for (const { server, serverId } of validServers) {
+    // Determine grouping key
+    let groupKey: string;
+    if (
+      server.authType === "oauth" &&
+      server.serviceType &&
+      ["google-drive", "gmail", "google-calendar", "notion"].includes(
+        server.serviceType
+      )
+    ) {
+      // OAuth servers with specific serviceTypes
+      groupKey = server.serviceType;
+    } else {
+      // Generic MCP servers (all grouped together)
+      groupKey = "__generic__";
+    }
+
+    if (!serversByServiceType.has(groupKey)) {
+      serversByServiceType.set(groupKey, []);
+    }
+    serversByServiceType.get(groupKey)!.push({ server, serverId });
+  }
+
+  // Second pass: create tools with conditional naming
+  for (const { server, serverId, hasOAuthConnection } of validServers) {
+    // Determine if there's a conflict (multiple servers of same type)
+    let groupKey: string;
+    if (
+      server.authType === "oauth" &&
+      server.serviceType &&
+      ["google-drive", "gmail", "google-calendar", "notion"].includes(
+        server.serviceType
+      )
+    ) {
+      groupKey = server.serviceType;
+    } else {
+      groupKey = "__generic__";
+    }
+
+    const sameTypeServers = serversByServiceType.get(groupKey) || [];
+    const hasConflict = sameTypeServers.length > 1;
+    const serverNameSanitized = sanitizeServerName(server.name);
+    const suffix = hasConflict ? `_${serverNameSanitized}` : "";
+
+    // Debug logging for Notion MCP servers
+    if (server.serviceType === "notion" || server.name.toLowerCase().includes("notion")) {
+      console.log(`[MCP Tools] Processing Notion server ${serverId}:`, {
+        authType: server.authType,
+        serviceType: server.serviceType,
+        hasAccessToken: hasOAuthConnection,
+        hasConflict,
+        suffix,
+      });
+    }
+
     // Check if this is an OAuth-based MCP server with dedicated tools
     if (server.authType === "oauth" && server.serviceType === "google-drive") {
-      // Check for OAuth connection
-      const config = server.config as {
-        accessToken?: string;
-      };
-
-      if (!config.accessToken) {
-        console.warn(
-          `MCP server ${serverId} (Google Drive) is not connected, skipping tools`
-        );
-        continue;
-      }
-
       // Import Google Drive tools dynamically to avoid circular dependencies
       const {
         createGoogleDriveListTool,
@@ -253,35 +334,17 @@ export async function createMcpServerTools(
       } = await import("./googleDriveTools");
 
       // Create dedicated Google Drive tools
-      // Type assertion needed because tool return types are complex
       const listTool = createGoogleDriveListTool(workspaceId, serverId);
       const readTool = createGoogleDriveReadTool(workspaceId, serverId);
       const searchTool = createGoogleDriveSearchTool(workspaceId, serverId);
 
-      // Use server name for tool names (sanitized) - simpler than using serverId
-      const serverNameSanitized = server.name
-        .replace(/[^a-zA-Z0-9]/g, "_")
-        .toLowerCase();
-
-      tools[`google_drive_list_${serverNameSanitized}`] =
+      tools[`google_drive_list${suffix}`] =
         listTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_drive_read_${serverNameSanitized}`] =
+      tools[`google_drive_read${suffix}`] =
         readTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_drive_search_${serverNameSanitized}`] =
+      tools[`google_drive_search${suffix}`] =
         searchTool as ReturnType<typeof createMcpServerTool>;
     } else if (server.authType === "oauth" && server.serviceType === "gmail") {
-      // Check for OAuth connection
-      const config = server.config as {
-        accessToken?: string;
-      };
-
-      if (!config.accessToken) {
-        console.warn(
-          `MCP server ${serverId} (Gmail) is not connected, skipping tools`
-        );
-        continue;
-      }
-
       // Import Gmail tools dynamically to avoid circular dependencies
       const {
         createGmailListTool,
@@ -290,35 +353,17 @@ export async function createMcpServerTools(
       } = await import("./gmailTools");
 
       // Create dedicated Gmail tools
-      // Type assertion needed because tool return types are complex
       const listTool = createGmailListTool(workspaceId, serverId);
       const readTool = createGmailReadTool(workspaceId, serverId);
       const searchTool = createGmailSearchTool(workspaceId, serverId);
 
-      // Use server name for tool names (sanitized) - simpler than using serverId
-      const serverNameSanitized = server.name
-        .replace(/[^a-zA-Z0-9]/g, "_")
-        .toLowerCase();
-
-      tools[`gmail_list_${serverNameSanitized}`] =
+      tools[`gmail_list${suffix}`] =
         listTool as ReturnType<typeof createMcpServerTool>;
-      tools[`gmail_read_${serverNameSanitized}`] =
+      tools[`gmail_read${suffix}`] =
         readTool as ReturnType<typeof createMcpServerTool>;
-      tools[`gmail_search_${serverNameSanitized}`] =
+      tools[`gmail_search${suffix}`] =
         searchTool as ReturnType<typeof createMcpServerTool>;
     } else if (server.authType === "oauth" && server.serviceType === "google-calendar") {
-      // Check for OAuth connection
-      const config = server.config as {
-        accessToken?: string;
-      };
-
-      if (!config.accessToken) {
-        console.warn(
-          `MCP server ${serverId} (Google Calendar) is not connected, skipping tools`
-        );
-        continue;
-      }
-
       // Import Google Calendar tools dynamically to avoid circular dependencies
       const {
         createGoogleCalendarListTool,
@@ -330,7 +375,6 @@ export async function createMcpServerTools(
       } = await import("./googleCalendarTools");
 
       // Create dedicated Google Calendar tools
-      // Type assertion needed because tool return types are complex
       const listTool = createGoogleCalendarListTool(workspaceId, serverId);
       const readTool = createGoogleCalendarReadTool(workspaceId, serverId);
       const searchTool = createGoogleCalendarSearchTool(workspaceId, serverId);
@@ -338,30 +382,76 @@ export async function createMcpServerTools(
       const updateTool = createGoogleCalendarUpdateTool(workspaceId, serverId);
       const deleteTool = createGoogleCalendarDeleteTool(workspaceId, serverId);
 
-      // Use server name for tool names (sanitized) - simpler than using serverId
-      const serverNameSanitized = server.name
-        .replace(/[^a-zA-Z0-9]/g, "_")
-        .toLowerCase();
-
-      tools[`google_calendar_list_${serverNameSanitized}`] =
+      tools[`google_calendar_list${suffix}`] =
         listTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_calendar_read_${serverNameSanitized}`] =
+      tools[`google_calendar_read${suffix}`] =
         readTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_calendar_search_${serverNameSanitized}`] =
+      tools[`google_calendar_search${suffix}`] =
         searchTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_calendar_create_${serverNameSanitized}`] =
+      tools[`google_calendar_create${suffix}`] =
         createTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_calendar_update_${serverNameSanitized}`] =
+      tools[`google_calendar_update${suffix}`] =
         updateTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_calendar_delete_${serverNameSanitized}`] =
+      tools[`google_calendar_delete${suffix}`] =
         deleteTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "notion") {
+      console.log(
+        `[MCP Tools] Creating Notion-specific tools for server ${serverId} (${server.name})`
+      );
+
+      // Import Notion tools dynamically to avoid circular dependencies
+      const {
+        createNotionReadPageTool,
+        createNotionSearchTool,
+        createNotionCreatePageTool,
+        createNotionUpdatePageTool,
+        createNotionQueryDatabaseTool,
+        createNotionCreateDatabasePageTool,
+        createNotionUpdateDatabasePageTool,
+        createNotionAppendBlocksTool,
+      } = await import("./notionTools");
+
+      // Create dedicated Notion tools
+      const readTool = createNotionReadPageTool(workspaceId, serverId);
+      const searchTool = createNotionSearchTool(workspaceId, serverId);
+      const createTool = createNotionCreatePageTool(workspaceId, serverId);
+      const updateTool = createNotionUpdatePageTool(workspaceId, serverId);
+      const queryDatabaseTool = createNotionQueryDatabaseTool(workspaceId, serverId);
+      const createDatabasePageTool = createNotionCreateDatabasePageTool(workspaceId, serverId);
+      const updateDatabasePageTool = createNotionUpdateDatabasePageTool(workspaceId, serverId);
+      const appendBlocksTool = createNotionAppendBlocksTool(workspaceId, serverId);
+
+      tools[`notion_read${suffix}`] =
+        readTool as ReturnType<typeof createMcpServerTool>;
+      tools[`notion_search${suffix}`] =
+        searchTool as ReturnType<typeof createMcpServerTool>;
+      tools[`notion_create${suffix}`] =
+        createTool as ReturnType<typeof createMcpServerTool>;
+      tools[`notion_update${suffix}`] =
+        updateTool as ReturnType<typeof createMcpServerTool>;
+      tools[`notion_query_database${suffix}`] =
+        queryDatabaseTool as ReturnType<typeof createMcpServerTool>;
+      tools[`notion_create_database_page${suffix}`] =
+        createDatabasePageTool as ReturnType<typeof createMcpServerTool>;
+      tools[`notion_update_database_page${suffix}`] =
+        updateDatabasePageTool as ReturnType<typeof createMcpServerTool>;
+      tools[`notion_append_blocks${suffix}`] =
+        appendBlocksTool as ReturnType<typeof createMcpServerTool>;
     } else {
       // Create a generic MCP tool for external servers
-      // Use server name for tool name (sanitized) - simpler than using serverId
-      const serverNameSanitized = server.name
-        .replace(/[^a-zA-Z0-9]/g, "_")
-        .toLowerCase();
-      const toolName = `mcp_${serverNameSanitized}`;
+      // For generic servers, always use server name since they're inherently different
+      // Only append suffix if there are multiple generic servers
+      const toolName = hasConflict
+        ? `mcp_${serverNameSanitized}`
+        : `mcp_${serverNameSanitized}`;
+
+      // Debug logging for servers that fall through to generic tool
+      if (server.serviceType === "notion" || server.name.toLowerCase().includes("notion")) {
+        console.warn(
+          `[MCP Tools] Notion server ${serverId} falling through to generic tool. AuthType: ${server.authType}, ServiceType: ${server.serviceType}`
+        );
+      }
+
       tools[toolName] = createMcpServerTool(workspaceId, serverId, server.name);
     }
   }

@@ -436,6 +436,56 @@ Agent can call:
 - `process_order` - Process customer order
 - `calculate_price` - Calculate product price
 
+### Notion Integration
+
+```json
+{
+  "name": "My Notion Workspace",
+  "authType": "oauth",
+  "serviceType": "notion",
+  "config": {}
+}
+```
+
+**Setup Requirements**:
+
+1. Create a Notion Public Integration:
+   - Go to [Notion Integrations](https://www.notion.com/my-integrations)
+   - Click "+ New integration"
+   - Select "Public" as the integration type
+   - Provide your company name, website, and redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/notion/callback`
+   - Copy the OAuth client ID and client secret from the "Secrets" tab
+
+2. Configure Environment Variables:
+   - Set `NOTION_OAUTH_CLIENT_ID` to your Notion OAuth client ID
+   - Set `NOTION_OAUTH_CLIENT_SECRET` to your Notion OAuth client secret
+   - Ensure `OAUTH_REDIRECT_BASE_URL` is set correctly
+
+3. Connect Your Notion Account:
+   - After creating the MCP server, click "Connect" to authorize the integration
+   - Select which pages and databases to grant access to
+   - The integration will have read, search, and write access to shared resources
+
+**Available Tools**:
+
+Once connected, agents can use the following Notion tools:
+
+- `notion_read_{serverName}` - Read a page by ID, returns full page content and properties
+- `notion_search_{serverName}` - Search for pages, databases, and data sources
+- `notion_create_{serverName}` - Create a new page (as child of page, database, data source, or workspace)
+- `notion_update_{serverName}` - Update page properties or archive a page
+- `notion_query_database_{serverName}` - Query a database with filters and sorts
+- `notion_create_database_page_{serverName}` - Create a new page in a database
+- `notion_update_database_page_{serverName}` - Update a page in a database
+
+**Important Notes**:
+
+- Notion requires pages and databases to be explicitly shared with the integration
+- The integration uses Notion API version `2025-09-03`
+- Notion access tokens don't expire, but the integration handles token refresh for compatibility
+- Database operations require properties to match the database schema
+- Search can return pages, databases, and data sources (new in API 2025-09-03)
+
 ## Troubleshooting
 
 ### Server Not Found
