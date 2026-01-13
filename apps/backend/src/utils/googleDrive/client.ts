@@ -197,17 +197,40 @@ async function makeGoogleDriveRequest<T>(
             retryAttempt + 1
           );
         } catch (refreshError) {
+          // Check if it's a token revocation error
+          const errorMessage =
+            refreshError instanceof Error
+              ? refreshError.message
+              : String(refreshError);
+          
+          if (
+            errorMessage.includes("invalid_grant") ||
+            errorMessage.includes("token has been revoked") ||
+            errorMessage.includes("Token has been expired or revoked")
+          ) {
+            throw new Error(
+              `Google Drive access has been revoked. Please reconnect your Google Drive account in the MCP server settings.`
+            );
+          }
+          
           throw new Error(
-            `Authentication failed and token refresh failed: ${
-              refreshError instanceof Error
-                ? refreshError.message
-                : String(refreshError)
-            }`
+            `Authentication failed and token refresh failed: ${errorMessage}`
           );
         }
       } else {
+        // Get more details from the error response
+        let errorDetails = `${response.status} ${response.statusText}`;
+        try {
+          const errorData = (await response.json()) as GoogleDriveErrorResponse;
+          if (errorData.error?.message) {
+            errorDetails = errorData.error.message;
+          }
+        } catch {
+          // Ignore JSON parse errors
+        }
+        
         throw new Error(
-          `Authentication failed: ${response.status} ${response.statusText}`
+          `Authentication failed: ${errorDetails}. Please reconnect your Google Drive account if the issue persists.`
         );
       }
     }

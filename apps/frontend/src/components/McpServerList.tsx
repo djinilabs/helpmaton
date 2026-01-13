@@ -32,6 +32,7 @@ const McpServerItem: FC<McpServerItemProps> = ({
 }) => {
   const deleteServer = useDeleteMcpServer(workspaceId);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   const handleConnect = async () => {
@@ -46,6 +47,21 @@ const McpServerItem: FC<McpServerItemProps> = ({
           : "Failed to initiate OAuth flow"
       );
       setIsConnecting(false);
+    }
+  };
+
+  const handleReconnect = async () => {
+    try {
+      setIsReconnecting(true);
+      const { authUrl } = await initiateMcpOAuthFlow(workspaceId, server.id);
+      window.location.href = authUrl;
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to initiate OAuth flow"
+      );
+      setIsReconnecting(false);
     }
   };
 
@@ -110,13 +126,22 @@ const McpServerItem: FC<McpServerItemProps> = ({
           {isOAuth && (
             <>
               {server.oauthConnected ? (
-                <button
-                  onClick={handleDisconnect}
-                  disabled={isDisconnecting}
-                  className="rounded-xl border border-orange-300 bg-white px-4 py-2 text-sm font-medium text-orange-600 transition-colors hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-orange-600 dark:bg-neutral-900 dark:text-orange-400 dark:hover:bg-orange-950"
-                >
-                  {isDisconnecting ? "Disconnecting..." : "Disconnect"}
-                </button>
+                <>
+                  <button
+                    onClick={handleReconnect}
+                    disabled={isReconnecting}
+                    className="rounded-xl bg-gradient-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isReconnecting ? "Reconnecting..." : "Reconnect"}
+                  </button>
+                  <button
+                    onClick={handleDisconnect}
+                    disabled={isDisconnecting}
+                    className="rounded-xl border border-orange-300 bg-white px-4 py-2 text-sm font-medium text-orange-600 transition-colors hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-orange-600 dark:bg-neutral-900 dark:text-orange-400 dark:hover:bg-orange-950"
+                  >
+                    {isDisconnecting ? "Disconnecting..." : "Disconnect"}
+                  </button>
+                </>
               ) : (
                 <button
                   onClick={handleConnect}

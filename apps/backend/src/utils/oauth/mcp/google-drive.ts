@@ -9,10 +9,9 @@ import type { McpOAuthTokenInfo } from "./types";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 // Google Drive API scopes
-const GOOGLE_DRIVE_SCOPES = [
-  "https://www.googleapis.com/auth/drive.readonly", // Read-only access to Drive files
-  "https://www.googleapis.com/auth/drive.metadata.readonly", // Read metadata
-].join(" ");
+// Using drive scope (instead of drive.readonly) because fullText search requires broader permissions
+// This scope provides read-only access to all files in the user's Drive
+const GOOGLE_DRIVE_SCOPES = "https://www.googleapis.com/auth/drive";
 
 export interface GoogleTokenResponse {
   access_token: string;
@@ -158,9 +157,25 @@ export async function refreshGoogleDriveToken(
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(
-      `Failed to refresh Google Drive token: ${response.status} ${errorText}`
-    );
+    let errorMessage = `Failed to refresh Google Drive token: ${response.status}`;
+    
+    try {
+      const errorData = JSON.parse(errorText) as {
+        error?: string;
+        error_description?: string;
+      };
+      if (errorData.error === "invalid_grant") {
+        errorMessage = "Token has been expired or revoked. Please reconnect your Google Drive account.";
+      } else if (errorData.error_description) {
+        errorMessage = errorData.error_description;
+      } else {
+        errorMessage = `${errorMessage} ${errorText}`;
+      }
+    } catch {
+      errorMessage = `${errorMessage} ${errorText}`;
+    }
+    
+    throw new Error(errorMessage);
   }
 
   const data = (await response.json()) as Omit<
