@@ -56,19 +56,21 @@ const uiMessageSchema = z.object({
 /**
  * Schema for stream request body
  * Used in validateRequest() and stream handlers
+ * Uses passthrough() to allow extra fields from ai-sdk (e.g., id, trigger)
  */
 export const streamRequestSchema = z.object({
   messages: z.array(uiMessageSchema).min(1, "messages array must not be empty"),
   conversationId: z.string().optional(),
-}).strict();
+}).passthrough();
 
 /**
  * Schema for test agent request body
  * Used in POST /api/workspaces/:workspaceId/agents/:agentId/test
+ * Uses passthrough() to allow extra fields from ai-sdk (e.g., id, trigger)
  */
 export const testAgentRequestSchema = z.object({
   messages: z.array(uiMessageSchema).min(1, "messages array must not be empty"),
-}).strict();
+}).passthrough();
 
 /**
  * Schema for scrape request body
