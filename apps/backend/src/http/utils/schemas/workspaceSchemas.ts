@@ -18,23 +18,27 @@ const permissionLevelSchema = z
   .transform((val) => (typeof val === "string" ? Number(val) : val));
 
 // Client tool schema
-const clientToolSchema = z.object({
-  name: z
-    .string()
-    .min(1)
-    .regex(
-      /^[a-zA-Z_$][a-zA-Z0-9_$]*$/,
-      "Tool name must be a valid JavaScript identifier (letters, numbers, underscore, $; no spaces or special characters)"
-    ),
-  description: z.string().min(1),
-  parameters: z.record(z.string(), z.unknown()),
-}).strict();
+const clientToolSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1)
+      .regex(
+        /^[a-zA-Z_$][a-zA-Z0-9_$]*$/,
+        "Tool name must be a valid JavaScript identifier (letters, numbers, underscore, $; no spaces or special characters)"
+      ),
+    description: z.string().min(1),
+    parameters: z.record(z.string(), z.unknown()),
+  })
+  .strict();
 
 // Spending limit schema
-const spendingLimitSchema = z.object({
-  timeFrame: z.enum(["daily", "weekly", "monthly"]),
-  amount: z.number().int().nonnegative(),
-}).strict();
+const spendingLimitSchema = z
+  .object({
+    timeFrame: z.enum(["daily", "weekly", "monthly"]),
+    amount: z.number().int().nonnegative(),
+  })
+  .strict();
 
 /**
  * Workspace schemas
@@ -393,10 +397,9 @@ export const purchaseCreditsSchema = z
       .refine((val) => val >= 1, {
         message: "Minimum purchase amount is 1 USD",
       })
-      .refine(
-        (val) => Math.round(val * 100) === val * 100,
-        { message: "Amount must have at most 2 decimal places" }
-      ),
+      .refine((val) => Math.round(val * 100) === val * 100, {
+        message: "Amount must have at most 2 decimal places",
+      }),
   })
   .strict();
 
