@@ -88,6 +88,11 @@ export const registerGetMcpServerOauthAuthorize = (
             "../../../utils/oauth/mcp/google-drive"
           );
           authUrl = generateGoogleDriveAuthUrl(workspaceId, serverId);
+        } else if (server.serviceType === "gmail") {
+          const { generateGmailAuthUrl } = await import(
+            "../../../utils/oauth/mcp/gmail"
+          );
+          authUrl = generateGmailAuthUrl(workspaceId, serverId);
         } else {
           throw badRequest(
             `Unsupported service type: ${server.serviceType || "unknown"}`

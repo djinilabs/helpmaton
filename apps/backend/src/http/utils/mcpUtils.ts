@@ -269,6 +269,43 @@ export async function createMcpServerTools(
         readTool as ReturnType<typeof createMcpServerTool>;
       tools[`google_drive_search_${serverNameSanitized}`] =
         searchTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "gmail") {
+      // Check for OAuth connection
+      const config = server.config as {
+        accessToken?: string;
+      };
+
+      if (!config.accessToken) {
+        console.warn(
+          `MCP server ${serverId} (Gmail) is not connected, skipping tools`
+        );
+        continue;
+      }
+
+      // Import Gmail tools dynamically to avoid circular dependencies
+      const {
+        createGmailListTool,
+        createGmailReadTool,
+        createGmailSearchTool,
+      } = await import("./gmailTools");
+
+      // Create dedicated Gmail tools
+      // Type assertion needed because tool return types are complex
+      const listTool = createGmailListTool(workspaceId, serverId);
+      const readTool = createGmailReadTool(workspaceId, serverId);
+      const searchTool = createGmailSearchTool(workspaceId, serverId);
+
+      // Use server name for tool names (sanitized) - simpler than using serverId
+      const serverNameSanitized = server.name
+        .replace(/[^a-zA-Z0-9]/g, "_")
+        .toLowerCase();
+
+      tools[`gmail_list_${serverNameSanitized}`] =
+        listTool as ReturnType<typeof createMcpServerTool>;
+      tools[`gmail_read_${serverNameSanitized}`] =
+        readTool as ReturnType<typeof createMcpServerTool>;
+      tools[`gmail_search_${serverNameSanitized}`] =
+        searchTool as ReturnType<typeof createMcpServerTool>;
     } else {
       // Create a generic MCP tool for external servers
       // Use server name for tool name (sanitized) - simpler than using serverId

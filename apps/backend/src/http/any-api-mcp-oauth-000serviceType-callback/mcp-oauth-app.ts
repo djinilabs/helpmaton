@@ -94,7 +94,7 @@ export const createApp: () => express.Application = () => {
         }
         const { workspaceId, serverId } = stateData;
 
-        if (serviceType !== "google-drive") {
+        if (serviceType !== "google-drive" && serviceType !== "gmail") {
           const errorMsg = encodeURIComponent(
             `Unsupported service type: ${serviceType}`
           );
@@ -198,6 +198,11 @@ export const createApp: () => express.Application = () => {
               "../../utils/oauth/mcp/google-drive"
             );
             tokenInfo = await exchangeGoogleDriveCode(code);
+          } else if (serviceType === "gmail") {
+            const { exchangeGmailCode } = await import(
+              "../../utils/oauth/mcp/gmail"
+            );
+            tokenInfo = await exchangeGmailCode(code);
           } else {
             throw new Error(`Unsupported service type: ${serviceType}`);
           }

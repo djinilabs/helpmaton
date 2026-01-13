@@ -94,7 +94,11 @@ const McpServerItem: FC<McpServerItemProps> = ({
 
   const isOAuth = server.authType === "oauth";
   const serviceName =
-    server.serviceType === "google-drive" ? "Google Drive" : "Unknown";
+    server.serviceType === "google-drive"
+      ? "Google Drive"
+      : server.serviceType === "gmail"
+      ? "Gmail"
+      : "Unknown";
 
   return (
     <div className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900">

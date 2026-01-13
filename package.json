@@ -22,7 +22,10 @@
     "ai-management",
     "knowledge-base",
     "webhook-api",
-    "ai-platform"
+    "ai-platform",
+    "agents",
+    "mcp",
+    "agent memory"
   ],
   "copyright": "© 2025-present, Gordon & Teixeira Lda. (https://helpmaton.com)",
   "scripts": {

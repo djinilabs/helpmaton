@@ -29,7 +29,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
   const updateServer = useUpdateMcpServer(workspaceId);
 
   const [name, setName] = useState("");
-  const [mcpType, setMcpType] = useState<"google-drive" | "custom">("google-drive"); // Service type for new servers
+  const [mcpType, setMcpType] = useState<"google-drive" | "gmail" | "custom">("google-drive"); // Service type for new servers
   const [url, setUrl] = useState("");
   const [authType, setAuthType] = useState<"none" | "header" | "basic">("none");
   const [headerValue, setHeaderValue] = useState("");
@@ -45,6 +45,9 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         // Determine MCP type based on server
         if (server.authType === "oauth" && server.serviceType === "google-drive") {
           setMcpType("google-drive");
+          // OAuth servers don't have authType in the UI
+        } else if (server.authType === "oauth" && server.serviceType === "gmail") {
+          setMcpType("gmail");
           // OAuth servers don't have authType in the UI
         } else {
           setMcpType("custom");
@@ -232,6 +235,20 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             auth_type: "oauth",
             service_type: "google-drive",
           });
+        } else if (mcpType === "gmail") {
+          // Gmail - OAuth-based
+          const result = await createServer.mutateAsync({
+            name: name.trim(),
+            authType: "oauth",
+            serviceType: "gmail",
+            config: {}, // Empty config for OAuth servers (credentials set via OAuth flow)
+          });
+          trackEvent("mcp_server_created", {
+            workspace_id: workspaceId,
+            server_id: result.id,
+            auth_type: "oauth",
+            service_type: "gmail",
+          });
         } else {
           // Custom MCP - external server
           const result = await createServer.mutateAsync({
@@ -295,10 +312,10 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 id="mcpType"
                 value={mcpType}
                 onChange={(e) => {
-                  const newType = e.target.value as "google-drive" | "custom";
+                  const newType = e.target.value as "google-drive" | "gmail" | "custom";
                   setMcpType(newType);
                   // Reset auth type when switching
-                  if (newType === "google-drive") {
+                  if (newType === "google-drive" || newType === "gmail") {
                     setAuthType("none");
                     setUrl("");
                   } else {
@@ -309,11 +326,17 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 required
               >
                 <option value="google-drive">Google Drive</option>
+                <option value="gmail">Gmail</option>
                 <option value="custom">Custom MCP</option>
               </select>
               {mcpType === "google-drive" && (
                 <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
                   After creating the server, you&apos;ll need to connect your Google account via OAuth.
+                </p>
+              )}
+              {mcpType === "gmail" && (
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  After creating the server, you&apos;ll need to connect your Gmail account via OAuth.
                 </p>
               )}
             </div>
@@ -369,6 +392,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
                     This is a Google Drive MCP server. OAuth connection is managed separately.
+                  </p>
+                </div>
+              ) : server.authType === "oauth" && server.serviceType === "gmail" ? (
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                    This is a Gmail MCP server. OAuth connection is managed separately.
                   </p>
                 </div>
               ) : (
