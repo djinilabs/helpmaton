@@ -74,9 +74,9 @@
         },
         "minimax/minimax-m2.1": {
           "usd": {
-            "input": 0.28,
-            "output": 1.2,
-            "cachedInput": 0.028000000000000004
+            "input": 0.27,
+            "output": 1.12,
+            "cachedInput": 0.027000000000000003
           }
         },
         "z-ai/glm-4.7": {
@@ -1202,9 +1202,9 @@
         },
         "deepseek/deepseek-r1-0528": {
           "usd": {
-            "input": 0.39999999999999997,
-            "output": 1.75,
-            "cachedInput": 0.04
+            "input": 0.44999999999999996,
+            "output": 2.1500000000000004,
+            "cachedInput": 0.045
           }
         },
         "anthropic/claude-opus-4": {
@@ -2584,5 +2584,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-11T11:51:45.720Z"
+  "lastUpdated": "2026-01-13T00:13:05.397Z"
 }
