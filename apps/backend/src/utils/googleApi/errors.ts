@@ -1,9 +1,11 @@
 /**
  * Check if an error is a recoverable/throttle error
+ * Includes rate limiting (429) and server errors (500, 502, 503, 504)
  */
 export function isRecoverableError(status: number): boolean {
-  // HTTP 429 (Too Many Requests) and 503 (Service Unavailable) are recoverable
-  return status === 429 || status === 503;
+  // HTTP 429 (Too Many Requests), 500 (Internal Server Error),
+  // 502 (Bad Gateway), 503 (Service Unavailable), 504 (Gateway Timeout)
+  return status === 429 || status === 500 || status === 502 || status === 503 || status === 504;
 }
 
 /**

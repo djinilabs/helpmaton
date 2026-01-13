@@ -4,9 +4,10 @@ import {
   isRecoverableError,
   isAuthenticationError,
   calculateBackoffDelay,
-} from "../../googleApi/errors";
+  sleep,
+} from "../errors";
 
-describe("Google API Error Utilities (Shared)", () => {
+describe("Google API Error Utilities", () => {
   describe("isRecoverableError", () => {
     it("should return true for HTTP 429 (Too Many Requests)", () => {
       expect(isRecoverableError(429)).toBe(true);
@@ -49,6 +50,7 @@ describe("Google API Error Utilities (Shared)", () => {
     it("should return false for other status codes", () => {
       expect(isAuthenticationError(200)).toBe(false);
       expect(isAuthenticationError(400)).toBe(false);
+      expect(isAuthenticationError(404)).toBe(false);
       expect(isAuthenticationError(500)).toBe(false);
     });
   });
@@ -79,6 +81,24 @@ describe("Google API Error Utilities (Shared)", () => {
       // All delays should be different due to jitter
       const uniqueDelays = new Set(delays);
       expect(uniqueDelays.size).toBeGreaterThan(1);
+    });
+
+    it("should use custom base delay", () => {
+      const delay = calculateBackoffDelay(0, 2000);
+      expect(delay).toBeGreaterThanOrEqual(2000);
+      expect(delay).toBeLessThan(2400); // 2000 + 20% jitter
+    });
+  });
+
+  describe("sleep", () => {
+    it("should sleep for specified milliseconds", async () => {
+      const start = Date.now();
+      await sleep(100);
+      const end = Date.now();
+      const elapsed = end - start;
+
+      expect(elapsed).toBeGreaterThanOrEqual(90); // Allow some timing variance
+      expect(elapsed).toBeLessThan(200);
     });
   });
 });
