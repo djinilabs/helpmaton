@@ -170,11 +170,12 @@ export function createGoogleDriveSearchTool(
 ) {
   return tool({
     description:
-      "Search for files in Google Drive by name or content. Returns a list of matching files with their metadata.",
+      "Search for files in Google Drive by name or content. Returns a list of matching files with their metadata. REQUIRES a 'query' parameter with the search term.",
     parameters: z.object({
       query: z
         .string()
-        .describe("Search query to find files by name or content"),
+        .min(1, "Search query cannot be empty")
+        .describe("REQUIRED: Search query string to find files by name or content. Example: 'budget report' or 'meeting notes'"),
       pageToken: z
         .string()
         .optional()
@@ -192,11 +193,32 @@ export function createGoogleDriveSearchTool(
           return "Error: Google Drive is not connected. Please connect your Google Drive account first.";
         }
 
+        // Validate args structure
+        if (!args || typeof args !== "object") {
+          return "Error: Search requires a 'query' parameter. Please provide a search query string.";
+        }
+
+        // Extract and validate query parameter
+        const query = args.query;
+        if (!query || typeof query !== "string" || query.trim().length === 0) {
+          return "Error: Search requires a non-empty 'query' parameter. Please provide a search query string. Example: {query: 'my document'}";
+        }
+
+        const pageToken = args.pageToken;
+
+        // Log tool call for debugging
+        console.log("[Tool Call] google_drive_search", {
+          toolName: "google_drive_search",
+          arguments: { query, pageToken },
+          workspaceId,
+          serverId,
+        });
+
         const result = await googleDriveClient.searchFiles(
           workspaceId,
           serverId,
-          args.query,
-          args.pageToken
+          query,
+          pageToken
         );
 
         return JSON.stringify(

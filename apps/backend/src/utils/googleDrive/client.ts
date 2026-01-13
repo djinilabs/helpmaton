@@ -487,8 +487,14 @@ export async function searchFiles(
   query: string,
   pageToken?: string
 ): Promise<GoogleDriveFileListResponse> {
-  // Build search query
-  const searchQuery = `name contains '${query.replace(/'/g, "\\'")}' or fullText contains '${query.replace(/'/g, "\\'")}'`;
+  // Validate query parameter
+  if (!query || typeof query !== "string" || query.trim().length === 0) {
+    throw new Error("Search query is required and must be a non-empty string");
+  }
+
+  // Build search query - escape single quotes in the query string
+  const escapedQuery = query.replace(/'/g, "\\'");
+  const searchQuery = `name contains '${escapedQuery}' or fullText contains '${escapedQuery}'`;
 
   return listFiles(workspaceId, serverId, searchQuery, pageToken);
 }

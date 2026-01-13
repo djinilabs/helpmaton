@@ -495,7 +495,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                 const snippets = knowledgeMessage.knowledgeSnippets || [];
 
                 return (
-                  <div key={message.id} className="max-w-[80%]">
+                  <div key={message.id} className="max-w-[80%] overflow-x-auto">
                     <details className="rounded-xl border border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950">
                       <summary className="cursor-pointer p-4">
                         <div className="flex items-center gap-2">
@@ -612,7 +612,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                       className="text-sm"
                     >
                       {message.role === "user" ? (
-                        <div className="whitespace-pre-wrap">
+                        <div className="whitespace-pre-wrap break-words">
                           {textPart.text}
                         </div>
                       ) : (
@@ -666,12 +666,12 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="max-w-[80%] rounded-xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-950"
+                      className="max-w-[80%] overflow-x-auto rounded-xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-950"
                     >
                       <div className="mb-2 text-xs font-medium text-indigo-700 dark:text-indigo-300">
                         🧠 Reasoning
                       </div>
-                      <div className="whitespace-pre-wrap text-sm text-indigo-900 dark:text-indigo-100">
+                      <div className="whitespace-pre-wrap break-words overflow-x-auto text-sm text-indigo-900 dark:text-indigo-100">
                         {reasoningPart.text}
                       </div>
                     </div>
@@ -702,7 +702,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="max-w-[80%] rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950"
+                      className="max-w-[80%] overflow-x-auto rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950"
                     >
                       <div className="mb-2 text-xs font-medium text-blue-700 dark:text-blue-300">
                         🔧 Tool Call: {toolPart.toolName}
@@ -827,7 +827,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="max-w-[80%] rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950"
+                      className="max-w-[80%] overflow-x-auto rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950"
                     >
                       <div className="mb-2 text-xs font-medium text-blue-700 dark:text-blue-300">
                         🔧 Tool Call: {toolName}
@@ -943,7 +943,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="max-w-[80%] rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950"
+                      className="max-w-[80%] overflow-x-auto rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950"
                     >
                       <div className="mb-1 text-xs font-medium text-amber-700 dark:text-amber-300">
                         📎 Source
@@ -976,7 +976,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="max-w-[80%] rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950"
+                      className="max-w-[80%] overflow-x-auto rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950"
                     >
                       <div className="mb-1 text-xs font-medium text-amber-700 dark:text-amber-300">
                         📄 Document Source
@@ -1011,7 +1011,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="max-w-[80%] rounded-xl border border-purple-200 bg-purple-50 p-3 dark:border-purple-800 dark:bg-purple-950"
+                      className="max-w-[80%] overflow-x-auto rounded-xl border border-purple-200 bg-purple-50 p-3 dark:border-purple-800 dark:bg-purple-950"
                     >
                       <div className="mb-1 text-xs font-medium text-purple-700 dark:text-purple-300">
                         📎 File
@@ -1049,7 +1049,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
-                      className="max-w-[80%] rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800"
+                      className="max-w-[80%] overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800"
                     >
                       <div className="mb-2 flex items-center gap-2 text-xs font-medium text-slate-700 dark:text-slate-300">
                         <ChartBarIcon className="size-3" />
@@ -1087,7 +1087,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                 return (
                   <div
                     key={`${message.id}-part-${partIndex}`}
-                    className="max-w-[80%] rounded-xl border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-950"
+                    className="max-w-[80%] overflow-x-auto rounded-xl border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-950"
                   >
                     <div className="mb-1 text-xs font-medium text-yellow-700 dark:text-yellow-300">
                       Unknown part type: {partType}
@@ -1148,7 +1148,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                         return (
                           <div
                             key={`${message.id}-container-${partIndex}`}
-                            className={`rounded-xl p-4 ${getRoleStyling()} max-w-[80%]`}
+                            className={`rounded-xl p-4 ${getRoleStyling()} max-w-[80%] overflow-x-auto`}
                           >
                             <div className="mb-2 flex items-center justify-between">
                               <div className="flex items-center gap-2">
@@ -1254,7 +1254,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                   ) : (
                     // Fallback: render message container even if no parts
                     <div
-                      className={`rounded-xl p-5 ${getRoleStyling()} max-w-[80%]`}
+                      className={`rounded-xl p-5 ${getRoleStyling()} max-w-[80%] overflow-x-auto`}
                     >
                       <div className="mb-3 flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -1343,7 +1343,7 @@ export const AgentChat: FC<AgentChatProps> = ({
               );
             })}
             {isLoading && (
-              <div className="max-w-[80%] rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-neutral-900">
+              <div className="max-w-[80%] overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-neutral-900">
                 <div className="mb-2 flex items-center gap-2">
                   {agent?.avatar && (
                     <img
