@@ -22,14 +22,17 @@
     "ai-management",
     "knowledge-base",
     "webhook-api",
-    "ai-platform"
+    "ai-platform",
+    "agents",
+    "mcp",
+    "agent memory"
   ],
   "copyright": "© 2025-present, Gordon & Teixeira Lda. (https://helpmaton.com)",
   "scripts": {
-    "dev": "run-p dev:backend dev:frontend",
+    "dev": "node scripts/dev-wrapper.mjs",
     "dev:backend": "run-p dev:watch-source-refresh-lambda dev:backend:sandbox",
     "dev:watch-source-refresh-lambda": "node scripts/watchSourceRefreshLambda.cjs",
-    "dev:backend:sandbox": "cd apps/backend && ARC_DB_PATH=./db pnpm arc sandbox",
+    "dev:backend:sandbox": "node scripts/sandbox-wrapper.mjs",
     "dev:frontend": "cd apps/frontend && pnpm dev",
     "dev:dbadmin": "dynamodb-admin --dynamo-endpoint=http://localhost:6000",
     "build:frontend": "pnpm generate:openapi && pnpm build:ui && pnpm build:widget",

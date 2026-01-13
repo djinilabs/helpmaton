@@ -316,9 +316,12 @@ export const tableSchemas = {
     sk: z.string().optional(), // optional sort key (fixed value "server")
     workspaceId: z.string(), // workspace ID for GSI queries
     name: z.string(), // user-friendly name for the server
-    url: z.url(), // MCP server URL
-    authType: z.enum(["none", "header", "basic"]), // authentication type
-    config: z.record(z.string(), z.unknown()), // authentication configuration, encrypted
+    url: z.url().optional(), // MCP server URL (optional for OAuth-based servers)
+    authType: z.enum(["none", "header", "basic", "oauth"]), // authentication type
+    serviceType: z
+      .enum(["external", "google-drive", "gmail", "google-calendar"])
+      .optional(), // service type (defaults to "external" for backward compatibility)
+    config: z.record(z.string(), z.unknown()), // authentication configuration, encrypted. For OAuth: contains accessToken, refreshToken, expiresAt, email?
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
   }),

@@ -17,6 +17,7 @@ any /api/discord
 any /api/auth
 any /api/auth/*
 any /api/email/oauth/:provider/callback
+any /api/mcp/oauth/:serviceType/callback
 any /api/subscription
 any /api/subscription/*
 any /api/user/*

@@ -171,7 +171,8 @@ export const createApp: () => express.Application = () => {
             hasAccessToken: !!tokenInfo.accessToken,
             hasRefreshToken: !!tokenInfo.refreshToken,
             hasExpiresAt: !!tokenInfo.expiresAt,
-            tokenInfo,
+            hasEmail: !!tokenInfo.email,
+            // Do not log tokenInfo object as it contains sensitive credentials
           });
           const errorMsg = encodeURIComponent("Failed to obtain required OAuth tokens");
           return res.redirect(

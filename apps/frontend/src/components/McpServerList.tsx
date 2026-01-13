@@ -1,8 +1,13 @@
 import { useState } from "react";
 import type { FC } from "react";
+import { toast } from "sonner";
 
 import { useMcpServers, useDeleteMcpServer } from "../hooks/useMcpServers";
 import type { McpServer } from "../utils/api";
+import {
+  initiateMcpOAuthFlow,
+  disconnectMcpOAuth,
+} from "../utils/api";
 import { trackEvent } from "../utils/tracking";
 
 import { McpServerModal } from "./McpServerModal";
@@ -26,25 +31,135 @@ const McpServerItem: FC<McpServerItemProps> = ({
   onEdit,
 }) => {
   const deleteServer = useDeleteMcpServer(workspaceId);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
+
+  const handleConnect = async () => {
+    try {
+      setIsConnecting(true);
+      const { authUrl } = await initiateMcpOAuthFlow(workspaceId, server.id);
+      window.location.href = authUrl;
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to initiate OAuth flow"
+      );
+      setIsConnecting(false);
+    }
+  };
+
+  const handleReconnect = async () => {
+    try {
+      setIsReconnecting(true);
+      const { authUrl } = await initiateMcpOAuthFlow(workspaceId, server.id);
+      window.location.href = authUrl;
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to initiate OAuth flow"
+      );
+      setIsReconnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (
+      !confirm(
+        "Are you sure you want to disconnect this OAuth connection? You'll need to reconnect to use this MCP server."
+      )
+    ) {
+      return;
+    }
+    try {
+      setIsDisconnecting(true);
+      await disconnectMcpOAuth(workspaceId, server.id);
+      toast.success("OAuth connection disconnected");
+      trackEvent("mcp_server_oauth_disconnected", {
+        workspace_id: workspaceId,
+        server_id: server.id,
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to disconnect OAuth connection"
+      );
+    } finally {
+      setIsDisconnecting(false);
+    }
+  };
+
+  const isOAuth = server.authType === "oauth";
+  const serviceName =
+    server.serviceType === "google-drive"
+      ? "Google Drive"
+      : server.serviceType === "gmail"
+      ? "Gmail"
+      : "Unknown";
 
   return (
-    <div className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:shadow-bold active:scale-[0.99]">
-      <div>
-        <div className="text-lg font-semibold text-neutral-900">
+    <div className="flex transform items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900">
+      <div className="flex-1">
+        <div className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
           {server.name}
         </div>
-        <div className="mt-1 font-mono text-sm text-neutral-600">
-          {server.url}
-        </div>
-        <div className="mt-1 text-sm text-neutral-600">
+        {server.url && (
+          <div className="mt-1 font-mono text-sm text-neutral-600 dark:text-neutral-400">
+            {server.url}
+          </div>
+        )}
+        <div className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
           Auth: {server.authType}
+          {isOAuth && ` (${serviceName})`}
         </div>
+        {isOAuth && (
+          <div className="mt-1 text-sm">
+            {server.oauthConnected ? (
+              <span className="text-green-600 dark:text-green-400">✓ Connected</span>
+            ) : (
+              <span className="text-orange-600 dark:text-orange-400">⚠ Not connected</span>
+            )}
+          </div>
+        )}
       </div>
       {canEdit && (
         <div className="flex gap-2">
+          {isOAuth && (
+            <>
+              {server.oauthConnected ? (
+                <>
+                  <button
+                    onClick={handleReconnect}
+                    disabled={isReconnecting}
+                    className="rounded-xl bg-gradient-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isReconnecting ? "Reconnecting..." : "Reconnect"}
+                  </button>
+                  <button
+                    onClick={handleDisconnect}
+                    disabled={isDisconnecting}
+                    className="rounded-xl border border-orange-300 bg-white px-4 py-2 text-sm font-medium text-orange-600 transition-colors hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-orange-600 dark:bg-neutral-900 dark:text-orange-400 dark:hover:bg-orange-950"
+                  >
+                    {isDisconnecting ? "Disconnecting..." : "Disconnect"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleConnect}
+                  disabled={isConnecting}
+                  className="rounded-xl bg-gradient-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isConnecting ? "Connecting..." : "Connect"}
+                </button>
+              )}
+            </>
+          )}
           <button
             onClick={() => onEdit(server.id)}
-            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50"
+            className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
           >
             Edit
           </button>
@@ -97,8 +212,8 @@ export const McpServerList: FC<McpServerListProps> = ({
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border-2 border-neutral-300 bg-white p-6">
-        <p className="text-lg font-bold">Loading MCP servers...</p>
+      <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
+        <p className="text-lg font-bold text-neutral-900 dark:text-neutral-50">Loading MCP servers...</p>
       </div>
     );
   }
@@ -119,8 +234,8 @@ export const McpServerList: FC<McpServerListProps> = ({
       )}
 
       {servers.length === 0 ? (
-        <div className="rounded-xl border-2 border-neutral-300 bg-white p-6">
-          <p className="text-base font-bold text-neutral-700">
+        <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
+          <p className="text-base font-bold text-neutral-700 dark:text-neutral-300">
             No MCP servers configured.
           </p>
         </div>

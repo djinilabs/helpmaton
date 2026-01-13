@@ -106,7 +106,7 @@ export const registerPostMcpServer = (app: express.Application) => {
     async (req, res, next) => {
       try {
         const body = validateBody(req.body, createMcpServerSchema);
-        const { name, url, authType, config } = body;
+        const { name, url, authType, serviceType, config } = body;
 
         // Validate config based on authType
         if (authType === "header") {
@@ -126,6 +126,15 @@ export const registerPostMcpServer = (app: express.Application) => {
               "config.password is required for basic authentication"
             );
           }
+        } else if (authType === "oauth") {
+          // For OAuth, serviceType is required
+          if (!serviceType || serviceType === "external") {
+            throw badRequest(
+              "serviceType must be specified and cannot be 'external' for OAuth authentication"
+            );
+          }
+          // Config should be empty initially (OAuth connection happens via separate flow)
+          // But we allow it to be empty or contain serviceType
         }
 
         const db = await database();
@@ -157,9 +166,10 @@ export const registerPostMcpServer = (app: express.Application) => {
           sk,
           workspaceId,
           name,
-          url,
-          authType: authType as "none" | "header" | "basic",
-          config,
+          url: url || undefined, // url is optional for OAuth servers
+          authType: authType as "none" | "header" | "basic" | "oauth",
+          serviceType: serviceType || "external",
+          config: authType === "oauth" ? {} : config, // Start with empty config for OAuth
           createdBy: currentUserRef,
         });
 
@@ -180,6 +190,7 @@ export const registerPostMcpServer = (app: express.Application) => {
           name: server.name,
           url: server.url,
           authType: server.authType,
+          serviceType: server.serviceType,
           createdAt: server.createdAt,
           updatedAt: server.updatedAt,
         });

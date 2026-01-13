@@ -1,0 +1,104 @@
+import { describe, it, expect } from "vitest";
+
+import {
+  isRecoverableError,
+  isAuthenticationError,
+  calculateBackoffDelay,
+  sleep,
+} from "../errors";
+
+describe("Google API Error Utilities", () => {
+  describe("isRecoverableError", () => {
+    it("should return true for HTTP 429 (Too Many Requests)", () => {
+      expect(isRecoverableError(429)).toBe(true);
+    });
+
+    it("should return true for HTTP 500 (Internal Server Error)", () => {
+      expect(isRecoverableError(500)).toBe(true);
+    });
+
+    it("should return true for HTTP 502 (Bad Gateway)", () => {
+      expect(isRecoverableError(502)).toBe(true);
+    });
+
+    it("should return true for HTTP 503 (Service Unavailable)", () => {
+      expect(isRecoverableError(503)).toBe(true);
+    });
+
+    it("should return true for HTTP 504 (Gateway Timeout)", () => {
+      expect(isRecoverableError(504)).toBe(true);
+    });
+
+    it("should return false for other status codes", () => {
+      expect(isRecoverableError(200)).toBe(false);
+      expect(isRecoverableError(400)).toBe(false);
+      expect(isRecoverableError(401)).toBe(false);
+      expect(isRecoverableError(404)).toBe(false);
+      expect(isRecoverableError(501)).toBe(false);
+    });
+  });
+
+  describe("isAuthenticationError", () => {
+    it("should return true for HTTP 401", () => {
+      expect(isAuthenticationError(401)).toBe(true);
+    });
+
+    it("should return true for HTTP 403", () => {
+      expect(isAuthenticationError(403)).toBe(true);
+    });
+
+    it("should return false for other status codes", () => {
+      expect(isAuthenticationError(200)).toBe(false);
+      expect(isAuthenticationError(400)).toBe(false);
+      expect(isAuthenticationError(404)).toBe(false);
+      expect(isAuthenticationError(500)).toBe(false);
+    });
+  });
+
+  describe("calculateBackoffDelay", () => {
+    it("should calculate exponential backoff with jitter", () => {
+      const delay0 = calculateBackoffDelay(0);
+      const delay1 = calculateBackoffDelay(1);
+      const delay2 = calculateBackoffDelay(2);
+
+      expect(delay0).toBeGreaterThan(0);
+      expect(delay1).toBeGreaterThan(delay0);
+      expect(delay2).toBeGreaterThan(delay1);
+    });
+
+    it("should respect max delay", () => {
+      const maxDelay = 8000;
+      const delay = calculateBackoffDelay(10, 1000, maxDelay);
+
+      expect(delay).toBeLessThanOrEqual(maxDelay);
+    });
+
+    it("should include jitter", () => {
+      const delays = Array.from({ length: 10 }, () =>
+        calculateBackoffDelay(1, 1000, 8000)
+      );
+
+      // All delays should be different due to jitter
+      const uniqueDelays = new Set(delays);
+      expect(uniqueDelays.size).toBeGreaterThan(1);
+    });
+
+    it("should use custom base delay", () => {
+      const delay = calculateBackoffDelay(0, 2000);
+      expect(delay).toBeGreaterThanOrEqual(2000);
+      expect(delay).toBeLessThan(2400); // 2000 + 20% jitter
+    });
+  });
+
+  describe("sleep", () => {
+    it("should sleep for specified milliseconds", async () => {
+      const start = Date.now();
+      await sleep(100);
+      const end = Date.now();
+      const elapsed = end - start;
+
+      expect(elapsed).toBeGreaterThanOrEqual(90); // Allow some timing variance
+      expect(elapsed).toBeLessThan(200);
+    });
+  });
+});
