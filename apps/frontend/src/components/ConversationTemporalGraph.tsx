@@ -1,4 +1,8 @@
-import { CheckCircleIcon, ClockIcon, UserCircleIcon } from "@heroicons/react/24/outline";
+import {
+  CheckCircleIcon,
+  ClockIcon,
+  UserCircleIcon,
+} from "@heroicons/react/24/outline";
 import { useMemo, useState, useRef } from "react";
 import type { FC } from "react";
 import ReactMarkdown from "react-markdown";
@@ -23,31 +27,34 @@ interface ConversationTemporalGraphProps {
 
 // SVG gradient definitions and colors for message bars
 // Colors match the conversation detail modal styling but with better visibility
-const MESSAGE_COLORS: Record<string, { base: string; light: string; dark: string }> = {
-  user: { 
+const MESSAGE_COLORS: Record<
+  string,
+  { base: string; light: string; dark: string }
+> = {
+  user: {
     base: "#14b8a6", // primary-500 (teal) - matches bg-gradient-primary
     light: "#2dd4bf", // primary-400
-    dark: "#0d9488" // primary-600
+    dark: "#0d9488", // primary-600
   },
-  assistant: { 
+  assistant: {
     base: "#d6d3d1", // neutral-300 - darker for visibility, still matches neutral theme
     light: "#e7e5e4", // neutral-200
-    dark: "#a8a29e" // neutral-400
+    dark: "#a8a29e", // neutral-400
   },
-  "assistant-tool": { 
+  "assistant-tool": {
     base: "#3b82f6", // blue-500 - for assistant messages with tool calls
     light: "#60a5fa", // blue-400
-    dark: "#2563eb" // blue-600
+    dark: "#2563eb", // blue-600
   },
-  system: { 
+  system: {
     base: "#a8a29e", // neutral-400 - darker for visibility
     light: "#d6d3d1", // neutral-300
-    dark: "#78716c" // neutral-500
+    dark: "#78716c", // neutral-500
   },
-  tool: { 
+  tool: {
     base: "#c084fc", // accent-400 (purple) - distinct color for tools
     light: "#d8b4fe", // accent-300
-    dark: "#a855f7" // accent-500
+    dark: "#a855f7", // accent-500
   },
 };
 
@@ -179,17 +186,65 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
       ...messagesWithTimestamps.map((m) => m.endTime),
       conversationEndTime
     );
-    const timeRange = maxTime - conversationStart;
+    const rawTimeRange = maxTime - conversationStart;
 
-    if (timeRange === 0) {
+    if (rawTimeRange === 0) {
       return null;
     }
+
+    // Calculate idle time (gaps between non-user message end and user message start)
+    // This excludes user thinking/typing time which can be arbitrarily long
+    let totalIdleTime = 0;
+    const idlePeriods: Array<{ start: number; end: number }> = [];
+    
+    for (let i = 0; i < messagesWithTimestamps.length - 1; i++) {
+      const currentMsg = messagesWithTimestamps[i];
+      const nextMsg = messagesWithTimestamps[i + 1];
+      
+      // If current message is NOT a user message and next message IS a user message
+      // and there's a gap between them, that's idle time
+      if (
+        currentMsg.message.role !== "user" &&
+        nextMsg.message.role === "user" &&
+        nextMsg.startTime > currentMsg.endTime
+      ) {
+        const idleStart = currentMsg.endTime;
+        const idleEnd = nextMsg.startTime;
+        const idleDuration = idleEnd - idleStart;
+        totalIdleTime += idleDuration;
+        idlePeriods.push({ start: idleStart, end: idleEnd });
+      }
+    }
+
+    // Compressed time range excludes idle time
+    const compressedTimeRange = rawTimeRange - totalIdleTime;
+
+    // Create a function to convert real time to compressed time
+    // This removes idle periods from the timeline
+    const compressTime = (realTime: number): number => {
+      let compressedTime = realTime - conversationStart;
+      
+      // Subtract all idle periods that occur before this time
+      for (const idle of idlePeriods) {
+        if (idle.end <= realTime) {
+          // This entire idle period is before our time, subtract it
+          compressedTime -= idle.end - idle.start;
+        } else if (idle.start < realTime && idle.end > realTime) {
+          // We're inside an idle period, subtract the portion before our time
+          compressedTime -= realTime - idle.start;
+        }
+      }
+      
+      return compressedTime;
+    };
 
     return {
       messages: messagesWithTimestamps,
       conversationStart,
-      timeRange,
+      timeRange: compressedTimeRange,
       maxTime,
+      compressTime, // Function to convert real time to compressed time
+      totalIdleTime,
     };
   }, [messages, conversationStartedAt, conversationLastMessageAt]);
 
@@ -209,7 +264,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
   const baseBarHeight = 20; // Substantially reduced
   const userBarHeight = 28; // Still taller than others but reduced
   const spacing = 1; // Minimal spacing
-  
+
   // Calculate cumulative y positions accounting for different bar heights
   let cumulativeY = 0;
   const messagePositions = graphMessages.map(({ message }) => {
@@ -219,7 +274,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
     cumulativeY += currentBarHeight + spacing;
     return { y, barHeight: currentBarHeight, isUser };
   });
-  
+
   const totalHeight = cumulativeY;
   const height = Math.max(totalHeight + padding.top + padding.bottom, 200);
   const graphWidth = width - padding.left - padding.right;
@@ -247,9 +302,13 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
   };
 
   // Calculate x position for a time
+  // Uses compressed time to exclude idle periods
   const getXPosition = (time: number): number => {
-    const relativeTime = time - conversationStart;
-    return (relativeTime / timeRange) * graphWidth;
+    if (!graphData) return 0;
+    const compressedTime = graphData.compressTime
+      ? graphData.compressTime(time)
+      : time - conversationStart;
+    return (compressedTime / timeRange) * graphWidth;
   };
 
   // Shared markdown component configuration (reused from ConversationDetailModal)
@@ -258,8 +317,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     code: (props: any) => {
       const { className, children, ...rest } = props;
-      const isInline =
-        !className || !className.includes("language-");
+      const isInline = !className || !className.includes("language-");
       if (isInline) {
         return (
           <code
@@ -280,13 +338,13 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
       );
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    p: ({ children }: any) => (
-      <p className="mb-2 last:mb-0">{children}</p>
-    ),
+    p: ({ children }: any) => <p className="mb-2 last:mb-0">{children}</p>,
   };
 
   // Render message content (reused from ConversationDetailModal)
-  const renderMessageContent = (content: unknown): React.ReactElement | string => {
+  const renderMessageContent = (
+    content: unknown
+  ): React.ReactElement | string => {
     if (typeof content === "string") {
       return content;
     }
@@ -513,8 +571,16 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                     y2="100%"
                   >
                     <stop offset="0%" stopColor={colors.dark} stopOpacity="1" />
-                    <stop offset="50%" stopColor={colors.base} stopOpacity="1" />
-                    <stop offset="100%" stopColor={colors.light} stopOpacity="1" />
+                    <stop
+                      offset="50%"
+                      stopColor={colors.base}
+                      stopOpacity="1"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={colors.light}
+                      stopOpacity="1"
+                    />
                   </linearGradient>
                 );
               }
@@ -530,8 +596,16 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                     y2="100%"
                   >
                     <stop offset="0%" stopColor={colors.dark} stopOpacity="1" />
-                    <stop offset="50%" stopColor={colors.base} stopOpacity="1" />
-                    <stop offset="100%" stopColor={colors.light} stopOpacity="1" />
+                    <stop
+                      offset="50%"
+                      stopColor={colors.base}
+                      stopOpacity="1"
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={colors.light}
+                      stopOpacity="1"
+                    />
                   </linearGradient>
                 );
               }
@@ -567,9 +641,40 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
 
           {/* Grid lines */}
           {Array.from({ length: 6 }).map((_, i) => {
-            const x =
-              padding.left + (graphWidth * i) / 5;
-            const time = conversationStart + (timeRange * i) / 5;
+            // Calculate compressed time for grid line
+            const compressedTimeFraction = i / 5;
+            const compressedTime = timeRange * compressedTimeFraction;
+            
+            // Find the real time that corresponds to this compressed time
+            // We need to reverse the compression: find real time where compressTime(realTime) = compressedTime
+            let realTime = conversationStart;
+            let currentCompressed = 0;
+            const targetCompressed = compressedTime;
+            
+            // Binary search or linear search for the real time
+            // For simplicity, we'll use a linear approximation
+            // Find the real time by iterating through idle periods
+            if (graphData.compressTime) {
+              // Use binary search to find real time
+              let low = conversationStart;
+              let high = graphData.maxTime;
+              const tolerance = 1; // 1ms tolerance
+              
+              while (high - low > tolerance) {
+                const mid = (low + high) / 2;
+                const midCompressed = graphData.compressTime(mid);
+                if (midCompressed < targetCompressed) {
+                  low = mid;
+                } else {
+                  high = mid;
+                }
+              }
+              realTime = (low + high) / 2;
+            } else {
+              realTime = conversationStart + compressedTime;
+            }
+            
+            const x = padding.left + (graphWidth * i) / 5;
             return (
               <g key={`grid-${i}`}>
                 <line
@@ -588,150 +693,170 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                   textAnchor="middle"
                   className="fill-neutral-600 text-xs dark:fill-neutral-400"
                 >
-                  {formatTime(time - conversationStart)}
+                  {formatTime(compressedTime)}
                 </text>
               </g>
             );
           })}
 
           {/* Message bars */}
-          {graphMessages.map(({ message, index, startTime, endTime, duration }, i) => {
-            const position = messagePositions[i];
-            const y = padding.top + position.y;
-            const barHeight = position.barHeight;
-            const isUser = position.isUser;
-            const x = padding.left + getXPosition(startTime);
-            const barWidth = Math.max(
-              (duration / timeRange) * graphWidth,
-              2
-            ); // Minimum 2px width
+          {graphMessages.map(
+            ({ message, index, startTime, endTime, duration }, i) => {
+              const position = messagePositions[i];
+              const y = padding.top + position.y;
+              const barHeight = position.barHeight;
+              const isUser = position.isUser;
+              const x = padding.left + getXPosition(startTime);
+              const barWidth = Math.max((duration / timeRange) * graphWidth, 2); // Minimum 2px width
 
-            // Check if assistant message has tool calls
-            let roleKey: string = message.role;
-            if (message.role === "assistant") {
-              const content = message.content;
-              const hasToolCall = Array.isArray(content)
-                ? content.some(
-                    (item) =>
-                      typeof item === "object" &&
-                      item !== null &&
-                      "type" in item &&
-                      item.type === "tool-call"
-                  )
-                : false;
-              if (hasToolCall) {
-                roleKey = "assistant-tool";
+              // Check if assistant message has tool calls
+              let roleKey: string = message.role;
+              if (message.role === "assistant") {
+                const content = message.content;
+                const hasToolCall = Array.isArray(content)
+                  ? content.some(
+                      (item) =>
+                        typeof item === "object" &&
+                        item !== null &&
+                        "type" in item &&
+                        item.type === "tool-call"
+                    )
+                  : false;
+                if (hasToolCall) {
+                  roleKey = "assistant-tool";
+                }
               }
-            }
 
-            const colors = MESSAGE_COLORS[roleKey as keyof typeof MESSAGE_COLORS] || MESSAGE_COLORS[message.role] || {
-              base: "#6b7280",
-              light: "#9ca3af",
-              dark: "#4b5563",
-            };
-            const label = `${MESSAGE_LABELS[message.role] || message.role} #${index + 1}`;
+              const colors = MESSAGE_COLORS[
+                roleKey as keyof typeof MESSAGE_COLORS
+              ] ||
+                MESSAGE_COLORS[message.role] || {
+                  base: "#6b7280",
+                  light: "#9ca3af",
+                  dark: "#4b5563",
+                };
+              const label = `${MESSAGE_LABELS[message.role] || message.role} #${
+                index + 1
+              }`;
 
-            return (
-              <g key={`message-${i}`}>
-                {/* Message bar with gradient and shadow */}
-                <rect
-                  x={x}
-                  y={y}
-                  width={barWidth}
-                  height={barHeight}
-                  fill={`url(#gradient-${roleKey})`}
-                  rx={isUser ? 8 : 4}
-                  ry={isUser ? 8 : 4}
-                  filter="url(#barShadow)"
-                  style={{ cursor: "pointer" }}
-                  className="transition-opacity duration-200 hover:opacity-90"
-                />
-                {/* Subtle border for definition (only for non-user and non-assistant-tool messages) */}
-                {message.role !== "user" && roleKey !== "assistant-tool" && (
+              return (
+                <g key={`message-${i}`}>
+                  {/* Message bar with gradient and shadow */}
                   <rect
                     x={x}
                     y={y}
                     width={barWidth}
                     height={barHeight}
-                    fill="none"
-                    stroke={colors.dark}
-                    strokeWidth={0.5}
-                    strokeOpacity={0.3}
-                    rx={4}
-                    ry={4}
+                    fill={`url(#gradient-${roleKey})`}
+                    rx={isUser ? 8 : 4}
+                    ry={isUser ? 8 : 4}
+                    filter="url(#barShadow)"
                     style={{ cursor: "pointer" }}
+                    className="transition-opacity duration-200 hover:opacity-90"
                   />
-                )}
-                {/* User icon for user messages - positioned at the start of the bar */}
-                {isUser && (
-                  <g>
-                    {/* User circle background */}
-                    <circle
-                      cx={x}
-                      cy={y + barHeight / 2}
-                      r={10}
-                      fill="white"
-                      fillOpacity="0.95"
-                      stroke="#0d9488"
-                      strokeWidth={1.5}
-                    />
-                    {/* User head */}
-                    <circle
-                      cx={x}
-                      cy={y + barHeight / 2 - 3}
-                      r={3}
+                  {/* Subtle border for definition (only for non-user and non-assistant-tool messages) */}
+                  {message.role !== "user" && roleKey !== "assistant-tool" && (
+                    <rect
+                      x={x}
+                      y={y}
+                      width={barWidth}
+                      height={barHeight}
                       fill="none"
-                      stroke="#0d9488"
-                      strokeWidth={1.2}
+                      stroke={colors.dark}
+                      strokeWidth={0.5}
+                      strokeOpacity={0.3}
+                      rx={4}
+                      ry={4}
+                      style={{ cursor: "pointer" }}
                     />
-                    {/* User body (shoulders) */}
-                    <path
-                      d={`M ${x - 3.5} ${y + barHeight / 2 + 0.5} A 3.5 3.5 0 0 0 ${x + 3.5} ${y + barHeight / 2 + 0.5}`}
-                      fill="none"
-                      stroke="#0d9488"
-                      strokeWidth={1.2}
-                      strokeLinecap="round"
-                    />
-                  </g>
-                )}
-                {/* Message label on the left */}
-                <text
-                  x={padding.left - 10}
-                  y={y + barHeight / 2}
-                  textAnchor="end"
-                  dominantBaseline="middle"
-                  className="fill-neutral-700 text-xs font-medium dark:fill-neutral-300"
-                >
-                  {label}
-                </text>
-                {/* Hoverable area */}
-                <rect
-                  x={x}
-                  y={y}
-                  width={barWidth}
-                  height={barHeight}
-                  fill="transparent"
-                  style={{ cursor: "pointer" }}
-                  onMouseEnter={(e) => {
-                    if (svgRef.current && containerRef.current) {
-                      const containerRect = containerRef.current.getBoundingClientRect();
-                      // Convert SVG coordinates to container-relative coordinates
-                      const svgPointCenter = svgRef.current.createSVGPoint();
-                      svgPointCenter.x = x + barWidth / 2;
-                      svgPointCenter.y = y + barHeight; // Bottom of the bar
-                      const ctm = svgRef.current.getScreenCTM();
-                      if (ctm) {
-                        const screenPoint = svgPointCenter.matrixTransform(ctm);
-                        setHoveredMessage({
-                          message,
-                          index,
-                          barX: screenPoint.x - containerRect.left,
-                          barY: screenPoint.y - containerRect.top,
-                          barWidth,
-                          barHeight,
-                        });
+                  )}
+                  {/* User icon for user messages - positioned at the start of the bar */}
+                  {isUser && (
+                    <g>
+                      {/* User circle background */}
+                      <circle
+                        cx={x}
+                        cy={y + barHeight / 2}
+                        r={10}
+                        fill="white"
+                        fillOpacity="0.95"
+                        stroke="#0d9488"
+                        strokeWidth={1.5}
+                      />
+                      {/* User head */}
+                      <circle
+                        cx={x}
+                        cy={y + barHeight / 2 - 3}
+                        r={3}
+                        fill="none"
+                        stroke="#0d9488"
+                        strokeWidth={1.2}
+                      />
+                      {/* User body (shoulders) */}
+                      <path
+                        d={`M ${x - 3.5} ${
+                          y + barHeight / 2 + 0.5
+                        } A 3.5 3.5 0 0 0 ${x + 3.5} ${
+                          y + barHeight / 2 + 0.5
+                        }`}
+                        fill="none"
+                        stroke="#0d9488"
+                        strokeWidth={1.2}
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  )}
+                  {/* Message label on the left */}
+                  <text
+                    x={padding.left - 10}
+                    y={y + barHeight / 2}
+                    textAnchor="end"
+                    dominantBaseline="middle"
+                    className="fill-neutral-700 text-xs font-medium dark:fill-neutral-300"
+                  >
+                    {label}
+                  </text>
+                  {/* Hoverable area */}
+                  <rect
+                    x={x}
+                    y={y}
+                    width={barWidth}
+                    height={barHeight}
+                    fill="transparent"
+                    style={{ cursor: "pointer" }}
+                    onMouseEnter={(e) => {
+                      if (svgRef.current && containerRef.current) {
+                        const containerRect =
+                          containerRef.current.getBoundingClientRect();
+                        // Convert SVG coordinates to container-relative coordinates
+                        const svgPointCenter = svgRef.current.createSVGPoint();
+                        svgPointCenter.x = x + barWidth / 2;
+                        svgPointCenter.y = y + barHeight; // Bottom of the bar
+                        const ctm = svgRef.current.getScreenCTM();
+                        if (ctm) {
+                          const screenPoint =
+                            svgPointCenter.matrixTransform(ctm);
+                          setHoveredMessage({
+                            message,
+                            index,
+                            barX: screenPoint.x - containerRect.left,
+                            barY: screenPoint.y - containerRect.top,
+                            barWidth,
+                            barHeight,
+                          });
+                        } else {
+                          // Fallback: use percentage-based positioning
+                          setHoveredMessage({
+                            message,
+                            index,
+                            barX: x + barWidth / 2,
+                            barY: y + barHeight,
+                            barWidth,
+                            barHeight,
+                          });
+                        }
                       } else {
-                        // Fallback: use percentage-based positioning
+                        // Fallback: use SVG coordinates directly
                         setHoveredMessage({
                           message,
                           index,
@@ -741,25 +866,15 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                           barHeight,
                         });
                       }
-                    } else {
-                      // Fallback: use SVG coordinates directly
-                      setHoveredMessage({
-                        message,
-                        index,
-                        barX: x + barWidth / 2,
-                        barY: y + barHeight,
-                        barWidth,
-                        barHeight,
-                      });
-                    }
-                  }}
-                  onMouseLeave={() => {
-                    setHoveredMessage(null);
-                  }}
-                />
-              </g>
-            );
-          })}
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredMessage(null);
+                    }}
+                  />
+                </g>
+              );
+            }
+          )}
 
           {/* Y-axis label - positioned at the top left, outside the chart area */}
           <text
