@@ -118,6 +118,12 @@ const config = {
   sourcesContent: false,
   define: defineObject,
   external: [
+    // AWS SDK v3 - available in Lambda runtime
+    '@aws-sdk/*',
+    // AWS SDK v2 - available in Lambda runtime
+    'aws-sdk',
+    // Lambda runtime
+    'awslambda',
     // LanceDB native modules - resolved at runtime in Lambda container
     '@lancedb/lancedb',
     '@lancedb/lancedb-darwin-arm64',
