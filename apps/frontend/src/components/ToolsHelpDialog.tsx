@@ -531,6 +531,10 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                     server.authType === "oauth" &&
                     server.serviceType === "google-drive" &&
                     server.oauthConnected;
+                  const isGmail =
+                    server.authType === "oauth" &&
+                    server.serviceType === "gmail" &&
+                    server.oauthConnected;
 
                   if (isGoogleDrive) {
                     // Show specific Google Drive tools
@@ -630,6 +634,139 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                               </p>
                               <p className="mb-3 inline-block rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
                                 Available (Google Drive &quot;{server.name}&quot;
+                                connected)
+                              </p>
+                              <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                                <p className="mb-2 text-xs font-semibold text-neutral-900 dark:text-neutral-50">
+                                  Parameters:
+                                </p>
+                                <div className="space-y-2">
+                                  {tool.parameters.map((param, index) => (
+                                    <div
+                                      key={index}
+                                      className="rounded border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                    >
+                                      <div className="mb-1 flex items-center gap-2">
+                                        <code className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                                          {param.name}
+                                        </code>
+                                        <span className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-300">
+                                          {param.type}
+                                        </span>
+                                        {param.required ? (
+                                          <span className="rounded border border-red-300 bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
+                                            Required
+                                          </span>
+                                        ) : (
+                                          <span className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                                            Optional
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-neutral-600 dark:text-neutral-300">
+                                        {param.description}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    );
+                  }
+
+                  if (isGmail) {
+                    // Show specific Gmail tools
+                    const gmailTools = [
+                      {
+                        name: `gmail_list_${serverNameSanitized}`,
+                        description:
+                          "List emails in Gmail. Returns a list of messages with their metadata (id, threadId, from, subject, date, snippet). Supports pagination with pageToken and optional search query.",
+                        parameters: [
+                          {
+                            name: "query",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Optional Gmail search query to filter messages (e.g., 'from:example@gmail.com', 'subject:meeting', 'is:unread')",
+                          },
+                          {
+                            name: "pageToken",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Optional page token for pagination (from previous list response)",
+                          },
+                        ],
+                      },
+                      {
+                        name: `gmail_search_${serverNameSanitized}`,
+                        description:
+                          "Search for emails in Gmail using Gmail search syntax. Returns a list of matching messages with their metadata. Examples: 'from:example@gmail.com', 'subject:meeting', 'is:unread', 'has:attachment'.",
+                        parameters: [
+                          {
+                            name: "query",
+                            type: "string",
+                            required: true,
+                            description:
+                              "REQUIRED: Gmail search query string. Examples: 'from:example@gmail.com', 'subject:meeting', 'is:unread', 'has:attachment', 'after:2024/1/1'",
+                          },
+                          {
+                            name: "pageToken",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Optional page token for pagination (from previous search response)",
+                          },
+                        ],
+                      },
+                      {
+                        name: `gmail_read_${serverNameSanitized}`,
+                        description:
+                          "Read the full content of an email from Gmail. Returns the complete email with headers, body (text and HTML), and attachment information.",
+                        parameters: [
+                          {
+                            name: "messageId",
+                            type: "string",
+                            required: true,
+                            description: "The Gmail message ID to read",
+                          },
+                        ],
+                      },
+                    ];
+
+                    return (
+                      <div key={server.id} className="space-y-3">
+                        <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950">
+                          <p className="text-sm font-semibold text-red-900 dark:text-red-100">
+                            📧 Gmail: {server.name}
+                          </p>
+                          <p className="mt-1 text-xs text-red-800 dark:text-red-200">
+                            {server.oauthConnected
+                              ? "Connected"
+                              : "Not connected - connect to enable tools"}
+                          </p>
+                        </div>
+                        {server.oauthConnected &&
+                          gmailTools.map((tool) => (
+                            <div
+                              key={tool.name}
+                              className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+                            >
+                              <div className="mb-2 flex items-start justify-between">
+                                <code className="rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-lg font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                                  {tool.name}
+                                </code>
+                                <span className="rounded border border-green-300 bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:border-green-700 dark:bg-green-900 dark:text-green-200">
+                                  Available
+                                </span>
+                              </div>
+                              <p className="mb-3 text-sm text-neutral-700 dark:text-neutral-300">
+                                {tool.description}
+                              </p>
+                              <p className="mb-3 inline-block rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
+                                Available (Gmail &quot;{server.name}&quot;
                                 connected)
                               </p>
                               <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">

@@ -1246,7 +1246,7 @@ export interface McpServer {
   name: string;
   url?: string;
   authType: "none" | "header" | "basic" | "oauth";
-  serviceType?: "external" | "google-drive" | "gmail";
+  serviceType?: "external" | "google-drive" | "gmail" | "google-calendar";
   oauthConnected?: boolean;
   createdAt: string;
   updatedAt?: string;
@@ -1256,7 +1256,7 @@ export interface CreateMcpServerInput {
   name: string;
   url?: string;
   authType: "none" | "header" | "basic" | "oauth";
-  serviceType?: "external" | "google-drive" | "gmail";
+  serviceType?: "external" | "google-drive" | "gmail" | "google-calendar";
   config?: {
     headerValue?: string;
     username?: string;
@@ -1268,7 +1268,7 @@ export interface UpdateMcpServerInput {
   name?: string;
   url?: string;
   authType?: "none" | "header" | "basic" | "oauth";
-  serviceType?: "external" | "google-drive" | "gmail";
+  serviceType?: "external" | "google-drive" | "gmail" | "google-calendar";
   config?: {
     headerValue?: string;
     username?: string;

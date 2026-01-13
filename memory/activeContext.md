@@ -2,16 +2,60 @@
 
 ## Current Status
 
-**Status**: Google Drive MCP Server Integration - Completed ✅
+**Status**: Gmail MCP Server Integration - Completed ✅
 
 **Latest Work**:
 
-1. **Google Drive MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Drive, allowing agents to list, read, and search files in users' Google Drive accounts. The infrastructure is reusable for other OAuth-based MCP servers.
+1. **Gmail MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Gmail, allowing agents to list, search, and read emails from users' Gmail accounts. Follows the same architecture pattern as Google Drive MCP server.
+
+   - **Gmail OAuth Utilities**:
+     - Created `utils/oauth/mcp/gmail.ts` with `generateGmailAuthUrl`, `exchangeGmailCode`, and `refreshGmailToken` functions
+     - Uses `gmail.readonly` scope for read-only email access
+     - Reuses existing `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` environment variables
+     - OAuth callback URL: `/api/mcp/oauth/gmail/callback`
+   
+   - **Gmail API Client**:
+     - Created `utils/gmail/client.ts` with `listMessages`, `getMessage`, `readMessage`, and `searchMessages` functions
+     - Robust error handling with exponential backoff for recoverable errors (429, 503)
+     - Automatic token refresh on authentication errors (401, 403)
+     - Base64url decoding for email body content (text/plain and text/html)
+     - Attachment information extraction
+     - Request timeout handling (30 seconds)
+   
+   - **Gmail Types**:
+     - Created `utils/gmail/types.ts` with TypeScript types for Gmail API responses
+     - Types for messages, message parts, headers, body content, and error responses
+   
+   - **Agent Tools**:
+     - Three dedicated tools for Gmail: `gmail_list_{serverName}`, `gmail_search_{serverName}`, `gmail_read_{serverName}`
+     - Tool names use sanitized server name (not serverId) for better readability
+     - Tools only exposed when OAuth connection is active
+     - Support for Gmail search syntax (e.g., "from:example@gmail.com", "subject:meeting", "is:unread")
+     - Pagination support with pageToken
+   
+   - **Schema Updates**:
+     - Added `"gmail"` to `serviceType` enum in `workspaceSchemas.ts` and `schema.ts`
+     - Updated frontend API types to include `"gmail"` in serviceType union types
+   
+   - **UI Updates**:
+     - Added Gmail option to MCP server type selector in `McpServerModal`
+     - Updated OAuth callback page to display "Gmail" service name
+     - Updated MCP server list to show "Gmail" service type
+     - Added Gmail tools documentation in Tools Help Dialog (similar to Google Drive)
+   
+   - **Backend Integration**:
+     - Updated `mcpUtils.ts` to handle `serviceType === "gmail"` and create Gmail tools
+     - Updated OAuth callback handler to support Gmail service type
+     - Updated OAuth authorize route to generate Gmail auth URLs
+   
+   - **Note**: Requires adding redirect URI `/api/mcp/oauth/gmail/callback` to Google Cloud Console OAuth client configuration
+
+2. **Google Drive MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Drive, allowing agents to list, read, and search files in users' Google Drive accounts. The infrastructure is reusable for other OAuth-based MCP servers.
 
    - **Database Schema Updates**:
      - Extended `mcp-server` table schema to support OAuth authentication
      - Added `authType: "oauth"` option alongside existing "none", "header", "basic"
-     - Added `serviceType` field ("external" or "google-drive") to differentiate service types
+     - Added `serviceType` field ("external", "google-drive", or "gmail") to differentiate service types
      - Made `url` optional for OAuth-based servers (not needed for built-in services)
      - OAuth credentials (accessToken, refreshToken, expiresAt, email) stored encrypted in `config` field
    
@@ -42,7 +86,7 @@
      - MCP server list shows connection status and service type
      - "Connect", "Reconnect", and "Disconnect" buttons for OAuth servers
      - Dark mode support throughout MCP server UI
-     - Tools Help Dialog shows specific Google Drive tools (not generic MCP interface) when Google Drive server is enabled
+     - Tools Help Dialog shows specific Google Drive and Gmail tools (not generic MCP interface) when respective servers are enabled
    
    - **Error Handling**:
      - Graceful handling of deleted MCP servers in agent configuration (auto-cleanup)

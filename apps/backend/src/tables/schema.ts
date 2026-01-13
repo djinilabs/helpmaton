@@ -318,7 +318,7 @@ export const tableSchemas = {
     name: z.string(), // user-friendly name for the server
     url: z.url().optional(), // MCP server URL (optional for OAuth-based servers)
     authType: z.enum(["none", "header", "basic", "oauth"]), // authentication type
-    serviceType: z.enum(["external", "google-drive", "gmail"]).optional(), // service type (defaults to "external" for backward compatibility)
+    serviceType: z.enum(["external", "google-drive", "gmail", "google-calendar"]).optional(), // service type (defaults to "external" for backward compatibility)
     config: z.record(z.string(), z.unknown()), // authentication configuration, encrypted. For OAuth: contains accessToken, refreshToken, expiresAt, email?
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),

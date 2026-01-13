@@ -306,6 +306,55 @@ export async function createMcpServerTools(
         readTool as ReturnType<typeof createMcpServerTool>;
       tools[`gmail_search_${serverNameSanitized}`] =
         searchTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "google-calendar") {
+      // Check for OAuth connection
+      const config = server.config as {
+        accessToken?: string;
+      };
+
+      if (!config.accessToken) {
+        console.warn(
+          `MCP server ${serverId} (Google Calendar) is not connected, skipping tools`
+        );
+        continue;
+      }
+
+      // Import Google Calendar tools dynamically to avoid circular dependencies
+      const {
+        createGoogleCalendarListTool,
+        createGoogleCalendarReadTool,
+        createGoogleCalendarSearchTool,
+        createGoogleCalendarCreateTool,
+        createGoogleCalendarUpdateTool,
+        createGoogleCalendarDeleteTool,
+      } = await import("./googleCalendarTools");
+
+      // Create dedicated Google Calendar tools
+      // Type assertion needed because tool return types are complex
+      const listTool = createGoogleCalendarListTool(workspaceId, serverId);
+      const readTool = createGoogleCalendarReadTool(workspaceId, serverId);
+      const searchTool = createGoogleCalendarSearchTool(workspaceId, serverId);
+      const createTool = createGoogleCalendarCreateTool(workspaceId, serverId);
+      const updateTool = createGoogleCalendarUpdateTool(workspaceId, serverId);
+      const deleteTool = createGoogleCalendarDeleteTool(workspaceId, serverId);
+
+      // Use server name for tool names (sanitized) - simpler than using serverId
+      const serverNameSanitized = server.name
+        .replace(/[^a-zA-Z0-9]/g, "_")
+        .toLowerCase();
+
+      tools[`google_calendar_list_${serverNameSanitized}`] =
+        listTool as ReturnType<typeof createMcpServerTool>;
+      tools[`google_calendar_read_${serverNameSanitized}`] =
+        readTool as ReturnType<typeof createMcpServerTool>;
+      tools[`google_calendar_search_${serverNameSanitized}`] =
+        searchTool as ReturnType<typeof createMcpServerTool>;
+      tools[`google_calendar_create_${serverNameSanitized}`] =
+        createTool as ReturnType<typeof createMcpServerTool>;
+      tools[`google_calendar_update_${serverNameSanitized}`] =
+        updateTool as ReturnType<typeof createMcpServerTool>;
+      tools[`google_calendar_delete_${serverNameSanitized}`] =
+        deleteTool as ReturnType<typeof createMcpServerTool>;
     } else {
       // Create a generic MCP tool for external servers
       // Use server name for tool name (sanitized) - simpler than using serverId
