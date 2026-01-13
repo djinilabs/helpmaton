@@ -26,7 +26,7 @@
   ],
   "copyright": "© 2025-present, Gordon & Teixeira Lda. (https://helpmaton.com)",
   "scripts": {
-    "dev": "run-p dev:backend dev:frontend",
+    "dev": "node scripts/dev-wrapper.mjs",
     "dev:backend": "run-p dev:watch-source-refresh-lambda dev:backend:sandbox",
     "dev:watch-source-refresh-lambda": "node scripts/watchSourceRefreshLambda.cjs",
     "dev:backend:sandbox": "node scripts/sandbox-wrapper.mjs",

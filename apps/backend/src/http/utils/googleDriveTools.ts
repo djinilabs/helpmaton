@@ -122,18 +122,38 @@ export function createGoogleDriveReadTool(
           return "Error: Google Drive is not connected. Please connect your Google Drive account first.";
         }
 
+        // Extract fileId - handle both camelCase and snake_case
+        const fileId = args.fileId || args.file_id;
+        if (!fileId || typeof fileId !== "string" || fileId.trim().length === 0) {
+          console.error("[Google Drive Read Tool] Missing or invalid fileId:", {
+            args,
+            fileId,
+            hasFileId: !!args.fileId,
+            hasFile_id: !!args.file_id,
+          });
+          return "Error: fileId parameter is required and must be a non-empty string. Please provide the file ID as 'fileId' (not 'file_id').";
+        }
+
+        // Log tool call for debugging
+        console.log("[Tool Call] google_drive_read", {
+          toolName: "google_drive_read",
+          arguments: { fileId, mimeType: args.mimeType },
+          workspaceId,
+          serverId,
+        });
+
         // First get file metadata
         const file = await googleDriveClient.getFile(
           workspaceId,
           serverId,
-          args.fileId
+          fileId
         );
 
         // Read file content
         const content = await googleDriveClient.readFile(
           workspaceId,
           serverId,
-          args.fileId,
+          fileId,
           args.mimeType
         );
 
