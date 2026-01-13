@@ -2,11 +2,66 @@
 
 ## Current Status
 
-**Status**: Gmail MCP Server Integration - Completed ✅
+**Status**: Google Calendar MCP Server Integration - Completed ✅
 
 **Latest Work**:
 
-1. **Gmail MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Gmail, allowing agents to list, search, and read emails from users' Gmail accounts. Follows the same architecture pattern as Google Drive MCP server.
+1. **Google Calendar MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Calendar, allowing agents to read, search, and write to users' Google Calendar. Follows the same architecture pattern as Google Drive and Gmail MCP servers.
+
+   - **Google Calendar OAuth Utilities**:
+     - Created `utils/oauth/mcp/google-calendar.ts` with `generateGoogleCalendarAuthUrl`, `exchangeGoogleCalendarCode`, and `refreshGoogleCalendarToken` functions
+     - Uses `https://www.googleapis.com/auth/calendar` scope for full read/write access to calendars and events
+     - Reuses existing `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` environment variables
+     - OAuth callback URL: `/api/mcp/oauth/google-calendar/callback`
+   
+   - **Google Calendar API Client**:
+     - Created `utils/googleCalendar/client.ts` with functions for all CRUD operations:
+       - `listEvents()` - List events with pagination and optional time range filtering
+       - `getEvent()` / `readEvent()` - Get full event details
+       - `searchEvents()` - Search events by query string
+       - `createEvent()` - Create new calendar events
+       - `updateEvent()` - Update existing events
+       - `deleteEvent()` - Delete events
+     - Robust error handling with exponential backoff for recoverable errors (429, 503)
+     - Automatic token refresh on authentication errors (401, 403)
+     - Request timeout handling (30 seconds)
+     - Default calendar ID: "primary" (user's primary calendar)
+   
+   - **Google Calendar Types**:
+     - Created `utils/googleCalendar/types.ts` with TypeScript types for Calendar API responses
+     - Types for events, event lists, attendees, date/time objects, and error responses
+   
+   - **Agent Tools**:
+     - Six dedicated tools for Google Calendar:
+       - `google_calendar_list_{serverName}` - List events with optional filters
+       - `google_calendar_read_{serverName}` - Read full event details
+       - `google_calendar_search_{serverName}` - Search events by query
+       - `google_calendar_create_{serverName}` - Create new events
+       - `google_calendar_update_{serverName}` - Update existing events
+       - `google_calendar_delete_{serverName}` - Delete events
+     - Tool names use sanitized server name (not serverId) for better readability
+     - Tools only exposed when OAuth connection is active
+     - Support for time range filtering, pagination, and event recurrence
+     - Full CRUD operations with proper parameter validation
+   
+   - **Schema Updates**:
+     - Added `"google-calendar"` to `serviceType` enum in `workspaceSchemas.ts` and `schema.ts`
+     - Updated frontend API types to include `"google-calendar"` in serviceType union types
+   
+   - **UI Updates**:
+     - Added "Google Calendar" option to MCP server type selector in `McpServerModal`
+     - Added helper text explaining OAuth connection requirement
+     - Updated form submission to handle `google-calendar` service type
+     - Updated serviceType detection logic when editing existing servers
+   
+   - **Backend Integration**:
+     - Updated `mcpUtils.ts` to handle `serviceType === "google-calendar"` and create Calendar tools
+     - Updated OAuth callback handler to support Google Calendar service type
+     - Updated OAuth authorize route to generate Google Calendar auth URLs
+   
+   - **Note**: Requires adding redirect URI `/api/mcp/oauth/google-calendar/callback` to Google Cloud Console OAuth client configuration
+
+2. **Gmail MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Gmail, allowing agents to list, search, and read emails from users' Gmail accounts. Follows the same architecture pattern as Google Drive MCP server.
 
    - **Gmail OAuth Utilities**:
      - Created `utils/oauth/mcp/gmail.ts` with `generateGmailAuthUrl`, `exchangeGmailCode`, and `refreshGmailToken` functions
