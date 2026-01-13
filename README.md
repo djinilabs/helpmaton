@@ -28,6 +28,7 @@ Create workspaces to organize your AI agents and their knowledge bases. Each age
 - **Research Assistants**: Build agents that can search the web for current information, find recent articles, and analyze web content
 - **News Monitoring**: Create agents that monitor news, track industry developments, and provide real-time updates
 - **Content Analysis**: Deploy agents that extract and summarize content from web pages, articles, and online resources
+- **Google Workspace Automation**: Connect agents to Gmail, Google Calendar, and Google Drive for email management, calendar scheduling, and document analysis workflows
 - **Specialized Workflows**: Build domain-specific agents for technical documentation, legal research, or any specialized field
 - **API Integration**: Embed AI capabilities into your applications via webhook endpoints
 
@@ -80,6 +81,16 @@ Agents come with a comprehensive set of built-in tools and can be extended with 
 - **Agent Delegation**: Agents can delegate tasks to other agents in the workspace, with support for async delegation, query-based matching, and delegation tracking
 
 **Extensibility**: Configure MCP servers with custom authentication and enable them per-agent to give your AI assistants access to databases, business logic, weather APIs, and any other external services you need.
+
+**Google Workspace Integration**: Connect your agents to Google Workspace services through OAuth-based MCP servers. Enable powerful integrations with Gmail, Google Calendar, and Google Drive to give your agents access to your Google data.
+
+- **Gmail Integration**: Create MCP servers that connect to Gmail accounts via OAuth, enabling agents to list, search, and read emails. Agents can search using Gmail's powerful search syntax (e.g., "from:example@gmail.com", "subject:meeting", "is:unread") and retrieve full email content including headers, body, and attachments.
+
+- **Google Calendar Integration**: Connect agents to Google Calendar for full calendar management. Agents can list events, search by query, read event details, create new events, update existing events, and delete events. Perfect for scheduling assistants, meeting coordinators, and calendar management workflows.
+
+- **Google Drive Integration**: Give agents access to files stored in Google Drive. Agents can read text files, Google Docs (exported as plain text), Google Sheets (exported as CSV), and Google Slides (exported as plain text). Ideal for document analysis, data extraction, and content management workflows.
+
+All Google Workspace integrations use secure OAuth 2.0 authentication, ensuring your data remains private and secure. Simply create an MCP server with the appropriate service type (Gmail, Google Calendar, or Google Drive), connect your Google account via OAuth, and enable the server for your agents.
 
 ### Cost Management & Billing
 
@@ -197,6 +208,7 @@ Complete API documentation available in OpenAPI format. Generate client librarie
 - **Research Assistants**: Create research assistants that search the web for current information
 - **News Monitoring**: Deploy news monitoring agents that track industry developments
 - **Content Analysis**: Build content analysis tools that extract insights from web pages
+- **Google Workspace Automation**: Connect agents to Gmail for email management, Google Calendar for scheduling, and Google Drive for document analysis
 - **Custom Interfaces**: Create custom interfaces for agent interactions
 - **MCP Extensions**: Extend agents with MCP servers for database access, external APIs, and custom business logic
 
