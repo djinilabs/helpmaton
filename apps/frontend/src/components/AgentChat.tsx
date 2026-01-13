@@ -671,7 +671,7 @@ export const AgentChat: FC<AgentChatProps> = ({
                       <div className="mb-2 text-xs font-medium text-indigo-700 dark:text-indigo-300">
                         🧠 Reasoning
                       </div>
-                      <div className="whitespace-pre-wrap break-words overflow-x-auto text-sm text-indigo-900 dark:text-indigo-100">
+                      <div className="overflow-x-auto whitespace-pre-wrap break-words text-sm text-indigo-900 dark:text-indigo-100">
                         {reasoningPart.text}
                       </div>
                     </div>

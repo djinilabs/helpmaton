@@ -70,7 +70,9 @@ async function callMcpServer(
   }
   // OAuth servers don't use this function - they have dedicated tools
   if (server.authType === "oauth") {
-    throw new Error("OAuth MCP servers should use dedicated tools, not generic MCP calls");
+    throw new Error(
+      "OAuth MCP servers should use dedicated tools, not generic MCP calls"
+    );
   }
   const headers = buildAuthHeaders(server.authType, server.config);
 
@@ -255,12 +257,12 @@ export async function createMcpServerTools(
       const listTool = createGoogleDriveListTool(workspaceId, serverId);
       const readTool = createGoogleDriveReadTool(workspaceId, serverId);
       const searchTool = createGoogleDriveSearchTool(workspaceId, serverId);
-      
+
       // Use server name for tool names (sanitized) - simpler than using serverId
       const serverNameSanitized = server.name
         .replace(/[^a-zA-Z0-9]/g, "_")
         .toLowerCase();
-      
+
       tools[`google_drive_list_${serverNameSanitized}`] =
         listTool as ReturnType<typeof createMcpServerTool>;
       tools[`google_drive_read_${serverNameSanitized}`] =

@@ -524,10 +524,156 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
               </h3>
               <div className="space-y-3">
                 {enabledMcpServers.map((server) => {
-                  const toolName = `mcp_${server.id.replace(
-                    /[^a-zA-Z0-9]/g,
-                    "_"
-                  )}`;
+                  const serverNameSanitized = server.name
+                    .replace(/[^a-zA-Z0-9]/g, "_")
+                    .toLowerCase();
+                  const isGoogleDrive =
+                    server.authType === "oauth" &&
+                    server.serviceType === "google-drive" &&
+                    server.oauthConnected;
+
+                  if (isGoogleDrive) {
+                    // Show specific Google Drive tools
+                    const googleDriveTools = [
+                      {
+                        name: `google_drive_list_${serverNameSanitized}`,
+                        description:
+                          "List files in Google Drive. Returns a list of files with their metadata (id, name, mimeType, size, etc.). Supports pagination with pageToken.",
+                        parameters: [
+                          {
+                            name: "query",
+                            type: "string",
+                            required: false,
+                            description:
+                              'Optional query string to filter files (e.g., \'mimeType="application/pdf"\')',
+                          },
+                          {
+                            name: "pageToken",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Optional page token for pagination (from previous list response)",
+                          },
+                        ],
+                      },
+                      {
+                        name: `google_drive_read_${serverNameSanitized}`,
+                        description:
+                          "Read the content of a file from Google Drive. Supports text files and Google Docs (exports as plain text).",
+                        parameters: [
+                          {
+                            name: "fileId",
+                            type: "string",
+                            required: true,
+                            description: "The Google Drive file ID to read",
+                          },
+                          {
+                            name: "mimeType",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Optional MIME type for export (defaults to text/plain for Google Docs)",
+                          },
+                        ],
+                      },
+                      {
+                        name: `google_drive_search_${serverNameSanitized}`,
+                        description:
+                          "Search for files in Google Drive by name or content. Returns a list of matching files with their metadata.",
+                        parameters: [
+                          {
+                            name: "query",
+                            type: "string",
+                            required: true,
+                            description:
+                              "REQUIRED: Search query string to find files by name or content. Example: 'budget report' or 'meeting notes'",
+                          },
+                          {
+                            name: "pageToken",
+                            type: "string",
+                            required: false,
+                            description:
+                              "Optional page token for pagination (from previous search response)",
+                          },
+                        ],
+                      },
+                    ];
+
+                    return (
+                      <div key={server.id} className="space-y-3">
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950">
+                          <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                            📁 Google Drive: {server.name}
+                          </p>
+                          <p className="mt-1 text-xs text-blue-800 dark:text-blue-200">
+                            {server.oauthConnected
+                              ? "Connected"
+                              : "Not connected - connect to enable tools"}
+                          </p>
+                        </div>
+                        {server.oauthConnected &&
+                          googleDriveTools.map((tool) => (
+                            <div
+                              key={tool.name}
+                              className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900"
+                            >
+                              <div className="mb-2 flex items-start justify-between">
+                                <code className="rounded border border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-lg font-semibold text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                                  {tool.name}
+                                </code>
+                                <span className="rounded border border-green-300 bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:border-green-700 dark:bg-green-900 dark:text-green-200">
+                                  Available
+                                </span>
+                              </div>
+                              <p className="mb-3 text-sm text-neutral-700 dark:text-neutral-300">
+                                {tool.description}
+                              </p>
+                              <p className="mb-3 inline-block rounded border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
+                                Available (Google Drive &quot;{server.name}&quot;
+                                connected)
+                              </p>
+                              <div className="mt-3 rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+                                <p className="mb-2 text-xs font-semibold text-neutral-900 dark:text-neutral-50">
+                                  Parameters:
+                                </p>
+                                <div className="space-y-2">
+                                  {tool.parameters.map((param, index) => (
+                                    <div
+                                      key={index}
+                                      className="rounded border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
+                                    >
+                                      <div className="mb-1 flex items-center gap-2">
+                                        <code className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 font-mono text-xs font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                                          {param.name}
+                                        </code>
+                                        <span className="rounded border border-neutral-300 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:text-neutral-300">
+                                          {param.type}
+                                        </span>
+                                        {param.required ? (
+                                          <span className="rounded border border-red-300 bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200">
+                                            Required
+                                          </span>
+                                        ) : (
+                                          <span className="rounded border border-neutral-300 bg-neutral-100 px-1.5 py-0.5 text-xs font-medium text-neutral-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
+                                            Optional
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-neutral-600 dark:text-neutral-300">
+                                        {param.description}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    );
+                  }
+
+                  // Generic MCP server tool
+                  const toolName = `mcp_${serverNameSanitized}`;
                   return (
                     <div
                       key={server.id}
