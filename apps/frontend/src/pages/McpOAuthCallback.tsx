@@ -62,7 +62,7 @@ const McpOAuthCallback = () => {
     if (!error && !success) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-white">
-          <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft text-center">
+          <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 text-center shadow-soft">
             <h1 className="mb-4 text-2xl font-semibold">Connecting...</h1>
             <p className="text-sm">
               Please wait while we complete the connection.
@@ -76,7 +76,7 @@ const McpOAuthCallback = () => {
   if (status === "error") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft text-center">
+        <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 text-center shadow-soft">
           <h1 className="mb-4 text-2xl font-semibold text-red-600">Error</h1>
           <p className="mb-4 text-sm">
             {errorMessage || "Failed to connect OAuth account."}
@@ -96,7 +96,7 @@ const McpOAuthCallback = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-white">
-      <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 shadow-soft text-center">
+      <div className="w-full max-w-md rounded-xl border border-neutral-200 bg-white p-8 text-center shadow-soft">
         <h1 className="mb-4 text-2xl font-semibold text-green-600">Success</h1>
         <p className="mb-4 text-sm">
           Your {serviceName} account has been connected successfully!
