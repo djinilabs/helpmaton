@@ -234,6 +234,7 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
         for (const part of msg.content) {
           if (part && typeof part === "object" && "type" in part) {
             const partType = part.type;
+            // Validate file type
             if (partType === "file" && "file" in part) {
               const filePart = part as { type: "file"; file: unknown };
               const fileUrl = filePart.file;
@@ -256,6 +257,29 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
                     "File URL must be a valid HTTP/HTTPS URL"
                   );
                 }
+              }
+            }
+            // Validate image type (schema also allows type: "image" with "image" property)
+            else if ("image" in part && typeof part.image === "string") {
+              const imagePart = part as { type: string; image: string };
+              const imageUrl = imagePart.image;
+              // Reject base64/data URLs
+              if (
+                imageUrl.startsWith("data:") ||
+                imageUrl.startsWith("data;")
+              ) {
+                throw badRequest(
+                  "Inline image data (base64/data URLs) is not allowed. Images must be uploaded to S3 first."
+                );
+              }
+              // Ensure it's a valid URL
+              if (
+                !imageUrl.startsWith("http://") &&
+                !imageUrl.startsWith("https://")
+              ) {
+                throw badRequest(
+                  "Image URL must be a valid HTTP/HTTPS URL"
+                );
               }
             }
           }

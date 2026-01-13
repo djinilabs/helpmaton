@@ -197,21 +197,7 @@ export const registerPostFileUploadUrl = (app: express.Application) => {
           fileExtension
         );
 
-        // Set CORS headers on response
-        const origin = req.headers.origin;
-        const frontendUrl = process.env.FRONTEND_URL;
-        if (frontendUrl && origin === frontendUrl) {
-          res.setHeader("Access-Control-Allow-Origin", frontendUrl);
-          res.setHeader("Access-Control-Allow-Credentials", "true");
-        } else {
-          res.setHeader("Access-Control-Allow-Origin", origin || "*");
-        }
-        res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-        res.setHeader(
-          "Access-Control-Allow-Headers",
-          "Content-Type, Authorization, X-Requested-With, Origin, Accept"
-        );
-
+        // CORS headers are already set by setCorsHeaders middleware
         res.json(presignedData);
       } catch (error) {
         handleError(

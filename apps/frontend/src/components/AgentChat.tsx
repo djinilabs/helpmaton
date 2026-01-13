@@ -337,6 +337,24 @@ export const AgentChat: FC<AgentChatProps> = ({
     // If Enter is pressed with Shift, allow default behavior (new line)
   };
 
+  // Cleanup blob URLs when component unmounts
+  // Store pendingFiles in a ref so cleanup can access current value on unmount
+  const pendingFilesRef = useRef(pendingFiles);
+  useEffect(() => {
+    pendingFilesRef.current = pendingFiles;
+  }, [pendingFiles]);
+
+  useEffect(() => {
+    return () => {
+      // Cleanup all preview URLs on unmount
+      pendingFilesRef.current.forEach((fileData) => {
+        if (fileData.preview) {
+          URL.revokeObjectURL(fileData.preview);
+        }
+      });
+    };
+  }, []); // Only run on unmount
+
   // Handle file selection
   const handleFileSelect = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -361,10 +379,8 @@ export const AgentChat: FC<AgentChatProps> = ({
 
     setPendingFiles((prev) => [...prev, ...newFiles]);
 
-    // Upload files to S3
-    for (const fileData of newFiles) {
-      await uploadFileToS3(fileData);
-    }
+    // Upload files to S3 in parallel for better UX
+    await Promise.all(newFiles.map((fileData) => uploadFileToS3(fileData)));
 
     // Reset file input
     if (fileInputRef.current) {
@@ -390,8 +406,12 @@ export const AgentChat: FC<AgentChatProps> = ({
     );
 
     try {
-      // Get file extension
-      const fileExtension = file.name.split(".").pop() || undefined;
+      // Get file extension - use lastIndexOf to handle files with multiple dots (e.g., "archive.tar.gz")
+      const lastDotIndex = file.name.lastIndexOf(".");
+      const fileExtension =
+        lastDotIndex > 0 && lastDotIndex < file.name.length - 1
+          ? file.name.substring(lastDotIndex + 1)
+          : undefined;
 
       // Request presigned URL from backend
       const baseUrl = api?.startsWith("http")
@@ -487,7 +507,7 @@ export const AgentChat: FC<AgentChatProps> = ({
     if (filesWithErrors.length > 0) {
       setApiError(
         new Error(
-          "Some files failed to upload. Please remove them or try again."
+          "Some files failed to upload. Please remove the failed files and try again."
         )
       );
       return;
@@ -541,6 +561,12 @@ export const AgentChat: FC<AgentChatProps> = ({
     }
 
     setInput("");
+    // Cleanup blob URLs before clearing pending files
+    pendingFiles.forEach((fileData) => {
+      if (fileData.preview) {
+        URL.revokeObjectURL(fileData.preview);
+      }
+    });
     setPendingFiles([]);
     // Reset textarea height after clearing input
     setTimeout(adjustTextareaHeight, 0);
@@ -552,6 +578,13 @@ export const AgentChat: FC<AgentChatProps> = ({
     // Notify parent to remount component, which will clear errors
     onClear?.();
   };
+
+  // Clear file-related API error when there are no files with errors
+  useEffect(() => {
+    if (apiError && pendingFiles.every((f) => !f.error)) {
+      setApiError(null);
+    }
+  }, [apiError, pendingFiles]);
 
   // Auto-scroll to bottom when messages or loading state changes
   useEffect(() => {
@@ -1694,6 +1727,10 @@ export const AgentChat: FC<AgentChatProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      // Cleanup blob URL before removing file
+                      if (fileData.preview) {
+                        URL.revokeObjectURL(fileData.preview);
+                      }
                       setPendingFiles((prev) =>
                         prev.filter((f) => f.file !== fileData.file)
                       );
@@ -1708,6 +1745,10 @@ export const AgentChat: FC<AgentChatProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      // Cleanup blob URL before removing file
+                      if (fileData.preview) {
+                        URL.revokeObjectURL(fileData.preview);
+                      }
                       setPendingFiles((prev) =>
                         prev.filter((f) => f.file !== fileData.file)
                       );
