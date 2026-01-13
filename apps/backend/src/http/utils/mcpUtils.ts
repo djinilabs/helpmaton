@@ -256,16 +256,24 @@ export async function createMcpServerTools(
       const readTool = createGoogleDriveReadTool(workspaceId, serverId);
       const searchTool = createGoogleDriveSearchTool(workspaceId, serverId);
       
-      tools[`google_drive_list_${serverId.replace(/[^a-zA-Z0-9]/g, "_")}`] =
+      // Use server name for tool names (sanitized) - simpler than using serverId
+      const serverNameSanitized = server.name
+        .replace(/[^a-zA-Z0-9]/g, "_")
+        .toLowerCase();
+      
+      tools[`google_drive_list_${serverNameSanitized}`] =
         listTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_drive_read_${serverId.replace(/[^a-zA-Z0-9]/g, "_")}`] =
+      tools[`google_drive_read_${serverNameSanitized}`] =
         readTool as ReturnType<typeof createMcpServerTool>;
-      tools[`google_drive_search_${serverId.replace(/[^a-zA-Z0-9]/g, "_")}`] =
+      tools[`google_drive_search_${serverNameSanitized}`] =
         searchTool as ReturnType<typeof createMcpServerTool>;
     } else {
       // Create a generic MCP tool for external servers
-      // Sanitize server ID to ensure valid tool name (alphanumeric and underscores only)
-      const toolName = `mcp_${serverId.replace(/[^a-zA-Z0-9]/g, "_")}`;
+      // Use server name for tool name (sanitized) - simpler than using serverId
+      const serverNameSanitized = server.name
+        .replace(/[^a-zA-Z0-9]/g, "_")
+        .toLowerCase();
+      const toolName = `mcp_${serverNameSanitized}`;
       tools[toolName] = createMcpServerTool(workspaceId, serverId, server.name);
     }
   }

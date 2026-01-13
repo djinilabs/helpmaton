@@ -261,12 +261,14 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           }
         }
 
-        // Validate enabledMcpServerIds if provided
+        // Validate and clean up enabledMcpServerIds if provided
+        let cleanedEnabledMcpServerIds: string[] | undefined = undefined;
         if (enabledMcpServerIds !== undefined) {
           if (!Array.isArray(enabledMcpServerIds)) {
             throw badRequest("enabledMcpServerIds must be an array");
           }
-          // Validate all items are strings
+          // Validate all items are strings and filter out non-existent MCP servers
+          cleanedEnabledMcpServerIds = [];
           for (const id of enabledMcpServerIds) {
             if (typeof id !== "string") {
               throw badRequest("All enabledMcpServerIds must be strings");
@@ -275,13 +277,38 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             const serverPk = `mcp-servers/${workspaceId}/${id}`;
             const server = await db["mcp-server"].get(serverPk, "server");
             if (!server) {
-              throw resourceGone(`MCP server ${id} not found`);
+              // MCP server not found - silently filter it out (it was likely deleted)
+              console.warn(
+                `MCP server ${id} not found, filtering out from enabledMcpServerIds`
+              );
+              continue;
             }
             if (server.workspaceId !== workspaceId) {
               throw forbidden(
                 `MCP server ${id} does not belong to this workspace`
               );
             }
+            cleanedEnabledMcpServerIds.push(id);
+          }
+        } else {
+          // If not updating enabledMcpServerIds, clean up existing ones that don't exist
+          if (agent.enabledMcpServerIds && agent.enabledMcpServerIds.length > 0) {
+            cleanedEnabledMcpServerIds = [];
+            for (const id of agent.enabledMcpServerIds) {
+              const serverPk = `mcp-servers/${workspaceId}/${id}`;
+              const server = await db["mcp-server"].get(serverPk, "server");
+              if (server && server.workspaceId === workspaceId) {
+                cleanedEnabledMcpServerIds.push(id);
+              } else {
+                // MCP server not found or doesn't belong to workspace - filter it out
+                console.warn(
+                  `MCP server ${id} not found or invalid, filtering out from enabledMcpServerIds`
+                );
+              }
+            }
+            // If we filtered something out, we'll update with the cleaned list
+            // If nothing was filtered, cleanedEnabledMcpServerIds will be the same as agent.enabledMcpServerIds
+            // but we'll still use it to ensure consistency
           }
         }
 
@@ -470,9 +497,9 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
               ? delegatableAgentIds
               : agent.delegatableAgentIds,
           enabledMcpServerIds:
-            enabledMcpServerIds !== undefined
-              ? enabledMcpServerIds
-              : agent.enabledMcpServerIds,
+            cleanedEnabledMcpServerIds !== undefined
+              ? cleanedEnabledMcpServerIds
+              : agent.enabledMcpServerIds ?? [],
           enableMemorySearch:
             enableMemorySearch !== undefined
               ? enableMemorySearch
