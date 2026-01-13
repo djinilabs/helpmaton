@@ -109,30 +109,21 @@ describe("post-api-widget-000workspaceId-000agentId-000key handler", () => {
     vi.clearAllMocks();
   });
 
-  it("should handle OPTIONS request for CORS preflight", async () => {
+  it("should handle OPTIONS request for CORS preflight without database query", async () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-456";
     const key = "widget-key-789";
 
-    const mockAgent = {
-      pk: `agents/${workspaceId}/${agentId}`,
-      widgetConfig: {
-        enabled: true,
-        allowedOrigins: ["https://example.com"],
-      },
-    };
-
-    const mockDb = createMockDatabase();
-    mockDb.agent.get = vi.fn().mockResolvedValue(mockAgent);
-    mockDatabase.mockResolvedValue(mockDb);
-
-    // Use workspaceId to avoid unused variable error
-    void workspaceId;
-
     const event = createAPIGatewayEventV2({
       routeKey: "OPTIONS /api/widget/workspace-123/agent-456/widget-key-789",
       rawPath: "/api/widget/workspace-123/agent-456/widget-key-789",
-      requestContext: createAPIGatewayEventV2().requestContext,
+      requestContext: {
+        ...createAPIGatewayEventV2().requestContext,
+        http: {
+          ...createAPIGatewayEventV2().requestContext.http,
+          method: "OPTIONS",
+        },
+      },
       pathParameters: {
         workspaceId,
         agentId,
@@ -149,9 +140,15 @@ describe("post-api-widget-000workspaceId-000agentId-000key handler", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (handler as any)(event, stream);
 
-    expect(mockDb.agent.get).toHaveBeenCalledWith(
-      `agents/${workspaceId}/${agentId}`,
-      "agent"
+    // OPTIONS requests should NOT query the database - CORS headers must be returned unconditionally
+    expect(mockDatabase).not.toHaveBeenCalled();
+
+    // Verify computeCorsHeaders was called with null for allowedOrigins (unconditional CORS)
+    const { computeCorsHeaders } = await import("../../utils/streamCorsHeaders");
+    expect(vi.mocked(computeCorsHeaders)).toHaveBeenCalledWith(
+      "stream",
+      "https://example.com",
+      null // allowedOrigins should be null for unconditional CORS
     );
   });
 
@@ -159,6 +156,18 @@ describe("post-api-widget-000workspaceId-000agentId-000key handler", () => {
     const workspaceId = "workspace-123";
     const agentId = "agent-456";
     const key = "invalid-key";
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      widgetConfig: {
+        enabled: true,
+        allowedOrigins: ["https://example.com"],
+      },
+    };
+
+    const mockDb = createMockDatabase();
+    mockDb.agent.get = vi.fn().mockResolvedValue(mockAgent);
+    mockDatabase.mockResolvedValue(mockDb);
 
     mockValidateWidgetKey.mockRejectedValue(unauthorized("Invalid widget key"));
 
@@ -189,6 +198,10 @@ describe("post-api-widget-000workspaceId-000agentId-000key handler", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (handler as any)(event, stream);
 
+    expect(mockDb.agent.get).toHaveBeenCalledWith(
+      `agents/${workspaceId}/${agentId}`,
+      "agent"
+    );
     expect(mockValidateWidgetKey).toHaveBeenCalledWith(
       workspaceId,
       agentId,
