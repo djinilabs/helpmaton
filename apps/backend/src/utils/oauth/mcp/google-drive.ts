@@ -30,8 +30,8 @@ export function generateGoogleDriveAuthUrl(
   state?: string
 ): string {
   const clientId = getDefined(
-    process.env.GMAIL_CLIENT_ID,
-    "GMAIL_CLIENT_ID is not set"
+    process.env.GOOGLE_OAUTH_CLIENT_ID,
+    "GOOGLE_OAUTH_CLIENT_ID is not set"
   );
   const redirectUri = buildMcpOAuthCallbackUrl("google-drive");
   const stateToken = state || generateMcpOAuthStateToken(workspaceId, serverId);
@@ -56,12 +56,12 @@ export async function exchangeGoogleDriveCode(
   code: string
 ): Promise<McpOAuthTokenInfo> {
   const clientId = getDefined(
-    process.env.GMAIL_CLIENT_ID,
-    "GMAIL_CLIENT_ID is not set"
+    process.env.GOOGLE_OAUTH_CLIENT_ID,
+    "GOOGLE_OAUTH_CLIENT_ID is not set"
   );
   const clientSecret = getDefined(
-    process.env.GMAIL_CLIENT_SECRET,
-    "GMAIL_CLIENT_SECRET is not set"
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    "GOOGLE_OAUTH_CLIENT_SECRET is not set"
   );
   const redirectUri = buildMcpOAuthCallbackUrl("google-drive");
 
@@ -135,12 +135,12 @@ export async function refreshGoogleDriveToken(
   refreshToken: string
 ): Promise<McpOAuthTokenInfo> {
   const clientId = getDefined(
-    process.env.GMAIL_CLIENT_ID,
-    "GMAIL_CLIENT_ID is not set"
+    process.env.GOOGLE_OAUTH_CLIENT_ID,
+    "GOOGLE_OAUTH_CLIENT_ID is not set"
   );
   const clientSecret = getDefined(
-    process.env.GMAIL_CLIENT_SECRET,
-    "GMAIL_CLIENT_SECRET is not set"
+    process.env.GOOGLE_OAUTH_CLIENT_SECRET,
+    "GOOGLE_OAUTH_CLIENT_SECRET is not set"
   );
 
   const response = await fetch(GOOGLE_TOKEN_URL, {
