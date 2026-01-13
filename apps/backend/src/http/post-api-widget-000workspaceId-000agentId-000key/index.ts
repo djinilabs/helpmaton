@@ -180,16 +180,13 @@ const internalHandler = async (
   }
 
   // Handle OPTIONS preflight
+  // OPTIONS requests must return CORS headers unconditionally, without any auth check or database query
   if (httpV2Event.requestContext.http.method === "OPTIONS") {
     const origin =
       httpV2Event.headers["origin"] || httpV2Event.headers["Origin"];
-    // Get allowed origins from agent widget config
-    const db = await database();
-    const agentPk = `agents/${workspaceId}/${agentId}`;
-    const agent = await db.agent.get(agentPk, "agent");
-    const allowedOrigins =
-      agent?.widgetConfig?.allowedOrigins || null;
-    const corsHeaders = computeCorsHeaders("stream", origin, allowedOrigins);
+    // For OPTIONS, always allow all origins (no database query, no auth check)
+    // This ensures CORS preflight requests always succeed
+    const corsHeaders = computeCorsHeaders("stream", origin, null);
     // Create OPTIONS response directly
     const optionsResponse: APIGatewayProxyResultV2 = {
       statusCode: 200,
