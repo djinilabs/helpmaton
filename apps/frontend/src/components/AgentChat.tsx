@@ -487,6 +487,12 @@ export const AgentChat: FC<AgentChatProps> = ({
     }
   };
 
+  useEffect(() => {
+    // Clear file-related API error when there are no files with errors
+    if (apiError && pendingFiles.every((f) => !f.error)) {
+      setApiError(null);
+    }
+  }, [apiError, pendingFiles]);
   const handleSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
     if ((!input.trim() && pendingFiles.length === 0) || isLoading) return;
