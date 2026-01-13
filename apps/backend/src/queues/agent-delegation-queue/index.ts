@@ -242,18 +242,28 @@ async function processDelegationTask(
       }
 
       // Call the agent internally
-      // Use 260 seconds timeout to leave a safer buffer for Lambda processing
-      // Lambda function timeout is 300 seconds; this buffer accounts for init, network, and cleanup
-      const DELEGATION_TIMEOUT_MS = 260 * 1000; // 260 seconds
-      result = await callAgentInternal(
-        workspaceId,
-        targetAgentId,
-        taskMessage,
-        callDepth,
-        maxDepth,
-        context,
-        DELEGATION_TIMEOUT_MS
+      // Create request timeout (10 minutes) to ensure request completes before Lambda timeout (11 minutes)
+      const { createRequestTimeout, cleanupRequestTimeout } = await import(
+        "../../http/utils/requestTimeout"
       );
+      const requestTimeout = createRequestTimeout();
+
+      try {
+        result = await callAgentInternal(
+          workspaceId,
+          targetAgentId,
+          taskMessage,
+          callDepth,
+          maxDepth,
+          context,
+          0, // timeoutMs deprecated, using abortSignal instead
+          undefined, // conversationId
+          undefined, // conversationOwnerAgentId
+          requestTimeout.signal
+        );
+      } finally {
+        cleanupRequestTimeout(requestTimeout);
+      }
 
       // Success - break out of retry loop
       break;

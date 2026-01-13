@@ -20,7 +20,8 @@ export async function pipeAIStreamToResponse(
   modelMessages: ModelMessage[],
   tools: Awaited<ReturnType<typeof setupAgentAndTools>>["tools"],
   responseStream: HttpResponseStream,
-  onTextChunk: (text: string) => void
+  onTextChunk: (text: string) => void,
+  abortSignal?: AbortSignal
 ): Promise<Awaited<ReturnType<typeof streamText>>> {
   // Prepare LLM call (logging and generate options)
   const generateOptions = prepareLLMCall(
@@ -38,6 +39,7 @@ export async function pipeAIStreamToResponse(
     messages: modelMessages,
     tools,
     ...generateOptions,
+    ...(abortSignal && { abortSignal }),
   });
 
   // Get the UI message stream response from streamText result

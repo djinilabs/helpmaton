@@ -730,9 +730,10 @@ export async function callAgentInternal(
       typeof import("../../utils/workspaceCreditContext").getContextFromRequestId
     >
   >,
-  timeoutMs: number = 60000, // Default 60 seconds
+  timeoutMs: number = 60000, // Default 60 seconds (deprecated, use abortSignal instead)
   conversationId?: string,
-  conversationOwnerAgentId?: string // Agent ID that owns the conversation (for delegation tracking)
+  conversationOwnerAgentId?: string, // Agent ID that owns the conversation (for delegation tracking)
+  abortSignal?: AbortSignal
 ): Promise<string> {
   // Check depth limit
   if (callDepth >= maxDepth) {
@@ -1031,30 +1032,31 @@ export async function callAgentInternal(
       const { logToolDefinitions } = await import("./agentSetup");
       logToolDefinitions(tools, "Agent Delegation", targetAgent);
     }
-    // Create timeout promise with handle for cleanup
+    // Use abortSignal if provided, otherwise fall back to timeoutMs for backward compatibility
+    // Note: timeoutMs is deprecated, prefer using abortSignal
     let timeoutHandle: NodeJS.Timeout | undefined;
-    const timeoutPromise = new Promise<never>((_, reject) => {
+    let effectiveSignal = abortSignal;
+
+    if (!effectiveSignal && timeoutMs > 0) {
+      // Create a local AbortController for timeoutMs-based timeout (backward compatibility)
+      const timeoutController = new AbortController();
       timeoutHandle = setTimeout(() => {
-        reject(
-          new Error(`Delegation timeout: Agent call exceeded ${timeoutMs}ms`)
-        );
+        timeoutController.abort();
       }, timeoutMs);
-    });
+      effectiveSignal = timeoutController.signal;
+    }
 
     try {
-      // Race between generateText and timeout
-      result = await Promise.race([
-        generateText({
-          model: model as unknown as Parameters<
-            typeof generateText
-          >[0]["model"],
-          system: targetAgent.systemPrompt,
-          messages: modelMessagesWithKnowledge,
-          tools,
-          ...generateOptions,
-        }),
-        timeoutPromise,
-      ]);
+      result = await generateText({
+        model: model as unknown as Parameters<
+          typeof generateText
+        >[0]["model"],
+        system: targetAgent.systemPrompt,
+        messages: modelMessagesWithKnowledge,
+        tools,
+        ...generateOptions,
+        ...(effectiveSignal && { abortSignal: effectiveSignal }),
+      });
     } finally {
       // Clear timeout to prevent memory leak if generateText completed first
       if (timeoutHandle) {

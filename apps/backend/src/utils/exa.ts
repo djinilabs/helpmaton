@@ -22,6 +22,7 @@ export type ExaSearchCategory =
 
 export interface ExaSearchOptions {
   num_results?: number;
+  signal?: AbortSignal;
 }
 
 export interface ExaSearchResult {
@@ -172,6 +173,10 @@ export async function exaSearch(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
+      // Use provided signal if available, otherwise use timeout signal
+      const fetchSignal =
+        options?.signal || AbortSignal.timeout(30000); // 30 second timeout
+
       const response = await fetch(`${EXA_API_BASE_URL}/search`, {
         method: "POST",
         headers: {
@@ -183,7 +188,7 @@ export async function exaSearch(
           category,
           num_results: numResults,
         }),
-        signal: AbortSignal.timeout(30000), // 30 second timeout
+        signal: fetchSignal,
       });
 
       if (!response.ok) {

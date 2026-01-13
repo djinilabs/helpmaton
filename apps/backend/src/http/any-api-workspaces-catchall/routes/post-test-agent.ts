@@ -41,6 +41,12 @@ import {
 } from "../../utils/generationRequestTracking";
 import { extractTokenUsageAndCosts } from "../../utils/generationTokenExtraction";
 import { convertAiSdkUIMessagesToUIMessages } from "../../utils/messageConversion";
+import {
+  createRequestTimeout,
+  cleanupRequestTimeout,
+  isTimeoutError,
+  createTimeoutError,
+} from "../../utils/requestTimeout";
 import { testAgentRequestSchema } from "../../utils/schemas/requestSchemas";
 import { extractUserId } from "../../utils/session";
 import {
@@ -458,6 +464,9 @@ export const registerPostTestAgent = (app: express.Application) => {
       const finalModelName =
         typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
 
+      // Create request timeout (10 minutes)
+      const requestTimeout = createRequestTimeout();
+
       // Validate credits, spending limits, and reserve credits before LLM call
       const db = await database();
       let reservationId: string | undefined;
@@ -499,11 +508,35 @@ export const registerPostTestAgent = (app: express.Application) => {
           messages: modelMessages,
           tools,
           ...generateOptions,
+          abortSignal: requestTimeout.signal,
         });
         // streamText() returns immediately - mark as attempted
         // Note: streamText() itself doesn't throw, but errors can occur when consuming the stream
         llmCallAttempted = true;
       } catch (error) {
+        // Clean up timeout
+        cleanupRequestTimeout(requestTimeout);
+
+        // Check if this is a timeout error
+        if (isTimeoutError(error)) {
+          const timeoutError = createTimeoutError();
+          await persistConversationError({
+            db,
+            workspaceId,
+            agentId,
+            conversationId,
+            messages: convertedMessages,
+            usesByok,
+            finalModelName,
+            error: timeoutError,
+            awsRequestId:
+              typeof awsRequestId === "string" ? awsRequestId : undefined,
+          });
+          applyCorsHeaders(res);
+          res.status(504).json({ error: timeoutError.message });
+          return;
+        }
+
         // Comprehensive error logging for debugging
         logErrorDetails(error, {
           workspaceId,
@@ -1508,6 +1541,9 @@ export const registerPostTestAgent = (app: express.Application) => {
           },
         });
       }
+
+      // Clean up timeout on success
+      cleanupRequestTimeout(requestTimeout);
 
       // Use headers from the Response object (includes proper SSE Content-Type)
       // toUIMessageStreamResponse() automatically formats the response as SSE

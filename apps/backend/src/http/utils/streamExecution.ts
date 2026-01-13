@@ -30,7 +30,8 @@ export interface StreamExecutionResult {
  */
 export async function executeStream(
   context: StreamRequestContext,
-  responseStream: HttpResponseStream
+  responseStream: HttpResponseStream,
+  abortSignal?: AbortSignal
 ): Promise<StreamExecutionResult | null> {
   let fullStreamedText = "";
   let llmCallAttempted = false;
@@ -49,7 +50,8 @@ export async function executeStream(
       responseStream,
       (textDelta) => {
         fullStreamedText += textDelta;
-      }
+      },
+      abortSignal
     );
     if (generationStartTime !== undefined) {
       generationTimeMs = Date.now() - generationStartTime;
@@ -120,7 +122,8 @@ export async function executeStream(
  */
 export async function executeStreamForApiGateway(
   context: StreamRequestContext,
-  mockStream: HttpResponseStream
+  mockStream: HttpResponseStream,
+  abortSignal?: AbortSignal
 ): Promise<StreamExecutionResult> {
   let fullStreamedText = "";
   const generationStartTime = Date.now();
@@ -132,7 +135,8 @@ export async function executeStreamForApiGateway(
     mockStream,
     (textDelta) => {
       fullStreamedText += textDelta;
-    }
+    },
+    abortSignal
   );
 
   if (!streamResult) {

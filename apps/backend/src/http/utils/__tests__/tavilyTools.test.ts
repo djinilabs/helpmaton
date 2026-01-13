@@ -436,7 +436,10 @@ describe("tavilyTools", () => {
 
       expect(mockCheckTavilyDailyLimit).toHaveBeenCalledWith(workspaceId);
       expect(mockTavilyExtract).toHaveBeenCalledWith(
-        "https://example.com/article"
+        "https://example.com/article",
+        expect.objectContaining({
+          signal: undefined,
+        })
       );
       expect(mockIncrementFetchRequestBucket).toHaveBeenCalledWith(workspaceId);
       // Verify transaction is created for free tier users with actual cost

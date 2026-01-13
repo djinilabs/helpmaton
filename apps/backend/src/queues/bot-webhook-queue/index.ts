@@ -129,18 +129,30 @@ async function processDiscordTask(
         ? "https://staging-api.helpmaton.com"
         : "http://localhost:3333"; // Fallback for local development
 
-    // Call agent
-    const agentResult = await callAgentNonStreaming(
-      workspaceId,
-      agentId,
-      messageText,
-      {
-        modelReferer: `${baseUrl}/api/webhooks/discord`,
-        conversationId: conversationId || channelId,
-        context,
-        endpointType: "webhook",
-      }
+    // Create request timeout (10 minutes) to ensure request completes before Lambda timeout (11 minutes)
+    const { createRequestTimeout, cleanupRequestTimeout } = await import(
+      "../../http/utils/requestTimeout"
     );
+    const requestTimeout = createRequestTimeout();
+
+    let agentResult;
+    try {
+      // Call agent
+      agentResult = await callAgentNonStreaming(
+        workspaceId,
+        agentId,
+        messageText,
+        {
+          modelReferer: `${baseUrl}/api/webhooks/discord`,
+          conversationId: conversationId || channelId,
+          context,
+          endpointType: "webhook",
+          abortSignal: requestTimeout.signal,
+        }
+      );
+    } finally {
+      cleanupRequestTimeout(requestTimeout);
+    }
 
     // Stop the interval and mark as complete
     clearInterval(updateInterval);
@@ -443,18 +455,30 @@ async function processSlackTask(
 
   try {
     // Call agent with conversation history
-    const agentResult = await callAgentNonStreaming(
-      workspaceId,
-      agentId,
-      messageText,
-      {
-        modelReferer: `${baseUrl}/api/webhooks/slack`,
-        conversationId: conversationId || threadTs || messageTs,
-        context,
-        endpointType: "webhook",
-        conversationHistory,
-      }
+    // Create request timeout (10 minutes) to ensure request completes before Lambda timeout (11 minutes)
+    const { createRequestTimeout, cleanupRequestTimeout } = await import(
+      "../../http/utils/requestTimeout"
     );
+    const requestTimeout = createRequestTimeout();
+
+    let agentResult;
+    try {
+      agentResult = await callAgentNonStreaming(
+        workspaceId,
+        agentId,
+        messageText,
+        {
+          modelReferer: `${baseUrl}/api/webhooks/slack`,
+          conversationId: conversationId || threadTs || messageTs,
+          context,
+          endpointType: "webhook",
+          conversationHistory,
+          abortSignal: requestTimeout.signal,
+        }
+      );
+    } finally {
+      cleanupRequestTimeout(requestTimeout);
+    }
 
     // Stop the interval and mark as complete
     clearInterval(updateInterval);

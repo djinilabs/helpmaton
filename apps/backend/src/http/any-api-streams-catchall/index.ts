@@ -23,6 +23,12 @@ import { getAllowedOrigins } from "../../utils/streamServerUtils";
 import { trackBusinessEvent } from "../../utils/tracking";
 import { clearCurrentHTTPContext } from "../../utils/workspaceCreditContext";
 import { handleCreditErrors } from "../utils/generationErrorHandling";
+import {
+  createRequestTimeout,
+  cleanupRequestTimeout,
+  isTimeoutError,
+  createTimeoutError,
+} from "../utils/requestTimeout";
 import { authenticateStreamRequest } from "../utils/streamAuthentication";
 import {
   computeCorsHeaders,
@@ -147,6 +153,9 @@ const internalHandler = async (
   // Setup workspace credit context
   setupWorkspaceCreditContext(awsRequestId);
 
+  // Create request timeout (10 minutes)
+  const requestTimeout = createRequestTimeout();
+
   // CRITICAL FIX: Get allowed origins and set headers IMMEDIATELY before any other async operations
   // Headers must be set before any writes or stream activation in Lambda Function URLs
   // Do all async header-related work first, then set headers on the stream immediately
@@ -203,9 +212,14 @@ const internalHandler = async (
     );
 
     // Execute stream
-    const executionResult = await executeStream(context, responseStream);
+    const executionResult = await executeStream(
+      context,
+      responseStream,
+      requestTimeout.signal
+    );
     if (!executionResult) {
       // Error was handled in executeStream
+      cleanupRequestTimeout(requestTimeout);
       return;
     }
 
@@ -230,7 +244,47 @@ const internalHandler = async (
       },
       undefined // Stream endpoints use secrets, not standard auth
     );
+
+    // Clean up timeout on success
+    cleanupRequestTimeout(requestTimeout);
   } catch (error) {
+    // Clean up timeout on error
+    cleanupRequestTimeout(requestTimeout);
+
+    // Check if this is a timeout error
+    if (isTimeoutError(error)) {
+      const timeoutError = createTimeoutError();
+      if (context) {
+        await persistConversationError(context, timeoutError);
+      }
+
+      const origin =
+        httpV2Event.headers["origin"] || httpV2Event.headers["Origin"];
+      const errorHeaders = mergeCorsHeaders(
+        pathParams?.endpointType || "stream",
+        origin,
+        pathParams?.endpointType === "stream" ? allowedOrigins : null,
+        {
+          "Content-Type": "text/event-stream; charset=utf-8",
+        }
+      );
+
+      if (
+        typeof awslambda !== "undefined" &&
+        awslambda &&
+        awslambda.HttpResponseStream &&
+        typeof awslambda.HttpResponseStream.from === "function"
+      ) {
+        responseStream = awslambda.HttpResponseStream.from(responseStream, {
+          statusCode: 504,
+          headers: errorHeaders,
+        });
+      }
+
+      await writeErrorResponse(responseStream, timeoutError.message);
+      responseStream.end();
+      return;
+    }
     const boomed = boomify(error as Error);
     console.error("[Stream Handler] Unhandled error:", boomed);
     if (boomed.isServer) {

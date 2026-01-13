@@ -31,6 +31,7 @@ export interface AgentCallNonStreamingOptions {
   userId?: string;
   endpointType?: "bridge" | "webhook" | "test" | "stream";
   conversationHistory?: UIMessage[];
+  abortSignal?: AbortSignal;
 }
 
 export interface AgentCallNonStreamingResult {
@@ -187,6 +188,7 @@ export async function callAgentNonStreaming(
       messages: modelMessagesWithKnowledge,
       tools,
       ...generateOptions,
+      ...(options?.abortSignal && { abortSignal: options.abortSignal }),
     });
 
     // Extract token usage and costs

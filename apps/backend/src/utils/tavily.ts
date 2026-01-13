@@ -23,6 +23,7 @@ export interface TavilySearchOptions {
   include_answer?: boolean;
   include_raw_content?: boolean;
   include_images?: boolean;
+  signal?: AbortSignal;
 }
 
 export interface TavilySearchResponse {
@@ -45,6 +46,7 @@ export interface TavilySearchResponse {
 export interface TavilyExtractOptions {
   include_images?: boolean;
   include_raw_content?: boolean;
+  signal?: AbortSignal;
 }
 
 export interface TavilyExtractResponse {
@@ -279,7 +281,14 @@ export async function tavilySearch(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
+      // Check if signal is aborted before making the call
+      if (options?.signal?.aborted) {
+        throw new Error("Operation aborted");
+      }
+
       // Call library with timeout handling
+      // Note: The Tavily library doesn't support AbortSignal directly,
+      // but we check for abort before the call
       const searchResult = await client.search(query, {
         ...libraryOptions,
         timeout: 30, // in seconds
@@ -393,7 +402,14 @@ export async function tavilyExtract(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
+      // Check if signal is aborted before making the call
+      if (options?.signal?.aborted) {
+        throw new Error("Operation aborted");
+      }
+
       // Call library with timeout handling
+      // Note: The Tavily library doesn't support AbortSignal directly,
+      // but we check for abort before the call
       // Library expects array of URLs
       const extractResult = await client.extract([url], {
         ...libraryOptions,

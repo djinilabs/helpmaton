@@ -23,6 +23,12 @@ import { Sentry, ensureError ,
 import { trackBusinessEvent } from "../../utils/tracking";
 import { clearCurrentHTTPContext } from "../../utils/workspaceCreditContext";
 import { handleCreditErrors } from "../utils/generationErrorHandling";
+import {
+  createRequestTimeout,
+  cleanupRequestTimeout,
+  isTimeoutError,
+  createTimeoutError,
+} from "../utils/requestTimeout";
 import { validateWidgetKey } from "../utils/requestValidation";
 import {
   computeCorsHeaders,
@@ -301,6 +307,9 @@ const internalHandler = async (
   // Use createResponseStream to ensure status code is always set
   responseStream = createResponseStream(responseStream, corsHeaders, 200);
 
+  // Create request timeout (10 minutes)
+  const requestTimeout = createRequestTimeout();
+
   let context: StreamRequestContext | undefined;
 
   try {
@@ -333,9 +342,14 @@ const internalHandler = async (
     context.allowedOrigins = allowedOrigins;
 
     // Execute stream
-    const executionResult = await executeStream(context, responseStream);
+    const executionResult = await executeStream(
+      context,
+      responseStream,
+      requestTimeout.signal
+    );
     if (!executionResult) {
       // Error was handled in executeStream
+      cleanupRequestTimeout(requestTimeout);
       return;
     }
 
@@ -350,7 +364,37 @@ const internalHandler = async (
       },
       undefined // Widget endpoints use keys, not standard auth
     );
+
+    // Clean up timeout on success
+    cleanupRequestTimeout(requestTimeout);
   } catch (error) {
+    // Clean up timeout on error
+    cleanupRequestTimeout(requestTimeout);
+
+    // Check if this is a timeout error
+    if (isTimeoutError(error)) {
+      const timeoutError = createTimeoutError();
+      if (context) {
+        await persistConversationError(context, timeoutError);
+      }
+
+      const errorHeaders = mergeCorsHeaders(
+        "stream",
+        origin,
+        allowedOrigins,
+        {
+          "Content-Type": "text/event-stream; charset=utf-8",
+        }
+      );
+      responseStream = createResponseStream(
+        responseStream,
+        errorHeaders,
+        504
+      );
+      await writeErrorResponse(responseStream, timeoutError.message);
+      responseStream.end();
+      return;
+    }
     const boomed = boomify(error as Error);
     console.error("[Widget Handler] Unhandled error:", boomed);
 

@@ -43,6 +43,12 @@ import {
   convertTextToUIMessage,
 } from "../utils/messageConversion";
 import {
+  createRequestTimeout,
+  cleanupRequestTimeout,
+  isTimeoutError,
+  createTimeoutError,
+} from "../utils/requestTimeout";
+import {
   validateWebhookRequest,
   validateWebhookKey,
 } from "../utils/requestValidation";
@@ -197,6 +203,9 @@ export const handler = adaptHttpHandler(
       let usesByok: boolean | undefined;
       let finalModelName: string | undefined;
 
+      // Create request timeout (10 minutes)
+      const requestTimeout = createRequestTimeout();
+
       try {
         // Call agent using the shared non-streaming utility
         // This handles credit validation, reservation, LLM call, and tool continuation
@@ -211,6 +220,7 @@ export const handler = adaptHttpHandler(
             context,
             endpointType: "webhook",
             conversationId, // Pass conversationId so delegation tools can use it
+            abortSignal: requestTimeout.signal,
           }
         );
         const generationTimeMs = Date.now() - generationStartTime;
@@ -667,6 +677,9 @@ export const handler = adaptHttpHandler(
         undefined // Webhooks use API keys, no user context
       );
 
+      // Clean up timeout on success
+      cleanupRequestTimeout(requestTimeout);
+
       // Return plain text response for webhook
       return {
         statusCode: 200,
@@ -676,6 +689,33 @@ export const handler = adaptHttpHandler(
         body: responseContent,
       };
       } catch (error) {
+        // Clean up timeout
+        cleanupRequestTimeout(requestTimeout);
+
+        // Check if this is a timeout error
+        if (isTimeoutError(error)) {
+          const timeoutError = createTimeoutError();
+          await persistWebhookConversationError({
+            db,
+            workspaceId,
+            agentId,
+            uiMessage,
+            usesByok,
+            finalModelName,
+            error: timeoutError,
+            awsRequestId,
+          });
+          return {
+            statusCode: 504,
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              error: timeoutError.message,
+            }),
+          };
+        }
+
         // Comprehensive error logging for debugging
         logErrorDetails(error, {
           workspaceId,

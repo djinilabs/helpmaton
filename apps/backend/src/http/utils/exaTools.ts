@@ -75,7 +75,7 @@ export function createExaSearchTool(
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+    execute: async (args: any, { abortSignal }: { abortSignal?: AbortSignal } = {}) => {
       // Validate required parameters
       if (!args || typeof args !== "object") {
         return "Error: search requires both 'category' and 'query' parameters. Please provide both parameters.";
@@ -136,6 +136,7 @@ export function createExaSearchTool(
           category as ExaSearchCategory,
           {
             num_results,
+            signal: abortSignal,
           }
         );
 

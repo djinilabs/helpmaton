@@ -324,7 +324,7 @@ openrouter-cost-verification-queue
   visibilityTimeout 60
   messageRetentionPeriod 604800
 agent-delegation-queue
-  timeout 300
+  timeout 660
 bot-webhook-queue
   visibilityTimeout 60
   messageRetentionPeriod 1209600
@@ -377,7 +377,7 @@ enable-scheduled-rules
 @aws
 runtime typescript
 region eu-west-2
-timeout 60
+timeout 660
 
 @typescript
 build dist

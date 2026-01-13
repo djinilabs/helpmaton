@@ -74,7 +74,7 @@ export function createTavilySearchTool(
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+    execute: async (args: any, { abortSignal }: { abortSignal?: AbortSignal } = {}) => {
       // Validate required parameters
       if (!args || typeof args !== "object") {
         return "Error: search_web requires a 'query' parameter. Please provide a search query string.";
@@ -138,6 +138,7 @@ export function createTavilySearchTool(
         // Make Tavily API call
         const searchResponse = await tavilySearch(query, {
           max_results,
+          signal: abortSignal,
         });
 
         // Extract usage from API response
@@ -344,7 +345,7 @@ export function createTavilyFetchTool(
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+    execute: async (args: any, { abortSignal }: { abortSignal?: AbortSignal } = {}) => {
       // Validate required parameters
       if (!args || typeof args !== "object") {
         return "Error: fetch_url requires a 'url' parameter. Please provide a valid URL string.";
@@ -412,7 +413,9 @@ export function createTavilyFetchTool(
         }
 
         // Make Tavily API call
-        const extractResponse = await tavilyExtract(url);
+        const extractResponse = await tavilyExtract(url, {
+          signal: abortSignal,
+        });
 
         // Extract usage from API response
         const actualCreditsUsed = extractCreditsUsed(extractResponse);
@@ -610,7 +613,9 @@ export function createJinaFetchTool(
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+    execute: async (args: any, { abortSignal }: { abortSignal?: AbortSignal } = {}) => {
+       
+      void abortSignal;
       // Validate required parameters
       if (!args || typeof args !== "object") {
         return "Error: fetch_url requires a 'url' parameter. Please provide a valid URL string.";
@@ -643,6 +648,7 @@ export function createJinaFetchTool(
 
       try {
         // Make Jina API call (no credit tracking needed - Jina is free)
+        // Note: abortSignal not yet supported by jinaFetch, but parameter is kept for future compatibility
         const fetchResponse = await jinaFetch(url);
 
         // Format extracted content
@@ -729,7 +735,9 @@ export function createJinaSearchTool(
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+    execute: async (args: any, { abortSignal }: { abortSignal?: AbortSignal } = {}) => {
+       
+      void abortSignal;
       // Validate required parameters
       if (!args || typeof args !== "object") {
         return "Error: search_web requires a 'query' parameter. Please provide a search query string.";
@@ -755,6 +763,7 @@ export function createJinaSearchTool(
 
       try {
         // Make Jina API call (no credit tracking needed - Jina is free)
+        // Note: abortSignal not yet supported by jinaSearch, but parameter is kept for future compatibility
         const searchResponse = await jinaSearch(query, {
           max_results,
         });
@@ -850,7 +859,9 @@ export function createScrapeFetchTool(
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    execute: async (args: any) => {
+    execute: async (args: any, { abortSignal }: { abortSignal?: AbortSignal } = {}) => {
+       
+      void abortSignal;
       // Validate required parameters
       if (!args || typeof args !== "object") {
         return "Error: fetch_url requires a 'url' parameter. Please provide a valid URL string.";
@@ -888,6 +899,7 @@ export function createScrapeFetchTool(
 
       try {
         // Generate JWE token for authentication
+        // Note: abortSignal not yet supported by scrape endpoint, but parameter is kept for future compatibility
         const authToken = await generateScrapeAuthToken(
           workspaceId,
           agentId,
