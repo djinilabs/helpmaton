@@ -10,13 +10,13 @@ import {
   InsufficientCreditsError,
   SpendingLimitExceededError,
 } from "../../utils/creditErrors";
-import {
-  handlingErrors,
-} from "../../utils/handlingErrors";
+import { handlingErrors } from "../../utils/handlingErrors";
 import type { LambdaUrlEvent } from "../../utils/httpEventAdapter";
 import { adaptHttpHandler } from "../../utils/httpEventAdapter";
 import { flushPostHog } from "../../utils/posthog";
-import { Sentry, ensureError ,
+import {
+  Sentry,
+  ensureError,
   initSentry,
   flushSentry,
 } from "../../utils/sentry";
@@ -231,8 +231,7 @@ const internalHandler = async (
   setupWorkspaceCreditContext(awsRequestId);
 
   // Get origin for CORS
-  const origin =
-    httpV2Event.headers["origin"] || httpV2Event.headers["Origin"];
+  const origin = httpV2Event.headers["origin"] || httpV2Event.headers["Origin"];
 
   // Get allowed origins from agent widget config
   const db = await database();
@@ -240,14 +239,9 @@ const internalHandler = async (
   const agent = await db.agent.get(agentPk, "agent");
 
   if (!agent) {
-    const errorHeaders = mergeCorsHeaders(
-      "stream",
-      origin,
-      null,
-      {
-        "Content-Type": "application/json",
-      }
-    );
+    const errorHeaders = mergeCorsHeaders("stream", origin, null, {
+      "Content-Type": "application/json",
+    });
     // Use createResponseStream to ensure status code is always set
     responseStream = createResponseStream(responseStream, errorHeaders, 404);
     const errorResponse = JSON.stringify({
@@ -260,14 +254,9 @@ const internalHandler = async (
 
   // Check if widget is enabled
   if (!agent.widgetConfig?.enabled) {
-    const errorHeaders = mergeCorsHeaders(
-      "stream",
-      origin,
-      null,
-      {
-        "Content-Type": "application/json",
-      }
-    );
+    const errorHeaders = mergeCorsHeaders("stream", origin, null, {
+      "Content-Type": "application/json",
+    });
     // Use createResponseStream to ensure status code is always set
     responseStream = createResponseStream(responseStream, errorHeaders, 403);
     const errorResponse = JSON.stringify({
@@ -284,14 +273,9 @@ const internalHandler = async (
   try {
     await validateWidgetKey(workspaceId, agentId, key);
   } catch (error) {
-    const errorHeaders = mergeCorsHeaders(
-      "stream",
-      origin,
-      allowedOrigins,
-      {
-        "Content-Type": "application/json",
-      }
-    );
+    const errorHeaders = mergeCorsHeaders("stream", origin, allowedOrigins, {
+      "Content-Type": "application/json",
+    });
     // Use createResponseStream to ensure status code is always set
     responseStream = createResponseStream(responseStream, errorHeaders, 401);
     const errorResponse = JSON.stringify({
@@ -317,9 +301,11 @@ const internalHandler = async (
     let conversationId =
       httpV2Event.headers["x-conversation-id"] ||
       httpV2Event.headers["X-Conversation-Id"];
-    
+
     if (!conversationId || typeof conversationId !== "string") {
-      conversationId = `widget-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      conversationId = `widget-${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2, 9)}`;
       // Set it in headers so buildStreamRequestContext can read it
       httpV2Event.headers["X-Conversation-Id"] = conversationId;
     }
@@ -378,19 +364,10 @@ const internalHandler = async (
         await persistConversationError(context, timeoutError);
       }
 
-      const errorHeaders = mergeCorsHeaders(
-        "stream",
-        origin,
-        allowedOrigins,
-        {
-          "Content-Type": "text/event-stream; charset=utf-8",
-        }
-      );
-      responseStream = createResponseStream(
-        responseStream,
-        errorHeaders,
-        504
-      );
+      const errorHeaders = mergeCorsHeaders("stream", origin, allowedOrigins, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+      });
+      responseStream = createResponseStream(responseStream, errorHeaders, 504);
       await writeErrorResponse(responseStream, timeoutError.message);
       responseStream.end();
       return;
@@ -470,14 +447,9 @@ const internalHandler = async (
       await persistConversationError(context, error);
     }
 
-    const errorHeaders = mergeCorsHeaders(
-      "stream",
-      origin,
-      allowedOrigins,
-      {
-        "Content-Type": "text/event-stream; charset=utf-8",
-      }
-    );
+    const errorHeaders = mergeCorsHeaders("stream", origin, allowedOrigins, {
+      "Content-Type": "text/event-stream; charset=utf-8",
+    });
 
     // Use createResponseStream to ensure status code is always set
     responseStream = createResponseStream(
@@ -517,11 +489,9 @@ const createHandler = () => {
   }
   // Fallback for non-streaming environments
   return adaptHttpHandler(
-    handlingErrors(
-      async (): Promise<APIGatewayProxyResultV2> => {
-        throw new Error("streamifyResponse is not available");
-      }
-    )
+    handlingErrors(async (): Promise<APIGatewayProxyResultV2> => {
+      throw new Error("streamifyResponse is not available");
+    })
   );
 };
 

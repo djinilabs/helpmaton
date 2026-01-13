@@ -218,7 +218,7 @@ const internalHandler = async (
       requestTimeout.signal
     );
     if (!executionResult) {
-      // Error was handled in executeStream
+      // Error was handled in executeStream (including timeout after data was written)
       cleanupRequestTimeout(requestTimeout);
       return;
     }
@@ -252,6 +252,8 @@ const internalHandler = async (
     cleanupRequestTimeout(requestTimeout);
 
     // Check if this is a timeout error
+    // Note: If data has already been written, executeStream handles it internally
+    // This catch block only handles timeouts that occur before any data is written
     if (isTimeoutError(error)) {
       const timeoutError = createTimeoutError();
       if (context) {
@@ -269,6 +271,8 @@ const internalHandler = async (
         }
       );
 
+      // Only set status 504 if no data has been written yet
+      // If data was written, executeStream already handled the error
       if (
         typeof awslambda !== "undefined" &&
         awslambda &&

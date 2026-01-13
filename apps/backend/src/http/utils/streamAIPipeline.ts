@@ -21,7 +21,8 @@ export async function pipeAIStreamToResponse(
   tools: Awaited<ReturnType<typeof setupAgentAndTools>>["tools"],
   responseStream: HttpResponseStream,
   onTextChunk: (text: string) => void,
-  abortSignal?: AbortSignal
+  abortSignal?: AbortSignal,
+  onDataWritten?: () => void // Callback to notify when data is written to stream
 ): Promise<Awaited<ReturnType<typeof streamText>>> {
   // Prepare LLM call (logging and generate options)
   const generateOptions = prepareLLMCall(
@@ -62,10 +63,17 @@ export async function pipeAIStreamToResponse(
 
   try {
     while (true) {
+      // Check if signal is aborted before reading next chunk
+      if (abortSignal?.aborted) {
+        throw new Error("Operation aborted");
+      }
+
       const { done, value } = await reader.read();
       if (done) break;
       if (value) {
         hasWrittenData = true;
+        // Notify that data has been written (for timeout handling)
+        onDataWritten?.();
 
         // Write the raw chunk immediately to responseStream for true streaming
         // Don't buffer - write as soon as we receive it
@@ -114,6 +122,7 @@ export async function pipeAIStreamToResponse(
     // Lambda Function URLs require at least one write to activate the stream
     if (!hasWrittenData) {
       await writeChunkToStream(responseStream, ": stream-init\n\n");
+      onDataWritten?.(); // Notify that initialization data was written
     }
 
     // Mark as successfully completed before ending stream

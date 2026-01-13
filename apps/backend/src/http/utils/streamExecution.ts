@@ -6,6 +6,10 @@ import {
 } from "../../utils/conversationLogger";
 
 import { extractTokenUsageAndCosts } from "./generationTokenExtraction";
+import {
+  isTimeoutError,
+  createTimeoutError,
+} from "./requestTimeout";
 import { pipeAIStreamToResponse } from "./streamAIPipeline";
 import {
   handleStreamingError,
@@ -22,6 +26,7 @@ export interface StreamExecutionResult {
   finalResponseText: string;
   tokenUsage: TokenUsage | undefined;
   generationTimeMs: number | undefined;
+  hasWrittenData: boolean; // Track if any data has been written to the stream
 }
 
 /**
@@ -36,6 +41,7 @@ export async function executeStream(
   let fullStreamedText = "";
   let llmCallAttempted = false;
   let streamResult: Awaited<ReturnType<typeof streamText>> | undefined;
+  let hasWrittenData = false; // Track if any data has been written to the stream
 
   let generationStartTime: number | undefined;
   let generationTimeMs: number | undefined;
@@ -51,13 +57,37 @@ export async function executeStream(
       (textDelta) => {
         fullStreamedText += textDelta;
       },
-      abortSignal
+      abortSignal,
+      () => {
+        // Callback to track when data is actually written to the stream
+        hasWrittenData = true;
+      }
     );
     if (generationStartTime !== undefined) {
       generationTimeMs = Date.now() - generationStartTime;
     }
     llmCallAttempted = true;
   } catch (error) {
+    // Check if this is a timeout error
+    if (isTimeoutError(error)) {
+      const timeoutError = createTimeoutError();
+      
+      // If data has already been written, we can't change the HTTP status code
+      // Just write the error message to the stream and return null
+      if (hasWrittenData) {
+        await handleStreamingError(
+          timeoutError,
+          context,
+          responseStream,
+          llmCallAttempted
+        );
+        return null;
+      }
+      
+      // If no data has been written, throw the error so the handler can set status 504
+      throw timeoutError;
+    }
+
     const handled = await handleStreamingError(
       error,
       context,
@@ -113,6 +143,7 @@ export async function executeStream(
     finalResponseText,
     tokenUsage,
     generationTimeMs,
+    hasWrittenData,
   };
 }
 
@@ -136,7 +167,8 @@ export async function executeStreamForApiGateway(
     (textDelta) => {
       fullStreamedText += textDelta;
     },
-    abortSignal
+    abortSignal,
+    undefined // No need to track data written for API Gateway (buffered)
   );
 
   if (!streamResult) {
@@ -167,5 +199,6 @@ export async function executeStreamForApiGateway(
     finalResponseText,
     tokenUsage,
     generationTimeMs,
+    hasWrittenData: true, // For API Gateway, we assume data was written if we got here
   };
 }
