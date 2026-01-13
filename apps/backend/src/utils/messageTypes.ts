@@ -52,6 +52,8 @@ export type UIMessage =
       awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
       knowledgeInjection?: true; // Marker for knowledge injection messages
       knowledgeSnippets?: SearchResult[]; // Original snippets for reuse
+      generationStartedAt?: string; // ISO timestamp when message was received
+      generationEndedAt?: string; // ISO timestamp when message was received (same as started for user messages)
     }
   | {
       role: "assistant";
@@ -72,6 +74,8 @@ export type UIMessage =
       finalCostUsd?: number; // Final cost from OpenRouter API (in millionths) after verification
       generationTimeMs?: number; // Time in milliseconds for LLM generation call
       awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
+      generationStartedAt?: string; // ISO timestamp when message generation started
+      generationEndedAt?: string; // ISO timestamp when message generation ended
     }
   | {
       role: "system";
@@ -83,11 +87,15 @@ export type UIMessage =
             | RerankingResultContent
           >;
       awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
+      generationStartedAt?: string; // ISO timestamp when message was created
+      generationEndedAt?: string; // ISO timestamp when message was created (same as started for system messages)
     }
   | {
       role: "tool";
       content: string | Array<ToolResultContent>;
       awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
+      generationStartedAt?: string; // ISO timestamp when tool execution started
+      generationEndedAt?: string; // ISO timestamp when tool execution ended
     };
 
 export interface RequestParams {

@@ -412,6 +412,36 @@ export async function buildStreamRequestContext(
   const { uiMessage, modelMessages, convertedMessages } =
     convertRequestBodyToMessages(bodyText);
 
+  // Add timestamps to user messages that don't have them
+  const now = new Date().toISOString();
+  const convertedMessagesWithTimestamps = convertedMessages.map((msg) => {
+    if (msg.role === "user" && !msg.generationStartedAt) {
+      return {
+        ...msg,
+        generationStartedAt: now,
+        generationEndedAt: now, // User messages are instantaneous
+      };
+    }
+    if (msg.role === "system" && !msg.generationStartedAt) {
+      return {
+        ...msg,
+        generationStartedAt: now,
+        generationEndedAt: now, // System messages are instantaneous
+      };
+    }
+    return msg;
+  });
+
+  // Update uiMessage if it's a user message without timestamps
+  const uiMessageWithTimestamps =
+    uiMessage.role === "user" && !uiMessage.generationStartedAt
+      ? {
+          ...uiMessage,
+          generationStartedAt: now,
+          generationEndedAt: now,
+        }
+      : uiMessage;
+
   // Fetch existing conversation messages to check for existing knowledge injection
   let existingConversationMessages: UIMessage[] | undefined;
   try {
@@ -456,10 +486,10 @@ export async function buildStreamRequestContext(
     knowledgeInjectionResult.rerankingResultMessage;
 
   // Add re-ranking and knowledge injection messages to convertedMessages if they exist
-  let updatedConvertedMessages = convertedMessages;
+  let updatedConvertedMessages = convertedMessagesWithTimestamps;
 
   // Find insertion point (before first user message)
-  const userMessageIndex = convertedMessages.findIndex(
+  const userMessageIndex = convertedMessagesWithTimestamps.findIndex(
     (msg) => msg.role === "user"
   );
 
@@ -478,10 +508,10 @@ export async function buildStreamRequestContext(
   if (messagesToInsert.length > 0) {
     if (userMessageIndex === -1) {
       // No user message found, prepend all messages
-      updatedConvertedMessages = [...messagesToInsert, ...convertedMessages];
+      updatedConvertedMessages = [...messagesToInsert, ...convertedMessagesWithTimestamps];
     } else {
       // Insert before first user message
-      updatedConvertedMessages = [...convertedMessages];
+      updatedConvertedMessages = [...convertedMessagesWithTimestamps];
       updatedConvertedMessages.splice(userMessageIndex, 0, ...messagesToInsert);
     }
   }
@@ -556,7 +586,7 @@ export async function buildStreamRequestContext(
     allowedOrigins,
     subscriptionId,
     db,
-    uiMessage,
+    uiMessage: uiMessageWithTimestamps,
     convertedMessages: updatedConvertedMessages,
     modelMessages: modelMessagesWithKnowledge,
     agent,

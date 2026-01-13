@@ -12,6 +12,7 @@ import {
   createCallAgentTool,
   createCallAgentAsyncTool,
   createCheckDelegationStatusTool,
+  createGetDatetimeTool,
   getWorkspaceApiKey,
   validateWorkspaceAndAgent,
   type WorkspaceAndAgent,
@@ -158,6 +159,9 @@ export async function setupAgentAndTools(
   const extractedAgentId = agent.pk.replace(`agents/${workspaceId}/`, "");
 
   const tools: AgentSetup["tools"] = {};
+
+  // Add get_datetime tool (always available to all agents)
+  tools.get_datetime = createGetDatetimeTool();
 
   // Add document search tool if enabled
   if (agent.enableSearchDocuments === true) {

@@ -26,6 +26,8 @@ import {
 import { formatCurrency } from "../utils/currency";
 import { getMessageCost } from "../utils/messageCost";
 
+import { ConversationTemporalGraph } from "./ConversationTemporalGraph";
+
 interface ConversationDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -817,6 +819,17 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
           </div>
         ) : (
           <>
+            {/* Temporal Graph */}
+            {conversationDetail && (
+              <div className="mb-6">
+                <ConversationTemporalGraph
+                  messages={conversationDetail.messages || []}
+                  conversationStartedAt={conversationDetail.startedAt}
+                  conversationLastMessageAt={conversationDetail.lastMessageAt}
+                />
+              </div>
+            )}
+
             {/* Messages */}
             <div className="mb-6">
               <h3 className="mb-4 border-b border-neutral-200 pb-2 text-xl font-semibold text-neutral-900 dark:border-neutral-700 dark:text-neutral-50">

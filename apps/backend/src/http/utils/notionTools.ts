@@ -288,7 +288,7 @@ export function createNotionCreatePageTool(
             object: "block",
             type: "paragraph",
             paragraph: {
-              text: [
+              rich_text: [
                 {
                   type: "text",
                   text: {

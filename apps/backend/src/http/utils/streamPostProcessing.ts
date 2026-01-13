@@ -85,8 +85,12 @@ export async function trackRequestUsage(
 
 /**
  * Extracts tool calls and results from stream result
+ * Adds timestamps to track when tool calls start and end
  */
-async function extractToolCallsAndResults(streamResult: Awaited<ReturnType<typeof streamText>>): Promise<{
+async function extractToolCallsAndResults(
+  streamResult: Awaited<ReturnType<typeof streamText>>,
+  assistantGenerationStartedAt?: string
+): Promise<{
   toolCalls: unknown[];
   toolResults: unknown[];
 }> {
@@ -95,6 +99,7 @@ async function extractToolCallsAndResults(streamResult: Awaited<ReturnType<typeo
   
   const toolCallsFromSteps: unknown[] = [];
   const toolResultsFromSteps: unknown[] = [];
+  const toolCallStartTimes = new Map<string, number>(); // Track when each tool call started
 
   // Extract from _steps if available
   const stepsValue = resultAny?._steps?.status?.value;
@@ -108,14 +113,28 @@ async function extractToolCallsAndResults(streamResult: Awaited<ReturnType<typeo
             "type" in contentItem
           ) {
             if (contentItem.type === "tool-call") {
+              const toolCallId = contentItem.toolCallId;
+              // Use assistant generation start time as baseline, or current time as fallback
+              const startTime = assistantGenerationStartedAt
+                ? new Date(assistantGenerationStartedAt).getTime()
+                : Date.now();
+              if (toolCallId) {
+                toolCallStartTimes.set(toolCallId, startTime);
+              }
               toolCallsFromSteps.push({
-                toolCallId: contentItem.toolCallId,
+                toolCallId: toolCallId,
                 toolName: contentItem.toolName,
                 args: contentItem.input || contentItem.args || {},
+                toolCallStartedAt: new Date(startTime).toISOString(),
               });
             } else if (contentItem.type === "tool-result") {
+              const toolCallId = contentItem.toolCallId;
+              const endTime = Date.now();
+              const startTime = toolCallId ? toolCallStartTimes.get(toolCallId) : undefined;
+              const executionTimeMs = startTime ? endTime - startTime : undefined;
+              
               toolResultsFromSteps.push({
-                toolCallId: contentItem.toolCallId,
+                toolCallId: toolCallId,
                 toolName: contentItem.toolName,
                 output:
                   contentItem.output?.value ||
@@ -125,6 +144,7 @@ async function extractToolCallsAndResults(streamResult: Awaited<ReturnType<typeo
                   contentItem.output?.value ||
                   contentItem.output ||
                   contentItem.result,
+                ...(executionTimeMs !== undefined && { toolExecutionTimeMs: executionTimeMs }),
               });
             }
           }
@@ -148,24 +168,68 @@ async function extractToolCallsAndResults(streamResult: Awaited<ReturnType<typeo
     ? toolResultsFromResultRaw
     : [];
 
-  // Prefer steps if available
+  // Prefer steps if available (they have timestamps)
   if (toolCallsFromSteps.length > 0) {
     toolCallsFromResult = toolCallsFromSteps;
+  } else {
+    // Add timestamps to tool calls from direct properties if not already present
+    toolCallsFromResult = toolCallsFromResult.map((toolCall: any) => {
+      if (!toolCall.toolCallStartedAt) {
+        const toolCallId = toolCall.toolCallId;
+        // Use assistant generation start time as baseline, or current time as fallback
+        const startTime = assistantGenerationStartedAt
+          ? new Date(assistantGenerationStartedAt).getTime()
+          : Date.now();
+        if (toolCallId) {
+          toolCallStartTimes.set(toolCallId, startTime);
+        }
+        return {
+          ...toolCall,
+          toolCallStartedAt: new Date(startTime).toISOString(),
+        };
+      }
+      return toolCall;
+    });
   }
+
   if (toolResultsFromSteps.length > 0) {
     toolResultsFromResult = toolResultsFromSteps;
+  } else {
+    // Add execution time to tool results from direct properties if not already present
+    toolResultsFromResult = toolResultsFromResult.map((toolResult: any) => {
+      if (toolResult.toolExecutionTimeMs === undefined) {
+        const toolCallId = toolResult.toolCallId;
+        const endTime = Date.now();
+        const startTime = toolCallId ? toolCallStartTimes.get(toolCallId) : undefined;
+        const executionTimeMs = startTime ? endTime - startTime : undefined;
+        
+        if (executionTimeMs !== undefined) {
+          return {
+            ...toolResult,
+            toolExecutionTimeMs: executionTimeMs,
+          };
+        }
+      }
+      return toolResult;
+    });
   }
 
   // Reconstruct tool calls from results if needed
   if (toolCallsFromResult.length === 0 && toolResultsFromResult.length > 0) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    toolCallsFromResult = toolResultsFromResult.map((toolResult: any) => ({
-      toolCallId:
+    toolCallsFromResult = toolResultsFromResult.map((toolResult: any) => {
+      const toolCallId =
         toolResult.toolCallId ||
-        `call-${Math.random().toString(36).substring(7)}`,
-      toolName: toolResult.toolName || "unknown",
-      args: toolResult.args || toolResult.input || {},
-    })) as unknown as typeof toolCallsFromResult;
+        `call-${Math.random().toString(36).substring(7)}`;
+      const startTime = Date.now();
+      toolCallStartTimes.set(toolCallId, startTime);
+      return {
+        toolCallId,
+        toolName: toolResult.toolName || "unknown",
+        args: toolResult.args || toolResult.input || {},
+        toolCallStartedAt: new Date(startTime).toISOString(),
+      };
+    }) as unknown as typeof toolCallsFromResult;
   }
 
   return {
@@ -182,7 +246,9 @@ export async function logConversation(
   finalResponseText: string,
   tokenUsage: TokenUsage | undefined,
   streamResult: Awaited<ReturnType<typeof streamText>>,
-  generationTimeMs?: number
+  generationTimeMs?: number,
+  generationStartedAt?: string,
+  generationEndedAt?: string
 ): Promise<void> {
   try {
     // Extract tokenUsage from streamResult if not provided
@@ -214,10 +280,18 @@ export async function logConversation(
       return;
     }
 
-    const { toolCalls, toolResults } = await extractToolCallsAndResults(streamResult);
+    const { toolCalls, toolResults } = await extractToolCallsAndResults(
+      streamResult,
+      generationStartedAt
+    );
 
     const toolCallMessages = toolCalls.map(formatToolCallMessage);
     const toolResultMessages = toolResults.map(formatToolResultMessage);
+
+    // Always use the original generationEndedAt which includes the full LLM call time
+    // (including text generation after tool execution)
+    // The expandMessagesWithToolCalls function will split this correctly
+    const finalGenerationEndedAt = generationEndedAt;
 
     const assistantContent: Array<
       | { type: "text"; text: string }
@@ -275,6 +349,8 @@ export async function logConversation(
       ...(openrouterGenerationId && { openrouterGenerationId }),
       ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
       ...(generationTimeMs !== undefined && { generationTimeMs }),
+      ...(generationStartedAt && { generationStartedAt }),
+      ...(finalGenerationEndedAt && { generationEndedAt: finalGenerationEndedAt }),
     };
 
     const messagesForLogging: UIMessage[] = [
@@ -350,7 +426,9 @@ export async function performPostProcessing(
   finalResponseText: string,
   tokenUsage: TokenUsage | undefined,
   streamResult: Awaited<ReturnType<typeof streamText>>,
-  generationTimeMs?: number
+  generationTimeMs?: number,
+  generationStartedAt?: string,
+  generationEndedAt?: string
 ): Promise<void> {
   // Adjust credits
   try {
@@ -381,7 +459,9 @@ export async function performPostProcessing(
     finalResponseText,
     tokenUsage,
     streamResult,
-    generationTimeMs
+    generationTimeMs,
+    generationStartedAt,
+    generationEndedAt
   );
 }
 

@@ -607,6 +607,58 @@ export function createSendNotificationTool(
 }
 
 /**
+ * Create the get_datetime tool for getting the current date and time
+ * This tool is always available to all agents
+ */
+export function createGetDatetimeTool() {
+  const getDatetimeParamsSchema = z.object({});
+
+  return tool({
+    description:
+      "Get the current date and time. Returns both ISO 8601 format (UTC) and a human-readable format. Use this when you need to know the current date or time, or when working with time-sensitive information.",
+    parameters: getDatetimeParamsSchema,
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
+    // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+    execute: async (_args: any) => {
+      try {
+        const now = new Date();
+        const isoString = now.toISOString();
+        const readableString = now.toLocaleString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          timeZoneName: "short",
+        });
+
+        const result = `Current date and time:\n- ISO 8601 (UTC): ${isoString}\n- Human-readable: ${readableString}`;
+
+        // Log tool call
+        console.log("[Tool Call] get_datetime", {
+          toolName: "get_datetime",
+          result: isoString,
+        });
+
+        return result;
+      } catch (error) {
+        const errorMessage = `Error getting date and time: ${
+          error instanceof Error ? error.message : String(error)
+        }`;
+        console.error("[Tool Error] get_datetime", {
+          toolName: "get_datetime",
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return errorMessage;
+      }
+    },
+  });
+}
+
+/**
  * Create the send_email tool for sending emails via workspace email connection
  */
 export function createSendEmailTool(workspaceId: string) {
@@ -784,6 +836,9 @@ export async function callAgentInternal(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Tools have varying types
   const tools: Record<string, any> = {};
+
+  // Add get_datetime tool (always available to all agents)
+  tools.get_datetime = createGetDatetimeTool();
 
   // Add document search tool if enabled
   if (targetAgent.enableSearchDocuments === true) {

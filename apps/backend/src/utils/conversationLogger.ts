@@ -1314,27 +1314,128 @@ export function expandMessagesWithToolCalls(
 
       // If we have tool calls or tool results, create separate messages for them
       if (toolCallsInMessage.length > 0 || toolResultsInMessage.length > 0) {
-        // Add tool call messages (as separate assistant messages with just tool calls)
+        // Create a map to match tool calls with their results
+        const toolCallMap = new Map<
+          string,
+          { toolCall: typeof toolCallsInMessage[0]; toolResult?: typeof toolResultsInMessage[0] }
+        >();
         for (const toolCall of toolCallsInMessage) {
+          toolCallMap.set(toolCall.toolCallId, { toolCall });
+        }
+        for (const toolResult of toolResultsInMessage) {
+          const entry = toolCallMap.get(toolResult.toolCallId);
+          if (entry) {
+            entry.toolResult = toolResult;
+          }
+        }
+
+        // Add tool call messages (as separate assistant messages with just tool calls)
+        // Tool call message spans from when LLM started until it decided to call the tool
+        for (const toolCall of toolCallsInMessage) {
+          const toolCallStartedAt = toolCall.toolCallStartedAt;
+          // Tool call message starts when LLM generation started, ends when tool call was decided
+          const toolCallMessageStart = message.generationStartedAt || toolCallStartedAt;
+          let toolCallMessageEnd = toolCallStartedAt || message.generationStartedAt;
+          
+          // Ensure there's at least a minimal duration if start and end are the same
+          if (toolCallMessageStart && toolCallMessageEnd) {
+            const startTime = new Date(toolCallMessageStart).getTime();
+            const endTime = new Date(toolCallMessageEnd).getTime();
+            if (endTime <= startTime) {
+              // If end is same or before start, add minimum duration
+              toolCallMessageEnd = new Date(startTime + 1).toISOString();
+            }
+          }
+          
           expandedMessages.push({
             role: "assistant",
             content: [toolCall],
             ...(awsRequestId && { awsRequestId }),
+            ...(toolCallMessageStart && { generationStartedAt: toolCallMessageStart }),
+            ...(toolCallMessageEnd && { generationEndedAt: toolCallMessageEnd }),
           });
         }
 
         // Add tool result messages (as tool role messages)
+        // Tool execution starts right after tool call decision, ends when execution completes
         for (const toolResult of toolResultsInMessage) {
+          const entry = toolCallMap.get(toolResult.toolCallId);
+          const toolCall = entry?.toolCall;
+          const toolCallStartedAt = toolCall?.toolCallStartedAt;
+          
+          // Calculate timestamps for tool result
+          let toolResultStartedAt: string | undefined;
+          let toolResultEndedAt: string | undefined;
+          
+          if (toolCallStartedAt) {
+            const callStartTime = new Date(toolCallStartedAt).getTime();
+            // Tool execution starts right after tool call decision (1ms after)
+            toolResultStartedAt = new Date(callStartTime + 1).toISOString();
+            
+            if (toolResult.toolExecutionTimeMs !== undefined) {
+              // Tool execution ends after the execution time
+              const executionEndTime = callStartTime + 1 + toolResult.toolExecutionTimeMs;
+              toolResultEndedAt = new Date(executionEndTime).toISOString();
+            } else {
+              // If no execution time, use start time as end time (instantaneous)
+              toolResultEndedAt = toolResultStartedAt;
+            }
+          }
+
           expandedMessages.push({
             role: "tool",
             content: [toolResult],
             ...(awsRequestId && { awsRequestId }),
+            ...(toolResultStartedAt && { generationStartedAt: toolResultStartedAt }),
+            ...(toolResultEndedAt && { generationEndedAt: toolResultEndedAt }),
           });
         }
 
         // If there's text content, create a separate assistant message with only text
         // This avoids duplicating tool calls/results which are already in separate messages
         if (textParts.length > 0) {
+          // Calculate when text generation should start (after all tool executions complete)
+          let textGenerationStartedAt: string | undefined;
+          let textGenerationEndedAt: string | undefined;
+          
+          // Find the latest tool execution end time
+          let latestToolEndTime: number | undefined;
+          for (const toolResult of toolResultsInMessage) {
+            if (toolResult.toolExecutionTimeMs !== undefined) {
+              const toolCall = toolCallMap.get(toolResult.toolCallId)?.toolCall;
+              if (toolCall?.toolCallStartedAt) {
+                const callStartTime = new Date(toolCall.toolCallStartedAt).getTime();
+                // Tool execution starts 1ms after tool call decision, ends after execution time
+                const executionEndTime = callStartTime + 1 + toolResult.toolExecutionTimeMs;
+                if (!latestToolEndTime || executionEndTime > latestToolEndTime) {
+                  latestToolEndTime = executionEndTime;
+                }
+              }
+            }
+          }
+          
+          // Text generation starts when tool execution completes
+          // Text generation ends when the original message ended (when LLM finished generating text)
+          if (latestToolEndTime && message.generationEndedAt) {
+            textGenerationStartedAt = new Date(latestToolEndTime).toISOString();
+            const endTime = new Date(message.generationEndedAt).getTime();
+            // Ensure end time is after start time
+            let actualEndTime = Math.max(latestToolEndTime, endTime);
+            // If end time equals start time (shouldn't happen, but ensure minimum duration), add minimum
+            if (actualEndTime === latestToolEndTime) {
+              actualEndTime = latestToolEndTime + 100; // Minimum 100ms duration
+            }
+            textGenerationEndedAt = new Date(actualEndTime).toISOString();
+          } else if (latestToolEndTime) {
+            // If we have tool execution end time but no message end time, use minimum duration
+            textGenerationStartedAt = new Date(latestToolEndTime).toISOString();
+            textGenerationEndedAt = new Date(latestToolEndTime + 100).toISOString();
+          } else {
+            // Fallback to original timestamps if no tool execution times
+            textGenerationStartedAt = message.generationStartedAt;
+            textGenerationEndedAt = message.generationEndedAt;
+          }
+          
           const textOnlyMessage: UIMessage = {
             role: "assistant",
             content: textParts,
@@ -1354,6 +1455,13 @@ export function expandMessagesWithToolCalls(
             }),
             ...(message.openrouterGenerationId && {
               openrouterGenerationId: message.openrouterGenerationId,
+            }),
+            // Use calculated timestamps for sequential ordering
+            ...(textGenerationStartedAt && {
+              generationStartedAt: textGenerationStartedAt,
+            }),
+            ...(textGenerationEndedAt && {
+              generationEndedAt: textGenerationEndedAt,
             }),
           };
           expandedMessages.push(textOnlyMessage);

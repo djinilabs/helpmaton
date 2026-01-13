@@ -26,6 +26,8 @@ export interface StreamExecutionResult {
   finalResponseText: string;
   tokenUsage: TokenUsage | undefined;
   generationTimeMs: number | undefined;
+  generationStartedAt?: string; // ISO timestamp when generation started
+  generationEndedAt?: string; // ISO timestamp when generation ended
   hasWrittenData: boolean; // Track if any data has been written to the stream
 }
 
@@ -44,10 +46,13 @@ export async function executeStream(
   let hasWrittenData = false; // Track if any data has been written to the stream
 
   let generationStartTime: number | undefined;
+  let generationStartedAt: string | undefined;
   let generationTimeMs: number | undefined;
+  let generationEndedAt: string | undefined;
 
   try {
     generationStartTime = Date.now();
+    generationStartedAt = new Date().toISOString();
     streamResult = await pipeAIStreamToResponse(
       context.agent,
       context.model,
@@ -65,6 +70,7 @@ export async function executeStream(
     );
     if (generationStartTime !== undefined) {
       generationTimeMs = Date.now() - generationStartTime;
+      generationEndedAt = new Date().toISOString();
     }
     llmCallAttempted = true;
   } catch (error) {
@@ -143,6 +149,8 @@ export async function executeStream(
     finalResponseText,
     tokenUsage,
     generationTimeMs,
+    generationStartedAt,
+    generationEndedAt,
     hasWrittenData,
   };
 }
@@ -158,6 +166,7 @@ export async function executeStreamForApiGateway(
 ): Promise<StreamExecutionResult> {
   let fullStreamedText = "";
   const generationStartTime = Date.now();
+  const generationStartedAt = new Date().toISOString();
   const streamResult = await pipeAIStreamToResponse(
     context.agent,
     context.model,
@@ -176,6 +185,7 @@ export async function executeStreamForApiGateway(
   }
 
   const generationTimeMs = Date.now() - generationStartTime;
+  const generationEndedAt = new Date().toISOString();
 
   // Extract text and usage
   const [responseText, usage] = await Promise.all([
@@ -199,6 +209,8 @@ export async function executeStreamForApiGateway(
     finalResponseText,
     tokenUsage,
     generationTimeMs,
+    generationStartedAt,
+    generationEndedAt,
     hasWrittenData: true, // For API Gateway, we assume data was written if we got here
   };
 }

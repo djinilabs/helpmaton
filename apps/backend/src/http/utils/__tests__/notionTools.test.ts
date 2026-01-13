@@ -319,7 +319,7 @@ describe("Notion Tools", () => {
             object: "block",
             type: "paragraph",
             paragraph: {
-              text: [
+              rich_text: [
                 {
                   type: "text",
                   text: {
@@ -333,7 +333,7 @@ describe("Notion Tools", () => {
             object: "block",
             type: "paragraph",
             paragraph: {
-              text: [
+              rich_text: [
                 {
                   type: "text",
                   text: {
@@ -347,7 +347,7 @@ describe("Notion Tools", () => {
             object: "block",
             type: "paragraph",
             paragraph: {
-              text: [
+              rich_text: [
                 {
                   type: "text",
                   text: {
