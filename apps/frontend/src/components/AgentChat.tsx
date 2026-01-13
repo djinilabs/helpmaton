@@ -89,6 +89,24 @@ export const AgentChat: FC<AgentChatProps> = ({
     }>
   >([]);
 
+  // Cleanup blob URLs when component unmounts
+  // Store pendingFiles in a ref so cleanup can access current value on unmount
+  const pendingFilesRef = useRef(pendingFiles);
+  useEffect(() => {
+    pendingFilesRef.current = pendingFiles;
+  }, [pendingFiles]);
+
+  useEffect(() => {
+    return () => {
+      // Cleanup all preview URLs on unmount
+      pendingFilesRef.current.forEach((fileData) => {
+        if (fileData.preview) {
+          URL.revokeObjectURL(fileData.preview);
+        }
+      });
+    };
+  }, []); // Only run on unmount
+
   // Generate and memoize conversation ID for this chat instance
   const conversationId = useMemo(() => generateUUID(), []);
 
@@ -336,24 +354,6 @@ export const AgentChat: FC<AgentChatProps> = ({
     }
     // If Enter is pressed with Shift, allow default behavior (new line)
   };
-
-  // Cleanup blob URLs when component unmounts
-  // Store pendingFiles in a ref so cleanup can access current value on unmount
-  const pendingFilesRef = useRef(pendingFiles);
-  useEffect(() => {
-    pendingFilesRef.current = pendingFiles;
-  }, [pendingFiles]);
-
-  useEffect(() => {
-    return () => {
-      // Cleanup all preview URLs on unmount
-      pendingFilesRef.current.forEach((fileData) => {
-        if (fileData.preview) {
-          URL.revokeObjectURL(fileData.preview);
-        }
-      });
-    };
-  }, []); // Only run on unmount
 
   // Handle file selection
   const handleFileSelect = async (
