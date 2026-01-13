@@ -2,11 +2,40 @@
 
 ## Current Status
 
-**Status**: Google Calendar MCP Server Integration - Completed ✅
+**Status**: Notion MCP Server Integration - Enhanced ✅
 
 **Latest Work**:
 
-1. **Google Calendar MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Calendar, allowing agents to read, search, and write to users' Google Calendar. Follows the same architecture pattern as Google Drive and Gmail MCP servers.
+1. **Notion MCP Server Integration - Enhanced User Experience**: Improved the Notion create page tool to accept simplified parameters and fixed API structure issues.
+
+   - **Simplified Parameter Support**:
+     - Added `name` parameter: Accepts a simple string for page title, automatically converted to Notion title property
+     - Added `content` parameter: Accepts a simple string for page content, automatically converted to paragraph blocks (split by newlines)
+     - Made `parent` parameter optional: Defaults to workspace level (`{ type: 'workspace', workspace: true }`) if not provided
+     - Made `properties` parameter optional: Created from `name` if not provided
+     - Made `children` parameter optional: Created from `content` string if not provided
+     - Full API parameters (`parent`, `properties`, `children`) still supported for advanced use cases
+   
+   - **Fixed API Structure**:
+     - Fixed paragraph block structure to use `rich_text` instead of `text` (required by Notion API 2025-09-03)
+     - Updated content conversion to create proper paragraph blocks with `rich_text` array
+     - All tests updated and passing
+   
+   - **Append Blocks Tool**:
+     - Added `notion_append_blocks_{serverName}` tool for adding content to existing pages
+     - Supports up to 100 blocks per request
+     - Optional `after` parameter for inserting blocks at specific positions
+   
+   - **Result**: Agents can now create Notion pages with simple syntax:
+     ```json
+     {
+       "name": "Helpmaton Haiku",
+       "content": "Green shoots emerge now,\nSunlight warms the sleepy earth,\nLife's gentle return."
+     }
+     ```
+     The tool automatically handles workspace-level parent, title property creation, and content block conversion.
+
+2. **Google Calendar MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Calendar, allowing agents to read, search, and write to users' Google Calendar. Follows the same architecture pattern as Google Drive and Gmail MCP servers.
 
    - **Google Calendar OAuth Utilities**:
      - Created `utils/oauth/mcp/google-calendar.ts` with `generateGoogleCalendarAuthUrl`, `exchangeGoogleCalendarCode`, and `refreshGoogleCalendarToken` functions
@@ -61,7 +90,7 @@
    
    - **Note**: Requires adding redirect URI `/api/mcp/oauth/google-calendar/callback` to Google Cloud Console OAuth client configuration
 
-2. **Gmail MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Gmail, allowing agents to list, search, and read emails from users' Gmail accounts. Follows the same architecture pattern as Google Drive MCP server.
+4. **Gmail MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Gmail, allowing agents to list, search, and read emails from users' Gmail accounts. Follows the same architecture pattern as Google Drive MCP server.
 
    - **Gmail OAuth Utilities**:
      - Created `utils/oauth/mcp/gmail.ts` with `generateGmailAuthUrl`, `exchangeGmailCode`, and `refreshGmailToken` functions

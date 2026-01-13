@@ -1,7 +1,6 @@
 import {
   CheckCircleIcon,
   ClockIcon,
-  UserCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useMemo, useState, useRef } from "react";
 import type { FC } from "react";
@@ -196,11 +195,11 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
     // This excludes user thinking/typing time which can be arbitrarily long
     let totalIdleTime = 0;
     const idlePeriods: Array<{ start: number; end: number }> = [];
-    
+
     for (let i = 0; i < messagesWithTimestamps.length - 1; i++) {
       const currentMsg = messagesWithTimestamps[i];
       const nextMsg = messagesWithTimestamps[i + 1];
-      
+
       // If current message is NOT a user message and next message IS a user message
       // and there's a gap between them, that's idle time
       if (
@@ -223,7 +222,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
     // This removes idle periods from the timeline
     const compressTime = (realTime: number): number => {
       let compressedTime = realTime - conversationStart;
-      
+
       // Subtract all idle periods that occur before this time
       for (const idle of idlePeriods) {
         if (idle.end <= realTime) {
@@ -234,7 +233,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
           compressedTime -= realTime - idle.start;
         }
       }
-      
+
       return compressedTime;
     };
 
@@ -266,19 +265,24 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
   const spacing = 1; // Minimal spacing
 
   // Calculate cumulative y positions accounting for different bar heights
-  let cumulativeY = 0;
-  const messagePositions = graphMessages.map(({ message }) => {
-    const isUser = message.role === "user";
-    const currentBarHeight = isUser ? userBarHeight : baseBarHeight;
-    const y = cumulativeY;
-    cumulativeY += currentBarHeight + spacing;
-    return { y, barHeight: currentBarHeight, isUser };
-  });
+  const messagePositions = graphMessages.reduce(
+    (acc, { message }) => {
+      const isUser = message.role === "user";
+      const currentBarHeight = isUser ? userBarHeight : baseBarHeight;
+      const y = acc.cumulativeY;
+      acc.positions.push({ y, barHeight: currentBarHeight, isUser });
+      acc.cumulativeY += currentBarHeight + spacing;
+      return acc;
+    },
+    { positions: [] as Array<{ y: number; barHeight: number; isUser: boolean }>, cumulativeY: 0 }
+  ).positions;
 
-  const totalHeight = cumulativeY;
+  const totalHeight = messagePositions.reduce(
+    (sum, pos, idx) => sum + pos.barHeight + (idx < messagePositions.length - 1 ? spacing : 0),
+    0
+  );
   const height = Math.max(totalHeight + padding.top + padding.bottom, 200);
   const graphWidth = width - padding.left - padding.right;
-  const graphHeight = height - padding.top - padding.bottom;
 
   // Format time for display
   const formatTime = (ms: number): string => {
@@ -289,16 +293,6 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
     return `${minutes}m ${remainingSeconds}s`;
-  };
-
-  // Format absolute time
-  const formatAbsoluteTime = (timestamp: number): string => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
   };
 
   // Calculate x position for a time
@@ -644,36 +638,10 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
             // Calculate compressed time for grid line
             const compressedTimeFraction = i / 5;
             const compressedTime = timeRange * compressedTimeFraction;
-            
-            // Find the real time that corresponds to this compressed time
-            // We need to reverse the compression: find real time where compressTime(realTime) = compressedTime
-            let realTime = conversationStart;
-            let currentCompressed = 0;
-            const targetCompressed = compressedTime;
-            
-            // Binary search or linear search for the real time
-            // For simplicity, we'll use a linear approximation
-            // Find the real time by iterating through idle periods
-            if (graphData.compressTime) {
-              // Use binary search to find real time
-              let low = conversationStart;
-              let high = graphData.maxTime;
-              const tolerance = 1; // 1ms tolerance
-              
-              while (high - low > tolerance) {
-                const mid = (low + high) / 2;
-                const midCompressed = graphData.compressTime(mid);
-                if (midCompressed < targetCompressed) {
-                  low = mid;
-                } else {
-                  high = mid;
-                }
-              }
-              realTime = (low + high) / 2;
-            } else {
-              realTime = conversationStart + compressedTime;
-            }
-            
+
+            // Grid lines are positioned based on compressed time directly
+            // The x position is calculated from compressed time fraction
+
             const x = padding.left + (graphWidth * i) / 5;
             return (
               <g key={`grid-${i}`}>
@@ -701,7 +669,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
 
           {/* Message bars */}
           {graphMessages.map(
-            ({ message, index, startTime, endTime, duration }, i) => {
+            ({ message, index, startTime, duration }, i) => {
               const position = messagePositions[i];
               const y = padding.top + position.y;
               const barHeight = position.barHeight;
@@ -824,7 +792,7 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                     height={barHeight}
                     fill="transparent"
                     style={{ cursor: "pointer" }}
-                    onMouseEnter={(e) => {
+                    onMouseEnter={() => {
                       if (svgRef.current && containerRef.current) {
                         const containerRect =
                           containerRef.current.getBoundingClientRect();

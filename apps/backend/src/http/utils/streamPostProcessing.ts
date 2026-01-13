@@ -173,6 +173,7 @@ async function extractToolCallsAndResults(
     toolCallsFromResult = toolCallsFromSteps;
   } else {
     // Add timestamps to tool calls from direct properties if not already present
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool call types vary
     toolCallsFromResult = toolCallsFromResult.map((toolCall: any) => {
       if (!toolCall.toolCallStartedAt) {
         const toolCallId = toolCall.toolCallId;
@@ -196,6 +197,7 @@ async function extractToolCallsAndResults(
     toolResultsFromResult = toolResultsFromSteps;
   } else {
     // Add execution time to tool results from direct properties if not already present
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
     toolResultsFromResult = toolResultsFromResult.map((toolResult: any) => {
       if (toolResult.toolExecutionTimeMs === undefined) {
         const toolCallId = toolResult.toolCallId;
