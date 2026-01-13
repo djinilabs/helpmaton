@@ -6,7 +6,12 @@ import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { generatePresignedPostUrl } from "../../../utils/s3";
 import { validateBody } from "../../utils/bodyValidation";
-import { asyncHandler, handleError, requireAuth, requirePermission } from "../middleware";
+import {
+  asyncHandler,
+  handleError,
+  requireAuth,
+  requirePermission,
+} from "../middleware";
 
 /**
  * Sets CORS headers for the file upload URL endpoint

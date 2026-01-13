@@ -47,7 +47,7 @@ export function convertAiSdkUIMessageToUIMessage(
         | { type: "text"; text: string }
         | { type: "file"; file: string; mediaType?: string }
       > = [];
-      
+
       for (const part of message.parts) {
         if (typeof part === "string") {
           content.push({ type: "text", text: part });
@@ -454,9 +454,7 @@ export function convertUIMessagesToModelMessages(
                 !imageUrl.startsWith("http://") &&
                 !imageUrl.startsWith("https://")
               ) {
-                throw new Error(
-                  "Image URL must be a valid HTTP/HTTPS URL"
-                );
+                throw new Error("Image URL must be a valid HTTP/HTTPS URL");
               }
 
               // Use ImagePart for images
@@ -485,10 +483,7 @@ export function convertUIMessagesToModelMessages(
               }
 
               // Reject base64/data URLs
-              if (
-                fileUrl.startsWith("data:") ||
-                fileUrl.startsWith("data;")
-              ) {
+              if (fileUrl.startsWith("data:") || fileUrl.startsWith("data;")) {
                 throw new Error(
                   "Inline file data (base64/data URLs) is not allowed. Files must be uploaded to S3 first."
                 );
@@ -499,9 +494,7 @@ export function convertUIMessagesToModelMessages(
                 !fileUrl.startsWith("http://") &&
                 !fileUrl.startsWith("https://")
               ) {
-                throw new Error(
-                  "File URL must be a valid HTTP/HTTPS URL"
-                );
+                throw new Error("File URL must be a valid HTTP/HTTPS URL");
               }
 
               // Determine if it's an image based on mediaType or URL
@@ -531,9 +524,7 @@ export function convertUIMessagesToModelMessages(
         // Build content array for user message
         // AI SDK UserContent can be string or array of TextPart | ImagePart | FilePart
         const contentParts: Array<
-          | { type: "text"; text: string }
-          | ImagePart
-          | FilePart
+          { type: "text"; text: string } | ImagePart | FilePart
         > = [];
 
         // Add text content as TextPart
