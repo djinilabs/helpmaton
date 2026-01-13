@@ -325,8 +325,9 @@ openrouter-cost-verification-queue
   messageRetentionPeriod 604800
 agent-delegation-queue
   timeout 660
+  visibilityTimeout 720
 bot-webhook-queue
-  visibilityTimeout 60
+  visibilityTimeout 720
   messageRetentionPeriod 1209600
 
 @api-throttling
