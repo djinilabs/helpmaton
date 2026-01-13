@@ -111,8 +111,8 @@ export const updateAgentSchema = z
     maxOutputTokens: z.number().int().positive().nullable().optional(),
     stopSequences: z.array(z.string()).nullable().optional(),
     maxToolRoundtrips: z.number().int().positive().nullable().optional(),
-    modelName: z.string().optional(),
-    avatar: z.string().optional(),
+    modelName: z.string().nullable().optional(),
+    avatar: z.string().nullable().optional(),
   })
   .strict();
 
