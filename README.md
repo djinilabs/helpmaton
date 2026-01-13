@@ -59,6 +59,7 @@ Give your agents access to real-time, up-to-date information beyond their traini
 **Content Extraction** (`fetch_url`): Extract and summarize content from any web page URL. Agents can read and understand specific web pages, analyze articles, extract key information, and provide insights from any online content.
 
 **Key Advantages**:
+
 - **Real-Time Information**: Access current information that isn't in training data
 - **Always Current**: Answer questions about recent events, news, and developments
 - **Cost-Effective**: Free daily allowance (10 calls/day) with transparent pay-as-you-go pricing ($0.008 per additional call)
@@ -72,6 +73,7 @@ Give your agents access to real-time, up-to-date information beyond their traini
 Agents come with a comprehensive set of built-in tools and can be extended with MCP (Model Context Protocol) servers to connect to external APIs and services.
 
 **Built-in Tools**:
+
 - **Document Search**: Semantic vector search across workspace documents
 - **Memory Search**: Recall past conversations and information from the agent's memory system
 - **Web Search**: Search the web for current information, news, and articles
@@ -137,6 +139,7 @@ Every agent exposes a webhook endpoint that accepts HTTP requests. Send messages
 Deploy your agents as Slack or Discord bots, enabling team members and community users to interact with your AI agents directly in their favorite chat platforms. Create integrations that connect your agents to Slack workspaces or Discord servers, with full support for mentions, commands, and direct messages.
 
 **Slack Integration**:
+
 - Deploy agents as Slack bots that respond to mentions and direct messages
 - Dynamic Slack App Manifest generation for easy setup
 - Secure webhook handling with signature verification
@@ -144,12 +147,14 @@ Deploy your agents as Slack or Discord bots, enabling team members and community
 - Support for both channel mentions and direct messages
 
 **Discord Integration**:
+
 - Deploy agents as Discord bots with slash command support
 - Ed25519 signature verification for secure interactions
 - Throttled message updates for real-time responses
 - Full support for Discord's interaction system
 
 **Key Features**:
+
 - **Unified Management**: Manage all integrations from a single Integrations page
 - **Secure by Default**: Platform-specific signature verification ensures only legitimate requests are processed
 - **Easy Setup**: Step-by-step guides for both platforms with manifest generation
