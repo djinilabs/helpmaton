@@ -559,7 +559,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                       {
                         name: `google_drive_read_${serverNameSanitized}`,
                         description:
-                          "Read the content of a file from Google Drive. Supports text files and Google Docs (exports as plain text).",
+                          "Read the content of a file from Google Drive. Supports text files, Google Docs (exports as plain text), Google Sheets (exports as CSV), and Google Slides (exports as plain text).",
                         parameters: [
                           {
                             name: "fileId",
@@ -572,7 +572,7 @@ export const ToolsHelpDialog: FC<ToolsHelpDialogProps> = ({
                             type: "string",
                             required: false,
                             description:
-                              "Optional MIME type for export (defaults to text/plain for Google Docs)",
+                              "Optional MIME type for export. Defaults: text/plain for Google Docs and Slides, text/csv for Google Sheets. For other files, uses the file's MIME type.",
                           },
                         ],
                       },

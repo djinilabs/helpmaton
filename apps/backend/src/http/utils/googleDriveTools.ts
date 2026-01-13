@@ -102,14 +102,14 @@ export function createGoogleDriveReadTool(
 ) {
   return tool({
     description:
-      "Read the content of a file from Google Drive. Supports text files and Google Docs (exports as plain text).",
+      "Read the content of a file from Google Drive. Supports text files, Google Docs (exports as plain text), Google Sheets (exports as CSV), and Google Slides (exports as plain text).",
     parameters: z.object({
       fileId: z.string().describe("The Google Drive file ID to read"),
       mimeType: z
         .string()
         .optional()
         .describe(
-          "Optional MIME type for export (defaults to text/plain for Google Docs)"
+          "Optional MIME type for export. Defaults: text/plain for Google Docs and Slides, text/csv for Google Sheets. For other files, uses the file's MIME type."
         ),
     }),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
