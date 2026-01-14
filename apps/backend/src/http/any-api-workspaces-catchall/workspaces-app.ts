@@ -61,6 +61,7 @@ import { registerPostAcceptWorkspaceInvite } from "./routes/post-accept-workspac
 import { registerPostAgentKeys } from "./routes/post-agent-keys";
 import { registerPostAgentSpendingLimits } from "./routes/post-agent-spending-limits";
 import { registerPostEmailConnection } from "./routes/post-email-connection";
+import { registerPostFileUploadUrl } from "./routes/post-file-upload-url";
 import { registerPostGeneratePrompt } from "./routes/post-generate-prompt";
 import { registerPostMcpServer } from "./routes/post-mcp-server";
 import { registerPostMcpServerOauthDisconnect } from "./routes/post-mcp-server-oauth-disconnect";
@@ -156,6 +157,7 @@ export const createApp: () => express.Application = () => {
   registerGetWorkspaceAgents(app);
   registerPostWorkspaceAgents(app);
   registerPostGeneratePrompt(app);
+  registerPostFileUploadUrl(app);
   registerGetWorkspaceAgent(app);
   registerPutWorkspaceAgent(app);
   registerDeleteWorkspaceAgent(app);

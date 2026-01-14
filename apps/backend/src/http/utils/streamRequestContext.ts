@@ -228,6 +228,65 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
       convertedMessages = convertAiSdkUIMessagesToUIMessages(messages);
     }
 
+    // Validate file parts contain URLs, not base64/data URLs
+    for (const msg of convertedMessages) {
+      if (msg.role === "user" && Array.isArray(msg.content)) {
+        for (const part of msg.content) {
+          if (part && typeof part === "object" && "type" in part) {
+            const partType = part.type;
+            // Validate file type
+            if (partType === "file" && "file" in part) {
+              const filePart = part as { type: "file"; file: unknown };
+              const fileUrl = filePart.file;
+              if (typeof fileUrl === "string") {
+                // Reject base64/data URLs
+                if (
+                  fileUrl.startsWith("data:") ||
+                  fileUrl.startsWith("data;")
+                ) {
+                  throw badRequest(
+                    "Inline file data (base64/data URLs) is not allowed. Files must be uploaded to S3 first."
+                  );
+                }
+                // Ensure it's a valid URL
+                if (
+                  !fileUrl.startsWith("http://") &&
+                  !fileUrl.startsWith("https://")
+                ) {
+                  throw badRequest(
+                    "File URL must be a valid HTTP/HTTPS URL"
+                  );
+                }
+              }
+            }
+            // Validate image type (schema also allows type: "image" with "image" property)
+            else if ("image" in part && typeof part.image === "string") {
+              const imagePart = part as { type: string; image: string };
+              const imageUrl = imagePart.image;
+              // Reject base64/data URLs
+              if (
+                imageUrl.startsWith("data:") ||
+                imageUrl.startsWith("data;")
+              ) {
+                throw badRequest(
+                  "Inline image data (base64/data URLs) is not allowed. Images must be uploaded to S3 first."
+                );
+              }
+              // Ensure it's a valid URL
+              if (
+                !imageUrl.startsWith("http://") &&
+                !imageUrl.startsWith("https://")
+              ) {
+                throw badRequest(
+                  "Image URL must be a valid HTTP/HTTPS URL"
+                );
+              }
+            }
+          }
+        }
+      }
+    }
+
     // Get the last user message for uiMessage (for logging)
     // Use converted messages to ensure proper format
     const lastUserMessage = convertedMessages

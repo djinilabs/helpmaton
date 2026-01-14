@@ -38,7 +38,56 @@ const options = {
 function pkg({
   cloudformation,
 }) {
-  // no changes
+  const { Resources } = cloudformation;
+  const bucketName = process.env.HELPMATON_S3_BUCKET || 'workspace.documents';
+
+  // Find or create S3 bucket resource
+  // Architect may create the bucket automatically, so we need to find it or create it
+  let bucketResourceId = null;
+  for (const [resourceId, resource] of Object.entries(Resources)) {
+    if (
+      resource.Type === 'AWS::S3::Bucket' &&
+      resource.Properties &&
+      (resource.Properties.BucketName === bucketName ||
+        resource.Properties.BucketName === undefined)
+    ) {
+      bucketResourceId = resourceId;
+      break;
+    }
+  }
+
+  // If bucket doesn't exist, create it
+  if (!bucketResourceId) {
+    bucketResourceId = 'ConversationFilesBucket';
+    Resources[bucketResourceId] = {
+      Type: 'AWS::S3::Bucket',
+      Properties: {
+        BucketName: bucketName,
+      },
+    };
+  }
+
+  // Add lifecycle configuration to bucket
+  const lifecycleConfigId = 'ConversationFilesLifecycleConfiguration';
+  Resources[lifecycleConfigId] = {
+    Type: 'AWS::S3::BucketLifecycleConfiguration',
+    Properties: {
+      Bucket: { Ref: bucketResourceId },
+      Rules: [
+        {
+          Id: 'DeleteConversationFilesAfter30Days',
+          Status: 'Enabled',
+          Prefix: 'conversation-files/',
+          ExpirationInDays: 30,
+        },
+      ],
+    },
+  };
+
+  console.log(
+    `[s3] Added lifecycle policy for conversation-files/ prefix (30 days expiration)`
+  );
+
   return cloudformation;
 }
 

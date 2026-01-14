@@ -120,8 +120,6 @@ const config = {
   external: [
     // AWS SDK v3 - available in Lambda runtime
     '@aws-sdk/*',
-    // AWS SDK v2 - available in Lambda runtime
-    'aws-sdk',
     // Lambda runtime
     'awslambda',
     // LanceDB native modules - resolved at runtime in Lambda container
