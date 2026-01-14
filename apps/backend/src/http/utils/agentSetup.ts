@@ -308,7 +308,8 @@ export async function setupAgentAndTools(
       options?.context,
       options?.conversationId
     );
-    tools.check_delegation_status = createCheckDelegationStatusTool(workspaceId);
+    tools.check_delegation_status =
+      createCheckDelegationStatusTool(workspaceId);
   }
 
   // Add MCP server tools if agent has enabled MCP servers

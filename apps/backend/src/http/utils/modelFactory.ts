@@ -59,9 +59,7 @@ function getSystemApiKey(): string {
       Object.keys(process.env)
         .filter(
           (k) =>
-            k.includes("OPENROUTER") ||
-            k.includes("API") ||
-            k.includes("KEY")
+            k.includes("OPENROUTER") || k.includes("API") || k.includes("KEY")
         )
         .join(", ")
     );

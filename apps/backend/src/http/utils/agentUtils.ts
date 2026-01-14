@@ -1026,7 +1026,8 @@ export async function callAgentInternal(
         conversationPk
       );
       if (existingConversation && existingConversation.messages) {
-        existingConversationMessages = existingConversation.messages as UIMessage[];
+        existingConversationMessages =
+          existingConversation.messages as UIMessage[];
       }
     } catch (error) {
       // If conversation doesn't exist yet or fetch fails, that's okay - we'll create new knowledge injection
@@ -1054,9 +1055,12 @@ export async function callAgentInternal(
   );
 
   const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
-  const knowledgeInjectionMessage = knowledgeInjectionResult.knowledgeInjectionMessage;
-  const rerankingRequestMessage = knowledgeInjectionResult.rerankingRequestMessage;
-  const rerankingResultMessage = knowledgeInjectionResult.rerankingResultMessage;
+  const knowledgeInjectionMessage =
+    knowledgeInjectionResult.knowledgeInjectionMessage;
+  const rerankingRequestMessage =
+    knowledgeInjectionResult.rerankingRequestMessage;
+  const rerankingResultMessage =
+    knowledgeInjectionResult.rerankingResultMessage;
 
   let reservationId: string | undefined;
   let llmCallAttempted = false;
@@ -1128,9 +1132,7 @@ export async function callAgentInternal(
 
     try {
       result = await generateText({
-        model: model as unknown as Parameters<
-          typeof generateText
-        >[0]["model"],
+        model: model as unknown as Parameters<typeof generateText>[0]["model"],
         system: targetAgent.systemPrompt,
         messages: modelMessagesWithKnowledge,
         tools,
@@ -1316,7 +1318,7 @@ export async function callAgentInternal(
           : String(conversationError);
       const errorName =
         conversationError instanceof Error ? conversationError.name : "Error";
-      
+
       console.error(
         "[callAgentInternal] Error creating conversation for target agent:",
         {
@@ -1326,7 +1328,7 @@ export async function callAgentInternal(
           targetAgentId,
         }
       );
-      
+
       // Preserve the original error if it's already an Error instance
       // This helps with error classification (retryable vs permanent)
       if (conversationError instanceof Error) {
@@ -1338,7 +1340,7 @@ export async function callAgentInternal(
         wrappedError.cause = conversationError;
         throw wrappedError;
       }
-      
+
       // Re-throw with context for non-Error values
       throw new Error(
         `Failed to create conversation for target agent: ${errorMessage}`
