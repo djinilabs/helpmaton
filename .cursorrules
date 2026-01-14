@@ -68,3 +68,11 @@ After completing a task (or significant step), you must:
 ## Back-end body schema validation
 
 9. All back-end requests that have a JSON body need to be validated against a Zod schema that is strict, making sure not only that the supplied body has the expected shape, but also that it does not have any extra fields before we start processing the request.
+
+## Pull Request review
+
+10. When asked to process a pull request review, use the `scripts/show-pr-comments.sh <PR NUMBER>` script to read all the comments and then, for each comment:
+
+- use your vast knowledge about the Helpmaton product and code base to decide if the comment makes sense.
+- if the comment makes sense, explain why, and then make the required changes.
+- if the comment does not make sense, explain why, and then ignore it.
