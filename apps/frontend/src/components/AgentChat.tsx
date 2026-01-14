@@ -14,7 +14,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { useAgentOptional } from "../hooks/useAgents";
-import { getAccessToken } from "../utils/api";
+import { apiFetch, getAccessToken } from "../utils/api";
 import { getDefaultAvatar } from "../utils/avatarUtils";
 import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
@@ -426,35 +426,24 @@ export const AgentChat: FC<AgentChatProps> = ({
           : undefined;
 
       // Request presigned URL from backend
-      const baseUrl = api?.startsWith("http")
-        ? new URL(api).origin
-        : window.location.origin;
-      const uploadUrlEndpoint = `${baseUrl}/api/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}/files/upload-url`;
-
+      // Always use same origin for API requests (Vite proxy handles routing in local dev)
+      // Use apiFetch which automatically handles Authorization header via global fetch override
       const accessToken = getAccessToken();
-      const headers: HeadersInit = {
-        "Content-Type": "application/json",
-      };
-      if (accessToken) {
-        headers.Authorization = `Bearer ${accessToken}`;
+      if (!accessToken) {
+        throw new Error("Access token is required for file upload");
       }
 
-      const presignedResponse = await fetch(uploadUrlEndpoint, {
-        method: "POST",
-        headers,
-        credentials: api?.startsWith("http") ? "omit" : "include",
-        body: JSON.stringify({
-          contentType: file.type,
-          fileExtension,
-        }),
-      });
-
-      if (!presignedResponse.ok) {
-        const errorData = await presignedResponse.json().catch(() => ({}));
-        throw new Error(
-          errorData.error || errorData.message || "Failed to get upload URL"
-        );
-      }
+      // apiFetch automatically throws on non-ok responses, so we can directly parse JSON
+      const presignedResponse = await apiFetch(
+        `/api/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}/files/upload-url`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            contentType: file.type,
+            fileExtension,
+          }),
+        }
+      );
 
       const presignedData = await presignedResponse.json();
       const { uploadUrl, fields, finalUrl } = presignedData;

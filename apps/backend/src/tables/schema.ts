@@ -115,7 +115,9 @@ export const tableSchemas = {
     maxOutputTokens: z.number().int().positive().optional(), // max output tokens (positive integer)
     stopSequences: z.array(z.string()).optional(), // stop sequences (array of strings)
     maxToolRoundtrips: z.number().int().positive().optional(), // max tool roundtrips (positive integer, default 5)
-    provider: z.enum(["google", "openai", "anthropic"]).default("google"), // provider name (only "google" supported)
+    // Accept legacy providers for backward compatibility, but default to "openrouter"
+    // Legacy agents with provider="google" will still validate correctly
+    provider: z.enum(["google", "openai", "anthropic", "openrouter"]).default("openrouter"), // provider name (only "openrouter" supported, but legacy values accepted)
     modelName: z.string().optional(), // model name (e.g., "gemini-2.5-flash")
     clientTools: z
       .array(

@@ -9,6 +9,7 @@
 1. **File Attachments in Conversations**: Implemented comprehensive support for file attachments (any file type) in agent conversations using AI SDK v6 multi-modal inputs.
 
    - **Architecture Overview**:
+
      - Files are uploaded directly to S3 by clients using presigned POST URLs (no backend file handling)
      - Files stored in nested S3 path: `conversation-files/{workspaceId}/{agentId}/{conversationId}/{high-entropy-filename}.{ext}`
      - Automatic 30-day expiration via S3 lifecycle policies (no DynamoDB metadata storage)
@@ -16,6 +17,7 @@
      - Files must be S3 URLs in messages (no base64/data URLs allowed)
 
    - **Backend Implementation**:
+
      - **Presigned URL Endpoint**: `POST /api/workspaces/:workspaceId/agents/:agentId/conversations/:conversationId/files/upload-url`
        - Generates presigned S3 POST URL with 5-minute expiration
        - Validates request body (contentType, optional fileExtension)
@@ -38,6 +40,7 @@
        - Converts file parts to AI SDK format (ImagePart for images, FilePart for others)
 
    - **Frontend Implementation** (`components/AgentChat.tsx`):
+
      - File input with paperclip icon for file selection
      - Parallel file uploads using `Promise.all()` for better UX
      - Image preview generation using `URL.createObjectURL()`
@@ -48,12 +51,14 @@
      - Includes file URLs in message parts when sending to backend
 
    - **AWS SDK Migration**:
+
      - Migrated from AWS SDK v2 to AWS SDK v3 for presigned POST URL generation
      - Uses `@aws-sdk/client-s3` and `@aws-sdk/s3-presigned-post` packages
      - AWS SDK v2 (`aws-sdk`) still bundled for legacy table support (`@architect/functions`)
      - AWS SDK v3 marked as external in esbuild config (available in Lambda runtime)
 
    - **Security & Validation**:
+
      - Strict Zod schema validation for upload URL requests
      - Content-Type validation in presigned POST conditions
      - File size limits enforced at S3 level
@@ -61,6 +66,7 @@
      - CORS properly configured for widget support
 
    - **Testing**:
+
      - Unit tests for `generatePresignedPostUrl()` covering all scenarios
      - Unit tests for file upload URL endpoint (validation, auth, CORS)
      - Tests verify high-entropy filename generation
