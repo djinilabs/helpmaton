@@ -76,16 +76,14 @@ function pkg({
     };
   } else {
     // If bucket exists, ensure BlockPublicAccess allows public policies
-    // Note: We can't modify BlockPublicAccess if it's already set, but we'll add it if missing
+    // We need to update it to allow public bucket policies
     const existingBucket = Resources[bucketResourceId];
-    if (!existingBucket.Properties.PublicAccessBlockConfiguration) {
-      existingBucket.Properties.PublicAccessBlockConfiguration = {
-        BlockPublicAcls: true,
-        IgnorePublicAcls: true,
-        BlockPublicPolicy: false,
-        RestrictPublicBuckets: false,
-      };
-    }
+    existingBucket.Properties.PublicAccessBlockConfiguration = {
+      BlockPublicAcls: true,
+      IgnorePublicAcls: true,
+      BlockPublicPolicy: false, // Allow public bucket policies (required for our bucket policy)
+      RestrictPublicBuckets: false, // Allow public access via bucket policy (required for our bucket policy)
+    };
   }
 
   // Add lifecycle configuration to bucket
