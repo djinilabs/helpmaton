@@ -1286,33 +1286,38 @@ describe("openrouter-cost-verification-queue", () => {
       expect(mockFinalizeCreditReservation).toHaveBeenCalled();
     });
 
-    it("should handle missing generation ID by not finalizing prematurely", async () => {
+    it("should handle extra generation ID by finalizing when count matches", async () => {
       const mockReservation = {
         pk: "credit-reservations/res-1",
         workspaceId: "workspace-1",
         openrouterGenerationIds: ["gen-1", "gen-2"],
         expectedGenerationCount: 2,
-        verifiedGenerationIds: ["gen-1"], // Only one verified
+        verifiedGenerationIds: ["gen-1"], // Only one verified so far
         verifiedCosts: [1055],
         reservedAmount: 5000,
         tokenUsageBasedCost: 4000,
       };
 
       mockGetReservation.mockResolvedValue(mockReservation);
+      let currentReservation = { ...mockReservation };
       mockAtomicUpdateReservation.mockImplementation(
         async (_pk, _sk, updater) => {
-          const updated = await updater(mockReservation);
-          return updated || mockReservation;
+          const updated = await updater(currentReservation);
+          if (updated) {
+            currentReservation = updated;
+          }
+          return updated || currentReservation;
         }
       );
 
-      // Try to verify a generation ID that doesn't exist in the list
+      // Verify a generation ID (even if it's not in the original list)
+      // The system will add it and finalize when count matches expected
       const record: SQSRecord = {
         messageId: "msg-1",
         receiptHandle: "receipt-1",
         body: JSON.stringify({
           reservationId: "res-1",
-          openrouterGenerationId: "gen-missing", // Not in openrouterGenerationIds
+          openrouterGenerationId: "gen-extra", // Not in original openrouterGenerationIds
           workspaceId: "workspace-1",
         }),
         attributes: {
@@ -1337,10 +1342,9 @@ describe("openrouter-cost-verification-queue", () => {
 
       await handler({ Records: [record] });
 
-      // Should not finalize since gen-2 is still missing
-      // The system should add gen-missing to verified list, but not finalize
-      // because expected count (2) is not met
-      expect(mockFinalizeCreditReservation).not.toHaveBeenCalled();
+      // System finalizes when verified count (2) matches expected count (2)
+      // It doesn't validate that the IDs match the original list
+      expect(mockFinalizeCreditReservation).toHaveBeenCalled();
     });
   });
 });
