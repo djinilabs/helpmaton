@@ -20,34 +20,6 @@ export const UsageChart: FC<UsageChartProps> = ({
   const isDark = theme === "dark";
   const currency = "usd";
   const [selectedMetric, setSelectedMetric] = useState<ChartMetric>("cost");
-  
-  if (data.length === 0) {
-    return (
-      <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-        <h3 className="mb-6 text-xl font-semibold text-neutral-900 dark:text-neutral-50">{title}</h3>
-        <p className="text-lg text-neutral-600 dark:text-neutral-300">No data available</p>
-      </div>
-    );
-  }
-
-  // Calculate max value based on selected metric
-  const maxValue = (() => {
-    switch (selectedMetric) {
-      case "cost":
-        return Math.max(...data.map((d: DailyUsageData) => d.cost), 0);
-      case "conversations":
-        return Math.max(...data.map((d: DailyUsageData) => d.conversationCount || 0), 0);
-      case "messagesIn":
-        return Math.max(...data.map((d: DailyUsageData) => d.messagesIn || 0), 0);
-      case "messagesOut":
-        return Math.max(...data.map((d: DailyUsageData) => d.messagesOut || 0), 0);
-      case "totalMessages":
-        return Math.max(...data.map((d: DailyUsageData) => d.totalMessages || 0), 0);
-      default:
-        return 0;
-    }
-  })();
-  
   const parentContainerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState<number>(0);
@@ -75,6 +47,33 @@ export const UsageChart: FC<UsageChartProps> = ({
       resizeObserver.disconnect();
     };
   }, []);
+  
+  if (data.length === 0) {
+    return (
+      <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+        <h3 className="mb-6 text-xl font-semibold text-neutral-900 dark:text-neutral-50">{title}</h3>
+        <p className="text-lg text-neutral-600 dark:text-neutral-300">No data available</p>
+      </div>
+    );
+  }
+
+  // Calculate max value based on selected metric
+  const maxValue = (() => {
+    switch (selectedMetric) {
+      case "cost":
+        return Math.max(...data.map((d: DailyUsageData) => d.cost), 0);
+      case "conversations":
+        return Math.max(...data.map((d: DailyUsageData) => d.conversationCount || 0), 0);
+      case "messagesIn":
+        return Math.max(...data.map((d: DailyUsageData) => d.messagesIn || 0), 0);
+      case "messagesOut":
+        return Math.max(...data.map((d: DailyUsageData) => d.messagesOut || 0), 0);
+      case "totalMessages":
+        return Math.max(...data.map((d: DailyUsageData) => d.totalMessages || 0), 0);
+      default:
+        return 0;
+    }
+  })();
 
   const chartHeight = 200;
   const spacePerDay = 20; // Reduced from 40 to make chart more compact
@@ -101,7 +100,6 @@ export const UsageChart: FC<UsageChartProps> = ({
   const textColor = isDark ? "#9ca3af" : "#6b7280";
   const valueTextColor = isDark ? "#e5e7eb" : "#374151";
   const axisLabelColor = isDark ? "#d1d5db" : "#000";
-  const svgBorderColor = isDark ? "#4b5563" : "#d1d3d4";
 
   const formatValue = (value: number): string => {
     if (selectedMetric === "cost") {
@@ -168,7 +166,7 @@ export const UsageChart: FC<UsageChartProps> = ({
   };
 
   return (
-    <div ref={parentContainerRef} className="rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900 overflow-visible">
+    <div ref={parentContainerRef} className="overflow-visible rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">{title}</h3>
         <select
