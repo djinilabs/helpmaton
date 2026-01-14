@@ -2,11 +2,110 @@
 
 ## Current Status
 
-**Status**: File Attachments in Conversations - Complete ✅
+**Status**: Fixed Usage Statistics Discrepancies - Complete ✅
 
 **Latest Work**:
 
-1. **File Attachments in Conversations**: Implemented comprehensive support for file attachments (any file type) in agent conversations using AI SDK v6 multi-modal inputs.
+1. **Fixed Usage Statistics Discrepancies**: Resolved multiple issues with usage statistics aggregation that were causing incorrect token counts, model attribution, and cost reporting.
+
+   - **Issues Fixed**:
+     - **Model Attribution**: Tokens were being attributed to "unknown" instead of actual models (e.g., "google/gemini-3-flash-preview")
+       - **Root Cause**: Code was using deprecated `conv.modelName` field which was often missing
+       - **Fix**: Extract model names from assistant messages in conversations instead
+       - **Implementation**: Find most common model used in assistant messages per conversation
+     - **Total Tokens Mismatch**: Input + Output tokens didn't match Total tokens
+       - **Root Cause**: `totalTokens` includes cached tokens and reasoning tokens, but calculation didn't account for them
+       - **Fix**: Updated calculation to include cached tokens and reasoning tokens when computing total from components
+     - **Cost Attribution**: Costs showing as $0 for models that should have costs
+       - **Root Cause**: Costs were being aggregated from transactions, but model name format mismatch prevented proper attribution
+       - **Fix**: Changed to use `costUsd` field directly from conversation records (which already contains the calculated cost)
+     - **Model Name Format Mismatch**: Model names in conversations had provider prefix (e.g., "google/gemini-3-flash-preview") while transactions had no prefix (e.g., "gemini-3-flash-preview")
+       - **Root Cause**: Different sources storing model names in different formats
+       - **Fix**: Created `normalizeModelNameForAggregation()` function to remove provider prefix, ensuring consistent model name matching across all aggregation sources
+     - **Empty Entries**: "unknown" model/provider showing with 0 tokens
+       - **Fix**: Filter out models/providers with `totalTokens === 0` before returning response
+
+   - **Backend Changes** (`apps/backend/src/utils/aggregation.ts`):
+     - Added `normalizeModelNameForAggregation()` function to remove provider prefix from model names
+     - Updated `aggregateConversations()`:
+       - Extract model names from assistant messages instead of deprecated `conv.modelName`
+       - Normalize model names to remove provider prefix
+       - Use `conv.costUsd` field directly for cost aggregation (instead of transactions)
+       - Include cached tokens and reasoning tokens in total tokens calculation
+     - Updated `aggregateTransactionsStream()`:
+       - Normalize model names from transactions to match conversation format
+       - Use original model name (before normalization) for provider extraction
+     - Updated `aggregateAggregates()`:
+       - Normalize model names from aggregate records
+     - Updated API endpoint (`apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-usage.ts`):
+       - Filter out models/providers with 0 tokens from response
+
+   - **Key Improvements**:
+     - Model names are now correctly extracted from messages and normalized consistently
+     - Costs are correctly attributed to models using the `costUsd` field from conversation records
+     - Total tokens calculation properly accounts for cached and reasoning tokens
+     - Empty entries are filtered out from the response
+     - All model/provider breakdowns use consistent normalized model names
+
+   - **Testing**:
+     - Type checking passes
+     - Linting clean
+     - Debug logging added for troubleshooting model name normalization and cost attribution
+
+   - **Result**: Usage statistics now correctly show:
+     - Tokens attributed to correct models (not "unknown")
+     - Costs correctly attributed to models that actually incurred costs
+     - Total tokens properly calculated (may be higher than Input + Output due to cached/reasoning tokens, which is expected)
+     - No empty entries in model/provider breakdowns
+
+2. **Enhanced Usage Analytics Dashboard**: Redesigned the usage/cost tracking UI to provide a holistic view of agent usage, including conversation counts, tool call metrics, and enhanced visualizations.
+
+1. **Enhanced Usage Analytics Dashboard**: Redesigned the usage/cost tracking UI to provide a holistic view of agent usage, including conversation counts, tool call metrics, and enhanced visualizations.
+
+   - **Backend Changes**:
+     - Added `conversationCount` field to `UsageStats` interface and all aggregation functions
+     - Created `extractSupplierFromModelName()` helper function to parse `{supplier}/{model}` format (e.g., "openai/gpt-4" → "openai")
+     - Updated `aggregateConversations()` to count conversations and extract supplier from model name (not "openrouter") for provider grouping
+     - Updated `aggregateTransactionsStream()` to extract supplier from model name for text/embedding generation transactions
+     - Updated `aggregateAggregates()` to read conversation counts from aggregate records and handle supplier extraction
+     - Updated `mergeUsageStats()` to merge conversation counts
+     - Added `conversationCount` to `token-usage-aggregates` schema
+     - Updated scheduled aggregation task to count unique conversations per workspace/agent/user/date and extract supplier from model names
+     - Updated all API endpoints (agent, workspace, user, daily) to include `conversationCount` in responses
+     - Fixed conversation key format consistency (includes userId as empty string for conversations to match aggregateAggregates format)
+     - Improved edge case handling in `extractSupplierFromModelName()` with proper trimming and length checks
+
+   - **Frontend Changes**:
+     - Added `conversationCount` to `UsageStats` and `DailyUsageData` TypeScript interfaces
+     - Enhanced `UsageStats` component:
+       - Added conversation count card to stats grid (5 cards total)
+       - Added tool usage section grouped by supplier with expandable/collapsible sections
+       - Shows call count and cost for each tool
+       - Updated description to mention conversations and tool usage
+     - Enhanced `UsageChart` component:
+       - Added metric selector (dropdown) to switch between Cost and Conversations
+       - Chart adapts to selected metric with proper formatting
+       - Updated descriptions based on selected metric
+     - Updated `UsageDashboard` component to use proper types and updated description
+
+   - **Key Improvements**:
+     - Users can now see conversation counts alongside token usage and costs
+     - Tool usage is displayed grouped by supplier (tavily, exa, etc.) with call counts and costs
+     - Time-series chart supports switching between viewing costs and conversations over time
+     - Provider breakdowns now show actual AI model suppliers (openai, google, anthropic, etc.) instead of "openrouter"
+     - Historical data (from aggregates) includes conversation counts for dates older than 7 days
+
+   - **Testing**:
+     - Updated test mocks to include `extractSupplierFromModelName` function
+     - Updated test data to use `{supplier}/{model}` format for model names
+     - All 2545 tests passing
+     - Type checking and linting clean
+
+   - **PR Review Fixes**:
+     - Fixed conversation key format inconsistency (Comments 1 & 2)
+     - Improved edge case handling in supplier extraction (Comment 3)
+
+2. **File Attachments in Conversations**: Implemented comprehensive support for file attachments (any file type) in agent conversations using AI SDK v6 multi-modal inputs.
 
    - **Architecture Overview**:
 
