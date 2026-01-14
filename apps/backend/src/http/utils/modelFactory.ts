@@ -199,6 +199,13 @@ export async function createModel(
     usage: {
       include: true,
     },
+    // Enable image generation modality (in addition to text)
+    // This allows models that support image generation to generate images
+    // Models that don't support it will ignore this and only generate text
+    // Pass modalities via extraBody to merge into the request body at the top level
+    extraBody: {
+      modalities: ["image", "text"],
+    },
   };
 
   // Apply agent config advanced options if provided

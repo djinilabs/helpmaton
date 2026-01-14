@@ -898,6 +898,19 @@ export const AgentChat: FC<AgentChatProps> = ({
                               p: ({ children }) => (
                                 <p className="mb-2 last:mb-0">{children}</p>
                               ),
+                              img: ({ src, alt, ...props }) => (
+                                <img
+                                  src={src}
+                                  alt={alt || "Generated image"}
+                                  className="mt-2 max-h-96 max-w-full rounded-lg border-2 border-neutral-300 object-contain dark:border-neutral-700"
+                                  onError={(e) => {
+                                    // Handle image load errors
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = "none";
+                                  }}
+                                  {...props}
+                                />
+                              ),
                             }}
                           >
                             {textPart.text}
