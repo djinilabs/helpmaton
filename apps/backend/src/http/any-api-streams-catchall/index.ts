@@ -231,7 +231,8 @@ const internalHandler = async (
       executionResult.streamResult,
       executionResult.generationTimeMs,
       executionResult.generationStartedAt,
-      executionResult.generationEndedAt
+      executionResult.generationEndedAt,
+      executionResult.eventTimestamps
     );
 
     // Track stream endpoint call

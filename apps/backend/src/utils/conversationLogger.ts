@@ -1241,7 +1241,7 @@ export function expandMessagesWithToolCalls(
 
   for (const message of messages) {
     if (message.role === "assistant" && Array.isArray(message.content)) {
-      // Extract tool calls and tool results from this assistant message
+      // Extract tool calls, tool results, reasoning, and text from this assistant message
       const toolCallsInMessage: Array<{
         type: "tool-call";
         toolCallId: string;
@@ -1257,9 +1257,10 @@ export function expandMessagesWithToolCalls(
         toolExecutionTimeMs?: number;
         costUsd?: number;
       }> = [];
+      const reasoningParts: Array<{ type: "reasoning"; text: string }> = [];
       const textParts: Array<{ type: "text"; text: string }> = [];
 
-      // Separate content into tool calls, tool results, and text
+      // Separate content into tool calls, tool results, reasoning, and text
       for (const item of message.content) {
         if (typeof item === "object" && item !== null && "type" in item) {
           if (item.type === "tool-call") {
@@ -1314,6 +1315,11 @@ export function expandMessagesWithToolCalls(
                 }),
               });
             }
+          } else if (item.type === "reasoning" && "text" in item) {
+            const reasoningItem = item as { text?: unknown };
+            if (typeof reasoningItem.text === "string") {
+              reasoningParts.push({ type: "reasoning", text: reasoningItem.text });
+            }
           } else if (item.type === "text" && "text" in item) {
             const textItem = item as { text?: unknown };
             if (typeof textItem.text === "string") {
@@ -1341,22 +1347,12 @@ export function expandMessagesWithToolCalls(
         }
 
         // Add tool call messages (as separate assistant messages with just tool calls)
-        // Tool call message spans from when LLM started until it decided to call the tool
+        // Use timestamps directly from tool call or message
         for (const toolCall of toolCallsInMessage) {
           const toolCallStartedAt = toolCall.toolCallStartedAt;
           // Tool call message starts when LLM generation started, ends when tool call was decided
           const toolCallMessageStart = message.generationStartedAt || toolCallStartedAt;
-          let toolCallMessageEnd = toolCallStartedAt || message.generationStartedAt;
-          
-          // Ensure there's at least a minimal duration if start and end are the same
-          if (toolCallMessageStart && toolCallMessageEnd) {
-            const startTime = new Date(toolCallMessageStart).getTime();
-            const endTime = new Date(toolCallMessageEnd).getTime();
-            if (endTime <= startTime) {
-              // If end is same or before start, add minimum duration
-              toolCallMessageEnd = new Date(startTime + 1).toISOString();
-            }
-          }
+          const toolCallMessageEnd = toolCallStartedAt || message.generationStartedAt;
           
           expandedMessages.push({
             role: "assistant",
@@ -1368,24 +1364,26 @@ export function expandMessagesWithToolCalls(
         }
 
         // Add tool result messages (as tool role messages)
-        // Tool execution starts right after tool call decision, ends when execution completes
+        // Use timestamps directly from tool call and execution time
+        // Track tool result end times for calculating text generation start
+        const toolResultEndTimes: string[] = [];
         for (const toolResult of toolResultsInMessage) {
           const entry = toolCallMap.get(toolResult.toolCallId);
           const toolCall = entry?.toolCall;
           const toolCallStartedAt = toolCall?.toolCallStartedAt;
           
-          // Calculate timestamps for tool result
+          // Calculate timestamps for tool result based on tool call start and execution time
           let toolResultStartedAt: string | undefined;
           let toolResultEndedAt: string | undefined;
           
           if (toolCallStartedAt) {
             const callStartTime = new Date(toolCallStartedAt).getTime();
-            // Tool execution starts right after tool call decision (1ms after)
-            toolResultStartedAt = new Date(callStartTime + 1).toISOString();
+            // Tool execution starts when tool call was decided
+            toolResultStartedAt = toolCallStartedAt;
             
             if (toolResult.toolExecutionTimeMs !== undefined) {
               // Tool execution ends after the execution time
-              const executionEndTime = callStartTime + 1 + toolResult.toolExecutionTimeMs;
+              const executionEndTime = callStartTime + toolResult.toolExecutionTimeMs;
               toolResultEndedAt = new Date(executionEndTime).toISOString();
             } else {
               // If no execution time, use start time as end time (instantaneous)
@@ -1393,63 +1391,57 @@ export function expandMessagesWithToolCalls(
             }
           }
 
-          expandedMessages.push({
+          const toolResultMessage: UIMessage = {
             role: "tool",
             content: [toolResult],
             ...(awsRequestId && { awsRequestId }),
             ...(toolResultStartedAt && { generationStartedAt: toolResultStartedAt }),
             ...(toolResultEndedAt && { generationEndedAt: toolResultEndedAt }),
-          });
+          };
+          
+          expandedMessages.push(toolResultMessage);
+          
+          // Track the end time for calculating text generation start
+          if (toolResultEndedAt) {
+            toolResultEndTimes.push(toolResultEndedAt);
+          }
         }
 
-        // If there's text content, create a separate assistant message with only text
+        // If there's reasoning or text content, create a separate assistant message
         // This avoids duplicating tool calls/results which are already in separate messages
-        if (textParts.length > 0) {
-          // Calculate when text generation should start (after all tool executions complete)
+        if (reasoningParts.length > 0 || textParts.length > 0) {
+          // Calculate when text/reasoning generation should start (after all tool executions complete)
           let textGenerationStartedAt: string | undefined;
-          let textGenerationEndedAt: string | undefined;
+          const textGenerationEndedAt = message.generationEndedAt;
           
-          // Find the latest tool execution end time
-          let latestToolEndTime: number | undefined;
-          for (const toolResult of toolResultsInMessage) {
-            if (toolResult.toolExecutionTimeMs !== undefined) {
-              const toolCall = toolCallMap.get(toolResult.toolCallId)?.toolCall;
-              if (toolCall?.toolCallStartedAt) {
-                const callStartTime = new Date(toolCall.toolCallStartedAt).getTime();
-                // Tool execution starts 1ms after tool call decision, ends after execution time
-                const executionEndTime = callStartTime + 1 + toolResult.toolExecutionTimeMs;
-                if (!latestToolEndTime || executionEndTime > latestToolEndTime) {
-                  latestToolEndTime = executionEndTime;
-                }
+          // Find the latest tool execution end time from the tool result messages we created
+          // Use the toolResultEndTimes we tracked when creating tool result messages
+          if (toolResultEndTimes.length > 0) {
+            // Find the latest end time (most recent)
+            let latestEndTime: number | undefined;
+            let latestEndTimeString: string | undefined;
+            for (const endTimeString of toolResultEndTimes) {
+              const endTime = new Date(endTimeString).getTime();
+              if (!latestEndTime || endTime > latestEndTime) {
+                latestEndTime = endTime;
+                latestEndTimeString = endTimeString;
               }
             }
-          }
-          
-          // Text generation starts when tool execution completes
-          // Text generation ends when the original message ended (when LLM finished generating text)
-          if (latestToolEndTime && message.generationEndedAt) {
-            textGenerationStartedAt = new Date(latestToolEndTime).toISOString();
-            const endTime = new Date(message.generationEndedAt).getTime();
-            // Ensure end time is after start time
-            let actualEndTime = Math.max(latestToolEndTime, endTime);
-            // If end time equals start time (shouldn't happen, but ensure minimum duration), add minimum
-            if (actualEndTime === latestToolEndTime) {
-              actualEndTime = latestToolEndTime + 100; // Minimum 100ms duration
-            }
-            textGenerationEndedAt = new Date(actualEndTime).toISOString();
-          } else if (latestToolEndTime) {
-            // If we have tool execution end time but no message end time, use minimum duration
-            textGenerationStartedAt = new Date(latestToolEndTime).toISOString();
-            textGenerationEndedAt = new Date(latestToolEndTime + 100).toISOString();
+            textGenerationStartedAt = latestEndTimeString;
           } else {
-            // Fallback to original timestamps if no tool execution times
+            // No tool executions, use message start time
             textGenerationStartedAt = message.generationStartedAt;
-            textGenerationEndedAt = message.generationEndedAt;
           }
           
+          // Combine reasoning and text parts
+          const reasoningAndTextContent: Array<
+            | { type: "text"; text: string }
+            | { type: "reasoning"; text: string }
+          > = [...reasoningParts, ...textParts];
+
           const textOnlyMessage: UIMessage = {
             role: "assistant",
-            content: textParts,
+            content: reasoningAndTextContent,
             ...(awsRequestId && { awsRequestId }),
             // Preserve other metadata from the original message
             ...(message.tokenUsage && { tokenUsage: message.tokenUsage }),
@@ -1467,7 +1459,7 @@ export function expandMessagesWithToolCalls(
             ...(message.openrouterGenerationId && {
               openrouterGenerationId: message.openrouterGenerationId,
             }),
-            // Use calculated timestamps for sequential ordering
+            // Use calculated timestamps
             ...(textGenerationStartedAt && {
               generationStartedAt: textGenerationStartedAt,
             }),

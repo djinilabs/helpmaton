@@ -5,6 +5,9 @@ import type { setupAgentAndTools } from "../../http/utils/agentSetup";
 import { Sentry, ensureError } from "../../utils/sentry";
 
 import { prepareLLMCall } from "./generationLLMSetup";
+import type {
+  StreamEventTimestamps,
+} from "./streamEventTracking";
 import {
   writeChunkToStream,
   type HttpResponseStream,
@@ -22,7 +25,8 @@ export async function pipeAIStreamToResponse(
   responseStream: HttpResponseStream,
   onTextChunk: (text: string) => void,
   abortSignal?: AbortSignal,
-  onDataWritten?: () => void // Callback to notify when data is written to stream
+  onDataWritten?: () => void, // Callback to notify when data is written to stream
+  eventTracking?: StreamEventTimestamps // Optional event tracking for timestamps
 ): Promise<Awaited<ReturnType<typeof streamText>>> {
   // Prepare LLM call (logging and generate options)
   const generateOptions = prepareLLMCall(
@@ -34,6 +38,11 @@ export async function pipeAIStreamToResponse(
     "stream"
   );
 
+  // Track generation start time
+  if (eventTracking) {
+    eventTracking.generationStartedAt = new Date().toISOString();
+  }
+
   const streamResult = streamText({
     model: model as unknown as Parameters<typeof streamText>[0]["model"],
     system: agent.systemPrompt,
@@ -41,6 +50,74 @@ export async function pipeAIStreamToResponse(
     tools,
     ...generateOptions,
     ...(abortSignal && { abortSignal }),
+    ...(eventTracking && {
+      onStepStart: (step: unknown) => {
+        // Track when a step starts - this could be text generation or tool call decision
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stepAny = step as any;
+        
+        // Check if this step contains tool calls
+        if (stepAny?.toolCalls && Array.isArray(stepAny.toolCalls)) {
+          const now = new Date().toISOString();
+          for (const toolCall of stepAny.toolCalls) {
+            if (toolCall?.toolCallId) {
+              eventTracking.toolCallTimestamps.set(toolCall.toolCallId, {
+                startedAt: now,
+              });
+            }
+          }
+        }
+        
+        // If this is the first step and we haven't set text generation start, set it
+        // Text generation starts when the model begins generating (first step)
+        if (!eventTracking.textGenerationStartedAt) {
+          eventTracking.textGenerationStartedAt = new Date().toISOString();
+        }
+      },
+      onStepFinish: (step: unknown) => {
+        // Track when a step finishes - this captures tool execution times
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stepAny = step as any;
+        
+        // Check if this step contains tool results (tool execution completed)
+        if (stepAny?.toolResults && Array.isArray(stepAny.toolResults)) {
+          const now = Date.now();
+          for (const toolResult of stepAny.toolResults) {
+            if (toolResult?.toolCallId) {
+              const timestamp = eventTracking.toolCallTimestamps.get(
+                toolResult.toolCallId
+              );
+              if (timestamp?.startedAt) {
+                const startTime = new Date(timestamp.startedAt).getTime();
+                const executionTimeMs = now - startTime;
+                eventTracking.toolExecutionTimes.set(
+                  toolResult.toolCallId,
+                  executionTimeMs
+                );
+                // Update timestamp with end time
+                timestamp.endedAt = new Date(now).toISOString();
+              }
+            }
+          }
+        }
+        
+        // If this step finished and we have text, update text generation end time
+        // Text generation ends when the model finishes generating text
+        if (stepAny?.text || stepAny?.content) {
+          eventTracking.textGenerationEndedAt = new Date().toISOString();
+        }
+      },
+      onFinish: () => {
+        // Track when the entire generation finishes
+        if (eventTracking) {
+          eventTracking.generationEndedAt = new Date().toISOString();
+          // If text generation end wasn't set, set it now
+          if (!eventTracking.textGenerationEndedAt) {
+            eventTracking.textGenerationEndedAt = eventTracking.generationEndedAt;
+          }
+        }
+      },
+    }),
   });
 
   // Get the UI message stream response from streamText result

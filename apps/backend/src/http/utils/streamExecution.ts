@@ -15,6 +15,10 @@ import {
   handleStreamingError,
   handleResultExtractionError,
 } from "./streamErrorHandling";
+import {
+  createEventTracking,
+  type StreamEventTimestamps,
+} from "./streamEventTracking";
 import type { StreamRequestContext } from "./streamRequestContext";
 import type { HttpResponseStream } from "./streamResponseStream";
 
@@ -29,6 +33,7 @@ export interface StreamExecutionResult {
   generationStartedAt?: string; // ISO timestamp when generation started
   generationEndedAt?: string; // ISO timestamp when generation ended
   hasWrittenData: boolean; // Track if any data has been written to the stream
+  eventTimestamps?: StreamEventTimestamps; // Event timestamps from model events
 }
 
 /**
@@ -45,6 +50,9 @@ export async function executeStream(
   let streamResult: Awaited<ReturnType<typeof streamText>> | undefined;
   let hasWrittenData = false; // Track if any data has been written to the stream
 
+  // Create event tracking to capture timestamps from model events
+  const eventTimestamps = createEventTracking();
+  
   let generationStartTime: number | undefined;
   let generationStartedAt: string | undefined;
   let generationTimeMs: number | undefined;
@@ -66,9 +74,20 @@ export async function executeStream(
       () => {
         // Callback to track when data is actually written to the stream
         hasWrittenData = true;
-      }
+      },
+      eventTimestamps // Pass event tracking to capture model event timestamps
     );
-    if (generationStartTime !== undefined) {
+    
+    // Use event timestamps if available, otherwise fall back to manual timing
+    if (eventTimestamps.generationStartedAt) {
+      generationStartedAt = eventTimestamps.generationStartedAt;
+    }
+    if (eventTimestamps.generationEndedAt) {
+      generationEndedAt = eventTimestamps.generationEndedAt;
+      if (generationStartTime !== undefined) {
+        generationTimeMs = new Date(generationEndedAt).getTime() - generationStartTime;
+      }
+    } else if (generationStartTime !== undefined) {
       generationTimeMs = Date.now() - generationStartTime;
       generationEndedAt = new Date().toISOString();
     }
@@ -152,6 +171,7 @@ export async function executeStream(
     generationStartedAt,
     generationEndedAt,
     hasWrittenData,
+    eventTimestamps,
   };
 }
 
@@ -166,7 +186,11 @@ export async function executeStreamForApiGateway(
 ): Promise<StreamExecutionResult> {
   let fullStreamedText = "";
   const generationStartTime = Date.now();
-  const generationStartedAt = new Date().toISOString();
+  let generationStartedAt = new Date().toISOString();
+  
+  // Create event tracking for API Gateway path too
+  const eventTimestamps = createEventTracking();
+  
   const streamResult = await pipeAIStreamToResponse(
     context.agent,
     context.model,
@@ -177,15 +201,23 @@ export async function executeStreamForApiGateway(
       fullStreamedText += textDelta;
     },
     abortSignal,
-    undefined // No need to track data written for API Gateway (buffered)
+    undefined, // No need to track data written for API Gateway (buffered)
+    eventTimestamps // Pass event tracking
   );
 
   if (!streamResult) {
     throw new Error("LLM call succeeded but result is undefined");
   }
 
-  const generationTimeMs = Date.now() - generationStartTime;
-  const generationEndedAt = new Date().toISOString();
+  // Use event timestamps if available
+  if (eventTimestamps.generationStartedAt) {
+    generationStartedAt = eventTimestamps.generationStartedAt;
+  }
+  let generationEndedAt = new Date().toISOString();
+  if (eventTimestamps.generationEndedAt) {
+    generationEndedAt = eventTimestamps.generationEndedAt;
+  }
+  const generationTimeMs = new Date(generationEndedAt).getTime() - generationStartTime;
 
   // Extract text and usage
   const [responseText, usage] = await Promise.all([
@@ -212,5 +244,6 @@ export async function executeStreamForApiGateway(
     generationStartedAt,
     generationEndedAt,
     hasWrittenData: true, // For API Gateway, we assume data was written if we got here
+    eventTimestamps,
   };
 }

@@ -211,6 +211,7 @@ export const handler = adaptHttpHandler(
         // This handles credit validation, reservation, LLM call, and tool continuation
         // Pass conversationId so delegation tools can track delegations properly
         const generationStartTime = Date.now();
+        const generationStartedAt = new Date().toISOString();
         agentResult = await callAgentNonStreaming(
           workspaceId,
           agentId,
@@ -224,6 +225,7 @@ export const handler = adaptHttpHandler(
           }
         );
         const generationTimeMs = Date.now() - generationStartTime;
+        const generationEndedAt = new Date().toISOString();
 
       // Track successful LLM request
       await trackSuccessfulRequest(
@@ -256,6 +258,7 @@ export const handler = adaptHttpHandler(
         // Extract tool calls and results from raw result (same logic as before)
       let toolCallsFromResult: unknown[];
       let toolResultsFromResult: unknown[];
+      let reasoningFromSteps: Array<{ type: "reasoning"; text: string }> = [];
       try {
           if (!agentResult.rawResult) {
             throw new Error("Raw result not available from agent call");
@@ -270,9 +273,11 @@ export const handler = adaptHttpHandler(
           ? resultAny.steps
           : resultAny._steps?.status?.value;
 
-        // Extract tool calls and results from steps (source of truth for server-side tool execution)
+        // Extract tool calls, results, and reasoning from steps (source of truth for server-side tool execution)
         const toolCallsFromSteps: unknown[] = [];
         const toolResultsFromSteps: unknown[] = [];
+        reasoningFromSteps = []; // Reset for this result
+        const toolCallStartTimes = new Map<string, number>(); // Track when each tool call started
 
         if (Array.isArray(stepsValue)) {
           for (const step of stepsValue) {
@@ -291,11 +296,15 @@ export const handler = adaptHttpHandler(
                       typeof contentItem.toolCallId === "string" &&
                       typeof contentItem.toolName === "string"
                     ) {
+                      // Use generation start time as baseline for tool call timestamp
+                      const toolCallStartTime = generationStartTime;
+                      toolCallStartTimes.set(contentItem.toolCallId, toolCallStartTime);
                       // Convert AI SDK tool-call format to our format
                       toolCallsFromSteps.push({
                         toolCallId: contentItem.toolCallId,
                         toolName: contentItem.toolName,
                         args: contentItem.input || contentItem.args || {},
+                        toolCallStartedAt: generationStartedAt,
                       });
                     } else {
                       console.warn(
@@ -327,6 +336,14 @@ export const handler = adaptHttpHandler(
                       ) {
                         resultValue = resultValue.value;
                       }
+                      // Calculate tool execution time if we have the start time
+                      const toolCallStartTime = toolCallStartTimes.get(contentItem.toolCallId);
+                      let toolExecutionTimeMs: number | undefined;
+                      if (toolCallStartTime !== undefined) {
+                        // For non-streaming, we can't accurately measure tool execution time
+                        // without wrapping tool execution, so we'll leave it undefined
+                        // The expandMessagesWithToolCalls function will handle it
+                      }
                       toolResultsFromSteps.push({
                         toolCallId: contentItem.toolCallId,
                         toolName: contentItem.toolName,
@@ -335,6 +352,7 @@ export const handler = adaptHttpHandler(
                           contentItem.output ||
                           contentItem.result,
                         result: resultValue || contentItem.result,
+                        ...(toolExecutionTimeMs !== undefined && { toolExecutionTimeMs }),
                       });
                     } else {
                       console.warn(
@@ -348,6 +366,16 @@ export const handler = adaptHttpHandler(
                         }
                       );
                     }
+                  } else if (
+                    contentItem.type === "reasoning" &&
+                    "text" in contentItem &&
+                    typeof contentItem.text === "string"
+                  ) {
+                    // Extract reasoning content
+                    reasoningFromSteps.push({
+                      type: "reasoning",
+                      text: contentItem.text,
+                    });
                   }
                 }
               }
@@ -429,7 +457,7 @@ export const handler = adaptHttpHandler(
         formatToolResultMessage
       );
 
-      // Build assistant response message with tool calls, results, and text
+      // Build assistant response message with reasoning, tool calls, results, and text
       const assistantContent: Array<
         | { type: "text"; text: string }
         | {
@@ -444,7 +472,14 @@ export const handler = adaptHttpHandler(
             toolName: string;
             result: unknown;
           }
+        | {
+            type: "reasoning";
+            text: string;
+          }
       > = [];
+
+      // Add reasoning content first (it typically comes before tool calls or text)
+      assistantContent.push(...reasoningFromSteps);
 
       // Add tool calls
       for (const toolCallMsg of toolCallMessages) {
@@ -502,6 +537,8 @@ export const handler = adaptHttpHandler(
           ...(agentResult.openrouterGenerationId && { openrouterGenerationId: agentResult.openrouterGenerationId }),
           ...(agentResult.provisionalCostUsd !== undefined && { provisionalCostUsd: agentResult.provisionalCostUsd }),
         ...(generationTimeMs !== undefined && { generationTimeMs }),
+        ...(generationStartedAt && { generationStartedAt }),
+        ...(generationEndedAt && { generationEndedAt }),
       };
 
       // DIAGNOSTIC: Log final assistant message structure
