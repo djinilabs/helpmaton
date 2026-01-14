@@ -235,8 +235,19 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
           .map((msg, idx) => ({
             index: idx,
             role: msg?.role,
-            hasParts: !!(msg && typeof msg === "object" && "parts" in msg && Array.isArray(msg.parts)),
-            partsCount: msg && typeof msg === "object" && "parts" in msg && Array.isArray(msg.parts) ? msg.parts.length : 0,
+            hasParts: !!(
+              msg &&
+              typeof msg === "object" &&
+              "parts" in msg &&
+              Array.isArray(msg.parts)
+            ),
+            partsCount:
+              msg &&
+              typeof msg === "object" &&
+              "parts" in msg &&
+              Array.isArray(msg.parts)
+                ? msg.parts.length
+                : 0,
           }))
           .filter((m) => m.hasParts),
       });
@@ -246,7 +257,7 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
     let convertedMessages: UIMessage[] = messages;
     if (hasAnyMessageWithParts) {
       convertedMessages = convertAiSdkUIMessagesToUIMessages(messages);
-      
+
       // Log converted messages to verify file parts are preserved
       const convertedMessagesWithFiles = convertedMessages.filter(
         (msg) =>
@@ -304,9 +315,7 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
                   !fileUrl.startsWith("http://") &&
                   !fileUrl.startsWith("https://")
                 ) {
-                  throw badRequest(
-                    "File URL must be a valid HTTP/HTTPS URL"
-                  );
+                  throw badRequest("File URL must be a valid HTTP/HTTPS URL");
                 }
               }
             }
@@ -328,9 +337,7 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
                 !imageUrl.startsWith("http://") &&
                 !imageUrl.startsWith("https://")
               ) {
-                throw badRequest(
-                  "Image URL must be a valid HTTP/HTTPS URL"
-                );
+                throw badRequest("Image URL must be a valid HTTP/HTTPS URL");
               }
             }
           }
@@ -357,14 +364,17 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
         modelMessages = await convertToModelMessages(
           messages as unknown as Array<Omit<import("ai").UIMessage, "id">>
         );
-        
+
         // Log to verify file parts are in model messages
         // Note: Model messages use AI SDK format which may have different structure
         // We just log that conversion succeeded if we had parts
-        console.log("[Stream Handler] Converted to model messages with parts:", {
-          messageCount: modelMessages.length,
-          hasUserMessages: modelMessages.some((msg) => msg.role === "user"),
-        });
+        console.log(
+          "[Stream Handler] Converted to model messages with parts:",
+          {
+            messageCount: modelMessages.length,
+            hasUserMessages: modelMessages.some((msg) => msg.role === "user"),
+          }
+        );
       } else {
         // Messages are in our local UIMessage format with 'content'
         // Use our local converter with converted messages
@@ -536,7 +546,8 @@ export async function buildStreamRequestContext(
 
   // Log raw request body for debugging file attachment issues (only first 1000 chars to avoid log spam)
   try {
-    const bodyPreview = bodyText.length > 1000 ? bodyText.substring(0, 1000) + "..." : bodyText;
+    const bodyPreview =
+      bodyText.length > 1000 ? bodyText.substring(0, 1000) + "..." : bodyText;
     const parsedBody = JSON.parse(bodyText);
     const hasPartsInBody = Array.isArray(parsedBody)
       ? parsedBody.some(
@@ -559,12 +570,14 @@ export async function buildStreamRequestContext(
             Array.isArray(msg.parts) &&
             msg.parts.length > 0
         );
-    
+
     if (hasPartsInBody) {
       console.log("[Stream Handler] Request body contains parts:", {
         bodyPreview,
         isArray: Array.isArray(parsedBody),
-        messageCount: Array.isArray(parsedBody) ? parsedBody.length : parsedBody?.messages?.length || 0,
+        messageCount: Array.isArray(parsedBody)
+          ? parsedBody.length
+          : parsedBody?.messages?.length || 0,
       });
     }
   } catch {
@@ -670,7 +683,10 @@ export async function buildStreamRequestContext(
   if (messagesToInsert.length > 0) {
     if (userMessageIndex === -1) {
       // No user message found, prepend all messages
-      updatedConvertedMessages = [...messagesToInsert, ...convertedMessagesWithTimestamps];
+      updatedConvertedMessages = [
+        ...messagesToInsert,
+        ...convertedMessagesWithTimestamps,
+      ];
     } else {
       // Insert before first user message
       updatedConvertedMessages = [...convertedMessagesWithTimestamps];
