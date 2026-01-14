@@ -264,6 +264,22 @@ export const AgentChat: FC<AgentChatProps> = ({
     return "include";
   }, [api]);
 
+  // Memoize textarea height adjustment function
+  const adjustTextareaHeight = useCallback(() => {
+    if (textareaRef.current) {
+      // Reset height to auto to get the correct scrollHeight
+      textareaRef.current.style.height = "auto";
+      // Set height based on scrollHeight, with min and max constraints
+      const maxHeight = 200; // Maximum height in pixels (about 8-10 lines)
+      const minHeight = 56; // Minimum height (matches padding + one line)
+      const newHeight = Math.min(
+        Math.max(textareaRef.current.scrollHeight, minHeight),
+        maxHeight
+      );
+      textareaRef.current.style.height = `${newHeight}px`;
+    }
+  }, []);
+
   const { messages, sendMessage, status, error, addToolOutput, setMessages } =
     useChat({
       transport: new DefaultChatTransport({
@@ -335,21 +351,6 @@ export const AgentChat: FC<AgentChatProps> = ({
     });
 
   const isLoading = status === "submitted" || status === "streaming";
-
-  const adjustTextareaHeight = useCallback(() => {
-    if (textareaRef.current) {
-      // Reset height to auto to get the correct scrollHeight
-      textareaRef.current.style.height = "auto";
-      // Set height based on scrollHeight, with min and max constraints
-      const maxHeight = 200; // Maximum height in pixels (about 8-10 lines)
-      const minHeight = 56; // Minimum height (matches padding + one line)
-      const newHeight = Math.min(
-        Math.max(textareaRef.current.scrollHeight, minHeight),
-        maxHeight
-      );
-      textareaRef.current.style.height = `${newHeight}px`;
-    }
-  }, []);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
