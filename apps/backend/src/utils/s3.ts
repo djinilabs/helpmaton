@@ -464,6 +464,9 @@ export async function generatePresignedPostUrl(
   const s3Client = getAwsSdkS3Client();
 
   // Generate presigned POST URL using AWS SDK v3
+  // Note: We do NOT include ACL here because BlockPublicAcls is enabled on the bucket.
+  // Public read access is granted via bucket policy instead (see s3/index.js).
+  // Attempting to set ACL when BlockPublicAcls is true will cause "Access Denied" errors.
   const presignedPost = await createPresignedPost(s3Client, {
     Bucket: BUCKET_NAME,
     Key: key,
