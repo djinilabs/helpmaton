@@ -2,30 +2,102 @@
 
 ## Current Status
 
-**Status**: Notion MCP Server Integration - Enhanced ✅
+**Status**: File Attachments in Conversations - Complete ✅
 
 **Latest Work**:
 
-1. **Notion MCP Server Integration - Enhanced User Experience**: Improved the Notion create page tool to accept simplified parameters and fixed API structure issues.
+1. **File Attachments in Conversations**: Implemented comprehensive support for file attachments (any file type) in agent conversations using AI SDK v6 multi-modal inputs.
+
+   - **Architecture Overview**:
+
+     - Files are uploaded directly to S3 by clients using presigned POST URLs (no backend file handling)
+     - Files stored in nested S3 path: `conversation-files/{workspaceId}/{agentId}/{conversationId}/{high-entropy-filename}.{ext}`
+     - Automatic 30-day expiration via S3 lifecycle policies (no DynamoDB metadata storage)
+     - High-entropy filenames for security (unguessable URLs)
+     - Files must be S3 URLs in messages (no base64/data URLs allowed)
+
+   - **Backend Implementation**:
+
+     - **Presigned URL Endpoint**: `POST /api/workspaces/:workspaceId/agents/:agentId/conversations/:conversationId/files/upload-url`
+       - Generates presigned S3 POST URL with 5-minute expiration
+       - Validates request body (contentType, optional fileExtension)
+       - Supports CORS for cross-origin widget uploads (OPTIONS preflight handling)
+       - Returns `{ uploadUrl, fields, finalUrl, expiresIn }`
+     - **S3 Utilities** (`utils/s3.ts`):
+       - `generateHighEntropyFilename()`: Creates unguessable filenames using crypto.randomBytes
+       - `buildConversationFileKey()`: Constructs nested S3 key path
+       - `generatePresignedPostUrl()`: Uses AWS SDK v3 (`@aws-sdk/s3-presigned-post`) to generate presigned POST URLs
+       - Supports all file types (not just images)
+       - Configurable max file size (default: 10MB) and expiration time
+     - **S3 Lifecycle Configuration** (`plugins/s3/index.js`):
+       - CloudFormation resource `AWS::S3::BucketLifecycleConfiguration`
+       - Automatically deletes files in `conversation-files/` prefix after 30 days
+       - No manual cleanup required
+     - **Message Validation** (`utils/messageConversion.ts`):
+       - Validates file URLs are HTTP/HTTPS (not base64/data URLs)
+       - Rejects inline file data with clear error messages
+       - Automatically detects images based on mediaType or URL extension
+       - Converts file parts to AI SDK format (ImagePart for images, FilePart for others)
+
+   - **Frontend Implementation** (`components/AgentChat.tsx`):
+
+     - File input with paperclip icon for file selection
+     - Parallel file uploads using `Promise.all()` for better UX
+     - Image preview generation using `URL.createObjectURL()`
+     - Upload progress tracking (uploading state per file)
+     - Error handling with user-friendly error messages
+     - File cleanup on unmount (`URL.revokeObjectURL()`)
+     - Prevents message submission until all files are uploaded
+     - Includes file URLs in message parts when sending to backend
+
+   - **AWS SDK Migration**:
+
+     - Migrated from AWS SDK v2 to AWS SDK v3 for presigned POST URL generation
+     - Uses `@aws-sdk/client-s3` and `@aws-sdk/s3-presigned-post` packages
+     - AWS SDK v2 (`aws-sdk`) still bundled for legacy table support (`@architect/functions`)
+     - AWS SDK v3 marked as external in esbuild config (available in Lambda runtime)
+
+   - **Security & Validation**:
+
+     - Strict Zod schema validation for upload URL requests
+     - Content-Type validation in presigned POST conditions
+     - File size limits enforced at S3 level
+     - High-entropy filenames prevent URL guessing
+     - CORS properly configured for widget support
+
+   - **Testing**:
+
+     - Unit tests for `generatePresignedPostUrl()` covering all scenarios
+     - Unit tests for file upload URL endpoint (validation, auth, CORS)
+     - Tests verify high-entropy filename generation
+     - Tests verify S3 key path construction
+     - Tests verify presigned URL generation with correct conditions
+
+   - **Result**: Users can attach any file type to conversations. Files are securely uploaded to S3 with automatic expiration, and AI models can process images and other file types in conversations.
+
+2. **Notion MCP Server Integration - Enhanced User Experience**: Improved the Notion create page tool to accept simplified parameters and fixed API structure issues.
 
    - **Simplified Parameter Support**:
+
      - Added `name` parameter: Accepts a simple string for page title, automatically converted to Notion title property
      - Added `content` parameter: Accepts a simple string for page content, automatically converted to paragraph blocks (split by newlines)
      - Made `parent` parameter optional: Defaults to workspace level (`{ type: 'workspace', workspace: true }`) if not provided
      - Made `properties` parameter optional: Created from `name` if not provided
      - Made `children` parameter optional: Created from `content` string if not provided
      - Full API parameters (`parent`, `properties`, `children`) still supported for advanced use cases
-   
+
    - **Fixed API Structure**:
+
      - Fixed paragraph block structure to use `rich_text` instead of `text` (required by Notion API 2025-09-03)
      - Updated content conversion to create proper paragraph blocks with `rich_text` array
      - All tests updated and passing
-   
+
    - **Append Blocks Tool**:
+
      - Added `notion_append_blocks_{serverName}` tool for adding content to existing pages
      - Supports up to 100 blocks per request
      - Optional `after` parameter for inserting blocks at specific positions
-   
+
    - **Result**: Agents can now create Notion pages with simple syntax:
      ```json
      {
@@ -35,15 +107,17 @@
      ```
      The tool automatically handles workspace-level parent, title property creation, and content block conversion.
 
-2. **Google Calendar MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Calendar, allowing agents to read, search, and write to users' Google Calendar. Follows the same architecture pattern as Google Drive and Gmail MCP servers.
+3. **Google Calendar MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Calendar, allowing agents to read, search, and write to users' Google Calendar. Follows the same architecture pattern as Google Drive and Gmail MCP servers.
 
    - **Google Calendar OAuth Utilities**:
+
      - Created `utils/oauth/mcp/google-calendar.ts` with `generateGoogleCalendarAuthUrl`, `exchangeGoogleCalendarCode`, and `refreshGoogleCalendarToken` functions
      - Uses `https://www.googleapis.com/auth/calendar` scope for full read/write access to calendars and events
      - Reuses existing `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` environment variables
      - OAuth callback URL: `/api/mcp/oauth/google-calendar/callback`
-   
+
    - **Google Calendar API Client**:
+
      - Created `utils/googleCalendar/client.ts` with functions for all CRUD operations:
        - `listEvents()` - List events with pagination and optional time range filtering
        - `getEvent()` / `readEvent()` - Get full event details
@@ -55,12 +129,14 @@
      - Automatic token refresh on authentication errors (401, 403)
      - Request timeout handling (30 seconds)
      - Default calendar ID: "primary" (user's primary calendar)
-   
+
    - **Google Calendar Types**:
+
      - Created `utils/googleCalendar/types.ts` with TypeScript types for Calendar API responses
      - Types for events, event lists, attendees, date/time objects, and error responses
-   
+
    - **Agent Tools**:
+
      - Six dedicated tools for Google Calendar:
        - `google_calendar_list_{serverName}` - List events with optional filters
        - `google_calendar_read_{serverName}` - Read full event details
@@ -72,98 +148,113 @@
      - Tools only exposed when OAuth connection is active
      - Support for time range filtering, pagination, and event recurrence
      - Full CRUD operations with proper parameter validation
-   
+
    - **Schema Updates**:
+
      - Added `"google-calendar"` to `serviceType` enum in `workspaceSchemas.ts` and `schema.ts`
      - Updated frontend API types to include `"google-calendar"` in serviceType union types
-   
+
    - **UI Updates**:
+
      - Added "Google Calendar" option to MCP server type selector in `McpServerModal`
      - Added helper text explaining OAuth connection requirement
      - Updated form submission to handle `google-calendar` service type
      - Updated serviceType detection logic when editing existing servers
-   
+
    - **Backend Integration**:
+
      - Updated `mcpUtils.ts` to handle `serviceType === "google-calendar"` and create Calendar tools
      - Updated OAuth callback handler to support Google Calendar service type
      - Updated OAuth authorize route to generate Google Calendar auth URLs
-   
+
    - **Note**: Requires adding redirect URI `/api/mcp/oauth/google-calendar/callback` to Google Cloud Console OAuth client configuration
 
 4. **Gmail MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Gmail, allowing agents to list, search, and read emails from users' Gmail accounts. Follows the same architecture pattern as Google Drive MCP server.
 
    - **Gmail OAuth Utilities**:
+
      - Created `utils/oauth/mcp/gmail.ts` with `generateGmailAuthUrl`, `exchangeGmailCode`, and `refreshGmailToken` functions
      - Uses `gmail.readonly` scope for read-only email access
      - Reuses existing `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` environment variables
      - OAuth callback URL: `/api/mcp/oauth/gmail/callback`
-   
+
    - **Gmail API Client**:
+
      - Created `utils/gmail/client.ts` with `listMessages`, `getMessage`, `readMessage`, and `searchMessages` functions
      - Robust error handling with exponential backoff for recoverable errors (429, 503)
      - Automatic token refresh on authentication errors (401, 403)
      - Base64url decoding for email body content (text/plain and text/html)
      - Attachment information extraction
      - Request timeout handling (30 seconds)
-   
+
    - **Gmail Types**:
+
      - Created `utils/gmail/types.ts` with TypeScript types for Gmail API responses
      - Types for messages, message parts, headers, body content, and error responses
-   
+
    - **Agent Tools**:
+
      - Three dedicated tools for Gmail: `gmail_list_{serverName}`, `gmail_search_{serverName}`, `gmail_read_{serverName}`
      - Tool names use sanitized server name (not serverId) for better readability
      - Tools only exposed when OAuth connection is active
      - Support for Gmail search syntax (e.g., "from:example@gmail.com", "subject:meeting", "is:unread")
      - Pagination support with pageToken
-   
+
    - **Schema Updates**:
+
      - Added `"gmail"` to `serviceType` enum in `workspaceSchemas.ts` and `schema.ts`
      - Updated frontend API types to include `"gmail"` in serviceType union types
-   
+
    - **UI Updates**:
+
      - Added Gmail option to MCP server type selector in `McpServerModal`
      - Updated OAuth callback page to display "Gmail" service name
      - Updated MCP server list to show "Gmail" service type
      - Added Gmail tools documentation in Tools Help Dialog (similar to Google Drive)
-   
+
    - **Backend Integration**:
+
      - Updated `mcpUtils.ts` to handle `serviceType === "gmail"` and create Gmail tools
      - Updated OAuth callback handler to support Gmail service type
      - Updated OAuth authorize route to generate Gmail auth URLs
-   
+
    - **Note**: Requires adding redirect URI `/api/mcp/oauth/gmail/callback` to Google Cloud Console OAuth client configuration
 
-2. **Google Drive MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Drive, allowing agents to list, read, and search files in users' Google Drive accounts. The infrastructure is reusable for other OAuth-based MCP servers.
+5. **Google Drive MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Drive, allowing agents to list, read, and search files in users' Google Drive accounts. The infrastructure is reusable for other OAuth-based MCP servers.
 
    - **Database Schema Updates**:
+
      - Extended `mcp-server` table schema to support OAuth authentication
      - Added `authType: "oauth"` option alongside existing "none", "header", "basic"
      - Added `serviceType` field ("external", "google-drive", or "gmail") to differentiate service types
      - Made `url` optional for OAuth-based servers (not needed for built-in services)
      - OAuth credentials (accessToken, refreshToken, expiresAt, email) stored encrypted in `config` field
-   
+
    - **OAuth Infrastructure**:
+
      - Reusable OAuth utilities in `utils/oauth/mcp/` for MCP-specific OAuth flows
      - Google Drive OAuth implementation using `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`
      - State token generation with workspaceId and serverId encoded
      - OAuth callback handler at `/api/mcp/oauth/:serviceType/callback`
      - Token refresh logic with automatic retry on authentication errors
-   
+
    - **Google Drive API Client**:
+
      - Robust error handling with exponential backoff for recoverable errors (429, 503)
      - Automatic token refresh on authentication errors (401, 403)
      - Support for Google Docs (exports as plain text), Google Sheets (exports as CSV), Google Slides (exports as plain text)
      - Full-text search support using `drive` scope (required for fullText search)
      - Request timeout handling (30 seconds)
-   
+
    - **Agent Tools**:
+
      - Three dedicated tools for Google Drive: `google_drive_list_{serverName}`, `google_drive_read_{serverName}`, `google_drive_search_{serverName}`
      - Tool names use sanitized server name (not serverId) for better readability
      - Tools only exposed when OAuth connection is active
      - Parameter validation with support for both camelCase and snake_case parameter names
-   
+
    - **UI Improvements**:
+
      - Simplified MCP server creation flow: service type selector first (Google Drive or Custom MCP)
      - For Google Drive: no URL or auth type selection needed (OAuth only)
      - For Custom MCP: shows URL field and auth type selector (none, header, basic - no OAuth)
@@ -171,13 +262,14 @@
      - "Connect", "Reconnect", and "Disconnect" buttons for OAuth servers
      - Dark mode support throughout MCP server UI
      - Tools Help Dialog shows specific Google Drive and Gmail tools (not generic MCP interface) when respective servers are enabled
-   
+
    - **Error Handling**:
+
      - Graceful handling of deleted MCP servers in agent configuration (auto-cleanup)
      - Clear error messages for token revocation (prompts user to reconnect)
      - Better error messages for missing/invalid parameters
      - Improved tool descriptions to accurately reflect capabilities (including Google Sheets support)
-   
+
    - **Environment Configuration**:
      - Added `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` to deploy workflows
      - Added to esbuild config for environment variable injection
@@ -188,6 +280,7 @@
 1. **Agent Chat Widget Implementation**: Implemented a complete embeddable chat widget that users can integrate into their own websites. The widget is a self-contained Web Component that can be embedded via a simple script tag.
 
    - **Widget Package** (`apps/widget/`):
+
      - Custom Web Component (`AgentChatWidget`) using Shadow DOM for style isolation
      - React-based chat interface reusing `AgentChat` component from frontend
      - Builds to IIFE bundle (`widget.js`) for easy embedding
@@ -195,39 +288,44 @@
      - Requires `containerId` parameter - widget appends to provided container element
      - Injects Tailwind CSS dynamically from host page or falls back to minimal styles
      - Includes QueryClientProvider for React Query support in isolated context
-   
+
    - **Backend API** (`post /api/widget/:workspaceId/:agentId/:key`):
+
      - Widget-specific endpoint with key-based authentication
      - Validates widget keys (type: "widget") via `validateWidgetKey` utility
      - Supports CORS with configurable allowed origins from agent `widgetConfig`
      - Path parameter extraction with fallback for dev environments (Vite proxy)
      - Proper error status codes (400, 401, 403, 404) using `createResponseStream`
      - Streaming support via Lambda Function URLs
-   
+
    - **Widget Configuration**:
+
      - `widgetConfig` schema on agent entity: `enabled`, `allowedOrigins`, `theme`
      - Removed `position` from config (now controlled by embedding site's container)
      - UI in AgentDetail page for enabling widget, setting CORS origins, and theme
      - Widget key generation (type: "widget") separate from webhook keys
-   
+
    - **Widget Preview Page**:
+
      - Standalone demo page (`/workspaces/:workspaceId/agents/:agentId/widget-preview`)
      - Generic e-commerce product page example (no Helpmaton branding)
      - Creates container in bottom-right corner (400px × 600px)
      - Loads widget script and initializes with container ID
      - Bypasses main app layout (no Header/Footer/LocationBar)
-   
+
    - **Error Handling**:
+
      - Frontend displays API errors in chat UI (red error box)
      - Custom fetch wrapper detects non-2xx responses and parses JSON error messages
      - Backend returns proper HTTP status codes (not 200 for errors)
      - Path parameter extraction with multiple fallback methods
-   
+
    - **Embed Code**:
+
      - Updated embed code examples show container creation with positioning
      - Includes script tag and initialization with `containerId`
      - Users can customize container ID, position, and size
-   
+
    - **Technical Details**:
      - Widget uses Shadow DOM for style isolation
      - React rendered inside Shadow DOM with event retargeting
@@ -2366,22 +2464,26 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 **Key Changes**:
 
 1. **Unified Handler Creation**:
+
    - Created new handler at `any-api-webhooks-000type-000workspaceId-000integrationId/index.ts`
    - Extracts `type` parameter from path (`slack` or `discord`)
    - Validates `type` parameter and verifies integration platform matches
    - Routes to platform-specific handlers (`handleSlackWebhook` or `handleDiscordWebhook`)
 
 2. **Service File Consolidation**:
+
    - Moved all platform-specific service files to unified handler's `services/` directory
    - Preserved all existing functionality for both platforms
    - Updated imports in queue processor to reference new locations
 
 3. **Route Configuration**:
+
    - Replaced two separate routes with unified route in `app.arc`
    - Old: `any /api/webhooks/slack/:workspaceId/:integrationId` and `any /api/webhooks/discord/:workspaceId/:integrationId`
    - New: `any /api/webhooks/:type/:workspaceId/:integrationId`
 
 4. **Test Migration**:
+
    - Created unified handler test covering both platforms
    - Moved and updated all service tests to new location
    - Fixed import paths for test helpers
@@ -2391,6 +2493,7 @@ The SQS queue processing now supports partial batch failures, allowing successfu
    - Updated memory documentation to reflect unified structure
 
 **Implementation Details**:
+
 - Type validation ensures only `slack` or `discord` types are accepted
 - Platform-specific differences preserved (signature verification, event handling, response formats)
 - All existing functionality maintained for both platforms
@@ -2404,9 +2507,9 @@ The SQS queue processing now supports partial batch failures, allowing successfu
    - Track summarization quality and adjust prompts if needed
    - Monitor storage usage and retention cleanup effectiveness
    - Verify memory search performance and relevance
-3. Monitor Lambda function performance and cold start times
-4. Measure actual image size reduction after deployment
-5. Document container image deployment process for other functions
+2. Monitor Lambda function performance and cold start times
+3. Measure actual image size reduction after deployment
+4. Document container image deployment process for other functions
 
 ## Notes
 

@@ -1116,5 +1116,235 @@ describe("openrouter-cost-verification-queue", () => {
       expect(updated.verifiedGenerationIds).toEqual(["gen-12345"]); // Unchanged
       expect(updated.verifiedCosts).toEqual([1055]); // Unchanged
     });
+
+    it("should handle out-of-order generation verification", async () => {
+      const mockReservation = {
+        pk: "credit-reservations/res-1",
+        workspaceId: "workspace-1",
+        openrouterGenerationIds: ["gen-1", "gen-2", "gen-3"],
+        expectedGenerationCount: 3,
+        verifiedGenerationIds: [],
+        verifiedCosts: [],
+        reservedAmount: 5000,
+        tokenUsageBasedCost: 4000,
+      };
+
+      mockGetReservation.mockResolvedValue(mockReservation);
+      let currentReservation = { ...mockReservation };
+
+      mockAtomicUpdateReservation.mockImplementation(
+        async (_pk, _sk, updater) => {
+          const updated = await updater(currentReservation);
+          if (updated) {
+            currentReservation = updated;
+          }
+          return updated || currentReservation;
+        }
+      );
+
+      // Verify generations arrive out of order: gen-2, then gen-3, then gen-1
+      (global.fetch as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: { total_cost: 0.001 }, // gen-2 cost
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: { total_cost: 0.0015 }, // gen-3 cost
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: { total_cost: 0.0008 }, // gen-1 cost
+          }),
+        });
+
+      // Process gen-2 first
+      const record2: SQSRecord = {
+        messageId: "msg-2",
+        receiptHandle: "receipt-2",
+        body: JSON.stringify({
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-2",
+          workspaceId: "workspace-1",
+        }),
+        attributes: {
+          ApproximateReceiveCount: "1",
+          SentTimestamp: "1234567890000",
+          SenderId: "test-sender",
+          ApproximateFirstReceiveTimestamp: "1234567890000",
+        },
+        messageAttributes: {},
+        md5OfBody: "",
+        eventSource: "aws:sqs",
+        eventSourceARN: "",
+        awsRegion: "",
+      };
+
+      await handler({ Records: [record2] });
+      expect(mockFinalizeCreditReservation).not.toHaveBeenCalled(); // Not all verified yet
+
+      // Process gen-3 second
+      const record3: SQSRecord = {
+        ...record2,
+        messageId: "msg-3",
+        body: JSON.stringify({
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-3",
+          workspaceId: "workspace-1",
+        }),
+      };
+
+      await handler({ Records: [record3] });
+      expect(mockFinalizeCreditReservation).not.toHaveBeenCalled(); // Still not all verified
+
+      // Process gen-1 last (should trigger finalization)
+      const record1: SQSRecord = {
+        ...record2,
+        messageId: "msg-1",
+        body: JSON.stringify({
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-1",
+          workspaceId: "workspace-1",
+        }),
+      };
+
+      await handler({ Records: [record1] });
+
+      // Now all should be verified and finalized
+      // Total cost: Each cost has markup applied individually, then summed:
+      // Cost 1 (gen-1): Math.ceil(0.0008 * 1_000_000 * 1.055) = 844
+      // Cost 2 (gen-2): Math.ceil(0.001 * 1_000_000 * 1.055) = 1,055
+      // Cost 3 (gen-3): Math.ceil(0.0015 * 1_000_000 * 1.055) = 1,583
+      // Total: 844 + 1,055 + 1,583 = 3,482
+      expect(mockFinalizeCreditReservation).toHaveBeenCalledWith(
+        mockDb,
+        "res-1",
+        3482, // Sum of individually marked-up costs
+        expect.objectContaining({
+          addWorkspaceCreditTransaction: expect.any(Function),
+        }),
+        3
+      );
+    });
+
+    it("should handle count mismatch gracefully when fewer generations arrive than expected", async () => {
+      const mockReservation = {
+        pk: "credit-reservations/res-1",
+        workspaceId: "workspace-1",
+        openrouterGenerationIds: ["gen-1", "gen-2", "gen-3"],
+        expectedGenerationCount: 3,
+        verifiedGenerationIds: ["gen-1", "gen-2"], // Only 2 verified
+        verifiedCosts: [1055, 1055],
+        reservedAmount: 5000,
+        tokenUsageBasedCost: 4000,
+      };
+
+      mockGetReservation.mockResolvedValue(mockReservation);
+      mockAtomicUpdateReservation.mockImplementation(
+        async (_pk, _sk, updater) => {
+          const updated = await updater(mockReservation);
+          return updated || mockReservation;
+        }
+      );
+
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: { total_cost: 0.001 },
+        }),
+      });
+
+      const record: SQSRecord = {
+        messageId: "msg-1",
+        receiptHandle: "receipt-1",
+        body: JSON.stringify({
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-3",
+          workspaceId: "workspace-1",
+        }),
+        attributes: {
+          ApproximateReceiveCount: "1",
+          SentTimestamp: "1234567890000",
+          SenderId: "test-sender",
+          ApproximateFirstReceiveTimestamp: "1234567890000",
+        },
+        messageAttributes: {},
+        md5OfBody: "",
+        eventSource: "aws:sqs",
+        eventSourceARN: "",
+        awsRegion: "",
+      };
+
+      await handler({ Records: [record] });
+
+      // Should finalize when all expected generations are verified
+      expect(mockFinalizeCreditReservation).toHaveBeenCalled();
+    });
+
+    it("should handle extra generation ID by finalizing when count matches", async () => {
+      const mockReservation = {
+        pk: "credit-reservations/res-1",
+        workspaceId: "workspace-1",
+        openrouterGenerationIds: ["gen-1", "gen-2"],
+        expectedGenerationCount: 2,
+        verifiedGenerationIds: ["gen-1"], // Only one verified so far
+        verifiedCosts: [1055],
+        reservedAmount: 5000,
+        tokenUsageBasedCost: 4000,
+      };
+
+      mockGetReservation.mockResolvedValue(mockReservation);
+      let currentReservation = { ...mockReservation };
+      mockAtomicUpdateReservation.mockImplementation(
+        async (_pk, _sk, updater) => {
+          const updated = await updater(currentReservation);
+          if (updated) {
+            currentReservation = updated;
+          }
+          return updated || currentReservation;
+        }
+      );
+
+      // Verify a generation ID (even if it's not in the original list)
+      // The system will add it and finalize when count matches expected
+      const record: SQSRecord = {
+        messageId: "msg-1",
+        receiptHandle: "receipt-1",
+        body: JSON.stringify({
+          reservationId: "res-1",
+          openrouterGenerationId: "gen-extra", // Not in original openrouterGenerationIds
+          workspaceId: "workspace-1",
+        }),
+        attributes: {
+          ApproximateReceiveCount: "1",
+          SentTimestamp: "1234567890000",
+          SenderId: "test-sender",
+          ApproximateFirstReceiveTimestamp: "1234567890000",
+        },
+        messageAttributes: {},
+        md5OfBody: "",
+        eventSource: "aws:sqs",
+        eventSourceARN: "",
+        awsRegion: "",
+      };
+
+      (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          data: { total_cost: 0.001 },
+        }),
+      });
+
+      await handler({ Records: [record] });
+
+      // System finalizes when verified count (2) matches expected count (2)
+      // It doesn't validate that the IDs match the original list
+      expect(mockFinalizeCreditReservation).toHaveBeenCalled();
+    });
   });
 });

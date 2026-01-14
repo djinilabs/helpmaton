@@ -6,6 +6,15 @@ import type { SearchResult } from "./documentSearch";
 
 export type TextContent = string | { type: "text"; text: string };
 
+export type FileContent = {
+  type: "file";
+  file: string; // S3 URL - must be a URL, never base64/data URL
+  mediaType?: string;
+};
+
+// For backward compatibility, ImageContent maps to FileContent
+export type ImageContent = FileContent;
+
 export type ToolCallContent = {
   type: "tool-call";
   toolCallId: string;
@@ -48,7 +57,7 @@ export type RerankingResultContent = {
 export type UIMessage =
   | {
       role: "user";
-      content: string | Array<{ type: "text"; text: string }>;
+      content: string | Array<TextContent | FileContent>;
       awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
       knowledgeInjection?: true; // Marker for knowledge injection messages
       knowledgeSnippets?: SearchResult[]; // Original snippets for reuse

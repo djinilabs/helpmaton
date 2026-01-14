@@ -12,6 +12,38 @@ const uiMessageContentSchema = z.union([
         type: z.literal("text"),
         text: z.string(),
       }).strict(),
+      z
+        .object({
+          type: z.literal("file"),
+          file: z
+            .string()
+            .refine(
+              (val) => val.startsWith("http://") || val.startsWith("https://"),
+              "File URL must be a valid HTTP/HTTPS URL"
+            )
+            .refine(
+              (val) => !val.startsWith("data:") && !val.startsWith("data;"),
+              "Inline file data (base64/data URLs) is not allowed. Files must be uploaded to S3 first."
+            ),
+          mediaType: z.string().optional(),
+        })
+        .strict(),
+      z
+        .object({
+          type: z.literal("image"),
+          image: z
+            .string()
+            .refine(
+              (val) => val.startsWith("http://") || val.startsWith("https://"),
+              "Image URL must be a valid HTTP/HTTPS URL"
+            )
+            .refine(
+              (val) => !val.startsWith("data:") && !val.startsWith("data;"),
+              "Inline image data (base64/data URLs) is not allowed. Images must be uploaded to S3 first."
+            ),
+          mediaType: z.string().optional(),
+        })
+        .strict(),
       z.record(z.string(), z.unknown()), // Allow other content types (tool calls, tool results, etc.)
     ])
   ),

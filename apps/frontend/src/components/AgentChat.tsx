@@ -1,16 +1,20 @@
 import { useChat } from "@ai-sdk/react";
-import { ChartBarIcon, TrashIcon } from "@heroicons/react/24/outline";
+import {
+  ChartBarIcon,
+  PaperClipIcon,
+  TrashIcon,
+} from "@heroicons/react/24/outline";
 import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FC } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { useAgentOptional } from "../hooks/useAgents";
-import { getAccessToken } from "../utils/api";
+import { apiFetch, getAccessToken } from "../utils/api";
 import { getDefaultAvatar } from "../utils/avatarUtils";
 import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
@@ -70,9 +74,45 @@ export const AgentChat: FC<AgentChatProps> = ({
   const agent = agentProp || agentFromHook;
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [input, setInput] = useState("");
   // State to track API errors that might not be caught by useChat
   const [apiError, setApiError] = useState<Error | null>(null);
+  // State to track pending file uploads
+  const [pendingFiles, setPendingFiles] = useState<
+    Array<{
+      file: File;
+      preview?: string; // base64 data URL for images
+      uploadUrl?: string; // S3 URL after upload
+      uploading: boolean;
+      error?: string;
+    }>
+  >([]);
+
+  // Cleanup blob URLs when component unmounts
+  // Store pendingFiles in a ref so cleanup can access current value on unmount
+  const pendingFilesRef = useRef(pendingFiles);
+  useEffect(() => {
+    pendingFilesRef.current = pendingFiles;
+  }, [pendingFiles]);
+
+  useEffect(() => {
+    return () => {
+      // Cleanup all preview URLs on unmount
+      pendingFilesRef.current.forEach((fileData) => {
+        if (fileData.preview) {
+          URL.revokeObjectURL(fileData.preview);
+        }
+      });
+    };
+  }, []); // Only run on unmount
+
+  // Clear file-related API error when there are no files with errors
+  useEffect(() => {
+    if (apiError && pendingFiles.every((f) => !f.error)) {
+      setApiError(null);
+    }
+  }, [apiError, pendingFiles]);
 
   // Generate and memoize conversation ID for this chat instance
   const conversationId = useMemo(() => generateUUID(), []);
@@ -144,7 +184,7 @@ export const AgentChat: FC<AgentChatProps> = ({
         // Check for error responses (non-2xx status codes)
         if (!response.ok) {
           let errorMessage = `Request failed with status ${response.status}`;
-          
+
           // Try to parse error message from JSON response
           try {
             const contentType = response.headers.get("content-type");
@@ -153,9 +193,10 @@ export const AgentChat: FC<AgentChatProps> = ({
               const clonedResponse = response.clone();
               const errorData = await clonedResponse.json();
               if (errorData.error) {
-                errorMessage = typeof errorData.error === "string" 
-                  ? errorData.error 
-                  : errorData.error.message || errorMessage;
+                errorMessage =
+                  typeof errorData.error === "string"
+                    ? errorData.error
+                    : errorData.error.message || errorMessage;
               } else if (errorData.message) {
                 errorMessage = errorData.message;
               }
@@ -168,9 +209,10 @@ export const AgentChat: FC<AgentChatProps> = ({
                 try {
                   const parsed = JSON.parse(text);
                   if (parsed.error) {
-                    errorMessage = typeof parsed.error === "string"
-                      ? parsed.error
-                      : parsed.error.message || errorMessage;
+                    errorMessage =
+                      typeof parsed.error === "string"
+                        ? parsed.error
+                        : parsed.error.message || errorMessage;
                   } else if (parsed.message) {
                     errorMessage = parsed.message;
                   }
@@ -184,7 +226,10 @@ export const AgentChat: FC<AgentChatProps> = ({
             }
           } catch (parseError) {
             // If we can't parse the error, use the default message
-            console.error("[AgentChat] Error parsing error response:", parseError);
+            console.error(
+              "[AgentChat] Error parsing error response:",
+              parseError
+            );
           }
 
           // Set the error state so it can be displayed in the UI
@@ -197,9 +242,10 @@ export const AgentChat: FC<AgentChatProps> = ({
         return response;
       } catch (fetchError) {
         // Network errors or other fetch failures
-        const errorMessage = fetchError instanceof Error 
-          ? fetchError.message 
-          : "Failed to send request";
+        const errorMessage =
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Failed to send request";
         setApiError(new Error(errorMessage));
         throw fetchError;
       }
@@ -217,6 +263,22 @@ export const AgentChat: FC<AgentChatProps> = ({
     // Otherwise, it's API Gateway (relative URL or undefined)
     return "include";
   }, [api]);
+
+  // Memoize textarea height adjustment function
+  const adjustTextareaHeight = useCallback(() => {
+    if (textareaRef.current) {
+      // Reset height to auto to get the correct scrollHeight
+      textareaRef.current.style.height = "auto";
+      // Set height based on scrollHeight, with min and max constraints
+      const maxHeight = 200; // Maximum height in pixels (about 8-10 lines)
+      const minHeight = 56; // Minimum height (matches padding + one line)
+      const newHeight = Math.min(
+        Math.max(textareaRef.current.scrollHeight, minHeight),
+        maxHeight
+      );
+      textareaRef.current.style.height = `${newHeight}px`;
+    }
+  }, []);
 
   const { messages, sendMessage, status, error, addToolOutput, setMessages } =
     useChat({
@@ -290,21 +352,6 @@ export const AgentChat: FC<AgentChatProps> = ({
 
   const isLoading = status === "submitted" || status === "streaming";
 
-  const adjustTextareaHeight = () => {
-    if (textareaRef.current) {
-      // Reset height to auto to get the correct scrollHeight
-      textareaRef.current.style.height = "auto";
-      // Set height based on scrollHeight, with min and max constraints
-      const maxHeight = 200; // Maximum height in pixels (about 8-10 lines)
-      const minHeight = 56; // Minimum height (matches padding + one line)
-      const newHeight = Math.min(
-        Math.max(textareaRef.current.scrollHeight, minHeight),
-        maxHeight
-      );
-      textareaRef.current.style.height = `${newHeight}px`;
-    }
-  };
-
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -322,13 +369,200 @@ export const AgentChat: FC<AgentChatProps> = ({
     // If Enter is pressed with Shift, allow default behavior (new line)
   };
 
+  // Handle file selection
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // Process each selected file
+    const newFiles = Array.from(files).map((file) => {
+      // Create preview for images
+      let preview: string | undefined;
+      if (file.type.startsWith("image/")) {
+        preview = URL.createObjectURL(file);
+      }
+
+      return {
+        file,
+        preview,
+        uploading: false,
+      };
+    });
+
+    setPendingFiles((prev) => [...prev, ...newFiles]);
+
+    // Upload files to S3 in parallel for better UX
+    await Promise.all(newFiles.map((fileData) => uploadFileToS3(fileData)));
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // Upload file to S3 using presigned URL
+  const uploadFileToS3 = async (fileData: {
+    file: File;
+    preview?: string;
+    uploadUrl?: string;
+    uploading: boolean;
+    error?: string;
+  }) => {
+    const { file } = fileData;
+
+    // Update state to show uploading
+    setPendingFiles((prev) =>
+      prev.map((f) =>
+        f.file === file ? { ...f, uploading: true, error: undefined } : f
+      )
+    );
+
+    try {
+      // Get file extension - use lastIndexOf to handle files with multiple dots (e.g., "archive.tar.gz")
+      const lastDotIndex = file.name.lastIndexOf(".");
+      const fileExtension =
+        lastDotIndex > 0 && lastDotIndex < file.name.length - 1
+          ? file.name.substring(lastDotIndex + 1)
+          : undefined;
+
+      // Request presigned URL from backend
+      // Always use same origin for API requests (Vite proxy handles routing in local dev)
+      // Use apiFetch which automatically handles Authorization header via global fetch override
+      const accessToken = getAccessToken();
+      if (!accessToken) {
+        throw new Error("Access token is required for file upload");
+      }
+
+      // apiFetch automatically throws on non-ok responses, so we can directly parse JSON
+      const presignedResponse = await apiFetch(
+        `/api/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}/files/upload-url`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            contentType: file.type,
+            fileExtension,
+          }),
+        }
+      );
+
+      const presignedData = await presignedResponse.json();
+      const { uploadUrl, fields, finalUrl } = presignedData;
+
+      // Upload file directly to S3 using presigned POST URL
+      const formData = new FormData();
+      // Add all fields from presigned URL
+      Object.entries(fields).forEach(([key, value]) => {
+        formData.append(key, value as string);
+      });
+      // Add file last (must be last field)
+      formData.append("file", file);
+
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Failed to upload file to S3");
+      }
+
+      // Update state with final URL
+      setPendingFiles((prev) =>
+        prev.map((f) =>
+          f.file === file ? { ...f, uploadUrl: finalUrl, uploading: false } : f
+        )
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to upload file";
+      setPendingFiles((prev) =>
+        prev.map((f) =>
+          f.file === file ? { ...f, uploading: false, error: errorMessage } : f
+        )
+      );
+      setApiError(new Error(`File upload failed: ${errorMessage}`));
+    }
+  };
+
   const handleSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && pendingFiles.length === 0) || isLoading) return;
+
+    // Check if all files are uploaded
+    const filesNotUploaded = pendingFiles.filter(
+      (f) => !f.uploadUrl && !f.error
+    );
+    if (filesNotUploaded.length > 0) {
+      setApiError(new Error("Please wait for all files to finish uploading"));
+      return;
+    }
+
+    // Check if any files failed to upload
+    const filesWithErrors = pendingFiles.filter((f) => f.error);
+    if (filesWithErrors.length > 0) {
+      setApiError(
+        new Error(
+          "Some files failed to upload. Please remove the failed files and try again."
+        )
+      );
+      return;
+    }
+
     // Clear any previous errors when sending a new message
     setApiError(null);
-    sendMessage({ text: input });
+
+    // Build message content array for AI SDK
+    // AI SDK expects parts array with text and file parts
+    const parts: Array<
+      | { type: "text"; text: string }
+      | { type: "file"; data: string; mimeType: string }
+      | { type: "image"; image: string; mimeType?: string }
+    > = [];
+
+    // Add text content if present
+    if (input.trim()) {
+      parts.push({ type: "text", text: input.trim() });
+    }
+
+    // Add file content
+    for (const fileData of pendingFiles) {
+      if (fileData.uploadUrl) {
+        const isImage = fileData.file.type.startsWith("image/");
+        if (isImage) {
+          parts.push({
+            type: "image",
+            image: fileData.uploadUrl,
+            mimeType: fileData.file.type,
+          });
+        } else {
+          parts.push({
+            type: "file",
+            data: fileData.uploadUrl,
+            mimeType: fileData.file.type,
+          });
+        }
+      }
+    }
+
+    // Send message with parts array (AI SDK format)
+    if (parts.length === 1 && parts[0].type === "text") {
+      sendMessage({ text: parts[0].text });
+    } else {
+      // For multi-part messages, send with parts
+      // Use type assertion since AI SDK types are complex and we're using S3 URLs
+      sendMessage({
+        parts,
+      } as Parameters<typeof sendMessage>[0] & { parts: typeof parts });
+    }
+
     setInput("");
+    // Cleanup blob URLs before clearing pending files
+    pendingFiles.forEach((fileData) => {
+      if (fileData.preview) {
+        URL.revokeObjectURL(fileData.preview);
+      }
+    });
+    setPendingFiles([]);
     // Reset textarea height after clearing input
     setTimeout(adjustTextareaHeight, 0);
   };
@@ -364,22 +598,26 @@ export const AgentChat: FC<AgentChatProps> = ({
     }, 100);
 
     return () => clearTimeout(timeoutId);
-  }, []);
+  }, [adjustTextareaHeight]);
 
   // Adjust textarea height when input changes
   useEffect(() => {
     adjustTextareaHeight();
-  }, [input]);
+  }, [input, adjustTextareaHeight]);
 
   return (
-    <div className={`flex ${isWidget ? "h-full" : "h-[600px]"} flex-col rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900`}>
+    <div
+      className={`flex ${
+        isWidget ? "h-full" : "h-[600px]"
+      } flex-col rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900`}
+    >
       {!isWidget && (
         <div className="rounded-t-2xl border-b-2 border-neutral-300 bg-neutral-100 p-5 dark:border-neutral-700 dark:bg-neutral-800">
           <div className="flex items-center justify-between gap-4">
             <p className="text-base font-bold text-neutral-800 dark:text-neutral-200">
               Test your agent by having a conversation. This chat interface lets
-              you interact with the agent in real-time to verify its behavior and
-              responses before deploying it.
+              you interact with the agent in real-time to verify its behavior
+              and responses before deploying it.
             </p>
             {messages.length > 0 && (
               <button
@@ -439,7 +677,8 @@ export const AgentChat: FC<AgentChatProps> = ({
                 typeof message === "object" &&
                 message !== null &&
                 "knowledgeInjection" in message &&
-                (message as { knowledgeInjection?: boolean }).knowledgeInjection === true;
+                (message as { knowledgeInjection?: boolean })
+                  .knowledgeInjection === true;
 
               // Get snippet count for knowledge injection messages
               const snippetCount =
@@ -447,8 +686,11 @@ export const AgentChat: FC<AgentChatProps> = ({
                 typeof message === "object" &&
                 message !== null &&
                 "knowledgeSnippets" in message &&
-                Array.isArray((message as { knowledgeSnippets?: unknown }).knowledgeSnippets)
-                  ? ((message as { knowledgeSnippets: unknown[] }).knowledgeSnippets).length
+                Array.isArray(
+                  (message as { knowledgeSnippets?: unknown }).knowledgeSnippets
+                )
+                  ? (message as { knowledgeSnippets: unknown[] })
+                      .knowledgeSnippets.length
                   : 0;
 
               const getRoleLabel = () => {
@@ -502,7 +744,10 @@ export const AgentChat: FC<AgentChatProps> = ({
                           <span className="text-lg">📚</span>
                           <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
                             Knowledge from workspace documents
-                            {snippetCount > 0 && ` (${snippetCount} snippet${snippetCount !== 1 ? "s" : ""})`}
+                            {snippetCount > 0 &&
+                              ` (${snippetCount} snippet${
+                                snippetCount !== 1 ? "s" : ""
+                              })`}
                           </span>
                         </div>
                       </summary>
@@ -544,7 +789,11 @@ export const AgentChat: FC<AgentChatProps> = ({
                                         remarkPlugins={[remarkGfm]}
                                         components={{
                                           code: (props) => {
-                                            const { className, children, ...rest } = props;
+                                            const {
+                                              className,
+                                              children,
+                                              ...rest
+                                            } = props;
                                             const isInline =
                                               !className ||
                                               !className.includes("language-");
@@ -568,7 +817,9 @@ export const AgentChat: FC<AgentChatProps> = ({
                                             );
                                           },
                                           p: ({ children }) => (
-                                            <p className="mb-2 last:mb-0">{children}</p>
+                                            <p className="mb-2 last:mb-0">
+                                              {children}
+                                            </p>
                                           ),
                                         }}
                                       >
@@ -676,6 +927,97 @@ export const AgentChat: FC<AgentChatProps> = ({
                       </div>
                     </div>
                   );
+                }
+
+                // File part
+                if (
+                  (partType === "file" || partType === "image") &&
+                  ("file" in part || "image" in part || "data" in part)
+                ) {
+                  // Extract file URL from various possible properties
+                  let fileUrl: string | null = null;
+                  if ("file" in part && typeof part.file === "string") {
+                    fileUrl = part.file;
+                  } else if (
+                    "image" in part &&
+                    typeof part.image === "string"
+                  ) {
+                    fileUrl = part.image;
+                  } else if ("data" in part && typeof part.data === "string") {
+                    fileUrl = part.data;
+                  }
+
+                  if (!fileUrl || typeof fileUrl !== "string") {
+                    return null;
+                  }
+
+                  // Extract media type
+                  let mediaType: string | undefined;
+                  if (
+                    "mediaType" in part &&
+                    typeof part.mediaType === "string"
+                  ) {
+                    mediaType = part.mediaType;
+                  } else if (
+                    "mimeType" in part &&
+                    typeof part.mimeType === "string"
+                  ) {
+                    mediaType = part.mimeType;
+                  }
+
+                  const isImage =
+                    (mediaType && mediaType.startsWith("image/")) ||
+                    !!fileUrl.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
+
+                  if (isImage) {
+                    return (
+                      <div
+                        key={`${message.id}-part-${partIndex}`}
+                        className="mt-2 max-w-full"
+                      >
+                        <img
+                          src={fileUrl}
+                          alt="Uploaded image"
+                          className="max-h-96 max-w-full rounded-lg border-2 border-neutral-300 object-contain dark:border-neutral-700"
+                          onError={(e) => {
+                            // Handle image load errors
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = "none";
+                          }}
+                        />
+                      </div>
+                    );
+                  } else {
+                    // Non-image file - show as attachment
+                    const fileName =
+                      fileUrl.split("/").pop()?.split("?")[0] || "File";
+                    return (
+                      <div
+                        key={`${message.id}-part-${partIndex}`}
+                        className="mt-2 flex items-center gap-2 rounded-lg border-2 border-neutral-300 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                      >
+                        <PaperClipIcon className="size-5 shrink-0 text-neutral-600 dark:text-neutral-400" />
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                            {fileName}
+                          </div>
+                          {mediaType && (
+                            <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                              {mediaType}
+                            </div>
+                          )}
+                        </div>
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-lg border-2 border-primary-600 bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition-all duration-200 hover:bg-primary-700 dark:border-primary-500 dark:bg-primary-500 dark:hover:bg-primary-600"
+                        >
+                          Download
+                        </a>
+                      </div>
+                    );
+                  }
                 }
 
                 // Tool calls - dynamic-tool
@@ -1363,11 +1705,102 @@ export const AgentChat: FC<AgentChatProps> = ({
         )}
       </div>
 
+      {/* Pending Files Preview */}
+      {pendingFiles.length > 0 && (
+        <div className="border-t-2 border-neutral-300 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
+          <div className="flex flex-wrap gap-2">
+            {pendingFiles.map((fileData, index) => (
+              <div
+                key={index}
+                className="relative flex items-center gap-2 rounded-lg border-2 border-neutral-300 bg-white p-2 dark:border-neutral-700 dark:bg-neutral-900"
+              >
+                {fileData.preview ? (
+                  <img
+                    src={fileData.preview}
+                    alt={fileData.file.name}
+                    className="size-12 rounded object-cover"
+                  />
+                ) : (
+                  <PaperClipIcon className="size-6 text-neutral-600 dark:text-neutral-400" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs font-medium text-neutral-900 dark:text-neutral-100">
+                    {fileData.file.name}
+                  </div>
+                  <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                    {fileData.uploading
+                      ? "Uploading..."
+                      : fileData.error
+                      ? "Error"
+                      : fileData.uploadUrl
+                      ? "Ready"
+                      : "Pending"}
+                  </div>
+                </div>
+                {fileData.error && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Cleanup blob URL before removing file
+                      if (fileData.preview) {
+                        URL.revokeObjectURL(fileData.preview);
+                      }
+                      setPendingFiles((prev) =>
+                        prev.filter((f) => f.file !== fileData.file)
+                      );
+                    }}
+                    className="text-error-600 hover:text-error-700 dark:text-error-400 dark:hover:text-error-300"
+                    title="Remove file"
+                  >
+                    <TrashIcon className="size-4" />
+                  </button>
+                )}
+                {!fileData.uploading && !fileData.error && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Cleanup blob URL before removing file
+                      if (fileData.preview) {
+                        URL.revokeObjectURL(fileData.preview);
+                      }
+                      setPendingFiles((prev) =>
+                        prev.filter((f) => f.file !== fileData.file)
+                      );
+                    }}
+                    className="text-neutral-600 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-300"
+                    title="Remove file"
+                  >
+                    <TrashIcon className="size-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Input Form */}
       <form
         onSubmit={handleSubmit}
         className="flex gap-4 rounded-b-2xl border-t-2 border-neutral-300 bg-white p-5 dark:border-neutral-700 dark:bg-neutral-900"
       >
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          onChange={handleFileSelect}
+          className="hidden"
+          accept="*/*"
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isLoading}
+          className="flex shrink-0 items-center justify-center rounded-xl border-2 border-neutral-300 bg-white p-4 text-neutral-700 transition-all duration-200 hover:bg-neutral-50 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+          title="Attach file"
+        >
+          <PaperClipIcon className="size-5" />
+        </button>
         <textarea
           ref={textareaRef}
           value={input}
@@ -1380,7 +1813,11 @@ export const AgentChat: FC<AgentChatProps> = ({
         />
         <button
           type="submit"
-          disabled={isLoading || !input.trim()}
+          disabled={
+            isLoading ||
+            (!input.trim() && pendingFiles.length === 0) ||
+            pendingFiles.some((f) => f.uploading || f.error)
+          }
           className="transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
         >
           Send

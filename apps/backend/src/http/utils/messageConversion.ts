@@ -5,6 +5,8 @@ import type {
   SystemModelMessage,
   ToolCallPart,
   ToolResultPart,
+  ImagePart,
+  FilePart,
 } from "ai";
 
 import type { UIMessage } from "../../utils/messageTypes";
@@ -40,25 +42,78 @@ export function convertAiSdkUIMessageToUIMessage(
   if (role === "user") {
     // Check if it's ai-sdk format (has 'parts')
     if ("parts" in message && Array.isArray(message.parts)) {
-      // Extract text from parts array
-      const textParts: string[] = [];
+      // Extract text, images, and files from parts array
+      const content: Array<
+        | { type: "text"; text: string }
+        | { type: "file"; file: string; mediaType?: string }
+      > = [];
+
       for (const part of message.parts) {
         if (typeof part === "string") {
-          textParts.push(part);
-        } else if (
-          part &&
-          typeof part === "object" &&
-          "type" in part &&
-          part.type === "text" &&
-          "text" in part &&
-          typeof part.text === "string"
-        ) {
-          textParts.push(part.text);
+          content.push({ type: "text", text: part });
+        } else if (part && typeof part === "object" && "type" in part) {
+          if (
+            part.type === "text" &&
+            "text" in part &&
+            typeof part.text === "string"
+          ) {
+            content.push({ type: "text", text: part.text });
+          } else if (
+            (part.type === "image" || part.type === "file") &&
+            ("image" in part || "file" in part || "data" in part)
+          ) {
+            // Handle image/file parts from AI SDK
+            // AI SDK uses 'image' for ImagePart and 'data' for FilePart
+            const fileUrl =
+              "image" in part && typeof part.image === "string"
+                ? part.image
+                : "file" in part && typeof part.file === "string"
+                ? part.file
+                : "data" in part && typeof part.data === "string"
+                ? part.data
+                : null;
+
+            if (fileUrl) {
+              // Validate it's a URL, not base64/data URL
+              if (
+                fileUrl.startsWith("http://") ||
+                fileUrl.startsWith("https://")
+              ) {
+                const mediaType =
+                  "mimeType" in part && typeof part.mimeType === "string"
+                    ? part.mimeType
+                    : "mediaType" in part && typeof part.mediaType === "string"
+                    ? part.mediaType
+                    : undefined;
+
+                content.push({
+                  type: "file",
+                  file: fileUrl,
+                  mediaType,
+                });
+              } else {
+                // Skip base64/data URLs - they should not be in messages
+                console.warn(
+                  "[convertAiSdkUIMessageToUIMessage] Skipping inline file data (base64/data URL)"
+                );
+              }
+            }
+          }
         }
       }
+
+      // If only one text part, simplify to string
+      if (content.length === 1 && content[0].type === "text") {
+        return {
+          role: "user",
+          content: content[0].text,
+        };
+      }
+
+      // Return with content array
       return {
         role: "user",
-        content: textParts.join(""),
+        content,
       };
     }
     // Already in our format (has 'content')
@@ -347,24 +402,168 @@ export function convertUIMessagesToModelMessages(
 
     // Handle user messages
     if (role === "user") {
-      let textContent = "";
       if (typeof message.content === "string") {
-        textContent = message.content;
+        // Simple text content
+        if (message.content.trim()) {
+          const userMessage: UserModelMessage = {
+            role: "user",
+            content: message.content,
+          };
+          modelMessages.push(userMessage);
+        }
       } else if (Array.isArray(message.content)) {
-        // Extract text from content array
-        const textParts = message.content
-          .filter((part) => part.type === "text")
-          .map((part) => (typeof part === "string" ? part : part.text))
-          .join("");
-        textContent = textParts;
-      }
+        // Content array - extract text, images, and files
+        const textParts: string[] = [];
+        const imageParts: ImagePart[] = [];
+        const fileParts: FilePart[] = [];
 
-      if (textContent.trim()) {
-        const userMessage: UserModelMessage = {
-          role: "user",
-          content: textContent,
-        };
-        modelMessages.push(userMessage);
+        for (const part of message.content) {
+          if (typeof part === "string") {
+            textParts.push(part);
+          } else if (part && typeof part === "object" && "type" in part) {
+            const partType = part.type;
+            if (
+              partType === "text" &&
+              "text" in part &&
+              typeof part.text === "string"
+            ) {
+              textParts.push(part.text);
+            } else if ("image" in part && typeof part.image === "string") {
+              // Handle image type (from schema: { type: "image", image: "https://..." })
+              // Note: Schema allows this format even though TypeScript types use FileContent
+              const imagePart = part as {
+                type: string;
+                image: string;
+                mediaType?: unknown;
+              };
+              const imageUrl = imagePart.image;
+
+              // Validate that image URL is an S3 URL, not base64/data URL
+              // Reject base64/data URLs
+              if (
+                imageUrl.startsWith("data:") ||
+                imageUrl.startsWith("data;")
+              ) {
+                throw new Error(
+                  "Inline image data (base64/data URLs) is not allowed. Images must be uploaded to S3 first."
+                );
+              }
+
+              // Ensure it's a valid URL
+              if (
+                !imageUrl.startsWith("http://") &&
+                !imageUrl.startsWith("https://")
+              ) {
+                throw new Error("Image URL must be a valid HTTP/HTTPS URL");
+              }
+
+              // Use ImagePart for images
+              imageParts.push({
+                type: "image",
+                image: imageUrl,
+              } as ImagePart);
+            } else if (partType === "file" && "file" in part) {
+              // Handle file type
+              const filePart = part as {
+                type: "file";
+                file: unknown;
+                mediaType?: unknown;
+              };
+              const fileUrl = filePart.file;
+              const mediaType =
+                filePart.mediaType && typeof filePart.mediaType === "string"
+                  ? filePart.mediaType
+                  : undefined;
+
+              // Validate that file URL is an S3 URL, not base64/data URL
+              if (typeof fileUrl !== "string") {
+                throw new Error(
+                  "File content must be a URL string, not inline data"
+                );
+              }
+
+              // Reject base64/data URLs
+              if (fileUrl.startsWith("data:") || fileUrl.startsWith("data;")) {
+                throw new Error(
+                  "Inline file data (base64/data URLs) is not allowed. Files must be uploaded to S3 first."
+                );
+              }
+
+              // Ensure it's a valid URL
+              if (
+                !fileUrl.startsWith("http://") &&
+                !fileUrl.startsWith("https://")
+              ) {
+                throw new Error("File URL must be a valid HTTP/HTTPS URL");
+              }
+
+              // Determine if it's an image based on mediaType or URL
+              const isImage =
+                mediaType?.startsWith("image/") ||
+                !!fileUrl.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
+
+              if (isImage) {
+                // Use ImagePart for images
+                imageParts.push({
+                  type: "image",
+                  image: fileUrl,
+                } as ImagePart);
+              } else {
+                // Use FilePart for other files
+                // FilePart uses 'data' for URL (can be string URL)
+                fileParts.push({
+                  type: "file",
+                  data: fileUrl,
+                  mimeType: mediaType || "application/octet-stream",
+                } as unknown as FilePart);
+              }
+            }
+          }
+        }
+
+        // Build content array for user message
+        // AI SDK UserContent can be string or array of TextPart | ImagePart | FilePart
+        const contentParts: Array<
+          { type: "text"; text: string } | ImagePart | FilePart
+        > = [];
+
+        // Add text content as TextPart
+        const combinedText = textParts.join("").trim();
+        if (combinedText) {
+          contentParts.push({ type: "text", text: combinedText });
+        }
+
+        // Add image parts
+        contentParts.push(...imageParts);
+
+        // Add file parts
+        contentParts.push(...fileParts);
+
+        // Create user message with content array
+        if (contentParts.length > 0) {
+          // If only one text part, use string format for simplicity
+          const firstPart = contentParts[0];
+          if (
+            contentParts.length === 1 &&
+            firstPart &&
+            typeof firstPart === "object" &&
+            "type" in firstPart &&
+            firstPart.type === "text"
+          ) {
+            const userMessage: UserModelMessage = {
+              role: "user",
+              content: firstPart.text,
+            };
+            modelMessages.push(userMessage);
+          } else {
+            // Multiple parts - use array format
+            const userMessage: UserModelMessage = {
+              role: "user",
+              content: contentParts,
+            };
+            modelMessages.push(userMessage);
+          }
+        }
       }
       continue;
     }

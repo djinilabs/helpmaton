@@ -153,8 +153,9 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
         // Validate modelName if provided (Zod already validated the type)
         if (modelName !== undefined && modelName !== null) {
           // Validate model exists in pricing config
+          // System always uses "openrouter" provider (see agentSetup.ts), regardless of agent.provider field
           const { getModelPricing } = await import("../../../utils/pricing");
-          const pricing = getModelPricing("google", modelName.trim());
+          const pricing = getModelPricing("openrouter", modelName.trim());
           if (!pricing) {
             throw badRequest(
               `Model "${modelName.trim()}" is not available. Please check available models at /api/models`
@@ -183,7 +184,7 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           workspaceId,
           name,
           systemPrompt,
-          provider: "google", // Default to Google provider
+          provider: "openrouter", // Always use openrouter (only supported provider)
           notificationChannelId:
             notificationChannelId !== undefined && notificationChannelId !== null
               ? notificationChannelId

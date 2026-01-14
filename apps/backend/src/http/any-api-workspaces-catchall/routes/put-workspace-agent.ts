@@ -415,8 +415,9 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
             throw badRequest("modelName must be a non-empty string or null");
           }
           // Validate model exists in pricing config
+          // System always uses "openrouter" provider (see agentSetup.ts), regardless of agent.provider field
           const { getModelPricing } = await import("../../../utils/pricing");
-          const pricing = getModelPricing("google", modelName.trim());
+          const pricing = getModelPricing("openrouter", modelName.trim());
           if (!pricing) {
             throw badRequest(
               `Model "${modelName.trim()}" is not available. Please check available models at /api/models`
@@ -594,6 +595,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
                 ? undefined
                 : maxToolRoundtrips
               : agent.maxToolRoundtrips,
+          provider: "openrouter", // Always use openrouter (only supported provider)
           modelName:
             modelName !== undefined
               ? modelName === null
