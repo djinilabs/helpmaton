@@ -81,4 +81,16 @@ tsconfig.json
 playwright.config.ts
 vitest.config.ts
 
+# Additional files not needed in Docker images
+patches/
+memory/
+renovate.json
+test-streaming.sh
+.npmrc
+.cursor/
+.cursorrules
+delegation-retry-behavior.md
+CONTRIBUTING.md
+LICENSE.md
+NOTICE.md
 

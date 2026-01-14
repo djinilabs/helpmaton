@@ -2,6 +2,10 @@
 # Single-stage build - no build tools needed, LanceDB ships pre-compiled binaries!
 FROM public.ecr.aws/lambda/nodejs:20
 
+# Build argument for dist source directory
+# Defaults to apps/backend/dist for backward compatibility
+ARG DIST_SOURCE=apps/backend/dist
+
 # Install pnpm globally
 RUN npm install -g pnpm
 
@@ -15,7 +19,30 @@ COPY apps/backend/docker/lancedb/package.json ./
 # and @lancedb/lancedb-linux-arm64-gnu (pre-built .node binary)
 # pnpm config in package.json ensures only linux-arm64 platform is installed
 RUN pnpm install --prod && \
-    rm -rf /root/.pnpm-store /root/.local/share/pnpm
+    rm -rf /root/.pnpm-store /root/.local/share/pnpm && \
+    npm uninstall -g pnpm
+
+# Clean up unnecessary files from node_modules to reduce image size
+RUN find /tmp/build/node_modules -type f \( \
+        -name "README*" -o \
+        -name "CHANGELOG*" -o \
+        -name "LICENSE*" -o \
+        -name "*.test.*" -o \
+        -name "*.spec.*" -o \
+        -name "*.ts" -o \
+        -name "*.map" \
+    \) -delete && \
+    find /tmp/build/node_modules -type d \( \
+        -name "test" -o \
+        -name "tests" -o \
+        -name "__tests__" -o \
+        -name "examples" -o \
+        -name "example" -o \
+        -name "docs" -o \
+        -name "doc" -o \
+        -name ".github" -o \
+        -name ".git" \
+    \) -exec rm -rf {} + 2>/dev/null || true
 
 # Move to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}
@@ -24,10 +51,10 @@ WORKDIR ${LAMBDA_TASK_ROOT}
 RUN cp -r /tmp/build/node_modules ./node_modules && \
     rm -rf /tmp/build
 
-# Copy built Lambda code from dist directory
+# Copy built Lambda code from dist directory (or prepared dist subset)
 # The dist directory contains the compiled TypeScript code with all JS dependencies bundled
 # Handler files are at paths like: dist/http/any-api-streams-000workspaceId-000agentId-000secret/index.js
-COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
+COPY ${DIST_SOURCE}/ ${LAMBDA_TASK_ROOT}/
 
 # Copy entrypoint wrapper
 # This wrapper reads LAMBDA_HANDLER_PATH environment variable to route to the correct handler
