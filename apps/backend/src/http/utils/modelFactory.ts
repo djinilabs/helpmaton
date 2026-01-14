@@ -94,9 +94,9 @@ export function getDefaultModel(): string {
   }
 
   // For OpenRouter, prefer common models
+  // Note: "auto" is not a valid model ID, so we don't include it in default patterns
   const defaultPatterns = [
     (p: string) => p === "google/gemini-2.5-flash",
-    (p: string) => p === "auto",
     (p: string) => p.includes("gemini-2.5"),
     (p: string) => p.includes("claude-3.5"),
   ];
@@ -137,21 +137,20 @@ export async function createModel(
     );
   }
 
-  // For OpenRouter, handle auto-selection
-  const isAutoSelection = modelName === "auto" || modelName === undefined;
-  const finalModelName = isAutoSelection
-    ? "auto"
-    : modelName || getDefaultModel();
+  // For OpenRouter, determine the final model name
+  // Note: "auto" is not a valid model ID for OpenRouter, so we treat it the same as undefined
+  // and use getDefaultModel() instead
+  const finalModelName = modelName && modelName !== "auto" 
+    ? modelName 
+    : getDefaultModel();
 
-  // Validate that pricing exists for this model (skip for auto-selection)
-  if (!isAutoSelection) {
-    const pricing = getModelPricing("openrouter", finalModelName);
-    if (!pricing) {
-      throw badRequest(
-        `No pricing found for model "${finalModelName}". ` +
-          `Please ensure the model is available in the pricing configuration.`
-      );
-    }
+  // Validate that pricing exists for this model
+  const pricing = getModelPricing("openrouter", finalModelName);
+  if (!pricing) {
+    throw badRequest(
+      `No pricing found for model "${finalModelName}". ` +
+        `Please ensure the model is available in the pricing configuration.`
+    );
   }
 
   // Try to get workspace API key first, fall back to system key
@@ -184,9 +183,8 @@ export async function createModel(
     apiKey,
   });
 
-  // For auto-selection, use "auto" as the model name
-  // For specific models, use openrouter.chat('provider/model-name')
-  const modelNameToUse = isAutoSelection ? "auto" : finalModelName;
+  // Use the final model name (always a valid model ID, never "auto")
+  const modelNameToUse = finalModelName;
 
   // Build model settings from agent config
   // Note: temperature, topP, etc. are typically passed to generateText/streamText,

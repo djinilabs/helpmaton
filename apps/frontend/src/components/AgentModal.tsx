@@ -108,7 +108,7 @@ const AgentModalContent: FC<{
               onClick={onPromptGeneratorOpen}
               className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
-              ✨ Generate with AI
+              {systemPrompt.trim() ? "✨ Improve with AI" : "✨ Generate with AI"}
             </button>
             <button
               type="button"
@@ -454,6 +454,7 @@ export const AgentModal: FC<AgentModalProps> = ({
           onClose={() => setIsPromptGeneratorOpen(false)}
           workspaceId={workspaceId}
           agentId={agent?.id}
+          hasExistingPrompt={!!(systemPrompt?.trim())}
           onAccept={(prompt) => {
             setSystemPrompt(prompt);
             setIsPromptGeneratorOpen(false);

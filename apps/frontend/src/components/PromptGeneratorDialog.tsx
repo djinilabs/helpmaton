@@ -13,6 +13,7 @@ interface PromptGeneratorDialogProps {
   onClose: () => void;
   workspaceId: string;
   agentId?: string | null;
+  hasExistingPrompt?: boolean;
   onAccept: (prompt: string) => void;
 }
 
@@ -21,6 +22,7 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
   onClose,
   workspaceId,
   agentId,
+  hasExistingPrompt = false,
   onAccept,
 }) => {
   const [goal, setGoal] = useState("");
@@ -79,7 +81,7 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-3xl font-semibold text-neutral-900 dark:text-neutral-50">
-            Generate System Prompt
+            {hasExistingPrompt ? "Improve System Prompt" : "Generate System Prompt"}
           </h2>
           <button
             onClick={handleClose}
@@ -95,19 +97,26 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
               htmlFor="goal"
               className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
             >
-              Describe your agent&apos;s goal
+              {hasExistingPrompt
+                ? "Describe how you want to improve your agent"
+                : "Describe your agent&apos;s goal"}
             </label>
             <textarea
               id="goal"
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
-              placeholder="e.g., I want an agent that helps customers with technical support questions, provides clear explanations, and escalates complex issues to the engineering team."
+              placeholder={
+                hasExistingPrompt
+                  ? "e.g., Make the agent more friendly and conversational, or add instructions to handle refund requests."
+                  : "e.g., I want an agent that helps customers with technical support questions, provides clear explanations, and escalates complex issues to the engineering team."
+              }
               className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:ring-primary-400"
               rows={4}
             />
             <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-              Provide a description of what you want your agent to do. The more
-              specific you are, the better the generated prompt will be.
+              {hasExistingPrompt
+                ? "Describe how you want to improve or modify your agent's system prompt. The AI will build upon your existing prompt based on your request."
+                : "Provide a description of what you want your agent to do. The more specific you are, the better the generated prompt will be."}
             </p>
           </div>
 
@@ -140,11 +149,12 @@ export const PromptGeneratorDialog: FC<PromptGeneratorDialogProps> = ({
             <div className="space-y-4">
               <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-950">
                 <p className="mb-2 text-sm font-semibold text-green-800 dark:text-green-200">
-                  ✓ Prompt Generated
+                  ✓ {hasExistingPrompt ? "Prompt Improved" : "Prompt Generated"}
                 </p>
                 <p className="text-xs text-green-900 dark:text-green-100">
-                  Review the generated prompt below. You can use it as-is or
-                  modify it before applying.
+                  {hasExistingPrompt
+                    ? "Review the improved prompt below. It has been modified based on your request. You can use it as-is or make further edits before applying."
+                    : "Review the generated prompt below. You can use it as-is or modify it before applying."}
                 </p>
               </div>
 
