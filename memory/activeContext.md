@@ -29,15 +29,36 @@
        - `generatePresignedPostUrl()`: Uses AWS SDK v3 (`@aws-sdk/s3-presigned-post`) to generate presigned POST URLs
        - Supports all file types (not just images)
        - Configurable max file size (default: 10MB) and expiration time
+       - **No ACL in presigned POST**: Removed `acl: "public-read"` from presigned POST fields/conditions because `BlockPublicAcls: true` prevents ACL operations. Public access is granted via bucket policy instead.
+     - **S3 Public Access Configuration** (`plugins/s3/index.js`):
+       - **Bucket Policy**: `AWS::S3::BucketPolicy` resource grants public `s3:GetObject` access to `conversation-files/*` prefix
+       - **Public Access Block**: Configured to allow public bucket policies:
+         - `BlockPublicAcls: true` - Blocks ACL operations (we use bucket policy instead)
+         - `IgnorePublicAcls: true` - Ignores ACLs (we use bucket policy instead)
+         - `BlockPublicPolicy: false` - **Allows** public bucket policies (required for our bucket policy)
+         - `RestrictPublicBuckets: false` - **Allows** public access via bucket policy (required for our bucket policy)
+       - Configuration applied to both new and existing buckets
+       - Files uploaded to S3 are publicly accessible via HTTP/HTTPS URLs for agent processing
      - **S3 Lifecycle Configuration** (`plugins/s3/index.js`):
        - CloudFormation resource `AWS::S3::BucketLifecycleConfiguration`
        - Automatically deletes files in `conversation-files/` prefix after 30 days
        - No manual cleanup required
-     - **Message Validation** (`utils/messageConversion.ts`):
-       - Validates file URLs are HTTP/HTTPS (not base64/data URLs)
-       - Rejects inline file data with clear error messages
-       - Automatically detects images based on mediaType or URL extension
-       - Converts file parts to AI SDK format (ImagePart for images, FilePart for others)
+     - **Message Conversion** (`utils/messageConversion.ts`, `utils/streamRequestContext.ts`):
+       - **AI SDK Format Detection**: Checks ALL messages in conversation history for `parts` property (not just first message), ensuring file attachments in any message are detected
+       - **Consistent Conversion**: Always uses our internal `convertUIMessagesToModelMessages()` converter instead of AI SDK's `convertToModelMessages()`, ensuring file parts are preserved from conversation history
+       - **Image Detection**: Automatically detects images based on `mediaType?.startsWith("image/")` or URL extension (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`)
+       - **Format Compliance**: Creates proper AI SDK format:
+         - `ImagePart`: `{type: "image", image: "url", mediaType?: "image/png"}` (includes mediaType when available for provider compatibility)
+         - `FilePart`: `{type: "file", data: "url", mimeType: "..."}` for non-image files
+         - `TextPart`: `{type: "text", text: "..."}` for text content
+       - **Content Order**: Messages with multiple parts are ordered as: text first, then images, then files
+       - **Validation**: Validates file URLs are HTTP/HTTPS (not base64/data URLs)
+       - **Rejects inline data**: Rejects base64/data URLs with clear error messages
+       - **Comprehensive Logging**: Added logging to track file parts through conversion pipeline (request body → converted messages → model messages)
+     - **Message Deduplication** (`utils/conversationLogger.ts`):
+       - **File Part Preservation**: `normalizeContentForComparison()` now includes file parts in deduplication keys using format `[file:${fileUrl}:${mediaType}]`
+       - **Prevents Data Loss**: Messages with identical text but different file attachments are treated as distinct messages
+       - **Tool Call/Result Handling**: Tool calls and results are also included in comparison keys to prevent incorrect deduplication
 
    - **Frontend Implementation** (`components/AgentChat.tsx`):
 
@@ -73,7 +94,13 @@
      - Tests verify S3 key path construction
      - Tests verify presigned URL generation with correct conditions
 
-   - **Result**: Users can attach any file type to conversations. Files are securely uploaded to S3 with automatic expiration, and AI models can process images and other file types in conversations.
+   - **Production Fixes** (January 2026):
+     - **S3 Public Access**: Fixed production issue where files were not publicly accessible. Removed ACL from presigned POST (conflicted with `BlockPublicAcls: true`), added bucket policy for public read access, and configured `BlockPublicPolicy: false` and `RestrictPublicBuckets: false` to allow bucket policies.
+     - **Message Conversion**: Fixed issue where image parts from conversation history were not being sent to LLM. Changed to always use our internal converter which properly preserves file parts, instead of conditionally using AI SDK's `convertToModelMessages()`.
+     - **Message Deduplication**: Fixed bug where messages with same text but different file attachments were being treated as duplicates, causing file parts to be lost. Updated `normalizeContentForComparison()` to include file URLs and media types in comparison keys.
+     - **Format Improvements**: Added `mediaType` to `ImagePart` when available for better provider compatibility (some providers may require it).
+
+   - **Result**: Users can attach any file type to conversations. Files are securely uploaded to S3 with automatic expiration and public read access for agent processing. AI models can process images and other file types in conversations, with file parts correctly preserved through the entire message pipeline (frontend → backend → LLM → conversation history).
 
 2. **Notion MCP Server Integration - Enhanced User Experience**: Improved the Notion create page tool to accept simplified parameters and fixed API structure issues.
 
