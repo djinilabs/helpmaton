@@ -377,28 +377,25 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
           )
       );
       if (modelMessagesWithFiles.length > 0) {
-        console.log(
-          "[Stream Handler] Model messages with file parts:",
-          {
-            count: modelMessagesWithFiles.length,
-            messageIndices: modelMessages
-              .map((msg, idx) => ({
-                index: idx,
-                role: msg.role,
-                hasFiles:
-                  msg.role === "user" &&
-                  Array.isArray(msg.content) &&
-                  msg.content.some(
-                    (part: unknown) =>
-                      part &&
-                      typeof part === "object" &&
-                      "type" in part &&
-                      (part.type === "image" || part.type === "file")
-                  ),
-              }))
-              .filter((m) => m.hasFiles),
-          }
-        );
+        console.log("[Stream Handler] Model messages with file parts:", {
+          count: modelMessagesWithFiles.length,
+          messageIndices: modelMessages
+            .map((msg, idx) => ({
+              index: idx,
+              role: msg.role,
+              hasFiles:
+                msg.role === "user" &&
+                Array.isArray(msg.content) &&
+                msg.content.some(
+                  (part: unknown) =>
+                    part &&
+                    typeof part === "object" &&
+                    "type" in part &&
+                    (part.type === "image" || part.type === "file")
+                ),
+            }))
+            .filter((m) => m.hasFiles),
+        });
       }
     } catch (error) {
       console.error("[Stream Handler] Error converting messages:", {
