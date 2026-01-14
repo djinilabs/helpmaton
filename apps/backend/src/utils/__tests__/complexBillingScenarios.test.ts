@@ -256,7 +256,8 @@ describe("Complex Billing Scenarios", () => {
       );
 
       expect(scraperReservation.reservationId).toBeDefined();
-      workspaceBalance -= scraperCost;
+      // Note: workspaceBalance already updated by mockAtomicUpdate in reserveCredits
+      // No need to manually subtract here
 
       // Step 5: Reserve credits for reranking
       const rerankingReservation = await mockReserveRerankingCredits(
@@ -673,8 +674,8 @@ describe("Complex Billing Scenarios", () => {
         agentId,
         conversationId
       );
-
-      workspaceBalance -= llmCost;
+      // Note: workspaceBalance already updated by mockAtomicUpdate in reserveCredits
+      // No need to manually subtract here
 
       // Reserve credits for Exa tool call
       const exaReservation = await mockReserveExaCredits(
@@ -810,8 +811,8 @@ describe("Complex Billing Scenarios", () => {
         agentId,
         conversationId
       );
-
-      workspaceBalance -= llmCost;
+      // Note: workspaceBalance already updated by mockAtomicUpdate in reserveCredits
+      // No need to manually subtract here
 
       // Reserve credits for Exa tool call
       const exaReservation = await mockReserveExaCredits(
