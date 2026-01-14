@@ -1,5 +1,5 @@
 import type { FC } from "react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import { useTheme } from "../hooks/useTheme";
 import type { DailyUsageData } from "../utils/api";
@@ -48,8 +48,53 @@ export const UsageChart: FC<UsageChartProps> = ({
     }
   })();
   
+  const parentContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+
+  // Measure parent container width on mount and resize
+  useEffect(() => {
+    if (!parentContainerRef.current) return;
+
+    const updateWidth = () => {
+      if (parentContainerRef.current) {
+        // Get the parent container width (the card container)
+        setContainerWidth(parentContainerRef.current.offsetWidth);
+      }
+    };
+
+    // Initial measurement with a small delay to ensure layout is complete
+    const timeoutId = setTimeout(updateWidth, 0);
+
+    // Watch for resize
+    const resizeObserver = new ResizeObserver(updateWidth);
+    resizeObserver.observe(parentContainerRef.current);
+
+    return () => {
+      clearTimeout(timeoutId);
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   const chartHeight = 200;
-  const barWidth = Math.max(20, (100 / data.length) * 0.8);
+  const spacePerDay = 20; // Reduced from 40 to make chart more compact
+  const yAxisLabelWidth = 100; // Increased space for Y-axis labels on the left
+  const rightPadding = 60; // Increased padding on the right for bar value labels
+  const chartAreaLeftPadding = 5; // Padding for bars within chart area
+  const minChartWidth = 600;
+  const calculatedChartWidth = data.length * spacePerDay;
+  // Use container width if available, accounting for padding and margins
+  // Subtract padding from parent (p-6 = 24px each side = 48px total), and yAxisLabelWidth + rightPadding
+  const availableWidth = containerWidth > 0 
+    ? containerWidth - 48 - yAxisLabelWidth - rightPadding 
+    : minChartWidth;
+  const chartWidth = Math.max(
+    minChartWidth,
+    calculatedChartWidth,
+    availableWidth
+  );
+  const barWidth = Math.max(12, (chartWidth / data.length) * 0.6); // Reduced from 0.8 to 0.6 for less padding
+  const dateLabelHeight = 100; // Increased height to accommodate rotated date labels that extend upward
 
   // Colors for dark/light mode
   const gridLineColor = isDark ? "#374151" : "#e5e7eb";
@@ -100,7 +145,7 @@ export const UsageChart: FC<UsageChartProps> = ({
   };
 
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
+    <div ref={parentContainerRef} className="rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900 overflow-visible">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">{title}</h3>
         <select
@@ -118,20 +163,19 @@ export const UsageChart: FC<UsageChartProps> = ({
       <p className="mb-6 text-sm text-neutral-600 dark:text-neutral-300">
         {getDescription()}
       </p>
-      <div className="overflow-x-auto">
+      <div ref={scrollContainerRef} className="w-full overflow-visible">
         <svg
-          width={Math.max(600, data.length * 40)}
-          height={chartHeight + 60}
-          className="rounded-xl border"
-          style={{ borderColor: svgBorderColor }}
+          width={chartWidth + yAxisLabelWidth + rightPadding}
+          height={chartHeight + dateLabelHeight}
+          className="rounded-xl"
         >
           {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
             <line
               key={ratio}
-              x1={0}
+              x1={yAxisLabelWidth}
               y1={chartHeight * ratio + 20}
-              x2={Math.max(600, data.length * 40)}
+              x2={chartWidth + yAxisLabelWidth}
               y2={chartHeight * ratio + 20}
               stroke={gridLineColor}
               strokeWidth={1}
@@ -145,7 +189,7 @@ export const UsageChart: FC<UsageChartProps> = ({
             const barHeight =
               maxValue > 0 ? (value / maxValue) * chartHeight : 0;
             const x =
-              index * (Math.max(600, data.length * 40) / data.length) + 10;
+              yAxisLabelWidth + index * (chartWidth / data.length) + chartAreaLeftPadding + (chartWidth / data.length - barWidth) / 2;
             const y = chartHeight + 20 - barHeight;
 
             return (
@@ -162,10 +206,12 @@ export const UsageChart: FC<UsageChartProps> = ({
                 />
                 <text
                   x={x + barWidth / 2}
-                  y={chartHeight + 45}
+                  y={chartHeight + 50}
                   textAnchor="middle"
                   className="text-xs font-medium"
                   fill={textColor}
+                  transform={`rotate(-90 ${x + barWidth / 2} ${chartHeight + 50})`}
+                  style={{ dominantBaseline: "middle" }}
                 >
                   {new Date(day.date).toLocaleDateString("en-US", {
                     month: "short",
@@ -191,8 +237,9 @@ export const UsageChart: FC<UsageChartProps> = ({
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
             <text
               key={ratio}
-              x={5}
+              x={yAxisLabelWidth - 20}
               y={chartHeight * (1 - ratio) + 25}
+              textAnchor="end"
               className="text-xs font-bold"
               fill={axisLabelColor}
             >
