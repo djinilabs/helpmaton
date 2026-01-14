@@ -73,7 +73,13 @@ export type UIMessage =
       role: "assistant";
       content:
         | string
-        | Array<TextContent | ToolCallContent | ToolResultContent | ReasoningContent>;
+        | Array<
+            | TextContent
+            | ToolCallContent
+            | ToolResultContent
+            | ReasoningContent
+            | FileContent
+          >;
       tokenUsage?: {
         promptTokens: number;
         completionTokens: number;

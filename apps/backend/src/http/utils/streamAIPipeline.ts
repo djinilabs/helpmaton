@@ -12,6 +12,14 @@ import {
 } from "./streamResponseStream";
 
 /**
+ * Processed file from AI stream
+ */
+export interface ProcessedFile {
+  url: string;
+  mediaType?: string;
+}
+
+/**
  * Pipes the AI stream to the response stream
  * Reads from the UI message stream and writes chunks to responseStream as they arrive
  */
@@ -24,7 +32,13 @@ export async function pipeAIStreamToResponse(
   onTextChunk: (text: string) => void,
   abortSignal?: AbortSignal,
   onDataWritten?: () => void, // Callback to notify when data is written to stream
-  eventTracking?: StreamEventTimestamps // Optional event tracking for timestamps
+  eventTracking?: StreamEventTimestamps, // Optional event tracking for timestamps
+  onFileChunk?: (file: {
+    url?: string;
+    base64?: string;
+    uint8Array?: Uint8Array;
+    mediaType?: string;
+  }) => Promise<ProcessedFile | null> // Callback to process file events (returns null if file should be skipped)
 ): Promise<Awaited<ReturnType<typeof streamText>>> {
   // Prepare LLM call (logging and generate options)
   const generateOptions = prepareLLMCall(
@@ -118,6 +132,60 @@ export async function pipeAIStreamToResponse(
       },
     }),
   });
+
+  // Process fullStream in parallel to extract file events
+  // This runs concurrently with the SSE stream processing
+  const fileProcessingPromise = (async () => {
+    if (!onFileChunk) {
+      return; // No file processing needed
+    }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fullStream = (streamResult as any).fullStream;
+      if (!fullStream || typeof fullStream[Symbol.asyncIterator] !== "function") {
+        console.log("[Stream Handler] fullStream not available or not iterable");
+        return;
+      }
+
+      console.log("[Stream Handler] Processing fullStream for file events");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for await (const delta of fullStream as AsyncIterable<any>) {
+        // Check if this is a file event
+        if (delta && typeof delta === "object" && delta.type === "file" && delta.file) {
+          const fileData = delta.file;
+          console.log("[Stream Handler] Found file event:", {
+            hasUrl: !!fileData.url,
+            hasBase64: !!fileData.base64,
+            hasUint8Array: !!fileData.uint8Array,
+            mediaType: fileData.mediaType,
+          });
+
+          try {
+            const processed = await onFileChunk({
+              url: fileData.url,
+              base64: fileData.base64,
+              uint8Array: fileData.uint8Array,
+              mediaType: fileData.mediaType,
+            });
+
+            if (processed) {
+              console.log("[Stream Handler] File processed successfully:", {
+                url: processed.url,
+                mediaType: processed.mediaType,
+              });
+            }
+          } catch (fileError) {
+            console.error("[Stream Handler] Error processing file event:", fileError);
+            // Don't throw - continue processing other files
+          }
+        }
+      }
+    } catch (streamError) {
+      console.error("[Stream Handler] Error processing fullStream:", streamError);
+      // Don't throw - file processing is best-effort, shouldn't break the main stream
+    }
+  })();
 
   // Get the UI message stream response from streamText result
   // This might throw NoOutputGeneratedError if there was an error during streaming
@@ -246,6 +314,17 @@ export async function pipeAIStreamToResponse(
     }
     // If streamCompletedSuccessfully is false, there was an error - don't end stream here
     // Let the error handler do it
+  }
+
+  // Wait for file processing to complete (best-effort, don't block on errors)
+  try {
+    await fileProcessingPromise;
+  } catch (fileProcessingError) {
+    console.error(
+      "[Stream Handler] Error in file processing (non-blocking):",
+      fileProcessingError
+    );
+    // Don't throw - file processing errors shouldn't break the main stream
   }
 
   return streamResult;

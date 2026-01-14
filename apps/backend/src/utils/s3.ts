@@ -509,3 +509,80 @@ export async function generatePresignedPostUrl(
     expiresIn,
   };
 }
+
+/**
+ * Upload a conversation file from a buffer (for AI-generated files)
+ * Uses the same path structure and high-entropy filenames as user-uploaded files
+ * @param workspaceId - Workspace ID
+ * @param agentId - Agent ID
+ * @param conversationId - Conversation ID
+ * @param buffer - File content as Buffer or Uint8Array
+ * @param mediaType - MIME type (e.g., "image/png", "application/pdf")
+ * @returns Public S3 URL for the uploaded file
+ */
+export async function uploadConversationFileFromBuffer(
+  workspaceId: string,
+  agentId: string,
+  conversationId: string,
+  buffer: Buffer | Uint8Array,
+  mediaType: string
+): Promise<string> {
+  // Extract file extension from mediaType
+  // e.g., "image/png" -> "png", "application/pdf" -> "pdf"
+  let fileExtension: string | undefined;
+  const mediaTypeParts = mediaType.split("/");
+  if (mediaTypeParts.length === 2) {
+    const subtype = mediaTypeParts[1];
+    // Handle common cases where extension might differ from subtype
+    // e.g., "jpeg" -> "jpg"
+    if (subtype === "jpeg") {
+      fileExtension = "jpg";
+    } else if (subtype && subtype.length <= 5) {
+      // Only use as extension if it's short and looks like a file extension
+      fileExtension = subtype;
+    }
+  }
+
+  // Generate high-entropy filename
+  const filename = generateHighEntropyFilename(fileExtension);
+  const key = buildConversationFileKey(
+    workspaceId,
+    agentId,
+    conversationId,
+    filename
+  );
+
+  // Get S3 client
+  const s3 = await getS3Client();
+
+  // Convert Uint8Array to Buffer if needed
+  const bufferData =
+    buffer instanceof Buffer ? buffer : Buffer.from(buffer);
+
+  // Upload to S3
+  // Public read access is granted via bucket policy (see s3/index.js)
+  await s3.PutObject({
+    Bucket: BUCKET_NAME,
+    Key: key,
+    Body: bufferData,
+    ContentType: mediaType,
+  });
+
+  // Construct and return the public S3 URL
+  const arcEnv = process.env.ARC_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  const isLocal =
+    arcEnv === "testing" ||
+    (arcEnv !== "production" && nodeEnv !== "production");
+
+  if (isLocal) {
+    const endpoint =
+      process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
+    return `${endpoint}/${BUCKET_NAME}/${key}`;
+  } else {
+    const region =
+      process.env.HELPMATON_S3_REGION || process.env.AWS_REGION || "eu-west-2";
+    // Use path-style URL (bucket name with dots forces path-style)
+    return `https://s3.${region}.amazonaws.com/${BUCKET_NAME}/${key}`;
+  }
+}

@@ -16,6 +16,7 @@ import {
 } from "./generationCreditManagement";
 import { trackSuccessfulRequest } from "./generationRequestTracking";
 import { extractTokenUsageAndCosts } from "./generationTokenExtraction";
+import type { ProcessedFile } from "./streamAIPipeline";
 import type { StreamEventTimestamps } from "./streamEventTracking";
 import type { StreamRequestContext } from "./streamRequestContext";
 import {
@@ -322,7 +323,8 @@ export async function logConversation(
   generationTimeMs?: number,
   generationStartedAt?: string,
   generationEndedAt?: string,
-  eventTimestamps?: StreamEventTimestamps
+  eventTimestamps?: StreamEventTimestamps,
+  generatedFiles?: ProcessedFile[]
 ): Promise<void> {
   try {
     // Extract tokenUsage from streamResult if not provided
@@ -388,6 +390,11 @@ export async function logConversation(
           type: "reasoning";
           text: string;
         }
+      | {
+          type: "file";
+          file: string;
+          mediaType?: string;
+        }
     > = [];
 
     // Add reasoning content first (it typically comes before tool calls or text)
@@ -402,6 +409,18 @@ export async function logConversation(
     for (const toolResultMsg of toolResultMessages) {
       if (Array.isArray(toolResultMsg.content)) {
         assistantContent.push(...toolResultMsg.content);
+      }
+    }
+
+    // Add generated files (images and other files)
+    // Use FileContent for both - frontend will determine if it's an image based on mediaType
+    if (generatedFiles && generatedFiles.length > 0) {
+      for (const file of generatedFiles) {
+        assistantContent.push({
+          type: "file",
+          file: file.url,
+          ...(file.mediaType && { mediaType: file.mediaType }),
+        });
       }
     }
 
@@ -579,7 +598,8 @@ export async function performPostProcessing(
   generationTimeMs?: number,
   generationStartedAt?: string,
   generationEndedAt?: string,
-  eventTimestamps?: StreamEventTimestamps
+  eventTimestamps?: StreamEventTimestamps,
+  generatedFiles?: ProcessedFile[]
 ): Promise<void> {
   // Adjust credits
   try {
@@ -613,7 +633,8 @@ export async function performPostProcessing(
     generationTimeMs,
     generationStartedAt,
     generationEndedAt,
-    eventTimestamps
+    eventTimestamps,
+    generatedFiles
   );
 }
 

@@ -7,6 +7,7 @@ import {
   BoltIcon,
   CpuChipIcon,
   CurrencyDollarIcon,
+  PaperClipIcon,
 } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import type { FC, JSX } from "react";
@@ -275,6 +276,100 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                     )}
                   </div>
                 );
+              }
+              // File/image content
+              if (
+                ("type" in item &&
+                  (item.type === "file" || item.type === "image")) &&
+                ("file" in item || "image" in item || "data" in item)
+              ) {
+                const fileItem = item as {
+                  type: "file" | "image";
+                  file?: string;
+                  image?: string;
+                  data?: string;
+                  mediaType?: string;
+                  mimeType?: string;
+                };
+                // Extract file URL
+                let fileUrl: string | null = null;
+                if (fileItem.file && typeof fileItem.file === "string") {
+                  fileUrl = fileItem.file;
+                } else if (
+                  fileItem.image &&
+                  typeof fileItem.image === "string"
+                ) {
+                  fileUrl = fileItem.image;
+                } else if (fileItem.data && typeof fileItem.data === "string") {
+                  fileUrl = fileItem.data;
+                }
+
+                if (!fileUrl) {
+                  return (
+                    <div key={itemIndex} className="text-xs text-neutral-500">
+                      Invalid file part
+                    </div>
+                  );
+                }
+
+                // Extract media type
+                const mediaType =
+                  fileItem.mediaType ||
+                  fileItem.mimeType ||
+                  undefined;
+
+                const isImage =
+                  (mediaType && mediaType.startsWith("image/")) ||
+                  !!fileUrl.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
+
+                if (isImage) {
+                  return (
+                    <div
+                      key={itemIndex}
+                      className="mt-2 max-w-full rounded-lg border-2 border-neutral-300 dark:border-neutral-700"
+                    >
+                      <img
+                        src={fileUrl}
+                        alt="Generated image"
+                        className="max-h-96 max-w-full rounded-lg object-contain"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = "none";
+                        }}
+                      />
+                    </div>
+                  );
+                } else {
+                  // Non-image file
+                  const fileName =
+                    fileUrl.split("/").pop()?.split("?")[0] || "File";
+                  return (
+                    <div
+                      key={itemIndex}
+                      className="mt-2 flex items-center gap-2 rounded-lg border-2 border-neutral-300 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                    >
+                      <PaperClipIcon className="size-5 shrink-0 text-neutral-600 dark:text-neutral-400" />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-neutral-900 dark:text-neutral-100">
+                          {fileName}
+                        </div>
+                        {mediaType && (
+                          <div className="text-xs text-neutral-600 dark:text-neutral-400">
+                            {mediaType}
+                          </div>
+                        )}
+                      </div>
+                      <a
+                        href={fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg border-2 border-primary-600 bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition-all duration-200 hover:bg-primary-700 dark:border-primary-500 dark:bg-primary-500 dark:hover:bg-primary-600"
+                      >
+                        Download
+                      </a>
+                    </div>
+                  );
+                }
               }
               // Text content
               if ("text" in item && typeof item.text === "string") {

@@ -176,6 +176,11 @@ export function convertAiSdkUIMessageToUIMessage(
             type: "reasoning";
             text: string;
           }
+        | {
+            type: "file";
+            file: string;
+            mediaType?: string;
+          }
       > = [];
 
       for (const part of message.parts) {
@@ -236,6 +241,60 @@ export function convertAiSdkUIMessageToUIMessage(
               toolName: part.toolName,
               result: processedResult,
               ...(costUsd !== undefined && { costUsd }),
+            });
+          } else if (
+            (part.type === "file" || part.type === "image") &&
+            ("file" in part || "image" in part || "data" in part)
+          ) {
+            // Handle file/image parts in assistant messages
+            // Extract file URL from various possible properties
+            let fileUrl: string | null = null;
+            if ("file" in part && typeof part.file === "string") {
+              fileUrl = part.file;
+            } else if (
+              "image" in part &&
+              typeof part.image === "string"
+            ) {
+              fileUrl = part.image;
+            } else if ("data" in part && typeof part.data === "string") {
+              fileUrl = part.data;
+            }
+
+            if (!fileUrl || typeof fileUrl !== "string") {
+              console.warn(
+                "[convertAiSdkUIMessageToUIMessage] File/image part missing URL, skipping"
+              );
+              continue;
+            }
+
+            // Validate that file URL is not base64/data URL
+            if (fileUrl.startsWith("data:") || fileUrl.startsWith("data;")) {
+              console.warn(
+                "[convertAiSdkUIMessageToUIMessage] Skipping inline file data (base64/data URL) in assistant message"
+              );
+              continue;
+            }
+
+            // Extract media type
+            let mediaType: string | undefined;
+            if (
+              "mediaType" in part &&
+              typeof part.mediaType === "string"
+            ) {
+              mediaType = part.mediaType;
+            } else if (
+              "mimeType" in part &&
+              typeof part.mimeType === "string"
+            ) {
+              mediaType = part.mimeType;
+            }
+
+            // Use FileContent for both files and images
+            // The frontend will determine if it's an image based on mediaType
+            content.push({
+              type: "file",
+              file: fileUrl,
+              ...(mediaType && { mediaType }),
             });
           }
         }

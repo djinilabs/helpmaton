@@ -31,7 +31,6 @@ import { useState, Suspense, useRef, useEffect, lazy } from "react";
 import type { FC } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
-
 import { AccordionSection } from "../components/AccordionSection";
 import { ClientToolEditor } from "../components/ClientToolEditor";
 import { ErrorBoundary } from "../components/ErrorBoundary";
@@ -236,11 +235,7 @@ const WidgetKeyList: FC<WidgetKeyListProps> = ({
     <div className="space-y-2">
       {keys.map((keyData) => {
         const WidgetKeyItem: FC = () => {
-          const deleteKey = useDeleteAgentKey(
-            workspaceId,
-            agentId,
-            keyData.id
-          );
+          const deleteKey = useDeleteAgentKey(workspaceId, agentId, keyData.id);
           return (
             <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-800 dark:bg-neutral-900">
               <div>
@@ -256,9 +251,7 @@ const WidgetKeyList: FC<WidgetKeyListProps> = ({
               <button
                 onClick={async () => {
                   if (
-                    confirm(
-                      "Are you sure you want to delete this widget key?"
-                    )
+                    confirm("Are you sure you want to delete this widget key?")
                   ) {
                     try {
                       await deleteKey.mutateAsync();
@@ -1887,7 +1880,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           min={1}
                           max={50}
                           step={1}
-                          onChange={(value) => setKnowledgeInjectionSnippetCount(value ?? 5)}
+                          onChange={(value) =>
+                            setKnowledgeInjectionSnippetCount(value ?? 5)
+                          }
                         />
                         <p className="text-xs opacity-75 dark:text-neutral-300">
                           Number of document snippets to retrieve and inject
@@ -1901,15 +1896,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           min={0}
                           max={1}
                           step={0.01}
-                          onChange={(value) => setKnowledgeInjectionMinSimilarity(value ?? 0)}
+                          onChange={(value) =>
+                            setKnowledgeInjectionMinSimilarity(value ?? 0)
+                          }
                           formatValue={(v) => `${Math.round(v * 100)}%`}
                         />
                         <p className="text-xs opacity-75 dark:text-neutral-300">
-                          Similarity score (0-1) measures how closely a
-                          document snippet matches your query. Higher scores
-                          (closer to 1) indicate more relevant content.
-                          Snippets below this threshold will be excluded.
-                          (default: 0)
+                          Similarity score (0-1) measures how closely a document
+                          snippet matches your query. Higher scores (closer to
+                          1) indicate more relevant content. Snippets below this
+                          threshold will be excluded. (default: 0)
                         </p>
                       </div>
                       <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
@@ -2780,9 +2776,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           id="widget-allowed-origins"
                           type="text"
                           placeholder='e.g., https://example.com, https://app.example.com or "*" for all'
-                          value={
-                            widgetConfig.allowedOrigins?.join(", ") || ""
-                          }
+                          value={widgetConfig.allowedOrigins?.join(", ") || ""}
                           onChange={(e) => {
                             const value = e.target.value.trim();
                             setWidgetConfig({
@@ -2798,8 +2792,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           className="focus:border-primary focus:ring-primary w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
                         />
                         <p className="mt-1 text-xs opacity-75">
-                          Comma-separated list of allowed origins, or &quot;*&quot; for
-                          all origins
+                          Comma-separated list of allowed origins, or
+                          &quot;*&quot; for all origins
                         </p>
                       </div>
 
@@ -2837,9 +2831,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           Customization Options
                         </h3>
                         <p className="text-xs opacity-75">
-                          These options are included in the embed code and preview.
-                          They are saved locally in your browser and persist across sessions.
-                          Colors support hex (#rrggbb) or rgba(r, g, b, a) format.
+                          These options are included in the embed code and
+                          preview. They are saved locally in your browser and
+                          persist across sessions. Colors support hex (#rrggbb)
+                          or rgba(r, g, b, a) format.
                         </p>
 
                         {/* Helper function to parse color and opacity */}
@@ -2847,13 +2842,19 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           const parseColor = (color?: string) => {
                             if (!color) return { hex: "#000000", opacity: 1 };
                             // Check if it's rgba
-                            const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+                            const rgbaMatch = color.match(
+                              /rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/
+                            );
                             if (rgbaMatch) {
                               const r = parseInt(rgbaMatch[1]);
                               const g = parseInt(rgbaMatch[2]);
                               const b = parseInt(rgbaMatch[3]);
-                              const a = rgbaMatch[4] ? parseFloat(rgbaMatch[4]) : 1;
-                              const hex = `#${[r, g, b].map(x => x.toString(16).padStart(2, "0")).join("")}`;
+                              const a = rgbaMatch[4]
+                                ? parseFloat(rgbaMatch[4])
+                                : 1;
+                              const hex = `#${[r, g, b]
+                                .map((x) => x.toString(16).padStart(2, "0"))
+                                .join("")}`;
                               return { hex, opacity: a };
                             }
                             // Assume hex
@@ -2871,489 +2872,591 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                             <>
                               {/* Colors */}
                               <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label
-                              htmlFor="widget-primary-color"
-                              className="mb-1 block text-xs font-medium"
-                            >
-                              Primary Color
-                            </label>
-                            {(() => {
-                              const { hex, opacity } = parseColor(widgetCustomization.primaryColor);
-                              return (
-                                <div className="space-y-2">
-                                  <div className="flex gap-2">
-                                    <div className="relative">
-                                      <input
-                                        id="widget-primary-color"
-                                        type="color"
-                                        value={hex}
-                                        onChange={(e) => {
-                                          const newColor = opacity < 1 
-                                            ? hexToRgba(e.target.value, opacity)
-                                            : e.target.value;
-                                          setWidgetCustomization({
-                                            ...widgetCustomization,
-                                            primaryColor: newColor,
-                                          });
-                                        }}
-                                        className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
-                                      />
-                                      {/* Preview with opacity */}
-                                      <div
-                                        className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
-                                        style={{
-                                          background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
-                                          backgroundSize: "8px 8px",
-                                          backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
-                                        }}
-                                      >
-                                        <div
-                                          className="size-full rounded"
-                                          style={{
-                                            backgroundColor: hexToRgba(hex, opacity),
-                                          }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <input
-                                      type="text"
-                                      value={widgetCustomization.primaryColor || "#3b82f6"}
-                                      onChange={(e) =>
-                                        setWidgetCustomization({
-                                          ...widgetCustomization,
-                                          primaryColor: e.target.value,
-                                        })
-                                      }
-                                      placeholder="#3b82f6 or rgba(...)"
-                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
-                                    />
-                                  </div>
-                                  <Slider
-                                    label="Opacity"
-                                    value={opacity}
-                                    min={0}
-                                    max={1}
-                                    step={0.01}
-                                    onChange={(value) => {
-                                      const newOpacity = value ?? 1;
-                                      setWidgetCustomization({
-                                        ...widgetCustomization,
-                                        primaryColor: hexToRgba(hex, newOpacity),
-                                      });
-                                    }}
-                                    formatValue={(v) => `${Math.round(v * 100)}%`}
-                                    className="text-xs"
-                                  />
-                                </div>
-                              );
-                            })()}
-                          </div>
-
-                          <div>
-                            <label
-                              htmlFor="widget-background-color"
-                              className="mb-1 block text-xs font-medium"
-                            >
-                              Background Color
-                            </label>
-                            {(() => {
-                              const { hex, opacity } = parseColor(widgetCustomization.backgroundColor);
-                              return (
-                                <div className="space-y-2">
-                                  <div className="flex gap-2">
-                                    <div className="relative">
-                                      <input
-                                        id="widget-background-color"
-                                        type="color"
-                                        value={hex}
-                                        onChange={(e) => {
-                                          const newColor = opacity < 1 
-                                            ? hexToRgba(e.target.value, opacity)
-                                            : e.target.value;
-                                          setWidgetCustomization({
-                                            ...widgetCustomization,
-                                            backgroundColor: newColor,
-                                          });
-                                        }}
-                                        className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
-                                      />
-                                      {/* Preview with opacity */}
-                                      <div
-                                        className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
-                                        style={{
-                                          background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
-                                          backgroundSize: "8px 8px",
-                                          backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
-                                        }}
-                                      >
-                                        <div
-                                          className="size-full rounded"
-                                          style={{
-                                            backgroundColor: hexToRgba(hex, opacity),
-                                          }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <input
-                                      type="text"
-                                      value={widgetCustomization.backgroundColor || "#ffffff"}
-                                      onChange={(e) =>
-                                        setWidgetCustomization({
-                                          ...widgetCustomization,
-                                          backgroundColor: e.target.value,
-                                        })
-                                      }
-                                      placeholder="#ffffff or rgba(...)"
-                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
-                                    />
-                                  </div>
-                                  <Slider
-                                    label="Opacity"
-                                    value={opacity}
-                                    min={0}
-                                    max={1}
-                                    step={0.01}
-                                    onChange={(value) => {
-                                      const newOpacity = value ?? 1;
-                                      setWidgetCustomization({
-                                        ...widgetCustomization,
-                                        backgroundColor: hexToRgba(hex, newOpacity),
-                                      });
-                                    }}
-                                    formatValue={(v) => `${Math.round(v * 100)}%`}
-                                    className="text-xs"
-                                  />
-                                </div>
-                              );
-                            })()}
-                          </div>
-
-                          <div>
-                            <label
-                              htmlFor="widget-text-color"
-                              className="mb-1 block text-xs font-medium"
-                            >
-                              Text Color
-                            </label>
-                            {(() => {
-                              const { hex, opacity } = parseColor(widgetCustomization.textColor);
-                              return (
-                                <div className="space-y-2">
-                                  <div className="flex gap-2">
-                                    <div className="relative">
-                                      <input
-                                        id="widget-text-color"
-                                        type="color"
-                                        value={hex}
-                                        onChange={(e) => {
-                                          const newColor = opacity < 1 
-                                            ? hexToRgba(e.target.value, opacity)
-                                            : e.target.value;
-                                          setWidgetCustomization({
-                                            ...widgetCustomization,
-                                            textColor: newColor,
-                                          });
-                                        }}
-                                        className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
-                                      />
-                                      {/* Preview with opacity */}
-                                      <div
-                                        className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
-                                        style={{
-                                          background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
-                                          backgroundSize: "8px 8px",
-                                          backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
-                                        }}
-                                      >
-                                        <div
-                                          className="size-full rounded"
-                                          style={{
-                                            backgroundColor: hexToRgba(hex, opacity),
-                                          }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <input
-                                      type="text"
-                                      value={widgetCustomization.textColor || "#1f2937"}
-                                      onChange={(e) =>
-                                        setWidgetCustomization({
-                                          ...widgetCustomization,
-                                          textColor: e.target.value,
-                                        })
-                                      }
-                                      placeholder="#1f2937 or rgba(...)"
-                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
-                                    />
-                                  </div>
-                                  <Slider
-                                    label="Opacity"
-                                    value={opacity}
-                                    min={0}
-                                    max={1}
-                                    step={0.01}
-                                    onChange={(value) => {
-                                      const newOpacity = value ?? 1;
-                                      setWidgetCustomization({
-                                        ...widgetCustomization,
-                                        textColor: hexToRgba(hex, newOpacity),
-                                      });
-                                    }}
-                                    formatValue={(v) => `${Math.round(v * 100)}%`}
-                                    className="text-xs"
-                                  />
-                                </div>
-                              );
-                            })()}
-                          </div>
-
-                          <div>
-                            <label
-                              htmlFor="widget-border-color"
-                              className="mb-1 block text-xs font-medium"
-                            >
-                              Outer Border Color
-                            </label>
-                            {(() => {
-                              const { hex, opacity } = parseColor(widgetCustomization.borderColor);
-                              return (
-                                <div className="space-y-2">
-                                  <div className="flex gap-2">
-                                    <div className="relative">
-                                      <input
-                                        id="widget-border-color"
-                                        type="color"
-                                        value={hex}
-                                        onChange={(e) => {
-                                          const newColor = opacity < 1 
-                                            ? hexToRgba(e.target.value, opacity)
-                                            : e.target.value;
-                                          setWidgetCustomization({
-                                            ...widgetCustomization,
-                                            borderColor: newColor,
-                                          });
-                                        }}
-                                        className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
-                                      />
-                                      {/* Preview with opacity */}
-                                      <div
-                                        className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
-                                        style={{
-                                          background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
-                                          backgroundSize: "8px 8px",
-                                          backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
-                                        }}
-                                      >
-                                        <div
-                                          className="size-full rounded"
-                                          style={{
-                                            backgroundColor: hexToRgba(hex, opacity),
-                                          }}
-                                        />
-                                      </div>
-                                    </div>
-                                    <input
-                                      type="text"
-                                      value={widgetCustomization.borderColor || "#e5e7eb"}
-                                      onChange={(e) =>
-                                        setWidgetCustomization({
-                                          ...widgetCustomization,
-                                          borderColor: e.target.value,
-                                        })
-                                      }
-                                      placeholder="#e5e7eb or rgba(...)"
-                                      className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
-                                    />
-                                  </div>
-                                  <Slider
-                                    label="Opacity"
-                                    value={opacity}
-                                    min={0}
-                                    max={1}
-                                    step={0.01}
-                                    onChange={(value) => {
-                                      const newOpacity = value ?? 1;
-                                      setWidgetCustomization({
-                                        ...widgetCustomization,
-                                        borderColor: hexToRgba(hex, newOpacity),
-                                      });
-                                    }}
-                                    formatValue={(v) => `${Math.round(v * 100)}%`}
-                                    className="text-xs"
-                                  />
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        </div>
-
-                        {/* Border Radius */}
-                        <div>
-                          <label
-                            htmlFor="widget-border-radius"
-                            className="mb-1 block text-xs font-medium"
-                          >
-                            Border Radius
-                          </label>
-                          <input
-                            id="widget-border-radius"
-                            type="text"
-                            value={widgetCustomization.borderRadius || "8px"}
-                            onChange={(e) =>
-                              setWidgetCustomization({
-                                ...widgetCustomization,
-                                borderRadius: e.target.value,
-                              })
-                            }
-                            placeholder="8px"
-                            className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
-                          />
-                        </div>
-
-                        {/* Outer Border Toggle */}
-                        <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900">
-                          <div>
-                            <label
-                              htmlFor="widget-outer-border"
-                              className="text-xs font-medium"
-                            >
-                              Outer Border
-                            </label>
-                            <p className="text-xs opacity-75">
-                              Show border around the widget container
-                            </p>
-                          </div>
-                          <input
-                            id="widget-outer-border"
-                            type="checkbox"
-                            checked={widgetCustomization.outerBorderEnabled !== false}
-                            onChange={(e) =>
-                              setWidgetCustomization({
-                                ...widgetCustomization,
-                                outerBorderEnabled: e.target.checked,
-                              })
-                            }
-                            className="text-primary focus:ring-primary size-5 rounded border-neutral-300 dark:border-neutral-700"
-                          />
-                        </div>
-
-                        {/* Internal Border */}
-                        <div className="space-y-2">
-                          <label className="block text-xs font-medium">
-                            Internal Border
-                          </label>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <label
-                                htmlFor="widget-internal-border-thickness"
-                                className="mb-1 block text-xs font-medium"
-                              >
-                                Thickness
-                              </label>
-                              {(() => {
-                                const thicknessValue = widgetCustomization.internalBorderThickness || "2px";
-                                const numericValue = parseInt(thicknessValue.replace("px", "")) || 2;
-                                return (
-                                  <Slider
-                                    id="widget-internal-border-thickness"
-                                    value={numericValue}
-                                    min={0}
-                                    max={10}
-                                    step={1}
-                                    onChange={(value) => {
-                                      const newValue = value ?? 2;
-                                      setWidgetCustomization({
-                                        ...widgetCustomization,
-                                        internalBorderThickness: `${newValue}px`,
-                                      });
-                                    }}
-                                    formatValue={(v) => `${v}px`}
-                                    className="text-xs"
-                                  />
-                                );
-                              })()}
-                            </div>
-                            <div>
-                              <label
-                                htmlFor="widget-internal-border-color"
-                                className="mb-1 block text-xs font-medium"
-                              >
-                                Color
-                              </label>
-                              {(() => {
-                                const { hex, opacity } = parseColor(widgetCustomization.internalBorderColor);
-                                return (
-                                  <div className="space-y-2">
-                                    <div className="flex gap-2">
-                                      <div className="relative">
-                                        <input
-                                          id="widget-internal-border-color"
-                                          type="color"
-                                          value={hex}
-                                          onChange={(e) => {
-                                            const newColor = opacity < 1 
-                                              ? hexToRgba(e.target.value, opacity)
-                                              : e.target.value;
-                                            setWidgetCustomization({
-                                              ...widgetCustomization,
-                                              internalBorderColor: newColor,
-                                            });
-                                          }}
-                                          className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
-                                        />
-                                        {/* Preview with opacity */}
-                                        <div
-                                          className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
-                                          style={{
-                                            background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
-                                            backgroundSize: "8px 8px",
-                                            backgroundPosition: "0 0, 0 4px, 4px -4px, -4px 0px",
-                                          }}
-                                        >
-                                          <div
-                                            className="size-full rounded"
-                                            style={{
-                                              backgroundColor: hexToRgba(hex, opacity),
-                                            }}
+                                <div>
+                                  <label
+                                    htmlFor="widget-primary-color"
+                                    className="mb-1 block text-xs font-medium"
+                                  >
+                                    Primary Color
+                                  </label>
+                                  {(() => {
+                                    const { hex, opacity } = parseColor(
+                                      widgetCustomization.primaryColor
+                                    );
+                                    return (
+                                      <div className="space-y-2">
+                                        <div className="flex gap-2">
+                                          <div className="relative">
+                                            <input
+                                              id="widget-primary-color"
+                                              type="color"
+                                              value={hex}
+                                              onChange={(e) => {
+                                                const newColor =
+                                                  opacity < 1
+                                                    ? hexToRgba(
+                                                        e.target.value,
+                                                        opacity
+                                                      )
+                                                    : e.target.value;
+                                                setWidgetCustomization({
+                                                  ...widgetCustomization,
+                                                  primaryColor: newColor,
+                                                });
+                                              }}
+                                              className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                            />
+                                            {/* Preview with opacity */}
+                                            <div
+                                              className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
+                                              style={{
+                                                background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
+                                                backgroundSize: "8px 8px",
+                                                backgroundPosition:
+                                                  "0 0, 0 4px, 4px -4px, -4px 0px",
+                                              }}
+                                            >
+                                              <div
+                                                className="size-full rounded"
+                                                style={{
+                                                  backgroundColor: hexToRgba(
+                                                    hex,
+                                                    opacity
+                                                  ),
+                                                }}
+                                              />
+                                            </div>
+                                          </div>
+                                          <input
+                                            type="text"
+                                            value={
+                                              widgetCustomization.primaryColor ||
+                                              "#3b82f6"
+                                            }
+                                            onChange={(e) =>
+                                              setWidgetCustomization({
+                                                ...widgetCustomization,
+                                                primaryColor: e.target.value,
+                                              })
+                                            }
+                                            placeholder="#3b82f6 or rgba(...)"
+                                            className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
                                           />
                                         </div>
+                                        <Slider
+                                          label="Opacity"
+                                          value={opacity}
+                                          min={0}
+                                          max={1}
+                                          step={0.01}
+                                          onChange={(value) => {
+                                            const newOpacity = value ?? 1;
+                                            setWidgetCustomization({
+                                              ...widgetCustomization,
+                                              primaryColor: hexToRgba(
+                                                hex,
+                                                newOpacity
+                                              ),
+                                            });
+                                          }}
+                                          formatValue={(v) =>
+                                            `${Math.round(v * 100)}%`
+                                          }
+                                          className="text-xs"
+                                        />
                                       </div>
-                                      <input
-                                        type="text"
-                                        value={widgetCustomization.internalBorderColor || "#e5e7eb"}
-                                        onChange={(e) =>
-                                          setWidgetCustomization({
-                                            ...widgetCustomization,
-                                            internalBorderColor: e.target.value,
-                                          })
-                                        }
-                                        placeholder="#e5e7eb or rgba(...)"
-                                        className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
-                                      />
-                                    </div>
-                                    <Slider
-                                      label="Opacity"
-                                      value={opacity}
-                                      min={0}
-                                      max={1}
-                                      step={0.01}
-                                      onChange={(value) => {
-                                        const newOpacity = value ?? 1;
-                                        setWidgetCustomization({
-                                          ...widgetCustomization,
-                                          internalBorderColor: hexToRgba(hex, newOpacity),
-                                        });
-                                      }}
-                                      formatValue={(v) => `${Math.round(v * 100)}%`}
-                                      className="text-xs"
-                                    />
+                                    );
+                                  })()}
+                                </div>
+
+                                <div>
+                                  <label
+                                    htmlFor="widget-background-color"
+                                    className="mb-1 block text-xs font-medium"
+                                  >
+                                    Background Color
+                                  </label>
+                                  {(() => {
+                                    const { hex, opacity } = parseColor(
+                                      widgetCustomization.backgroundColor
+                                    );
+                                    return (
+                                      <div className="space-y-2">
+                                        <div className="flex gap-2">
+                                          <div className="relative">
+                                            <input
+                                              id="widget-background-color"
+                                              type="color"
+                                              value={hex}
+                                              onChange={(e) => {
+                                                const newColor =
+                                                  opacity < 1
+                                                    ? hexToRgba(
+                                                        e.target.value,
+                                                        opacity
+                                                      )
+                                                    : e.target.value;
+                                                setWidgetCustomization({
+                                                  ...widgetCustomization,
+                                                  backgroundColor: newColor,
+                                                });
+                                              }}
+                                              className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                            />
+                                            {/* Preview with opacity */}
+                                            <div
+                                              className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
+                                              style={{
+                                                background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
+                                                backgroundSize: "8px 8px",
+                                                backgroundPosition:
+                                                  "0 0, 0 4px, 4px -4px, -4px 0px",
+                                              }}
+                                            >
+                                              <div
+                                                className="size-full rounded"
+                                                style={{
+                                                  backgroundColor: hexToRgba(
+                                                    hex,
+                                                    opacity
+                                                  ),
+                                                }}
+                                              />
+                                            </div>
+                                          </div>
+                                          <input
+                                            type="text"
+                                            value={
+                                              widgetCustomization.backgroundColor ||
+                                              "#ffffff"
+                                            }
+                                            onChange={(e) =>
+                                              setWidgetCustomization({
+                                                ...widgetCustomization,
+                                                backgroundColor: e.target.value,
+                                              })
+                                            }
+                                            placeholder="#ffffff or rgba(...)"
+                                            className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                          />
+                                        </div>
+                                        <Slider
+                                          label="Opacity"
+                                          value={opacity}
+                                          min={0}
+                                          max={1}
+                                          step={0.01}
+                                          onChange={(value) => {
+                                            const newOpacity = value ?? 1;
+                                            setWidgetCustomization({
+                                              ...widgetCustomization,
+                                              backgroundColor: hexToRgba(
+                                                hex,
+                                                newOpacity
+                                              ),
+                                            });
+                                          }}
+                                          formatValue={(v) =>
+                                            `${Math.round(v * 100)}%`
+                                          }
+                                          className="text-xs"
+                                        />
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+
+                                <div>
+                                  <label
+                                    htmlFor="widget-text-color"
+                                    className="mb-1 block text-xs font-medium"
+                                  >
+                                    Text Color
+                                  </label>
+                                  {(() => {
+                                    const { hex, opacity } = parseColor(
+                                      widgetCustomization.textColor
+                                    );
+                                    return (
+                                      <div className="space-y-2">
+                                        <div className="flex gap-2">
+                                          <div className="relative">
+                                            <input
+                                              id="widget-text-color"
+                                              type="color"
+                                              value={hex}
+                                              onChange={(e) => {
+                                                const newColor =
+                                                  opacity < 1
+                                                    ? hexToRgba(
+                                                        e.target.value,
+                                                        opacity
+                                                      )
+                                                    : e.target.value;
+                                                setWidgetCustomization({
+                                                  ...widgetCustomization,
+                                                  textColor: newColor,
+                                                });
+                                              }}
+                                              className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                            />
+                                            {/* Preview with opacity */}
+                                            <div
+                                              className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
+                                              style={{
+                                                background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
+                                                backgroundSize: "8px 8px",
+                                                backgroundPosition:
+                                                  "0 0, 0 4px, 4px -4px, -4px 0px",
+                                              }}
+                                            >
+                                              <div
+                                                className="size-full rounded"
+                                                style={{
+                                                  backgroundColor: hexToRgba(
+                                                    hex,
+                                                    opacity
+                                                  ),
+                                                }}
+                                              />
+                                            </div>
+                                          </div>
+                                          <input
+                                            type="text"
+                                            value={
+                                              widgetCustomization.textColor ||
+                                              "#1f2937"
+                                            }
+                                            onChange={(e) =>
+                                              setWidgetCustomization({
+                                                ...widgetCustomization,
+                                                textColor: e.target.value,
+                                              })
+                                            }
+                                            placeholder="#1f2937 or rgba(...)"
+                                            className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                          />
+                                        </div>
+                                        <Slider
+                                          label="Opacity"
+                                          value={opacity}
+                                          min={0}
+                                          max={1}
+                                          step={0.01}
+                                          onChange={(value) => {
+                                            const newOpacity = value ?? 1;
+                                            setWidgetCustomization({
+                                              ...widgetCustomization,
+                                              textColor: hexToRgba(
+                                                hex,
+                                                newOpacity
+                                              ),
+                                            });
+                                          }}
+                                          formatValue={(v) =>
+                                            `${Math.round(v * 100)}%`
+                                          }
+                                          className="text-xs"
+                                        />
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+
+                                <div>
+                                  <label
+                                    htmlFor="widget-border-color"
+                                    className="mb-1 block text-xs font-medium"
+                                  >
+                                    Outer Border Color
+                                  </label>
+                                  {(() => {
+                                    const { hex, opacity } = parseColor(
+                                      widgetCustomization.borderColor
+                                    );
+                                    return (
+                                      <div className="space-y-2">
+                                        <div className="flex gap-2">
+                                          <div className="relative">
+                                            <input
+                                              id="widget-border-color"
+                                              type="color"
+                                              value={hex}
+                                              onChange={(e) => {
+                                                const newColor =
+                                                  opacity < 1
+                                                    ? hexToRgba(
+                                                        e.target.value,
+                                                        opacity
+                                                      )
+                                                    : e.target.value;
+                                                setWidgetCustomization({
+                                                  ...widgetCustomization,
+                                                  borderColor: newColor,
+                                                });
+                                              }}
+                                              className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                            />
+                                            {/* Preview with opacity */}
+                                            <div
+                                              className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
+                                              style={{
+                                                background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
+                                                backgroundSize: "8px 8px",
+                                                backgroundPosition:
+                                                  "0 0, 0 4px, 4px -4px, -4px 0px",
+                                              }}
+                                            >
+                                              <div
+                                                className="size-full rounded"
+                                                style={{
+                                                  backgroundColor: hexToRgba(
+                                                    hex,
+                                                    opacity
+                                                  ),
+                                                }}
+                                              />
+                                            </div>
+                                          </div>
+                                          <input
+                                            type="text"
+                                            value={
+                                              widgetCustomization.borderColor ||
+                                              "#e5e7eb"
+                                            }
+                                            onChange={(e) =>
+                                              setWidgetCustomization({
+                                                ...widgetCustomization,
+                                                borderColor: e.target.value,
+                                              })
+                                            }
+                                            placeholder="#e5e7eb or rgba(...)"
+                                            className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                          />
+                                        </div>
+                                        <Slider
+                                          label="Opacity"
+                                          value={opacity}
+                                          min={0}
+                                          max={1}
+                                          step={0.01}
+                                          onChange={(value) => {
+                                            const newOpacity = value ?? 1;
+                                            setWidgetCustomization({
+                                              ...widgetCustomization,
+                                              borderColor: hexToRgba(
+                                                hex,
+                                                newOpacity
+                                              ),
+                                            });
+                                          }}
+                                          formatValue={(v) =>
+                                            `${Math.round(v * 100)}%`
+                                          }
+                                          className="text-xs"
+                                        />
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+
+                              {/* Border Radius */}
+                              <div>
+                                <label
+                                  htmlFor="widget-border-radius"
+                                  className="mb-1 block text-xs font-medium"
+                                >
+                                  Border Radius
+                                </label>
+                                <input
+                                  id="widget-border-radius"
+                                  type="text"
+                                  value={
+                                    widgetCustomization.borderRadius || "8px"
+                                  }
+                                  onChange={(e) =>
+                                    setWidgetCustomization({
+                                      ...widgetCustomization,
+                                      borderRadius: e.target.value,
+                                    })
+                                  }
+                                  placeholder="8px"
+                                  className="focus:border-primary focus:ring-primary w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                />
+                              </div>
+
+                              {/* Outer Border Toggle */}
+                              <div className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-800 dark:bg-neutral-900">
+                                <div>
+                                  <label
+                                    htmlFor="widget-outer-border"
+                                    className="text-xs font-medium"
+                                  >
+                                    Outer Border
+                                  </label>
+                                  <p className="text-xs opacity-75">
+                                    Show border around the widget container
+                                  </p>
+                                </div>
+                                <input
+                                  id="widget-outer-border"
+                                  type="checkbox"
+                                  checked={
+                                    widgetCustomization.outerBorderEnabled !==
+                                    false
+                                  }
+                                  onChange={(e) =>
+                                    setWidgetCustomization({
+                                      ...widgetCustomization,
+                                      outerBorderEnabled: e.target.checked,
+                                    })
+                                  }
+                                  className="text-primary focus:ring-primary size-5 rounded border-neutral-300 dark:border-neutral-700"
+                                />
+                              </div>
+
+                              {/* Internal Border */}
+                              <div className="space-y-2">
+                                <label className="block text-xs font-medium">
+                                  Internal Border
+                                </label>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                    <label
+                                      htmlFor="widget-internal-border-thickness"
+                                      className="mb-1 block text-xs font-medium"
+                                    >
+                                      Thickness
+                                    </label>
+                                    {(() => {
+                                      const thicknessValue =
+                                        widgetCustomization.internalBorderThickness ||
+                                        "2px";
+                                      const numericValue =
+                                        parseInt(
+                                          thicknessValue.replace("px", "")
+                                        ) || 2;
+                                      return (
+                                        <Slider
+                                          id="widget-internal-border-thickness"
+                                          value={numericValue}
+                                          min={0}
+                                          max={10}
+                                          step={1}
+                                          onChange={(value) => {
+                                            const newValue = value ?? 2;
+                                            setWidgetCustomization({
+                                              ...widgetCustomization,
+                                              internalBorderThickness: `${newValue}px`,
+                                            });
+                                          }}
+                                          formatValue={(v) => `${v}px`}
+                                          className="text-xs"
+                                        />
+                                      );
+                                    })()}
                                   </div>
-                                );
-                              })()}
-                            </div>
-                          </div>
-                        </div>
+                                  <div>
+                                    <label
+                                      htmlFor="widget-internal-border-color"
+                                      className="mb-1 block text-xs font-medium"
+                                    >
+                                      Color
+                                    </label>
+                                    {(() => {
+                                      const { hex, opacity } = parseColor(
+                                        widgetCustomization.internalBorderColor
+                                      );
+                                      return (
+                                        <div className="space-y-2">
+                                          <div className="flex gap-2">
+                                            <div className="relative">
+                                              <input
+                                                id="widget-internal-border-color"
+                                                type="color"
+                                                value={hex}
+                                                onChange={(e) => {
+                                                  const newColor =
+                                                    opacity < 1
+                                                      ? hexToRgba(
+                                                          e.target.value,
+                                                          opacity
+                                                        )
+                                                      : e.target.value;
+                                                  setWidgetCustomization({
+                                                    ...widgetCustomization,
+                                                    internalBorderColor:
+                                                      newColor,
+                                                  });
+                                                }}
+                                                className="h-8 w-16 cursor-pointer rounded border border-neutral-300 dark:border-neutral-700"
+                                              />
+                                              {/* Preview with opacity */}
+                                              <div
+                                                className="pointer-events-none absolute inset-0 rounded border border-neutral-300 dark:border-neutral-700"
+                                                style={{
+                                                  background: `linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)`,
+                                                  backgroundSize: "8px 8px",
+                                                  backgroundPosition:
+                                                    "0 0, 0 4px, 4px -4px, -4px 0px",
+                                                }}
+                                              >
+                                                <div
+                                                  className="size-full rounded"
+                                                  style={{
+                                                    backgroundColor: hexToRgba(
+                                                      hex,
+                                                      opacity
+                                                    ),
+                                                  }}
+                                                />
+                                              </div>
+                                            </div>
+                                            <input
+                                              type="text"
+                                              value={
+                                                widgetCustomization.internalBorderColor ||
+                                                "#e5e7eb"
+                                              }
+                                              onChange={(e) =>
+                                                setWidgetCustomization({
+                                                  ...widgetCustomization,
+                                                  internalBorderColor:
+                                                    e.target.value,
+                                                })
+                                              }
+                                              placeholder="#e5e7eb or rgba(...)"
+                                              className="focus:border-primary focus:ring-primary flex-1 rounded border border-neutral-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-1 dark:border-neutral-800 dark:bg-neutral-900"
+                                            />
+                                          </div>
+                                          <Slider
+                                            label="Opacity"
+                                            value={opacity}
+                                            min={0}
+                                            max={1}
+                                            step={0.01}
+                                            onChange={(value) => {
+                                              const newOpacity = value ?? 1;
+                                              setWidgetCustomization({
+                                                ...widgetCustomization,
+                                                internalBorderColor: hexToRgba(
+                                                  hex,
+                                                  newOpacity
+                                                ),
+                                              });
+                                            }}
+                                            formatValue={(v) =>
+                                              `${Math.round(v * 100)}%`
+                                            }
+                                            className="text-xs"
+                                          />
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+                              </div>
                             </>
                           );
                         })()}
@@ -3393,20 +3496,41 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       </div>
 
                       {/* Code Snippet */}
-                      {keys?.some((k) => k.type === "widget") && (() => {
-                        const widgetKey = keys?.find((k) => k.type === "widget")?.key || "YOUR_WIDGET_KEY";
-                        const customizationOptions = [
-                          widgetCustomization.primaryColor ? `    primaryColor: "${widgetCustomization.primaryColor}",` : null,
-                          widgetCustomization.backgroundColor ? `    backgroundColor: "${widgetCustomization.backgroundColor}",` : null,
-                          widgetCustomization.textColor ? `    textColor: "${widgetCustomization.textColor}",` : null,
-                          widgetCustomization.borderColor ? `    borderColor: "${widgetCustomization.borderColor}",` : null,
-                          widgetCustomization.borderRadius ? `    borderRadius: "${widgetCustomization.borderRadius}",` : null,
-                          widgetCustomization.outerBorderEnabled !== undefined ? `    outerBorderEnabled: ${widgetCustomization.outerBorderEnabled},` : null,
-                          widgetCustomization.internalBorderThickness ? `    internalBorderThickness: "${widgetCustomization.internalBorderThickness}",` : null,
-                          widgetCustomization.internalBorderColor ? `    internalBorderColor: "${widgetCustomization.internalBorderColor}",` : null,
-                        ].filter(Boolean).join("\n");
-                        
-                        const embedCode = `<!-- Create a container for the widget -->
+                      {keys?.some((k) => k.type === "widget") &&
+                        (() => {
+                          const widgetKey =
+                            keys?.find((k) => k.type === "widget")?.key ||
+                            "YOUR_WIDGET_KEY";
+                          const customizationOptions = [
+                            widgetCustomization.primaryColor
+                              ? `    primaryColor: "${widgetCustomization.primaryColor}",`
+                              : null,
+                            widgetCustomization.backgroundColor
+                              ? `    backgroundColor: "${widgetCustomization.backgroundColor}",`
+                              : null,
+                            widgetCustomization.textColor
+                              ? `    textColor: "${widgetCustomization.textColor}",`
+                              : null,
+                            widgetCustomization.borderColor
+                              ? `    borderColor: "${widgetCustomization.borderColor}",`
+                              : null,
+                            widgetCustomization.borderRadius
+                              ? `    borderRadius: "${widgetCustomization.borderRadius}",`
+                              : null,
+                            widgetCustomization.outerBorderEnabled !== undefined
+                              ? `    outerBorderEnabled: ${widgetCustomization.outerBorderEnabled},`
+                              : null,
+                            widgetCustomization.internalBorderThickness
+                              ? `    internalBorderThickness: "${widgetCustomization.internalBorderThickness}",`
+                              : null,
+                            widgetCustomization.internalBorderColor
+                              ? `    internalBorderColor: "${widgetCustomization.internalBorderColor}",`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join("\n");
+
+                          const embedCode = `<!-- Create a container for the widget -->
 <!-- The widget will expand to fill the container's available space -->
 <div id="helpmaton-widget-container" style="width: 100%; height: 100%;"></div>
 
@@ -3416,7 +3540,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     apiKey: "${widgetKey}",
     workspaceId: "${workspaceId}",
     agentId: "${agentId}",
-    containerId: "helpmaton-widget-container", // Must match the container div ID above${customizationOptions ? `\n${customizationOptions}` : ""}
+    containerId: "helpmaton-widget-container", // Must match the container div ID above${
+      customizationOptions ? `\n${customizationOptions}` : ""
+    }
     tools: {
       // Add your tool functions here
       // Example:
@@ -3427,29 +3553,29 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     }
   });
 </script>`;
-                        
-                        return (
-                          <div>
-                            <label className="mb-2 block text-sm font-medium">
-                              Embed Code
-                            </label>
-                            <div className="relative">
-                              <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-neutral-900">
-                                <code>{embedCode}</code>
-                              </pre>
-                              <button
-                                onClick={() => {
-                                  navigator.clipboard.writeText(embedCode);
-                                  // You might want to add a toast here
-                                }}
-                                className="bg-primary hover:bg-primary/90 absolute right-2 top-2 rounded px-2 py-1 text-xs text-white"
-                              >
-                                Copy
-                              </button>
+
+                          return (
+                            <div>
+                              <label className="mb-2 block text-sm font-medium">
+                                Embed Code
+                              </label>
+                              <div className="relative">
+                                <pre className="overflow-x-auto rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-xs dark:border-neutral-800 dark:bg-neutral-900">
+                                  <code>{embedCode}</code>
+                                </pre>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(embedCode);
+                                    // You might want to add a toast here
+                                  }}
+                                  className="bg-primary hover:bg-primary/90 absolute right-2 top-2 rounded px-2 py-1 text-xs text-white"
+                                >
+                                  Copy
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })()}
+                          );
+                        })()}
 
                       {/* Preview and Save Buttons */}
                       <div className="flex gap-3">
@@ -3458,32 +3584,65 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                             onClick={() => {
                               const params = new URLSearchParams();
                               if (widgetCustomization.primaryColor) {
-                                params.set("primaryColor", widgetCustomization.primaryColor);
+                                params.set(
+                                  "primaryColor",
+                                  widgetCustomization.primaryColor
+                                );
                               }
                               if (widgetCustomization.backgroundColor) {
-                                params.set("backgroundColor", widgetCustomization.backgroundColor);
+                                params.set(
+                                  "backgroundColor",
+                                  widgetCustomization.backgroundColor
+                                );
                               }
                               if (widgetCustomization.textColor) {
-                                params.set("textColor", widgetCustomization.textColor);
+                                params.set(
+                                  "textColor",
+                                  widgetCustomization.textColor
+                                );
                               }
                               if (widgetCustomization.borderColor) {
-                                params.set("borderColor", widgetCustomization.borderColor);
+                                params.set(
+                                  "borderColor",
+                                  widgetCustomization.borderColor
+                                );
                               }
                               if (widgetCustomization.borderRadius) {
-                                params.set("borderRadius", widgetCustomization.borderRadius);
+                                params.set(
+                                  "borderRadius",
+                                  widgetCustomization.borderRadius
+                                );
                               }
-                              if (widgetCustomization.outerBorderEnabled !== undefined) {
-                                params.set("outerBorderEnabled", String(widgetCustomization.outerBorderEnabled));
+                              if (
+                                widgetCustomization.outerBorderEnabled !==
+                                undefined
+                              ) {
+                                params.set(
+                                  "outerBorderEnabled",
+                                  String(widgetCustomization.outerBorderEnabled)
+                                );
                               }
                               if (widgetCustomization.internalBorderThickness) {
-                                params.set("internalBorderThickness", widgetCustomization.internalBorderThickness);
+                                params.set(
+                                  "internalBorderThickness",
+                                  widgetCustomization.internalBorderThickness
+                                );
                               }
                               if (widgetCustomization.internalBorderColor) {
-                                params.set("internalBorderColor", widgetCustomization.internalBorderColor);
+                                params.set(
+                                  "internalBorderColor",
+                                  widgetCustomization.internalBorderColor
+                                );
                               }
                               const queryString = params.toString();
-                              const previewUrl = `/workspaces/${workspaceId}/agents/${agentId}/widget-preview${queryString ? `?${queryString}` : ""}`;
-                              window.open(previewUrl, "_blank", "noopener,noreferrer");
+                              const previewUrl = `/workspaces/${workspaceId}/agents/${agentId}/widget-preview${
+                                queryString ? `?${queryString}` : ""
+                              }`;
+                              window.open(
+                                previewUrl,
+                                "_blank",
+                                "noopener,noreferrer"
+                              );
                             }}
                             className="flex items-center gap-2 rounded-xl border-2 border-primary-600 bg-white px-4 py-2.5 font-semibold text-primary-600 transition-all duration-200 hover:bg-primary-50 dark:border-primary-400 dark:bg-neutral-900 dark:text-primary-400 dark:hover:bg-neutral-800"
                           >
