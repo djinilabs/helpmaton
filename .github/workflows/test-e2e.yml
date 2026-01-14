@@ -84,9 +84,6 @@ jobs:
             echo "✅ Commit verified - testing commit ${CURRENT_COMMIT} from workflow_dispatch"
           fi
 
-      - name: Enable pnpm corepack
-        run: corepack enable
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
