@@ -189,12 +189,8 @@ describe("get-api-models handler", () => {
     mockLoadPricingConfig.mockReturnValue(mockPricingConfig);
     // getDefaultModel will use the mock pricing config and find "google/gemini-2.5-flash" as default
     // based on the defaultPatterns in modelFactory.ts (first pattern: p === "google/gemini-2.5-flash")
-    mockGetDefaultModel.mockImplementation((provider) => {
-      if (provider === "openrouter") {
-        return "google/gemini-2.5-flash";
-      }
-      return "gemini-2.5-flash";
-    });
+    // Note: getDefaultModel no longer takes a provider parameter (only supports OpenRouter)
+    mockGetDefaultModel.mockReturnValue("google/gemini-2.5-flash");
 
     const event = createAPIGatewayEventV2({
       routeKey: "GET /api/models",

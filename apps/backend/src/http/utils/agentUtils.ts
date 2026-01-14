@@ -224,13 +224,28 @@ export async function createAgentModel(
   agentId?: string,
   usesByok?: boolean,
   userId?: string,
-  provider: Provider = "openrouter"
+  provider: Provider = "openrouter",
+  agentConfig?: {
+    temperature?: number | null;
+    topP?: number | null;
+    topK?: number | null;
+    maxOutputTokens?: number | null;
+    stopSequences?: string[] | null;
+    [key: string]: unknown;
+  }
 ) {
   // Use provided modelName or fall back to default MODEL_NAME
   const finalModelName = modelName || MODEL_NAME;
 
-  // Use createModel from modelFactory which handles OpenRouter and Google
-  return createModel(provider, finalModelName, workspaceId, referer, userId);
+  // Use createModel from modelFactory which only supports OpenRouter
+  return createModel(
+    provider,
+    finalModelName,
+    workspaceId,
+    referer,
+    userId,
+    agentConfig
+  );
 }
 
 /**
@@ -816,6 +831,15 @@ export async function callAgentInternal(
       ? targetAgent.modelName
       : undefined;
 
+  // Extract agent config for advanced options
+  const agentConfig = {
+    temperature: targetAgent.temperature,
+    topP: targetAgent.topP,
+    topK: targetAgent.topK,
+    maxOutputTokens: targetAgent.maxOutputTokens,
+    stopSequences: targetAgent.stopSequences,
+  };
+
   // Create model
   const model = await createAgentModel(
     "http://localhost:3000/api/agent-delegation",
@@ -825,7 +849,8 @@ export async function callAgentInternal(
     targetAgentId,
     usesByok,
     undefined, // userId
-    agentProvider
+    agentProvider,
+    agentConfig
   );
 
   // Extract agentId from targetAgent.pk (format: "agents/{workspaceId}/{agentId}")

@@ -1,4 +1,3 @@
-import { getWorkspaceApiKey } from "../../http/utils/agentUtils";
 import { getDefined } from "../../utils";
 import { generateEmbedding } from "../embedding";
 import { query } from "../vectordb/readClient";
@@ -87,10 +86,11 @@ export async function searchMemory(
   if (queryText && queryText.trim().length > 0) {
     try {
       // Get API key for embedding generation
-      const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "google");
-      const apiKey =
-        workspaceApiKey ||
-        getDefined(process.env.GEMINI_API_KEY, "GEMINI_API_KEY is not set");
+      // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
+      const apiKey = getDefined(
+        process.env.GEMINI_API_KEY,
+        "GEMINI_API_KEY is not set"
+      );
 
       const queryEmbedding = await generateEmbedding(
         queryText.trim(),
@@ -153,10 +153,11 @@ async function searchWorkingMemory(
   if (queryText && queryText.trim().length > 0) {
     try {
       // Get API key for embedding generation
-      const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "google");
-      const apiKey =
-        workspaceApiKey ||
-        getDefined(process.env.GEMINI_API_KEY, "GEMINI_API_KEY is not set");
+      // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
+      const apiKey = getDefined(
+        process.env.GEMINI_API_KEY,
+        "GEMINI_API_KEY is not set"
+      );
 
       const queryEmbedding = await generateEmbedding(
         queryText.trim(),

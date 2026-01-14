@@ -1,12 +1,22 @@
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { badRequest } from "@hapi/boom";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 
-import { getDefined } from "../../utils";
 import { getPostHogClient } from "../../utils/posthog";
 import { getModelPricing, loadPricingConfig } from "../../utils/pricing";
 
-export type Provider = "google" | "openrouter";
+export type Provider = "openrouter";
+
+/**
+ * Agent configuration options for model creation
+ */
+export interface AgentModelConfig {
+  temperature?: number | null;
+  topP?: number | null;
+  topK?: number | null;
+  maxOutputTokens?: number | null;
+  stopSequences?: string[] | null;
+  [key: string]: unknown;
+}
 
 /**
  * Parse OpenRouter model name to extract actual provider and model
@@ -27,7 +37,7 @@ function parseOpenRouterModel(modelName: string): {
   if (parts.length === 2) {
     return {
       provider: parts[0], // e.g., "google", "openai", "mistralai"
-      model: parts[1],     // e.g., "gemini-2.5-flash", "gpt-5.2"
+      model: parts[1], // e.g., "gemini-2.5-flash", "gpt-5.2"
     };
   }
 
@@ -36,79 +46,67 @@ function parseOpenRouterModel(modelName: string): {
 }
 
 /**
- * Get system API key for a provider from environment variables
+ * Get system API key for OpenRouter from environment variables
  */
-function getSystemApiKey(provider: Provider): string {
-  switch (provider) {
-    case "google":
-      return getDefined(
-        process.env.GEMINI_API_KEY,
-        "GEMINI_API_KEY is not set"
-      );
-    case "openrouter": {
-      const apiKey = process.env.OPENROUTER_API_KEY;
-      if (!apiKey) {
-        console.error("[modelFactory] OPENROUTER_API_KEY is not set in environment variables");
-        console.error("[modelFactory] Available env vars:", Object.keys(process.env).filter(k => k.includes("OPENROUTER") || k.includes("API") || k.includes("KEY")).join(", "));
-        throw new Error("OPENROUTER_API_KEY is not set");
-      }
-      // Log first few characters for debugging (without exposing full key)
-      console.log("[modelFactory] Using OPENROUTER_API_KEY:", apiKey.substring(0, 8) + "...");
-      return apiKey;
-    }
-    default:
-      throw new Error(`Unknown provider: ${provider}`);
+function getSystemApiKey(): string {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    console.error(
+      "[modelFactory] OPENROUTER_API_KEY is not set in environment variables"
+    );
+    console.error(
+      "[modelFactory] Available env vars:",
+      Object.keys(process.env)
+        .filter(
+          (k) =>
+            k.includes("OPENROUTER") ||
+            k.includes("API") ||
+            k.includes("KEY")
+        )
+        .join(", ")
+    );
+    throw new Error("OPENROUTER_API_KEY is not set");
   }
+  // Log first few characters for debugging (without exposing full key)
+  console.log(
+    "[modelFactory] Using OPENROUTER_API_KEY:",
+    apiKey.substring(0, 8) + "..."
+  );
+  return apiKey;
 }
 
 /**
- * Get default model name for a provider from pricing config
+ * Get default model name for OpenRouter from pricing config
  * Ensures we only use models that exist in pricing.json
  */
-export function getDefaultModel(provider: Provider): string {
+export function getDefaultModel(): string {
   const pricingConfig = loadPricingConfig();
-  const providerPricing = pricingConfig.providers[provider];
+  const providerPricing = pricingConfig.providers.openrouter;
 
   if (!providerPricing) {
-    throw new Error(`No pricing found for provider: ${provider}`);
+    throw new Error("No pricing found for provider: openrouter");
   }
 
   // Sort models for deterministic selection
   const models = Object.keys(providerPricing.models).sort();
   if (models.length === 0) {
     throw new Error(
-      `No models found in pricing config for provider: ${provider}`
+      "No models found in pricing config for provider: openrouter"
     );
   }
 
-  // Try to find a default model based on explicit priority patterns
-  if (provider === "google") {
-    const defaultPatterns = [
-      (p: string) => p === "gemini-2.5-flash",
-      (p: string) => p === "gemini-1.5-flash",
-      (p: string) => p.includes("flash") && !p.includes("exp"),
-    ];
+  // For OpenRouter, prefer common models
+  const defaultPatterns = [
+    (p: string) => p === "google/gemini-2.5-flash",
+    (p: string) => p === "auto",
+    (p: string) => p.includes("gemini-2.5"),
+    (p: string) => p.includes("claude-3.5"),
+  ];
 
-    for (const pattern of defaultPatterns) {
-      const match = models.find(pattern);
-      if (match) {
-        return match;
-      }
-    }
-  } else if (provider === "openrouter") {
-    // For OpenRouter, prefer common models
-    const defaultPatterns = [
-      (p: string) => p === "google/gemini-2.5-flash",
-      (p: string) => p === "auto",
-      (p: string) => p.includes("gemini-2.5"),
-      (p: string) => p.includes("claude-3.5"),
-    ];
-
-    for (const pattern of defaultPatterns) {
-      const match = models.find(pattern);
-      if (match) {
-        return match;
-      }
+  for (const pattern of defaultPatterns) {
+    const match = models.find(pattern);
+    if (match) {
+      return match;
     }
   }
 
@@ -117,12 +115,12 @@ export function getDefaultModel(provider: Provider): string {
 }
 
 /**
- * Create a model instance for the specified provider and model
- * @param provider - The provider name (google)
- * @param modelName - The model name (optional, defaults to provider's default)
+ * Create a model instance for OpenRouter
+ * @param modelName - The model name (optional, defaults to OpenRouter's default)
  * @param workspaceId - Workspace ID to check for workspace API key
- * @param referer - Referer header for Google API
+ * @param referer - Referer header (kept for compatibility, not used for OpenRouter)
  * @param userId - User ID for PostHog tracking (optional)
+ * @param agentConfig - Agent configuration with advanced options (temperature, topP, etc.)
  * @returns Model instance
  */
 export async function createModel(
@@ -131,18 +129,28 @@ export async function createModel(
   workspaceId?: string,
   referer: string = process.env.DEFAULT_REFERER ||
     "http://localhost:3000/api/webhook",
-  userId?: string
+  userId?: string,
+  agentConfig?: AgentModelConfig
 ) {
-  // For OpenRouter, handle auto-selection
-  const isAutoSelection = provider === "openrouter" && (modelName === "auto" || modelName === undefined);
-  const finalModelName = isAutoSelection ? "auto" : (modelName || getDefaultModel(provider));
+  // Only OpenRouter is supported
+  if (provider !== "openrouter") {
+    throw badRequest(
+      `Provider "${provider}" is not supported. Only "openrouter" is supported.`
+    );
+  }
 
-  // Validate that pricing exists for this provider and model (skip for auto-selection)
+  // For OpenRouter, handle auto-selection
+  const isAutoSelection = modelName === "auto" || modelName === undefined;
+  const finalModelName = isAutoSelection
+    ? "auto"
+    : modelName || getDefaultModel();
+
+  // Validate that pricing exists for this model (skip for auto-selection)
   if (!isAutoSelection) {
-    const pricing = getModelPricing(provider, finalModelName);
+    const pricing = getModelPricing("openrouter", finalModelName);
     if (!pricing) {
       throw badRequest(
-        `No pricing found for provider "${provider}" and model "${finalModelName}". ` +
+        `No pricing found for model "${finalModelName}". ` +
           `Please ensure the model is available in the pricing configuration.`
       );
     }
@@ -154,106 +162,124 @@ export async function createModel(
   let usesByok = false;
   if (workspaceId) {
     const { getWorkspaceApiKey } = await import("./agentUtils");
-    const workspaceKey = await getWorkspaceApiKey(workspaceId, provider);
+    const workspaceKey = await getWorkspaceApiKey(workspaceId, "openrouter");
     usesByok = workspaceKey !== null;
     if (workspaceKey) {
-      console.log("[modelFactory] Using workspace API key (BYOK) for workspace:", workspaceId);
+      console.log(
+        "[modelFactory] Using workspace API key (BYOK) for workspace:",
+        workspaceId
+      );
       apiKey = workspaceKey;
     } else {
-      console.log("[modelFactory] No workspace API key found, using system key for workspace:", workspaceId);
-      apiKey = getSystemApiKey(provider);
+      console.log(
+        "[modelFactory] No workspace API key found, using system key for workspace:",
+        workspaceId
+      );
+      apiKey = getSystemApiKey();
     }
   } else {
     console.log("[modelFactory] No workspaceId provided, using system key");
-    apiKey = getSystemApiKey(provider);
+    apiKey = getSystemApiKey();
   }
 
-  switch (provider) {
-    case "google": {
-      const google = createGoogleGenerativeAI({
-        apiKey,
-        headers: {
-          Referer: referer,
-          "Content-Type": "text/event-stream",
-        },
-      });
-      const model = google(finalModelName);
+  const openrouter = createOpenRouter({
+    apiKey,
+  });
 
-      // Wrap with PostHog tracking if available
-      const phClient = getPostHogClient();
-      if (phClient) {
-        // Dynamically import withTracing to avoid loading Anthropic SDK wrappers
-        // when we're not using them (lazy loading)
-        const { withTracing } = await import("@posthog/ai");
-        // Prefix distinct ID to distinguish between user, workspace, and system
-        let distinctId: string;
-        if (userId) {
-          distinctId = `user/${userId}`;
-        } else if (workspaceId) {
-          distinctId = `workspace/${workspaceId}`;
-        } else {
-          distinctId = "system";
-        }
-        return withTracing(model, phClient, {
-          posthogDistinctId: distinctId,
-          posthogProperties: {
-            provider: "google",
-            modelName: finalModelName,
-            workspaceId: workspaceId || undefined,
-            userId: userId || undefined,
-            referer,
-            usesByok,
-          },
-          posthogGroups: workspaceId ? { workspace: workspaceId } : undefined,
-        });
-      }
+  // For auto-selection, use "auto" as the model name
+  // For specific models, use openrouter.chat('provider/model-name')
+  const modelNameToUse = isAutoSelection ? "auto" : finalModelName;
 
-      return model;
+  // Build model settings from agent config
+  // Note: temperature, topP, etc. are typically passed to generateText/streamText,
+  // but we include them here for model-level configuration if the provider supports it
+  const modelSettings: Record<string, unknown> = {
+    reasoning: {
+      effort: "high",
+      enabled: true,
+    },
+    usage: {
+      include: true,
+    },
+  };
+
+  // Apply agent config advanced options if provided
+  // These will be applied at the model level and may also be used in generateText calls
+  if (agentConfig) {
+    // Temperature (0-2)
+    if (
+      agentConfig.temperature !== undefined &&
+      agentConfig.temperature !== null
+    ) {
+      modelSettings.temperature = agentConfig.temperature;
     }
-    case "openrouter": {
-      const openrouter = createOpenRouter({
-        apiKey,
-      });
 
-      // For auto-selection, use "auto" as the model name
-      // For specific models, use openrouter.chat('provider/model-name')
-      const modelNameToUse = isAutoSelection ? "auto" : finalModelName;
-      const model = openrouter.chat(modelNameToUse);
-
-      // Wrap with PostHog tracking if available
-      const phClient = getPostHogClient();
-      if (phClient) {
-        // Dynamically import withTracing to avoid loading Anthropic SDK wrappers
-        // when we're not using them (lazy loading)
-        const { withTracing } = await import("@posthog/ai");
-        // Prefix distinct ID to distinguish between user, workspace, and system
-        let distinctId: string;
-        if (userId) {
-          distinctId = `user/${userId}`;
-        } else if (workspaceId) {
-          distinctId = `workspace/${workspaceId}`;
-        } else {
-          distinctId = "system";
-        }
-        // Parse OpenRouter model name to extract actual provider and model
-        const { provider: actualProvider, model: actualModel } = parseOpenRouterModel(finalModelName);
-        return withTracing(model, phClient, {
-          posthogDistinctId: distinctId,
-          posthogProperties: {
-            provider: actualProvider || "openrouter",
-            modelName: actualModel,
-            workspaceId: workspaceId || undefined,
-            userId: userId || undefined,
-            referer,
-            usesByok,
-          },
-          posthogGroups: workspaceId ? { workspace: workspaceId } : undefined,
-        });
-      }
-
-      return model;
+    // Top-p (0-1)
+    if (agentConfig.topP !== undefined && agentConfig.topP !== null) {
+      modelSettings.topP = agentConfig.topP;
     }
-    default:
-      throw new Error(`Unknown provider: ${provider}`);
+
+    // Top-k (positive integer)
+    if (agentConfig.topK !== undefined && agentConfig.topK !== null) {
+      modelSettings.topK = agentConfig.topK;
+    }
+
+    // Max tokens (positive integer)
+    if (
+      agentConfig.maxOutputTokens !== undefined &&
+      agentConfig.maxOutputTokens !== null
+    ) {
+      modelSettings.maxTokens = agentConfig.maxOutputTokens;
+    }
+
+    // Stop sequences (array of strings)
+    if (
+      agentConfig.stopSequences !== undefined &&
+      agentConfig.stopSequences !== null &&
+      agentConfig.stopSequences.length > 0
+    ) {
+      modelSettings.stop = agentConfig.stopSequences;
+    }
   }
+
+  // Enable attachments support (OpenRouter supports file attachments by default)
+  // The model will automatically handle file attachments in messages
+  const model = openrouter.chat(
+    modelNameToUse,
+    modelSettings as Parameters<typeof openrouter.chat>[1]
+  );
+
+  // Wrap with PostHog tracking if available
+  const phClient = getPostHogClient();
+  if (phClient) {
+    // Dynamically import withTracing to avoid loading Anthropic SDK wrappers
+    // when we're not using them (lazy loading)
+    const { withTracing } = await import("@posthog/ai");
+    // Prefix distinct ID to distinguish between user, workspace, and system
+    let distinctId: string;
+    if (userId) {
+      distinctId = `user/${userId}`;
+    } else if (workspaceId) {
+      distinctId = `workspace/${workspaceId}`;
+    } else {
+      distinctId = "system";
+    }
+    // Parse OpenRouter model name to extract actual provider and model
+    const { provider: actualProvider, model: actualModel } =
+      parseOpenRouterModel(finalModelName);
+    return withTracing(model, phClient, {
+      posthogDistinctId: distinctId,
+      posthogProperties: {
+        provider: actualProvider || "openrouter",
+        modelName: actualModel,
+        workspaceId: workspaceId || undefined,
+        userId: userId || undefined,
+        referer,
+        usesByok,
+      },
+      posthogGroups: workspaceId ? { workspace: workspaceId } : undefined,
+    });
+  }
+
+  return model;
 }

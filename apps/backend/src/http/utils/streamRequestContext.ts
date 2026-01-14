@@ -396,6 +396,27 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
             }))
             .filter((m) => m.hasFiles),
         });
+      } else if (hasAnyMessageWithParts) {
+        // Log if we had parts but they didn't make it to model messages
+        console.warn(
+          "[Stream Handler] Had parts in request but no file parts in model messages:",
+          {
+            convertedMessagesWithFiles: convertedMessages.filter(
+              (msg) =>
+                msg.role === "user" &&
+                Array.isArray(msg.content) &&
+                msg.content.some(
+                  (part) =>
+                    part &&
+                    typeof part === "object" &&
+                    "type" in part &&
+                    part.type === "file"
+                )
+            ).length,
+            modelMessageCount: modelMessages.length,
+            convertedMessageCount: convertedMessages.length,
+          }
+        );
       }
     } catch (error) {
       console.error("[Stream Handler] Error converting messages:", {

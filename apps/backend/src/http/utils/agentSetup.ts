@@ -144,6 +144,15 @@ export async function setupAgentAndTools(
   const modelName =
     typeof agent.modelName === "string" ? agent.modelName : undefined;
 
+  // Extract agent config for advanced options
+  const agentConfig = {
+    temperature: agent.temperature,
+    topP: agent.topP,
+    topK: agent.topK,
+    maxOutputTokens: agent.maxOutputTokens,
+    stopSequences: agent.stopSequences,
+  };
+
   const model = await createAgentModel(
     options?.modelReferer || "http://localhost:3000/api/workspaces",
     workspaceApiKey || undefined,
@@ -152,7 +161,8 @@ export async function setupAgentAndTools(
     agentId,
     usesByok,
     options?.userId,
-    agentProvider // Pass provider to createAgentModel
+    agentProvider, // Pass provider to createAgentModel
+    agentConfig // Pass agent config with advanced options
   );
 
   // Extract agentId from agent.pk (format: "agents/{workspaceId}/{agentId}")
