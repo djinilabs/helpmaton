@@ -991,6 +991,8 @@ export function extractToolCalls(messages: UIMessage[]): unknown[] {
 /**
  * Normalize message content to extract text for comparison
  * Handles both string and array formats, extracting text content
+ * IMPORTANT: Includes file parts in the comparison key to prevent deduplication
+ * of messages with the same text but different file attachments
  */
 function normalizeContentForComparison(content: UIMessage["content"]): string {
   if (typeof content === "string") {
@@ -1009,6 +1011,15 @@ function normalizeContentForComparison(content: UIMessage["content"]): string {
           if (typeof textPart.text === "string") {
             textParts.push(textPart.text);
           }
+        }
+        // Include file parts in the comparison key to distinguish messages with attachments
+        // This prevents deduplication of messages with the same text but different files
+        else if (part.type === "file" && "file" in part) {
+          const filePart = part as { file?: unknown; mediaType?: unknown };
+          const fileUrl = typeof filePart.file === "string" ? filePart.file : "";
+          const mediaType =
+            typeof filePart.mediaType === "string" ? filePart.mediaType : "";
+          textParts.push(`[file:${fileUrl}:${mediaType}]`);
         }
         // For tool calls and results, include them in the key to distinguish messages
         else if (part.type === "tool-call") {
