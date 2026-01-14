@@ -187,7 +187,8 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
     }
 
     // Track unique conversations per workspace/agent/user/date
-    const conversationKey = `${conv.workspaceId || ""}:${conv.agentId || ""}:${dateStr}`;
+    // Note: conversations don't have userId, so we use empty string to match format in aggregateAggregates
+    const conversationKey = `${conv.workspaceId || ""}:${conv.agentId || ""}:${""}:${dateStr}`;
     if (!conversationCountMap.has(conversationKey)) {
       conversationCountMap.set(conversationKey, new Set());
     }
@@ -237,7 +238,8 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
       }:${aggData.usesByok ? "byok" : "platform"}`;
 
       // Get conversation count for this workspace/agent/user/date combination
-      const conversationKey = `${aggData.workspaceId || ""}:${aggData.agentId || ""}:${dateStr}`;
+      // Note: conversations don't have userId, so we use empty string to match format in aggregateAggregates
+      const conversationKey = `${aggData.workspaceId || ""}:${aggData.agentId || ""}:${""}:${dateStr}`;
       const conversationCount = conversationCounts.get(conversationKey) || 0;
 
       const aggregate: Omit<TokenUsageAggregateRecord, "version"> = {

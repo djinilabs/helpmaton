@@ -57,8 +57,12 @@ export function extractSupplierFromModelName(modelName: string): string {
 
   // Check if model name contains supplier prefix (format: "supplier/model-name")
   const parts = modelName.split("/");
-  if (parts.length === 2 && parts[0] && parts[1]) {
-    return parts[0]; // e.g., "openai", "google", "anthropic"
+  if (
+    parts.length === 2 &&
+    parts[0].trim().length > 0 &&
+    parts[1].trim().length > 0
+  ) {
+    return parts[0].trim(); // e.g., "openai", "google", "anthropic"
   }
 
   // No supplier prefix found
