@@ -215,17 +215,68 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
   if (messages && messages.length > 0) {
     // Check if messages are in ai-sdk format (have 'parts' property)
     // Messages from useChat will have 'parts', our local format has 'content'
-    const firstMsg = messages[0];
-    const isAiSdkFormat =
-      firstMsg &&
-      typeof firstMsg === "object" &&
-      "parts" in firstMsg &&
-      Array.isArray(firstMsg.parts);
+    // Check ALL messages, not just the first one, since the first message might be
+    // an assistant message from a previous turn, and the new user message with files
+    // might be later in the array
+    const hasAnyMessageWithParts = messages.some(
+      (msg) =>
+        msg &&
+        typeof msg === "object" &&
+        "parts" in msg &&
+        Array.isArray(msg.parts) &&
+        msg.parts.length > 0
+    );
+
+    // Log for debugging file attachment issues
+    if (hasAnyMessageWithParts) {
+      console.log("[Stream Handler] Detected AI SDK format with parts:", {
+        messageCount: messages.length,
+        messagesWithParts: messages
+          .map((msg, idx) => ({
+            index: idx,
+            role: msg?.role,
+            hasParts: !!(msg && typeof msg === "object" && "parts" in msg && Array.isArray(msg.parts)),
+            partsCount: msg && typeof msg === "object" && "parts" in msg && Array.isArray(msg.parts) ? msg.parts.length : 0,
+          }))
+          .filter((m) => m.hasParts),
+      });
+    }
 
     // Convert all messages from AI SDK format to our format if needed
     let convertedMessages: UIMessage[] = messages;
-    if (isAiSdkFormat) {
+    if (hasAnyMessageWithParts) {
       convertedMessages = convertAiSdkUIMessagesToUIMessages(messages);
+      
+      // Log converted messages to verify file parts are preserved
+      const convertedMessagesWithFiles = convertedMessages.filter(
+        (msg) =>
+          msg.role === "user" &&
+          Array.isArray(msg.content) &&
+          msg.content.some(
+            (part) =>
+              part &&
+              typeof part === "object" &&
+              "type" in part &&
+              part.type === "file"
+          )
+      );
+      if (convertedMessagesWithFiles.length > 0) {
+        console.log("[Stream Handler] Converted messages with file parts:", {
+          count: convertedMessagesWithFiles.length,
+          files: convertedMessagesWithFiles.map((msg) => ({
+            role: msg.role,
+            fileParts: Array.isArray(msg.content)
+              ? msg.content.filter(
+                  (part) =>
+                    part &&
+                    typeof part === "object" &&
+                    "type" in part &&
+                    part.type === "file"
+                )
+              : [],
+          })),
+        });
+      }
     }
 
     // Validate file parts contain URLs, not base64/data URLs
@@ -300,12 +351,20 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
 
     let modelMessages: ModelMessage[];
     try {
-      if (isAiSdkFormat) {
+      if (hasAnyMessageWithParts) {
         // Messages from useChat are in ai-sdk UIMessage format with 'parts'
         // Use convertToModelMessages from ai-sdk
         modelMessages = await convertToModelMessages(
           messages as unknown as Array<Omit<import("ai").UIMessage, "id">>
         );
+        
+        // Log to verify file parts are in model messages
+        // Note: Model messages use AI SDK format which may have different structure
+        // We just log that conversion succeeded if we had parts
+        console.log("[Stream Handler] Converted to model messages with parts:", {
+          messageCount: modelMessages.length,
+          hasUserMessages: modelMessages.some((msg) => msg.role === "user"),
+        });
       } else {
         // Messages are in our local UIMessage format with 'content'
         // Use our local converter with converted messages
@@ -315,12 +374,19 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
       console.error("[Stream Handler] Error converting messages:", {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
-        isAiSdkFormat,
+        hasAnyMessageWithParts,
         messageCount: messages.length,
         firstMessageKeys:
-          firstMsg && typeof firstMsg === "object"
-            ? Object.keys(firstMsg)
+          messages[0] && typeof messages[0] === "object"
+            ? Object.keys(messages[0])
             : "N/A",
+        messagesWithParts: messages
+          .map((msg, idx) => ({
+            index: idx,
+            role: msg?.role,
+            hasParts: !!(msg && typeof msg === "object" && "parts" in msg),
+          }))
+          .filter((m) => m.hasParts),
       });
       throw error;
     }
@@ -466,6 +532,43 @@ export async function buildStreamRequestContext(
   const bodyText = extractRequestBody(event);
   if (!bodyText) {
     throw new Error("Request body is required");
+  }
+
+  // Log raw request body for debugging file attachment issues (only first 1000 chars to avoid log spam)
+  try {
+    const bodyPreview = bodyText.length > 1000 ? bodyText.substring(0, 1000) + "..." : bodyText;
+    const parsedBody = JSON.parse(bodyText);
+    const hasPartsInBody = Array.isArray(parsedBody)
+      ? parsedBody.some(
+          (msg: unknown) =>
+            msg &&
+            typeof msg === "object" &&
+            "parts" in msg &&
+            Array.isArray(msg.parts) &&
+            msg.parts.length > 0
+        )
+      : parsedBody &&
+        typeof parsedBody === "object" &&
+        "messages" in parsedBody &&
+        Array.isArray(parsedBody.messages) &&
+        parsedBody.messages.some(
+          (msg: unknown) =>
+            msg &&
+            typeof msg === "object" &&
+            "parts" in msg &&
+            Array.isArray(msg.parts) &&
+            msg.parts.length > 0
+        );
+    
+    if (hasPartsInBody) {
+      console.log("[Stream Handler] Request body contains parts:", {
+        bodyPreview,
+        isArray: Array.isArray(parsedBody),
+        messageCount: Array.isArray(parsedBody) ? parsedBody.length : parsedBody?.messages?.length || 0,
+      });
+    }
+  } catch {
+    // Ignore parsing errors for logging
   }
 
   const { uiMessage, modelMessages, convertedMessages } =

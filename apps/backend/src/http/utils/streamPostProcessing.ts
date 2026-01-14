@@ -364,6 +364,41 @@ export async function logConversation(
       assistantMessage,
     ];
 
+    // Log messages with file parts before filtering
+    const messagesWithFiles = messagesForLogging.filter(
+      (msg) =>
+        msg &&
+        typeof msg === "object" &&
+        "role" in msg &&
+        msg.role === "user" &&
+        "content" in msg &&
+        Array.isArray(msg.content) &&
+        msg.content.some(
+          (part) =>
+            part &&
+            typeof part === "object" &&
+            "type" in part &&
+            part.type === "file"
+        )
+    );
+    if (messagesWithFiles.length > 0) {
+      console.log("[Stream Handler] Messages with file parts before logging:", {
+        count: messagesWithFiles.length,
+        files: messagesWithFiles.map((msg) => ({
+          role: msg.role,
+          fileParts: Array.isArray(msg.content)
+            ? msg.content.filter(
+                (part) =>
+                  part &&
+                  typeof part === "object" &&
+                  "type" in part &&
+                  part.type === "file"
+              )
+            : [],
+        })),
+      });
+    }
+
     const validMessages: UIMessage[] = messagesForLogging.filter(
       (msg): msg is UIMessage =>
         msg != null &&
@@ -376,6 +411,37 @@ export async function logConversation(
           msg.role === "tool") &&
         "content" in msg
     );
+
+    // Log messages with file parts after filtering to ensure they're preserved
+    const validMessagesWithFiles = validMessages.filter(
+      (msg) =>
+        msg.role === "user" &&
+        Array.isArray(msg.content) &&
+        msg.content.some(
+          (part) =>
+            part &&
+            typeof part === "object" &&
+            "type" in part &&
+            part.type === "file"
+        )
+    );
+    if (validMessagesWithFiles.length > 0) {
+      console.log("[Stream Handler] Valid messages with file parts for logging:", {
+        count: validMessagesWithFiles.length,
+        files: validMessagesWithFiles.map((msg) => ({
+          role: msg.role,
+          fileParts: Array.isArray(msg.content)
+            ? msg.content.filter(
+                (part) =>
+                  part &&
+                  typeof part === "object" &&
+                  "type" in part &&
+                  part.type === "file"
+              )
+            : [],
+        })),
+      });
+    }
 
     await updateConversation(
       context.db,
