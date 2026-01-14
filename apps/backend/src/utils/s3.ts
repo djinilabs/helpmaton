@@ -2,7 +2,8 @@ import { randomBytes, randomUUID } from "crypto";
 
 import awsLite from "@aws-lite/client";
 import s3Plugin from "@aws-lite/s3";
-import AWS from "aws-sdk";
+import { S3Client } from "@aws-sdk/client-s3";
+import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 
 // Use bucket name with period to force path-style addressing for local S3 servers
 const BUCKET_NAME = (
@@ -370,27 +371,37 @@ function buildConversationFileKey(
 }
 
 /**
- * Get AWS SDK S3 client for presigned URL generation
- * Uses AWS SDK v2 for presigned POST URL support
+ * Get AWS SDK v3 S3 client for presigned URL generation
+ * Uses AWS SDK v3 for presigned POST URL support
  */
-function getAwsSdkS3Client(): AWS.S3 {
+function getAwsSdkS3Client(): S3Client {
   const arcEnv = process.env.ARC_ENV;
   const nodeEnv = process.env.NODE_ENV;
   const isLocal =
     arcEnv === "testing" ||
     (arcEnv !== "production" && nodeEnv !== "production");
 
-  const config: AWS.S3.ClientConfiguration = {};
+  const config: {
+    endpoint?: string;
+    credentials?: {
+      accessKeyId: string;
+      secretAccessKey: string;
+    };
+    region?: string;
+    forcePathStyle?: boolean;
+  } = {};
 
   if (isLocal) {
     // Local development with s3rver
     const endpoint =
       process.env.HELPMATON_S3_ENDPOINT || "http://localhost:4568";
     config.endpoint = endpoint;
-    config.accessKeyId = "S3RVER";
-    config.secretAccessKey = "S3RVER";
+    config.credentials = {
+      accessKeyId: "S3RVER",
+      secretAccessKey: "S3RVER",
+    };
     config.region = "us-east-1";
-    config.s3ForcePathStyle = true; // Force path-style for local S3
+    config.forcePathStyle = true; // Force path-style for local S3
   } else {
     // Production - use explicit credentials from environment variables
     const region =
@@ -405,12 +416,14 @@ function getAwsSdkS3Client(): AWS.S3 {
       process.env.AWS_SECRET_ACCESS_KEY;
 
     if (accessKeyId && secretAccessKey) {
-      config.accessKeyId = accessKeyId;
-      config.secretAccessKey = secretAccessKey;
+      config.credentials = {
+        accessKeyId,
+        secretAccessKey,
+      };
     }
   }
 
-  return new AWS.S3(config);
+  return new S3Client(config);
 }
 
 /**
@@ -447,14 +460,14 @@ export async function generatePresignedPostUrl(
     filename
   );
 
-  // Get AWS SDK S3 client
-  const s3 = getAwsSdkS3Client();
+  // Get AWS SDK v3 S3 client
+  const s3Client = getAwsSdkS3Client();
 
-  // Create presigned POST parameters
-  const params: AWS.S3.PresignedPost.Params = {
+  // Generate presigned POST URL using AWS SDK v3
+  const presignedPost = await createPresignedPost(s3Client, {
     Bucket: BUCKET_NAME,
+    Key: key,
     Fields: {
-      key,
       "Content-Type": contentType,
     },
     Conditions: [
@@ -463,20 +476,7 @@ export async function generatePresignedPostUrl(
       ["eq", "$key", key], // Exact key match
     ],
     Expires: expiresIn,
-  };
-
-  // Generate presigned POST URL
-  const presignedPost = await new Promise<AWS.S3.PresignedPost>(
-    (resolve, reject) => {
-      s3.createPresignedPost(params, (err, data) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(data);
-        }
-      });
-    }
-  );
+  });
 
   // Construct final S3 URL
   // For local S3, use the endpoint directly

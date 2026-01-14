@@ -1,32 +1,35 @@
+import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock AWS SDK before importing the module
-const mockCreatePresignedPost = vi.fn((params, callback) => {
-  callback(null, {
-    url: "https://s3.amazonaws.com/test-bucket",
-    fields: {
-      key: params.Fields.key,
-      "Content-Type": params.Fields["Content-Type"],
-      "x-amz-algorithm": "AWS4-HMAC-SHA256",
-      "x-amz-credential": "test-credential",
-      "x-amz-date": "20240101T000000Z",
-      "x-amz-signature": "test-signature",
-    },
+// Mock AWS SDK v3 before importing the module
+vi.mock("@aws-sdk/s3-presigned-post", () => {
+  const mockCreatePresignedPost = vi.fn(async (client, params) => {
+    return {
+      url: "https://s3.amazonaws.com/test-bucket",
+      fields: {
+        key: params.Key,
+        "Content-Type": params.Fields?.["Content-Type"] || "",
+        "x-amz-algorithm": "AWS4-HMAC-SHA256",
+        "x-amz-credential": "test-credential",
+        "x-amz-date": "20240101T000000Z",
+        "x-amz-signature": "test-signature",
+      },
+    };
   });
-});
-
-// Create a proper constructor function
-function MockS3() {
   return {
     createPresignedPost: mockCreatePresignedPost,
   };
-}
+});
 
-vi.mock("aws-sdk", () => {
+// Mock S3Client - needs to be a proper constructor
+vi.mock("@aws-sdk/client-s3", () => {
+  class MockS3Client {
+    constructor() {
+      // Mock constructor
+    }
+  }
   return {
-    default: {
-      S3: MockS3,
-    },
+    S3Client: MockS3Client,
   };
 });
 
@@ -35,6 +38,7 @@ import { generatePresignedPostUrl } from "../s3";
 
 describe("generatePresignedPostUrl", () => {
   const originalEnv = process.env;
+  const mockCreatePresignedPost = vi.mocked(createPresignedPost);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -96,6 +100,7 @@ describe("generatePresignedPostUrl", () => {
     );
 
     // Filenames should be different (high entropy)
+    // Extract key from fields (AWS SDK v3 includes key in fields)
     const key1 = result1.fields.key;
     const key2 = result2.fields.key;
     expect(key1).not.toBe(key2);
@@ -169,7 +174,7 @@ describe("generatePresignedPostUrl", () => {
 
     // Verify that createPresignedPost was called with correct conditions
     expect(mockCreatePresignedPost).toHaveBeenCalled();
-    const callArgs = mockCreatePresignedPost.mock.calls[0][0];
+    const callArgs = mockCreatePresignedPost.mock.calls[0]?.[1]; // Second argument is params
     expect(callArgs.Conditions).toEqual(
       expect.arrayContaining([
         ["content-length-range", 0, maxSize],

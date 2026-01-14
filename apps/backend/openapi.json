@@ -5638,6 +5638,128 @@
         }
       }
     },
+    "/api/workspaces/{workspaceId}/agents/{agentId}/conversations/{conversationId}/files/upload-url": {
+      "post": {
+        "summary": "Generate presigned S3 POST URL for file upload",
+        "description": "Generates a presigned POST URL that allows direct upload of files to S3. The URL expires after 5 minutes. Supports all file types.",
+        "tags": [
+          "Files"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "in": "path",
+            "required": true,
+            "description": "Workspace ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "description": "Agent ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "description": "Conversation ID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "contentType"
+                ],
+                "properties": {
+                  "contentType": {
+                    "type": "string",
+                    "description": "File content type (e.g., image/jpeg, application/pdf, text/plain)",
+                    "example": "image/jpeg"
+                  },
+                  "fileExtension": {
+                    "type": "string",
+                    "description": "Optional file extension (e.g., \"jpg\", \"pdf\", \"txt\")",
+                    "example": "jpg"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Presigned URL generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "uploadUrl": {
+                      "type": "string",
+                      "description": "S3 endpoint URL for POST request"
+                    },
+                    "fields": {
+                      "type": "object",
+                      "description": "Form fields to include in multipart/form-data POST"
+                    },
+                    "finalUrl": {
+                      "type": "string",
+                      "description": "Final S3 URL after upload (use this in messages)"
+                    },
+                    "expiresIn": {
+                      "type": "number",
+                      "description": "URL expiration time in seconds"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "options": {
+        "summary": "CORS preflight for file upload URL endpoint",
+        "description": "Handles CORS preflight requests",
+        "tags": [
+          "Files"
+        ],
+        "responses": {
+          "200": {
+            "description": "CORS headers returned"
+          }
+        }
+      }
+    },
     "/api/workspaces/{workspaceId}/agents/{agentId}/spending-limits": {
       "post": {
         "summary": "Create agent spending limit",
