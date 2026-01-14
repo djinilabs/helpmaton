@@ -8,7 +8,7 @@ import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
 } from "ai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FC } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -107,6 +107,13 @@ export const AgentChat: FC<AgentChatProps> = ({
     };
   }, []); // Only run on unmount
 
+  // Clear file-related API error when there are no files with errors
+  useEffect(() => {
+    if (apiError && pendingFiles.every((f) => !f.error)) {
+      setApiError(null);
+    }
+  }, [apiError, pendingFiles]);
+
   // Generate and memoize conversation ID for this chat instance
   const conversationId = useMemo(() => generateUUID(), []);
 
@@ -177,7 +184,7 @@ export const AgentChat: FC<AgentChatProps> = ({
         // Check for error responses (non-2xx status codes)
         if (!response.ok) {
           let errorMessage = `Request failed with status ${response.status}`;
-          
+
           // Try to parse error message from JSON response
           try {
             const contentType = response.headers.get("content-type");
@@ -186,9 +193,10 @@ export const AgentChat: FC<AgentChatProps> = ({
               const clonedResponse = response.clone();
               const errorData = await clonedResponse.json();
               if (errorData.error) {
-                errorMessage = typeof errorData.error === "string" 
-                  ? errorData.error 
-                  : errorData.error.message || errorMessage;
+                errorMessage =
+                  typeof errorData.error === "string"
+                    ? errorData.error
+                    : errorData.error.message || errorMessage;
               } else if (errorData.message) {
                 errorMessage = errorData.message;
               }
@@ -201,9 +209,10 @@ export const AgentChat: FC<AgentChatProps> = ({
                 try {
                   const parsed = JSON.parse(text);
                   if (parsed.error) {
-                    errorMessage = typeof parsed.error === "string"
-                      ? parsed.error
-                      : parsed.error.message || errorMessage;
+                    errorMessage =
+                      typeof parsed.error === "string"
+                        ? parsed.error
+                        : parsed.error.message || errorMessage;
                   } else if (parsed.message) {
                     errorMessage = parsed.message;
                   }
@@ -217,7 +226,10 @@ export const AgentChat: FC<AgentChatProps> = ({
             }
           } catch (parseError) {
             // If we can't parse the error, use the default message
-            console.error("[AgentChat] Error parsing error response:", parseError);
+            console.error(
+              "[AgentChat] Error parsing error response:",
+              parseError
+            );
           }
 
           // Set the error state so it can be displayed in the UI
@@ -230,9 +242,10 @@ export const AgentChat: FC<AgentChatProps> = ({
         return response;
       } catch (fetchError) {
         // Network errors or other fetch failures
-        const errorMessage = fetchError instanceof Error 
-          ? fetchError.message 
-          : "Failed to send request";
+        const errorMessage =
+          fetchError instanceof Error
+            ? fetchError.message
+            : "Failed to send request";
         setApiError(new Error(errorMessage));
         throw fetchError;
       }
@@ -323,7 +336,7 @@ export const AgentChat: FC<AgentChatProps> = ({
 
   const isLoading = status === "submitted" || status === "streaming";
 
-  const adjustTextareaHeight = () => {
+  const adjustTextareaHeight = useCallback(() => {
     if (textareaRef.current) {
       // Reset height to auto to get the correct scrollHeight
       textareaRef.current.style.height = "auto";
@@ -336,7 +349,7 @@ export const AgentChat: FC<AgentChatProps> = ({
       );
       textareaRef.current.style.height = `${newHeight}px`;
     }
-  };
+  }, []);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -356,9 +369,7 @@ export const AgentChat: FC<AgentChatProps> = ({
   };
 
   // Handle file selection
-  const handleFileSelect = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -468,9 +479,7 @@ export const AgentChat: FC<AgentChatProps> = ({
       // Update state with final URL
       setPendingFiles((prev) =>
         prev.map((f) =>
-          f.file === file
-            ? { ...f, uploadUrl: finalUrl, uploading: false }
-            : f
+          f.file === file ? { ...f, uploadUrl: finalUrl, uploading: false } : f
         )
       );
     } catch (error) {
@@ -478,21 +487,13 @@ export const AgentChat: FC<AgentChatProps> = ({
         error instanceof Error ? error.message : "Failed to upload file";
       setPendingFiles((prev) =>
         prev.map((f) =>
-          f.file === file
-            ? { ...f, uploading: false, error: errorMessage }
-            : f
+          f.file === file ? { ...f, uploading: false, error: errorMessage } : f
         )
       );
       setApiError(new Error(`File upload failed: ${errorMessage}`));
     }
   };
 
-  useEffect(() => {
-    // Clear file-related API error when there are no files with errors
-    if (apiError && pendingFiles.every((f) => !f.error)) {
-      setApiError(null);
-    }
-  }, [apiError, pendingFiles]);
   const handleSubmit = (e?: React.FormEvent<HTMLFormElement>) => {
     e?.preventDefault();
     if ((!input.trim() && pendingFiles.length === 0) || isLoading) return;
@@ -502,9 +503,7 @@ export const AgentChat: FC<AgentChatProps> = ({
       (f) => !f.uploadUrl && !f.error
     );
     if (filesNotUploaded.length > 0) {
-      setApiError(
-        new Error("Please wait for all files to finish uploading")
-      );
+      setApiError(new Error("Please wait for all files to finish uploading"));
       return;
     }
 
@@ -585,13 +584,6 @@ export const AgentChat: FC<AgentChatProps> = ({
     onClear?.();
   };
 
-  // Clear file-related API error when there are no files with errors
-  useEffect(() => {
-    if (apiError && pendingFiles.every((f) => !f.error)) {
-      setApiError(null);
-    }
-  }, [apiError, pendingFiles]);
-
   // Auto-scroll to bottom when messages or loading state changes
   useEffect(() => {
     if (messagesContainerRef.current) {
@@ -616,22 +608,26 @@ export const AgentChat: FC<AgentChatProps> = ({
     }, 100);
 
     return () => clearTimeout(timeoutId);
-  }, []);
+  }, [adjustTextareaHeight]);
 
   // Adjust textarea height when input changes
   useEffect(() => {
     adjustTextareaHeight();
-  }, [input]);
+  }, [input, adjustTextareaHeight]);
 
   return (
-    <div className={`flex ${isWidget ? "h-full" : "h-[600px]"} flex-col rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900`}>
+    <div
+      className={`flex ${
+        isWidget ? "h-full" : "h-[600px]"
+      } flex-col rounded-2xl border-2 border-neutral-300 bg-white shadow-large dark:border-neutral-700 dark:bg-neutral-900`}
+    >
       {!isWidget && (
         <div className="rounded-t-2xl border-b-2 border-neutral-300 bg-neutral-100 p-5 dark:border-neutral-700 dark:bg-neutral-800">
           <div className="flex items-center justify-between gap-4">
             <p className="text-base font-bold text-neutral-800 dark:text-neutral-200">
               Test your agent by having a conversation. This chat interface lets
-              you interact with the agent in real-time to verify its behavior and
-              responses before deploying it.
+              you interact with the agent in real-time to verify its behavior
+              and responses before deploying it.
             </p>
             {messages.length > 0 && (
               <button
@@ -691,7 +687,8 @@ export const AgentChat: FC<AgentChatProps> = ({
                 typeof message === "object" &&
                 message !== null &&
                 "knowledgeInjection" in message &&
-                (message as { knowledgeInjection?: boolean }).knowledgeInjection === true;
+                (message as { knowledgeInjection?: boolean })
+                  .knowledgeInjection === true;
 
               // Get snippet count for knowledge injection messages
               const snippetCount =
@@ -699,8 +696,11 @@ export const AgentChat: FC<AgentChatProps> = ({
                 typeof message === "object" &&
                 message !== null &&
                 "knowledgeSnippets" in message &&
-                Array.isArray((message as { knowledgeSnippets?: unknown }).knowledgeSnippets)
-                  ? ((message as { knowledgeSnippets: unknown[] }).knowledgeSnippets).length
+                Array.isArray(
+                  (message as { knowledgeSnippets?: unknown }).knowledgeSnippets
+                )
+                  ? (message as { knowledgeSnippets: unknown[] })
+                      .knowledgeSnippets.length
                   : 0;
 
               const getRoleLabel = () => {
@@ -754,7 +754,10 @@ export const AgentChat: FC<AgentChatProps> = ({
                           <span className="text-lg">📚</span>
                           <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
                             Knowledge from workspace documents
-                            {snippetCount > 0 && ` (${snippetCount} snippet${snippetCount !== 1 ? "s" : ""})`}
+                            {snippetCount > 0 &&
+                              ` (${snippetCount} snippet${
+                                snippetCount !== 1 ? "s" : ""
+                              })`}
                           </span>
                         </div>
                       </summary>
@@ -796,7 +799,11 @@ export const AgentChat: FC<AgentChatProps> = ({
                                         remarkPlugins={[remarkGfm]}
                                         components={{
                                           code: (props) => {
-                                            const { className, children, ...rest } = props;
+                                            const {
+                                              className,
+                                              children,
+                                              ...rest
+                                            } = props;
                                             const isInline =
                                               !className ||
                                               !className.includes("language-");
@@ -820,7 +827,9 @@ export const AgentChat: FC<AgentChatProps> = ({
                                             );
                                           },
                                           p: ({ children }) => (
-                                            <p className="mb-2 last:mb-0">{children}</p>
+                                            <p className="mb-2 last:mb-0">
+                                              {children}
+                                            </p>
                                           ),
                                         }}
                                       >
@@ -939,7 +948,10 @@ export const AgentChat: FC<AgentChatProps> = ({
                   let fileUrl: string | null = null;
                   if ("file" in part && typeof part.file === "string") {
                     fileUrl = part.file;
-                  } else if ("image" in part && typeof part.image === "string") {
+                  } else if (
+                    "image" in part &&
+                    typeof part.image === "string"
+                  ) {
                     fileUrl = part.image;
                   } else if ("data" in part && typeof part.data === "string") {
                     fileUrl = part.data;
@@ -951,9 +963,15 @@ export const AgentChat: FC<AgentChatProps> = ({
 
                   // Extract media type
                   let mediaType: string | undefined;
-                  if ("mediaType" in part && typeof part.mediaType === "string") {
+                  if (
+                    "mediaType" in part &&
+                    typeof part.mediaType === "string"
+                  ) {
                     mediaType = part.mediaType;
-                  } else if ("mimeType" in part && typeof part.mimeType === "string") {
+                  } else if (
+                    "mimeType" in part &&
+                    typeof part.mimeType === "string"
+                  ) {
                     mediaType = part.mimeType;
                   }
 
