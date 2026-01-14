@@ -32,6 +32,11 @@ export type ToolResultContent = {
   costUsd?: number; // Cost in millionths (e.g., 8000 = $0.008)
 };
 
+export type ReasoningContent = {
+  type: "reasoning";
+  text: string;
+};
+
 export type RerankingRequestContent = {
   type: "reranking-request";
   query: string;
@@ -68,7 +73,7 @@ export type UIMessage =
       role: "assistant";
       content:
         | string
-        | Array<TextContent | ToolCallContent | ToolResultContent>;
+        | Array<TextContent | ToolCallContent | ToolResultContent | ReasoningContent>;
       tokenUsage?: {
         promptTokens: number;
         completionTokens: number;

@@ -172,6 +172,10 @@ export function convertAiSdkUIMessageToUIMessage(
             result: unknown;
             costUsd?: number;
           }
+        | {
+            type: "reasoning";
+            text: string;
+          }
       > = [];
 
       for (const part of message.parts) {
@@ -180,6 +184,16 @@ export function convertAiSdkUIMessageToUIMessage(
         } else if (part && typeof part === "object" && "type" in part) {
           if (part.type === "text" && "text" in part) {
             content.push({ type: "text", text: part.text });
+          } else if (
+            part.type === "reasoning" &&
+            "text" in part &&
+            typeof part.text === "string"
+          ) {
+            // Handle reasoning parts from AI SDK
+            content.push({
+              type: "reasoning",
+              text: part.text,
+            });
           } else if (
             part.type === "tool-call" &&
             "toolCallId" in part &&

@@ -309,6 +309,10 @@ export async function logConversation(
           toolName: string;
           result: unknown;
         }
+      | {
+          type: "reasoning";
+          text: string;
+        }
     > = [];
 
     for (const toolCallMsg of toolCallMessages) {
