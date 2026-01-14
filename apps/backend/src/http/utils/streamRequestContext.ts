@@ -1,5 +1,4 @@
 import { badRequest } from "@hapi/boom";
-import { convertToModelMessages } from "ai";
 import type { ModelMessage } from "ai";
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
 import { z } from "zod";
@@ -358,27 +357,48 @@ async function convertRequestBodyToMessages(bodyText: string): Promise<{
 
     let modelMessages: ModelMessage[];
     try {
-      if (hasAnyMessageWithParts) {
-        // Messages from useChat are in ai-sdk UIMessage format with 'parts'
-        // Use convertToModelMessages from ai-sdk
-        modelMessages = await convertToModelMessages(
-          messages as unknown as Array<Omit<import("ai").UIMessage, "id">>
-        );
+      // Always use our own converter which properly handles file parts
+      // Even if messages come in AI SDK format with 'parts', we convert them to our format first
+      // then use our converter which we know handles file parts correctly
+      // The AI SDK's convertToModelMessages might not preserve image parts from conversation history
+      modelMessages = convertUIMessagesToModelMessages(convertedMessages);
 
-        // Log to verify file parts are in model messages
-        // Note: Model messages use AI SDK format which may have different structure
-        // We just log that conversion succeeded if we had parts
+      // Log to verify file parts are in model messages
+      const modelMessagesWithFiles = modelMessages.filter(
+        (msg) =>
+          msg.role === "user" &&
+          Array.isArray(msg.content) &&
+          msg.content.some(
+            (part: unknown) =>
+              part &&
+              typeof part === "object" &&
+              "type" in part &&
+              (part.type === "image" || part.type === "file")
+          )
+      );
+      if (modelMessagesWithFiles.length > 0) {
         console.log(
-          "[Stream Handler] Converted to model messages with parts:",
+          "[Stream Handler] Model messages with file parts:",
           {
-            messageCount: modelMessages.length,
-            hasUserMessages: modelMessages.some((msg) => msg.role === "user"),
+            count: modelMessagesWithFiles.length,
+            messageIndices: modelMessages
+              .map((msg, idx) => ({
+                index: idx,
+                role: msg.role,
+                hasFiles:
+                  msg.role === "user" &&
+                  Array.isArray(msg.content) &&
+                  msg.content.some(
+                    (part: unknown) =>
+                      part &&
+                      typeof part === "object" &&
+                      "type" in part &&
+                      (part.type === "image" || part.type === "file")
+                  ),
+              }))
+              .filter((m) => m.hasFiles),
           }
         );
-      } else {
-        // Messages are in our local UIMessage format with 'content'
-        // Use our local converter with converted messages
-        modelMessages = convertUIMessagesToModelMessages(convertedMessages);
       }
     } catch (error) {
       console.error("[Stream Handler] Error converting messages:", {
