@@ -27,11 +27,14 @@ import {
 
 /**
  * Adjusts credit reservation after the stream completes
+ * @param enqueueCostVerification - Whether to enqueue cost verification (default: true)
+ *                                  Set to false if cost verification will be enqueued separately after conversation is saved
  */
 export async function adjustCreditsAfterStream(
   context: StreamRequestContext,
   tokenUsage: TokenUsage | undefined,
-  streamResult: Awaited<ReturnType<typeof streamText>>
+  streamResult: Awaited<ReturnType<typeof streamText>>,
+  enqueueCostVerification: boolean = true
 ): Promise<void> {
   const openrouterGenerationIds =
     extractAllOpenRouterGenerationIds(streamResult);
@@ -59,15 +62,17 @@ export async function adjustCreditsAfterStream(
     context.conversationId
   );
 
-  await enqueueCostVerificationIfNeeded(
-    openrouterGenerationId,
-    openrouterGenerationIds,
-    context.workspaceId,
-    context.reservationId,
-    context.conversationId,
-    context.agentId,
-    context.endpointType as "test" | "stream"
-  );
+  if (enqueueCostVerification) {
+    await enqueueCostVerificationIfNeeded(
+      openrouterGenerationId,
+      openrouterGenerationIds,
+      context.workspaceId,
+      context.reservationId,
+      context.conversationId,
+      context.agentId,
+      context.endpointType as "test" | "stream"
+    );
+  }
 }
 
 /**
@@ -581,9 +586,9 @@ export async function performPostProcessing(
   generationEndedAt?: string,
   eventTimestamps?: StreamEventTimestamps
 ): Promise<void> {
-  // Adjust credits
+  // Adjust credits (but don't enqueue cost verification yet - we'll do that after saving conversation)
   try {
-    await adjustCreditsAfterStream(context, tokenUsage, streamResult);
+    await adjustCreditsAfterStream(context, tokenUsage, streamResult, false);
   } catch (error) {
     console.error(
       "[Stream Handler] Error adjusting credit reservation after stream:",
@@ -604,7 +609,7 @@ export async function performPostProcessing(
   // Track usage
   await trackRequestUsage(context);
 
-  // Log conversation
+  // Log conversation FIRST - this ensures messages are saved before cost verification runs
   await logConversation(
     context,
     finalResponseText,
@@ -615,5 +620,38 @@ export async function performPostProcessing(
     generationEndedAt,
     eventTimestamps
   );
+
+  // Enqueue cost verification AFTER conversation is saved
+  // This prevents race condition where cost verification runs before message is in DB
+  try {
+    const openrouterGenerationIds = extractAllOpenRouterGenerationIds(streamResult);
+    const openrouterGenerationId =
+      openrouterGenerationIds.length > 0 ? openrouterGenerationIds[0] : undefined;
+
+    await enqueueCostVerificationIfNeeded(
+      openrouterGenerationId,
+      openrouterGenerationIds,
+      context.workspaceId,
+      context.reservationId,
+      context.conversationId,
+      context.agentId,
+      context.endpointType as "test" | "stream"
+    );
+  } catch (error) {
+    console.error(
+      "[Stream Handler] Error enqueueing cost verification:",
+      {
+        error: error instanceof Error ? error.message : String(error),
+        workspaceId: context.workspaceId,
+        agentId: context.agentId,
+      }
+    );
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        endpoint: context.endpointType,
+        operation: "enqueue-cost-verification",
+      },
+    });
+  }
 }
 

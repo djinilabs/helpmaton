@@ -345,7 +345,8 @@ describe("openrouter-cost-verification-queue", () => {
     });
 
     it("should skip message update if conversation not found", async () => {
-      mockGet.mockResolvedValueOnce(null);
+      // Mock get to return null for all retry attempts (3 retries = 4 total attempts)
+      mockGet.mockResolvedValue(null);
 
       (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         ok: true,
@@ -384,8 +385,11 @@ describe("openrouter-cost-verification-queue", () => {
       // Should still finalize credit reservation
       expect(mockFinalizeCreditReservation).toHaveBeenCalled();
 
-      // Should not call atomicUpdate since conversation doesn't exist
+      // Should not call atomicUpdate since conversation doesn't exist after all retries
       expect(mockAtomicUpdate).not.toHaveBeenCalled();
+      
+      // Should have called get multiple times due to retries (1 initial + 3 retries = 4 calls)
+      expect(mockGet).toHaveBeenCalledTimes(4);
     });
 
     it("should skip message update if message with generationId not found", async () => {

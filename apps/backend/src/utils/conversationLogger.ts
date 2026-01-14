@@ -1348,6 +1348,7 @@ export function expandMessagesWithToolCalls(
 
         // Add tool call messages (as separate assistant messages with just tool calls)
         // Use timestamps directly from tool call or message
+        // Preserve openrouterGenerationId from original message so cost verification can match it
         for (const toolCall of toolCallsInMessage) {
           const toolCallStartedAt = toolCall.toolCallStartedAt;
           // Tool call message starts when LLM generation started, ends when tool call was decided
@@ -1360,6 +1361,10 @@ export function expandMessagesWithToolCalls(
             ...(awsRequestId && { awsRequestId }),
             ...(toolCallMessageStart && { generationStartedAt: toolCallMessageStart }),
             ...(toolCallMessageEnd && { generationEndedAt: toolCallMessageEnd }),
+            // Preserve openrouterGenerationId so cost verification can match this message
+            ...(message.openrouterGenerationId && {
+              openrouterGenerationId: message.openrouterGenerationId,
+            }),
           });
         }
 
