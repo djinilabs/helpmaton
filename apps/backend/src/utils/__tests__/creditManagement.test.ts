@@ -1309,4 +1309,190 @@ describe("creditManagement", () => {
       ).resolves.not.toThrow();
     });
   });
+
+  describe("multi-generation with tools integration", () => {
+    it("should correctly handle multiple LLM generations with tool costs in same conversation", async () => {
+      const workspaceId = "test-workspace";
+      const agentId = "test-agent";
+      const conversationId = "test-conversation";
+
+      // Reserve credits for LLM call with multiple generations
+      const llmEstimatedCost = 50_000; // $0.05
+      const llmReservation = await reserveCredits(
+        mockDb,
+        workspaceId,
+        llmEstimatedCost,
+        3,
+        false,
+        mockContext,
+        "openrouter",
+        "openrouter/auto",
+        agentId,
+        conversationId
+      );
+
+      expect(llmReservation.reservationId).toBeDefined();
+
+      // Adjust LLM reservation with multiple generation IDs
+      const tokenUsage: TokenUsage = {
+        promptTokens: 1000,
+        completionTokens: 500,
+        totalTokens: 1500,
+      };
+
+      mockCalculateTokenCost.mockReturnValue(45_000); // Actual cost: $0.045
+      const expires = Math.floor(Date.now() / 1000) + 15 * 60;
+      const llmReservationRecord: CreditReservationRecord = {
+        pk: `credit-reservations/${llmReservation.reservationId}`,
+        workspaceId,
+        reservedAmount: llmEstimatedCost,
+        estimatedCost: llmEstimatedCost,
+        currency: "usd",
+        expires,
+        expiresHour: Math.floor(expires / 3600) * 3600,
+        version: 1,
+        createdAt: new Date().toISOString(),
+        provider: "openrouter",
+        modelName: "openrouter/auto",
+        agentId,
+        conversationId,
+      };
+
+      mockReservationGet.mockResolvedValue(llmReservationRecord);
+
+      const openrouterGenerationIds = ["gen-12345", "gen-67890", "gen-abc123"];
+
+      await adjustCreditReservation(
+        mockDb,
+        llmReservation.reservationId,
+        workspaceId,
+        "openrouter",
+        "openrouter/auto",
+        tokenUsage,
+        mockContext,
+        3,
+        false,
+        undefined,
+        openrouterGenerationIds,
+        agentId,
+        conversationId
+      );
+
+      // Verify reservation was updated with multiple generation IDs
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pk: `credit-reservations/${llmReservation.reservationId}`,
+          openrouterGenerationIds,
+          expectedGenerationCount: 3,
+          verifiedGenerationIds: [],
+          verifiedCosts: [],
+        })
+      );
+
+      // Verify transaction was created for the adjustment
+      expect(mockContext.addWorkspaceCreditTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          workspaceId,
+          amountMillionthUsd: 5_000, // Positive = refund (50_000 - 45_000)
+        })
+      );
+    });
+
+    it("should correctly track costs when LLM generations and tool calls happen together", async () => {
+      const workspaceId = "test-workspace";
+      const agentId = "test-agent";
+      const conversationId = "test-conversation";
+
+      // Simulate a conversation flow:
+      // 1. LLM call with 2 generations
+      // 2. Tool calls (Exa, Tavily, Scraper) happen during LLM processing
+      // 3. All costs should be tracked separately
+
+      // Reserve LLM credits
+      const llmCost = 40_000;
+      const llmReservation = await reserveCredits(
+        mockDb,
+        workspaceId,
+        llmCost,
+        3,
+        false,
+        mockContext,
+        "openrouter",
+        "openrouter/auto",
+        agentId,
+        conversationId
+      );
+
+      // Reserve Scraper credits (tool called during LLM processing)
+      const scraperCost = 5_000;
+      const scraperReservation = await reserveCredits(
+        mockDb,
+        workspaceId,
+        scraperCost,
+        3,
+        false,
+        mockContext,
+        "scrape",
+        "scrape",
+        agentId,
+        conversationId
+      );
+
+      // Adjust LLM with multiple generations
+      const tokenUsage: TokenUsage = {
+        promptTokens: 800,
+        completionTokens: 400,
+        totalTokens: 1200,
+      };
+
+      mockCalculateTokenCost.mockReturnValue(35_000);
+      const expires = Math.floor(Date.now() / 1000) + 15 * 60;
+      const llmReservationRecord: CreditReservationRecord = {
+        pk: `credit-reservations/${llmReservation.reservationId}`,
+        workspaceId,
+        reservedAmount: llmCost,
+        estimatedCost: llmCost,
+        currency: "usd",
+        expires,
+        expiresHour: Math.floor(expires / 3600) * 3600,
+        version: 1,
+        createdAt: new Date().toISOString(),
+        provider: "openrouter",
+        modelName: "openrouter/auto",
+        agentId,
+        conversationId,
+      };
+
+      mockReservationGet.mockResolvedValue(llmReservationRecord);
+
+      await adjustCreditReservation(
+        mockDb,
+        llmReservation.reservationId,
+        workspaceId,
+        "openrouter",
+        "openrouter/auto",
+        tokenUsage,
+        mockContext,
+        3,
+        false,
+        undefined,
+        ["gen-1", "gen-2"],
+        agentId,
+        conversationId
+      );
+
+      // Verify both reservations exist and are tracked separately
+      expect(llmReservation.reservationId).toBeDefined();
+      expect(scraperReservation.reservationId).toBeDefined();
+      expect(llmReservation.reservationId).not.toBe(scraperReservation.reservationId);
+
+      // Verify LLM adjustment happened
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          openrouterGenerationIds: ["gen-1", "gen-2"],
+          expectedGenerationCount: 2,
+        })
+      );
+    });
+  });
 });
