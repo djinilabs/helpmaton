@@ -141,6 +141,7 @@ export async function pipeAIStreamToResponse(
     }
 
     try {
+      // fullStream is not exposed in AI SDK's public types, so we need to access it via any
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const fullStream = (streamResult as any).fullStream;
       if (!fullStream || typeof fullStream[Symbol.asyncIterator] !== "function") {
@@ -148,12 +149,23 @@ export async function pipeAIStreamToResponse(
         return;
       }
 
+      // Define type for file delta events from AI SDK
+      interface FileDelta {
+        type: "file";
+        file?: {
+          url?: string;
+          base64?: string;
+          uint8Array?: Uint8Array;
+          mediaType?: string;
+        };
+      }
+
       console.log("[Stream Handler] Processing fullStream for file events");
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for await (const delta of fullStream as AsyncIterable<any>) {
         // Check if this is a file event
-        if (delta && typeof delta === "object" && delta.type === "file" && delta.file) {
-          const fileData = delta.file;
+        if (delta && typeof delta === "object" && (delta as FileDelta).type === "file" && (delta as FileDelta).file) {
+          const fileData = (delta as FileDelta).file!;
           console.log("[Stream Handler] Found file event:", {
             hasUrl: !!fileData.url,
             hasBase64: !!fileData.base64,

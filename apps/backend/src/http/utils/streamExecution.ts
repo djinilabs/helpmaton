@@ -70,7 +70,7 @@ export async function executeStream(
   }): Promise<ProcessedFile | null> => {
     try {
       // If we have an external URL, use it directly
-      if (file.url && typeof file.url === "string") {
+      if (file.url) {
         console.log("[Stream Execution] Using external file URL:", file.url);
         return {
           url: file.url,
@@ -80,7 +80,7 @@ export async function executeStream(
 
       // If we have embedded data, upload to S3
       let buffer: Buffer | undefined;
-      if (file.base64 && typeof file.base64 === "string") {
+      if (file.base64) {
         console.log("[Stream Execution] Processing base64 file");
         buffer = Buffer.from(file.base64, "base64");
       } else if (file.uint8Array) {
@@ -282,7 +282,7 @@ export async function executeStreamForApiGateway(
   }): Promise<ProcessedFile | null> => {
     try {
       // If we have an external URL, use it directly
-      if (file.url && typeof file.url === "string") {
+      if (file.url) {
         return {
           url: file.url,
           mediaType: file.mediaType,
@@ -291,7 +291,7 @@ export async function executeStreamForApiGateway(
 
       // If we have embedded data, upload to S3
       let buffer: Buffer | undefined;
-      if (file.base64 && typeof file.base64 === "string") {
+      if (file.base64) {
         buffer = Buffer.from(file.base64, "base64");
       } else if (file.uint8Array) {
         buffer = Buffer.from(file.uint8Array);

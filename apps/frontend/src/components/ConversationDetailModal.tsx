@@ -293,14 +293,11 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                 };
                 // Extract file URL
                 let fileUrl: string | null = null;
-                if (fileItem.file && typeof fileItem.file === "string") {
+                if (fileItem.file) {
                   fileUrl = fileItem.file;
-                } else if (
-                  fileItem.image &&
-                  typeof fileItem.image === "string"
-                ) {
+                } else if (fileItem.image) {
                   fileUrl = fileItem.image;
-                } else if (fileItem.data && typeof fileItem.data === "string") {
+                } else if (fileItem.data) {
                   fileUrl = fileItem.data;
                 }
 

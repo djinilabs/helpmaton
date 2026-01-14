@@ -251,16 +251,13 @@ export function convertAiSdkUIMessageToUIMessage(
             let fileUrl: string | null = null;
             if ("file" in part && typeof part.file === "string") {
               fileUrl = part.file;
-            } else if (
-              "image" in part &&
-              typeof part.image === "string"
-            ) {
+            } else if ("image" in part && typeof part.image === "string") {
               fileUrl = part.image;
             } else if ("data" in part && typeof part.data === "string") {
               fileUrl = part.data;
             }
 
-            if (!fileUrl || typeof fileUrl !== "string") {
+            if (!fileUrl) {
               console.warn(
                 "[convertAiSdkUIMessageToUIMessage] File/image part missing URL, skipping"
               );
