@@ -5,7 +5,7 @@ import { useTheme } from "../hooks/useTheme";
 import type { DailyUsageData } from "../utils/api";
 import { formatCurrency } from "../utils/currency";
 
-type ChartMetric = "cost" | "conversations";
+type ChartMetric = "cost" | "conversations" | "messagesIn" | "messagesOut" | "totalMessages";
 
 interface UsageChartProps {
   data: DailyUsageData[];
@@ -31,10 +31,22 @@ export const UsageChart: FC<UsageChartProps> = ({
   }
 
   // Calculate max value based on selected metric
-  const maxValue =
-    selectedMetric === "cost"
-      ? Math.max(...data.map((d: DailyUsageData) => d.cost), 0)
-      : Math.max(...data.map((d: DailyUsageData) => d.conversationCount || 0), 0);
+  const maxValue = (() => {
+    switch (selectedMetric) {
+      case "cost":
+        return Math.max(...data.map((d: DailyUsageData) => d.cost), 0);
+      case "conversations":
+        return Math.max(...data.map((d: DailyUsageData) => d.conversationCount || 0), 0);
+      case "messagesIn":
+        return Math.max(...data.map((d: DailyUsageData) => d.messagesIn || 0), 0);
+      case "messagesOut":
+        return Math.max(...data.map((d: DailyUsageData) => d.messagesOut || 0), 0);
+      case "totalMessages":
+        return Math.max(...data.map((d: DailyUsageData) => d.totalMessages || 0), 0);
+      default:
+        return 0;
+    }
+  })();
   
   const chartHeight = 200;
   const barWidth = Math.max(20, (100 / data.length) * 0.8);
@@ -54,17 +66,37 @@ export const UsageChart: FC<UsageChartProps> = ({
   };
 
   const getValue = (day: DailyUsageData): number => {
-    if (selectedMetric === "cost") {
-      return day.cost;
+    switch (selectedMetric) {
+      case "cost":
+        return day.cost;
+      case "conversations":
+        return day.conversationCount || 0;
+      case "messagesIn":
+        return day.messagesIn || 0;
+      case "messagesOut":
+        return day.messagesOut || 0;
+      case "totalMessages":
+        return day.totalMessages || 0;
+      default:
+        return 0;
     }
-    return day.conversationCount || 0;
   };
 
   const getDescription = (): string => {
-    if (selectedMetric === "cost") {
-      return "This chart shows daily spending over the selected time period. Each bar represents one day's total cost. Use this to identify spending patterns and trends.";
+    switch (selectedMetric) {
+      case "cost":
+        return "This chart shows daily spending over the selected time period. Each bar represents one day's total cost. Use this to identify spending patterns and trends.";
+      case "conversations":
+        return "This chart shows daily conversation counts over the selected time period. Each bar represents the number of conversations started on that day. Use this to identify usage patterns and trends.";
+      case "messagesIn":
+        return "This chart shows daily user message counts over the selected time period. Each bar represents the number of user messages sent on that day.";
+      case "messagesOut":
+        return "This chart shows daily assistant message counts over the selected time period. Each bar represents the number of assistant responses generated on that day.";
+      case "totalMessages":
+        return "This chart shows daily total message counts over the selected time period. Each bar represents the total number of messages (user + assistant) exchanged on that day.";
+      default:
+        return "";
     }
-    return "This chart shows daily conversation counts over the selected time period. Each bar represents the number of conversations started on that day. Use this to identify usage patterns and trends.";
   };
 
   return (
@@ -78,6 +110,9 @@ export const UsageChart: FC<UsageChartProps> = ({
         >
           <option value="cost">Cost</option>
           <option value="conversations">Conversations</option>
+          <option value="messagesIn">Messages In</option>
+          <option value="messagesOut">Messages Out</option>
+          <option value="totalMessages">Total Messages</option>
         </select>
       </div>
       <p className="mb-6 text-sm text-neutral-600 dark:text-neutral-300">

@@ -171,6 +171,9 @@ export const registerGetAgentUsage = (app: express.Application) => {
           totalTokens: stats.totalTokens,
           cost: stats.costUsd,
           conversationCount: stats.conversationCount,
+          messagesIn: stats.messagesIn,
+          messagesOut: stats.messagesOut,
+          totalMessages: stats.totalMessages,
           byModel: Object.entries(stats.byModel).map(([model, modelStats]) => ({
             model,
             inputTokens: modelStats.inputTokens,

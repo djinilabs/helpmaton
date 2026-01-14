@@ -23,10 +23,10 @@ export const UsageStats: FC<UsageStatsProps> = ({
     <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
       <h3 className="mb-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">{title}</h3>
       <p className="mb-8 text-base leading-relaxed text-neutral-600 dark:text-neutral-300">
-        Input tokens are the text you send to the AI. Output tokens are the text the AI generates. Total tokens is the sum of both. Cost is calculated based on the model used and token counts. Conversation count shows the number of unique conversations. Tool usage shows calls to external tools like web search and URL fetching. BYOK (Bring Your Own Key) shows usage with your own API keys, while Platform shows usage with platform-provided keys.
+        Input tokens are the text you send to the AI. Output tokens are the text the AI generates. Total tokens is the sum of both. Cost is calculated based on the model used and token counts. Conversation count shows the number of unique conversations. Messages in are user messages, messages out are assistant responses. Tool usage shows calls to external tools like web search and URL fetching. BYOK (Bring Your Own Key) shows usage with your own API keys, while Platform shows usage with platform-provided keys.
       </p>
 
-      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-3">
+      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.inputTokens).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
           <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Input Tokens</div>
           <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.inputTokens)}</div>
@@ -46,6 +46,18 @@ export const UsageStats: FC<UsageStatsProps> = ({
         <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.conversationCount).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
           <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Conversations</div>
           <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.conversationCount)}</div>
+        </div>
+        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.messagesIn).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
+          <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Messages In</div>
+          <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.messagesIn)}</div>
+        </div>
+        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.messagesOut).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
+          <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Messages Out</div>
+          <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.messagesOut)}</div>
+        </div>
+        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.totalMessages).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
+          <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Total Messages</div>
+          <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.totalMessages)}</div>
         </div>
       </div>
 

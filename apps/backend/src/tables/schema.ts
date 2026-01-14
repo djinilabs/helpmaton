@@ -286,6 +286,9 @@ export const tableSchemas = {
     totalTokens: z.number(), // total tokens
     costUsd: z.number().int(), // total cost in USD in millionths
     conversationCount: z.number().int().optional(), // number of conversations for this workspace/agent/user/date (same value across all aggregates for same key)
+    messagesIn: z.number().int().optional(), // number of user messages for this workspace/agent/user/date (same value across all aggregates for same key)
+    messagesOut: z.number().int().optional(), // number of assistant messages for this workspace/agent/user/date (same value across all aggregates for same key)
+    totalMessages: z.number().int().optional(), // total messages (user + assistant) for this workspace/agent/user/date (same value across all aggregates for same key)
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
   }),

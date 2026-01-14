@@ -9,6 +9,7 @@
 1. **Fixed Usage Statistics Discrepancies**: Resolved multiple issues with usage statistics aggregation that were causing incorrect token counts, model attribution, and cost reporting.
 
    - **Issues Fixed**:
+
      - **Model Attribution**: Tokens were being attributed to "unknown" instead of actual models (e.g., "google/gemini-3-flash-preview")
        - **Root Cause**: Code was using deprecated `conv.modelName` field which was often missing
        - **Fix**: Extract model names from assistant messages in conversations instead
@@ -26,6 +27,7 @@
        - **Fix**: Filter out models/providers with `totalTokens === 0` before returning response
 
    - **Backend Changes** (`apps/backend/src/utils/aggregation.ts`):
+
      - Added `normalizeModelNameForAggregation()` function to remove provider prefix from model names
      - Updated `aggregateConversations()`:
        - Extract model names from assistant messages instead of deprecated `conv.modelName`
@@ -41,6 +43,7 @@
        - Filter out models/providers with 0 tokens from response
 
    - **Key Improvements**:
+
      - Model names are now correctly extracted from messages and normalized consistently
      - Costs are correctly attributed to models using the `costUsd` field from conversation records
      - Total tokens calculation properly accounts for cached and reasoning tokens
@@ -48,6 +51,7 @@
      - All model/provider breakdowns use consistent normalized model names
 
    - **Testing**:
+
      - Type checking passes
      - Linting clean
      - Debug logging added for troubleshooting model name normalization and cost attribution
@@ -60,9 +64,10 @@
 
 2. **Enhanced Usage Analytics Dashboard**: Redesigned the usage/cost tracking UI to provide a holistic view of agent usage, including conversation counts, tool call metrics, and enhanced visualizations.
 
-1. **Enhanced Usage Analytics Dashboard**: Redesigned the usage/cost tracking UI to provide a holistic view of agent usage, including conversation counts, tool call metrics, and enhanced visualizations.
+3. **Enhanced Usage Analytics Dashboard**: Redesigned the usage/cost tracking UI to provide a holistic view of agent usage, including conversation counts, tool call metrics, and enhanced visualizations.
 
    - **Backend Changes**:
+
      - Added `conversationCount` field to `UsageStats` interface and all aggregation functions
      - Created `extractSupplierFromModelName()` helper function to parse `{supplier}/{model}` format (e.g., "openai/gpt-4" → "openai")
      - Updated `aggregateConversations()` to count conversations and extract supplier from model name (not "openrouter") for provider grouping
@@ -76,6 +81,7 @@
      - Improved edge case handling in `extractSupplierFromModelName()` with proper trimming and length checks
 
    - **Frontend Changes**:
+
      - Added `conversationCount` to `UsageStats` and `DailyUsageData` TypeScript interfaces
      - Enhanced `UsageStats` component:
        - Added conversation count card to stats grid (5 cards total)
@@ -89,6 +95,7 @@
      - Updated `UsageDashboard` component to use proper types and updated description
 
    - **Key Improvements**:
+
      - Users can now see conversation counts alongside token usage and costs
      - Tool usage is displayed grouped by supplier (tavily, exa, etc.) with call counts and costs
      - Time-series chart supports switching between viewing costs and conversations over time
@@ -96,6 +103,7 @@
      - Historical data (from aggregates) includes conversation counts for dates older than 7 days
 
    - **Testing**:
+
      - Updated test mocks to include `extractSupplierFromModelName` function
      - Updated test data to use `{supplier}/{model}` format for model names
      - All 2545 tests passing
@@ -105,7 +113,7 @@
      - Fixed conversation key format inconsistency (Comments 1 & 2)
      - Improved edge case handling in supplier extraction (Comment 3)
 
-2. **File Attachments in Conversations**: Implemented comprehensive support for file attachments (any file type) in agent conversations using AI SDK v6 multi-modal inputs.
+4. **File Attachments in Conversations**: Implemented comprehensive support for file attachments (any file type) in agent conversations using AI SDK v6 multi-modal inputs.
 
    - **Architecture Overview**:
 
@@ -194,6 +202,7 @@
      - Tests verify presigned URL generation with correct conditions
 
    - **Production Fixes** (January 2026):
+
      - **S3 Public Access**: Fixed production issue where files were not publicly accessible. Removed ACL from presigned POST (conflicted with `BlockPublicAcls: true`), added bucket policy for public read access, and configured `BlockPublicPolicy: false` and `RestrictPublicBuckets: false` to allow bucket policies.
      - **Message Conversion**: Fixed issue where image parts from conversation history were not being sent to LLM. Changed to always use our internal converter which properly preserves file parts, instead of conditionally using AI SDK's `convertToModelMessages()`.
      - **Message Deduplication**: Fixed bug where messages with same text but different file attachments were being treated as duplicates, causing file parts to be lost. Updated `normalizeContentForComparison()` to include file URLs and media types in comparison keys.
@@ -201,7 +210,7 @@
 
    - **Result**: Users can attach any file type to conversations. Files are securely uploaded to S3 with automatic expiration and public read access for agent processing. AI models can process images and other file types in conversations, with file parts correctly preserved through the entire message pipeline (frontend → backend → LLM → conversation history).
 
-2. **Notion MCP Server Integration - Enhanced User Experience**: Improved the Notion create page tool to accept simplified parameters and fixed API structure issues.
+5. **Notion MCP Server Integration - Enhanced User Experience**: Improved the Notion create page tool to accept simplified parameters and fixed API structure issues.
 
    - **Simplified Parameter Support**:
 
@@ -233,7 +242,7 @@
      ```
      The tool automatically handles workspace-level parent, title property creation, and content block conversion.
 
-3. **Google Calendar MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Calendar, allowing agents to read, search, and write to users' Google Calendar. Follows the same architecture pattern as Google Drive and Gmail MCP servers.
+6. **Google Calendar MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Calendar, allowing agents to read, search, and write to users' Google Calendar. Follows the same architecture pattern as Google Drive and Gmail MCP servers.
 
    - **Google Calendar OAuth Utilities**:
 
@@ -295,7 +304,7 @@
 
    - **Note**: Requires adding redirect URI `/api/mcp/oauth/google-calendar/callback` to Google Cloud Console OAuth client configuration
 
-4. **Gmail MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Gmail, allowing agents to list, search, and read emails from users' Gmail accounts. Follows the same architecture pattern as Google Drive MCP server.
+7. **Gmail MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Gmail, allowing agents to list, search, and read emails from users' Gmail accounts. Follows the same architecture pattern as Google Drive MCP server.
 
    - **Gmail OAuth Utilities**:
 
@@ -346,7 +355,7 @@
 
    - **Note**: Requires adding redirect URI `/api/mcp/oauth/gmail/callback` to Google Cloud Console OAuth client configuration
 
-5. **Google Drive MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Drive, allowing agents to list, read, and search files in users' Google Drive accounts. The infrastructure is reusable for other OAuth-based MCP servers.
+8. **Google Drive MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Drive, allowing agents to list, read, and search files in users' Google Drive accounts. The infrastructure is reusable for other OAuth-based MCP servers.
 
    - **Database Schema Updates**:
 

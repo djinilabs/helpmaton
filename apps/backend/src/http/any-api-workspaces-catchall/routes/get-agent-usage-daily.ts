@@ -161,6 +161,9 @@ export const registerGetAgentUsageDaily = (app: express.Application) => {
           totalTokens: stats.totalTokens,
           cost,
           conversationCount: stats.conversationCount,
+          messagesIn: stats.messagesIn,
+          messagesOut: stats.messagesOut,
+          totalMessages: stats.totalMessages,
         });
 
         current.setDate(current.getDate() + 1);

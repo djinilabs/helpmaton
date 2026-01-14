@@ -152,6 +152,8 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
 
   // Track unique conversations per workspace/agent/user/date combination
   const conversationCountMap = new Map<string, Set<string>>();
+  // Track message counts per workspace/agent/user/date combination
+  const messageCountMap = new Map<string, { messagesIn: number; messagesOut: number; totalMessages: number }>();
 
   // Group conversations by workspace, agent, model, provider, and BYOK status
   const aggregates = new Map<
@@ -193,6 +195,27 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
       conversationCountMap.set(conversationKey, new Set());
     }
     conversationCountMap.get(conversationKey)!.add(conv.conversationId);
+    
+    // Count messages by role
+    const messages = (conv.messages || []) as Array<{ role?: string }>;
+    let userMessageCount = 0;
+    let assistantMessageCount = 0;
+    for (const message of messages) {
+      if (message.role === "user") {
+        userMessageCount++;
+      } else if (message.role === "assistant") {
+        assistantMessageCount++;
+      }
+    }
+    
+    // Accumulate message counts per workspace/agent/user/date
+    if (!messageCountMap.has(conversationKey)) {
+      messageCountMap.set(conversationKey, { messagesIn: 0, messagesOut: 0, totalMessages: 0 });
+    }
+    const messageCounts = messageCountMap.get(conversationKey)!;
+    messageCounts.messagesIn += userMessageCount;
+    messageCounts.messagesOut += assistantMessageCount;
+    messageCounts.totalMessages += userMessageCount + assistantMessageCount;
 
     const tokenUsage = conv.tokenUsage;
     // Extract supplier from model name format {supplier}/{model}, not from conv.provider (which is "openrouter")
@@ -241,6 +264,7 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
       // Note: conversations don't have userId, so we use empty string to match format in aggregateAggregates
       const conversationKey = `${aggData.workspaceId || ""}:${aggData.agentId || ""}:${""}:${dateStr}`;
       const conversationCount = conversationCounts.get(conversationKey) || 0;
+      const messageCounts = messageCountMap.get(conversationKey) || { messagesIn: 0, messagesOut: 0, totalMessages: 0 };
 
       const aggregate: Omit<TokenUsageAggregateRecord, "version"> = {
         pk,
@@ -257,6 +281,9 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
         totalTokens: aggData.totalTokens,
         costUsd: 0, // Cost now comes from transactions, not conversations
         conversationCount, // Same value for all aggregates with same workspace/agent/user/date
+        messagesIn: messageCounts.messagesIn, // Same value for all aggregates with same workspace/agent/user/date
+        messagesOut: messageCounts.messagesOut, // Same value for all aggregates with same workspace/agent/user/date
+        totalMessages: messageCounts.totalMessages, // Same value for all aggregates with same workspace/agent/user/date
         createdAt: new Date().toISOString(),
       };
 

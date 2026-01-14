@@ -29,6 +29,9 @@ export interface UsageStats {
   totalTokens: number;
   costUsd: number;
   conversationCount: number;
+  messagesIn: number; // Number of user messages
+  messagesOut: number; // Number of assistant messages
+  totalMessages: number; // Total messages (user + assistant)
   byModel: Record<string, ByokStats>;
   byProvider: Record<string, ByokStats>;
   byByok: {
@@ -138,6 +141,9 @@ export function aggregateConversations(
     totalTokens: 0,
     costUsd: 0, // Cost comes from conversation records (costUsd field)
     conversationCount: conversations.length,
+    messagesIn: 0,
+    messagesOut: 0,
+    totalMessages: 0,
     byModel: {},
     byProvider: {},
     byByok: {
@@ -250,13 +256,24 @@ export function aggregateConversations(
 
     // Extract modelName from messages (modelName at conversation level is deprecated)
     // Find the most common model used in assistant messages
+    // Also count messages by role
     let modelName = conv.modelName || "unknown"; // Fallback to deprecated field
     const messages = (conv.messages || []) as Array<{
       role?: string;
       modelName?: string;
     }>;
     const modelCounts = new Map<string, number>();
+    let userMessageCount = 0;
+    let assistantMessageCount = 0;
     for (const message of messages) {
+      // Count messages by role
+      if (message.role === "user") {
+        userMessageCount++;
+      } else if (message.role === "assistant") {
+        assistantMessageCount++;
+      }
+      
+      // Track model usage
       if (
         message.role === "assistant" &&
         message.modelName &&
@@ -278,6 +295,11 @@ export function aggregateConversations(
       }
       modelName = mostCommonModel;
     }
+    
+    // Aggregate message counts
+    stats.messagesIn += userMessageCount;
+    stats.messagesOut += assistantMessageCount;
+    stats.totalMessages += userMessageCount + assistantMessageCount;
 
     // Normalize model name to remove provider prefix (e.g., "google/gemini-3-flash-preview" -> "gemini-3-flash-preview")
     // This ensures model names from conversations match those in transactions
@@ -356,6 +378,9 @@ export function aggregateAggregates(
     totalTokens: 0,
     costUsd: 0, // Cost now comes from transactions/aggregates, not token aggregates
     conversationCount: 0,
+    messagesIn: 0,
+    messagesOut: 0,
+    totalMessages: 0,
     byModel: {},
     byProvider: {},
     byByok: {
@@ -377,6 +402,8 @@ export function aggregateAggregates(
 
   // Track unique workspace/agent/user/date combinations to avoid double-counting conversations
   const conversationCountMap = new Map<string, number>();
+  // Track message counts per workspace/agent/user/date (same approach as conversation counts)
+  const messageCountMap = new Map<string, { messagesIn: number; messagesOut: number; totalMessages: number }>();
 
   for (const agg of aggregates) {
     // Aggregate totals (cost comes from transactions/aggregates, not token aggregates)
@@ -392,6 +419,22 @@ export function aggregateAggregates(
       // Use conversationCount from aggregate, defaulting to 0 if missing (for backward compatibility)
       const count = (agg as unknown as { conversationCount?: number }).conversationCount ?? 0;
       conversationCountMap.set(conversationKey, count);
+    }
+    
+    // Track message counts per workspace/agent/user/date (avoid double-counting)
+    // All aggregates with the same workspace/agent/user/date have the same message counts
+    if (!messageCountMap.has(conversationKey)) {
+      // Use message counts from aggregate, defaulting to 0 if missing (for backward compatibility)
+      const aggWithMessages = agg as unknown as {
+        messagesIn?: number;
+        messagesOut?: number;
+        totalMessages?: number;
+      };
+      messageCountMap.set(conversationKey, {
+        messagesIn: aggWithMessages.messagesIn ?? 0,
+        messagesOut: aggWithMessages.messagesOut ?? 0,
+        totalMessages: aggWithMessages.totalMessages ?? 0,
+      });
     }
 
     // Aggregate by model
@@ -442,6 +485,13 @@ export function aggregateAggregates(
 
   // Sum conversation counts (each key represents unique workspace/agent/user/date)
   stats.conversationCount = Array.from(conversationCountMap.values()).reduce((sum, count) => sum + count, 0);
+  
+  // Sum message counts (each key represents unique workspace/agent/user/date)
+  for (const messageCounts of messageCountMap.values()) {
+    stats.messagesIn += messageCounts.messagesIn;
+    stats.messagesOut += messageCounts.messagesOut;
+    stats.totalMessages += messageCounts.totalMessages;
+  }
 
   return stats;
 }
@@ -456,6 +506,9 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
     totalTokens: 0,
     costUsd: 0,
     conversationCount: 0,
+    messagesIn: 0,
+    messagesOut: 0,
+    totalMessages: 0,
     byModel: {},
     byProvider: {},
     byByok: {
@@ -481,6 +534,9 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
     merged.totalTokens += stats.totalTokens;
     merged.costUsd += stats.costUsd;
     merged.conversationCount += stats.conversationCount;
+    merged.messagesIn += stats.messagesIn;
+    merged.messagesOut += stats.messagesOut;
+    merged.totalMessages += stats.totalMessages;
 
     // Merge byModel
     for (const [model, modelStats] of Object.entries(stats.byModel)) {
@@ -618,6 +674,9 @@ async function aggregateTransactionsStream(
     totalTokens: 0,
     costUsd: 0,
     conversationCount: 0,
+    messagesIn: 0,
+    messagesOut: 0,
+    totalMessages: 0,
     byModel: {},
     byProvider: {},
     byByok: {
@@ -752,6 +811,9 @@ async function aggregateToolTransactionsStream(
     totalTokens: 0,
     costUsd: 0,
     conversationCount: 0,
+    messagesIn: 0,
+    messagesOut: 0,
+    totalMessages: 0,
     byModel: {},
     byProvider: {},
     byByok: {
@@ -875,6 +937,9 @@ function aggregateToolAggregates(
     totalTokens: 0,
     costUsd: 0,
     conversationCount: 0,
+    messagesIn: 0,
+    messagesOut: 0,
+    totalMessages: 0,
     byModel: {},
     byProvider: {},
     byByok: {
