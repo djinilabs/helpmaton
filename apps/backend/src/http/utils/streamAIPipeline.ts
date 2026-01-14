@@ -5,9 +5,7 @@ import type { setupAgentAndTools } from "../../http/utils/agentSetup";
 import { Sentry, ensureError } from "../../utils/sentry";
 
 import { prepareLLMCall } from "./generationLLMSetup";
-import type {
-  StreamEventTimestamps,
-} from "./streamEventTracking";
+import type { StreamEventTimestamps } from "./streamEventTracking";
 import {
   writeChunkToStream,
   type HttpResponseStream,
@@ -55,7 +53,7 @@ export async function pipeAIStreamToResponse(
         // Track when a step starts - this could be text generation or tool call decision
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const stepAny = step as any;
-        
+
         // Check if this step contains tool calls
         if (stepAny?.toolCalls && Array.isArray(stepAny.toolCalls)) {
           const now = new Date().toISOString();
@@ -67,7 +65,7 @@ export async function pipeAIStreamToResponse(
             }
           }
         }
-        
+
         // If this is the first step and we haven't set text generation start, set it
         // Text generation starts when the model begins generating (first step)
         if (!eventTracking.textGenerationStartedAt) {
@@ -78,7 +76,7 @@ export async function pipeAIStreamToResponse(
         // Track when a step finishes - this captures tool execution times
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const stepAny = step as any;
-        
+
         // Check if this step contains tool results (tool execution completed)
         if (stepAny?.toolResults && Array.isArray(stepAny.toolResults)) {
           const now = Date.now();
@@ -100,7 +98,7 @@ export async function pipeAIStreamToResponse(
             }
           }
         }
-        
+
         // If this step finished and we have text, update text generation end time
         // Text generation ends when the model finishes generating text
         if (stepAny?.text || stepAny?.content) {
@@ -113,7 +111,8 @@ export async function pipeAIStreamToResponse(
           eventTracking.generationEndedAt = new Date().toISOString();
           // If text generation end wasn't set, set it now
           if (!eventTracking.textGenerationEndedAt) {
-            eventTracking.textGenerationEndedAt = eventTracking.generationEndedAt;
+            eventTracking.textGenerationEndedAt =
+              eventTracking.generationEndedAt;
           }
         }
       },

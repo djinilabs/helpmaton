@@ -908,8 +908,12 @@ export const AgentChat: FC<AgentChatProps> = ({
                   );
                 }
 
-                // Reasoning part
+                // Reasoning part - skip in widget mode
                 if (partType === "reasoning" && "text" in part) {
+                  // Don't display reasoning in widget mode
+                  if (isWidget) {
+                    return null;
+                  }
                   const reasoningPart = part as {
                     type: "reasoning";
                     text: string;
