@@ -110,6 +110,29 @@ export const UsageChart: FC<UsageChartProps> = ({
     return new Intl.NumberFormat("en-US").format(value);
   };
 
+  // Format Y-axis labels with consistent precision
+  const formatYAxisValue = (value: number): string => {
+    if (selectedMetric === "cost") {
+      // Cost values are in billionths, convert to currency units
+      const amountInUSD = value / 1_000_000_000;
+      // Determine appropriate decimal precision based on maxValue in USD
+      const maxValueInUSD = maxValue / 1_000_000_000;
+      let decimals = 2;
+      if (maxValueInUSD < 0.01) {
+        decimals = 6;
+      } else if (maxValueInUSD < 1) {
+        decimals = 4;
+      }
+      // Round to consistent precision
+      const multiplier = Math.pow(10, decimals);
+      const rounded = Math.round(amountInUSD * multiplier) / multiplier;
+      const symbol = "$";
+      return `${symbol}${rounded.toFixed(decimals).replace(/\.?0+$/, "")}`;
+    }
+    // For numeric values, round to whole numbers
+    return new Intl.NumberFormat("en-US").format(Math.round(value));
+  };
+
   const getValue = (day: DailyUsageData): number => {
     switch (selectedMetric) {
       case "cost":
@@ -243,7 +266,7 @@ export const UsageChart: FC<UsageChartProps> = ({
               className="text-xs font-bold"
               fill={axisLabelColor}
             >
-              {formatValue(maxValue * ratio)}
+              {formatYAxisValue(maxValue * ratio)}
             </text>
           ))}
         </svg>
