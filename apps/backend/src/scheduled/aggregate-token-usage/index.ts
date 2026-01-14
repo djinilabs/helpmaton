@@ -7,7 +7,10 @@ import type {
   ToolUsageAggregateRecord,
   WorkspaceCreditTransactionRecord,
 } from "../../tables/schema";
-import { formatDate } from "../../utils/aggregation";
+import {
+  extractSupplierFromModelName,
+  formatDate,
+} from "../../utils/aggregation";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
 import { Sentry, ensureError } from "../../utils/sentry";
 
@@ -147,6 +150,9 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
     throw error;
   }
 
+  // Track unique conversations per workspace/agent/user/date combination
+  const conversationCountMap = new Map<string, Set<string>>();
+
   // Group conversations by workspace, agent, model, provider, and BYOK status
   const aggregates = new Map<
     string,
@@ -180,17 +186,26 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
       continue;
     }
 
+    // Track unique conversations per workspace/agent/user/date
+    const conversationKey = `${conv.workspaceId || ""}:${conv.agentId || ""}:${dateStr}`;
+    if (!conversationCountMap.has(conversationKey)) {
+      conversationCountMap.set(conversationKey, new Set());
+    }
+    conversationCountMap.get(conversationKey)!.add(conv.conversationId);
+
     const tokenUsage = conv.tokenUsage;
+    // Extract supplier from model name format {supplier}/{model}, not from conv.provider (which is "openrouter")
+    const supplier = extractSupplierFromModelName(conv.modelName);
     const key = `${conv.workspaceId || ""}:${conv.agentId || ""}:${
       conv.modelName
-    }:${conv.provider}:${conv.usesByok ? "byok" : "platform"}`;
+    }:${supplier}:${conv.usesByok ? "byok" : "platform"}`;
 
     if (!aggregates.has(key)) {
       aggregates.set(key, {
         workspaceId: conv.workspaceId,
         agentId: conv.agentId,
         modelName: conv.modelName,
-        provider: conv.provider,
+        provider: supplier, // Store extracted supplier, not "openrouter"
         usesByok: conv.usesByok === true,
         inputTokens: 0,
         outputTokens: 0,
@@ -206,6 +221,12 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
     // costUsd is no longer aggregated from conversations
   }
 
+  // Calculate conversation counts per workspace/agent/user/date
+  const conversationCounts = new Map<string, number>();
+  for (const [key, conversationIds] of conversationCountMap.entries()) {
+    conversationCounts.set(key, conversationIds.size);
+  }
+
   // Create token aggregate records
   for (const [, aggData] of aggregates.entries()) {
     // Create aggregates at different levels: workspace, agent, user
@@ -215,6 +236,10 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
         aggData.provider
       }:${aggData.usesByok ? "byok" : "platform"}`;
 
+      // Get conversation count for this workspace/agent/user/date combination
+      const conversationKey = `${aggData.workspaceId || ""}:${aggData.agentId || ""}:${dateStr}`;
+      const conversationCount = conversationCounts.get(conversationKey) || 0;
+
       const aggregate: Omit<TokenUsageAggregateRecord, "version"> = {
         pk,
         sk,
@@ -223,12 +248,13 @@ export async function aggregateTokenUsageForDate(date: Date): Promise<void> {
         workspaceId: aggData.workspaceId,
         agentId: aggData.agentId,
         modelName: aggData.modelName,
-        provider: aggData.provider,
+        provider: aggData.provider, // Already extracted supplier from model name
         usesByok: aggData.usesByok ? true : undefined,
         inputTokens: aggData.inputTokens,
         outputTokens: aggData.outputTokens,
         totalTokens: aggData.totalTokens,
         costUsd: 0, // Cost now comes from transactions, not conversations
+        conversationCount, // Same value for all aggregates with same workspace/agent/user/date
         createdAt: new Date().toISOString(),
       };
 

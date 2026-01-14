@@ -1,8 +1,11 @@
 import type { FC } from "react";
+import { useState } from "react";
 
 import { useTheme } from "../hooks/useTheme";
 import type { DailyUsageData } from "../utils/api";
 import { formatCurrency } from "../utils/currency";
+
+type ChartMetric = "cost" | "conversations";
 
 interface UsageChartProps {
   data: DailyUsageData[];
@@ -16,6 +19,7 @@ export const UsageChart: FC<UsageChartProps> = ({
   const { theme } = useTheme();
   const isDark = theme === "dark";
   const currency = "usd";
+  const [selectedMetric, setSelectedMetric] = useState<ChartMetric>("cost");
   
   if (data.length === 0) {
     return (
@@ -26,7 +30,12 @@ export const UsageChart: FC<UsageChartProps> = ({
     );
   }
 
-  const maxCost = Math.max(...data.map((d: DailyUsageData) => d.cost), 0);
+  // Calculate max value based on selected metric
+  const maxValue =
+    selectedMetric === "cost"
+      ? Math.max(...data.map((d: DailyUsageData) => d.cost), 0)
+      : Math.max(...data.map((d: DailyUsageData) => d.conversationCount || 0), 0);
+  
   const chartHeight = 200;
   const barWidth = Math.max(20, (100 / data.length) * 0.8);
 
@@ -37,13 +46,42 @@ export const UsageChart: FC<UsageChartProps> = ({
   const axisLabelColor = isDark ? "#d1d5db" : "#000";
   const svgBorderColor = isDark ? "#4b5563" : "#d1d3d4";
 
+  const formatValue = (value: number): string => {
+    if (selectedMetric === "cost") {
+      return formatCurrency(value, currency, 10);
+    }
+    return new Intl.NumberFormat("en-US").format(value);
+  };
+
+  const getValue = (day: DailyUsageData): number => {
+    if (selectedMetric === "cost") {
+      return day.cost;
+    }
+    return day.conversationCount || 0;
+  };
+
+  const getDescription = (): string => {
+    if (selectedMetric === "cost") {
+      return "This chart shows daily spending over the selected time period. Each bar represents one day's total cost. Use this to identify spending patterns and trends.";
+    }
+    return "This chart shows daily conversation counts over the selected time period. Each bar represents the number of conversations started on that day. Use this to identify usage patterns and trends.";
+  };
+
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-      <h3 className="mb-4 text-xl font-semibold text-neutral-900 dark:text-neutral-50">{title}</h3>
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">{title}</h3>
+        <select
+          value={selectedMetric}
+          onChange={(e) => setSelectedMetric(e.target.value as ChartMetric)}
+          className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-semibold text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+        >
+          <option value="cost">Cost</option>
+          <option value="conversations">Conversations</option>
+        </select>
+      </div>
       <p className="mb-6 text-sm text-neutral-600 dark:text-neutral-300">
-        This chart shows daily spending over the selected time period. Each bar
-        represents one day&apos;s total cost. Use this to identify spending
-        patterns and trends.
+        {getDescription()}
       </p>
       <div className="overflow-x-auto">
         <svg
@@ -68,8 +106,9 @@ export const UsageChart: FC<UsageChartProps> = ({
 
           {/* Bars */}
           {data.map((day: DailyUsageData, index: number) => {
+            const value = getValue(day);
             const barHeight =
-              maxCost > 0 ? (day.cost / maxCost) * chartHeight : 0;
+              maxValue > 0 ? (value / maxValue) * chartHeight : 0;
             const x =
               index * (Math.max(600, data.length * 40) / data.length) + 10;
             const y = chartHeight + 20 - barHeight;
@@ -106,7 +145,7 @@ export const UsageChart: FC<UsageChartProps> = ({
                     className="text-xs font-medium"
                     fill={valueTextColor}
                   >
-                    {formatCurrency(day.cost, currency, 10)}
+                    {formatValue(value)}
                   </text>
                 )}
               </g>
@@ -122,7 +161,7 @@ export const UsageChart: FC<UsageChartProps> = ({
               className="text-xs font-bold"
               fill={axisLabelColor}
             >
-              {formatCurrency(maxCost * ratio, currency, 10)}
+              {formatValue(maxValue * ratio)}
             </text>
           ))}
         </svg>

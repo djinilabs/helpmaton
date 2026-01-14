@@ -1,6 +1,7 @@
 import type { FC } from "react";
+import { useState } from "react";
 
-import type { UsageStats as UsageStatsType } from "../utils/api";
+import type { UsageStats as UsageStatsType, Currency } from "../utils/api";
 import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
 
@@ -17,15 +18,15 @@ export const UsageStats: FC<UsageStatsProps> = ({
   stats,
   title = "Usage Statistics",
 }) => {
-  const currency = "usd";
+  const currency: Currency = "usd";
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
       <h3 className="mb-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">{title}</h3>
       <p className="mb-8 text-base leading-relaxed text-neutral-600 dark:text-neutral-300">
-        Input tokens are the text you send to the AI. Output tokens are the text the AI generates. Total tokens is the sum of both. Cost is calculated based on the model used and token counts. BYOK (Bring Your Own Key) shows usage with your own API keys, while Platform shows usage with platform-provided keys.
+        Input tokens are the text you send to the AI. Output tokens are the text the AI generates. Total tokens is the sum of both. Cost is calculated based on the model used and token counts. Conversation count shows the number of unique conversations. Tool usage shows calls to external tools like web search and URL fetching. BYOK (Bring Your Own Key) shows usage with your own API keys, while Platform shows usage with platform-provided keys.
       </p>
 
-      <div className="mb-8 grid grid-cols-2 gap-4">
+      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-3">
         <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.inputTokens).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
           <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Input Tokens</div>
           <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.inputTokens)}</div>
@@ -41,6 +42,10 @@ export const UsageStats: FC<UsageStatsProps> = ({
         <div className={`rounded-xl border p-5 ${getCostColor(stats.cost).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
           <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Total Cost</div>
           <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatCurrency(stats.cost, currency, 10)}</div>
+        </div>
+        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.conversationCount).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
+          <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Conversations</div>
+          <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.conversationCount)}</div>
         </div>
       </div>
 
@@ -112,6 +117,13 @@ export const UsageStats: FC<UsageStatsProps> = ({
         </div>
       )}
 
+      {stats.toolExpenses && stats.toolExpenses.length > 0 && (
+        <div className="mb-8">
+          <h4 className="mb-4 text-xl font-bold text-neutral-900 dark:text-neutral-50">Tool Usage</h4>
+          <ToolUsageSection toolExpenses={stats.toolExpenses} currency={currency} />
+        </div>
+      )}
+
       <div>
         <h4 className="mb-4 text-xl font-bold text-neutral-900 dark:text-neutral-50">By Key Type</h4>
         <div className="grid grid-cols-2 gap-4">
@@ -135,6 +147,126 @@ export const UsageStats: FC<UsageStatsProps> = ({
           </div>
         </div>
       </div>
+    </div>
+  );
+};
+
+interface ToolUsageSectionProps {
+  toolExpenses: Array<{
+    toolCall: string;
+    supplier: string;
+    cost: number;
+    callCount: number;
+  }>;
+  currency: Currency;
+}
+
+const ToolUsageSection: FC<ToolUsageSectionProps> = ({ toolExpenses, currency }) => {
+  // Group tools by supplier
+  const toolsBySupplier = new Map<string, typeof toolExpenses>();
+  
+  for (const tool of toolExpenses) {
+    if (!toolsBySupplier.has(tool.supplier)) {
+      toolsBySupplier.set(tool.supplier, []);
+    }
+    toolsBySupplier.get(tool.supplier)!.push(tool);
+  }
+
+  const [expandedSuppliers, setExpandedSuppliers] = useState<Set<string>>(new Set());
+
+  const toggleSupplier = (supplier: string) => {
+    const newExpanded = new Set(expandedSuppliers);
+    if (newExpanded.has(supplier)) {
+      newExpanded.delete(supplier);
+    } else {
+      newExpanded.add(supplier);
+    }
+    setExpandedSuppliers(newExpanded);
+  };
+
+  return (
+    <div className="space-y-3">
+      {Array.from(toolsBySupplier.entries()).map(([supplier, tools]) => {
+        const totalCost = tools.reduce((sum, t) => sum + t.cost, 0);
+        const totalCalls = tools.reduce((sum, t) => sum + t.callCount, 0);
+        const isExpanded = expandedSuppliers.has(supplier);
+
+        return (
+          <div
+            key={supplier}
+            className="rounded-xl border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900"
+          >
+            <button
+              onClick={() => toggleSupplier(supplier)}
+              className="w-full p-4 text-left transition-colors duration-200 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-neutral-900 dark:text-neutral-50">
+                    {supplier.charAt(0).toUpperCase() + supplier.slice(1)}
+                  </span>
+                  <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                    ({tools.length} {tools.length === 1 ? "tool" : "tools"})
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <div className="text-sm font-semibold text-neutral-600 dark:text-neutral-300">
+                      {formatNumber(totalCalls)} {totalCalls === 1 ? "call" : "calls"}
+                    </div>
+                    <div className={`text-sm font-semibold ${getCostColor(totalCost)}`}>
+                      {formatCurrency(totalCost, currency, 10)}
+                    </div>
+                  </div>
+                  <svg
+                    className={`size-5 text-neutral-500 transition-transform duration-200 ${
+                      isExpanded ? "rotate-180" : ""
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </button>
+            {isExpanded && (
+              <div className="border-t border-neutral-200 p-4 dark:border-neutral-700">
+                <div className="space-y-2">
+                  {tools.map((tool) => (
+                    <div
+                      key={`${tool.toolCall}-${tool.supplier}`}
+                      className="flex items-center justify-between rounded-lg border border-neutral-200 bg-neutral-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
+                    >
+                      <span className="font-medium text-neutral-900 dark:text-neutral-50">
+                        {tool.toolCall}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-lg border border-neutral-300 bg-white px-2 py-1 text-xs font-semibold text-neutral-700 dark:border-neutral-600 dark:bg-neutral-900 dark:text-neutral-300">
+                          {formatNumber(tool.callCount)} {tool.callCount === 1 ? "call" : "calls"}
+                        </span>
+                        <span
+                          className={`rounded-lg border px-2 py-1 text-xs font-semibold ${getCostColor(
+                            tool.cost
+                          )}`}
+                        >
+                          {formatCurrency(tool.cost, currency, 10)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };

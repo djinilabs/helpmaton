@@ -279,12 +279,13 @@ export const tableSchemas = {
     agentId: z.string().optional(), // agent ID (required for agent aggregates)
     userId: z.string().optional(), // user ID (required for user aggregates)
     modelName: z.string(), // model name
-    provider: z.string(), // provider name (e.g., "google")
+    provider: z.string(), // provider name (e.g., "google", "openai") - extracted from model name, not "openrouter"
     usesByok: z.boolean().optional(), // whether this aggregate includes BYOK usage
     inputTokens: z.number(), // total input tokens for this aggregate
     outputTokens: z.number(), // total output tokens for this aggregate
     totalTokens: z.number(), // total tokens
     costUsd: z.number().int(), // total cost in USD in millionths
+    conversationCount: z.number().int().optional(), // number of conversations for this workspace/agent/user/date (same value across all aggregates for same key)
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
   }),

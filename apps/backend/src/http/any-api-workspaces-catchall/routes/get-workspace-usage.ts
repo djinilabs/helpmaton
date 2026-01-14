@@ -163,6 +163,7 @@ export const registerGetWorkspaceUsage = (app: express.Application) => {
           outputTokens: stats.outputTokens,
           totalTokens: stats.totalTokens,
           cost: stats.costUsd,
+          conversationCount: stats.conversationCount,
           byModel: Object.entries(stats.byModel).map(([model, modelStats]) => ({
             model,
             inputTokens: modelStats.inputTokens,

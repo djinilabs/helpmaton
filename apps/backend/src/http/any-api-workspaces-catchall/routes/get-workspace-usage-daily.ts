@@ -136,6 +136,7 @@ export const registerGetWorkspaceUsageDaily = (app: express.Application) => {
           outputTokens: stats.outputTokens,
           totalTokens: stats.totalTokens,
           cost,
+          conversationCount: stats.conversationCount,
         });
 
         current.setDate(current.getDate() + 1);
