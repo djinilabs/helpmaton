@@ -135,7 +135,10 @@ describe("Complex Billing Scenarios", () => {
 
     // Setup mock get
     mockGet = vi.fn().mockImplementation(() => {
-      return Promise.resolve({ ...mockWorkspace, creditBalance: workspaceBalance });
+      return Promise.resolve({
+        ...mockWorkspace,
+        creditBalance: workspaceBalance,
+      });
     });
 
     // Setup mock create
@@ -875,7 +878,11 @@ describe("Complex Billing Scenarios", () => {
 
       mockReservationGet.mockResolvedValue(llmReservationRecord);
 
-      await refundReservation(mockDb, llmReservation.reservationId, mockContext);
+      await refundReservation(
+        mockDb,
+        llmReservation.reservationId,
+        mockContext
+      );
 
       workspaceBalance += llmCost; // Refund
 
