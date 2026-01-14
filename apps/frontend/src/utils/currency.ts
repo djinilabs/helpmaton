@@ -40,32 +40,32 @@ export function formatCurrency(
   maxDecimals: number = 10
 ): string {
   const symbol = CURRENCY_SYMBOLS[currency];
-  
+
   // Handle sign
   const sign = millionths < 0 ? "-" : "";
   const absMillionths = Math.abs(millionths);
-  
+
   // Split into integer and fractional parts using integer division
   // millionths / 1_000_000 gives the dollar amount
   // We'll format it by working with the integer directly
   const integerPart = Math.floor(absMillionths / 1_000_000);
   const fractionalMillionths = absMillionths % 1_000_000;
-  
+
   // Convert fractional part to a string with up to 6 digits (millionths precision)
   // Pad with zeros to 6 digits, then we can show up to maxDecimals
   const fractionalStr = fractionalMillionths.toString().padStart(6, "0");
-  
+
   // Take up to maxDecimals digits from the fractional part
   // If maxDecimals > 6, pad with zeros (though millionths only has 6 decimal precision)
   const fractionalDisplay = fractionalStr.slice(0, Math.min(maxDecimals, 6));
-  
+
   // Remove trailing zeros
   const trimmedFractional = fractionalDisplay.replace(/0+$/, "");
-  
+
   // Format: add decimal point only if there's a fractional part
   const formatted = trimmedFractional
     ? `${integerPart}.${trimmedFractional}`
     : integerPart.toString();
-  
+
   return `${sign}${symbol}${formatted}`;
 }
