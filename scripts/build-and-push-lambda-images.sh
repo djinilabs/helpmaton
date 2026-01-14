@@ -262,12 +262,23 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
             # Fallback: try to strip project root from path
             PREPARED_DIST_REL="${PREPARED_DIST#$PROJECT_ROOT/}"
             if [ "$PREPARED_DIST_REL" = "$PREPARED_DIST" ]; then
-                # Path doesn't start with project root, use as-is
-                PREPARED_DIST_REL="$PREPARED_DIST"
+                # Path doesn't start with project root; this means the prepared dist is
+                # outside the project root and cannot be used with build context "."
+                print_error "Prepared dist path '$PREPARED_DIST' is outside the project root '$PROJECT_ROOT'."
+                print_error "Please ensure the prepared dist directory is created inside the project root."
+                exit 1
             fi
         fi
     else
         PREPARED_DIST_REL="$PREPARED_DIST"
+    fi
+    
+    # Ensure the prepared dist path is usable from the Docker build context (".")
+    # It must not be an absolute path or escape the project root with "../"
+    if [[ "$PREPARED_DIST_REL" = /* || "$PREPARED_DIST_REL" == ../* || "$PREPARED_DIST_REL" == */../* ]]; then
+        print_error "Prepared dist path '$PREPARED_DIST_REL' is not valid within the Docker build context '.'."
+        print_error "Please ensure the prepared dist directory is located inside '$PROJECT_ROOT'."
+        exit 1
     fi
     
     # Check if buildx is available, fall back to regular docker build if not

@@ -42,7 +42,7 @@ RUN find /tmp/build/node_modules -type f \( \
         -name "doc" -o \
         -name ".github" -o \
         -name ".git" \
-    \) -exec rm -rf {} + 2>/dev/null || true
+    \) -prune -print0 | xargs -0 -r rm -rf --
 
 # Move to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}

@@ -62,14 +62,15 @@ RUN find /tmp/build/node_modules -type f \( \
         -name "doc" -o \
         -name ".github" -o \
         -name ".git" \
-    \) -exec rm -rf {} + 2>/dev/null || true
+    \) -prune -print0 | xargs -0 -r rm -rf --
 
 # 5. Move to Task Root
 WORKDIR ${LAMBDA_TASK_ROOT}
 RUN cp -r /tmp/build/node_modules ./node_modules && \
     rm -rf /tmp/build
 
-# 6. Copy Code (or prepared dist subset)
+# 6. Copy app dist (or prepared subset) and Lambda entrypoint wrapper
+# Note: index.js is intentionally hardcoded - it's a wrapper file outside the dist directory
 COPY ${DIST_SOURCE}/ ${LAMBDA_TASK_ROOT}/
 COPY apps/backend/docker/lancedb/index.js ${LAMBDA_TASK_ROOT}/index.js
 

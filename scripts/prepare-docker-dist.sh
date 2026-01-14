@@ -30,6 +30,22 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
+# Function to convert HTTP route to directory name
+# Converts routes like "/api/streams/:workspaceId/:agentId/:secret" to "api-streams-000workspaceId-000agentId-000secret"
+# Handles catchall (*) and path parameters
+convert_route_to_dir() {
+    local route="$1"
+    echo "$route" | \
+        sed 's|^/||' | \
+        sed 's|/|-|g' | \
+        sed 's|:workspaceId|000workspaceId|g' | \
+        sed 's|:agentId|000agentId|g' | \
+        sed 's|:key|000key|g' | \
+        sed 's|:secret|000secret|g' | \
+        sed 's|:userId|000userId|g' | \
+        sed 's|\*|catchall|g'
+}
+
 # Check arguments
 if [ $# -lt 1 ]; then
     print_error "Usage: $0 <image-name> [output-dir]"
@@ -108,16 +124,7 @@ while IFS= read -r line || [ -n "$line" ]; do
             # Convert to dist path based on type
             if [[ "$METHOD" =~ ^(get|post|put|delete|patch|any)$ ]]; then
                 # HTTP route: convert to directory name
-                # Remove leading /, replace / with -, handle catchall (*), handle path params
-                ROUTE_DIR=$(echo "$ROUTE_OR_NAME" | \
-                    sed 's|^/||' | \
-                    sed 's|/|-|g' | \
-                    sed 's|:workspaceId|000workspaceId|g' | \
-                    sed 's|:agentId|000agentId|g' | \
-                    sed 's|:key|000key|g' | \
-                    sed 's|:secret|000secret|g' | \
-                    sed 's|:userId|000userId|g' | \
-                    sed 's|\*|catchall|g')
+                ROUTE_DIR=$(convert_route_to_dir "$ROUTE_OR_NAME")
                 
                 # Prepend method
                 ROUTE_DIR="${METHOD}-${ROUTE_DIR}"
@@ -149,10 +156,44 @@ if [ $TOTAL_HANDLERS -eq 0 ]; then
     
     # For base image, we need to find all handlers NOT in other images
     if [ "$IMAGE_NAME" = "base" ]; then
-        print_status "Base image: copying all handlers not assigned to lancedb or puppeteer..."
+        print_status "Base image: copying all handlers not assigned to other container images..."
         
-        # Get all handlers assigned to other images
-        OTHER_IMAGES=("lancedb" "puppeteer")
+        # Dynamically extract all unique image names from @container-images section
+        OTHER_IMAGES=()
+        IN_CONTAINER_IMAGES=false
+        while IFS= read -r line || [ -n "$line" ]; do
+            if [[ "$line" =~ ^@container-images ]]; then
+                IN_CONTAINER_IMAGES=true
+                continue
+            fi
+            if [[ "$IN_CONTAINER_IMAGES" == true ]] && [[ "$line" =~ ^@ ]]; then
+                IN_CONTAINER_IMAGES=false
+                continue
+            fi
+            if [[ "$IN_CONTAINER_IMAGES" == true ]]; then
+                # Skip empty lines and comments
+                if [[ -z "$line" ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
+                    continue
+                fi
+                LINE_IMAGE_NAME=$(echo "$line" | awk '{print $NF}')
+                # Exclude the base image itself
+                if [ "$LINE_IMAGE_NAME" = "base" ]; then
+                    continue
+                fi
+                # Add only if not already present to keep the list unique
+                ALREADY_PRESENT=false
+                for EXISTING_IMAGE in "${OTHER_IMAGES[@]}"; do
+                    if [ "$EXISTING_IMAGE" = "$LINE_IMAGE_NAME" ]; then
+                        ALREADY_PRESENT=true
+                        break
+                    fi
+                done
+                if [ "$ALREADY_PRESENT" = false ]; then
+                    OTHER_IMAGES+=("$LINE_IMAGE_NAME")
+                fi
+            fi
+        done < "${APP_ARC_PATH}"
+        
         EXCLUDED_HANDLERS=()
         
         for OTHER_IMAGE in "${OTHER_IMAGES[@]}"; do
@@ -176,15 +217,7 @@ if [ $TOTAL_HANDLERS -eq 0 ]; then
                         METHOD=$(echo "$line" | awk '{print $1}')
                         ROUTE_OR_NAME=$(echo "$line" | awk '{print $2}')
                         if [[ "$METHOD" =~ ^(get|post|put|delete|patch|any)$ ]]; then
-                            ROUTE_DIR=$(echo "$ROUTE_OR_NAME" | \
-                                sed 's|^/||' | \
-                                sed 's|/|-|g' | \
-                                sed 's|:workspaceId|000workspaceId|g' | \
-                                sed 's|:agentId|000agentId|g' | \
-                                sed 's|:key|000key|g' | \
-                                sed 's|:secret|000secret|g' | \
-                                sed 's|:userId|000userId|g' | \
-                                sed 's|\*|catchall|g')
+                            ROUTE_DIR=$(convert_route_to_dir "$ROUTE_OR_NAME")
                             ROUTE_DIR="${METHOD}-${ROUTE_DIR}"
                             EXCLUDED_HANDLERS+=("http/${ROUTE_DIR}")
                         elif [[ "$METHOD" == "scheduled" ]]; then
