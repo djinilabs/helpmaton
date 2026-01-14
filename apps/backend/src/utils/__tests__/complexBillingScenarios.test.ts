@@ -86,6 +86,25 @@ describe("Complex Billing Scenarios", () => {
   let mockContext: AugmentedContext;
   let workspaceBalance: number;
 
+  /**
+   * IMPORTANT: Balance Tracking Pattern
+   *
+   * This test file uses two different balance tracking approaches:
+   *
+   * 1. Real functions (reserveCredits, adjustCreditReservation, etc.):
+   *    - These call mockAtomicUpdate, which automatically updates workspaceBalance
+   *    - DO NOT manually subtract after calling these functions
+   *    - Examples: LLM reservations, Scraper reservations
+   *
+   * 2. Mocked functions (mockReserveExaCredits, mockReserveTavilyCredits, etc.):
+   *    - These are vi.fn() mocks that don't call mockAtomicUpdate
+   *    - DO manually subtract workspaceBalance after calling these
+   *    - Examples: Exa, Tavily, Reranking tool reservations
+   *
+   * This pattern reflects real behavior: real credit management functions use
+   * atomic updates, while mocked tool functions need manual tracking in tests.
+   */
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
@@ -213,6 +232,8 @@ describe("Complex Billing Scenarios", () => {
       expect(workspaceBalance).toBe(1_000_000_000 - llmEstimatedCost);
 
       // Step 2: Reserve credits for Exa tool call
+      // Note: mockReserveExaCredits is a mocked function that doesn't call mockAtomicUpdate,
+      // so we need to manually track the balance change
       const exaReservation = await mockReserveExaCredits(
         mockDb,
         workspaceId,
@@ -224,6 +245,7 @@ describe("Complex Billing Scenarios", () => {
       );
 
       expect(exaReservation.reservationId).toBe("exa-res-1");
+      // Note: mockReserveExaCredits is a mocked function, so manually track balance
       workspaceBalance -= exaReservation.reservedAmount;
 
       // Step 3: Reserve credits for Tavily tool call
@@ -238,6 +260,7 @@ describe("Complex Billing Scenarios", () => {
       );
 
       expect(tavilyReservation.reservationId).toBe("tavily-res-1");
+      // Note: mockReserveTavilyCredits is a mocked function, so manually track balance
       workspaceBalance -= tavilyReservation.reservedAmount;
 
       // Step 4: Reserve credits for Scraper tool call (uses reserveCredits directly)
@@ -269,6 +292,7 @@ describe("Complex Billing Scenarios", () => {
       );
 
       expect(rerankingReservation.reservationId).toBe("reranking-res-1");
+      // Note: mockReserveRerankingCredits is a mocked function, so manually track balance
       workspaceBalance -= rerankingReservation.reservedAmount;
 
       // Step 6: Adjust LLM reservation after actual token usage (Step 2 of 3-step)
@@ -482,6 +506,7 @@ describe("Complex Billing Scenarios", () => {
             conversationId
           );
           reservations.push(reservation.reservationId);
+          // Note: mockReserveExaCredits is a mocked function, so manually track balance
           workspaceBalance -= reservation.reservedAmount;
         } else if (toolCall.type === "tavily") {
           const reservation = await mockReserveTavilyCredits(
@@ -494,6 +519,7 @@ describe("Complex Billing Scenarios", () => {
             conversationId
           );
           reservations.push(reservation.reservationId);
+          // Note: mockReserveTavilyCredits is a mocked function, so manually track balance
           workspaceBalance -= reservation.reservedAmount;
         } else if (toolCall.type === "scraper") {
           const reservation = await reserveCredits(
@@ -509,7 +535,8 @@ describe("Complex Billing Scenarios", () => {
             conversationId
           );
           reservations.push(reservation.reservationId);
-          workspaceBalance -= toolCall.cost;
+          // Note: workspaceBalance already updated by mockAtomicUpdate in reserveCredits
+          // No need to manually subtract here
         }
       }
 
@@ -687,7 +714,7 @@ describe("Complex Billing Scenarios", () => {
         agentId,
         conversationId
       );
-
+      // Note: mockReserveExaCredits is a mocked function, so manually track balance
       workspaceBalance -= exaReservation.reservedAmount;
 
       // Reserve credits for Tavily tool call
@@ -700,7 +727,7 @@ describe("Complex Billing Scenarios", () => {
         agentId,
         conversationId
       );
-
+      // Note: mockReserveTavilyCredits is a mocked function, so manually track balance
       workspaceBalance -= tavilyReservation.reservedAmount;
 
       // Simulate: LLM call succeeds, Exa fails, Tavily succeeds
@@ -824,7 +851,7 @@ describe("Complex Billing Scenarios", () => {
         agentId,
         conversationId
       );
-
+      // Note: mockReserveExaCredits is a mocked function, so manually track balance
       workspaceBalance -= exaReservation.reservedAmount;
 
       // Simulate: LLM call fails, Exa succeeds
@@ -1104,8 +1131,8 @@ describe("Complex Billing Scenarios", () => {
         agentId,
         conversationId
       );
-
-      workspaceBalance -= scraperCost;
+      // Note: workspaceBalance already updated by mockAtomicUpdate in reserveCredits
+      // No need to manually subtract here
 
       // Simulate failure - refund reservation
       const expires = Math.floor(Date.now() / 1000) + 15 * 60;
