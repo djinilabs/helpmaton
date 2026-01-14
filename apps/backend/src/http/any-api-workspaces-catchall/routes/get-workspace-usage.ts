@@ -163,22 +163,28 @@ export const registerGetWorkspaceUsage = (app: express.Application) => {
           outputTokens: stats.outputTokens,
           totalTokens: stats.totalTokens,
           cost: stats.costUsd,
-          byModel: Object.entries(stats.byModel).map(([model, modelStats]) => ({
-            model,
-            inputTokens: modelStats.inputTokens,
-            outputTokens: modelStats.outputTokens,
-            totalTokens: modelStats.totalTokens,
-            cost: modelStats.costUsd,
-          })),
-          byProvider: Object.entries(stats.byProvider).map(
-            ([provider, providerStats]) => ({
+          conversationCount: stats.conversationCount,
+          messagesIn: stats.messagesIn,
+          messagesOut: stats.messagesOut,
+          totalMessages: stats.totalMessages,
+          byModel: Object.entries(stats.byModel)
+            .filter(([, modelStats]) => modelStats.totalTokens > 0)
+            .map(([model, modelStats]) => ({
+              model,
+              inputTokens: modelStats.inputTokens,
+              outputTokens: modelStats.outputTokens,
+              totalTokens: modelStats.totalTokens,
+              cost: modelStats.costUsd,
+            })),
+          byProvider: Object.entries(stats.byProvider)
+            .filter(([, providerStats]) => providerStats.totalTokens > 0)
+            .map(([provider, providerStats]) => ({
               provider,
               inputTokens: providerStats.inputTokens,
               outputTokens: providerStats.outputTokens,
               totalTokens: providerStats.totalTokens,
               cost: providerStats.costUsd,
-            })
-          ),
+            })),
           byByok: {
             byok: {
               inputTokens: stats.byByok.byok.inputTokens,

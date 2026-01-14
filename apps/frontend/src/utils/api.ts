@@ -1385,6 +1385,10 @@ export interface UsageStats {
   outputTokens: number;
   totalTokens: number;
   cost: number; // millionths (integer)
+  conversationCount: number;
+  messagesIn: number;
+  messagesOut: number;
+  totalMessages: number;
   byModel: Array<{
     model: string;
     inputTokens: number;
@@ -1435,6 +1439,10 @@ export interface DailyUsageData {
   outputTokens: number;
   totalTokens: number;
   cost: number; // millionths (integer)
+  conversationCount: number;
+  messagesIn: number;
+  messagesOut: number;
+  totalMessages: number;
 }
 
 export interface WorkspaceDailyUsageResponse {

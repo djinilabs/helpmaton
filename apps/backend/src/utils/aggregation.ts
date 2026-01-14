@@ -28,6 +28,10 @@ export interface UsageStats {
   outputTokens: number;
   totalTokens: number;
   costUsd: number;
+  conversationCount: number;
+  messagesIn: number; // Number of user messages
+  messagesOut: number; // Number of assistant messages
+  totalMessages: number; // Total messages (user + assistant)
   byModel: Record<string, ByokStats>;
   byProvider: Record<string, ByokStats>;
   byByok: {
@@ -43,6 +47,55 @@ export interface DailyUsageStats extends UsageStats {
 
 // Threshold: last 7 days = query conversations, older = use aggregates
 const RECENT_DAYS_THRESHOLD = 7;
+
+/**
+ * Extract supplier from model name format {supplier}/{model}
+ * @param modelName - Model name (e.g., "openai/gpt-4", "google/gemini-2.5-flash")
+ * @returns Supplier name or "unknown" if format doesn't match
+ */
+export function extractSupplierFromModelName(modelName: string): string {
+  if (!modelName || modelName === "unknown") {
+    return "unknown";
+  }
+
+  // Check if model name contains supplier prefix (format: "supplier/model-name")
+  const parts = modelName.split("/");
+  if (
+    parts.length === 2 &&
+    parts[0].trim().length > 0 &&
+    parts[1].trim().length > 0
+  ) {
+    return parts[0].trim(); // e.g., "openai", "google", "anthropic"
+  }
+
+  // No supplier prefix found
+  return "unknown";
+}
+
+/**
+ * Normalize model name by removing provider prefix if present
+ * This ensures model names from conversations (with prefix) match those from transactions (without prefix)
+ * @param modelName - Model name (e.g., "google/gemini-3-flash-preview" or "gemini-3-flash-preview")
+ * @returns Model name without provider prefix (e.g., "gemini-3-flash-preview")
+ */
+export function normalizeModelNameForAggregation(modelName: string): string {
+  if (!modelName || modelName === "unknown") {
+    return "unknown";
+  }
+
+  // Check if model name contains supplier prefix (format: "supplier/model-name")
+  const parts = modelName.split("/");
+  if (
+    parts.length === 2 &&
+    parts[0].trim().length > 0 &&
+    parts[1].trim().length > 0
+  ) {
+    return parts[1].trim(); // Return model name without provider prefix
+  }
+
+  // No supplier prefix found, return as-is
+  return modelName;
+}
 
 /**
  * Format date as YYYY-MM-DD
@@ -86,7 +139,11 @@ export function aggregateConversations(
     inputTokens: 0,
     outputTokens: 0,
     totalTokens: 0,
-    costUsd: 0, // Cost now comes from transactions, not conversations
+    costUsd: 0, // Cost comes from conversation records (costUsd field)
+    conversationCount: conversations.length,
+    messagesIn: 0,
+    messagesOut: 0,
+    totalMessages: 0,
     byModel: {},
     byProvider: {},
     byByok: {
@@ -156,8 +213,20 @@ export function aggregateConversations(
       typeof usageObj.completionTokens === "number"
         ? usageObj.completionTokens
         : 0;
-    const totalTokens =
+    const reasoningTokens =
+      typeof usageObj.reasoningTokens === "number"
+        ? usageObj.reasoningTokens
+        : 0;
+    const totalTokensFromApi =
       typeof usageObj.totalTokens === "number" ? usageObj.totalTokens : 0;
+
+    // Calculate totalTokens: use API value if available, otherwise calculate from components
+    // Note: promptTokens stored in conversations is nonCachedPromptTokens (cached tokens are separate)
+    // Total tokens = nonCachedPromptTokens + cachedPromptTokens + completionTokens + reasoningTokens
+    // The API's totalTokens should already include all of these
+    const calculatedTotalTokens = inputTokens + cachedPromptTokens + outputTokens + reasoningTokens;
+    const totalTokens =
+      totalTokensFromApi > 0 ? totalTokensFromApi : calculatedTotalTokens;
 
     // Log cached tokens if present for diagnostics
     if (cachedPromptTokens > 0) {
@@ -185,14 +254,78 @@ export function aggregateConversations(
       // But we'll still count totalTokens
     }
 
-    // Aggregate totals (cost comes from transactions, not conversations)
+    // Extract modelName from messages (modelName at conversation level is deprecated)
+    // Find the most common model used in assistant messages
+    // Also count messages by role
+    let modelName = conv.modelName || "unknown"; // Fallback to deprecated field
+    const messages = (conv.messages || []) as Array<{
+      role?: string;
+      modelName?: string;
+    }>;
+    const modelCounts = new Map<string, number>();
+    let userMessageCount = 0;
+    let assistantMessageCount = 0;
+    for (const message of messages) {
+      // Count messages by role
+      if (message.role === "user") {
+        userMessageCount++;
+      } else if (message.role === "assistant") {
+        assistantMessageCount++;
+      }
+      
+      // Track model usage
+      if (
+        message.role === "assistant" &&
+        message.modelName &&
+        typeof message.modelName === "string"
+      ) {
+        const msgModelName = message.modelName;
+        modelCounts.set(msgModelName, (modelCounts.get(msgModelName) || 0) + 1);
+      }
+    }
+    // Use the most common model, or fall back to any model found
+    if (modelCounts.size > 0) {
+      let maxCount = 0;
+      let mostCommonModel = "unknown";
+      for (const [model, count] of modelCounts.entries()) {
+        if (count > maxCount) {
+          maxCount = count;
+          mostCommonModel = model;
+        }
+      }
+      modelName = mostCommonModel;
+    }
+    
+    // Aggregate message counts
+    stats.messagesIn += userMessageCount;
+    stats.messagesOut += assistantMessageCount;
+    stats.totalMessages += userMessageCount + assistantMessageCount;
+
+    // Normalize model name to remove provider prefix (e.g., "google/gemini-3-flash-preview" -> "gemini-3-flash-preview")
+    // This ensures model names from conversations match those in transactions
+    const originalModelName = modelName;
+    modelName = normalizeModelNameForAggregation(modelName);
+    
+    // Debug logging for model name normalization
+    if (originalModelName !== modelName) {
+      console.log("[aggregateConversations] Normalized model name:", {
+        original: originalModelName,
+        normalized: modelName,
+        conversationId: conv.conversationId,
+        tokens: { inputTokens, outputTokens, totalTokens },
+      });
+    }
+
+    // Extract cost from conversation record (costUsd field)
+    const conversationCostUsd = (conv.costUsd as number | undefined) || 0;
+
+    // Aggregate totals
     stats.inputTokens += inputTokens;
     stats.outputTokens += outputTokens;
     stats.totalTokens += totalTokens;
-    // costUsd is not aggregated from conversations anymore
+    stats.costUsd += conversationCostUsd;
 
     // Aggregate by model
-    const modelName = conv.modelName || "unknown";
     if (!stats.byModel[modelName]) {
       stats.byModel[modelName] = {
         inputTokens: 0,
@@ -204,22 +337,22 @@ export function aggregateConversations(
     stats.byModel[modelName].inputTokens += inputTokens;
     stats.byModel[modelName].outputTokens += outputTokens;
     stats.byModel[modelName].totalTokens += totalTokens;
-    // costUsd is not aggregated from conversations anymore
+    stats.byModel[modelName].costUsd += conversationCostUsd;
 
-    // Aggregate by provider
-    const provider = conv.provider || "unknown";
-    if (!stats.byProvider[provider]) {
-      stats.byProvider[provider] = {
+    // Aggregate by provider - extract supplier from model name, not from conv.provider (which is "openrouter")
+    const supplier = extractSupplierFromModelName(originalModelName); // Use original model name to extract provider
+    if (!stats.byProvider[supplier]) {
+      stats.byProvider[supplier] = {
         inputTokens: 0,
         outputTokens: 0,
         totalTokens: 0,
         costUsd: 0,
       };
     }
-    stats.byProvider[provider].inputTokens += inputTokens;
-    stats.byProvider[provider].outputTokens += outputTokens;
-    stats.byProvider[provider].totalTokens += totalTokens;
-    // costUsd is not aggregated from conversations anymore
+    stats.byProvider[supplier].inputTokens += inputTokens;
+    stats.byProvider[supplier].outputTokens += outputTokens;
+    stats.byProvider[supplier].totalTokens += totalTokens;
+    stats.byProvider[supplier].costUsd += conversationCostUsd;
 
     // Aggregate by BYOK
     const isByok = conv.usesByok === true;
@@ -227,7 +360,7 @@ export function aggregateConversations(
     stats.byByok[byokKey].inputTokens += inputTokens;
     stats.byByok[byokKey].outputTokens += outputTokens;
     stats.byByok[byokKey].totalTokens += totalTokens;
-    // costUsd is not aggregated from conversations anymore
+    stats.byByok[byokKey].costUsd += conversationCostUsd;
   }
 
   return stats;
@@ -244,6 +377,10 @@ export function aggregateAggregates(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0, // Cost now comes from transactions/aggregates, not token aggregates
+    conversationCount: 0,
+    messagesIn: 0,
+    messagesOut: 0,
+    totalMessages: 0,
     byModel: {},
     byProvider: {},
     byByok: {
@@ -263,6 +400,11 @@ export function aggregateAggregates(
     toolExpenses: {},
   };
 
+  // Track unique workspace/agent/user/date combinations to avoid double-counting conversations
+  const conversationCountMap = new Map<string, number>();
+  // Track message counts per workspace/agent/user/date (same approach as conversation counts)
+  const messageCountMap = new Map<string, { messagesIn: number; messagesOut: number; totalMessages: number }>();
+
   for (const agg of aggregates) {
     // Aggregate totals (cost comes from transactions/aggregates, not token aggregates)
     stats.inputTokens += agg.inputTokens;
@@ -270,8 +412,35 @@ export function aggregateAggregates(
     stats.totalTokens += agg.totalTokens;
     // costUsd is not aggregated from token aggregates anymore
 
+    // Track conversation count per workspace/agent/user/date (avoid double-counting)
+    // All aggregates with the same workspace/agent/user/date have the same conversationCount
+    const conversationKey = `${agg.workspaceId || ""}:${agg.agentId || ""}:${agg.userId || ""}:${agg.date}`;
+    if (!conversationCountMap.has(conversationKey)) {
+      // Use conversationCount from aggregate, defaulting to 0 if missing (for backward compatibility)
+      const count = (agg as unknown as { conversationCount?: number }).conversationCount ?? 0;
+      conversationCountMap.set(conversationKey, count);
+    }
+    
+    // Track message counts per workspace/agent/user/date (avoid double-counting)
+    // All aggregates with the same workspace/agent/user/date have the same message counts
+    if (!messageCountMap.has(conversationKey)) {
+      // Use message counts from aggregate, defaulting to 0 if missing (for backward compatibility)
+      const aggWithMessages = agg as unknown as {
+        messagesIn?: number;
+        messagesOut?: number;
+        totalMessages?: number;
+      };
+      messageCountMap.set(conversationKey, {
+        messagesIn: aggWithMessages.messagesIn ?? 0,
+        messagesOut: aggWithMessages.messagesOut ?? 0,
+        totalMessages: aggWithMessages.totalMessages ?? 0,
+      });
+    }
+
     // Aggregate by model
-    const modelName = agg.modelName;
+    // Normalize model name to remove provider prefix if present (e.g., "google/gemini-3-flash-preview" -> "gemini-3-flash-preview")
+    // This ensures model names from aggregates match those from conversations and transactions
+    const modelName = normalizeModelNameForAggregation(agg.modelName);
     if (!stats.byModel[modelName]) {
       stats.byModel[modelName] = {
         inputTokens: 0,
@@ -285,8 +454,13 @@ export function aggregateAggregates(
     stats.byModel[modelName].totalTokens += agg.totalTokens;
     // costUsd is not aggregated from token aggregates anymore
 
-    // Aggregate by provider
-    const provider = agg.provider;
+    // Aggregate by provider - use supplier from model name if provider is "openrouter" (backward compatibility)
+    // New aggregates should already have the correct supplier in provider field
+    let provider = agg.provider;
+    if (provider === "openrouter") {
+      // Extract supplier from original model name for legacy aggregates (before normalization)
+      provider = extractSupplierFromModelName(agg.modelName);
+    }
     if (!stats.byProvider[provider]) {
       stats.byProvider[provider] = {
         inputTokens: 0,
@@ -309,6 +483,16 @@ export function aggregateAggregates(
     // costUsd is not aggregated from token aggregates anymore
   }
 
+  // Sum conversation counts (each key represents unique workspace/agent/user/date)
+  stats.conversationCount = Array.from(conversationCountMap.values()).reduce((sum, count) => sum + count, 0);
+  
+  // Sum message counts (each key represents unique workspace/agent/user/date)
+  for (const messageCounts of messageCountMap.values()) {
+    stats.messagesIn += messageCounts.messagesIn;
+    stats.messagesOut += messageCounts.messagesOut;
+    stats.totalMessages += messageCounts.totalMessages;
+  }
+
   return stats;
 }
 
@@ -321,6 +505,10 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
+    conversationCount: 0,
+    messagesIn: 0,
+    messagesOut: 0,
+    totalMessages: 0,
     byModel: {},
     byProvider: {},
     byByok: {
@@ -345,6 +533,10 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
     merged.outputTokens += stats.outputTokens;
     merged.totalTokens += stats.totalTokens;
     merged.costUsd += stats.costUsd;
+    merged.conversationCount += stats.conversationCount;
+    merged.messagesIn += stats.messagesIn;
+    merged.messagesOut += stats.messagesOut;
+    merged.totalMessages += stats.totalMessages;
 
     // Merge byModel
     for (const [model, modelStats] of Object.entries(stats.byModel)) {
@@ -481,6 +673,10 @@ async function aggregateTransactionsStream(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
+    conversationCount: 0,
+    messagesIn: 0,
+    messagesOut: 0,
+    totalMessages: 0,
     byModel: {},
     byProvider: {},
     byByok: {
@@ -501,7 +697,10 @@ async function aggregateTransactionsStream(
   };
 
   // Process transactions as they stream in
+  let transactionCount = 0;
   for await (const txn of transactions) {
+    transactionCount++;
+    
     // Filter out tool-execution transactions (they're handled separately)
     // Filter out credit-purchase transactions (they're not usage costs)
     if (txn.source === "tool-execution" || txn.source === "credit-purchase") {
@@ -514,11 +713,36 @@ async function aggregateTransactionsStream(
     const rawAmount = txn.amountMillionthUsd || 0;
     const costUsd = rawAmount < 0 ? -rawAmount : 0; // Only count debits, convert to positive
 
+    // Debug: Log all transactions to see what we're processing
+    console.log("[aggregateTransactionsStream] Processing transaction:", {
+      source: txn.source,
+      model: txn.model,
+      rawAmount,
+      costUsd,
+      supplier: txn.supplier,
+      description: txn.description?.substring(0, 100),
+    });
+
     // Aggregate totals
     stats.costUsd += costUsd;
 
     // Aggregate by model
-    const modelName = txn.model || "unknown";
+    // Normalize model name to remove provider prefix if present (e.g., "google/gemini-3-flash-preview" -> "gemini-3-flash-preview")
+    // This ensures model names from transactions match those from conversations
+    const rawModelName = txn.model || "unknown";
+    const modelName = normalizeModelNameForAggregation(rawModelName);
+    
+    // Debug logging for cost attribution
+    if (costUsd > 0) {
+      console.log("[aggregateTransactionsStream] Attributing cost to model:", {
+        rawModelName,
+        normalizedModelName: modelName,
+        costUsd,
+        source: txn.source,
+        amountMillionthUsd: rawAmount,
+      });
+    }
+    
     if (!stats.byModel[modelName]) {
       stats.byModel[modelName] = {
         inputTokens: 0,
@@ -532,7 +756,17 @@ async function aggregateTransactionsStream(
     stats.byModel[modelName].costUsd += modelCostUsd;
 
     // Aggregate by provider
-    const provider = txn.supplier || "unknown";
+    // For text-generation and embedding-generation: extract supplier from model name (since txn.supplier is "openrouter")
+    // For tool-execution: use txn.supplier directly (it's the actual tool supplier like "tavily", "exa")
+    let provider: string = txn.supplier || "unknown";
+    if (
+      (txn.source === "text-generation" || txn.source === "embedding-generation") &&
+      rawModelName
+    ) {
+      // Extract supplier from original model name format {supplier}/{model}
+      // Use rawModelName (before normalization) to extract provider
+      provider = extractSupplierFromModelName(rawModelName);
+    }
     if (!stats.byProvider[provider]) {
       stats.byProvider[provider] = {
         inputTokens: 0,
@@ -553,6 +787,14 @@ async function aggregateTransactionsStream(
     stats.byByok.platform.costUsd += byokCostUsd;
   }
 
+  console.log("[aggregateTransactionsStream] Summary:", {
+    transactionCount,
+    totalCostUsd: stats.costUsd,
+    modelsWithCosts: Object.entries(stats.byModel)
+      .filter(([, modelStats]) => modelStats.costUsd > 0)
+      .map(([model, modelStats]) => ({ model, costUsd: modelStats.costUsd })),
+  });
+
   return stats;
 }
 
@@ -568,6 +810,10 @@ async function aggregateToolTransactionsStream(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
+    conversationCount: 0,
+    messagesIn: 0,
+    messagesOut: 0,
+    totalMessages: 0,
     byModel: {},
     byProvider: {},
     byByok: {
@@ -690,6 +936,10 @@ function aggregateToolAggregates(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
+    conversationCount: 0,
+    messagesIn: 0,
+    messagesOut: 0,
+    totalMessages: 0,
     byModel: {},
     byProvider: {},
     byByok: {

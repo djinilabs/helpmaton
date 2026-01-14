@@ -167,6 +167,10 @@ export const handler = adaptHttpHandler(
               outputTokens: mergedStats.outputTokens,
               totalTokens: mergedStats.totalTokens,
               cost,
+              conversationCount: mergedStats.conversationCount,
+              messagesIn: mergedStats.messagesIn,
+              messagesOut: mergedStats.messagesOut,
+              totalMessages: mergedStats.totalMessages,
               byModel: Object.entries(mergedStats.byModel).map(
                 ([model, modelStats]) => ({
                   model,
