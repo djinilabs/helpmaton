@@ -34,25 +34,23 @@ describe("evalEnqueue", () => {
   });
 
   it("should enqueue evaluation tasks for all enabled judges", async () => {
-    const mockQuery = vi.fn().mockResolvedValue({
-      items: [
-        {
-          judgeId: "judge-1",
-          name: "Judge 1",
-          enabled: true,
-        },
-        {
-          judgeId: "judge-2",
-          name: "Judge 2",
-          enabled: true,
-        },
-      ],
-      areAnyUnpublished: false,
+    // Mock queryAsync as an async generator
+    const mockQueryAsync = vi.fn(async function* () {
+      yield {
+        judgeId: "judge-1",
+        name: "Judge 1",
+        enabled: true,
+      };
+      yield {
+        judgeId: "judge-2",
+        name: "Judge 2",
+        enabled: true,
+      };
     });
 
     const mockDb = {
       "agent-eval-judge": {
-        query: mockQuery,
+        queryAsync: mockQueryAsync,
       },
     };
 
@@ -83,22 +81,20 @@ describe("evalEnqueue", () => {
   });
 
   it("should only query enabled judges (filtered by query)", async () => {
-    const mockQuery = vi.fn().mockResolvedValue({
-      items: [
-        {
-          judgeId: "judge-1",
-          name: "Judge 1",
-          enabled: true,
-        },
-        // Note: Disabled judges are filtered out by the query FilterExpression
-        // So they won't appear in items
-      ],
-      areAnyUnpublished: false,
+    // Mock queryAsync as an async generator
+    const mockQueryAsync = vi.fn(async function* () {
+      yield {
+        judgeId: "judge-1",
+        name: "Judge 1",
+        enabled: true,
+      };
+      // Note: Disabled judges are filtered out by the query FilterExpression
+      // So they won't appear in the generator
     });
 
     const mockDb = {
       "agent-eval-judge": {
-        query: mockQuery,
+        queryAsync: mockQueryAsync,
       },
     };
 
@@ -107,7 +103,7 @@ describe("evalEnqueue", () => {
     await enqueueEvaluations("workspace-123", "agent-456", "conversation-789");
 
     // Verify the query includes the enabled filter
-    expect(mockQuery).toHaveBeenCalledWith(
+    expect(mockQueryAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         FilterExpression: "#enabled = :enabled",
         ExpressionAttributeNames: {
@@ -124,14 +120,14 @@ describe("evalEnqueue", () => {
   });
 
   it("should return early if no enabled judges found", async () => {
-    const mockQuery = vi.fn().mockResolvedValue({
-      items: [],
-      areAnyUnpublished: false,
+    // Mock queryAsync as an async generator that yields nothing
+    const mockQueryAsync = vi.fn(async function* () {
+      // Yield nothing - no enabled judges
     });
 
     const mockDb = {
       "agent-eval-judge": {
-        query: mockQuery,
+        queryAsync: mockQueryAsync,
       },
     };
 
@@ -143,30 +139,28 @@ describe("evalEnqueue", () => {
   });
 
   it("should continue enqueueing other judges if one fails", async () => {
-    const mockQuery = vi.fn().mockResolvedValue({
-      items: [
-        {
-          judgeId: "judge-1",
-          name: "Judge 1",
-          enabled: true,
-        },
-        {
-          judgeId: "judge-2",
-          name: "Judge 2",
-          enabled: true,
-        },
-        {
-          judgeId: "judge-3",
-          name: "Judge 3",
-          enabled: true,
-        },
-      ],
-      areAnyUnpublished: false,
+    // Mock queryAsync as an async generator
+    const mockQueryAsync = vi.fn(async function* () {
+      yield {
+        judgeId: "judge-1",
+        name: "Judge 1",
+        enabled: true,
+      };
+      yield {
+        judgeId: "judge-2",
+        name: "Judge 2",
+        enabled: true,
+      };
+      yield {
+        judgeId: "judge-3",
+        name: "Judge 3",
+        enabled: true,
+      };
     });
 
     const mockDb = {
       "agent-eval-judge": {
-        query: mockQuery,
+        queryAsync: mockQueryAsync,
       },
     };
 

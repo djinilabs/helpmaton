@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { useAgentEvalResults, useEvalJudges } from "../hooks/useEvalJudges";
-import type { EvalResult } from "../utils/api";
+import type { EvalResult, EvalResultsResponse } from "../utils/api";
 
 interface EvalResultsListProps {
   workspaceId: string;
@@ -30,18 +30,49 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
     judgeId
   );
 
-  const { data: evalResultsData, isLoading, error, refetch, isRefetching } =
-    useAgentEvalResults(workspaceId, agentId, {
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    error,
+    refetch,
+    isRefetching,
+  } = useAgentEvalResults(
+    workspaceId,
+    agentId,
+    {
       startDate,
       endDate,
       judgeId: filterJudgeId,
-    });
+    },
+    50
+  );
 
   const { data: judges } = useEvalJudges(workspaceId, agentId);
 
-  const results = useMemo(() => {
-    if (!evalResultsData || !evalResultsData.results) return [];
-    const sorted = [...evalResultsData.results];
+  // Flatten all results from all pages and calculate aggregates from all pages
+  const { results, aggregates } = useMemo(() => {
+    if (!data) {
+      return {
+        results: [],
+        aggregates: {
+          totalEvaluations: 0,
+          averageScores: { goalCompletion: 0, toolEfficiency: 0, faithfulness: 0 },
+          criticalFailures: 0,
+        },
+      };
+    }
+
+    // Flatten all results from all pages
+    // useInfiniteQuery returns data with pages property
+    const allResults = (
+      (data as unknown as { pages: EvalResultsResponse[] }).pages
+    ).flatMap((page) => page.results);
+
+    // Sort results
+    const sorted = [...allResults];
     if (sortBy === "date") {
       sorted.sort(
         (a, b) =>
@@ -51,8 +82,41 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
     } else {
       sorted.sort((a, b) => a.judgeName.localeCompare(b.judgeName));
     }
-    return sorted;
-  }, [evalResultsData, sortBy]);
+
+    // Calculate aggregates from all loaded pages
+    const totalEvaluations = allResults.length;
+    let sumGoalCompletion = 0;
+    let sumToolEfficiency = 0;
+    let sumFaithfulness = 0;
+    let criticalFailures = 0;
+
+    for (const result of allResults) {
+      sumGoalCompletion += result.scoreGoalCompletion;
+      sumToolEfficiency += result.scoreToolEfficiency;
+      sumFaithfulness += result.scoreFaithfulness;
+      if (result.criticalFailureDetected) {
+        criticalFailures++;
+      }
+    }
+
+    const averageScores = {
+      goalCompletion:
+        totalEvaluations > 0 ? sumGoalCompletion / totalEvaluations : 0,
+      toolEfficiency:
+        totalEvaluations > 0 ? sumToolEfficiency / totalEvaluations : 0,
+      faithfulness:
+        totalEvaluations > 0 ? sumFaithfulness / totalEvaluations : 0,
+    };
+
+    return {
+      results: sorted,
+      aggregates: {
+        totalEvaluations,
+        averageScores,
+        criticalFailures,
+      },
+    };
+  }, [data, sortBy]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
@@ -68,7 +132,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
     }
   };
 
-  if (isLoading && !evalResultsData) {
+  if (isLoading && !data) {
     return (
       <>
         <div className="mb-4 flex items-center justify-between">
@@ -160,14 +224,14 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
         </div>
       </div>
 
-      {evalResultsData && (
+      {data && aggregates.totalEvaluations > 0 && (
         <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-4">
           <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
             <div className="text-sm font-medium text-neutral-600 dark:text-neutral-400">
               Total Evaluations
             </div>
             <div className="mt-1 text-2xl font-bold text-neutral-900 dark:text-neutral-50">
-              {evalResultsData.totalEvaluations}
+              {aggregates.totalEvaluations}
             </div>
           </div>
           <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
@@ -175,7 +239,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
               Avg Goal Completion
             </div>
             <div className="mt-1 text-2xl font-bold text-neutral-900 dark:text-neutral-50">
-              {evalResultsData.averageScores.goalCompletion.toFixed(1)}
+              {aggregates.averageScores.goalCompletion.toFixed(1)}%
             </div>
           </div>
           <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
@@ -183,7 +247,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
               Avg Tool Efficiency
             </div>
             <div className="mt-1 text-2xl font-bold text-neutral-900 dark:text-neutral-50">
-              {evalResultsData.averageScores.toolEfficiency.toFixed(1)}
+              {aggregates.averageScores.toolEfficiency.toFixed(1)}%
             </div>
           </div>
           <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">
@@ -191,7 +255,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
               Critical Failures
             </div>
             <div className="mt-1 text-2xl font-bold text-red-600 dark:text-red-400">
-              {evalResultsData.criticalFailures}
+              {aggregates.criticalFailures}
             </div>
           </div>
         </div>
@@ -247,7 +311,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                         result.scoreGoalCompletion
                       )}`}
                     >
-                      {result.scoreGoalCompletion}
+                      {result.scoreGoalCompletion}%
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -256,7 +320,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                         result.scoreToolEfficiency
                       )}`}
                     >
-                      {result.scoreToolEfficiency}
+                      {result.scoreToolEfficiency}%
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -265,7 +329,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                         result.scoreFaithfulness
                       )}`}
                     >
-                      {result.scoreFaithfulness}
+                      {result.scoreFaithfulness}%
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -290,6 +354,18 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {hasNextPage && (
+        <div className="mt-4">
+          <button
+            onClick={() => fetchNextPage()}
+            disabled={isFetchingNextPage}
+            className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+          >
+            {isFetchingNextPage ? "Loading..." : "Load More"}
+          </button>
         </div>
       )}
 
@@ -339,7 +415,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                       Goal Completion
                     </div>
                     <div className="mt-1 text-xl font-bold text-neutral-900 dark:text-neutral-50">
-                      {selectedResult.scoreGoalCompletion}
+                      {selectedResult.scoreGoalCompletion}%
                     </div>
                   </div>
                   <div>
@@ -347,7 +423,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                       Tool Efficiency
                     </div>
                     <div className="mt-1 text-xl font-bold text-neutral-900 dark:text-neutral-50">
-                      {selectedResult.scoreToolEfficiency}
+                      {selectedResult.scoreToolEfficiency}%
                     </div>
                   </div>
                   <div>
@@ -355,7 +431,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                       Faithfulness
                     </div>
                     <div className="mt-1 text-xl font-bold text-neutral-900 dark:text-neutral-50">
-                      {selectedResult.scoreFaithfulness}
+                      {selectedResult.scoreFaithfulness}%
                     </div>
                   </div>
                 </div>

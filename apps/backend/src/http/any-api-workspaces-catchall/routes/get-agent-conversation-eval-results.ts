@@ -107,18 +107,28 @@ export const registerGetAgentConversationEvalResults = (app: express.Application
           throw badRequest("Conversation does not belong to this agent");
         }
 
-        // Query all eval results for this conversation using GSI
+        // Query all eval results for this conversation using GSI with queryAsync for memory efficiency
+        const items: Array<{
+          judgeId: string;
+          summary: string;
+          scoreGoalCompletion: number;
+          scoreToolEfficiency: number;
+          scoreFaithfulness: number;
+          criticalFailureDetected: boolean;
+          reasoningTrace: string;
+          costUsd?: number;
+          evaluatedAt: string;
+        }> = [];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const queryResult = await (db as any)["agent-eval-result"].query({
+        for await (const result of (db as any)["agent-eval-result"].queryAsync({
           IndexName: "byConversationId",
           KeyConditionExpression: "conversationId = :conversationId",
           ExpressionAttributeValues: {
             ":conversationId": conversationId,
           },
-        });
-
-        // Extract items from query result (query returns { items, areAnyUnpublished })
-        const items = queryResult.items || [];
+        })) {
+          items.push(result);
+        }
 
         // Get judge names for each result
         const resultsWithJudges = await Promise.all(

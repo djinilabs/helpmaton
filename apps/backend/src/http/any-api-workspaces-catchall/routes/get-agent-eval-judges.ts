@@ -87,36 +87,34 @@ export const registerGetAgentEvalJudges = (app: express.Application) => {
           throw badRequest("Agent does not belong to this workspace");
         }
 
-        // Query all judges for this agent using GSI
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const queryResult = await (db as any)["agent-eval-judge"].query({
-          IndexName: "byAgentId",
-          KeyConditionExpression: "agentId = :agentId",
-          ExpressionAttributeValues: {
-            ":agentId": agentId,
-          },
-        });
-
-        // Extract items from query result (query returns { items, areAnyUnpublished })
-        const items = queryResult.items || [];
-
-        const judgesList = items.map((judge: {
-          judgeId: string;
+        // Query all judges for this agent using GSI with queryAsync for memory efficiency
+        const judgesList: Array<{
+          id: string;
           name: string;
           enabled: boolean;
           provider: string;
           modelName: string;
           evalPrompt: string;
           createdAt: string;
-        }) => ({
-          id: judge.judgeId,
-          name: judge.name,
-          enabled: judge.enabled,
-          provider: judge.provider,
-          modelName: judge.modelName,
-          evalPrompt: judge.evalPrompt,
-          createdAt: judge.createdAt,
-        }));
+        }> = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for await (const judge of (db as any)["agent-eval-judge"].queryAsync({
+          IndexName: "byAgentId",
+          KeyConditionExpression: "agentId = :agentId",
+          ExpressionAttributeValues: {
+            ":agentId": agentId,
+          },
+        })) {
+          judgesList.push({
+            id: judge.judgeId,
+            name: judge.name,
+            enabled: judge.enabled,
+            provider: judge.provider,
+            modelName: judge.modelName,
+            evalPrompt: judge.evalPrompt,
+            createdAt: judge.createdAt,
+          });
+        }
 
         res.json(judgesList);
       } catch (error) {

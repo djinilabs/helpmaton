@@ -3,7 +3,7 @@ import type { FC } from "react";
 
 import { useAgentEvalResults, useEvalJudges } from "../hooks/useEvalJudges";
 import { useTheme } from "../hooks/useTheme";
-import type { EvalResult } from "../utils/api";
+import type { EvalResult, EvalResultsResponse } from "../utils/api";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
 
 interface EvalResultsChartProps {
@@ -43,17 +43,43 @@ export const EvalResultsChart: FC<EvalResultsChartProps> = ({
   } | null>(null);
 
   const dateRange = getDateRange(dateRangePreset);
-  const { data: evalResultsData, isLoading } = useAgentEvalResults(
+  // Convert YYYY-MM-DD to ISO strings, ensuring we preserve the full day range
+  // startDate should be at 00:00:00 local time, endDate should be at 23:59:59.999 local time
+  const startDateISO = (() => {
+    const [year, month, day] = dateRange.startDate.split("-").map(Number);
+    const date = new Date(year, month - 1, day, 0, 0, 0, 0);
+    return date.toISOString();
+  })();
+  const endDateISO = (() => {
+    const [year, month, day] = dateRange.endDate.split("-").map(Number);
+    const date = new Date(year, month - 1, day, 23, 59, 59, 999);
+    return date.toISOString();
+  })();
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+  } = useAgentEvalResults(
     workspaceId,
     agentId,
     {
-      startDate: new Date(dateRange.startDate).toISOString(),
-      endDate: new Date(dateRange.endDate).toISOString(),
+      startDate: startDateISO,
+      endDate: endDateISO,
       judgeId: selectedJudgeId,
-    }
+    },
+    50
   );
 
   const { data: judges } = useEvalJudges(workspaceId, agentId);
+
+  // Fetch all pages for the chart (needed for complete time series)
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Measure parent container width on mount and resize
   useEffect(() => {
@@ -75,15 +101,25 @@ export const EvalResultsChart: FC<EvalResultsChartProps> = ({
     };
   }, []);
 
-  // Process data into chart format
+  // Process data into chart format - aggregate across all pages
   const chartData = useMemo(() => {
-    if (!evalResultsData || !evalResultsData.results || evalResultsData.results.length === 0) {
+    if (!data) {
+      return [];
+    }
+
+    // Flatten all results from all pages
+    // useInfiniteQuery returns data with pages property
+    const allResults = (
+      (data as unknown as { pages: EvalResultsResponse[] }).pages
+    ).flatMap((page) => page.results);
+
+    if (allResults.length === 0) {
       return [];
     }
 
     // Group results by date
     const dateMap = new Map<string, EvalResult[]>();
-    for (const result of evalResultsData.results) {
+    for (const result of allResults) {
       const date = new Date(result.evaluatedAt).toISOString().split("T")[0];
       if (!dateMap.has(date)) {
         dateMap.set(date, []);
@@ -118,7 +154,7 @@ export const EvalResultsChart: FC<EvalResultsChartProps> = ({
     );
 
     return dataPoints;
-  }, [evalResultsData]);
+  }, [data]);
 
   if (isLoading) {
     return (
@@ -453,8 +489,8 @@ export const EvalResultsChart: FC<EvalResultsChartProps> = ({
                 fill="white"
               >
                 {selectedScoreType === "all"
-                  ? `GC: ${hoveredPoint.data.goalCompletion?.toFixed(1) || "N/A"}, TE: ${hoveredPoint.data.toolEfficiency?.toFixed(1) || "N/A"}, F: ${hoveredPoint.data.faithfulness?.toFixed(1) || "N/A"}`
-                  : `${hoveredPoint.data[selectedScoreType]?.toFixed(1) || "N/A"}`}
+                  ? `GC: ${hoveredPoint.data.goalCompletion?.toFixed(1) || "N/A"}%, TE: ${hoveredPoint.data.toolEfficiency?.toFixed(1) || "N/A"}%, F: ${hoveredPoint.data.faithfulness?.toFixed(1) || "N/A"}%`
+                  : `${hoveredPoint.data[selectedScoreType]?.toFixed(1) || "N/A"}%`}
               </text>
             </g>
           )}

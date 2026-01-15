@@ -20,6 +20,7 @@ import {
   BeakerIcon,
   WrenchScrewdriverIcon,
   ArrowTopRightOnSquareIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import {
   useQueryErrorResetBoundary,
@@ -1766,6 +1767,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   <LoadingScreen compact message="Loading evaluations..." />
                 }
               >
+                <EvaluationsRefreshButton
+                  workspaceId={workspaceId}
+                  agentId={agentId}
+                />
                 <div className="space-y-6">
                   <div>
                     <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
@@ -4415,6 +4420,60 @@ const KeyItem: FC<KeyItemProps> = ({
           </button>
         )}
       </div>
+    </div>
+  );
+};
+
+// Refresh button component for evaluations section
+const EvaluationsRefreshButton: FC<{
+  workspaceId: string;
+  agentId: string;
+}> = ({ workspaceId, agentId }) => {
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Invalidate all evaluation-related queries
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [
+            "workspaces",
+            workspaceId,
+            "agents",
+            agentId,
+            "eval-judges",
+          ],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "workspaces",
+            workspaceId,
+            "agents",
+            agentId,
+            "eval-results",
+          ],
+        }),
+      ]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  return (
+    <div className="mb-4 flex items-center justify-end">
+      <button
+        onClick={handleRefresh}
+        disabled={isRefreshing}
+        className="flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+        title="Refresh all evaluation data"
+      >
+        <ArrowPathIcon
+          className={`size-4 ${isRefreshing ? "animate-spin" : ""}`}
+        />
+        {isRefreshing ? "Refreshing..." : "Refresh"}
+      </button>
     </div>
   );
 };

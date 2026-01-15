@@ -2387,12 +2387,15 @@ export interface EvalResultsResponse {
   };
   criticalFailures: number;
   results: EvalResult[];
+  nextCursor?: string;
 }
 
 export interface GetAgentEvalResultsParams {
   startDate?: string;
   endDate?: string;
   judgeId?: string;
+  limit?: number;
+  cursor?: string;
 }
 
 export async function listEvalJudges(
@@ -2474,6 +2477,12 @@ export async function getAgentEvalResults(
   }
   if (params?.judgeId) {
     queryParams.append("judgeId", params.judgeId);
+  }
+  if (params?.limit) {
+    queryParams.append("limit", params.limit.toString());
+  }
+  if (params?.cursor) {
+    queryParams.append("cursor", params.cursor);
   }
   const queryString = queryParams.toString();
   const url = `/api/workspaces/${workspaceId}/agents/${agentId}/eval-results${

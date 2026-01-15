@@ -2,6 +2,8 @@ import {
   useQuery,
   useMutation,
   useQueryClient,
+  useInfiniteQuery,
+  type UseInfiniteQueryOptions,
 } from "@tanstack/react-query";
 
 import {
@@ -14,6 +16,7 @@ import {
   type CreateEvalJudgeInput,
   type UpdateEvalJudgeInput,
   type GetAgentEvalResultsParams,
+  type EvalResultsResponse,
 } from "../utils/api";
 
 import { useToast } from "./useToast";
@@ -150,9 +153,14 @@ export function useDeleteEvalJudge(
 export function useAgentEvalResults(
   workspaceId: string,
   agentId: string,
-  filters?: GetAgentEvalResultsParams
+  filters?: Omit<GetAgentEvalResultsParams, "limit" | "cursor">,
+  limit: number = 50,
+  options?: Omit<
+    UseInfiniteQueryOptions<EvalResultsResponse, Error>,
+    "queryKey" | "queryFn" | "initialPageParam" | "getNextPageParam"
+  >
 ) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: [
       "workspaces",
       workspaceId,
@@ -161,7 +169,17 @@ export function useAgentEvalResults(
       "eval-results",
       filters,
     ],
-    queryFn: () => getAgentEvalResults(workspaceId, agentId, filters),
+    queryFn: async ({ pageParam }) => {
+      const result = await getAgentEvalResults(workspaceId, agentId, {
+        ...filters,
+        limit,
+        cursor: pageParam as string | undefined,
+      });
+      return result;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!workspaceId && !!agentId,
+    ...options,
   });
 }
