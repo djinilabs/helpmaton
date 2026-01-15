@@ -65,7 +65,10 @@ describe("exportWorkspace", () => {
 
     // Mock empty queries
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Generic query response
-    const emptyQueryResponse: QueryResponse<any> = { items: [], areAnyUnpublished: false };
+    const emptyQueryResponse: QueryResponse<any> = {
+      items: [],
+      areAnyUnpublished: false,
+    };
     mockDb.agent.query.mockResolvedValue(emptyQueryResponse);
     mockDb.output_channel.query.mockResolvedValue(emptyQueryResponse);
     mockDb["email-connection"].query.mockResolvedValue(emptyQueryResponse);
@@ -167,7 +170,10 @@ describe("exportWorkspace", () => {
 
     // Mock empty other entities
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Generic query response
-    const emptyResponse: QueryResponse<any> = { items: [], areAnyUnpublished: false };
+    const emptyResponse: QueryResponse<any> = {
+      items: [],
+      areAnyUnpublished: false,
+    };
     mockDb.output_channel.query.mockResolvedValue(emptyResponse);
     mockDb["email-connection"].query.mockResolvedValue(emptyResponse);
     mockDb["mcp-server"].query.mockResolvedValue(emptyResponse);
@@ -216,7 +222,10 @@ describe("exportWorkspace", () => {
       areAnyUnpublished: false,
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Generic query response
-    const emptyResponse: QueryResponse<any> = { items: [], areAnyUnpublished: false };
+    const emptyResponse: QueryResponse<any> = {
+      items: [],
+      areAnyUnpublished: false,
+    };
     mockDb["email-connection"].query.mockResolvedValue(emptyResponse);
     mockDb["mcp-server"].query.mockResolvedValue(emptyResponse);
     mockDb["bot-integration"].query.mockResolvedValue(emptyResponse);
@@ -388,7 +397,10 @@ describe("exportWorkspace", () => {
 
     // Mock empty nested entities
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Generic query response
-    const emptyResponse: QueryResponse<any> = { items: [], areAnyUnpublished: false };
+    const emptyResponse: QueryResponse<any> = {
+      items: [],
+      areAnyUnpublished: false,
+    };
     mockDb["agent-key"].query.mockResolvedValue(emptyResponse);
     mockDb["agent-eval-judge"].query.mockResolvedValue(emptyResponse);
     mockDb["agent-stream-servers"].get.mockResolvedValue(undefined);

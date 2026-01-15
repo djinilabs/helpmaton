@@ -50,6 +50,7 @@ import { registerGetWorkspaceDocumentFolders } from "./routes/get-workspace-docu
 import { registerGetWorkspaceDocuments } from "./routes/get-workspace-documents";
 import { registerGetWorkspaceDocumentsSearch } from "./routes/get-workspace-documents-search";
 import { registerGetWorkspaceEmailOauthCallback } from "./routes/get-workspace-email-oauth-callback";
+import { registerGetWorkspaceExport } from "./routes/get-workspace-export";
 import { registerGetWorkspaceIntegration } from "./routes/get-workspace-integration";
 import { registerGetWorkspaceIntegrations } from "./routes/get-workspace-integrations";
 import { registerGetWorkspaceInvite } from "./routes/get-workspace-invite";
@@ -144,6 +145,7 @@ export const createApp: () => express.Application = () => {
   registerGetWorkspaces(app);
   registerPostWorkspaces(app);
   registerGetWorkspaceById(app);
+  registerGetWorkspaceExport(app);
   registerPutWorkspace(app);
   registerDeleteWorkspace(app);
   registerPostTrialCreditRequest(app);
