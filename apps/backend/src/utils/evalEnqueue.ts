@@ -1,0 +1,96 @@
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+
+/**
+ * Enqueue evaluation tasks for all enabled judges for a conversation
+ */
+export async function enqueueEvaluations(
+  workspaceId: string,
+  agentId: string,
+  conversationId: string
+): Promise<void> {
+  // Lazy import to avoid pulling in database dependencies when not needed
+  const { database } = await import("../tables");
+
+  const db = await database();
+
+  // Query all enabled judges for this agent
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const judges = await (db as any)["agent-eval-judge"].query({
+    IndexName: "byAgentId",
+    KeyConditionExpression: "agentId = :agentId",
+    FilterExpression: "#enabled = :enabled",
+    ExpressionAttributeNames: {
+      "#enabled": "enabled",
+    },
+    ExpressionAttributeValues: {
+      ":agentId": agentId,
+      ":enabled": true,
+    },
+  });
+
+  if (judges.Items.length === 0) {
+    console.log("[Eval Enqueue] No enabled judges found for agent:", {
+      workspaceId,
+      agentId,
+      conversationId,
+    });
+    return;
+  }
+
+  // Get SQS queue URL from environment
+  const queueUrl = process.env.AGENT_EVAL_QUEUE_URL;
+  if (!queueUrl) {
+    console.warn("[Eval Enqueue] AGENT_EVAL_QUEUE_URL not set, skipping evaluation enqueue");
+    return;
+  }
+
+  const sqsClient = new SQSClient({});
+
+  // Enqueue evaluation task for each judge
+  const enqueuePromises = judges.Items.map(async (judge: {
+    judgeId: string;
+    name: string;
+  }) => {
+    const message = {
+      workspaceId,
+      agentId,
+      conversationId,
+      judgeId: judge.judgeId,
+    };
+
+    try {
+      await sqsClient.send(
+        new SendMessageCommand({
+          QueueUrl: queueUrl,
+          MessageBody: JSON.stringify(message),
+        })
+      );
+
+      console.log("[Eval Enqueue] Enqueued evaluation task:", {
+        workspaceId,
+        agentId,
+        conversationId,
+        judgeId: judge.judgeId,
+        judgeName: judge.name,
+      });
+    } catch (error) {
+      console.error("[Eval Enqueue] Failed to enqueue evaluation task:", {
+        error: error instanceof Error ? error.message : String(error),
+        workspaceId,
+        agentId,
+        conversationId,
+        judgeId: judge.judgeId,
+      });
+      // Don't throw - we want to continue enqueueing other judges even if one fails
+    }
+  });
+
+  await Promise.allSettled(enqueuePromises);
+
+  console.log("[Eval Enqueue] Completed enqueueing evaluations:", {
+    workspaceId,
+    agentId,
+    conversationId,
+    judgeCount: judges.Items.length,
+  });
+}

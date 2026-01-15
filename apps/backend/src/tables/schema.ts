@@ -117,7 +117,9 @@ export const tableSchemas = {
     maxToolRoundtrips: z.number().int().positive().optional(), // max tool roundtrips (positive integer, default 5)
     // Accept legacy providers for backward compatibility, but default to "openrouter"
     // Legacy agents with provider="google" will still validate correctly
-    provider: z.enum(["google", "openai", "anthropic", "openrouter"]).default("openrouter"), // provider name (only "openrouter" supported, but legacy values accepted)
+    provider: z
+      .enum(["google", "openai", "anthropic", "openrouter"])
+      .default("openrouter"), // provider name (only "openrouter" supported, but legacy values accepted)
     modelName: z.string().optional(), // model name (e.g., "gemini-2.5-flash")
     clientTools: z
       .array(
@@ -502,6 +504,48 @@ export const tableSchemas = {
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
   }),
+  "agent-eval-judge": TableBaseSchema.extend({
+    pk: z.string(), // judge ID (e.g., "agent-eval-judges/{workspaceId}/{agentId}/{judgeId}")
+    sk: z.string().optional(), // optional sort key
+    workspaceId: z.string(), // workspace ID
+    agentId: z.string(), // agent ID for GSI queries
+    judgeId: z.string(), // unique judge ID (UUID)
+    name: z.string(), // user-friendly name for the judge
+    enabled: z.boolean().default(true), // whether this judge is enabled
+    provider: z.enum(["google", "openai", "anthropic", "openrouter"]).default("openrouter"), // LLM provider for the judge
+    modelName: z.string(), // model name for the judge (e.g., "gpt-4o")
+    evalPrompt: z.string(), // the evaluation prompt template
+    version: z.number().default(1),
+    createdAt: z.iso.datetime().default(new Date().toISOString()),
+  }),
+  "agent-eval-result": TableBaseSchema.extend({
+    pk: z.string(), // result ID (e.g., "agent-eval-results/{workspaceId}/{agentId}/{conversationId}/{judgeId}")
+    sk: z.string().optional(), // optional sort key
+    workspaceId: z.string(), // workspace ID
+    agentId: z.string(), // agent ID for GSI queries
+    conversationId: z.string(), // conversation ID being evaluated
+    judgeId: z.string(), // judge ID that performed the evaluation
+    summary: z.string(), // 1-sentence summary from evaluation
+    scoreGoalCompletion: z.number().int().min(0).max(100), // goal completion score (0-100)
+    scoreToolEfficiency: z.number().int().min(0).max(100), // tool efficiency score (0-100)
+    scoreFaithfulness: z.number().int().min(0).max(100), // faithfulness score (0-100)
+    criticalFailureDetected: z.boolean(), // whether a critical failure was detected
+    reasoningTrace: z.string(), // explanation of scoring logic
+    costUsd: z.number().int().optional(), // cost of the evaluation call in USD millionths
+    usesByok: z.boolean().optional(), // whether this evaluation used BYOK
+    tokenUsage: z
+      .object({
+        promptTokens: z.number(),
+        completionTokens: z.number(),
+        totalTokens: z.number(),
+        reasoningTokens: z.number().optional(),
+        cachedPromptTokens: z.number().optional(),
+      })
+      .optional(), // token usage for the evaluation call
+    evaluatedAt: z.iso.datetime(), // when the evaluation was performed
+    version: z.number().default(1),
+    createdAt: z.iso.datetime().default(new Date().toISOString()),
+  }),
 } as const;
 
 export type TableBaseSchemaType = z.infer<typeof TableBaseSchema>;
@@ -530,7 +574,9 @@ export type TableName =
   | "user-refresh-token"
   | "workspace-credit-transactions"
   | "agent-delegation-tasks"
-  | "bot-integration";
+  | "bot-integration"
+  | "agent-eval-judge"
+  | "agent-eval-result";
 
 export type WorkspaceRecord = z.infer<typeof tableSchemas.workspace>;
 export type PermissionRecord = z.infer<typeof tableSchemas.permission>;

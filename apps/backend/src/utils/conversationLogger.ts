@@ -2003,6 +2003,38 @@ export async function startConversation(
     });
   }
 
+  // Enqueue evaluations for enabled judges if conversation has a final assistant response (non-blocking)
+  const hasFinalResponse = data.messages.some(
+    (msg) =>
+      msg.role === "assistant" &&
+      (typeof msg.content === "string" ||
+        (Array.isArray(msg.content) &&
+          msg.content.some((c) => typeof c === "object" && c !== null && "type" in c && c.type === "text" && "text" in c && typeof c.text === "string" && c.text.trim().length > 0)))
+  );
+
+  if (hasFinalResponse) {
+    try {
+      const { enqueueEvaluations } = await import("./evalEnqueue");
+      // Don't await - let it run asynchronously
+      enqueueEvaluations(data.workspaceId, data.agentId, conversationId).catch((error) => {
+        console.error("[Conversation Logger] Failed to enqueue evaluations:", {
+          error: error instanceof Error ? error.message : String(error),
+          workspaceId: data.workspaceId,
+          agentId: data.agentId,
+          conversationId,
+        });
+      });
+    } catch (error) {
+      // Log error but don't throw - evaluation enqueueing should not block conversation logging
+      console.error("[Conversation Logger] Error importing evalEnqueue:", {
+        error: error instanceof Error ? error.message : String(error),
+        workspaceId: data.workspaceId,
+        agentId: data.agentId,
+        conversationId,
+      });
+    }
+  }
+
   return conversationId;
 }
 
@@ -2500,5 +2532,45 @@ export async function updateConversation(
     console.log(
       `[Conversation Logger] Skipping writeToWorkingMemory for conversation ${conversationId} - no truly new messages (${newMessages.length} messages were all duplicates)`
     );
+  }
+
+  // Enqueue evaluations for enabled judges (non-blocking)
+  // Only trigger if conversation has a final assistant response
+  const hasFinalResponse = newMessages.some(
+    (msg) =>
+      msg.role === "assistant" &&
+      (typeof msg.content === "string" ||
+        (Array.isArray(msg.content) &&
+          msg.content.some((c) => {
+            if (typeof c === "string") return c.trim().length > 0;
+            if (typeof c === "object" && c !== null && "type" in c && c.type === "text" && "text" in c) {
+              const textContent = c as { text: unknown };
+              return typeof textContent.text === "string" && textContent.text.trim().length > 0;
+            }
+            return false;
+          })))
+  );
+
+  if (hasFinalResponse) {
+    try {
+      const { enqueueEvaluations } = await import("./evalEnqueue");
+      // Don't await - let it run asynchronously
+      enqueueEvaluations(workspaceId, agentId, conversationId).catch((error) => {
+        console.error("[Conversation Logger] Failed to enqueue evaluations:", {
+          error: error instanceof Error ? error.message : String(error),
+          workspaceId,
+          agentId,
+          conversationId,
+        });
+      });
+    } catch (error) {
+      // Log error but don't throw - evaluation enqueueing should not block conversation logging
+      console.error("[Conversation Logger] Error importing evalEnqueue:", {
+        error: error instanceof Error ? error.message : String(error),
+        workspaceId,
+        agentId,
+        conversationId,
+      });
+    }
   }
 }

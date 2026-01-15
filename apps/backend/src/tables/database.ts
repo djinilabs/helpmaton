@@ -66,7 +66,8 @@ export const database = once(
     const tableApis = Object.fromEntries(
       existingTables.map(([tableName, lowLevelTableName]) => {
         const lowLevelTable = client[tableName];
-        const schema = tableSchemas[tableName as keyof typeof tableSchemas];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const schema = (tableSchemas as any)[tableName];
         return [
           tableName,
           tableApi<typeof tableName>(
@@ -78,7 +79,7 @@ export const database = once(
           ),
         ] as [typeof tableName, TableAPI<typeof tableName>];
       })
-    ) as DatabaseSchema;
+    ) as DatabaseSchema & Record<string, unknown>; // Allow additional tables
 
     /**
      * Atomically updates multiple records across multiple tables using DynamoDB transactions
@@ -98,7 +99,8 @@ export const database = once(
           // Phase 1: Fetch all records
           const fetchedRecords = new Map<string, TableRecord | undefined>();
           for (const [key, spec] of recordSpec.entries()) {
-            const tableApi = tableApis[spec.table];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const tableApi = (tableApis as any)[spec.table];
             if (!tableApi) {
               throw new Error(`Table ${spec.table} not found`);
             }

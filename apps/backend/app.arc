@@ -153,6 +153,15 @@ bot-integration
   sk **String
   encrypt true
 
+agent-eval-judge
+  pk *String
+  sk **String
+  encrypt true
+
+agent-eval-result
+  pk *String
+  sk **String
+
 @tables-indexes
 
 next-auth
@@ -305,6 +314,21 @@ bot-integration
   pk **String
   name byAgentId
 
+agent-eval-judge
+  agentId *String
+  pk **String
+  name byAgentId
+
+agent-eval-result
+  agentId *String
+  pk **String
+  name byAgentId
+
+agent-eval-result
+  conversationId *String
+  pk **String
+  name byConversationId
+
 @scheduled
 aggregate-token-usage rate(1 day)
 cleanup-expired-reservations rate(10 minutes)
@@ -330,6 +354,9 @@ agent-delegation-queue
 bot-webhook-queue
   visibilityTimeout 720
   messageRetentionPeriod 1209600
+agent-eval-queue
+  visibilityTimeout 300
+  messageRetentionPeriod 604800
 
 @api-throttling
 free
