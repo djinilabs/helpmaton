@@ -76,6 +76,21 @@ const TransactionTable = lazy(() =>
     default: module.TransactionTable,
   }))
 );
+const EvalJudgeList = lazy(() =>
+  import("../components/EvalJudgeList").then((module) => ({
+    default: module.EvalJudgeList,
+  }))
+);
+const EvalResultsChart = lazy(() =>
+  import("../components/EvalResultsChart").then((module) => ({
+    default: module.EvalResultsChart,
+  }))
+);
+const EvalResultsList = lazy(() =>
+  import("../components/EvalResultsList").then((module) => ({
+    default: module.EvalResultsList,
+  }))
+);
 const IntegrationCard = lazy(() =>
   import("../components/IntegrationCard").then((module) => ({
     default: module.IntegrationCard,
@@ -4016,6 +4031,60 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           >
             <LazyAccordionContent isExpanded={expandedSection === "usage"}>
               <AgentUsageSection workspaceId={workspaceId} agentId={agentId} />
+            </LazyAccordionContent>
+          </AccordionSection>
+
+          {/* Evaluations Section */}
+          <AccordionSection
+            id="evaluations"
+            title={
+              <>
+                <BeakerIcon className="mr-2 inline-block size-5" />
+                EVALUATIONS
+              </>
+            }
+            isExpanded={expandedSection === "evaluations"}
+            onToggle={() => toggleSection("evaluations")}
+          >
+            <LazyAccordionContent
+              isExpanded={expandedSection === "evaluations"}
+            >
+              <QueryPanel
+                fallback={
+                  <LoadingScreen compact message="Loading evaluations..." />
+                }
+              >
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                      Evaluation Judges
+                    </h3>
+                    <EvalJudgeList
+                      workspaceId={workspaceId}
+                      agentId={agentId}
+                      canEdit={canEdit}
+                    />
+                  </div>
+                  <div>
+                    <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                      Evaluation Progress
+                    </h3>
+                    <EvalResultsChart
+                      workspaceId={workspaceId}
+                      agentId={agentId}
+                    />
+                  </div>
+                  <div>
+                    <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                      Evaluation Results
+                    </h3>
+                    <EvalResultsList
+                      workspaceId={workspaceId}
+                      agentId={agentId}
+                    />
+                  </div>
+                </div>
+              </QueryPanel>
             </LazyAccordionContent>
           </AccordionSection>
 
