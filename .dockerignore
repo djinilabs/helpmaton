@@ -62,6 +62,8 @@ coverage/
 *.tmp
 *.temp
 tmp/
+# Exception: include docker-dist directories needed for Docker builds
+!tmp/docker-dist-*/
 temp/
 
 # Frontend (not needed for backend Lambda images)

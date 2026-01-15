@@ -155,6 +155,12 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
         exit 1
     fi
     
+    # Verify the prepared dist directory exists
+    if [ ! -d "$PREPARED_DIST" ]; then
+        print_error "Prepared dist directory does not exist: ${PREPARED_DIST}"
+        exit 1
+    fi
+    
     print_success "Prepared dist directory: ${PREPARED_DIST}"
     
     # Determine Dockerfile path

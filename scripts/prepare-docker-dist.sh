@@ -395,4 +395,6 @@ print_success "Prepared dist directory at: ${OUTPUT_DIR}"
 print_status "Output directory size: $(du -sh "${OUTPUT_DIR}" | cut -f1)"
 
 # Output the path for use by Docker build
-echo "${OUTPUT_DIR}"
+# Ensure we output a relative path (normalize by removing leading ./ if present)
+OUTPUT_DIR_NORMALIZED="${OUTPUT_DIR#./}"
+echo "${OUTPUT_DIR_NORMALIZED}"
