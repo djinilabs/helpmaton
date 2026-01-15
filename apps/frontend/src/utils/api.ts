@@ -1480,6 +1480,14 @@ export interface UserUsageResponse {
   stats: UsageStats;
 }
 
+export interface UserDailyUsageResponse {
+  userId: string;
+  currency: Currency;
+  startDate: string;
+  endDate: string;
+  daily: DailyUsageData[];
+}
+
 export interface UsageOptions {
   startDate?: string;
   endDate?: string;
@@ -1678,6 +1686,22 @@ export async function getUserUsage(
   }
   const queryString = params.toString();
   const url = `/api/usage${queryString ? `?${queryString}` : ""}`;
+  const response = await apiFetch(url);
+  return response.json();
+}
+
+export async function getUserDailyUsage(
+  options: UsageOptions = {}
+): Promise<UserDailyUsageResponse> {
+  const params = new URLSearchParams();
+  if (options.startDate) {
+    params.append("startDate", options.startDate);
+  }
+  if (options.endDate) {
+    params.append("endDate", options.endDate);
+  }
+  const queryString = params.toString();
+  const url = `/api/usage/daily${queryString ? `?${queryString}` : ""}`;
   const response = await apiFetch(url);
   return response.json();
 }
