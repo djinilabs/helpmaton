@@ -2,11 +2,42 @@
 
 ## Current Status
 
-**Status**: Agent Evaluation System - Test Fixes Complete ✅
+**Status**: Workspace Export Schema and Export Function Complete ✅
 
 **Latest Work**:
 
-1. **Agent Evaluation System - Test Mocking Fixes**: Fixed all remaining test mocking issues in the agent evaluation system to ensure all tests pass.
+1. **Workspace Export Schema and Export Function**: Created a comprehensive Zod schema for workspace export/import with full unit test coverage.
+
+   - **Schema Creation** (`apps/backend/src/schemas/workspace-export.ts`):
+     - Created hierarchical GraphQL-style Zod schema for complete workspace configuration
+     - Supports both actual IDs and named references (format: `"{refName}"`) for templates
+     - Includes all workspace entities: workspace settings, agents, agent keys, eval judges, stream servers, output channels, email connections, MCP servers, and bot integrations
+     - Excludes runtime data: credit balance, workspace API keys, documents, invites, permissions, conversations, etc.
+     - Comprehensive documentation with examples for template and actual export formats
+
+   - **Export Function** (`apps/backend/src/utils/workspaceExport.ts`):
+     - Fetches all workspace-related entities from database
+     - Transforms data into export schema format
+     - Validates output against schema
+     - Handles nested entities (agents with keys, eval judges, stream servers)
+     - Excludes credit balance (runtime data, not configuration)
+
+   - **Unit Tests**:
+     - **Schema Tests** (`apps/backend/src/schemas/__tests__/workspace-export.test.ts`): 18 tests covering validation, reference formats, nested entities, and error cases
+     - **Export Function Tests** (`apps/backend/src/utils/__tests__/workspaceExport.test.ts`): 9 tests covering export functionality, nested entities, and edge cases
+     - All 27 tests passing
+     - Type checking and linting clean
+
+   - **Key Features**:
+     - Hierarchical structure: workspace → agents → nested entities (keys, eval judges, stream servers)
+     - Reference system: supports actual IDs and `"{refName}"` template format
+     - Type safety: exports `WorkspaceExport` TypeScript type via `z.infer`
+     - Complete coverage: all workspace configuration entities included
+     - Excludes sensitive/runtime data: credit balances, API keys, documents, invites
+
+   - **Result**: Complete workspace export/import schema ready for use, with full test coverage and type safety.
+
+2. **Agent Evaluation System - Test Mocking Fixes**: Fixed all remaining test mocking issues in the agent evaluation system to ensure all tests pass.
 
    - **Issues Fixed**:
      - **evalEnqueue.test.ts**: Fixed mock path from `../tables` to `../../tables` because the test file is in the `__tests__/` subdirectory. The dynamic import `await import("../tables")` in `evalEnqueue.ts` now correctly resolves to the mocked database.
