@@ -50,14 +50,34 @@ convert_route_to_dir() {
 if [ $# -lt 1 ]; then
     print_error "Usage: $0 <image-name> [output-dir]"
     print_error "  image-name: Name of the Docker image (e.g., lancedb, puppeteer, base)"
-    print_error "  output-dir: Optional output directory (default: /tmp/docker-dist-<image-name>)"
+    print_error "  output-dir: Optional output directory (default: ./tmp/docker-dist-<image-name>)"
     exit 1
 fi
 
 IMAGE_NAME="$1"
-OUTPUT_DIR="${2:-/tmp/docker-dist-${IMAGE_NAME}}"
 APP_ARC_PATH="${APP_ARC_PATH:-apps/backend/app.arc}"
 DIST_DIR="${DIST_DIR:-apps/backend/dist}"
+
+# Default to a directory inside the project root (relative to current working directory)
+# This ensures the path is valid for Docker build context "."
+# If an absolute path is provided that's outside the project root, convert it to relative
+if [ -z "$2" ]; then
+    OUTPUT_DIR="tmp/docker-dist-${IMAGE_NAME}"
+else
+    OUTPUT_DIR="$2"
+    # If absolute path provided, check if it's within project root
+    if [[ "$OUTPUT_DIR" = /* ]]; then
+        PROJECT_ROOT=$(pwd)
+        if [[ "$OUTPUT_DIR" == "$PROJECT_ROOT"/* ]]; then
+            # Convert to relative path
+            OUTPUT_DIR="${OUTPUT_DIR#$PROJECT_ROOT/}"
+        else
+            # Outside project root - use a relative path inside project instead
+            OUTPUT_DIR="tmp/docker-dist-${IMAGE_NAME}"
+            print_warning "Output directory '$2' is outside project root, using: ${OUTPUT_DIR}"
+        fi
+    fi
+fi
 
 print_status "Preparing dist directory for image: ${IMAGE_NAME}"
 print_status "Output directory: ${OUTPUT_DIR}"

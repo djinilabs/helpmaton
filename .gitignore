@@ -23,3 +23,6 @@ playwright-report
 # Auto-generated CloudFormation/SAM templates (may contain secrets)
 apps/backend/sam.json
 **/sam.json
+
+# Temporary Docker dist directories
+tmp/
