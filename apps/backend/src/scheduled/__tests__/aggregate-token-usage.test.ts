@@ -14,9 +14,13 @@ vi.mock("../../tables/database", () => ({
 }));
 
 // Mock aggregation utils
-vi.mock("../../utils/aggregation", () => ({
-  formatDate: mockFormatDate,
-}));
+vi.mock("../../utils/aggregation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../utils/aggregation")>();
+  return {
+    ...actual,
+    formatDate: mockFormatDate,
+  };
+});
 
 // Import after mocks are set up
 import type {
@@ -120,7 +124,7 @@ describe("aggregateTokenUsageForDate", () => {
         completionTokens: 50,
         totalTokens: 150,
       },
-      modelName: "gemini-2.5-flash",
+      modelName: "google/gemini-2.5-flash",
       provider: "google",
       usesByok: false,
       costUsd: 0.001,
@@ -229,7 +233,7 @@ describe("aggregateTokenUsageForDate", () => {
         completionTokens: 50,
         totalTokens: 150,
       },
-      modelName: "gemini-2.5-flash",
+      modelName: "google/gemini-2.5-flash",
       provider: "google",
       usesByok: false,
       costUsd: 0.001,
@@ -253,7 +257,7 @@ describe("aggregateTokenUsageForDate", () => {
         completionTokens: 100,
         totalTokens: 300,
       },
-      modelName: "gemini-2.5-flash",
+      modelName: "google/gemini-2.5-flash",
       provider: "google",
       usesByok: false,
       costUsd: 0.002,
@@ -319,7 +323,7 @@ describe("aggregateTokenUsageForDate", () => {
         completionTokens: 50,
         totalTokens: 150,
       },
-      modelName: "gemini-2.5-flash",
+      modelName: "google/gemini-2.5-flash",
       provider: "google",
       usesByok: false,
       costUsd: 0.001,
@@ -381,7 +385,7 @@ describe("aggregateTokenUsageForDate", () => {
         completionTokens: 50,
         totalTokens: 150,
       },
-      modelName: "gemini-2.5-flash",
+      modelName: "google/gemini-2.5-flash",
       provider: "google",
       usesByok: false,
       costUsd: 0.001,
@@ -405,7 +409,7 @@ describe("aggregateTokenUsageForDate", () => {
         aggregateType: "agent",
         workspaceId,
         agentId,
-        modelName: "gemini-2.5-flash",
+        modelName: "google/gemini-2.5-flash",
         provider: "google",
         usesByok: undefined, // false becomes undefined
         inputTokens: 100,
@@ -477,7 +481,7 @@ describe("aggregateTokenUsageForDate", () => {
         completionTokens: 50,
         totalTokens: 150,
       },
-      modelName: "gemini-2.5-flash",
+      modelName: "google/gemini-2.5-flash",
       provider: "google",
       usesByok: false,
       costUsd: 0.001,
@@ -501,7 +505,7 @@ describe("aggregateTokenUsageForDate", () => {
         completionTokens: 100,
         totalTokens: 300,
       },
-      modelName: "gemini-2.5-flash",
+      modelName: "google/gemini-2.5-flash",
       provider: "google",
       usesByok: false,
       costUsd: 0.002,
@@ -565,7 +569,7 @@ describe("aggregateTokenUsageForDate", () => {
         completionTokens: 50,
         totalTokens: 150,
       },
-      modelName: "gemini-2.5-flash",
+      modelName: "google/gemini-2.5-flash",
       provider: "google",
       usesByok: true,
       costUsd: 0.001,
@@ -589,7 +593,7 @@ describe("aggregateTokenUsageForDate", () => {
         completionTokens: 100,
         totalTokens: 300,
       },
-      modelName: "gemini-2.5-flash",
+      modelName: "google/gemini-2.5-flash",
       provider: "google",
       usesByok: false,
       costUsd: 0.002,
@@ -716,7 +720,7 @@ describe("aggregateTokenUsageForDate", () => {
         completionTokens: 50,
         totalTokens: 150,
       },
-      modelName: "gemini-2.5-flash",
+      modelName: "google/gemini-2.5-flash",
       provider: "google",
       usesByok: false,
       costUsd: 0.001,
@@ -780,7 +784,7 @@ describe("aggregateTokenUsageForDate", () => {
       conversationType: "webhook",
       messages: [],
       // Missing tokenUsage
-      modelName: "gemini-2.5-flash",
+      modelName: "google/gemini-2.5-flash",
       provider: "google",
       usesByok: false,
       startedAt: new Date("2025-12-13T12:00:00Z").toISOString(),

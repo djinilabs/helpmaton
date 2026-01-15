@@ -2,11 +2,118 @@
 
 ## Current Status
 
-**Status**: File Attachments in Conversations - Complete ✅
+**Status**: Fixed Usage Statistics Discrepancies - Complete ✅
 
 **Latest Work**:
 
-1. **File Attachments in Conversations**: Implemented comprehensive support for file attachments (any file type) in agent conversations using AI SDK v6 multi-modal inputs.
+1. **Fixed Usage Statistics Discrepancies**: Resolved multiple issues with usage statistics aggregation that were causing incorrect token counts, model attribution, and cost reporting.
+
+   - **Issues Fixed**:
+
+     - **Model Attribution**: Tokens were being attributed to "unknown" instead of actual models (e.g., "google/gemini-3-flash-preview")
+       - **Root Cause**: Code was using deprecated `conv.modelName` field which was often missing
+       - **Fix**: Extract model names from assistant messages in conversations instead
+       - **Implementation**: Find most common model used in assistant messages per conversation
+     - **Total Tokens Mismatch**: Input + Output tokens didn't match Total tokens
+       - **Root Cause**: `totalTokens` includes cached tokens and reasoning tokens, but calculation didn't account for them
+       - **Fix**: Updated calculation to include cached tokens and reasoning tokens when computing total from components
+     - **Cost Attribution**: Costs showing as $0 for models that should have costs
+       - **Root Cause**: Costs were being aggregated from transactions, but model name format mismatch prevented proper attribution
+       - **Fix**: Changed to use `costUsd` field directly from conversation records (which already contains the calculated cost)
+     - **Model Name Format Mismatch**: Model names in conversations had provider prefix (e.g., "google/gemini-3-flash-preview") while transactions had no prefix (e.g., "gemini-3-flash-preview")
+       - **Root Cause**: Different sources storing model names in different formats
+       - **Fix**: Created `normalizeModelNameForAggregation()` function to remove provider prefix, ensuring consistent model name matching across all aggregation sources
+     - **Empty Entries**: "unknown" model/provider showing with 0 tokens
+       - **Fix**: Filter out models/providers with `totalTokens === 0` before returning response
+
+   - **Backend Changes** (`apps/backend/src/utils/aggregation.ts`):
+
+     - Added `normalizeModelNameForAggregation()` function to remove provider prefix from model names
+     - Updated `aggregateConversations()`:
+       - Extract model names from assistant messages instead of deprecated `conv.modelName`
+       - Normalize model names to remove provider prefix
+       - Use `conv.costUsd` field directly for cost aggregation (instead of transactions)
+       - Include cached tokens and reasoning tokens in total tokens calculation
+     - Updated `aggregateTransactionsStream()`:
+       - Normalize model names from transactions to match conversation format
+       - Use original model name (before normalization) for provider extraction
+     - Updated `aggregateAggregates()`:
+       - Normalize model names from aggregate records
+     - Updated API endpoint (`apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-usage.ts`):
+       - Filter out models/providers with 0 tokens from response
+
+   - **Key Improvements**:
+
+     - Model names are now correctly extracted from messages and normalized consistently
+     - Costs are correctly attributed to models using the `costUsd` field from conversation records
+     - Total tokens calculation properly accounts for cached and reasoning tokens
+     - Empty entries are filtered out from the response
+     - All model/provider breakdowns use consistent normalized model names
+
+   - **Testing**:
+
+     - Type checking passes
+     - Linting clean
+     - Debug logging added for troubleshooting model name normalization and cost attribution
+
+   - **Result**: Usage statistics now correctly show:
+     - Tokens attributed to correct models (not "unknown")
+     - Costs correctly attributed to models that actually incurred costs
+     - Total tokens properly calculated (may be higher than Input + Output due to cached/reasoning tokens, which is expected)
+     - No empty entries in model/provider breakdowns
+
+2. **Enhanced Usage Analytics Dashboard**: Redesigned the usage/cost tracking UI to provide a holistic view of agent usage, including conversation counts, tool call metrics, and enhanced visualizations.
+
+3. **Enhanced Usage Analytics Dashboard**: Redesigned the usage/cost tracking UI to provide a holistic view of agent usage, including conversation counts, tool call metrics, and enhanced visualizations.
+
+   - **Backend Changes**:
+
+     - Added `conversationCount` field to `UsageStats` interface and all aggregation functions
+     - Created `extractSupplierFromModelName()` helper function to parse `{supplier}/{model}` format (e.g., "openai/gpt-4" → "openai")
+     - Updated `aggregateConversations()` to count conversations and extract supplier from model name (not "openrouter") for provider grouping
+     - Updated `aggregateTransactionsStream()` to extract supplier from model name for text/embedding generation transactions
+     - Updated `aggregateAggregates()` to read conversation counts from aggregate records and handle supplier extraction
+     - Updated `mergeUsageStats()` to merge conversation counts
+     - Added `conversationCount` to `token-usage-aggregates` schema
+     - Updated scheduled aggregation task to count unique conversations per workspace/agent/user/date and extract supplier from model names
+     - Updated all API endpoints (agent, workspace, user, daily) to include `conversationCount` in responses
+     - Fixed conversation key format consistency (includes userId as empty string for conversations to match aggregateAggregates format)
+     - Improved edge case handling in `extractSupplierFromModelName()` with proper trimming and length checks
+
+   - **Frontend Changes**:
+
+     - Added `conversationCount` to `UsageStats` and `DailyUsageData` TypeScript interfaces
+     - Enhanced `UsageStats` component:
+       - Added conversation count card to stats grid (5 cards total)
+       - Added tool usage section grouped by supplier with expandable/collapsible sections
+       - Shows call count and cost for each tool
+       - Updated description to mention conversations and tool usage
+     - Enhanced `UsageChart` component:
+       - Added metric selector (dropdown) to switch between Cost and Conversations
+       - Chart adapts to selected metric with proper formatting
+       - Updated descriptions based on selected metric
+     - Updated `UsageDashboard` component to use proper types and updated description
+
+   - **Key Improvements**:
+
+     - Users can now see conversation counts alongside token usage and costs
+     - Tool usage is displayed grouped by supplier (tavily, exa, etc.) with call counts and costs
+     - Time-series chart supports switching between viewing costs and conversations over time
+     - Provider breakdowns now show actual AI model suppliers (openai, google, anthropic, etc.) instead of "openrouter"
+     - Historical data (from aggregates) includes conversation counts for dates older than 7 days
+
+   - **Testing**:
+
+     - Updated test mocks to include `extractSupplierFromModelName` function
+     - Updated test data to use `{supplier}/{model}` format for model names
+     - All 2545 tests passing
+     - Type checking and linting clean
+
+   - **PR Review Fixes**:
+     - Fixed conversation key format inconsistency (Comments 1 & 2)
+     - Improved edge case handling in supplier extraction (Comment 3)
+
+4. **File Attachments in Conversations**: Implemented comprehensive support for file attachments (any file type) in agent conversations using AI SDK v6 multi-modal inputs.
 
    - **Architecture Overview**:
 
@@ -29,15 +136,36 @@
        - `generatePresignedPostUrl()`: Uses AWS SDK v3 (`@aws-sdk/s3-presigned-post`) to generate presigned POST URLs
        - Supports all file types (not just images)
        - Configurable max file size (default: 10MB) and expiration time
+       - **No ACL in presigned POST**: Removed `acl: "public-read"` from presigned POST fields/conditions because `BlockPublicAcls: true` prevents ACL operations. Public access is granted via bucket policy instead.
+     - **S3 Public Access Configuration** (`plugins/s3/index.js`):
+       - **Bucket Policy**: `AWS::S3::BucketPolicy` resource grants public `s3:GetObject` access to `conversation-files/*` prefix
+       - **Public Access Block**: Configured to allow public bucket policies:
+         - `BlockPublicAcls: true` - Blocks ACL operations (we use bucket policy instead)
+         - `IgnorePublicAcls: true` - Ignores ACLs (we use bucket policy instead)
+         - `BlockPublicPolicy: false` - **Allows** public bucket policies (required for our bucket policy)
+         - `RestrictPublicBuckets: false` - **Allows** public access via bucket policy (required for our bucket policy)
+       - Configuration applied to both new and existing buckets
+       - Files uploaded to S3 are publicly accessible via HTTP/HTTPS URLs for agent processing
      - **S3 Lifecycle Configuration** (`plugins/s3/index.js`):
        - CloudFormation resource `AWS::S3::BucketLifecycleConfiguration`
        - Automatically deletes files in `conversation-files/` prefix after 30 days
        - No manual cleanup required
-     - **Message Validation** (`utils/messageConversion.ts`):
-       - Validates file URLs are HTTP/HTTPS (not base64/data URLs)
-       - Rejects inline file data with clear error messages
-       - Automatically detects images based on mediaType or URL extension
-       - Converts file parts to AI SDK format (ImagePart for images, FilePart for others)
+     - **Message Conversion** (`utils/messageConversion.ts`, `utils/streamRequestContext.ts`):
+       - **AI SDK Format Detection**: Checks ALL messages in conversation history for `parts` property (not just first message), ensuring file attachments in any message are detected
+       - **Consistent Conversion**: Always uses our internal `convertUIMessagesToModelMessages()` converter instead of AI SDK's `convertToModelMessages()`, ensuring file parts are preserved from conversation history
+       - **Image Detection**: Automatically detects images based on `mediaType?.startsWith("image/")` or URL extension (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`)
+       - **Format Compliance**: Creates proper AI SDK format:
+         - `ImagePart`: `{type: "image", image: "url", mediaType?: "image/png"}` (includes mediaType when available for provider compatibility)
+         - `FilePart`: `{type: "file", data: "url", mimeType: "..."}` for non-image files
+         - `TextPart`: `{type: "text", text: "..."}` for text content
+       - **Content Order**: Messages with multiple parts are ordered as: text first, then images, then files
+       - **Validation**: Validates file URLs are HTTP/HTTPS (not base64/data URLs)
+       - **Rejects inline data**: Rejects base64/data URLs with clear error messages
+       - **Comprehensive Logging**: Added logging to track file parts through conversion pipeline (request body → converted messages → model messages)
+     - **Message Deduplication** (`utils/conversationLogger.ts`):
+       - **File Part Preservation**: `normalizeContentForComparison()` now includes file parts in deduplication keys using format `[file:${fileUrl}:${mediaType}]`
+       - **Prevents Data Loss**: Messages with identical text but different file attachments are treated as distinct messages
+       - **Tool Call/Result Handling**: Tool calls and results are also included in comparison keys to prevent incorrect deduplication
 
    - **Frontend Implementation** (`components/AgentChat.tsx`):
 
@@ -73,9 +201,16 @@
      - Tests verify S3 key path construction
      - Tests verify presigned URL generation with correct conditions
 
-   - **Result**: Users can attach any file type to conversations. Files are securely uploaded to S3 with automatic expiration, and AI models can process images and other file types in conversations.
+   - **Production Fixes** (January 2026):
 
-2. **Notion MCP Server Integration - Enhanced User Experience**: Improved the Notion create page tool to accept simplified parameters and fixed API structure issues.
+     - **S3 Public Access**: Fixed production issue where files were not publicly accessible. Removed ACL from presigned POST (conflicted with `BlockPublicAcls: true`), added bucket policy for public read access, and configured `BlockPublicPolicy: false` and `RestrictPublicBuckets: false` to allow bucket policies.
+     - **Message Conversion**: Fixed issue where image parts from conversation history were not being sent to LLM. Changed to always use our internal converter which properly preserves file parts, instead of conditionally using AI SDK's `convertToModelMessages()`.
+     - **Message Deduplication**: Fixed bug where messages with same text but different file attachments were being treated as duplicates, causing file parts to be lost. Updated `normalizeContentForComparison()` to include file URLs and media types in comparison keys.
+     - **Format Improvements**: Added `mediaType` to `ImagePart` when available for better provider compatibility (some providers may require it).
+
+   - **Result**: Users can attach any file type to conversations. Files are securely uploaded to S3 with automatic expiration and public read access for agent processing. AI models can process images and other file types in conversations, with file parts correctly preserved through the entire message pipeline (frontend → backend → LLM → conversation history).
+
+5. **Notion MCP Server Integration - Enhanced User Experience**: Improved the Notion create page tool to accept simplified parameters and fixed API structure issues.
 
    - **Simplified Parameter Support**:
 
@@ -107,7 +242,7 @@
      ```
      The tool automatically handles workspace-level parent, title property creation, and content block conversion.
 
-3. **Google Calendar MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Calendar, allowing agents to read, search, and write to users' Google Calendar. Follows the same architecture pattern as Google Drive and Gmail MCP servers.
+6. **Google Calendar MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Calendar, allowing agents to read, search, and write to users' Google Calendar. Follows the same architecture pattern as Google Drive and Gmail MCP servers.
 
    - **Google Calendar OAuth Utilities**:
 
@@ -169,7 +304,7 @@
 
    - **Note**: Requires adding redirect URI `/api/mcp/oauth/google-calendar/callback` to Google Cloud Console OAuth client configuration
 
-4. **Gmail MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Gmail, allowing agents to list, search, and read emails from users' Gmail accounts. Follows the same architecture pattern as Google Drive MCP server.
+7. **Gmail MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Gmail, allowing agents to list, search, and read emails from users' Gmail accounts. Follows the same architecture pattern as Google Drive MCP server.
 
    - **Gmail OAuth Utilities**:
 
@@ -220,7 +355,7 @@
 
    - **Note**: Requires adding redirect URI `/api/mcp/oauth/gmail/callback` to Google Cloud Console OAuth client configuration
 
-5. **Google Drive MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Drive, allowing agents to list, read, and search files in users' Google Drive accounts. The infrastructure is reusable for other OAuth-based MCP servers.
+8. **Google Drive MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Drive, allowing agents to list, read, and search files in users' Google Drive accounts. The infrastructure is reusable for other OAuth-based MCP servers.
 
    - **Database Schema Updates**:
 

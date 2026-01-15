@@ -1,7 +1,6 @@
 import { connect } from "@lancedb/lancedb";
 import type { SQSEvent, SQSRecord } from "aws-lambda";
 
-import { getWorkspaceApiKey } from "../../http/utils/agentUtils";
 import { getDefined } from "../../utils";
 import { generateEmbedding } from "../../utils/embedding";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
@@ -91,15 +90,14 @@ function getLanceDBConnectionOptions(): {
  * Generate embeddings for raw facts
  */
 async function generateEmbeddingsForFacts(
-  rawFacts: RawFactData[],
-  workspaceId: string
+  rawFacts: RawFactData[]
 ): Promise<FactRecord[]> {
   // Get API key for embedding generation
-  // Try workspace API key first, fall back to system key
-  const workspaceApiKey = await getWorkspaceApiKey(workspaceId, "google");
-  const apiKey =
-    workspaceApiKey ||
-    getDefined(process.env.GEMINI_API_KEY, "GEMINI_API_KEY is not set");
+  // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
+  const apiKey = getDefined(
+    process.env.GEMINI_API_KEY,
+    "GEMINI_API_KEY is not set"
+  );
 
   const records: FactRecord[] = [];
 
@@ -254,10 +252,7 @@ async function executeInsert(
     console.log(
       `[Write Server] Generating embeddings for ${rawFacts.length} raw facts...`
     );
-    const generatedRecords = await generateEmbeddingsForFacts(
-      rawFacts,
-      workspaceId
-    );
+    const generatedRecords = await generateEmbeddingsForFacts(rawFacts);
     finalRecords = generatedRecords;
     console.log(
       `[Write Server] Generated ${generatedRecords.length} embeddings out of ${rawFacts.length} raw facts`

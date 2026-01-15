@@ -2,7 +2,6 @@ import { randomUUID } from "crypto";
 
 import type { ScheduledEvent } from "aws-lambda";
 
-import { getWorkspaceApiKey } from "../../http/utils/agentUtils";
 import { database } from "../../tables";
 import { getDefined } from "../../utils";
 import { generateEmbedding } from "../../utils/embedding";
@@ -93,16 +92,11 @@ export const handler = handlingScheduledErrors(
             }
 
             // Generate embedding
-            const workspaceApiKey = await getWorkspaceApiKey(
-              workspaceId,
-              "google"
+            // Note: Embeddings use Google's API directly, workspace API keys are not supported for embeddings
+            const apiKey = getDefined(
+              process.env.GEMINI_API_KEY,
+              "GEMINI_API_KEY is not set"
             );
-            const apiKey =
-              workspaceApiKey ||
-              getDefined(
-                process.env.GEMINI_API_KEY,
-                "GEMINI_API_KEY is not set"
-              );
 
             const embedding = await generateEmbedding(
               summary,

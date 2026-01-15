@@ -172,6 +172,10 @@ export function convertAiSdkUIMessageToUIMessage(
             result: unknown;
             costUsd?: number;
           }
+        | {
+            type: "reasoning";
+            text: string;
+          }
       > = [];
 
       for (const part of message.parts) {
@@ -180,6 +184,16 @@ export function convertAiSdkUIMessageToUIMessage(
         } else if (part && typeof part === "object" && "type" in part) {
           if (part.type === "text" && "text" in part) {
             content.push({ type: "text", text: part.text });
+          } else if (
+            part.type === "reasoning" &&
+            "text" in part &&
+            typeof part.text === "string"
+          ) {
+            // Handle reasoning parts from AI SDK
+            content.push({
+              type: "reasoning",
+              text: part.text,
+            });
           } else if (
             part.type === "tool-call" &&
             "toolCallId" in part &&
@@ -437,6 +451,10 @@ export function convertUIMessagesToModelMessages(
                 mediaType?: unknown;
               };
               const imageUrl = imagePart.image;
+              const imageMediaType =
+                imagePart.mediaType && typeof imagePart.mediaType === "string"
+                  ? imagePart.mediaType
+                  : undefined;
 
               // Validate that image URL is an S3 URL, not base64/data URL
               // Reject base64/data URLs
@@ -458,9 +476,11 @@ export function convertUIMessagesToModelMessages(
               }
 
               // Use ImagePart for images
+              // Include mediaType if available (some providers may need it)
               imageParts.push({
                 type: "image",
                 image: imageUrl,
+                ...(imageMediaType && { mediaType: imageMediaType }),
               } as ImagePart);
             } else if (partType === "file" && "file" in part) {
               // Handle file type
@@ -504,9 +524,11 @@ export function convertUIMessagesToModelMessages(
 
               if (isImage) {
                 // Use ImagePart for images
+                // Include mediaType if available (some providers may need it)
                 imageParts.push({
                   type: "image",
                   image: fileUrl,
+                  ...(mediaType && { mediaType }),
                 } as ImagePart);
               } else {
                 // Use FilePart for other files
@@ -538,6 +560,21 @@ export function convertUIMessagesToModelMessages(
 
         // Add file parts
         contentParts.push(...fileParts);
+
+        // Log if we have image/file parts to verify they're being included
+        if (imageParts.length > 0 || fileParts.length > 0) {
+          console.log(
+            "[convertUIMessagesToModelMessages] User message with files/images:",
+            {
+              imageCount: imageParts.length,
+              fileCount: fileParts.length,
+              hasText: combinedText.length > 0,
+              totalParts: contentParts.length,
+              imageUrls: imageParts.map((p) => p.image),
+              fileUrls: fileParts.map((p) => (p as { data?: unknown }).data),
+            }
+          );
+        }
 
         // Create user message with content array
         if (contentParts.length > 0) {

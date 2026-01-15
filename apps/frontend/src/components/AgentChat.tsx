@@ -908,23 +908,51 @@ export const AgentChat: FC<AgentChatProps> = ({
                   );
                 }
 
-                // Reasoning part
+                // Reasoning part - skip in widget mode
                 if (partType === "reasoning" && "text" in part) {
+                  // Don't display reasoning in widget mode
+                  if (isWidget) {
+                    return null;
+                  }
                   const reasoningPart = part as {
                     type: "reasoning";
                     text: string;
                   };
+                  const isRedacted = reasoningPart.text === "[REDACTED]";
                   return (
                     <div
                       key={`${message.id}-part-${partIndex}`}
                       className="max-w-[80%] overflow-x-auto rounded-xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-950"
                     >
-                      <div className="mb-2 text-xs font-medium text-indigo-700 dark:text-indigo-300">
-                        🧠 Reasoning
-                      </div>
-                      <div className="overflow-x-auto whitespace-pre-wrap break-words text-sm text-indigo-900 dark:text-indigo-100">
-                        {reasoningPart.text}
-                      </div>
+                      <details className="text-xs">
+                        <summary className="cursor-pointer font-medium text-indigo-700 hover:text-indigo-800 dark:text-indigo-300 dark:hover:text-indigo-200">
+                          🧠 Reasoning
+                          {isRedacted && (
+                            <span className="ml-2 text-xs text-indigo-600 dark:text-indigo-400">
+                              (Click to view)
+                            </span>
+                          )}
+                        </summary>
+                        <div className="mt-2">
+                          {isRedacted ? (
+                            <div className="rounded bg-indigo-100 p-2 text-xs text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+                              <p className="mb-1 font-medium">
+                                Reasoning content is redacted
+                              </p>
+                              <p className="text-xs">
+                                The reasoning process is hidden by default. The
+                                actual reasoning content may be available in the
+                                stream events but is not included in the message
+                                content.
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="overflow-x-auto whitespace-pre-wrap break-words rounded bg-indigo-100 p-2 text-sm text-indigo-900 dark:bg-indigo-900 dark:text-indigo-100">
+                              {reasoningPart.text}
+                            </div>
+                          )}
+                        </div>
+                      </details>
                     </div>
                   );
                 }

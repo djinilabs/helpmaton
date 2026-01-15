@@ -1103,6 +1103,7 @@ export const registerPostTestAgent = (app: express.Application) => {
       let toolResultsFromResult: unknown[];
       let usage: unknown;
       let generationTimeMs: number | undefined;
+      let reasoningFromSteps: Array<{ type: "reasoning"; text: string }> = [];
 
       try {
         // Try to access result.text first to catch any errors early
@@ -1142,9 +1143,11 @@ export const registerPostTestAgent = (app: express.Application) => {
         const stepsValue =
           results[4].status === "fulfilled" ? results[4].value : [];
 
-        // Extract tool calls and results from _steps (source of truth for server-side tool execution)
+        // Extract tool calls, results, and reasoning from _steps (source of truth for server-side tool execution)
         const toolCallsFromSteps: unknown[] = [];
         const toolResultsFromSteps: unknown[] = [];
+        reasoningFromSteps = []; // Reset for this result
+        const toolCallStartTimes = new Map<string, number>(); // Track when each tool call started
 
         if (Array.isArray(stepsValue)) {
           for (const step of stepsValue) {
@@ -1156,13 +1159,24 @@ export const registerPostTestAgent = (app: express.Application) => {
                   "type" in contentItem
                 ) {
                   if (contentItem.type === "tool-call") {
+                    // Use generation start time as baseline for tool call timestamp
+                    const toolCallStartTime = generationStartTime || Date.now();
+                    if (contentItem.toolCallId) {
+                      toolCallStartTimes.set(contentItem.toolCallId, toolCallStartTime);
+                    }
                     // Convert AI SDK tool-call format to our format
                     toolCallsFromSteps.push({
                       toolCallId: contentItem.toolCallId,
                       toolName: contentItem.toolName,
                       args: contentItem.input || contentItem.args || {},
+                      toolCallStartedAt: new Date(toolCallStartTime).toISOString(),
                     });
                   } else if (contentItem.type === "tool-result") {
+                    // For non-streaming (generateText), we can't accurately measure tool execution time
+                    // without wrapping tool execution, so we'll leave it undefined
+                    // The expandMessagesWithToolCalls function will handle it
+                    let toolExecutionTimeMs: number | undefined;
+                    
                     // Convert AI SDK tool-result format to our format
                     toolResultsFromSteps.push({
                       toolCallId: contentItem.toolCallId,
@@ -1175,6 +1189,17 @@ export const registerPostTestAgent = (app: express.Application) => {
                         contentItem.output?.value ||
                         contentItem.output ||
                         contentItem.result,
+                      ...(toolExecutionTimeMs !== undefined && { toolExecutionTimeMs }),
+                    });
+                  } else if (
+                    contentItem.type === "reasoning" &&
+                    "text" in contentItem &&
+                    typeof contentItem.text === "string"
+                  ) {
+                    // Extract reasoning content
+                    reasoningFromSteps.push({
+                      type: "reasoning",
+                      text: contentItem.text,
                     });
                   }
                 }
@@ -1388,7 +1413,7 @@ export const registerPostTestAgent = (app: express.Application) => {
         formatToolResultMessage
       );
 
-      // Build assistant response message with tool calls, results, and text
+      // Build assistant response message with reasoning, tool calls, results, and text
       const assistantContent: Array<
         | { type: "text"; text: string }
         | {
@@ -1403,7 +1428,14 @@ export const registerPostTestAgent = (app: express.Application) => {
             toolName: string;
             result: unknown;
           }
+        | {
+            type: "reasoning";
+            text: string;
+          }
       > = [];
+
+      // Add reasoning content first (it typically comes before tool calls or text)
+      assistantContent.push(...reasoningFromSteps);
 
       // Add tool calls
       for (const toolCallMsg of toolCallMessages) {

@@ -459,13 +459,35 @@ async function processCostVerification(record: SQSRecord): Promise<void> {
       const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
       // Check if conversation exists before attempting update
-      const existing = await db["agent-conversations"].get(pk);
+      // Retry up to 3 times with exponential backoff if conversation not found
+      // This handles edge cases where the conversation might not be saved yet
+      let existing = await db["agent-conversations"].get(pk);
       if (!existing) {
-        console.warn(
-          "[Cost Verification] Conversation not found, skipping message update:",
-          { conversationId, agentId, workspaceId }
-        );
-        return;
+        // Retry with exponential backoff (500ms, 1000ms, 2000ms)
+        for (let retry = 0; retry < 3; retry++) {
+          const delay = 500 * Math.pow(2, retry);
+          console.warn(
+            `[Cost Verification] Conversation not found, retrying after ${delay}ms (attempt ${retry + 1}/3):`,
+            { conversationId, agentId, workspaceId }
+          );
+          await sleep(delay);
+          existing = await db["agent-conversations"].get(pk);
+          if (existing) {
+            console.log(
+              `[Cost Verification] Conversation found after retry ${retry + 1}:`,
+              { conversationId, agentId, workspaceId }
+            );
+            break;
+          }
+        }
+
+        if (!existing) {
+          console.warn(
+            "[Cost Verification] Conversation not found after all retries, skipping message update:",
+            { conversationId, agentId, workspaceId }
+          );
+          return;
+        }
       }
 
       await db["agent-conversations"].atomicUpdate(

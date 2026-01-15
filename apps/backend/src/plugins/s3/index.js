@@ -63,7 +63,26 @@ function pkg({
       Type: 'AWS::S3::Bucket',
       Properties: {
         BucketName: bucketName,
+        // Configure BlockPublicAccess to allow public read via bucket policy
+        // BlockPublicAcls and IgnorePublicAcls can remain true (we use bucket policy, not ACLs)
+        // But we need BlockPublicPolicy and RestrictPublicBuckets to be false
+        PublicAccessBlockConfiguration: {
+          BlockPublicAcls: true, // Block public ACLs (we use bucket policy instead)
+          IgnorePublicAcls: true, // Ignore public ACLs (we use bucket policy instead)
+          BlockPublicPolicy: false, // Allow public bucket policies (required for our bucket policy)
+          RestrictPublicBuckets: false, // Allow public access via bucket policy (required for our bucket policy)
+        },
       },
+    };
+  } else {
+    // If bucket exists, ensure BlockPublicAccess allows public policies
+    // We need to update it to allow public bucket policies
+    const existingBucket = Resources[bucketResourceId];
+    existingBucket.Properties.PublicAccessBlockConfiguration = {
+      BlockPublicAcls: true,
+      IgnorePublicAcls: true,
+      BlockPublicPolicy: false, // Allow public bucket policies (required for our bucket policy)
+      RestrictPublicBuckets: false, // Allow public access via bucket policy (required for our bucket policy)
     };
   }
 
@@ -84,8 +103,41 @@ function pkg({
     },
   };
 
+  // Add bucket policy to allow public read access to conversation files
+  // This is required so that uploaded files can be accessed by the agent via S3 URLs
+  const bucketPolicyId = 'ConversationFilesBucketPolicy';
+  Resources[bucketPolicyId] = {
+    Type: 'AWS::S3::BucketPolicy',
+    Properties: {
+      Bucket: { Ref: bucketResourceId },
+      PolicyDocument: {
+        Statement: [
+          {
+            Sid: 'PublicReadConversationFiles',
+            Effect: 'Allow',
+            Principal: '*',
+            Action: 's3:GetObject',
+            Resource: {
+              'Fn::Join': [
+                '',
+                [
+                  'arn:aws:s3:::',
+                  { Ref: bucketResourceId },
+                  '/conversation-files/*',
+                ],
+              ],
+            },
+          },
+        ],
+      },
+    },
+  };
+
   console.log(
     `[s3] Added lifecycle policy for conversation-files/ prefix (30 days expiration)`
+  );
+  console.log(
+    `[s3] Added bucket policy for public read access to conversation-files/ prefix`
   );
 
   return cloudformation;

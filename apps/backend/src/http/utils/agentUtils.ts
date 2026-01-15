@@ -224,13 +224,28 @@ export async function createAgentModel(
   agentId?: string,
   usesByok?: boolean,
   userId?: string,
-  provider: Provider = "openrouter"
+  provider: Provider = "openrouter",
+  agentConfig?: {
+    temperature?: number | null;
+    topP?: number | null;
+    topK?: number | null;
+    maxOutputTokens?: number | null;
+    stopSequences?: string[] | null;
+    [key: string]: unknown;
+  }
 ) {
   // Use provided modelName or fall back to default MODEL_NAME
   const finalModelName = modelName || MODEL_NAME;
 
-  // Use createModel from modelFactory which handles OpenRouter and Google
-  return createModel(provider, finalModelName, workspaceId, referer, userId);
+  // Use createModel from modelFactory which only supports OpenRouter
+  return createModel(
+    provider,
+    finalModelName,
+    workspaceId,
+    referer,
+    userId,
+    agentConfig
+  );
 }
 
 /**
@@ -816,6 +831,15 @@ export async function callAgentInternal(
       ? targetAgent.modelName
       : undefined;
 
+  // Extract agent config for advanced options
+  const agentConfig = {
+    temperature: targetAgent.temperature,
+    topP: targetAgent.topP,
+    topK: targetAgent.topK,
+    maxOutputTokens: targetAgent.maxOutputTokens,
+    stopSequences: targetAgent.stopSequences,
+  };
+
   // Create model
   const model = await createAgentModel(
     "http://localhost:3000/api/agent-delegation",
@@ -825,7 +849,8 @@ export async function callAgentInternal(
     targetAgentId,
     usesByok,
     undefined, // userId
-    agentProvider
+    agentProvider,
+    agentConfig
   );
 
   // Extract agentId from targetAgent.pk (format: "agents/{workspaceId}/{agentId}")
@@ -1001,7 +1026,8 @@ export async function callAgentInternal(
         conversationPk
       );
       if (existingConversation && existingConversation.messages) {
-        existingConversationMessages = existingConversation.messages as UIMessage[];
+        existingConversationMessages =
+          existingConversation.messages as UIMessage[];
       }
     } catch (error) {
       // If conversation doesn't exist yet or fetch fails, that's okay - we'll create new knowledge injection
@@ -1029,9 +1055,12 @@ export async function callAgentInternal(
   );
 
   const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
-  const knowledgeInjectionMessage = knowledgeInjectionResult.knowledgeInjectionMessage;
-  const rerankingRequestMessage = knowledgeInjectionResult.rerankingRequestMessage;
-  const rerankingResultMessage = knowledgeInjectionResult.rerankingResultMessage;
+  const knowledgeInjectionMessage =
+    knowledgeInjectionResult.knowledgeInjectionMessage;
+  const rerankingRequestMessage =
+    knowledgeInjectionResult.rerankingRequestMessage;
+  const rerankingResultMessage =
+    knowledgeInjectionResult.rerankingResultMessage;
 
   let reservationId: string | undefined;
   let llmCallAttempted = false;
@@ -1103,9 +1132,7 @@ export async function callAgentInternal(
 
     try {
       result = await generateText({
-        model: model as unknown as Parameters<
-          typeof generateText
-        >[0]["model"],
+        model: model as unknown as Parameters<typeof generateText>[0]["model"],
         system: targetAgent.systemPrompt,
         messages: modelMessagesWithKnowledge,
         tools,
@@ -1291,7 +1318,7 @@ export async function callAgentInternal(
           : String(conversationError);
       const errorName =
         conversationError instanceof Error ? conversationError.name : "Error";
-      
+
       console.error(
         "[callAgentInternal] Error creating conversation for target agent:",
         {
@@ -1301,7 +1328,7 @@ export async function callAgentInternal(
           targetAgentId,
         }
       );
-      
+
       // Preserve the original error if it's already an Error instance
       // This helps with error classification (retryable vs permanent)
       if (conversationError instanceof Error) {
@@ -1313,7 +1340,7 @@ export async function callAgentInternal(
         wrappedError.cause = conversationError;
         throw wrappedError;
       }
-      
+
       // Re-throw with context for non-Error values
       throw new Error(
         `Failed to create conversation for target agent: ${errorMessage}`

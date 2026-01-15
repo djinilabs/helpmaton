@@ -34,21 +34,42 @@ export function fromMillionths(millionths: number): number {
 /**
  * Format millionths as a readable currency string for transaction descriptions
  * Currently only supports USD currency symbol
+ * No rounding is applied - displays exact amount by formatting directly from integer
  * 
  * @param millionths - Amount in millionths (e.g., 1_500_000)
- * @param decimals - Number of decimal places to show (default: 10)
+ * @param maxDecimals - Maximum number of decimal places to show (default: 10)
  * @returns Formatted currency string (e.g., "$1.50" or "$0.000123")
  */
 export function formatCurrencyMillionths(
   millionths: number,
-  decimals: number = 10
+  maxDecimals: number = 10
 ): string {
-  const amount = fromMillionths(millionths);
-  // Round to nearest for accurate display
-  const multiplier = Math.pow(10, decimals);
-  const roundedAmount = Math.round(amount * multiplier) / multiplier;
-  // Format with specified decimals, then remove trailing zeros and optional decimal point
-  const formatted = roundedAmount.toFixed(decimals).replace(/\.?0+$/, "");
-  return `$${formatted}`;
+  // Handle sign
+  const sign = millionths < 0 ? "-" : "";
+  const absMillionths = Math.abs(millionths);
+  
+  // Split into integer and fractional parts using integer division
+  // millionths / 1_000_000 gives the dollar amount
+  // We'll format it by working with the integer directly
+  const integerPart = Math.floor(absMillionths / 1_000_000);
+  const fractionalMillionths = absMillionths % 1_000_000;
+  
+  // Convert fractional part to a string with up to 6 digits (millionths precision)
+  // Pad with zeros to 6 digits, then we can show up to maxDecimals
+  const fractionalStr = fractionalMillionths.toString().padStart(6, "0");
+  
+  // Take up to maxDecimals digits from the fractional part
+  // If maxDecimals > 6, pad with zeros (though millionths only has 6 decimal precision)
+  const fractionalDisplay = fractionalStr.slice(0, Math.min(maxDecimals, 6));
+  
+  // Remove trailing zeros
+  const trimmedFractional = fractionalDisplay.replace(/0+$/, "");
+  
+  // Format: add decimal point only if there's a fractional part
+  const formatted = trimmedFractional
+    ? `${integerPart}.${trimmedFractional}`
+    : integerPart.toString();
+  
+  return `${sign}$${formatted}`;
 }
 

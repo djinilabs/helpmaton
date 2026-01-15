@@ -1,5 +1,6 @@
 import type { FC } from "react";
 
+import type { UsageStats as UsageStatsType, DailyUsageData } from "../utils/api";
 import {
   type DateRangePreset,
   getDateRangeLabel,
@@ -10,47 +11,8 @@ import { UsageChart } from "./UsageChart";
 import { UsageStats } from "./UsageStats";
 
 interface UsageDashboardProps {
-  stats: {
-    inputTokens: number;
-    outputTokens: number;
-    totalTokens: number;
-    cost: number;
-    byModel: Array<{
-      model: string;
-      inputTokens: number;
-      outputTokens: number;
-      totalTokens: number;
-      cost: number;
-    }>;
-    byProvider: Array<{
-      provider: string;
-      inputTokens: number;
-      outputTokens: number;
-      totalTokens: number;
-      cost: number;
-    }>;
-    byByok: {
-      byok: {
-        inputTokens: number;
-        outputTokens: number;
-        totalTokens: number;
-        cost: number;
-      };
-      platform: {
-        inputTokens: number;
-        outputTokens: number;
-        totalTokens: number;
-        cost: number;
-      };
-    };
-  };
-  dailyData?: Array<{
-    date: string;
-    inputTokens: number;
-    outputTokens: number;
-    totalTokens: number;
-    cost: number;
-  }>;
+  stats: UsageStatsType;
+  dailyData?: DailyUsageData[];
   title?: string;
   dateRange?: DateRange;
   dateRangePreset?: DateRangePreset;
@@ -111,7 +73,7 @@ export const UsageDashboard: FC<UsageDashboardProps> = ({
 
       {showBorder && (
         <p className="mb-6 text-base leading-relaxed text-neutral-600 dark:text-neutral-300">
-          Track token usage and costs over time. Statistics show input tokens (what you send), output tokens (what the AI generates), total tokens, and the associated cost. Use the date range selector to view different time periods.
+          Track token usage, costs, conversations, and tool usage over time. Statistics show input tokens (what you send), output tokens (what the AI generates), total tokens, costs, conversation counts, and tool call statistics. Use the date range selector to view different time periods.
         </p>
       )}
       {dateRange && (
@@ -128,7 +90,7 @@ export const UsageDashboard: FC<UsageDashboardProps> = ({
         {dailyData && dailyData.length > 0 && (
           <UsageChart
             data={dailyData}
-            title="Daily Spending"
+            title="Daily Usage"
           />
         )}
       </div>

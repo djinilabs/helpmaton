@@ -21,7 +21,7 @@ export const Header: FC = () => {
                 className="relative z-10 size-11 transition-transform duration-200 group-hover:scale-105"
               />
             </div>
-            <span className="text-2xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
+            <span className="bg-gradient-to-r from-primary-700 to-accent-700 bg-clip-text text-2xl font-black tracking-tight text-transparent">
               Helpmaton
             </span>
           </Link>

@@ -1342,9 +1342,9 @@
         },
         "qwen/qwen3-8b": {
           "usd": {
-            "input": 0.035,
-            "output": 0.13799999999999998,
-            "cachedInput": 0.0035000000000000005
+            "input": 0.049999999999999996,
+            "output": 0.25,
+            "cachedInput": 0.005
           }
         },
         "qwen/qwen3-14b": {
@@ -1568,16 +1568,14 @@
           "usd": {
             "input": 0.15,
             "output": 0.6,
-            "cachedInput": 0.015,
-            "request": 0.0275
+            "cachedInput": 0.015
           }
         },
         "openai/gpt-4o-search-preview": {
           "usd": {
             "input": 2.5,
             "output": 10,
-            "cachedInput": 0.25,
-            "request": 0.035
+            "cachedInput": 0.25
           }
         },
         "google/gemma-3-27b-it:free": {
@@ -2568,6 +2566,13 @@
             "output": 0,
             "request": 0.0002
           }
+        },
+        "openai/gpt-5.2-codex": {
+          "usd": {
+            "input": 1.75,
+            "output": 14,
+            "cachedInput": 0.17500000000000002
+          }
         }
       }
     }
@@ -2584,5 +2589,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-13T00:13:05.397Z"
+  "lastUpdated": "2026-01-15T00:15:20.311Z"
 }

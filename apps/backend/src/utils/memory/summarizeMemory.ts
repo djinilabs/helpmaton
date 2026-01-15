@@ -76,9 +76,9 @@ export async function summarizeWithLLM(
   const systemPrompt = getSummarizationPrompt(summaryType);
 
   // Create model (will use workspace API key if available, otherwise system key)
-  // Use DEFAULT_REFERER env var or fallback to webhook endpoint (referer is just a header for Google API)
+  // Use DEFAULT_REFERER env var or fallback to webhook endpoint
   const model = await createModel(
-    "google",
+    "openrouter",
     undefined, // Use default model
     workspaceId,
     process.env.DEFAULT_REFERER || "http://localhost:3000/api/webhook"

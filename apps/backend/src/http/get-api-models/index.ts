@@ -42,8 +42,8 @@ export const handler = adaptHttpHandler(
       const allModels = Object.keys(providerPricing.models).sort();
 
       if (allModels.length > 0) {
-        // Use shared utility function to get default model
-        const defaultModel = getDefaultModel(provider);
+        // Use shared utility function to get default model (OpenRouter only)
+        const defaultModel = getDefaultModel();
 
         availableModels[provider] = {
           models: allModels,
