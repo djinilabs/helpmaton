@@ -512,7 +512,7 @@ export const tableSchemas = {
     judgeId: z.string(), // unique judge ID (UUID)
     name: z.string(), // user-friendly name for the judge
     enabled: z.boolean().default(true), // whether this judge is enabled
-    provider: z.enum(["google", "openai", "anthropic", "openrouter"]).default("openrouter"), // LLM provider for the judge
+    provider: z.enum(["openrouter"]).default("openrouter"), // LLM provider for the judge (only openrouter is supported)
     modelName: z.string(), // model name for the judge (e.g., "gpt-4o")
     evalPrompt: z.string(), // the evaluation prompt template
     version: z.number().default(1),

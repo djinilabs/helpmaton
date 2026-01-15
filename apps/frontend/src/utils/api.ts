@@ -2341,7 +2341,7 @@ export interface EvalJudge {
   id: string;
   name: string;
   enabled: boolean;
-  provider: "google" | "openai" | "anthropic" | "openrouter";
+  provider: "openrouter"; // Only openrouter is supported for eval judges
   modelName: string;
   evalPrompt: string;
   createdAt: string;
@@ -2351,7 +2351,7 @@ export interface EvalJudge {
 export interface CreateEvalJudgeInput {
   name: string;
   enabled?: boolean;
-  provider?: "google" | "openai" | "anthropic" | "openrouter";
+  provider?: "openrouter"; // Only openrouter is supported for eval judges
   modelName: string;
   evalPrompt: string;
 }
@@ -2359,7 +2359,7 @@ export interface CreateEvalJudgeInput {
 export interface UpdateEvalJudgeInput {
   name?: string;
   enabled?: boolean;
-  provider?: "google" | "openai" | "anthropic" | "openrouter";
+  provider?: "openrouter"; // Only openrouter is supported for eval judges
   modelName?: string;
   evalPrompt?: string;
 }

@@ -2003,7 +2003,8 @@ export async function startConversation(
     });
   }
 
-  // Enqueue evaluations for enabled judges if conversation has a final assistant response (non-blocking)
+  // Enqueue evaluations for enabled judges if conversation has a final assistant response
+  // Must await to ensure SQS messages are published before Lambda terminates (workspace rule #8)
   const hasFinalResponse = data.messages.some(
     (msg) =>
       msg.role === "assistant" &&
@@ -2015,18 +2016,11 @@ export async function startConversation(
   if (hasFinalResponse) {
     try {
       const { enqueueEvaluations } = await import("./evalEnqueue");
-      // Don't await - let it run asynchronously
-      enqueueEvaluations(data.workspaceId, data.agentId, conversationId).catch((error) => {
-        console.error("[Conversation Logger] Failed to enqueue evaluations:", {
-          error: error instanceof Error ? error.message : String(error),
-          workspaceId: data.workspaceId,
-          agentId: data.agentId,
-          conversationId,
-        });
-      });
+      // Must await to ensure SQS messages are published before Lambda terminates
+      await enqueueEvaluations(data.workspaceId, data.agentId, conversationId);
     } catch (error) {
       // Log error but don't throw - evaluation enqueueing should not block conversation logging
-      console.error("[Conversation Logger] Error importing evalEnqueue:", {
+      console.error("[Conversation Logger] Failed to enqueue evaluations:", {
         error: error instanceof Error ? error.message : String(error),
         workspaceId: data.workspaceId,
         agentId: data.agentId,
@@ -2534,8 +2528,9 @@ export async function updateConversation(
     );
   }
 
-  // Enqueue evaluations for enabled judges (non-blocking)
+  // Enqueue evaluations for enabled judges
   // Only trigger if conversation has a final assistant response
+  // Must await to ensure SQS messages are published before Lambda terminates (workspace rule #8)
   const hasFinalResponse = newMessages.some(
     (msg) =>
       msg.role === "assistant" &&
@@ -2554,18 +2549,11 @@ export async function updateConversation(
   if (hasFinalResponse) {
     try {
       const { enqueueEvaluations } = await import("./evalEnqueue");
-      // Don't await - let it run asynchronously
-      enqueueEvaluations(workspaceId, agentId, conversationId).catch((error) => {
-        console.error("[Conversation Logger] Failed to enqueue evaluations:", {
-          error: error instanceof Error ? error.message : String(error),
-          workspaceId,
-          agentId,
-          conversationId,
-        });
-      });
+      // Must await to ensure SQS messages are published before Lambda terminates
+      await enqueueEvaluations(workspaceId, agentId, conversationId);
     } catch (error) {
       // Log error but don't throw - evaluation enqueueing should not block conversation logging
-      console.error("[Conversation Logger] Error importing evalEnqueue:", {
+      console.error("[Conversation Logger] Failed to enqueue evaluations:", {
         error: error instanceof Error ? error.message : String(error),
         workspaceId,
         agentId,

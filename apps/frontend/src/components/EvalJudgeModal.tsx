@@ -35,9 +35,7 @@ export const EvalJudgeModal: FC<EvalJudgeModalProps> = ({
 
   const [name, setName] = useState("");
   const [enabled, setEnabled] = useState(true);
-  const [provider, setProvider] = useState<
-    "google" | "openai" | "anthropic" | "openrouter"
-  >("openrouter");
+  const [provider] = useState<"openrouter">("openrouter"); // Only openrouter is supported
   const [modelName, setModelName] = useState("");
   const [evalPrompt, setEvalPrompt] = useState("");
 
@@ -47,13 +45,12 @@ export const EvalJudgeModal: FC<EvalJudgeModalProps> = ({
       if (judge) {
         setName(judge.name);
         setEnabled(judge.enabled);
-        setProvider(judge.provider);
+        // Provider is always "openrouter" - no need to set it
         setModelName(judge.modelName);
         setEvalPrompt(judge.evalPrompt);
       } else {
         setName("");
         setEnabled(true);
-        setProvider("openrouter");
         setModelName("");
         setEvalPrompt("");
       }
@@ -64,7 +61,6 @@ export const EvalJudgeModal: FC<EvalJudgeModalProps> = ({
   const handleClose = () => {
     setName("");
     setEnabled(true);
-    setProvider("openrouter");
     setModelName("");
     setEvalPrompt("");
     onClose();
@@ -157,28 +153,18 @@ export const EvalJudgeModal: FC<EvalJudgeModalProps> = ({
               htmlFor="provider"
               className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
             >
-              Provider *
+              Provider
             </label>
-            <select
+            <input
               id="provider"
-              value={provider}
-              onChange={(e) =>
-                setProvider(
-                  e.target.value as
-                    | "google"
-                    | "openai"
-                    | "anthropic"
-                    | "openrouter"
-                )
-              }
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-              required
-            >
-              <option value="google">Google</option>
-              <option value="openai">OpenAI</option>
-              <option value="anthropic">Anthropic</option>
-              <option value="openrouter">OpenRouter</option>
-            </select>
+              type="text"
+              value="OpenRouter"
+              disabled
+              className="w-full rounded-xl border border-neutral-300 bg-neutral-100 px-4 py-2.5 text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
+            />
+            <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+              Only OpenRouter is supported for evaluation judges.
+            </p>
           </div>
 
           <div>
