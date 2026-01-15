@@ -84,6 +84,9 @@ jobs:
             echo "✅ Commit verified - testing commit ${CURRENT_COMMIT} from workflow_dispatch"
           fi
 
+      - name: Enable pnpm corepack
+        run: corepack enable
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -107,7 +110,6 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
