@@ -35,7 +35,7 @@ describe("evalEnqueue", () => {
 
   it("should enqueue evaluation tasks for all enabled judges", async () => {
     const mockQuery = vi.fn().mockResolvedValue({
-      Items: [
+      items: [
         {
           judgeId: "judge-1",
           name: "Judge 1",
@@ -47,6 +47,7 @@ describe("evalEnqueue", () => {
           enabled: true,
         },
       ],
+      areAnyUnpublished: false,
     });
 
     const mockDb = {
@@ -83,15 +84,16 @@ describe("evalEnqueue", () => {
 
   it("should only query enabled judges (filtered by query)", async () => {
     const mockQuery = vi.fn().mockResolvedValue({
-      Items: [
+      items: [
         {
           judgeId: "judge-1",
           name: "Judge 1",
           enabled: true,
         },
         // Note: Disabled judges are filtered out by the query FilterExpression
-        // So they won't appear in Items
+        // So they won't appear in items
       ],
+      areAnyUnpublished: false,
     });
 
     const mockDb = {
@@ -123,7 +125,8 @@ describe("evalEnqueue", () => {
 
   it("should return early if no enabled judges found", async () => {
     const mockQuery = vi.fn().mockResolvedValue({
-      Items: [],
+      items: [],
+      areAnyUnpublished: false,
     });
 
     const mockDb = {
@@ -141,7 +144,7 @@ describe("evalEnqueue", () => {
 
   it("should continue enqueueing other judges if one fails", async () => {
     const mockQuery = vi.fn().mockResolvedValue({
-      Items: [
+      items: [
         {
           judgeId: "judge-1",
           name: "Judge 1",
@@ -158,6 +161,7 @@ describe("evalEnqueue", () => {
           enabled: true,
         },
       ],
+      areAnyUnpublished: false,
     });
 
     const mockDb = {

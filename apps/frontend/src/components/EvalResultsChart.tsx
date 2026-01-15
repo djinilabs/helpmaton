@@ -133,26 +133,16 @@ export const EvalResultsChart: FC<EvalResultsChartProps> = ({
     );
   }
 
-  if (chartData.length === 0) {
-    return (
-      <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
-        <h3 className="mb-6 text-xl font-semibold text-neutral-900 dark:text-neutral-50">
-          Evaluation Progress
-        </h3>
-        <p className="text-lg text-neutral-600 dark:text-neutral-300">
-          No evaluation data available for the selected time period.
-        </p>
-      </div>
-    );
-  }
-
+  // Calculate chart dimensions (use defaults if no data)
   const chartHeight = 300;
   const yAxisLabelWidth = 60;
   const rightPadding = 20;
   const topPadding = 20;
   const bottomPadding = 60;
   const minChartWidth = 600;
-  const spacePerDay = Math.max(30, (containerWidth - yAxisLabelWidth - rightPadding) / chartData.length);
+  const spacePerDay = chartData.length > 0
+    ? Math.max(30, (containerWidth - yAxisLabelWidth - rightPadding) / chartData.length)
+    : 30;
   const calculatedChartWidth = chartData.length * spacePerDay;
   const availableWidth =
     containerWidth > 0
@@ -251,12 +241,19 @@ export const EvalResultsChart: FC<EvalResultsChartProps> = ({
         </div>
       </div>
 
-      <div className="relative">
-        <svg
-          width={chartWidth + yAxisLabelWidth + rightPadding}
-          height={chartHeight + topPadding + bottomPadding}
-          className="rounded-xl"
-        >
+      {chartData.length === 0 ? (
+        <div className="py-8 text-center">
+          <p className="text-lg text-neutral-600 dark:text-neutral-300">
+            No evaluation data available for the selected time period.
+          </p>
+        </div>
+      ) : (
+        <div className="relative">
+          <svg
+            width={chartWidth + yAxisLabelWidth + rightPadding}
+            height={chartHeight + topPadding + bottomPadding}
+            className="rounded-xl"
+          >
           {/* Grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => (
             <line
@@ -462,47 +459,50 @@ export const EvalResultsChart: FC<EvalResultsChartProps> = ({
             </g>
           )}
         </svg>
-      </div>
+        </div>
+      )}
 
-      {/* Legend */}
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
-        {(selectedScoreType === "all" ||
-          selectedScoreType === "goalCompletion") && (
-          <div className="flex items-center gap-2">
-            <div
-              className="size-3 rounded-full"
-              style={{ backgroundColor: goalCompletionColor }}
-            />
-            <span className="text-sm text-neutral-600 dark:text-neutral-400">
-              Goal Completion
-            </span>
-          </div>
-        )}
-        {(selectedScoreType === "all" ||
-          selectedScoreType === "toolEfficiency") && (
-          <div className="flex items-center gap-2">
-            <div
-              className="size-3 rounded-full"
-              style={{ backgroundColor: toolEfficiencyColor }}
-            />
-            <span className="text-sm text-neutral-600 dark:text-neutral-400">
-              Tool Efficiency
-            </span>
-          </div>
-        )}
-        {(selectedScoreType === "all" ||
-          selectedScoreType === "faithfulness") && (
-          <div className="flex items-center gap-2">
-            <div
-              className="size-3 rounded-full"
-              style={{ backgroundColor: faithfulnessColor }}
-            />
-            <span className="text-sm text-neutral-600 dark:text-neutral-400">
-              Faithfulness
-            </span>
-          </div>
-        )}
-      </div>
+      {/* Legend - only show when there's data */}
+      {chartData.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
+          {(selectedScoreType === "all" ||
+            selectedScoreType === "goalCompletion") && (
+            <div className="flex items-center gap-2">
+              <div
+                className="size-3 rounded-full"
+                style={{ backgroundColor: goalCompletionColor }}
+              />
+              <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                Goal Completion
+              </span>
+            </div>
+          )}
+          {(selectedScoreType === "all" ||
+            selectedScoreType === "toolEfficiency") && (
+            <div className="flex items-center gap-2">
+              <div
+                className="size-3 rounded-full"
+                style={{ backgroundColor: toolEfficiencyColor }}
+              />
+              <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                Tool Efficiency
+              </span>
+            </div>
+          )}
+          {(selectedScoreType === "all" ||
+            selectedScoreType === "faithfulness") && (
+            <div className="flex items-center gap-2">
+              <div
+                className="size-3 rounded-full"
+                style={{ backgroundColor: faithfulnessColor }}
+              />
+              <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                Faithfulness
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

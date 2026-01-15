@@ -109,7 +109,7 @@ export const registerGetAgentConversationEvalResults = (app: express.Application
 
         // Query all eval results for this conversation using GSI
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const results = await (db as any)["agent-eval-result"].query({
+        const queryResult = await (db as any)["agent-eval-result"].query({
           IndexName: "byConversationId",
           KeyConditionExpression: "conversationId = :conversationId",
           ExpressionAttributeValues: {
@@ -117,9 +117,12 @@ export const registerGetAgentConversationEvalResults = (app: express.Application
           },
         });
 
+        // Extract items from query result (query returns { items, areAnyUnpublished })
+        const items = queryResult.items || [];
+
         // Get judge names for each result
         const resultsWithJudges = await Promise.all(
-          results.Items.map(async (result: {
+          items.map(async (result: {
             judgeId: string;
             summary: string;
             scoreGoalCompletion: number;

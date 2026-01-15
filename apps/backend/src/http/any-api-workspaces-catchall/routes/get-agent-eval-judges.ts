@@ -89,7 +89,7 @@ export const registerGetAgentEvalJudges = (app: express.Application) => {
 
         // Query all judges for this agent using GSI
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const judges = await (db as any)["agent-eval-judge"].query({
+        const queryResult = await (db as any)["agent-eval-judge"].query({
           IndexName: "byAgentId",
           KeyConditionExpression: "agentId = :agentId",
           ExpressionAttributeValues: {
@@ -97,7 +97,10 @@ export const registerGetAgentEvalJudges = (app: express.Application) => {
           },
         });
 
-        const judgesList = judges.Items.map((judge: {
+        // Extract items from query result (query returns { items, areAnyUnpublished })
+        const items = queryResult.items || [];
+
+        const judgesList = items.map((judge: {
           judgeId: string;
           name: string;
           enabled: boolean;

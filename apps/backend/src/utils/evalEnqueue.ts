@@ -15,7 +15,7 @@ export async function enqueueEvaluations(
 
   // Query all enabled judges for this agent
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const judges = await (db as any)["agent-eval-judge"].query({
+  const queryResult = await (db as any)["agent-eval-judge"].query({
     IndexName: "byAgentId",
     KeyConditionExpression: "agentId = :agentId",
     FilterExpression: "#enabled = :enabled",
@@ -28,7 +28,10 @@ export async function enqueueEvaluations(
     },
   });
 
-  if (judges.Items.length === 0) {
+  // Extract items from query result (query returns { items, areAnyUnpublished })
+  const judges = queryResult.items || [];
+
+  if (judges.length === 0) {
     console.log("[Eval Enqueue] No enabled judges found for agent:", {
       workspaceId,
       agentId,
@@ -38,7 +41,7 @@ export async function enqueueEvaluations(
   }
 
   // Enqueue evaluation task for each judge
-  const enqueuePromises = judges.Items.map(async (judge: {
+  const enqueuePromises = judges.map(async (judge: {
     judgeId: string;
     name: string;
   }) => {
@@ -80,6 +83,6 @@ export async function enqueueEvaluations(
     workspaceId,
     agentId,
     conversationId,
-    judgeCount: judges.Items.length,
+    judgeCount: judges.length,
   });
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import type { FC } from "react";
 
 import { useDialogTracking } from "../contexts/DialogContext";
@@ -8,6 +8,16 @@ import {
   useUpdateEvalJudge,
   useEvalJudge,
 } from "../hooks/useEvalJudges";
+import {
+  getModelsForProvider,
+  getDefaultModelForProvider,
+} from "../utils/modelConfig";
+
+const ModelPricesDialog = lazy(() =>
+  import("./ModelPricesDialog").then((module) => ({
+    default: module.ModelPricesDialog,
+  }))
+);
 
 interface EvalJudgeModalProps {
   isOpen: boolean;
@@ -35,9 +45,100 @@ export const EvalJudgeModal: FC<EvalJudgeModalProps> = ({
 
   const [name, setName] = useState("");
   const [enabled, setEnabled] = useState(true);
-  const [provider] = useState<"openrouter">("openrouter"); // Only openrouter is supported
-  const [modelName, setModelName] = useState("");
-  const [evalPrompt, setEvalPrompt] = useState("");
+  const provider = "openrouter" as const; // Only openrouter is supported
+  const [modelName, setModelName] = useState<string | null>(null);
+  
+  // Default evaluation prompt template
+  const defaultEvalPrompt = `You are an AI Agent Auditor. Your job is to objectively evaluate the performance of an AI Agent based on its execution trace.
+
+The agent's goal is: {agent_goal}
+
+You will be provided with a JSON object containing:
+1. "input_prompt": The user's original request.
+2. "steps": A chronological list of thoughts, tool calls, and tool results.
+3. "final_response": The final answer given to the user.
+
+### YOUR GOAL
+Analyze the trace and generate a JSON evaluation report. You must assess the agent on three specific metrics:
+
+1. GOAL COMPLETION (0-100)
+   - Did the agent strictly answer the user's request?
+   - Did it ignore any constraints (e.g., "answer in JSON only")?
+   - If the agent encountered an error, did it gracefully handle it or just give up?
+
+2. TOOL EFFICIENCY (0-100)
+   - Did the agent choose the correct tools for the task?
+   - Did the agent get stuck in a loop (repeating the same tool call with the same inputs)?
+   - Did the agent hallucinate tool parameters (inputs that don't make sense)?
+
+3. FAITHFULNESS (0-100)
+   - Is the "final_response" supported by the data found in "tool_result"?
+   - Did the agent make up facts not present in the tool outputs? (Critical failure).
+
+### ANALYSIS RULES
+- If a tool fails (returns error), but the agent recovers and finds another way, do not penalize heavily.
+- If the agent repeats the exact same step 3+ times, Tool Efficiency is 0.
+- If the final answer contains numbers or facts not found in the step history, Faithfulness is 0.
+
+### OUTPUT FORMAT
+You must respond with valid JSON only. Do not include markdown formatting like \`\`\`json. Structure your response as follows:
+{
+  "summary": "A 1-sentence summary of the run.",
+  "score_goal_completion": <int 0-100>,
+  "score_tool_efficiency": <int 0-100>,
+  "score_faithfulness": <int 0-100>,
+  "critical_failure_detected": <boolean>,
+  "reasoning_trace": "Explain your scoring logic here. Cite specific step_ids if relevant."
+}`;
+
+  const [evalPrompt, setEvalPrompt] = useState(defaultEvalPrompt);
+  const [isModelPricesOpen, setIsModelPricesOpen] = useState(false);
+
+  // Model fetching state
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [defaultModel, setDefaultModel] = useState<string>("");
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [modelLoadError, setModelLoadError] = useState<string | null>(null);
+
+  // Fetch models on mount and when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+
+    async function loadModels() {
+      setIsLoadingModels(true);
+      try {
+        const [models, defaultModelName] = await Promise.all([
+          getModelsForProvider(provider),
+          getDefaultModelForProvider(provider),
+        ]);
+        if (!cancelled) {
+          setAvailableModels(models);
+          setDefaultModel(defaultModelName);
+        }
+      } catch (error) {
+        console.error("Failed to load models:", error);
+        if (!cancelled) {
+          setAvailableModels([]);
+          setDefaultModel("");
+          setModelLoadError(
+            "Failed to load available models. Please refresh the page."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingModels(false);
+        }
+      }
+    }
+
+    loadModels();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, provider]);
 
   // Reset form when modal opens/closes or judge changes
   useEffect(() => {
@@ -46,13 +147,13 @@ export const EvalJudgeModal: FC<EvalJudgeModalProps> = ({
         setName(judge.name);
         setEnabled(judge.enabled);
         // Provider is always "openrouter" - no need to set it
-        setModelName(judge.modelName);
+        setModelName(judge.modelName || null);
         setEvalPrompt(judge.evalPrompt);
       } else {
         setName("");
         setEnabled(true);
-        setModelName("");
-        setEvalPrompt("");
+        setModelName(null);
+        setEvalPrompt(defaultEvalPrompt);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -61,8 +162,9 @@ export const EvalJudgeModal: FC<EvalJudgeModalProps> = ({
   const handleClose = () => {
     setName("");
     setEnabled(true);
-    setModelName("");
-    setEvalPrompt("");
+    setModelName(null);
+    setEvalPrompt(defaultEvalPrompt);
+    setIsModelPricesOpen(false);
     onClose();
   };
 
@@ -78,7 +180,8 @@ export const EvalJudgeModal: FC<EvalJudgeModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !modelName.trim() || !evalPrompt.trim()) return;
+    const finalModelName = modelName || defaultModel;
+    if (!name.trim() || !finalModelName || !evalPrompt.trim()) return;
 
     try {
       if (isEditing && judgeId) {
@@ -86,7 +189,7 @@ export const EvalJudgeModal: FC<EvalJudgeModalProps> = ({
           name: name.trim(),
           enabled,
           provider,
-          modelName: modelName.trim(),
+          modelName: finalModelName,
           evalPrompt: evalPrompt.trim(),
         });
       } else {
@@ -94,7 +197,7 @@ export const EvalJudgeModal: FC<EvalJudgeModalProps> = ({
           name: name.trim(),
           enabled,
           provider,
-          modelName: modelName.trim(),
+          modelName: finalModelName,
           evalPrompt: evalPrompt.trim(),
         });
       }
@@ -149,43 +252,58 @@ export const EvalJudgeModal: FC<EvalJudgeModalProps> = ({
           </div>
 
           <div>
-            <label
-              htmlFor="provider"
-              className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-            >
-              Provider
-            </label>
-            <input
-              id="provider"
-              type="text"
-              value="OpenRouter"
-              disabled
-              className="w-full rounded-xl border border-neutral-300 bg-neutral-100 px-4 py-2.5 text-neutral-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-400"
-            />
-            <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-              Only OpenRouter is supported for evaluation judges.
-            </p>
-          </div>
-
-          <div>
-            <label
-              htmlFor="modelName"
-              className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-            >
-              Model Name *
-            </label>
-            <input
+            <div className="mb-2 flex items-center gap-2">
+              <label
+                htmlFor="modelName"
+                className="block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+              >
+                Model Name *
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsModelPricesOpen(true)}
+                className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+              >
+                💰 Model prices
+              </button>
+            </div>
+            <select
               id="modelName"
-              type="text"
-              value={modelName}
-              onChange={(e) => setModelName(e.target.value)}
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-              placeholder="e.g., gpt-4o, claude-3-5-sonnet-20241022"
+              disabled={isLoadingModels}
+              value={isLoadingModels ? "" : modelName || defaultModel}
+              onChange={(e) => {
+                const selectedModel = e.target.value;
+                setModelName(
+                  selectedModel === defaultModel ? null : selectedModel
+                );
+              }}
+              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               required
-            />
-            <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-              The model name to use for evaluation (e.g., gpt-4o, claude-3-5-sonnet-20241022)
-            </p>
+            >
+              {isLoadingModels ? (
+                <option value="">Loading...</option>
+              ) : availableModels.length === 0 ? (
+                <option value="">No models available</option>
+              ) : (
+                availableModels.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))
+              )}
+            </select>
+            {modelLoadError && (
+              <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+                {modelLoadError}
+              </p>
+            )}
+            {!modelLoadError && (
+              <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                {modelName || defaultModel
+                  ? `Selected: ${modelName || defaultModel}`
+                  : "Select a model to use for evaluation"}
+              </p>
+            )}
           </div>
 
           <div>
@@ -233,6 +351,16 @@ export const EvalJudgeModal: FC<EvalJudgeModalProps> = ({
             </button>
           </div>
         </form>
+
+        {/* Model Prices Dialog */}
+        {isModelPricesOpen && (
+          <Suspense fallback={null}>
+            <ModelPricesDialog
+              isOpen={isModelPricesOpen}
+              onClose={() => setIsModelPricesOpen(false)}
+            />
+          </Suspense>
+        )}
       </div>
     </div>
   );

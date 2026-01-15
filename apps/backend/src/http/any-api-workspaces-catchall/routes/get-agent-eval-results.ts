@@ -112,7 +112,7 @@ export const registerGetAgentEvalResults = (app: express.Application) => {
 
         // Query all eval results for this agent using GSI
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const results = await (db as any)["agent-eval-result"].query({
+        const queryResult = await (db as any)["agent-eval-result"].query({
           IndexName: "byAgentId",
           KeyConditionExpression: "agentId = :agentId",
           ExpressionAttributeValues: {
@@ -120,9 +120,12 @@ export const registerGetAgentEvalResults = (app: express.Application) => {
           },
         });
 
+        // Extract items from query result (query returns { items, areAnyUnpublished })
+        let items = queryResult.items || [];
+
         // Filter by judgeId if provided
         if (judgeId) {
-          results.Items = results.Items.filter((r: { judgeId: string }) => r.judgeId === judgeId);
+          items = items.filter((r: { judgeId: string }) => r.judgeId === judgeId);
         }
 
         // Filter by date range if provided
@@ -130,20 +133,20 @@ export const registerGetAgentEvalResults = (app: express.Application) => {
           const start = startDate ? new Date(startDate).getTime() : 0;
           const end = endDate ? new Date(endDate).getTime() : Date.now();
 
-          results.Items = results.Items.filter((r: { evaluatedAt: string }) => {
+          items = items.filter((r: { evaluatedAt: string }) => {
             const evaluatedAt = new Date(r.evaluatedAt).getTime();
             return evaluatedAt >= start && evaluatedAt <= end;
           });
         }
 
         // Calculate aggregates
-        const totalEvaluations = results.Items.length;
+        const totalEvaluations = items.length;
         let sumGoalCompletion = 0;
         let sumToolEfficiency = 0;
         let sumFaithfulness = 0;
         let criticalFailures = 0;
 
-        for (const result of results.Items as Array<{
+        for (const result of items as Array<{
           scoreGoalCompletion: number;
           scoreToolEfficiency: number;
           scoreFaithfulness: number;
@@ -165,7 +168,7 @@ export const registerGetAgentEvalResults = (app: express.Application) => {
 
         // Get judge names for each result
         const resultsWithJudges = await Promise.all(
-          results.Items.map(async (result: {
+          items.map(async (result: {
             conversationId: string;
             judgeId: string;
             summary: string;

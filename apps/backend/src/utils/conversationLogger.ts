@@ -2197,6 +2197,9 @@ export async function updateConversation(
   // Track truly new messages (not duplicates) to send to queue
   // This will be set inside atomicUpdate callback
   let trulyNewMessages: UIMessage[] = [];
+  // Track the final merged messages to check for assistant responses for evaluation triggering
+  // This will be set inside atomicUpdate callback
+  let finalMergedMessages: UIMessage[] = [];
 
   // Use atomicUpdate to ensure thread-safe conversation updates
   await db["agent-conversations"].atomicUpdate(
@@ -2213,6 +2216,7 @@ export async function updateConversation(
           awsRequestId
         );
         trulyNewMessages = expandedMessages;
+        finalMergedMessages = expandedMessages;
 
         // Calculate costs and generation times from per-message model/provider data
         // IMPORTANT: Calculate from 0 based on ALL expanded messages
@@ -2338,6 +2342,8 @@ export async function updateConversation(
         allMessages,
         awsRequestId
       );
+      // Track final merged messages for evaluation triggering
+      finalMergedMessages = expandedAllMessages;
 
       // Aggregate token usage
       const existingTokenUsage = existing.tokenUsage as TokenUsage | undefined;
@@ -2531,7 +2537,9 @@ export async function updateConversation(
   // Enqueue evaluations for enabled judges
   // Only trigger if conversation has a final assistant response
   // Must await to ensure SQS messages are published before Lambda terminates (workspace rule #8)
-  const hasFinalResponse = newMessages.some(
+  // Check the final merged messages (not just newMessages) to ensure we catch assistant responses
+  // that might be in the merged conversation
+  const hasFinalResponse = finalMergedMessages.some(
     (msg) =>
       msg.role === "assistant" &&
       (typeof msg.content === "string" ||
