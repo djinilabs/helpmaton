@@ -76,6 +76,20 @@ import { asyncHandler, requireAuth, requirePermission } from "../middleware";
  *                         type: integer
  *                       cost:
  *                         type: number
+ *                       rerankingCostUsd:
+ *                         type: number
+ *                         description: Reranking costs in USD (millionths)
+ *                       evalCostUsd:
+ *                         type: number
+ *                         description: Eval judge costs in USD (millionths)
+ *                       conversationCount:
+ *                         type: integer
+ *                       messagesIn:
+ *                         type: integer
+ *                       messagesOut:
+ *                         type: integer
+ *                       totalMessages:
+ *                         type: integer
  *       400:
  *         $ref: '#/components/responses/BadRequest'
  *       401:
@@ -128,7 +142,8 @@ export const registerGetWorkspaceUsageDaily = (app: express.Application) => {
           endDate: dayEnd,
         });
 
-        const cost = stats.costUsd;
+        // Total cost includes token costs, tool costs, reranking costs, and eval costs
+        const cost = (stats.costUsd || 0) + (stats.rerankingCostUsd || 0) + (stats.evalCostUsd || 0);
 
         dailyStats.push({
           date: dateStr,
@@ -136,6 +151,8 @@ export const registerGetWorkspaceUsageDaily = (app: express.Application) => {
           outputTokens: stats.outputTokens,
           totalTokens: stats.totalTokens,
           cost,
+          rerankingCostUsd: stats.rerankingCostUsd,
+          evalCostUsd: stats.evalCostUsd,
           conversationCount: stats.conversationCount,
           messagesIn: stats.messagesIn,
           messagesOut: stats.messagesOut,

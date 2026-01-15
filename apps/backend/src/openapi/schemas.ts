@@ -385,6 +385,14 @@ export const openApiSchemas = {
             type: "integer",
             description: "Total cost in specified currency (millionths)",
           },
+          rerankingCostUsd: {
+            type: "integer",
+            description: "Reranking costs in USD (millionths)",
+          },
+          evalCostUsd: {
+            type: "integer",
+            description: "Eval judge costs in USD (millionths)",
+          },
           byModel: {
             type: "array",
             items: {

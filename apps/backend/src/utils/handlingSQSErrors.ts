@@ -14,6 +14,18 @@ import {
 } from "./workspaceCreditContext";
 
 /**
+ * Extract queue name from SQS event source ARN
+ * ARN format: arn:aws:sqs:region:account:queue-name
+ */
+function extractQueueName(eventSourceARN: string | undefined): string {
+  if (!eventSourceARN) {
+    return "unknown";
+  }
+  const parts = eventSourceARN.split(":");
+  return parts[parts.length - 1] || "unknown";
+}
+
+/**
  * Wrapper for SQS Lambda functions with support for partial batch failures
  * Handles errors uniformly and reports server errors to Sentry
  *
@@ -36,6 +48,7 @@ export const handlingSQSErrors = (
       // Process each record separately with its own context
       for (const record of event.Records) {
         const messageId = record.messageId || "unknown";
+        const queueName = extractQueueName(record.eventSourceARN);
 
         // Create a new context for this record
         const recordContext = {
@@ -77,8 +90,14 @@ export const handlingSQSErrors = (
             } catch (commitError: unknown) {
               // Commit failures cause handler to fail (per user requirement)
               console.error(
-                `[SQS Handler] Failed to commit credit transactions for message ${messageId}:`,
-                commitError
+                `[SQS Handler] Failed to commit credit transactions for message ${messageId} in queue ${queueName}:`,
+                {
+                  error: commitError instanceof Error ? commitError.message : String(commitError),
+                  stack: commitError instanceof Error ? commitError.stack : undefined,
+                  queueName,
+                  messageId,
+                  messageBody: record.body,
+                }
               );
               // Mark this message as failed due to commit error
               failedMessageIds.push(messageId);
@@ -94,13 +113,16 @@ export const handlingSQSErrors = (
         } catch (error) {
           failedMessageIds.push(messageId);
 
-          // Log error for this specific record
+          // Log error for this specific record with queue name and message body
           const boomed = boomify(ensureError(error));
           console.error(
-            `[SQS Handler] Error processing message ${messageId}:`,
+            `[SQS Handler] Error processing message ${messageId} in queue ${queueName}:`,
             {
               error: error instanceof Error ? error.message : String(error),
               stack: error instanceof Error ? error.stack : undefined,
+              queueName,
+              messageId,
+              messageBody: record.body,
               boom: {
                 statusCode: boomed.output.statusCode,
                 message: boomed.message,
@@ -116,12 +138,15 @@ export const handlingSQSErrors = (
                 handler: "SQSFunction",
                 statusCode: boomed.output.statusCode,
                 messageId,
+                queueName,
               },
               contexts: {
                 event: {
                   messageId,
+                  queueName,
                   eventSource: record.eventSource,
                   awsRegion: record.awsRegion,
+                  messageBody: record.body,
                 },
               },
             });
@@ -137,9 +162,23 @@ export const handlingSQSErrors = (
 
       // Return batch response with failed message IDs
       if (failedMessageIds.length > 0) {
+        const failedRecords = event.Records.filter((r) =>
+          failedMessageIds.includes(r.messageId || "unknown")
+        );
+        const failedQueueNames = failedRecords.map((r) =>
+          extractQueueName(r.eventSourceARN)
+        );
         console.warn(
           `[SQS Handler] ${failedMessageIds.length} message(s) failed out of ${event.Records.length}:`,
-          failedMessageIds
+          {
+            failedMessageIds,
+            queueNames: failedQueueNames,
+            failedMessages: failedRecords.map((r) => ({
+              messageId: r.messageId,
+              queueName: extractQueueName(r.eventSourceARN),
+              messageBody: r.body,
+            })),
+          }
         );
         return {
           batchItemFailures: failedMessageIds.map((id) => ({
@@ -159,7 +198,11 @@ export const handlingSQSErrors = (
       // Unexpected error - treat all messages as failed
       const boomed = boomify(ensureError(error));
 
-      // Always log the full error details
+      // Extract queue names from all records
+      const queueNames = event.Records.map((r) => extractQueueName(r.eventSourceARN));
+      const uniqueQueueNames = [...new Set(queueNames)];
+
+      // Always log the full error details with queue names and message bodies
       console.error("SQS function error:", {
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
@@ -171,6 +214,12 @@ export const handlingSQSErrors = (
         event: {
           recordCount: event.Records.length,
           messageIds: event.Records.map((r) => r.messageId),
+          queueNames: uniqueQueueNames,
+          messages: event.Records.map((r) => ({
+            messageId: r.messageId,
+            queueName: extractQueueName(r.eventSourceARN),
+            messageBody: r.body,
+          })),
         },
       });
 
@@ -182,13 +231,20 @@ export const handlingSQSErrors = (
           handler: "SQSFunction",
           statusCode: boomed.output.statusCode,
           recordCount: event.Records.length,
+          queueNames: uniqueQueueNames.join(","),
         },
         contexts: {
           event: {
             recordCount: event.Records.length,
             messageIds: event.Records.map((r) => r.messageId),
+            queueNames: uniqueQueueNames,
             eventSource: event.Records[0]?.eventSource,
             awsRegion: event.Records[0]?.awsRegion,
+            messages: event.Records.map((r) => ({
+              messageId: r.messageId,
+              queueName: extractQueueName(r.eventSourceARN),
+              messageBody: r.body,
+            })),
           },
         },
       });

@@ -77,6 +77,12 @@ import { requireSession, userRef } from "../utils/session";
  *                         type: integer
  *                       cost:
  *                         type: number
+ *                       rerankingCostUsd:
+ *                         type: number
+ *                         description: Reranking costs in USD (millionths)
+ *                       evalCostUsd:
+ *                         type: number
+ *                         description: Eval judge costs in USD (millionths)
  *                       conversationCount:
  *                         type: integer
  *                       messagesIn:
@@ -174,7 +180,8 @@ export const handler = adaptHttpHandler(
           // Merge stats from all workspaces
           const mergedStats = mergeUsageStats(...allStats);
 
-          const cost = mergedStats.costUsd;
+          // Total cost includes token costs, tool costs, reranking costs, and eval costs
+          const cost = (mergedStats.costUsd || 0) + (mergedStats.rerankingCostUsd || 0) + (mergedStats.evalCostUsd || 0);
 
           dailyStats.push({
             date: dateStr,
@@ -182,6 +189,8 @@ export const handler = adaptHttpHandler(
             outputTokens: mergedStats.outputTokens,
             totalTokens: mergedStats.totalTokens,
             cost,
+            rerankingCostUsd: mergedStats.rerankingCostUsd,
+            evalCostUsd: mergedStats.evalCostUsd,
             conversationCount: mergedStats.conversationCount,
             messagesIn: mergedStats.messagesIn,
             messagesOut: mergedStats.messagesOut,

@@ -159,6 +159,9 @@ export const registerGetAgentUsage = (app: express.Application) => {
         });
       }
 
+      // Total cost includes token costs, tool costs, reranking costs, and eval costs
+      const totalCost = (stats.costUsd || 0) + (stats.rerankingCostUsd || 0) + (stats.evalCostUsd || 0);
+
       res.json({
         workspaceId,
         agentId,
@@ -169,7 +172,9 @@ export const registerGetAgentUsage = (app: express.Application) => {
           inputTokens: stats.inputTokens,
           outputTokens: stats.outputTokens,
           totalTokens: stats.totalTokens,
-          cost: stats.costUsd,
+          cost: totalCost,
+          rerankingCostUsd: stats.rerankingCostUsd,
+          evalCostUsd: stats.evalCostUsd,
           conversationCount: stats.conversationCount,
           messagesIn: stats.messagesIn,
           messagesOut: stats.messagesOut,

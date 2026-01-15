@@ -20,6 +20,7 @@ import {
   BeakerIcon,
   WrenchScrewdriverIcon,
   ArrowTopRightOnSquareIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import {
   useQueryErrorResetBoundary,
@@ -74,6 +75,21 @@ const AgentMemoryRecords = lazy(() =>
 const TransactionTable = lazy(() =>
   import("../components/TransactionTable").then((module) => ({
     default: module.TransactionTable,
+  }))
+);
+const EvalJudgeList = lazy(() =>
+  import("../components/EvalJudgeList").then((module) => ({
+    default: module.EvalJudgeList,
+  }))
+);
+const EvalResultsChart = lazy(() =>
+  import("../components/EvalResultsChart").then((module) => ({
+    default: module.EvalResultsChart,
+  }))
+);
+const EvalResultsList = lazy(() =>
+  import("../components/EvalResultsList").then((module) => ({
+    default: module.EvalResultsList,
   }))
 );
 const IntegrationCard = lazy(() =>
@@ -1714,6 +1730,73 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             </LazyAccordionContent>
           </AccordionSection>
 
+          {/* Evaluations Section */}
+          <AccordionSection
+            id="evaluations"
+            title={
+              <>
+                <BeakerIcon className="mr-2 inline-block size-5" />
+                EVALUATIONS
+              </>
+            }
+            isExpanded={expandedSection === "evaluations"}
+            onToggle={() => toggleSection("evaluations")}
+          >
+            <LazyAccordionContent
+              isExpanded={expandedSection === "evaluations"}
+            >
+              <QueryPanel
+                fallback={
+                  <LoadingScreen compact message="Loading evaluations..." />
+                }
+              >
+                <EvaluationsRefreshButton
+                  workspaceId={workspaceId}
+                  agentId={agentId}
+                />
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                      Evaluation Judges
+                    </h3>
+                    <EvalJudgeList
+                      workspaceId={workspaceId}
+                      agentId={agentId}
+                      canEdit={canEdit}
+                    />
+                  </div>
+                  <div>
+                    <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                      Evaluation Progress
+                    </h3>
+                    <EvalResultsChart
+                      workspaceId={workspaceId}
+                      agentId={agentId}
+                    />
+                  </div>
+                  <div>
+                    <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                      Evaluation Results
+                    </h3>
+                    <EvalResultsList
+                      workspaceId={workspaceId}
+                      agentId={agentId}
+                    />
+                  </div>
+                </div>
+              </QueryPanel>
+            </LazyAccordionContent>
+          </AccordionSection>
+        </SectionGroup>
+
+        <SectionGroup
+          title={
+            <>
+              <LightBulbIcon className="mr-2 inline-block size-5" />
+              Memory
+            </>
+          }
+        >
           {/* Memory Records Section */}
           <AccordionSection
             id="memory"
@@ -1730,6 +1813,71 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <AgentMemoryRecords workspaceId={workspaceId} agentId={agentId} />
             </LazyAccordionContent>
           </AccordionSection>
+
+          {/* Memory Search Tool Section */}
+          {canEdit && (
+            <AccordionSection
+              id="memory-search"
+              title={
+                <>
+                  <MagnifyingGlassIcon className="mr-2 inline-block size-5" />
+                  MEMORY SEARCH TOOL
+                </>
+              }
+              isExpanded={expandedSection === "memory-search"}
+              onToggle={() => toggleSection("memory-search")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "memory-search"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Enable the memory search tool to allow this agent to search
+                    its factual memory across different time periods and recall
+                    past conversations.
+                  </p>
+                  <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
+                    <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-yellow-900">
+                      <ExclamationTriangleIcon className="size-4" />
+                      Privacy Warning
+                    </p>
+                    <p className="text-sm text-yellow-900">
+                      Activating the memory search tool may result in data
+                      leakage between users. The agent will be able to search
+                      and recall information from all conversations, which could
+                      expose sensitive information across different user
+                      sessions. Only enable this if you understand the privacy
+                      implications.
+                    </p>
+                  </div>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={enableMemorySearch}
+                      onChange={(e) => setEnableMemorySearch(e.target.checked)}
+                      className="mt-1 rounded border-2 border-neutral-300"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">Enable Memory Search</div>
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                        Allow this agent to use the search_memory tool to recall
+                        past conversations and information
+                      </div>
+                    </div>
+                  </label>
+                  <button
+                    onClick={handleSaveMemorySearch}
+                    disabled={updateAgent.isPending}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Memory Search Setting"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
         </SectionGroup>
 
         <SectionGroup
@@ -2047,71 +2195,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     {updateAgent.isPending
                       ? "Saving..."
                       : "Save Document Search Setting"}
-                  </button>
-                </div>
-              </LazyAccordionContent>
-            </AccordionSection>
-          )}
-
-          {/* Memory Search Tool Section */}
-          {canEdit && (
-            <AccordionSection
-              id="memory-search"
-              title={
-                <>
-                  <MagnifyingGlassIcon className="mr-2 inline-block size-5" />
-                  MEMORY SEARCH TOOL
-                </>
-              }
-              isExpanded={expandedSection === "memory-search"}
-              onToggle={() => toggleSection("memory-search")}
-            >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "memory-search"}
-              >
-                <div className="space-y-4">
-                  <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable the memory search tool to allow this agent to search
-                    its factual memory across different time periods and recall
-                    past conversations.
-                  </p>
-                  <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
-                    <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-yellow-900">
-                      <ExclamationTriangleIcon className="size-4" />
-                      Privacy Warning
-                    </p>
-                    <p className="text-sm text-yellow-900">
-                      Activating the memory search tool may result in data
-                      leakage between users. The agent will be able to search
-                      and recall information from all conversations, which could
-                      expose sensitive information across different user
-                      sessions. Only enable this if you understand the privacy
-                      implications.
-                    </p>
-                  </div>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-                    <input
-                      type="checkbox"
-                      checked={enableMemorySearch}
-                      onChange={(e) => setEnableMemorySearch(e.target.checked)}
-                      className="mt-1 rounded border-2 border-neutral-300"
-                    />
-                    <div className="flex-1">
-                      <div className="font-bold">Enable Memory Search</div>
-                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                        Allow this agent to use the search_memory tool to recall
-                        past conversations and information
-                      </div>
-                    </div>
-                  </label>
-                  <button
-                    onClick={handleSaveMemorySearch}
-                    disabled={updateAgent.isPending}
-                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {updateAgent.isPending
-                      ? "Saving..."
-                      : "Save Memory Search Setting"}
                   </button>
                 </div>
               </LazyAccordionContent>
@@ -4346,6 +4429,60 @@ const KeyItem: FC<KeyItemProps> = ({
           </button>
         )}
       </div>
+    </div>
+  );
+};
+
+// Refresh button component for evaluations section
+const EvaluationsRefreshButton: FC<{
+  workspaceId: string;
+  agentId: string;
+}> = ({ workspaceId, agentId }) => {
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // Invalidate all evaluation-related queries
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: [
+            "workspaces",
+            workspaceId,
+            "agents",
+            agentId,
+            "eval-judges",
+          ],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: [
+            "workspaces",
+            workspaceId,
+            "agents",
+            agentId,
+            "eval-results",
+          ],
+        }),
+      ]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  return (
+    <div className="mb-4 flex items-center justify-end">
+      <button
+        onClick={handleRefresh}
+        disabled={isRefreshing}
+        className="flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+        title="Refresh all evaluation data"
+      >
+        <ArrowPathIcon
+          className={`size-4 ${isRefreshing ? "animate-spin" : ""}`}
+        />
+        {isRefreshing ? "Refreshing..." : "Refresh"}
+      </button>
     </div>
   );
 };

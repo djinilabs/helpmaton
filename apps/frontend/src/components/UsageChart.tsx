@@ -5,7 +5,7 @@ import { useTheme } from "../hooks/useTheme";
 import type { DailyUsageData } from "../utils/api";
 import { formatCurrency } from "../utils/currency";
 
-type ChartMetric = "cost" | "conversations" | "messagesIn" | "messagesOut" | "totalMessages";
+type ChartMetric = "cost" | "rerankingCost" | "evalCost" | "conversations" | "messagesIn" | "messagesOut" | "totalMessages";
 
 interface UsageChartProps {
   data: DailyUsageData[];
@@ -62,6 +62,10 @@ export const UsageChart: FC<UsageChartProps> = ({
     switch (selectedMetric) {
       case "cost":
         return Math.max(...data.map((d: DailyUsageData) => d.cost), 0);
+      case "rerankingCost":
+        return Math.max(...data.map((d: DailyUsageData) => d.rerankingCostUsd || 0), 0);
+      case "evalCost":
+        return Math.max(...data.map((d: DailyUsageData) => d.evalCostUsd || 0), 0);
       case "conversations":
         return Math.max(...data.map((d: DailyUsageData) => d.conversationCount || 0), 0);
       case "messagesIn":
@@ -102,7 +106,7 @@ export const UsageChart: FC<UsageChartProps> = ({
   const axisLabelColor = isDark ? "#d1d5db" : "#000";
 
   const formatValue = (value: number): string => {
-    if (selectedMetric === "cost") {
+    if (selectedMetric === "cost" || selectedMetric === "rerankingCost" || selectedMetric === "evalCost") {
       return formatCurrency(value, currency, 10);
     }
     return new Intl.NumberFormat("en-US").format(value);
@@ -110,11 +114,11 @@ export const UsageChart: FC<UsageChartProps> = ({
 
   // Format Y-axis labels with consistent precision
   const formatYAxisValue = (value: number): string => {
-    if (selectedMetric === "cost") {
-      // Cost values are in billionths, convert to currency units
-      const amountInUSD = value / 1_000_000_000;
+    if (selectedMetric === "cost" || selectedMetric === "rerankingCost" || selectedMetric === "evalCost") {
+      // Cost values are in millionths, convert to currency units
+      const amountInUSD = value / 1_000_000;
       // Determine appropriate decimal precision based on maxValue in USD
-      const maxValueInUSD = maxValue / 1_000_000_000;
+      const maxValueInUSD = maxValue / 1_000_000;
       let decimals = 2;
       if (maxValueInUSD < 0.01) {
         decimals = 6;
@@ -135,6 +139,10 @@ export const UsageChart: FC<UsageChartProps> = ({
     switch (selectedMetric) {
       case "cost":
         return day.cost;
+      case "rerankingCost":
+        return day.rerankingCostUsd || 0;
+      case "evalCost":
+        return day.evalCostUsd || 0;
       case "conversations":
         return day.conversationCount || 0;
       case "messagesIn":
@@ -152,6 +160,10 @@ export const UsageChart: FC<UsageChartProps> = ({
     switch (selectedMetric) {
       case "cost":
         return "This chart shows daily spending over the selected time period. Each bar represents one day's total cost. Use this to identify spending patterns and trends.";
+      case "rerankingCost":
+        return "This chart shows daily reranking costs over the selected time period. Each bar represents one day's reranking costs from knowledge base document reranking. Use this to identify reranking usage patterns.";
+      case "evalCost":
+        return "This chart shows daily eval judge costs over the selected time period. Each bar represents one day's evaluation costs from judge calls. Use this to identify evaluation usage patterns.";
       case "conversations":
         return "This chart shows daily conversation counts over the selected time period. Each bar represents the number of conversations started on that day. Use this to identify usage patterns and trends.";
       case "messagesIn":
@@ -169,17 +181,19 @@ export const UsageChart: FC<UsageChartProps> = ({
     <div ref={parentContainerRef} className="overflow-visible rounded-xl border border-neutral-200 bg-white p-6 shadow-soft dark:border-neutral-700 dark:bg-neutral-900">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">{title}</h3>
-        <select
-          value={selectedMetric}
-          onChange={(e) => setSelectedMetric(e.target.value as ChartMetric)}
-          className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-semibold text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-        >
-          <option value="cost">Cost</option>
-          <option value="conversations">Conversations</option>
-          <option value="messagesIn">Messages In</option>
-          <option value="messagesOut">Messages Out</option>
-          <option value="totalMessages">Total Messages</option>
-        </select>
+          <select
+            value={selectedMetric}
+            onChange={(e) => setSelectedMetric(e.target.value as ChartMetric)}
+            className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-semibold text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+          >
+            <option value="cost">Cost</option>
+            <option value="rerankingCost">Reranking Cost</option>
+            <option value="evalCost">Eval Cost</option>
+            <option value="conversations">Conversations</option>
+            <option value="messagesIn">Messages In</option>
+            <option value="messagesOut">Messages Out</option>
+            <option value="totalMessages">Total Messages</option>
+          </select>
       </div>
       <p className="mb-6 text-sm text-neutral-600 dark:text-neutral-300">
         {getDescription()}
