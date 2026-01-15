@@ -108,7 +108,11 @@ import { useAccordion } from "../hooks/useAccordion";
 import { useSubscription } from "../hooks/useSubscription";
 import { useTrialStatus } from "../hooks/useTrialCredits";
 import { useWorkspaceUsage, useWorkspaceDailyUsage } from "../hooks/useUsage";
-import { useWorkspace, useUpdateWorkspace, useDeleteWorkspace } from "../hooks/useWorkspaces";
+import {
+  useWorkspace,
+  useUpdateWorkspace,
+  useDeleteWorkspace,
+} from "../hooks/useWorkspaces";
 import { useWorkspaceUserLimit } from "../hooks/useWorkspaceUserLimit";
 import {
   setWorkspaceApiKey,
@@ -978,7 +982,11 @@ const WorkspaceUsageSection: FC<WorkspaceUsageSectionProps> = ({
   // Track workspace usage viewing - only once per data load
   useEffect(() => {
     const trackingKey = `${workspaceId}-${dateRangePreset}`;
-    if (usageData && !isLoadingUsage && (!hasTrackedUsage.current || lastTrackedKey.current !== trackingKey)) {
+    if (
+      usageData &&
+      !isLoadingUsage &&
+      (!hasTrackedUsage.current || lastTrackedKey.current !== trackingKey)
+    ) {
       trackEvent("workspace_usage_viewed", {
         workspace_id: workspaceId,
         date_range_preset: dateRangePreset,
