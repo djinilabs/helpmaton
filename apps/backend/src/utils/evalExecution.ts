@@ -70,32 +70,51 @@ export function formatConversationForEval(
     if (message.role === "assistant") {
       if (Array.isArray(message.content)) {
         for (const item of message.content) {
-          if (typeof item === "object" && item !== null && "type" in item && item.type === "reasoning") {
+          // Type guard: ensure item is a non-null object
+          if (typeof item !== "object" || item === null) {
+            continue;
+          }
+          
+          // Type guard: ensure item has a type property
+          if (!("type" in item)) {
+            continue;
+          }
+
+          const itemWithType = item as { type: string; [key: string]: unknown };
+
+          if (itemWithType.type === "reasoning") {
+            const text = typeof itemWithType.text === "string" ? itemWithType.text : "";
             steps.push({
               step_id: `step_${stepCounter++}`,
               type: "thought",
-              content: (typeof item === "object" && item !== null && "text" in item && typeof item.text === "string") ? item.text : "",
+              content: text,
               timestamp: message.generationStartedAt,
             });
-          } else if (typeof item === "object" && item !== null && "type" in item && item.type === "tool-call") {
+          } else if (itemWithType.type === "tool-call") {
+            const toolCallId = typeof itemWithType.toolCallId === "string" ? itemWithType.toolCallId : "";
+            const toolName = typeof itemWithType.toolName === "string" ? itemWithType.toolName : "";
+            const args = "args" in itemWithType ? itemWithType.args : ("input" in itemWithType ? itemWithType.input : {});
             steps.push({
               step_id: `step_${stepCounter++}`,
               type: "tool_call",
               content: {
-                toolCallId: (typeof item === "object" && item !== null && "toolCallId" in item && typeof item.toolCallId === "string") ? item.toolCallId : "",
-                toolName: (typeof item === "object" && item !== null && "toolName" in item && typeof item.toolName === "string") ? item.toolName : "",
-                args: (typeof item === "object" && item !== null && "args" in item) ? (item as { args: unknown }).args : (typeof item === "object" && item !== null && "input" in item) ? (item as { input: unknown }).input : {},
+                toolCallId,
+                toolName,
+                args,
               },
               timestamp: message.generationStartedAt,
             });
-          } else if (typeof item === "object" && item !== null && "type" in item && item.type === "tool-result") {
+          } else if (itemWithType.type === "tool-result") {
+            const toolCallId = typeof itemWithType.toolCallId === "string" ? itemWithType.toolCallId : "";
+            const toolName = typeof itemWithType.toolName === "string" ? itemWithType.toolName : "";
+            const result = "result" in itemWithType ? itemWithType.result : ("output" in itemWithType ? itemWithType.output : {});
             steps.push({
               step_id: `step_${stepCounter++}`,
               type: "tool_result",
               content: {
-                toolCallId: (typeof item === "object" && item !== null && "toolCallId" in item && typeof item.toolCallId === "string") ? item.toolCallId : "",
-                toolName: (typeof item === "object" && item !== null && "toolName" in item && typeof item.toolName === "string") ? item.toolName : "",
-                result: (typeof item === "object" && item !== null && "result" in item) ? (item as { result: unknown }).result : (typeof item === "object" && item !== null && "output" in item) ? (item as { output: unknown }).output : {},
+                toolCallId,
+                toolName,
+                result,
               },
               timestamp: message.generationEndedAt,
             });
@@ -339,7 +358,10 @@ Please provide your evaluation as a JSON object following the specified format.`
     );
   }
 
-  // Calculate cost in millionths (use provisionalCostUsd from extraction result)
+  // Calculate cost in millionths
+  // Note: provisionalCostUsd from extractTokenUsageAndCosts is already in millionths
+  // (it's converted from USD to millionths in generationTokenExtraction.ts line 58,
+  // or comes from calculateConversationCosts which returns millionths)
   const costUsd = extractionResult.provisionalCostUsd;
 
   // Store the evaluation result

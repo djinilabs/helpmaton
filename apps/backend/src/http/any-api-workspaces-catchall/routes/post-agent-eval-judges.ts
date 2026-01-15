@@ -81,7 +81,8 @@ export const registerPostAgentEvalJudges = (app: express.Application) => {
     async (req, res, next) => {
       try {
         const body = validateBody(req.body, createEvalJudgeSchema);
-        const { name, enabled = true, provider = "openrouter", modelName, evalPrompt } = body;
+        // Schema already provides defaults for enabled and provider
+        const { name, enabled, provider, modelName, evalPrompt } = body;
 
         const db = await database();
         const workspaceResource = req.workspaceResource;

@@ -230,6 +230,7 @@ export const EvalResultsChart: FC<EvalResultsChartProps> = ({
           >
             <option value="last-7-days">Last 7 Days</option>
             <option value="last-30-days">Last 30 Days</option>
+            <option value="this-week">This Week</option>
             <option value="current-month">Current Month</option>
             <option value="last-month">Last Month</option>
           </select>

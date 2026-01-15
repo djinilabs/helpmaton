@@ -17,8 +17,12 @@ interface EvalTaskMessage {
  */
 async function processEvalTask(record: SQSRecord): Promise<void> {
   const messageId = record.messageId;
+  // handlingSQSErrors always sets the context before calling this handler,
+  // so getCurrentSQSContext will always return a context
   const context = getCurrentSQSContext(messageId);
   if (!context) {
+    // This should never happen in practice since handlingSQSErrors sets the context,
+    // but keep as defensive check for edge cases
     throw new Error("SQS context not available");
   }
 
