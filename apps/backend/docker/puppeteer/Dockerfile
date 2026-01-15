@@ -27,6 +27,7 @@ RUN dnf install -y \
     mesa-libgbm \
     unzip \
     ca-certificates \
+    findutils \
     && dnf clean all
 
 # 3. Install pnpm

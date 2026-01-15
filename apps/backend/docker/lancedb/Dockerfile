@@ -6,8 +6,9 @@ FROM public.ecr.aws/lambda/nodejs:20
 # Defaults to apps/backend/dist for backward compatibility
 ARG DIST_SOURCE=apps/backend/dist
 
-# Install pnpm globally
-RUN npm install -g pnpm
+# Install findutils (needed for cleanup) and pnpm
+RUN dnf install -y findutils && \
+    npm install -g pnpm
 
 # Copy minimal package.json with ONLY LanceDB dependencies
 # The pnpm config in package.json restricts installation to linux-arm64 only
