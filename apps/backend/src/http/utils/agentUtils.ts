@@ -2438,13 +2438,19 @@ export function createCallAgentAsyncTool(
           });
         } catch (publishError) {
           // Report queue publishing failures to Sentry
-          console.error("[Tool Error] call_agent_async - Queue publish failed", {
-            error: publishError instanceof Error ? publishError.message : String(publishError),
-            taskId,
-            workspaceId,
-            callingAgentId: currentAgentId,
-            targetAgentId: agentId,
-          });
+          console.error(
+            "[Tool Error] call_agent_async - Queue publish failed",
+            {
+              error:
+                publishError instanceof Error
+                  ? publishError.message
+                  : String(publishError),
+              taskId,
+              workspaceId,
+              callingAgentId: currentAgentId,
+              targetAgentId: agentId,
+            }
+          );
           Sentry.captureException(ensureError(publishError), {
             tags: {
               context: "agent-delegation",
