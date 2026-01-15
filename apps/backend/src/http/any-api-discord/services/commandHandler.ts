@@ -1,4 +1,4 @@
-import { APIGatewayProxyResult } from "aws-lambda";
+import { APIGatewayProxyResultV2 } from "aws-lambda";
 
 import { database } from "../../../tables/index";
 import { fromMillionths, toMillionths } from "../../../utils/creditConversions";
@@ -116,7 +116,7 @@ async function debitCreditsManual(
 
 export async function handleDiscordCommand(
   interaction: DiscordInteraction
-): Promise<APIGatewayProxyResult> {
+): Promise<APIGatewayProxyResultV2> {
   const commandName = interaction.data.name;
 
   try {
@@ -140,7 +140,7 @@ export async function handleDiscordCommand(
 
 async function handleCreditCommand(
   interaction: DiscordInteraction
-): Promise<APIGatewayProxyResult> {
+): Promise<APIGatewayProxyResultV2> {
   // Extract parameters from command options
   const workspaceIdOption = interaction.data.options?.find(
     (option) => option.name === "workspace_id"
@@ -251,7 +251,7 @@ async function handleCreditCommand(
 
 async function handleDebitCommand(
   interaction: DiscordInteraction
-): Promise<APIGatewayProxyResult> {
+): Promise<APIGatewayProxyResultV2> {
   // Extract parameters from command options
   const workspaceIdOption = interaction.data.options?.find(
     (option) => option.name === "workspace_id"
