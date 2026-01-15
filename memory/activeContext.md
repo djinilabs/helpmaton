@@ -2,11 +2,64 @@
 
 ## Current Status
 
-**Status**: Workspace Export Route Implementation Complete ✅
+**Status**: Workspace Import Implementation Complete ✅
 
 **Latest Work**:
 
-1. **Workspace Export HTTP Route**: Implemented GET endpoint for exporting workspace configurations as downloadable JSON files.
+1. **Workspace Import Feature**: Implemented complete workspace import functionality that creates new workspaces from exported workspace configuration JSON files.
+
+   - **Import Utility Function** (`apps/backend/src/utils/workspaceImport.ts`):
+     - Created `importWorkspace()` function that creates a new workspace from exported configuration
+     - Handles reference resolution: supports both actual IDs and named references (format: `"{refName}"`)
+     - Creates entities in correct dependency order:
+       1. Workspace (base entity)
+       2. Output channels (referenced by agents)
+       3. Email connections (referenced by agents)
+       4. MCP servers (referenced by agents)
+       5. Agents with nested entities (keys, eval judges, stream servers)
+       6. Bot integrations (reference agents)
+     - **Subscription Limit Validation**: All subscription limits are checked BEFORE any database writes to prevent partial data creation
+     - Two-pass agent creation: first builds agentIdMap for all agents, then creates them with resolved cross-references (supports forward references in delegatableAgentIds)
+     - Generates new UUIDs for all imported entities (doesn't reuse IDs from exports)
+     - Comprehensive error handling with clear error messages for missing references
+
+   - **Import API Endpoint** (`apps/backend/src/http/any-api-workspaces-catchall/routes/post-workspace-import.ts`):
+     - Created POST endpoint at `/api/workspaces/import`
+     - Requires Bearer token authentication (`requireAuth` middleware)
+     - Validates request body against `workspaceExportSchema` using strict Zod validation
+     - Calls `importWorkspace()` utility function
+     - Returns created workspace with all imported entities
+     - Includes comprehensive OpenAPI documentation
+     - Proper error handling with `handleError` utility
+
+   - **Route Registration** (`apps/backend/src/http/any-api-workspaces-catchall/workspaces-app.ts`):
+     - Added import for `registerPostWorkspaceImport`
+     - Registered route in Express app (alphabetically with other POST routes)
+
+   - **Unit Tests** (`apps/backend/src/utils/__tests__/workspaceImport.test.ts`):
+     - 8 comprehensive tests covering:
+       - Minimal workspace import
+       - Import with all entity types (agents, channels, MCP servers, etc.)
+       - Cross-reference resolution (agents referencing channels, MCP servers, other agents)
+       - Forward references in delegatableAgentIds
+       - Bot integrations with agent references
+       - Error handling (invalid references, missing entities)
+       - Subscription limit validation
+     - All 8 tests passing
+     - Type checking and linting clean
+
+   - **Key Features**:
+     - Complete workspace recreation: all agents, channels, integrations, and settings
+     - Reference resolution: handles both template format (`{refName}`) and actual IDs
+     - Forward reference support: agents can reference other agents defined later in the export
+     - Subscription limit validation: fails fast before creating any entities if limits would be exceeded
+     - Nested entity creation: agent keys, eval judges, and stream servers created automatically
+     - Type safety: uses existing `WorkspaceExport` type and schema validation
+     - Follows established patterns: matches entity creation patterns from other routes
+
+   - **Result**: Users can now import exported workspace configurations to create new workspaces with all their agents, channels, integrations, and settings. All subscription limits are validated before any database operations to ensure data integrity.
+
+2. **Workspace Export HTTP Route**: Implemented GET endpoint for exporting workspace configurations as downloadable JSON files.
 
    - **Route Handler** (`apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-export.ts`):
      - Created GET endpoint at `/api/workspaces/:workspaceId/export`

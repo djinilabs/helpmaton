@@ -80,6 +80,7 @@ import { registerPostWorkspaceAgents } from "./routes/post-workspace-agents";
 import { registerPostWorkspaceChannels } from "./routes/post-workspace-channels";
 import { registerPostWorkspaceCreditsPurchase } from "./routes/post-workspace-credits-purchase";
 import { registerPostWorkspaceDocuments } from "./routes/post-workspace-documents";
+import { registerPostWorkspaceImport } from "./routes/post-workspace-import";
 import { registerPostWorkspaceIntegrationDiscordCommand } from "./routes/post-workspace-integration-discord-command";
 import { registerPostWorkspaceIntegrations } from "./routes/post-workspace-integrations";
 import { registerPostWorkspaceIntegrationsSlackManifest } from "./routes/post-workspace-integrations-slack-manifest";
@@ -144,6 +145,7 @@ export const createApp: () => express.Application = () => {
   // Register all routes
   registerGetWorkspaces(app);
   registerPostWorkspaces(app);
+  registerPostWorkspaceImport(app);
   registerGetWorkspaceById(app);
   registerGetWorkspaceExport(app);
   registerPutWorkspace(app);
