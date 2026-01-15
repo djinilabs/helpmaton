@@ -1,6 +1,10 @@
 # 1. Switch platform to linux/amd64 (x86)
 FROM --platform=linux/amd64 public.ecr.aws/lambda/nodejs:22
 
+# Build argument for dist source directory
+# Defaults to apps/backend/dist for backward compatibility
+ARG DIST_SOURCE=apps/backend/dist
+
 # 2. Install system dependencies for Chromium on x86
 # This list is standard for Amazon Linux 2023 on x86
 RUN dnf install -y \
@@ -23,6 +27,7 @@ RUN dnf install -y \
     mesa-libgbm \
     unzip \
     ca-certificates \
+    findutils \
     && dnf clean all
 
 # 3. Install pnpm
@@ -35,15 +40,39 @@ COPY apps/backend/docker/puppeteer/package.json ./
 # The @sparticuz/chromium package contains the x86 binary inside it.
 # We just install it like a normal package.
 RUN pnpm install --prod && \
-    rm -rf /root/.pnpm-store /root/.local/share/pnpm
+    rm -rf /root/.pnpm-store /root/.local/share/pnpm && \
+    npm uninstall -g pnpm
+
+# Clean up unnecessary files from node_modules to reduce image size
+RUN find /tmp/build/node_modules -type f \( \
+        -name "README*" -o \
+        -name "CHANGELOG*" -o \
+        -name "LICENSE*" -o \
+        -name "*.test.*" -o \
+        -name "*.spec.*" -o \
+        -name "*.ts" -o \
+        -name "*.map" \
+    \) -delete && \
+    find /tmp/build/node_modules -type d \( \
+        -name "test" -o \
+        -name "tests" -o \
+        -name "__tests__" -o \
+        -name "examples" -o \
+        -name "example" -o \
+        -name "docs" -o \
+        -name "doc" -o \
+        -name ".github" -o \
+        -name ".git" \
+    \) -prune -print0 | xargs -0 -r rm -rf --
 
 # 5. Move to Task Root
 WORKDIR ${LAMBDA_TASK_ROOT}
 RUN cp -r /tmp/build/node_modules ./node_modules && \
     rm -rf /tmp/build
 
-# 6. Copy Code
-COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
+# 6. Copy app dist (or prepared subset) and Lambda entrypoint wrapper
+# Note: index.js is intentionally hardcoded - it's a wrapper file outside the dist directory
+COPY ${DIST_SOURCE}/ ${LAMBDA_TASK_ROOT}/
 COPY apps/backend/docker/lancedb/index.js ${LAMBDA_TASK_ROOT}/index.js
 
 # Ensure permissions
