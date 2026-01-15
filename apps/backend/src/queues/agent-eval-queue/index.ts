@@ -76,22 +76,22 @@ async function processEvalTask(record: SQSRecord): Promise<void> {
 
 /**
  * Lambda handler for the agent eval queue
+ * 
+ * Note: handlingSQSErrors processes each record separately and calls this handler
+ * once per record with a single-record event. Errors should be allowed to propagate
+ * so handlingSQSErrors can catch them, report to Sentry, and track failed message IDs.
  */
 export const handler = handlingSQSErrors(async (event) => {
-
-  const failedMessageIds: string[] = [];
-
-  for (const record of event.Records) {
-    try {
-      await processEvalTask(record);
-    } catch (error) {
-      console.error("[Eval Queue] Failed to process message:", {
-        error: error instanceof Error ? error.message : String(error),
-        messageId: record.messageId,
-      });
-      failedMessageIds.push(record.messageId);
-    }
+  // handlingSQSErrors calls this handler once per record with a single-record event
+  // Process the single record - if it throws, handlingSQSErrors will catch it and report to Sentry
+  const record = event.Records[0];
+  if (!record) {
+    throw new Error("No records in event");
   }
 
-  return failedMessageIds;
+  await processEvalTask(record);
+
+  // Return empty array - if processing succeeded, no failed message IDs
+  // If processing failed, handlingSQSErrors will catch the error and track the message ID
+  return [];
 });
