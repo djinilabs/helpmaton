@@ -14,6 +14,7 @@ import {
   KeyIcon,
   UsersIcon,
   ExclamationTriangleIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { useState, Suspense, lazy, useEffect, useRef } from "react";
@@ -112,6 +113,7 @@ import {
   useWorkspace,
   useUpdateWorkspace,
   useDeleteWorkspace,
+  useExportWorkspace,
 } from "../hooks/useWorkspaces";
 import { useWorkspaceUserLimit } from "../hooks/useWorkspaceUserLimit";
 import {
@@ -319,6 +321,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
   const navigate = useNavigate();
   const updateWorkspace = useUpdateWorkspace(id!);
   const deleteWorkspace = useDeleteWorkspace(id!);
+  const exportWorkspace = useExportWorkspace(id!);
 
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(workspace.name);
@@ -333,6 +336,9 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
   const { data: userLimit } = useWorkspaceUserLimit(id!);
   const { data: subscription } = useSubscription();
 
+  const canRead =
+    workspace.permissionLevel &&
+    workspace.permissionLevel >= PERMISSION_LEVELS.READ;
   const canEdit =
     workspace.permissionLevel &&
     workspace.permissionLevel >= PERMISSION_LEVELS.WRITE;
@@ -410,14 +416,26 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                 </svg>
                 Back
               </button>
-              {canEdit && !isEditing && (
-                <button
-                  onClick={handleEdit}
-                  className="rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored"
-                >
-                  Edit
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {canRead && !isEditing && (
+                  <button
+                    onClick={() => exportWorkspace.mutate()}
+                    disabled={exportWorkspace.isPending}
+                    className="flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                  >
+                    <ArrowDownTrayIcon className="size-4" />
+                    {exportWorkspace.isPending ? "Exporting..." : "Export"}
+                  </button>
+                )}
+                {canEdit && !isEditing && (
+                  <button
+                    onClick={handleEdit}
+                    className="rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored"
+                  >
+                    Edit
+                  </button>
+                )}
+              </div>
             </div>
             <p className="mb-6 text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">
               This workspace contains your agents, documents, and settings. Use

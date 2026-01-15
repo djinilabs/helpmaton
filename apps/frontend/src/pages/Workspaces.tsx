@@ -1,3 +1,4 @@
+import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { useState, Suspense, lazy } from "react";
 import type { FC } from "react";
@@ -5,10 +6,15 @@ import { useNavigate } from "react-router-dom";
 
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LoadingScreen } from "../components/LoadingScreen";
-// Lazy load modal - only load when opened
+// Lazy load modals - only load when opened
 const CreateWorkspaceModal = lazy(() =>
   import("../components/CreateWorkspaceModal").then((module) => ({
     default: module.CreateWorkspaceModal,
+  }))
+);
+const ImportWorkspaceModal = lazy(() =>
+  import("../components/ImportWorkspaceModal").then((module) => ({
+    default: module.ImportWorkspaceModal,
   }))
 );
 import { useWorkspaces } from "../hooks/useWorkspaces";
@@ -18,6 +24,7 @@ const WorkspacesList: FC = () => {
   const { data: workspaces } = useWorkspaces();
   const navigate = useNavigate();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   const getPermissionLabel = (level: number | null): string => {
     if (level === 3) return "Owner";
@@ -52,12 +59,21 @@ const WorkspacesList: FC = () => {
                   projects or teams.
                 </p>
               </div>
-              <button
-                onClick={() => setIsCreateModalOpen(true)}
-                className="transform whitespace-nowrap rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
-              >
-                Create Workspace
-              </button>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  onClick={() => setIsImportModalOpen(true)}
+                  className="flex transform items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-neutral-300 bg-white px-8 py-4 font-bold text-neutral-900 transition-all duration-200 hover:scale-[1.03] hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.97] dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
+                >
+                  <ArrowUpTrayIcon className="size-5" />
+                  Import Workspace
+                </button>
+                <button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="transform whitespace-nowrap rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
+                >
+                  Create Workspace
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -160,6 +176,15 @@ const WorkspacesList: FC = () => {
             <CreateWorkspaceModal
               isOpen={isCreateModalOpen}
               onClose={() => setIsCreateModalOpen(false)}
+            />
+          </Suspense>
+        )}
+
+        {isImportModalOpen && (
+          <Suspense fallback={<LoadingScreen />}>
+            <ImportWorkspaceModal
+              isOpen={isImportModalOpen}
+              onClose={() => setIsImportModalOpen(false)}
             />
           </Suspense>
         )}

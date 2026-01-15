@@ -632,6 +632,148 @@ export async function deleteWorkspace(id: string): Promise<void> {
   });
 }
 
+/**
+ * Workspace export type - matches the backend schema structure
+ */
+export interface WorkspaceExport {
+  id: string;
+  name: string;
+  description?: string;
+  currency?: "usd";
+  spendingLimits?: Array<{
+    timeFrame: "daily" | "weekly" | "monthly";
+    amount: number;
+  }>;
+  agents?: Array<{
+    id: string;
+    name: string;
+    systemPrompt: string;
+    notificationChannelId?: string;
+    delegatableAgentIds?: string[];
+    enabledMcpServerIds?: string[];
+    enableMemorySearch?: boolean;
+    enableSearchDocuments?: boolean;
+    enableKnowledgeInjection?: boolean;
+    knowledgeInjectionSnippetCount?: number;
+    knowledgeInjectionMinSimilarity?: number;
+    enableKnowledgeReranking?: boolean;
+    knowledgeRerankingModel?: string;
+    enableSendEmail?: boolean;
+    enableTavilySearch?: boolean;
+    searchWebProvider?: "tavily" | "jina" | null;
+    fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
+    enableExaSearch?: boolean;
+    clientTools?: Array<{
+      name: string;
+      description: string;
+      parameters: Record<string, unknown>;
+    }>;
+    spendingLimits?: Array<{
+      timeFrame: "daily" | "weekly" | "monthly";
+      amount: number;
+    }>;
+    temperature?: number;
+    topP?: number;
+    topK?: number;
+    maxOutputTokens?: number;
+    stopSequences?: string[];
+    maxToolRoundtrips?: number;
+    provider?: string;
+    modelName?: string;
+    avatar?: string;
+    keys?: Array<{
+      id: string;
+      name?: string;
+      type?: "webhook" | "widget";
+      provider?: "google";
+    }>;
+    evalJudges?: Array<{
+      id: string;
+      name: string;
+      enabled?: boolean;
+      provider?: "openrouter";
+      modelName: string;
+      evalPrompt: string;
+    }>;
+    streamServer?: {
+      secret: string;
+      allowedOrigins: string[];
+    };
+  }>;
+  outputChannels?: Array<{
+    id: string;
+    channelId: string;
+    type: string;
+    name: string;
+    config: Record<string, unknown>;
+  }>;
+  emailConnections?: Array<{
+    id: string;
+    type: string;
+    name: string;
+    config: Record<string, unknown>;
+  }>;
+  mcpServers?: Array<{
+    id: string;
+    name: string;
+    url: string;
+    authType: string;
+    serviceType?: string;
+    config?: Record<string, unknown>;
+  }>;
+  botIntegrations?: Array<{
+    id: string;
+    agentId: string;
+    type: string;
+    config: Record<string, unknown>;
+  }>;
+}
+
+/**
+ * Export a workspace configuration as a downloadable JSON file
+ */
+export async function exportWorkspace(workspaceId: string): Promise<void> {
+  const response = await apiFetch(`/api/workspaces/${workspaceId}/export`);
+
+  // Get filename from Content-Disposition header or use default
+  const contentDisposition = response.headers.get("Content-Disposition");
+  let filename = `workspace-export-${workspaceId}.json`;
+  if (contentDisposition) {
+    const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/);
+    if (filenameMatch) {
+      filename = filenameMatch[1];
+    }
+  }
+
+  // Create blob from response
+  const blob = await response.blob();
+
+  // Create temporary URL and trigger download
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+
+  // Cleanup
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+}
+
+/**
+ * Import a workspace from an exported configuration JSON
+ */
+export async function importWorkspace(
+  exportData: WorkspaceExport
+): Promise<Workspace> {
+  const response = await apiFetch("/api/workspaces/import", {
+    method: "POST",
+    body: JSON.stringify(exportData),
+  });
+  return response.json();
+}
+
 export async function setWorkspaceApiKey(
   workspaceId: string,
   key: string | null,

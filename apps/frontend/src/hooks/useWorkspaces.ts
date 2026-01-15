@@ -6,8 +6,11 @@ import {
   createWorkspace,
   updateWorkspace,
   deleteWorkspace,
+  exportWorkspace,
+  importWorkspace,
   type CreateWorkspaceInput,
   type UpdateWorkspaceInput,
+  type WorkspaceExport,
 } from "../utils/api";
 
 import { useToast } from "./useToast";
@@ -78,6 +81,38 @@ export function useDeleteWorkspace(id: string) {
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to delete workspace");
+    },
+  });
+}
+
+export function useExportWorkspace(workspaceId: string) {
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: () => exportWorkspace(workspaceId),
+    onSuccess: () => {
+      toast.success("Workspace exported successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to export workspace");
+    },
+  });
+}
+
+export function useImportWorkspace() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (exportData: WorkspaceExport) => importWorkspace(exportData),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+      queryClient.setQueryData(["workspaces", data.id], data);
+      toast.success("Workspace imported successfully");
+      return data;
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to import workspace");
     },
   });
 }

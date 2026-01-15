@@ -2,11 +2,46 @@
 
 ## Current Status
 
-**Status**: Workspace Import Implementation Complete ✅
+**Status**: Workspace Export with refNames and Credential Filtering Complete ✅
 
 **Latest Work**:
 
-1. **Workspace Import Feature**: Implemented complete workspace import functionality that creates new workspaces from exported workspace configuration JSON files.
+1. **Workspace Export Enhancement - refNames and Credential Filtering**: Enhanced workspace export to use refNames instead of IDs and filter out authentication credentials from MCP server configs.
+
+   - **refName Implementation** (`apps/backend/src/utils/workspaceExport.ts`):
+     - Added `generateRefName()` helper function that creates refNames in the format `"{name}"` from entity names
+     - Handles duplicate names by appending numbers: `"{name 2}"`, `"{name 3}"`, etc.
+     - Replaces all entity IDs with refNames: workspace, agents, output channels, email connections, MCP servers, bot integrations, agent keys, and eval judges
+     - Replaces all cross-references with refNames:
+       - `agent.notificationChannelId` → refName of the channel
+       - `agent.delegatableAgentIds[]` → array of agent refNames
+       - `agent.enabledMcpServerIds[]` → array of MCP server refNames
+       - `botIntegrations[].agentId` → refName of the agent
+     - Supports names with spaces (e.g., `"{Test Agent}"`, `"{Discord Channel}"`)
+
+   - **Credential Filtering** (`apps/backend/src/utils/workspaceExport.ts`):
+     - Added `filterMcpServerCredentials()` helper function to remove sensitive authentication fields
+     - Filters out: `accessToken`, `refreshToken`, `token`, `password`, `headerValue`, `apiKey`, `api_key`, `secret`, `clientSecret`, `client_secret`
+     - Preserves non-sensitive configuration fields (e.g., `expiresAt`, `email`, `endpoint`, `timeout`)
+     - Applied to all MCP server configs during export
+
+   - **Unit Tests** (`apps/backend/src/utils/__tests__/workspaceExport.test.ts`):
+     - Updated all existing tests to verify refName format instead of IDs
+     - Added test for duplicate name disambiguation
+     - Added test for cross-reference resolution with refNames
+     - Added comprehensive test for credential filtering (OAuth, header auth, basic auth)
+     - All 12 tests passing
+
+   - **Key Features**:
+     - Export uses human-readable refNames instead of database IDs
+     - Duplicate names automatically disambiguated
+     - All cross-references use refNames for consistency
+     - Authentication credentials excluded from exports for security
+     - Non-sensitive configuration preserved
+
+   - **Result**: Workspace exports now use refNames (e.g., `"{Test Agent}"` instead of `"agent-123"`) and exclude authentication credentials from MCP server configs, making exports more readable and secure.
+
+2. **Workspace Import Feature**: Implemented complete workspace import functionality that creates new workspaces from exported workspace configuration JSON files.
 
    - **Import Utility Function** (`apps/backend/src/utils/workspaceImport.ts`):
      - Created `importWorkspace()` function that creates a new workspace from exported configuration
