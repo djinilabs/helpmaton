@@ -2389,6 +2389,12 @@ export function createCallAgentAsyncTool(
 
       try {
         const db = await database();
+        
+        // Get target agent name for response formatting
+        const targetAgentPk = `agents/${workspaceId}/${agentId}`;
+        const targetAgent = await db.agent.get(targetAgentPk, "agent");
+        const targetAgentName = targetAgent?.name || agentId;
+
         const taskId = randomUUID();
 
         // Calculate TTL (4 days from now, aligned with default SQS message retention)
@@ -2452,7 +2458,11 @@ export function createCallAgentAsyncTool(
         // Note: Delegation tracking will be handled by queue processor when task completes/fails
         // We don't track "pending" status since trackDelegation only supports "completed", "failed", "cancelled"
 
-        return `Delegation task created successfully. Task ID: ${taskId}. Use check_delegation_status(${taskId}) to check the status and get results when ready.`;
+        let result = `Delegation task created successfully. Task delegated to agent "${targetAgentName}" (ID: ${agentId}). Task ID: ${taskId}. Use check_delegation_status(${taskId}) to check the status and get results when ready.`;
+        if (query) {
+          result = `Matched query "${query}" to agent "${targetAgentName}" (ID: ${agentId}). ${result}`;
+        }
+        return result;
       } catch (error) {
         const errorMessage = `Error creating async delegation task: ${
           error instanceof Error ? error.message : String(error)
@@ -2504,7 +2514,12 @@ export function createCheckDelegationStatusTool(workspaceId: string) {
           return `Error: Task ${taskId} does not belong to this workspace.`;
         }
 
-        let statusMessage = `Task ${taskId} status: ${task.status}`;
+        // Get target agent name for response formatting
+        const targetAgentPk = `agents/${workspaceId}/${task.targetAgentId}`;
+        const targetAgent = await db.agent.get(targetAgentPk, "agent");
+        const targetAgentName = targetAgent?.name || task.targetAgentId;
+
+        let statusMessage = `Task ${taskId} status: ${task.status}\nDelegated to agent: "${targetAgentName}" (ID: ${task.targetAgentId})`;
 
         if (task.status === "completed" && task.result) {
           statusMessage += `\n\nResult: ${task.result}`;
