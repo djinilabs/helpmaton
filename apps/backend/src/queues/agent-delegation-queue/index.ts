@@ -450,11 +450,14 @@ export const handler = handlingSQSErrors(
 
         await processDelegationTaskWithErrorHandling(message, messageId);
       } catch (error) {
+        // Log error before re-throwing so handlingSQSErrors wrapper can catch it
+        // and report to Sentry. The wrapper will add this messageId to failedMessageIds.
         console.error(
           `[Delegation Queue] Error processing message ${messageId}:`,
           error
         );
-        failedMessageIds.push(messageId);
+        // Re-throw so handlingSQSErrors wrapper can catch and report to Sentry
+        throw error;
       }
     }
 

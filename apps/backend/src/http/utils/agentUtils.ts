@@ -2389,7 +2389,7 @@ export function createCallAgentAsyncTool(
 
       try {
         const db = await database();
-        
+
         // Get target agent name for response formatting
         const targetAgentPk = `agents/${workspaceId}/${agentId}`;
         const targetAgent = await db.agent.get(targetAgentPk, "agent");
@@ -2422,19 +2422,49 @@ export function createCallAgentAsyncTool(
 
         // Enqueue to delegation queue
         const queueName = "agent-delegation-queue";
-        await queues.publish({
-          name: queueName,
-          payload: {
+        try {
+          await queues.publish({
+            name: queueName,
+            payload: {
+              taskId,
+              workspaceId,
+              callingAgentId: currentAgentId,
+              targetAgentId: agentId,
+              message: message.trim(),
+              callDepth,
+              maxDepth,
+              ...(conversationId && { conversationId }),
+            },
+          });
+        } catch (publishError) {
+          // Report queue publishing failures to Sentry
+          console.error("[Tool Error] call_agent_async - Queue publish failed", {
+            error: publishError instanceof Error ? publishError.message : String(publishError),
             taskId,
             workspaceId,
             callingAgentId: currentAgentId,
             targetAgentId: agentId,
-            message: message.trim(),
-            callDepth,
-            maxDepth,
-            ...(conversationId && { conversationId }),
-          },
-        });
+          });
+          Sentry.captureException(ensureError(publishError), {
+            tags: {
+              context: "agent-delegation",
+              operation: "queue-publish",
+              workspaceId,
+              callingAgentId: currentAgentId,
+              targetAgentId: agentId,
+            },
+            contexts: {
+              task: {
+                taskId,
+                workspaceId,
+                callingAgentId: currentAgentId,
+                targetAgentId: agentId,
+              },
+            },
+          });
+          // Re-throw so it's handled by the outer catch block
+          throw publishError;
+        }
 
         console.log("[Tool Call] call_agent_async - Task created", {
           taskId,

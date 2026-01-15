@@ -362,6 +362,7 @@ scheduled summarize-memory-yearly lancedb
 scheduled cleanup-memory-retention lancedb
 
 queue agent-temporal-grain-queue lancedb
+queue agent-delegation-queue lancedb
 queue bot-webhook-queue lancedb
 
 @plugins
