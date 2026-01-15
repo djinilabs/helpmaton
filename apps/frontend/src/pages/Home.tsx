@@ -15,7 +15,7 @@ const UsageDashboard = lazy(() =>
     default: module.UsageDashboard,
   }))
 );
-import { useUserUsage } from "../hooks/useUsage";
+import { useUserUsage, useUserDailyUsage } from "../hooks/useUsage";
 import { clearTokens } from "../utils/api";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
 import { trackEvent } from "../utils/tracking";
@@ -122,14 +122,32 @@ const UserUsageSection: FC<UserUsageSectionProps> = () => {
 
   const {
     data: usageData,
-    isLoading,
-    error,
-    refetch,
-    isRefetching,
+    isLoading: isLoadingUsage,
+    error: usageError,
+    refetch: refetchUsage,
+    isRefetching: isRefetchingUsage,
   } = useUserUsage({
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
   });
+  const {
+    data: dailyData,
+    isLoading: isLoadingDaily,
+    error: dailyError,
+    refetch: refetchDaily,
+    isRefetching: isRefetchingDaily,
+  } = useUserDailyUsage({
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
+  });
+
+  const handleRefresh = () => {
+    refetchUsage();
+    refetchDaily();
+  };
+
+  const isLoading = isLoadingUsage || isLoadingDaily;
+  const isRefreshing = isRefetchingUsage || isRefetchingDaily;
 
   if (isLoading) {
     return (
@@ -139,12 +157,23 @@ const UserUsageSection: FC<UserUsageSectionProps> = () => {
     );
   }
 
-  if (error) {
+  if (usageError) {
     return (
       <div className="mb-8 rounded-2xl border-2 border-error-300 bg-white p-10 shadow-large dark:border-error-700 dark:bg-neutral-900">
         <p className="text-lg font-bold text-error-700 dark:text-error-400">
           Error loading usage:{" "}
-          {error instanceof Error ? error.message : "Unknown error"}
+          {usageError instanceof Error ? usageError.message : "Unknown error"}
+        </p>
+      </div>
+    );
+  }
+
+  if (dailyError) {
+    return (
+      <div className="mb-8 rounded-2xl border-2 border-error-300 bg-white p-10 shadow-large dark:border-error-700 dark:bg-neutral-900">
+        <p className="text-lg font-bold text-error-700 dark:text-error-400">
+          Error loading daily usage:{" "}
+          {dailyError instanceof Error ? dailyError.message : "Unknown error"}
         </p>
       </div>
     );
@@ -158,12 +187,13 @@ const UserUsageSection: FC<UserUsageSectionProps> = () => {
     <Suspense fallback={<LoadingScreen compact />}>
       <UsageDashboard
         stats={usageData.stats}
+        dailyData={dailyData?.daily}
         title="YOUR USAGE"
         dateRange={dateRange}
         dateRangePreset={dateRangePreset}
         onDateRangeChange={setDateRangePreset}
-        onRefresh={() => refetch()}
-        isRefreshing={isRefetching}
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
       />
     </Suspense>
   );

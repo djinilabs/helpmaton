@@ -10,6 +10,7 @@ post /api/webhook/:workspaceId/:agentId/:key
 post /api/widget/:workspaceId/:agentId/:key
 post /api/scrape
 get /api/usage
+get /api/usage/daily
 get /api/models
 get /api/pricing
 get /api/stream-url
@@ -362,6 +363,7 @@ scheduled summarize-memory-yearly lancedb
 scheduled cleanup-memory-retention lancedb
 
 queue agent-temporal-grain-queue lancedb
+queue agent-delegation-queue lancedb
 queue bot-webhook-queue lancedb
 
 @plugins

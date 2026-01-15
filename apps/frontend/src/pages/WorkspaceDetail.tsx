@@ -15,7 +15,7 @@ import {
   UsersIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
-import { useQueryErrorResetBoundary, useQuery } from "@tanstack/react-query";
+import { useQueryErrorResetBoundary } from "@tanstack/react-query";
 import { useState, Suspense, lazy, useEffect, useRef } from "react";
 import type { FC } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
@@ -108,10 +108,13 @@ import { useAccordion } from "../hooks/useAccordion";
 import { useSubscription } from "../hooks/useSubscription";
 import { useTrialStatus } from "../hooks/useTrialCredits";
 import { useWorkspaceUsage, useWorkspaceDailyUsage } from "../hooks/useUsage";
-import { useUpdateWorkspace, useDeleteWorkspace } from "../hooks/useWorkspaces";
+import {
+  useWorkspace,
+  useUpdateWorkspace,
+  useDeleteWorkspace,
+} from "../hooks/useWorkspaces";
 import { useWorkspaceUserLimit } from "../hooks/useWorkspaceUserLimit";
 import {
-  getWorkspace,
   setWorkspaceApiKey,
   deleteWorkspaceApiKey,
   type Workspace,
@@ -294,31 +297,11 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
 };
 
 const WorkspaceDataLoader: FC<{ workspaceId: string }> = ({ workspaceId }) => {
-  const {
-    data: workspace,
-    isLoading,
-    isFetching,
-    isPending,
-  } = useQuery({
-    queryKey: ["workspaces", workspaceId],
-    queryFn: () => getWorkspace(workspaceId),
-    refetchOnMount: "always",
-    staleTime: 0,
-  });
+  // useWorkspace uses useSuspenseQuery, which will suspend until data is available
+  const { data: workspace } = useWorkspace(workspaceId);
 
-  // Show loading if:
-  // 1. We don't have data for the current workspaceId
-  // 2. Data exists but doesn't match the current workspaceId (stale data from previous workspace)
-  // 3. Query is actively fetching or pending
-  const hasMatchingData = workspace && workspace.id === workspaceId;
-  const shouldShowLoading =
-    !hasMatchingData || isLoading || isPending || isFetching;
-
-  if (shouldShowLoading) {
-    return <LoadingScreen message="Loading workspace..." />;
-  }
-
-  if (!workspace) {
+  // Verify workspace ID matches (safety check)
+  if (workspace.id !== workspaceId) {
     return null;
   }
 
@@ -999,7 +982,11 @@ const WorkspaceUsageSection: FC<WorkspaceUsageSectionProps> = ({
   // Track workspace usage viewing - only once per data load
   useEffect(() => {
     const trackingKey = `${workspaceId}-${dateRangePreset}`;
-    if (usageData && !isLoadingUsage && (!hasTrackedUsage.current || lastTrackedKey.current !== trackingKey)) {
+    if (
+      usageData &&
+      !isLoadingUsage &&
+      (!hasTrackedUsage.current || lastTrackedKey.current !== trackingKey)
+    ) {
       trackEvent("workspace_usage_viewed", {
         workspace_id: workspaceId,
         date_range_preset: dateRangePreset,
@@ -1108,7 +1095,9 @@ const WorkspaceDetail: FC = () => {
         </div>
       )}
     >
-      <WorkspaceDataLoader workspaceId={id!} key={id} />
+      <Suspense fallback={<LoadingScreen message="Loading workspace..." />}>
+        <WorkspaceDataLoader workspaceId={id!} key={id} />
+      </Suspense>
     </ErrorBoundary>
   );
 };

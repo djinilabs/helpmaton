@@ -5,16 +5,20 @@
 
 FROM public.ecr.aws/lambda/nodejs:20
 
+# Build argument for dist source directory
+# Defaults to apps/backend/dist for backward compatibility
+ARG DIST_SOURCE=apps/backend/dist
+
 # LAMBDA_TASK_ROOT is pre-defined by the AWS Lambda base image (defaults to /var/task)
 # It points to the directory where the Lambda runtime expects function code
 # Set working directory to Lambda task root
 WORKDIR ${LAMBDA_TASK_ROOT}
 
-# Copy built Lambda code from dist directory
+# Copy built Lambda code from dist directory (or prepared dist subset)
 # The dist directory contains the compiled TypeScript code
 # Handler files are at paths like: dist/http/any-api-streams-000workspaceId-000agentId-000secret/index.js
 # After copying, they will be at: /var/task/http/any-api-streams-000workspaceId-000agentId-000secret/index.js
-COPY apps/backend/dist/ ${LAMBDA_TASK_ROOT}/
+COPY ${DIST_SOURCE}/ ${LAMBDA_TASK_ROOT}/
 
 # Lambda handler is set via CMD or can be overridden per function
 # Default handler assumes index.handler at /var/task/index.js

@@ -133,6 +133,36 @@ fi
 for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
     print_status "Processing image: ${IMAGE_NAME}"
     
+    # Prepare minimal dist directory for this image
+    print_status "Preparing minimal dist directory for ${IMAGE_NAME}..."
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    PREPARE_SCRIPT="${SCRIPT_DIR}/prepare-docker-dist.sh"
+    
+    # Fallback to relative path if absolute path doesn't exist
+    if [ ! -f "$PREPARE_SCRIPT" ]; then
+        PREPARE_SCRIPT="scripts/prepare-docker-dist.sh"
+    fi
+    
+    if [ ! -f "$PREPARE_SCRIPT" ]; then
+        print_error "prepare-docker-dist.sh not found. Expected at: ${SCRIPT_DIR}/prepare-docker-dist.sh or scripts/prepare-docker-dist.sh"
+        exit 1
+    fi
+    
+    # Run prepare script to create minimal dist
+    PREPARED_DIST=$("$PREPARE_SCRIPT" "$IMAGE_NAME")
+    if [ $? -ne 0 ] || [ -z "$PREPARED_DIST" ]; then
+        print_error "Failed to prepare dist directory for ${IMAGE_NAME}"
+        exit 1
+    fi
+    
+    # Verify the prepared dist directory exists
+    if [ ! -d "$PREPARED_DIST" ]; then
+        print_error "Prepared dist directory does not exist: ${PREPARED_DIST}"
+        exit 1
+    fi
+    
+    print_success "Prepared dist directory: ${PREPARED_DIST}"
+    
     # Determine Dockerfile path
     # First check for custom Dockerfile: docker/{image-name}/Dockerfile
     DOCKERFILE_PATH="${DOCKER_BASE_PATH}/${IMAGE_NAME}/Dockerfile"
@@ -223,6 +253,40 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
     # Use docker buildx for cross-platform builds (supports emulation on amd64 hosts)
     print_status "Building Docker image: ${IMAGE_NAME} for ${ARCHITECTURE} architecture..."
     
+    # Convert prepared dist path to relative path from build context
+    # The prepared dist is an absolute path, but we need it relative to BUILD_CONTEXT
+    # Since BUILD_CONTEXT is ".", we need to make PREPARED_DIST relative
+    PROJECT_ROOT=$(pwd)
+    if [[ "$PREPARED_DIST" = /* ]]; then
+        # Absolute path - convert to relative from project root
+        # Use Python for cross-platform relative path calculation if available
+        if command -v python3 &> /dev/null; then
+            PREPARED_DIST_REL=$(python3 -c "import os; print(os.path.relpath('$PREPARED_DIST', '$PROJECT_ROOT'))")
+        elif command -v realpath &> /dev/null; then
+            PREPARED_DIST_REL=$(realpath --relative-to="$PROJECT_ROOT" "$PREPARED_DIST" 2>/dev/null || echo "$PREPARED_DIST")
+        else
+            # Fallback: try to strip project root from path
+            PREPARED_DIST_REL="${PREPARED_DIST#$PROJECT_ROOT/}"
+            if [ "$PREPARED_DIST_REL" = "$PREPARED_DIST" ]; then
+                # Path doesn't start with project root; this means the prepared dist is
+                # outside the project root and cannot be used with build context "."
+                print_error "Prepared dist path '$PREPARED_DIST' is outside the project root '$PROJECT_ROOT'."
+                print_error "Please ensure the prepared dist directory is created inside the project root."
+                exit 1
+            fi
+        fi
+    else
+        PREPARED_DIST_REL="$PREPARED_DIST"
+    fi
+    
+    # Ensure the prepared dist path is usable from the Docker build context (".")
+    # It must not be an absolute path or escape the project root with "../"
+    if [[ "$PREPARED_DIST_REL" = /* || "$PREPARED_DIST_REL" == ../* || "$PREPARED_DIST_REL" == */../* ]]; then
+        print_error "Prepared dist path '$PREPARED_DIST_REL' is not valid within the Docker build context '.'."
+        print_error "Please ensure the prepared dist directory is located inside '$PROJECT_ROOT'."
+        exit 1
+    fi
+    
     # Check if buildx is available, fall back to regular docker build if not
     if docker buildx version > /dev/null 2>&1; then
         # Use buildx for cross-platform builds
@@ -234,6 +298,7 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
             --platform "${ARCHITECTURE}" \
             --provenance=false \
             --sbom=false \
+            --build-arg DIST_SOURCE="${PREPARED_DIST_REL}" \
             --push \
             -f "${DOCKERFILE_PATH}" \
             -t "${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}" \
@@ -245,6 +310,7 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
         print_warning "docker buildx not available, using regular docker build"
         docker build \
             --platform "${ARCHITECTURE}" \
+            --build-arg DIST_SOURCE="${PREPARED_DIST_REL}" \
             -f "${DOCKERFILE_PATH}" \
             -t "${IMAGE_NAME}:${IMAGE_TAG}" \
             -t "${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}" \
@@ -258,6 +324,11 @@ for IMAGE_NAME in "${IMAGE_NAMES[@]}"; do
         docker push "${ECR_URI}:${IMAGE_NAME}-latest"
         print_success "Pushed ${IMAGE_NAME} to ECR: ${ECR_URI}:${IMAGE_NAME}-${IMAGE_TAG}"
     fi
+    
+    # Clean up prepared dist directory
+    print_status "Cleaning up prepared dist directory..."
+    rm -rf "${PREPARED_DIST}"
+    print_success "Cleaned up prepared dist directory"
 done
 
 print_success "All images built and pushed successfully!"
