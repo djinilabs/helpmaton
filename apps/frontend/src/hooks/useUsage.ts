@@ -6,6 +6,7 @@ import {
   getAgentUsage,
   getAgentDailyUsage,
   getUserUsage,
+  getUserDailyUsage,
   type UsageOptions,
 } from "../utils/api";
 
@@ -59,6 +60,14 @@ export function useUserUsage(options: UsageOptions = {}) {
   return useQuery({
     queryKey: ["user-usage", options],
     queryFn: () => getUserUsage(options),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+}
+
+export function useUserDailyUsage(options: UsageOptions = {}) {
+  return useQuery({
+    queryKey: ["user-daily-usage", options],
+    queryFn: () => getUserDailyUsage(options),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
