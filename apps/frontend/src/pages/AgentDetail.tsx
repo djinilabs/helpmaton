@@ -1730,23 +1730,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             </LazyAccordionContent>
           </AccordionSection>
 
-          {/* Memory Records Section */}
-          <AccordionSection
-            id="memory"
-            title={
-              <>
-                <LightBulbIcon className="mr-2 inline-block size-5" />
-                MEMORY RECORDS
-              </>
-            }
-            isExpanded={expandedSection === "memory"}
-            onToggle={() => toggleSection("memory")}
-          >
-            <LazyAccordionContent isExpanded={expandedSection === "memory"}>
-              <AgentMemoryRecords workspaceId={workspaceId} agentId={agentId} />
-            </LazyAccordionContent>
-          </AccordionSection>
-
           {/* Evaluations Section */}
           <AccordionSection
             id="evaluations"
@@ -1804,6 +1787,97 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               </QueryPanel>
             </LazyAccordionContent>
           </AccordionSection>
+        </SectionGroup>
+
+        <SectionGroup
+          title={
+            <>
+              <LightBulbIcon className="mr-2 inline-block size-5" />
+              Memory
+            </>
+          }
+        >
+          {/* Memory Records Section */}
+          <AccordionSection
+            id="memory"
+            title={
+              <>
+                <LightBulbIcon className="mr-2 inline-block size-5" />
+                MEMORY RECORDS
+              </>
+            }
+            isExpanded={expandedSection === "memory"}
+            onToggle={() => toggleSection("memory")}
+          >
+            <LazyAccordionContent isExpanded={expandedSection === "memory"}>
+              <AgentMemoryRecords workspaceId={workspaceId} agentId={agentId} />
+            </LazyAccordionContent>
+          </AccordionSection>
+
+          {/* Memory Search Tool Section */}
+          {canEdit && (
+            <AccordionSection
+              id="memory-search"
+              title={
+                <>
+                  <MagnifyingGlassIcon className="mr-2 inline-block size-5" />
+                  MEMORY SEARCH TOOL
+                </>
+              }
+              isExpanded={expandedSection === "memory-search"}
+              onToggle={() => toggleSection("memory-search")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "memory-search"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Enable the memory search tool to allow this agent to search
+                    its factual memory across different time periods and recall
+                    past conversations.
+                  </p>
+                  <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
+                    <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-yellow-900">
+                      <ExclamationTriangleIcon className="size-4" />
+                      Privacy Warning
+                    </p>
+                    <p className="text-sm text-yellow-900">
+                      Activating the memory search tool may result in data
+                      leakage between users. The agent will be able to search
+                      and recall information from all conversations, which could
+                      expose sensitive information across different user
+                      sessions. Only enable this if you understand the privacy
+                      implications.
+                    </p>
+                  </div>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
+                    <input
+                      type="checkbox"
+                      checked={enableMemorySearch}
+                      onChange={(e) => setEnableMemorySearch(e.target.checked)}
+                      className="mt-1 rounded border-2 border-neutral-300"
+                    />
+                    <div className="flex-1">
+                      <div className="font-bold">Enable Memory Search</div>
+                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
+                        Allow this agent to use the search_memory tool to recall
+                        past conversations and information
+                      </div>
+                    </div>
+                  </label>
+                  <button
+                    onClick={handleSaveMemorySearch}
+                    disabled={updateAgent.isPending}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Memory Search Setting"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
         </SectionGroup>
 
         <SectionGroup
@@ -2121,71 +2195,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     {updateAgent.isPending
                       ? "Saving..."
                       : "Save Document Search Setting"}
-                  </button>
-                </div>
-              </LazyAccordionContent>
-            </AccordionSection>
-          )}
-
-          {/* Memory Search Tool Section */}
-          {canEdit && (
-            <AccordionSection
-              id="memory-search"
-              title={
-                <>
-                  <MagnifyingGlassIcon className="mr-2 inline-block size-5" />
-                  MEMORY SEARCH TOOL
-                </>
-              }
-              isExpanded={expandedSection === "memory-search"}
-              onToggle={() => toggleSection("memory-search")}
-            >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "memory-search"}
-              >
-                <div className="space-y-4">
-                  <p className="text-sm opacity-75 dark:text-neutral-300">
-                    Enable the memory search tool to allow this agent to search
-                    its factual memory across different time periods and recall
-                    past conversations.
-                  </p>
-                  <div className="rounded-lg border-2 border-yellow-400 bg-yellow-50 p-4">
-                    <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-yellow-900">
-                      <ExclamationTriangleIcon className="size-4" />
-                      Privacy Warning
-                    </p>
-                    <p className="text-sm text-yellow-900">
-                      Activating the memory search tool may result in data
-                      leakage between users. The agent will be able to search
-                      and recall information from all conversations, which could
-                      expose sensitive information across different user
-                      sessions. Only enable this if you understand the privacy
-                      implications.
-                    </p>
-                  </div>
-                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-neutral-200 p-4 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800">
-                    <input
-                      type="checkbox"
-                      checked={enableMemorySearch}
-                      onChange={(e) => setEnableMemorySearch(e.target.checked)}
-                      className="mt-1 rounded border-2 border-neutral-300"
-                    />
-                    <div className="flex-1">
-                      <div className="font-bold">Enable Memory Search</div>
-                      <div className="mt-1 text-sm opacity-75 dark:text-neutral-300">
-                        Allow this agent to use the search_memory tool to recall
-                        past conversations and information
-                      </div>
-                    </div>
-                  </label>
-                  <button
-                    onClick={handleSaveMemorySearch}
-                    disabled={updateAgent.isPending}
-                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {updateAgent.isPending
-                      ? "Saving..."
-                      : "Save Memory Search Setting"}
                   </button>
                 </div>
               </LazyAccordionContent>
