@@ -2334,3 +2334,171 @@ export async function deleteUserApiKey(keyId: string): Promise<void> {
     method: "DELETE",
   });
 }
+
+// Evaluation Judge Management API
+
+export interface EvalJudge {
+  id: string;
+  name: string;
+  enabled: boolean;
+  provider: "openrouter"; // Only openrouter is supported for eval judges
+  modelName: string;
+  evalPrompt: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateEvalJudgeInput {
+  name: string;
+  enabled?: boolean;
+  provider?: "openrouter"; // Only openrouter is supported for eval judges
+  modelName: string;
+  evalPrompt: string;
+}
+
+export interface UpdateEvalJudgeInput {
+  name?: string;
+  enabled?: boolean;
+  provider?: "openrouter"; // Only openrouter is supported for eval judges
+  modelName?: string;
+  evalPrompt?: string;
+}
+
+export interface EvalResult {
+  conversationId: string;
+  judgeId: string;
+  judgeName: string;
+  summary: string;
+  scoreGoalCompletion: number;
+  scoreToolEfficiency: number;
+  scoreFaithfulness: number;
+  criticalFailureDetected: boolean;
+  reasoningTrace: string;
+  costUsd: number | null;
+  evaluatedAt: string;
+}
+
+export interface EvalResultsResponse {
+  totalEvaluations: number;
+  averageScores: {
+    goalCompletion: number;
+    toolEfficiency: number;
+    faithfulness: number;
+  };
+  criticalFailures: number;
+  results: EvalResult[];
+  nextCursor?: string;
+}
+
+export interface GetAgentEvalResultsParams {
+  startDate?: string;
+  endDate?: string;
+  judgeId?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export async function listEvalJudges(
+  workspaceId: string,
+  agentId: string
+): Promise<EvalJudge[]> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges`
+  );
+  return response.json();
+}
+
+export async function getEvalJudge(
+  workspaceId: string,
+  agentId: string,
+  judgeId: string
+): Promise<EvalJudge> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges/${judgeId}`
+  );
+  return response.json();
+}
+
+export async function createEvalJudge(
+  workspaceId: string,
+  agentId: string,
+  input: CreateEvalJudgeInput
+): Promise<EvalJudge> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    }
+  );
+  return response.json();
+}
+
+export async function updateEvalJudge(
+  workspaceId: string,
+  agentId: string,
+  judgeId: string,
+  input: UpdateEvalJudgeInput
+): Promise<EvalJudge> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges/${judgeId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }
+  );
+  return response.json();
+}
+
+export async function deleteEvalJudge(
+  workspaceId: string,
+  agentId: string,
+  judgeId: string
+): Promise<void> {
+  await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges/${judgeId}`,
+    {
+      method: "DELETE",
+    }
+  );
+}
+
+export async function getAgentEvalResults(
+  workspaceId: string,
+  agentId: string,
+  params?: GetAgentEvalResultsParams
+): Promise<EvalResultsResponse> {
+  const queryParams = new URLSearchParams();
+  if (params?.startDate) {
+    queryParams.append("startDate", params.startDate);
+  }
+  if (params?.endDate) {
+    queryParams.append("endDate", params.endDate);
+  }
+  if (params?.judgeId) {
+    queryParams.append("judgeId", params.judgeId);
+  }
+  if (params?.limit) {
+    queryParams.append("limit", params.limit.toString());
+  }
+  if (params?.cursor) {
+    queryParams.append("cursor", params.cursor);
+  }
+  const queryString = queryParams.toString();
+  const url = `/api/workspaces/${workspaceId}/agents/${agentId}/eval-results${
+    queryString ? `?${queryString}` : ""
+  }`;
+  const response = await apiFetch(url);
+  return response.json();
+}
+
+export async function getConversationEvalResults(
+  workspaceId: string,
+  agentId: string,
+  conversationId: string
+): Promise<EvalResult[]> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/conversations/${conversationId}/eval-results`
+  );
+  return response.json();
+}

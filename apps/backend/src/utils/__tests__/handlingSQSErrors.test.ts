@@ -170,7 +170,17 @@ describe("handlingSQSErrors", () => {
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining("1 message(s) failed out of 2"),
-        ["msg-1"]
+        expect.objectContaining({
+          failedMessageIds: ["msg-1"],
+          queueNames: ["queue"],
+          failedMessages: expect.arrayContaining([
+            expect.objectContaining({
+              messageId: "msg-1",
+              queueName: "queue",
+              messageBody: '{"test":"data"}',
+            }),
+          ]),
+        })
       );
     });
 
@@ -230,9 +240,12 @@ describe("handlingSQSErrors", () => {
 
       // Should log error for the specific record that failed
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining("[SQS Handler] Error processing message msg-1"),
+        expect.stringContaining("[SQS Handler] Error processing message msg-1 in queue queue"),
         expect.objectContaining({
           error: "Unexpected error",
+          queueName: "queue",
+          messageId: "msg-1",
+          messageBody: '{"test":"data"}',
         })
       );
     });
@@ -256,10 +269,13 @@ describe("handlingSQSErrors", () => {
           tags: expect.objectContaining({
             handler: "SQSFunction",
             messageId: "msg-1",
+            queueName: "queue",
           }),
           contexts: expect.objectContaining({
             event: expect.objectContaining({
               messageId: "msg-1",
+              queueName: "queue",
+              messageBody: '{"test":"data"}',
             }),
           }),
         })

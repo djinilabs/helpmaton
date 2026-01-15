@@ -3,6 +3,7 @@ import express from "express";
 import { expressErrorHandler } from "../utils/errorHandler";
 
 // Import all route handlers (sorted alphabetically)
+import { registerDeleteAgentEvalJudge } from "./routes/delete-agent-eval-judge";
 import { registerDeleteAgentKey } from "./routes/delete-agent-key";
 import { registerDeleteAgentSpendingLimits } from "./routes/delete-agent-spending-limits";
 import { registerDeleteEmailConnection } from "./routes/delete-email-connection";
@@ -18,7 +19,11 @@ import { registerDeleteWorkspaceInvite } from "./routes/delete-workspace-invite"
 import { registerDeleteWorkspaceMember } from "./routes/delete-workspace-member";
 import { registerDeleteWorkspaceSpendingLimits } from "./routes/delete-workspace-spending-limits";
 import { registerGetAgentConversation } from "./routes/get-agent-conversation";
+import { registerGetAgentConversationEvalResults } from "./routes/get-agent-conversation-eval-results";
 import { registerGetAgentConversations } from "./routes/get-agent-conversations";
+import { registerGetAgentEvalJudge } from "./routes/get-agent-eval-judge";
+import { registerGetAgentEvalJudges } from "./routes/get-agent-eval-judges";
+import { registerGetAgentEvalResults } from "./routes/get-agent-eval-results";
 import { registerGetAgentKeys } from "./routes/get-agent-keys";
 import { registerGetAgentMemory } from "./routes/get-agent-memory";
 import { registerGetAgentTransactions } from "./routes/get-agent-transactions";
@@ -58,6 +63,7 @@ import { registerGetWorkspaces } from "./routes/get-workspaces";
 import { registerPatchRenameDocument } from "./routes/patch-rename-document";
 import { registerPatchWorkspaceIntegration } from "./routes/patch-workspace-integration";
 import { registerPostAcceptWorkspaceInvite } from "./routes/post-accept-workspace-invite";
+import { registerPostAgentEvalJudges } from "./routes/post-agent-eval-judges";
 import { registerPostAgentKeys } from "./routes/post-agent-keys";
 import { registerPostAgentSpendingLimits } from "./routes/post-agent-spending-limits";
 import { registerPostEmailConnection } from "./routes/post-email-connection";
@@ -80,6 +86,7 @@ import { registerPostWorkspaceInvite } from "./routes/post-workspace-invite";
 import { registerPostWorkspaceMembers } from "./routes/post-workspace-members";
 import { registerPostWorkspaceSpendingLimits } from "./routes/post-workspace-spending-limits";
 import { registerPostWorkspaces } from "./routes/post-workspaces";
+import { registerPutAgentEvalJudge } from "./routes/put-agent-eval-judge";
 import { registerPutAgentSpendingLimits } from "./routes/put-agent-spending-limits";
 import { registerPutEmailConnection } from "./routes/put-email-connection";
 import { registerPutMcpServer } from "./routes/put-mcp-server";
@@ -174,6 +181,8 @@ export const createApp: () => express.Application = () => {
   registerDeleteWorkspaceApiKey(app);
   registerGetAgentConversations(app);
   registerGetAgentConversation(app);
+  registerGetAgentConversationEvalResults(app);
+  registerGetAgentEvalResults(app);
   registerGetAgentTransactions(app);
   registerGetWorkspaceTransactions(app);
   registerGetWorkspaceDocuments(app);
@@ -210,6 +219,11 @@ export const createApp: () => express.Application = () => {
   registerGetWorkspaceUsageDaily(app);
   registerGetAgentUsageDaily(app);
   registerGetAgentUsage(app);
+  registerGetAgentEvalJudges(app);
+  registerGetAgentEvalJudge(app);
+  registerPostAgentEvalJudges(app);
+  registerPutAgentEvalJudge(app);
+  registerDeleteAgentEvalJudge(app);
   registerGetMcpServers(app);
   registerGetMcpServer(app);
   registerGetMcpServerOauthAuthorize(app);
