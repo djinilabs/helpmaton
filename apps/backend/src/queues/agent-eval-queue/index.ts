@@ -16,7 +16,8 @@ interface EvalTaskMessage {
  * Process an evaluation task from the queue
  */
 async function processEvalTask(record: SQSRecord): Promise<void> {
-  const messageId = record.messageId;
+  // Use same fallback as handlingSQSErrors to ensure key matches
+  const messageId = record.messageId || "unknown";
   // handlingSQSErrors always sets the context before calling this handler,
   // so getCurrentSQSContext will always return a context
   const context = getCurrentSQSContext(messageId);
