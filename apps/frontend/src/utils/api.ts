@@ -1385,6 +1385,8 @@ export interface UsageStats {
   outputTokens: number;
   totalTokens: number;
   cost: number; // millionths (integer)
+  rerankingCostUsd?: number; // millionths (integer)
+  evalCostUsd?: number; // millionths (integer)
   conversationCount: number;
   messagesIn: number;
   messagesOut: number;
@@ -1439,6 +1441,8 @@ export interface DailyUsageData {
   outputTokens: number;
   totalTokens: number;
   cost: number; // millionths (integer)
+  rerankingCostUsd?: number; // millionths (integer)
+  evalCostUsd?: number; // millionths (integer)
   conversationCount: number;
   messagesIn: number;
   messagesOut: number;

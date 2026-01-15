@@ -28,6 +28,8 @@ export interface UsageStats {
   outputTokens: number;
   totalTokens: number;
   costUsd: number;
+  rerankingCostUsd: number; // Reranking costs in millionths
+  evalCostUsd: number; // Eval judge costs in millionths
   conversationCount: number;
   messagesIn: number; // Number of user messages
   messagesOut: number; // Number of assistant messages
@@ -140,6 +142,8 @@ export function aggregateConversations(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0, // Cost comes from conversation records (costUsd field)
+    rerankingCostUsd: 0,
+    evalCostUsd: 0,
     conversationCount: conversations.length,
     messagesIn: 0,
     messagesOut: 0,
@@ -224,21 +228,10 @@ export function aggregateConversations(
     // Note: promptTokens stored in conversations is nonCachedPromptTokens (cached tokens are separate)
     // Total tokens = nonCachedPromptTokens + cachedPromptTokens + completionTokens + reasoningTokens
     // The API's totalTokens should already include all of these
-    const calculatedTotalTokens = inputTokens + cachedPromptTokens + outputTokens + reasoningTokens;
+    const calculatedTotalTokens =
+      inputTokens + cachedPromptTokens + outputTokens + reasoningTokens;
     const totalTokens =
       totalTokensFromApi > 0 ? totalTokensFromApi : calculatedTotalTokens;
-
-    // Log cached tokens if present for diagnostics
-    if (cachedPromptTokens > 0) {
-      console.log(
-        "[aggregateConversations] Found cached prompt tokens in conversation:",
-        {
-          conversationId: conv.conversationId,
-          cachedPromptTokens,
-          promptTokens: inputTokens,
-        }
-      );
-    }
 
     // If we have totalTokens but not the breakdown, log a warning
     if (totalTokens > 0 && inputTokens === 0 && outputTokens === 0) {
@@ -272,7 +265,7 @@ export function aggregateConversations(
       } else if (message.role === "assistant") {
         assistantMessageCount++;
       }
-      
+
       // Track model usage
       if (
         message.role === "assistant" &&
@@ -295,7 +288,7 @@ export function aggregateConversations(
       }
       modelName = mostCommonModel;
     }
-    
+
     // Aggregate message counts
     stats.messagesIn += userMessageCount;
     stats.messagesOut += assistantMessageCount;
@@ -305,25 +298,19 @@ export function aggregateConversations(
     // This ensures model names from conversations match those in transactions
     const originalModelName = modelName;
     modelName = normalizeModelNameForAggregation(modelName);
-    
-    // Debug logging for model name normalization
-    if (originalModelName !== modelName) {
-      console.log("[aggregateConversations] Normalized model name:", {
-        original: originalModelName,
-        normalized: modelName,
-        conversationId: conv.conversationId,
-        tokens: { inputTokens, outputTokens, totalTokens },
-      });
-    }
 
     // Extract cost from conversation record (costUsd field)
     const conversationCostUsd = (conv.costUsd as number | undefined) || 0;
+
+    // Extract reranking cost from conversation record (rerankingCostUsd field)
+    const rerankingCostUsd = (conv.rerankingCostUsd as number | undefined) || 0;
 
     // Aggregate totals
     stats.inputTokens += inputTokens;
     stats.outputTokens += outputTokens;
     stats.totalTokens += totalTokens;
     stats.costUsd += conversationCostUsd;
+    stats.rerankingCostUsd += rerankingCostUsd;
 
     // Aggregate by model
     if (!stats.byModel[modelName]) {
@@ -377,6 +364,8 @@ export function aggregateAggregates(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0, // Cost now comes from transactions/aggregates, not token aggregates
+    rerankingCostUsd: 0,
+    evalCostUsd: 0,
     conversationCount: 0,
     messagesIn: 0,
     messagesOut: 0,
@@ -403,7 +392,10 @@ export function aggregateAggregates(
   // Track unique workspace/agent/user/date combinations to avoid double-counting conversations
   const conversationCountMap = new Map<string, number>();
   // Track message counts per workspace/agent/user/date (same approach as conversation counts)
-  const messageCountMap = new Map<string, { messagesIn: number; messagesOut: number; totalMessages: number }>();
+  const messageCountMap = new Map<
+    string,
+    { messagesIn: number; messagesOut: number; totalMessages: number }
+  >();
 
   for (const agg of aggregates) {
     // Aggregate totals (cost comes from transactions/aggregates, not token aggregates)
@@ -414,13 +406,17 @@ export function aggregateAggregates(
 
     // Track conversation count per workspace/agent/user/date (avoid double-counting)
     // All aggregates with the same workspace/agent/user/date have the same conversationCount
-    const conversationKey = `${agg.workspaceId || ""}:${agg.agentId || ""}:${agg.userId || ""}:${agg.date}`;
+    const conversationKey = `${agg.workspaceId || ""}:${agg.agentId || ""}:${
+      agg.userId || ""
+    }:${agg.date}`;
     if (!conversationCountMap.has(conversationKey)) {
       // Use conversationCount from aggregate, defaulting to 0 if missing (for backward compatibility)
-      const count = (agg as unknown as { conversationCount?: number }).conversationCount ?? 0;
+      const count =
+        (agg as unknown as { conversationCount?: number }).conversationCount ??
+        0;
       conversationCountMap.set(conversationKey, count);
     }
-    
+
     // Track message counts per workspace/agent/user/date (avoid double-counting)
     // All aggregates with the same workspace/agent/user/date have the same message counts
     if (!messageCountMap.has(conversationKey)) {
@@ -484,8 +480,11 @@ export function aggregateAggregates(
   }
 
   // Sum conversation counts (each key represents unique workspace/agent/user/date)
-  stats.conversationCount = Array.from(conversationCountMap.values()).reduce((sum, count) => sum + count, 0);
-  
+  stats.conversationCount = Array.from(conversationCountMap.values()).reduce(
+    (sum, count) => sum + count,
+    0
+  );
+
   // Sum message counts (each key represents unique workspace/agent/user/date)
   for (const messageCounts of messageCountMap.values()) {
     stats.messagesIn += messageCounts.messagesIn;
@@ -505,6 +504,8 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
+    rerankingCostUsd: 0,
+    evalCostUsd: 0,
     conversationCount: 0,
     messagesIn: 0,
     messagesOut: 0,
@@ -533,6 +534,8 @@ export function mergeUsageStats(...statsArray: UsageStats[]): UsageStats {
     merged.outputTokens += stats.outputTokens;
     merged.totalTokens += stats.totalTokens;
     merged.costUsd += stats.costUsd;
+    merged.rerankingCostUsd += stats.rerankingCostUsd;
+    merged.evalCostUsd += stats.evalCostUsd;
     merged.conversationCount += stats.conversationCount;
     merged.messagesIn += stats.messagesIn;
     merged.messagesOut += stats.messagesOut;
@@ -673,6 +676,8 @@ async function aggregateTransactionsStream(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
+    rerankingCostUsd: 0,
+    evalCostUsd: 0,
     conversationCount: 0,
     messagesIn: 0,
     messagesOut: 0,
@@ -700,7 +705,7 @@ async function aggregateTransactionsStream(
   let transactionCount = 0;
   for await (const txn of transactions) {
     transactionCount++;
-    
+
     // Filter out tool-execution transactions (they're handled separately)
     // Filter out credit-purchase transactions (they're not usage costs)
     if (txn.source === "tool-execution" || txn.source === "credit-purchase") {
@@ -731,7 +736,7 @@ async function aggregateTransactionsStream(
     // This ensures model names from transactions match those from conversations
     const rawModelName = txn.model || "unknown";
     const modelName = normalizeModelNameForAggregation(rawModelName);
-    
+
     // Debug logging for cost attribution
     if (costUsd > 0) {
       console.log("[aggregateTransactionsStream] Attributing cost to model:", {
@@ -742,7 +747,7 @@ async function aggregateTransactionsStream(
         amountMillionthUsd: rawAmount,
       });
     }
-    
+
     if (!stats.byModel[modelName]) {
       stats.byModel[modelName] = {
         inputTokens: 0,
@@ -760,7 +765,8 @@ async function aggregateTransactionsStream(
     // For tool-execution: use txn.supplier directly (it's the actual tool supplier like "tavily", "exa")
     let provider: string = txn.supplier || "unknown";
     if (
-      (txn.source === "text-generation" || txn.source === "embedding-generation") &&
+      (txn.source === "text-generation" ||
+        txn.source === "embedding-generation") &&
       rawModelName
     ) {
       // Extract supplier from original model name format {supplier}/{model}
@@ -810,6 +816,8 @@ async function aggregateToolTransactionsStream(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
+    rerankingCostUsd: 0,
+    evalCostUsd: 0,
     conversationCount: 0,
     messagesIn: 0,
     messagesOut: 0,
@@ -936,6 +944,8 @@ function aggregateToolAggregates(
     outputTokens: 0,
     totalTokens: 0,
     costUsd: 0,
+    rerankingCostUsd: 0,
+    evalCostUsd: 0,
     conversationCount: 0,
     messagesIn: 0,
     messagesOut: 0,
@@ -1054,6 +1064,16 @@ export async function queryUsageStats(
           endDate: recentEnd,
         })
       )
+    );
+
+    // Query eval costs
+    statsPromises.push(
+      queryEvalCostsForDateRange(db, {
+        workspaceId,
+        agentId,
+        startDate: recentStart,
+        endDate: recentEnd,
+      })
     );
   }
 
@@ -1178,6 +1198,118 @@ async function queryConversationsForDateRange(
   });
 
   return aggregateConversations(filtered);
+}
+
+/**
+ * Query eval costs for a date range
+ */
+async function queryEvalCostsForDateRange(
+  db: DatabaseSchema,
+  options: {
+    workspaceId?: string;
+    agentId?: string;
+    startDate: Date;
+    endDate: Date;
+  }
+): Promise<UsageStats> {
+  const { workspaceId, agentId, startDate, endDate } = options;
+
+  const stats: UsageStats = {
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+    costUsd: 0,
+    rerankingCostUsd: 0,
+    evalCostUsd: 0,
+    conversationCount: 0,
+    messagesIn: 0,
+    messagesOut: 0,
+    totalMessages: 0,
+    byModel: {},
+    byProvider: {},
+    byByok: {
+      byok: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+      },
+      platform: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        costUsd: 0,
+      },
+    },
+    toolExpenses: {},
+  };
+
+  // Query eval results using available GSIs
+  // Note: We need to filter by evaluatedAt date in memory since there's no GSI with evaluatedAt as sort key
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const evalResultTable = (db as any)["agent-eval-result"];
+
+  if (agentId) {
+    // Query by agentId using GSI with queryAsync for memory efficiency
+    for await (const result of evalResultTable.queryAsync({
+      IndexName: "byAgentId",
+      KeyConditionExpression: "agentId = :agentId",
+      ExpressionAttributeValues: {
+        ":agentId": agentId,
+      },
+    })) {
+      // Filter by date range in memory
+      const evaluatedAt = new Date(result.evaluatedAt);
+      if (evaluatedAt >= startDate && evaluatedAt <= endDate) {
+        const costUsd = (result.costUsd as number | undefined) || 0;
+        stats.evalCostUsd += costUsd;
+      }
+    }
+  } else if (workspaceId) {
+    // Query all agents in the workspace first, then query eval results for each agent
+    // This is more efficient than scanning the entire eval results table
+    const agentsQuery = await db.agent.query({
+      IndexName: "byWorkspaceId",
+      KeyConditionExpression: "workspaceId = :workspaceId",
+      ExpressionAttributeValues: {
+        ":workspaceId": workspaceId,
+      },
+    });
+
+    const agentIds = agentsQuery.items.map((agent) => {
+      // Extract agentId from pk (format: "agents/{workspaceId}/{agentId}")
+      const parts = agent.pk.split("/");
+      return parts[parts.length - 1];
+    });
+
+    // Query eval results for each agent using queryAsync for memory efficiency
+    for (const aid of agentIds) {
+      try {
+        for await (const evalResult of evalResultTable.queryAsync({
+          IndexName: "byAgentId",
+          KeyConditionExpression: "agentId = :agentId",
+          ExpressionAttributeValues: {
+            ":agentId": aid,
+          },
+        })) {
+          // Filter by date range in memory
+          const evaluatedAt = new Date(evalResult.evaluatedAt);
+          if (evaluatedAt >= startDate && evaluatedAt <= endDate) {
+            const costUsd = (evalResult.costUsd as number | undefined) || 0;
+            stats.evalCostUsd += costUsd;
+          }
+        }
+      } catch (error) {
+        console.error(
+          `[queryEvalCostsForDateRange] Failed to query eval results for agent ${aid}:`,
+          error
+        );
+        // Continue with other agents even if one fails
+      }
+    }
+  }
+
+  return stats;
 }
 
 /**

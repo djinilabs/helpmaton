@@ -23,41 +23,56 @@ export const UsageStats: FC<UsageStatsProps> = ({
     <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
       <h3 className="mb-4 text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50">{title}</h3>
       <p className="mb-8 text-base leading-relaxed text-neutral-600 dark:text-neutral-300">
-        Input tokens are the text you send to the AI. Output tokens are the text the AI generates. Total tokens is the sum of both. Cost is calculated based on the model used and token counts. Conversation count shows the number of unique conversations. Messages in are user messages, messages out are assistant responses. Tool usage shows calls to external tools like web search and URL fetching. BYOK (Bring Your Own Key) shows usage with your own API keys, while Platform shows usage with platform-provided keys.
+        Input tokens are the text you send to the AI. Output tokens are the text the AI generates. Total tokens is the sum of both. Total Cost includes all costs: token costs (from model usage), tool costs (from external tools like web search), reranking costs (from knowledge base document reranking), and eval costs (from evaluation judge calls). Reranking Cost and Eval Cost are shown separately when present. Conversation count shows the number of unique conversations. Messages in are user messages, messages out are assistant responses. Tool usage shows calls to external tools like web search and URL fetching. BYOK (Bring Your Own Key) shows usage with your own API keys, while Platform shows usage with platform-provided keys.
       </p>
 
       <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.inputTokens).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
-          <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Input Tokens</div>
-          <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.inputTokens)}</div>
+        {/* Conversation and Messages Group - Success (Green) */}
+        <div className="rounded-xl border border-success-200 bg-success-100 p-5 dark:border-success-700 dark:bg-success-900">
+          <div className="mb-2 text-sm font-semibold text-success-700 dark:text-success-300">Conversations</div>
+          <div className="text-3xl font-bold text-success-900 dark:text-success-50">{formatNumber(stats.conversationCount)}</div>
         </div>
-        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.outputTokens).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
-          <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Output Tokens</div>
-          <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.outputTokens)}</div>
+        <div className="rounded-xl border border-success-200 bg-success-100 p-5 dark:border-success-700 dark:bg-success-900">
+          <div className="mb-2 text-sm font-semibold text-success-700 dark:text-success-300">Messages In</div>
+          <div className="text-3xl font-bold text-success-900 dark:text-success-50">{formatNumber(stats.messagesIn)}</div>
         </div>
-        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.totalTokens).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
-          <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Total Tokens</div>
-          <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.totalTokens)}</div>
+        <div className="rounded-xl border border-success-200 bg-success-100 p-5 dark:border-success-700 dark:bg-success-900">
+          <div className="mb-2 text-sm font-semibold text-success-700 dark:text-success-300">Messages Out</div>
+          <div className="text-3xl font-bold text-success-900 dark:text-success-50">{formatNumber(stats.messagesOut)}</div>
         </div>
-        <div className={`rounded-xl border p-5 ${getCostColor(stats.cost).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
-          <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Total Cost</div>
-          <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatCurrency(stats.cost, currency, 10)}</div>
+        <div className="rounded-xl border border-success-200 bg-success-100 p-5 dark:border-success-700 dark:bg-success-900">
+          <div className="mb-2 text-sm font-semibold text-success-700 dark:text-success-300">Total Messages</div>
+          <div className="text-3xl font-bold text-success-900 dark:text-success-50">{formatNumber(stats.totalMessages)}</div>
         </div>
-        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.conversationCount).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
-          <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Conversations</div>
-          <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.conversationCount)}</div>
+        {/* Tokens Group - Primary (Teal) */}
+        <div className="rounded-xl border border-primary-200 bg-primary-100 p-5 dark:border-primary-700 dark:bg-primary-900">
+          <div className="mb-2 text-sm font-semibold text-primary-700 dark:text-primary-300">Input Tokens</div>
+          <div className="text-3xl font-bold text-primary-900 dark:text-primary-50">{formatNumber(stats.inputTokens)}</div>
         </div>
-        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.messagesIn).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
-          <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Messages In</div>
-          <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.messagesIn)}</div>
+        <div className="rounded-xl border border-primary-200 bg-primary-100 p-5 dark:border-primary-700 dark:bg-primary-900">
+          <div className="mb-2 text-sm font-semibold text-primary-700 dark:text-primary-300">Output Tokens</div>
+          <div className="text-3xl font-bold text-primary-900 dark:text-primary-50">{formatNumber(stats.outputTokens)}</div>
         </div>
-        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.messagesOut).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
-          <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Messages Out</div>
-          <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.messagesOut)}</div>
+        <div className="rounded-xl border border-primary-200 bg-primary-100 p-5 dark:border-primary-700 dark:bg-primary-900">
+          <div className="mb-2 text-sm font-semibold text-primary-700 dark:text-primary-300">Total Tokens</div>
+          <div className="text-3xl font-bold text-primary-900 dark:text-primary-50">{formatNumber(stats.totalTokens)}</div>
         </div>
-        <div className={`rounded-xl border p-5 ${getTokenUsageColor(stats.totalMessages).split(' ').filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-') || c.startsWith('border-') || c.startsWith('dark:border-')).join(' ')}`}>
-          <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">Total Messages</div>
-          <div className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">{formatNumber(stats.totalMessages)}</div>
+        {/* Costs Group - Accent (Purple) */}
+        {(stats.rerankingCostUsd !== undefined && stats.rerankingCostUsd > 0) && (
+          <div className="rounded-xl border border-accent-200 bg-accent-100 p-5 dark:border-accent-700 dark:bg-accent-900">
+            <div className="mb-2 text-sm font-semibold text-accent-700 dark:text-accent-300">Reranking Cost</div>
+            <div className="text-3xl font-bold text-accent-900 dark:text-accent-50">{formatCurrency(stats.rerankingCostUsd, currency, 10)}</div>
+          </div>
+        )}
+        {(stats.evalCostUsd !== undefined && stats.evalCostUsd > 0) && (
+          <div className="rounded-xl border border-accent-200 bg-accent-100 p-5 dark:border-accent-700 dark:bg-accent-900">
+            <div className="mb-2 text-sm font-semibold text-accent-700 dark:text-accent-300">Eval Cost</div>
+            <div className="text-3xl font-bold text-accent-900 dark:text-accent-50">{formatCurrency(stats.evalCostUsd, currency, 10)}</div>
+          </div>
+        )}
+        <div className="rounded-xl border border-accent-200 bg-accent-100 p-5 dark:border-accent-700 dark:bg-accent-900">
+          <div className="mb-2 text-sm font-semibold text-accent-700 dark:text-accent-300">Total Cost</div>
+          <div className="text-3xl font-bold text-accent-900 dark:text-accent-50">{formatCurrency(stats.cost, currency, 10)}</div>
         </div>
       </div>
 
