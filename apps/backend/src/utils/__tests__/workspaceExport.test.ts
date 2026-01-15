@@ -739,18 +739,26 @@ describe("exportWorkspace", () => {
     expect(oauthServer!.config).toHaveProperty("expiresAt"); // expiresAt is not a credential
     expect(oauthServer!.config).toHaveProperty("email");
     expect(oauthServer!.config).toHaveProperty("someOtherField");
-    expect((oauthServer!.config as Record<string, unknown>).someOtherField).toBe("value");
+    expect(
+      (oauthServer!.config as Record<string, unknown>).someOtherField
+    ).toBe("value");
 
     // Header auth server - should filter headerValue, apiKey
-    const headerServer = result.mcpServers!.find((s) => s.name === "Header Auth Server");
+    const headerServer = result.mcpServers!.find(
+      (s) => s.name === "Header Auth Server"
+    );
     expect(headerServer).toBeDefined();
     expect(headerServer!.config).not.toHaveProperty("headerValue");
     expect(headerServer!.config).not.toHaveProperty("apiKey");
     expect(headerServer!.config).toHaveProperty("endpoint");
-    expect((headerServer!.config as Record<string, unknown>).endpoint).toBe("/api/v1");
+    expect((headerServer!.config as Record<string, unknown>).endpoint).toBe(
+      "/api/v1"
+    );
 
     // Basic auth server - should filter password
-    const basicServer = result.mcpServers!.find((s) => s.name === "Basic Auth Server");
+    const basicServer = result.mcpServers!.find(
+      (s) => s.name === "Basic Auth Server"
+    );
     expect(basicServer).toBeDefined();
     expect(basicServer!.config).toHaveProperty("username"); // username might be okay, but password isn't
     expect(basicServer!.config).not.toHaveProperty("password");

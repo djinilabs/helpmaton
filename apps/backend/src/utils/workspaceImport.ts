@@ -29,6 +29,113 @@ function extractReferenceName(ref: string): string {
 }
 
 /**
+ * Pre-generate all reference mappings by scanning all entities in the export data.
+ * This ensures all refNames are mapped to UUIDs before any entity creation,
+ * allowing consistent reference resolution throughout the import process.
+ *
+ * @param validatedData - The validated workspace export data
+ * @returns A map of reference names to generated UUIDs
+ */
+function preGenerateReferenceMap(
+  validatedData: WorkspaceExport
+): Map<string, string> {
+  const referenceMap = new Map<string, string>();
+
+  // Map workspace ID if it's a reference
+  if (isReference(validatedData.id)) {
+    const refName = extractReferenceName(validatedData.id);
+    referenceMap.set(refName, randomUUID());
+  }
+
+  // Map output channel IDs
+  if (validatedData.outputChannels) {
+    for (const channel of validatedData.outputChannels) {
+      if (isReference(channel.id)) {
+        const refName = extractReferenceName(channel.id);
+        if (!referenceMap.has(refName)) {
+          referenceMap.set(refName, randomUUID());
+        }
+      }
+    }
+  }
+
+  // Map email connection IDs
+  if (validatedData.emailConnections) {
+    for (const connection of validatedData.emailConnections) {
+      if (isReference(connection.id)) {
+        const refName = extractReferenceName(connection.id);
+        if (!referenceMap.has(refName)) {
+          referenceMap.set(refName, randomUUID());
+        }
+      }
+    }
+  }
+
+  // Map MCP server IDs
+  if (validatedData.mcpServers) {
+    for (const server of validatedData.mcpServers) {
+      if (isReference(server.id)) {
+        const refName = extractReferenceName(server.id);
+        if (!referenceMap.has(refName)) {
+          referenceMap.set(refName, randomUUID());
+        }
+      }
+    }
+  }
+
+  // Map agent IDs and their nested entities (keys, evalJudges)
+  if (validatedData.agents) {
+    for (const agent of validatedData.agents) {
+      // Map agent ID
+      if (isReference(agent.id)) {
+        const refName = extractReferenceName(agent.id);
+        if (!referenceMap.has(refName)) {
+          referenceMap.set(refName, randomUUID());
+        }
+      }
+
+      // Map agent key IDs
+      if (agent.keys) {
+        for (const key of agent.keys) {
+          if (isReference(key.id)) {
+            const refName = extractReferenceName(key.id);
+            if (!referenceMap.has(refName)) {
+              referenceMap.set(refName, randomUUID());
+            }
+          }
+        }
+      }
+
+      // Map eval judge IDs
+      if (agent.evalJudges) {
+        for (const judge of agent.evalJudges) {
+          if (isReference(judge.id)) {
+            const refName = extractReferenceName(judge.id);
+            if (!referenceMap.has(refName)) {
+              referenceMap.set(refName, randomUUID());
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Map bot integration IDs
+  if (validatedData.botIntegrations) {
+    for (const integration of validatedData.botIntegrations) {
+      if (isReference(integration.id)) {
+        const refName = extractReferenceName(integration.id);
+        if (!referenceMap.has(refName)) {
+          referenceMap.set(refName, randomUUID());
+        }
+      }
+    }
+  }
+
+  return referenceMap;
+}
+
+/**
  * Import a complete workspace configuration
  *
  * Creates a new workspace from exported configuration data. Handles reference resolution,
@@ -53,19 +160,21 @@ export async function importWorkspace(
   const subscription = await getUserSubscription(userId);
   const subscriptionId = subscription.pk.replace("subscriptions/", "");
 
-  // Create reference mapping for resolving references to actual IDs
-  const referenceMap = new Map<string, string>();
+  // Pre-generate all reference mappings before any entity creation
+  // This ensures all refNames are mapped to UUIDs before we start creating entities
+  const referenceMap = preGenerateReferenceMap(validatedData);
 
   // Helper to resolve an ID (either use existing reference or generate new UUID)
   const resolveId = (id: string): string => {
     if (isReference(id)) {
       const ref = extractReferenceName(id);
-      if (!referenceMap.has(ref)) {
-        const newId = randomUUID();
-        referenceMap.set(ref, newId);
-        return newId;
+      const resolvedId = referenceMap.get(ref);
+      if (!resolvedId) {
+        throw badRequest(
+          `Reference "${id}" not found. All references must be defined in the export data.`
+        );
       }
-      return referenceMap.get(ref)!;
+      return resolvedId;
     }
     // If it's an actual ID, generate a new one for import (we don't reuse IDs from exports)
     return randomUUID();
@@ -110,11 +219,6 @@ export async function importWorkspace(
   // All limit checks complete - now safe to create entities
   // Step 1: Create workspace
   const workspaceId = resolveId(validatedData.id);
-  // Map workspace ID to reference map if it was a reference
-  if (isReference(validatedData.id)) {
-    const refName = extractReferenceName(validatedData.id);
-    referenceMap.set(refName, workspaceId);
-  }
   const workspacePk = `workspaces/${workspaceId}`;
   const workspaceSk = "workspace";
 
@@ -144,11 +248,6 @@ export async function importWorkspace(
     for (const channel of validatedData.outputChannels) {
       const newChannelId = resolveId(channel.id);
       channelIdMap.set(channel.id, newChannelId);
-      // Also map reference name if it's a reference
-      if (isReference(channel.id)) {
-        const refName = extractReferenceName(channel.id);
-        referenceMap.set(refName, newChannelId);
-      }
       const channelPk = `output-channels/${workspaceId}/${newChannelId}`;
       await db["output_channel"].create({
         pk: channelPk,
@@ -169,11 +268,6 @@ export async function importWorkspace(
     for (const connection of validatedData.emailConnections) {
       const newConnectionId = resolveId(connection.id);
       emailConnectionIdMap.set(connection.id, newConnectionId);
-      // Also map reference name if it's a reference
-      if (isReference(connection.id)) {
-        const refName = extractReferenceName(connection.id);
-        referenceMap.set(refName, newConnectionId);
-      }
       const pk = `email-connections/${workspaceId}`;
       const sk = "connection";
       // Email connections use a fixed PK, so we can only have one
@@ -199,11 +293,6 @@ export async function importWorkspace(
     for (const server of validatedData.mcpServers) {
       const newServerId = resolveId(server.id);
       mcpServerIdMap.set(server.id, newServerId);
-      // Also map reference name if it's a reference
-      if (isReference(server.id)) {
-        const refName = extractReferenceName(server.id);
-        referenceMap.set(refName, newServerId);
-      }
       const pk = `mcp-servers/${workspaceId}/${newServerId}`;
       await db["mcp-server"].create({
         pk,
@@ -226,11 +315,6 @@ export async function importWorkspace(
     for (const agentData of validatedData.agents) {
       const newAgentId = resolveId(agentData.id);
       agentIdMap.set(agentData.id, newAgentId);
-      // Also map reference name if it's a reference
-      if (isReference(agentData.id)) {
-        const refName = extractReferenceName(agentData.id);
-        referenceMap.set(refName, newAgentId);
-      }
     }
   }
 
@@ -248,16 +332,12 @@ export async function importWorkspace(
           const refName = extractReferenceName(channelRef);
           notificationChannelId = referenceMap.get(refName);
           if (!notificationChannelId) {
-            // Fallback: check channelIdMap
-            notificationChannelId = channelIdMap.get(channelRef);
-          }
-          if (!notificationChannelId) {
             throw badRequest(
               `Notification channel reference "${channelRef}" not found in outputChannels`
             );
           }
         } else {
-          // Look up in channelIdMap
+          // Look up in channelIdMap for actual IDs
           notificationChannelId = channelIdMap.get(channelRef);
           if (!notificationChannelId) {
             throw badRequest(
@@ -273,17 +353,12 @@ export async function importWorkspace(
           if (isReference(id)) {
             const refName = extractReferenceName(id);
             const resolvedId = referenceMap.get(refName);
-            if (resolvedId) {
-              return resolvedId;
+            if (!resolvedId) {
+              throw badRequest(
+                `Delegatable agent reference "${id}" not found in agents`
+              );
             }
-            // Fallback: check agentIdMap
-            const fallbackId = agentIdMap.get(id);
-            if (fallbackId) {
-              return fallbackId;
-            }
-            throw badRequest(
-              `Delegatable agent reference "${id}" not found in agents`
-            );
+            return resolvedId;
           }
           const resolvedId = agentIdMap.get(id);
           if (!resolvedId) {
@@ -298,17 +373,12 @@ export async function importWorkspace(
           if (isReference(id)) {
             const refName = extractReferenceName(id);
             const resolvedId = referenceMap.get(refName);
-            if (resolvedId) {
-              return resolvedId;
+            if (!resolvedId) {
+              throw badRequest(
+                `MCP server reference "${id}" not found in mcpServers`
+              );
             }
-            // Fallback: check mcpServerIdMap
-            const fallbackId = mcpServerIdMap.get(id);
-            if (fallbackId) {
-              return fallbackId;
-            }
-            throw badRequest(
-              `MCP server reference "${id}" not found in mcpServers`
-            );
+            return resolvedId;
           }
           const resolvedId = mcpServerIdMap.get(id);
           if (!resolvedId) {
@@ -357,10 +427,10 @@ export async function importWorkspace(
         createdBy: userRef,
       });
 
-      // Create agent keys (agent variable not needed after creation)
+      // Create agent keys
       if (agentData.keys) {
         for (const keyData of agentData.keys) {
-          const newKeyId = randomUUID();
+          const newKeyId = resolveId(keyData.id);
           const keyValue = randomUUID();
           const agentKeyPk = `agent-keys/${workspaceId}/${newAgentId}/${newKeyId}`;
           await db["agent-key"].create({
@@ -380,7 +450,7 @@ export async function importWorkspace(
       // Create eval judges
       if (agentData.evalJudges) {
         for (const judgeData of agentData.evalJudges) {
-          const newJudgeId = randomUUID();
+          const newJudgeId = resolveId(judgeData.id);
           const judgePk = `agent-eval-judges/${workspaceId}/${newAgentId}/${newJudgeId}`;
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await (db as any)["agent-eval-judge"].create({
@@ -414,26 +484,19 @@ export async function importWorkspace(
   // Step 6: Create bot integrations (they reference agents)
   if (validatedData.botIntegrations) {
     for (const integrationData of validatedData.botIntegrations) {
-      const newIntegrationId = randomUUID();
+      const newIntegrationId = resolveId(integrationData.id);
 
       // Resolve agent ID
       let resolvedAgentId: string;
       if (isReference(integrationData.agentId)) {
         const refName = extractReferenceName(integrationData.agentId);
         const resolvedId = referenceMap.get(refName);
-        if (resolvedId) {
-          resolvedAgentId = resolvedId;
-        } else {
-          // Fallback: check agentIdMap
-          const fallbackId = agentIdMap.get(integrationData.agentId);
-          if (fallbackId) {
-            resolvedAgentId = fallbackId;
-          } else {
-            throw badRequest(
-              `Agent reference "${integrationData.agentId}" not found in agents`
-            );
-          }
+        if (!resolvedId) {
+          throw badRequest(
+            `Agent reference "${integrationData.agentId}" not found in agents`
+          );
         }
+        resolvedAgentId = resolvedId;
       } else {
         const resolvedId = agentIdMap.get(integrationData.agentId);
         if (!resolvedId) {
