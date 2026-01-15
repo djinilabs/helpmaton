@@ -1,4 +1,4 @@
-import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { queues } from "@architect/functions";
 
 /**
  * Enqueue evaluation tasks for all enabled judges for a conversation
@@ -37,15 +37,6 @@ export async function enqueueEvaluations(
     return;
   }
 
-  // Get SQS queue URL from environment
-  const queueUrl = process.env.AGENT_EVAL_QUEUE_URL;
-  if (!queueUrl) {
-    console.warn("[Eval Enqueue] AGENT_EVAL_QUEUE_URL not set, skipping evaluation enqueue");
-    return;
-  }
-
-  const sqsClient = new SQSClient({});
-
   // Enqueue evaluation task for each judge
   const enqueuePromises = judges.Items.map(async (judge: {
     judgeId: string;
@@ -59,12 +50,10 @@ export async function enqueueEvaluations(
     };
 
     try {
-      await sqsClient.send(
-        new SendMessageCommand({
-          QueueUrl: queueUrl,
-          MessageBody: JSON.stringify(message),
-        })
-      );
+      await queues.publish({
+        name: "agent-eval-queue",
+        payload: message,
+      });
 
       console.log("[Eval Enqueue] Enqueued evaluation task:", {
         workspaceId,
