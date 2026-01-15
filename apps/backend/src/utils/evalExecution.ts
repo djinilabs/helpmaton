@@ -11,8 +11,9 @@ import type { AugmentedContext } from "./workspaceCreditContext";
 
 /**
  * Format conversation messages into the format expected by eval prompts
+ * Exported for testing
  */
-function formatConversationForEval(
+export function formatConversationForEval(
   messages: UIMessage[]
 ): {
   input_prompt: string;
@@ -113,8 +114,9 @@ function formatConversationForEval(
 
 /**
  * Parse JSON response from eval judge, handling markdown code blocks
+ * Exported for testing
  */
-function parseEvalResponse(text: string): {
+export function parseEvalResponse(text: string): {
   summary: string;
   score_goal_completion: number;
   score_tool_efficiency: number;
