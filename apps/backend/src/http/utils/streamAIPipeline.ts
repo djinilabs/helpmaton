@@ -107,11 +107,11 @@ export async function pipeAIStreamToResponse(
                 const jsonStr = line.substring(6); // Remove "data: " prefix
                 const parsed = JSON.parse(jsonStr);
                 if (parsed.type === "text-delta" && parsed.textDelta) {
-                  onTextChunk(parsed.textDelta);
                   observer?.recordText(parsed.textDelta);
+                  onTextChunk(parsed.textDelta);
                 } else if (parsed.type === "text" && parsed.text) {
-                  onTextChunk(parsed.text);
                   observer?.recordText(parsed.text);
+                  onTextChunk(parsed.text);
                 } else if (parsed.type === "tool-call") {
                   if (parsed.toolCallId && parsed.toolName) {
                     observer?.recordToolCall({

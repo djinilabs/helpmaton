@@ -10,6 +10,7 @@
 - **Streaming observer fixes**: StreamText now receives observer step callbacks directly, and SSE parsing now records `tool-call`/`tool-result` events for complete conversation logging.
 - **Observer test coverage + helpers**: Added more unit tests for observer behavior and extracted a shared helper for observer input message insertion.
 - **Merge conflict resolution**: Resolved `agentUtils.ts` and `streamPostProcessing.ts` conflicts, keeping observer-driven conversation logging and delegation metadata support intact.
+- **PR 152 review fixes**: Switched model wrapping to Proxy, preserved tool execute bindings, ensured observer text capture ordering and empty-string handling, and clarified fallback tool timing.
 
 1. **GitHub MCP Server Integration**: Implemented complete GitHub MCP server support with OAuth authentication, read-only API access, and comprehensive tool coverage for repositories, issues, pull requests, commits, and file contents.
 

@@ -38,7 +38,11 @@ function recordFinalTextIfNotStreamed(params: {
   streamedTextLength: number;
 }): void {
   const { observer, finalResponseText, streamedTextLength } = params;
-  if (!finalResponseText || streamedTextLength > 0) {
+  if (
+    finalResponseText === undefined ||
+    finalResponseText === null ||
+    streamedTextLength > 0
+  ) {
     return;
   }
   // In normal streaming, `streamedTextLength` grows as chunks are sent and

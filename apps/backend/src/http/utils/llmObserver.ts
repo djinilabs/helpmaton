@@ -303,7 +303,7 @@ export function createLlmObserver(): LlmObserver {
       });
     },
     recordText: (text, timestamp) => {
-      if (!text) return;
+      if (text === undefined || text === null) return;
       recordEvent({
         type: "assistant-text",
         timestamp: timestamp || nowIso(),
@@ -311,7 +311,7 @@ export function createLlmObserver(): LlmObserver {
       });
     },
     recordReasoning: (text, timestamp) => {
-      if (!text) return;
+      if (text === undefined || text === null) return;
       recordEvent({
         type: "assistant-reasoning",
         timestamp: timestamp || nowIso(),
@@ -362,7 +362,7 @@ export function createLlmObserver(): LlmObserver {
           : typeof resultAny?.outputText === "string"
           ? resultAny.outputText
           : undefined;
-      if (text) {
+      if (typeof text === "string") {
         recordEvent({
           type: "assistant-text",
           timestamp: nowIso(),
@@ -419,45 +419,66 @@ export function withLlmObserver<TModel extends object>(
 ): TModel {
   if (!observer) return model;
 
-  const wrappedModel = Object.assign(
-    Object.create(Object.getPrototypeOf(model)),
-    model
-  ) as TModel & {
-    doGenerate?: (options: unknown) => Promise<unknown>;
-    doStream?: (options: unknown) => Promise<unknown>;
-  };
+  const hasDoGenerate =
+    "doGenerate" in (model as { doGenerate?: unknown }) &&
+    typeof (model as { doGenerate?: unknown }).doGenerate === "function";
+  const hasDoStream =
+    "doStream" in (model as { doStream?: unknown }) &&
+    typeof (model as { doStream?: unknown }).doStream === "function";
 
-  if ("doGenerate" in model && typeof model.doGenerate === "function") {
-    const originalDoGenerate = model.doGenerate.bind(model);
-    wrappedModel.doGenerate = async (options: unknown) => {
-      observer.recordGenerationStarted();
-      try {
-        const result = await originalDoGenerate(options);
-        observer.recordGenerationEnded();
-        observer.recordFromResult(result);
-        return result;
-      } catch (error) {
-        observer.recordGenerationEnded();
-        throw error;
-      }
-    };
+  if (!hasDoGenerate && !hasDoStream) {
+    return model;
   }
 
-  if ("doStream" in model && typeof model.doStream === "function") {
-    const originalDoStream = model.doStream.bind(model);
-    wrappedModel.doStream = async (options: unknown) => {
-      observer.recordGenerationStarted();
-      try {
-        const result = await originalDoStream(options);
-        return result;
-      } catch (error) {
-        observer.recordGenerationEnded();
-        throw error;
-      }
-    };
-  }
+  const originalDoGenerate = hasDoGenerate
+    ? (model as { doGenerate: (options: unknown) => Promise<unknown> })
+        .doGenerate.bind(model)
+    : undefined;
+  const originalDoStream = hasDoStream
+    ? (model as { doStream: (options: unknown) => Promise<unknown> }).doStream.bind(
+        model
+      )
+    : undefined;
 
-  return wrappedModel as TModel;
+  const proxyModel = new Proxy(
+    model as TModel & {
+      doGenerate?: (options: unknown) => Promise<unknown>;
+      doStream?: (options: unknown) => Promise<unknown>;
+    },
+    {
+      get(target, prop, receiver) {
+        if (prop === "doGenerate" && originalDoGenerate) {
+          return async (options: unknown) => {
+            observer.recordGenerationStarted();
+            try {
+              const result = await originalDoGenerate(options);
+              observer.recordGenerationEnded();
+              observer.recordFromResult(result);
+              return result;
+            } catch (error) {
+              observer.recordGenerationEnded();
+              throw error;
+            }
+          };
+        }
+        if (prop === "doStream" && originalDoStream) {
+          return async (options: unknown) => {
+            observer.recordGenerationStarted();
+            try {
+              const result = await originalDoStream(options);
+              return result;
+            } catch (error) {
+              observer.recordGenerationEnded();
+              throw error;
+            }
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    }
+  );
+
+  return proxyModel as TModel;
 }
 
 export function createStreamObserverCallbacks(
@@ -527,7 +548,7 @@ export function wrapToolsWithObserver<TTools extends Record<string, unknown>>(
     }
 
     const toolAny = toolDef as { execute?: (...args: unknown[]) => unknown };
-    const execute = toolAny.execute;
+    const execute = toolAny.execute?.bind(toolDef);
     if (typeof execute !== "function") {
       wrapped[toolName] = toolDef;
       continue;
@@ -621,7 +642,9 @@ export function buildConversationMessagesFromObserver(params: {
   let textBuffer = "";
 
   const flushTextBuffer = () => {
-    if (textBuffer.trim().length > 0) {
+    const trimmed = textBuffer.trim();
+    if (trimmed.length > 0) {
+      // Preserve original whitespace while skipping whitespace-only buffers.
       content.push({ type: "text", text: textBuffer });
       textBuffer = "";
     }
@@ -657,6 +680,7 @@ export function buildConversationMessagesFromObserver(params: {
             new Date(executionEnd).getTime() -
             new Date(executionStart).getTime();
         } else if (toolCallStart) {
+          // Fallback includes model deliberation before execution starts.
           toolExecutionTimeMs =
             new Date(event.timestamp).getTime() -
             new Date(toolCallStart).getTime();
