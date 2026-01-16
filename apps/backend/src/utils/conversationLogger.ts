@@ -1548,6 +1548,13 @@ export function expandMessagesWithToolCalls(
       } else if (delegationParts.length > 0) {
         // No tool calls/results but we have delegations - add message with delegations
         // This shouldn't normally happen, but handle it gracefully
+        console.warn(
+          "[ConversationLogger] Found delegations without tool calls/results",
+          {
+            role: message.role,
+            delegationCount: delegationParts.length,
+          }
+        );
         const contentWithDelegations: Array<
           | { type: "text"; text: string }
           | { type: "reasoning"; text: string }

@@ -32,21 +32,27 @@ function findJsonObjectEnd(str: string, startPos: number): number | null {
   for (let i = startPos; i < str.length; i++) {
     const char = str[i];
 
+    // Handle escaped characters - reset escape flag and continue processing
     if (escapeNext) {
       escapeNext = false;
+      // Continue processing the escaped character normally
+      // (it's part of the string content, not structural)
       continue;
     }
 
-    if (char === "\\") {
+    // Handle backslash - only treat as escape when inside a string
+    if (char === "\\" && inString) {
       escapeNext = true;
       continue;
     }
 
-    if (char === '"' && !escapeNext) {
+    // Handle quotes - only toggle string state if not escaped
+    if (char === '"') {
       inString = !inString;
       continue;
     }
 
+    // Skip all characters inside strings (except structural ones we've already handled)
     if (inString) {
       continue;
     }

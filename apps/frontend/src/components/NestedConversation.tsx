@@ -323,9 +323,6 @@ export const NestedConversation: FC<NestedConversationProps> = ({
     return JSON.stringify(content, null, 2);
   };
 
-  // No indentation for nested conversations
-  const indentClass = "";
-
   const borderColor =
     depth % 2 === 0
       ? "border-blue-200 dark:border-blue-800"
@@ -338,7 +335,7 @@ export const NestedConversation: FC<NestedConversationProps> = ({
   // Show loading state only when expanded and loading
   if (isExpanded && isLoading) {
     return (
-      <div className={`${indentClass} mt-2`}>
+      <div className="mt-2">
         <div className={`rounded-lg border ${borderColor} ${bgColor} p-4`}>
           <div className="flex items-center gap-3">
             <div className="size-5 animate-spin rounded-full border-2 border-neutral-300 border-t-primary-600 dark:border-neutral-600 dark:border-t-primary-400" />
@@ -354,7 +351,7 @@ export const NestedConversation: FC<NestedConversationProps> = ({
   // Show error state only when expanded and there's an error
   if (isExpanded && error) {
     return (
-      <div className={`${indentClass} mt-2`}>
+      <div className="mt-2">
         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
           Error loading nested conversation:{" "}
           {error instanceof Error ? error.message : "Unknown error"}
@@ -366,7 +363,7 @@ export const NestedConversation: FC<NestedConversationProps> = ({
   // Show not found only when expanded and no conversation
   if (isExpanded && !conversation && !isLoading) {
     return (
-      <div className={`${indentClass} mt-2`}>
+      <div className="mt-2">
         <div
           className={`rounded-lg border ${borderColor} ${bgColor} p-3 text-sm text-neutral-600 dark:text-neutral-400`}
         >
@@ -379,7 +376,7 @@ export const NestedConversation: FC<NestedConversationProps> = ({
   // If not expanded, show a collapsed view
   if (!isExpanded) {
     return (
-      <div className={`${indentClass} mt-2`}>
+      <div className="mt-2">
         <div
           className={`rounded-lg border ${borderColor} ${bgColor} p-3 transition-all`}
         >
@@ -417,7 +414,7 @@ export const NestedConversation: FC<NestedConversationProps> = ({
   // Show a message instead of returning null
   if (!conversation && !isLoading && !error) {
     return (
-      <div className={`${indentClass} mt-2`}>
+      <div className="mt-2">
         <div
           className={`rounded-lg border ${borderColor} ${bgColor} p-3 text-sm text-neutral-600 dark:text-neutral-400`}
         >
@@ -430,9 +427,7 @@ export const NestedConversation: FC<NestedConversationProps> = ({
             Workspace ID: {workspaceId}
             <br />
             Query enabled:{" "}
-            {String(
-              isExpanded && !!workspaceId && !!agentId && !!conversationId
-            )}
+            {String(!!workspaceId && !!agentId && !!conversationId)}
           </div>
         </div>
       </div>
@@ -448,7 +443,7 @@ export const NestedConversation: FC<NestedConversationProps> = ({
     conversation.delegations && conversation.delegations.length > 0;
 
   return (
-    <div className={`${indentClass} mt-2`}>
+    <div className="mt-2">
       <div
         className={`rounded-lg border ${borderColor} ${bgColor} p-4 transition-all`}
       >
