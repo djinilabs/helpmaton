@@ -1,3 +1,11 @@
+import {
+  CloudArrowUpIcon,
+  EnvelopeIcon,
+  CalendarIcon,
+  DocumentTextIcon,
+  CodeBracketIcon,
+  ServerIcon,
+} from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import type { FC } from "react";
 
@@ -9,6 +17,66 @@ import {
   useMcpServer,
 } from "../hooks/useMcpServers";
 import { trackEvent } from "../utils/tracking";
+
+type McpServerType =
+  | "google-drive"
+  | "gmail"
+  | "google-calendar"
+  | "notion"
+  | "github"
+  | "custom";
+
+interface McpServerTypeMetadata {
+  value: McpServerType;
+  name: string;
+  description: string;
+  icon: FC<{ className?: string }>;
+}
+
+const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
+  {
+    value: "google-drive",
+    name: "Google Drive",
+    description:
+      "Read files from Google Drive including Google Docs (as plain text), Google Sheets (as CSV), and Google Slides (as plain text). Search and list files.",
+    icon: CloudArrowUpIcon,
+  },
+  {
+    value: "gmail",
+    name: "Gmail",
+    description:
+      "List, search, and read emails using Gmail's powerful search syntax. Access email content, headers, and attachments.",
+    icon: EnvelopeIcon,
+  },
+  {
+    value: "google-calendar",
+    name: "Google Calendar",
+    description:
+      "Full calendar management - list, search, read, create, update, and delete events. Perfect for scheduling assistants.",
+    icon: CalendarIcon,
+  },
+  {
+    value: "notion",
+    name: "Notion",
+    description:
+      "Read, search, create, and update pages and databases. Query databases, create database pages, and append content blocks.",
+    icon: DocumentTextIcon,
+  },
+  {
+    value: "github",
+    name: "GitHub",
+    description:
+      "Read-only access to repositories, issues, pull requests, commits, and file contents. Browse code and track development activity.",
+    icon: CodeBracketIcon,
+  },
+  {
+    value: "custom",
+    name: "Custom MCP",
+    description:
+      "Connect to external MCP servers with custom authentication (none, header, or basic auth).",
+    icon: ServerIcon,
+  },
+];
 
 interface McpServerModalProps {
   isOpen: boolean;
@@ -29,7 +97,14 @@ export const McpServerModal: FC<McpServerModalProps> = ({
   const updateServer = useUpdateMcpServer(workspaceId);
 
   const [name, setName] = useState("");
-  const [mcpType, setMcpType] = useState<"google-drive" | "gmail" | "google-calendar" | "notion" | "github" | "custom">("google-drive"); // Service type for new servers
+  const [mcpType, setMcpType] = useState<
+    | "google-drive"
+    | "gmail"
+    | "google-calendar"
+    | "notion"
+    | "github"
+    | "custom"
+  >("google-drive"); // Service type for new servers
   const [url, setUrl] = useState("");
   const [authType, setAuthType] = useState<"none" | "header" | "basic">("none");
   const [headerValue, setHeaderValue] = useState("");
@@ -43,19 +118,34 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         setName(server.name);
         setUrl(server.url || "");
         // Determine MCP type based on server
-        if (server.authType === "oauth" && server.serviceType === "google-drive") {
+        if (
+          server.authType === "oauth" &&
+          server.serviceType === "google-drive"
+        ) {
           setMcpType("google-drive");
           // OAuth servers don't have authType in the UI
-        } else if (server.authType === "oauth" && server.serviceType === "gmail") {
+        } else if (
+          server.authType === "oauth" &&
+          server.serviceType === "gmail"
+        ) {
           setMcpType("gmail");
           // OAuth servers don't have authType in the UI
-        } else if (server.authType === "oauth" && server.serviceType === "google-calendar") {
+        } else if (
+          server.authType === "oauth" &&
+          server.serviceType === "google-calendar"
+        ) {
           setMcpType("google-calendar");
           // OAuth servers don't have authType in the UI
-        } else if (server.authType === "oauth" && server.serviceType === "notion") {
+        } else if (
+          server.authType === "oauth" &&
+          server.serviceType === "notion"
+        ) {
           setMcpType("notion");
           // OAuth servers don't have authType in the UI
-        } else if (server.authType === "oauth" && server.serviceType === "github") {
+        } else if (
+          server.authType === "oauth" &&
+          server.serviceType === "github"
+        ) {
           setMcpType("github");
           // OAuth servers don't have authType in the UI
         } else {
@@ -126,7 +216,10 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             if (authType === "header" && !headerValue.trim()) {
               return;
             }
-            if (authType === "basic" && (!username.trim() || !password.trim())) {
+            if (
+              authType === "basic" &&
+              (!username.trim() || !password.trim())
+            ) {
               return;
             }
           }
@@ -153,7 +246,13 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           name?: string;
           url?: string;
           authType?: "none" | "header" | "basic" | "oauth";
-          serviceType?: "external" | "google-drive" | "gmail" | "google-calendar" | "notion" | "github";
+          serviceType?:
+            | "external"
+            | "google-drive"
+            | "gmail"
+            | "google-calendar"
+            | "notion"
+            | "github";
           config?: typeof config;
         } = {
           name: name.trim(),
@@ -165,14 +264,14 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         }
 
         // Determine if this is an OAuth server
-        const isOAuthServer = server?.authType === "oauth" && (
-          server?.serviceType === "google-drive" ||
-          server?.serviceType === "gmail" ||
-          server?.serviceType === "google-calendar" ||
-          server?.serviceType === "notion" ||
-          server?.serviceType === "github"
-        );
-        
+        const isOAuthServer =
+          server?.authType === "oauth" &&
+          (server?.serviceType === "google-drive" ||
+            server?.serviceType === "gmail" ||
+            server?.serviceType === "google-calendar" ||
+            server?.serviceType === "notion" ||
+            server?.serviceType === "github");
+
         // OAuth servers can only update name (OAuth connection is managed separately)
         // Custom MCP servers can update URL and auth
         if (!isOAuthServer) {
@@ -359,59 +458,95 @@ export const McpServerModal: FC<McpServerModalProps> = ({
 
           {!isEditing && (
             <div>
-              <label
-                htmlFor="mcpType"
-                className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-              >
+              <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
                 MCP Server Type *
               </label>
-              <select
-                id="mcpType"
-                value={mcpType}
-                onChange={(e) => {
-                  const newType = e.target.value as "google-drive" | "gmail" | "google-calendar" | "notion" | "github" | "custom";
-                  setMcpType(newType);
-                  // Reset auth type when switching
-                  if (newType === "google-drive" || newType === "gmail" || newType === "google-calendar" || newType === "notion" || newType === "github") {
-                    setAuthType("none");
-                    setUrl("");
-                  } else {
-                    setAuthType("none");
-                  }
-                }}
-                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-                required
-              >
-                <option value="google-drive">Google Drive</option>
-                <option value="gmail">Gmail</option>
-                <option value="google-calendar">Google Calendar</option>
-                <option value="notion">Notion</option>
-                <option value="github">GitHub</option>
-                <option value="custom">Custom MCP</option>
-              </select>
-              {mcpType === "google-drive" && (
-                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-                  After creating the server, you&apos;ll need to connect your Google account via OAuth.
-                </p>
-              )}
-              {mcpType === "gmail" && (
-                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-                  After creating the server, you&apos;ll need to connect your Gmail account via OAuth.
-                </p>
-              )}
-              {mcpType === "google-calendar" && (
-                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-                  After creating the server, you&apos;ll need to connect your Google Calendar account via OAuth.
-                </p>
-              )}
-              {mcpType === "notion" && (
-                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-                  After creating the server, you&apos;ll need to connect your Notion account via OAuth.
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {MCP_SERVER_TYPES.map((serverType) => {
+                  const Icon = serverType.icon;
+                  const isSelected = mcpType === serverType.value;
+                  const isOAuthType = serverType.value !== "custom";
+
+                  return (
+                    <button
+                      key={serverType.value}
+                      type="button"
+                      onClick={() => {
+                        setMcpType(serverType.value);
+                        // Reset auth type when switching
+                        if (isOAuthType) {
+                          setAuthType("none");
+                          setUrl("");
+                        } else {
+                          setAuthType("none");
+                        }
+                      }}
+                      className={`relative flex flex-col items-center rounded-xl border-2 p-4 text-left transition-all duration-200 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 ${
+                        isSelected
+                          ? "border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-900/20"
+                          : "border-neutral-300 bg-white hover:border-primary-400 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:border-primary-500"
+                      }`}
+                    >
+                      <div className="mb-3 flex size-12 items-center justify-center">
+                        <Icon
+                          className={`size-8 ${
+                            isSelected
+                              ? "text-primary-600 dark:text-primary-400"
+                              : "text-neutral-600 dark:text-neutral-400"
+                          }`}
+                        />
+                      </div>
+                      <h3
+                        className={`mb-2 text-base font-semibold ${
+                          isSelected
+                            ? "text-primary-900 dark:text-primary-100"
+                            : "text-neutral-900 dark:text-neutral-50"
+                        }`}
+                      >
+                        {serverType.name}
+                      </h3>
+                      <p
+                        className={`text-xs leading-relaxed ${
+                          isSelected
+                            ? "text-primary-700 dark:text-primary-300"
+                            : "text-neutral-600 dark:text-neutral-400"
+                        }`}
+                      >
+                        {serverType.description}
+                      </p>
+                      {isSelected && (
+                        <div className="absolute right-2 top-2">
+                          <div className="flex size-5 items-center justify-center rounded-full bg-primary-500">
+                            <svg
+                              className="size-3 text-white"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={3}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {mcpType !== "custom" && (
+                <p className="mt-3 text-xs text-neutral-600 dark:text-neutral-300">
+                  After creating the server, you&apos;ll need to connect your
+                  account via OAuth.
                 </p>
               )}
               {mcpType === "github" && (
                 <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-                  After creating the server, you&apos;ll need to connect your GitHub account via OAuth (read-only access).
+                  After creating the server, you&apos;ll need to connect your
+                  GitHub account via OAuth (read-only access).
                 </p>
               )}
             </div>
@@ -463,34 +598,44 @@ export const McpServerModal: FC<McpServerModalProps> = ({
 
           {isEditing && server && (
             <>
-              {server.authType === "oauth" && server.serviceType === "google-drive" ? (
+              {server.authType === "oauth" &&
+              server.serviceType === "google-drive" ? (
                 <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
-                    This is a Google Drive MCP server. OAuth connection is managed separately.
+                    This is a Google Drive MCP server. OAuth connection is
+                    managed separately.
                   </p>
                 </div>
-              ) : server.authType === "oauth" && server.serviceType === "gmail" ? (
+              ) : server.authType === "oauth" &&
+                server.serviceType === "gmail" ? (
                 <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
-                    This is a Gmail MCP server. OAuth connection is managed separately.
+                    This is a Gmail MCP server. OAuth connection is managed
+                    separately.
                   </p>
                 </div>
-              ) : server.authType === "oauth" && server.serviceType === "google-calendar" ? (
+              ) : server.authType === "oauth" &&
+                server.serviceType === "google-calendar" ? (
                 <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
-                    This is a Google Calendar MCP server. OAuth connection is managed separately.
+                    This is a Google Calendar MCP server. OAuth connection is
+                    managed separately.
                   </p>
                 </div>
-              ) : server.authType === "oauth" && server.serviceType === "notion" ? (
+              ) : server.authType === "oauth" &&
+                server.serviceType === "notion" ? (
                 <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
-                    This is a Notion MCP server. OAuth connection is managed separately.
+                    This is a Notion MCP server. OAuth connection is managed
+                    separately.
                   </p>
                 </div>
-              ) : server.authType === "oauth" && server.serviceType === "github" ? (
+              ) : server.authType === "oauth" &&
+                server.serviceType === "github" ? (
                 <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
-                    This is a GitHub MCP server. OAuth connection is managed separately.
+                    This is a GitHub MCP server. OAuth connection is managed
+                    separately.
                   </p>
                 </div>
               ) : (
@@ -524,7 +669,9 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                       id="authType"
                       value={authType}
                       onChange={(e) =>
-                        setAuthType(e.target.value as "none" | "header" | "basic")
+                        setAuthType(
+                          e.target.value as "none" | "header" | "basic"
+                        )
                       }
                       className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                       required
@@ -539,89 +686,93 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             </>
           )}
 
-          {(mcpType === "custom" || (isEditing && server && server.authType !== "oauth")) && authType === "header" && (
-            <div>
-              <label
-                htmlFor="headerValue"
-                className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-              >
-                Authorization Header Value {!isEditing ? "*" : ""}
-              </label>
-              <input
-                id="headerValue"
-                type="password"
-                value={headerValue}
-                onChange={(e) => setHeaderValue(e.target.value)}
-                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-                placeholder={
-                  isEditing
-                    ? "Leave empty to keep existing value"
-                    : "Bearer token123 or token123"
-                }
-                required={!isEditing && authType === "header"}
-              />
-              <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-                {isEditing
-                  ? "Leave empty to keep the existing value. Enter a new value to update it."
-                  : "This value will be used in the Authorization header"}
-              </p>
-            </div>
-          )}
-
-          {(mcpType === "custom" || (isEditing && server && server.authType !== "oauth")) && authType === "basic" && (
-            <>
+          {(mcpType === "custom" ||
+            (isEditing && server && server.authType !== "oauth")) &&
+            authType === "header" && (
               <div>
                 <label
-                  htmlFor="username"
+                  htmlFor="headerValue"
                   className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
                 >
-                  Username {!isEditing ? "*" : ""}
+                  Authorization Header Value {!isEditing ? "*" : ""}
                 </label>
                 <input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-                  placeholder={
-                    isEditing ? "Leave empty to keep existing value" : ""
-                  }
-                  required={!isEditing && authType === "basic"}
-                />
-                {isEditing && (
-                  <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-                    Leave empty to keep the existing value. Enter a new value to
-                    update it.
-                  </p>
-                )}
-              </div>
-              <div>
-                <label
-                  htmlFor="password"
-                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-                >
-                  Password {!isEditing ? "*" : ""}
-                </label>
-                <input
-                  id="password"
+                  id="headerValue"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  value={headerValue}
+                  onChange={(e) => setHeaderValue(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                   placeholder={
-                    isEditing ? "Leave empty to keep existing value" : ""
+                    isEditing
+                      ? "Leave empty to keep existing value"
+                      : "Bearer token123 or token123"
                   }
-                  required={!isEditing && authType === "basic"}
+                  required={!isEditing && authType === "header"}
                 />
-                {isEditing && (
-                  <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-                    Leave empty to keep the existing value. Enter a new value to
-                    update it.
-                  </p>
-                )}
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  {isEditing
+                    ? "Leave empty to keep the existing value. Enter a new value to update it."
+                    : "This value will be used in the Authorization header"}
+                </p>
               </div>
-            </>
-          )}
+            )}
+
+          {(mcpType === "custom" ||
+            (isEditing && server && server.authType !== "oauth")) &&
+            authType === "basic" && (
+              <>
+                <div>
+                  <label
+                    htmlFor="username"
+                    className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                  >
+                    Username {!isEditing ? "*" : ""}
+                  </label>
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    placeholder={
+                      isEditing ? "Leave empty to keep existing value" : ""
+                    }
+                    required={!isEditing && authType === "basic"}
+                  />
+                  {isEditing && (
+                    <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                      Leave empty to keep the existing value. Enter a new value
+                      to update it.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label
+                    htmlFor="password"
+                    className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                  >
+                    Password {!isEditing ? "*" : ""}
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                    placeholder={
+                      isEditing ? "Leave empty to keep existing value" : ""
+                    }
+                    required={!isEditing && authType === "basic"}
+                  />
+                  {isEditing && (
+                    <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                      Leave empty to keep the existing value. Enter a new value
+                      to update it.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
 
           <div className="flex gap-3 pt-4">
             <button

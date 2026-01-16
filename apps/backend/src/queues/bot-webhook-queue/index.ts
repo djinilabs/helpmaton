@@ -1,14 +1,26 @@
+import { randomUUID } from "crypto";
+
 import { WebClient } from "@slack/web-api";
 import type { SQSEvent } from "aws-lambda";
 
 import { updateDiscordMessage } from "../../http/any-api-webhooks-000type-000workspaceId-000integrationId/services/discordResponse";
 import { updateSlackMessage } from "../../http/any-api-webhooks-000type-000workspaceId-000integrationId/services/slackResponse";
 import { callAgentNonStreaming } from "../../http/utils/agentCallNonStreaming";
+import { reconstructToolCallsFromResults } from "../../http/utils/generationToolReconstruction";
+import { convertTextToUIMessage } from "../../http/utils/messageConversion";
+import {
+  formatToolCallMessage,
+  formatToolResultMessage,
+} from "../../http/utils/toolFormatting";
 import { database } from "../../tables";
 import {
   BotWebhookTaskMessageSchema,
   type BotWebhookTaskMessage,
 } from "../../utils/botWebhookQueue";
+import {
+  startConversation,
+  updateConversation,
+} from "../../utils/conversationLogger";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
 import type { UIMessage } from "../../utils/messageTypes";
 import { trackEvent } from "../../utils/tracking";
@@ -59,6 +71,8 @@ async function processDiscordTask(
   // Capture start time for elapsed time calculation
   const startTime = Date.now();
   const processingStartTime = Date.now();
+  let generationStartTime: number | undefined;
+  let generationStartedAt: string | undefined;
 
   // Flag to prevent updates after completion/error
   let isComplete = false;
@@ -137,6 +151,8 @@ async function processDiscordTask(
 
     let agentResult;
     try {
+      generationStartTime = Date.now();
+      generationStartedAt = new Date().toISOString();
       // Call agent
       agentResult = await callAgentNonStreaming(
         workspaceId,
@@ -169,6 +185,269 @@ async function processDiscordTask(
       safeInteractionToken,
       responseText
     );
+
+    // Log conversation to trigger judge evaluations
+    const finalConversationId = conversationId || channelId || randomUUID();
+    const generationEndedAt = new Date().toISOString();
+    const generationTimeMs =
+      generationStartTime !== undefined
+        ? Date.now() - generationStartTime
+        : undefined;
+
+    try {
+      // Extract tool calls and results from agent result
+      let toolCallsFromResult: unknown[] = [];
+      let toolResultsFromResult: unknown[] = [];
+      const reasoningFromSteps: Array<{ type: "reasoning"; text: string }> = [];
+
+      if (agentResult.rawResult) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
+        const resultAny = agentResult.rawResult as any;
+        const stepsValue = Array.isArray(resultAny.steps)
+          ? resultAny.steps
+          : resultAny._steps?.status?.value;
+
+        const toolCallsFromSteps: unknown[] = [];
+        const toolResultsFromSteps: unknown[] = [];
+
+        if (Array.isArray(stepsValue)) {
+          for (const step of stepsValue) {
+            if (step?.content && Array.isArray(step.content)) {
+              for (const contentItem of step.content) {
+                if (
+                  typeof contentItem === "object" &&
+                  contentItem !== null &&
+                  "type" in contentItem
+                ) {
+                  if (contentItem.type === "tool-call") {
+                    if (
+                      contentItem.toolCallId &&
+                      contentItem.toolName &&
+                      typeof contentItem.toolCallId === "string" &&
+                      typeof contentItem.toolName === "string"
+                    ) {
+                      toolCallsFromSteps.push({
+                        toolCallId: contentItem.toolCallId,
+                        toolName: contentItem.toolName,
+                        args: contentItem.input || contentItem.args || {},
+                        toolCallStartedAt: generationStartedAt,
+                      });
+                    }
+                  } else if (contentItem.type === "tool-result") {
+                    if (
+                      contentItem.toolCallId &&
+                      contentItem.toolName &&
+                      typeof contentItem.toolCallId === "string" &&
+                      typeof contentItem.toolName === "string"
+                    ) {
+                      let resultValue = contentItem.output;
+                      if (
+                        typeof resultValue === "object" &&
+                        resultValue !== null &&
+                        "value" in resultValue
+                      ) {
+                        resultValue = resultValue.value;
+                      }
+                      toolResultsFromSteps.push({
+                        toolCallId: contentItem.toolCallId,
+                        toolName: contentItem.toolName,
+                        output:
+                          resultValue ||
+                          contentItem.output ||
+                          contentItem.result,
+                        result: resultValue || contentItem.result,
+                      });
+                    }
+                  } else if (
+                    contentItem.type === "reasoning" &&
+                    "text" in contentItem &&
+                    typeof contentItem.text === "string"
+                  ) {
+                    reasoningFromSteps.push({
+                      type: "reasoning",
+                      text: contentItem.text,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        if (toolCallsFromSteps.length > 0) {
+          toolCallsFromResult = toolCallsFromSteps;
+        } else {
+          toolCallsFromResult =
+            (agentResult.rawResult as { toolCalls?: unknown[] }).toolCalls ||
+            [];
+        }
+
+        if (toolResultsFromSteps.length > 0) {
+          toolResultsFromResult = toolResultsFromSteps;
+        } else {
+          toolResultsFromResult =
+            (agentResult.rawResult as { toolResults?: unknown[] })
+              .toolResults || [];
+        }
+      }
+
+      // Reconstruct tool calls from results if needed
+      if (
+        toolCallsFromResult.length === 0 &&
+        toolResultsFromResult.length > 0
+      ) {
+        toolCallsFromResult = reconstructToolCallsFromResults(
+          toolResultsFromResult,
+          "Bot Webhook Queue (Discord)"
+        ) as unknown as typeof toolCallsFromResult;
+      }
+
+      // Format tool calls and results as UI messages
+      const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
+      const toolResultMessages = toolResultsFromResult.map(
+        formatToolResultMessage
+      );
+
+      // Build assistant response message
+      const assistantContent: Array<
+        | { type: "text"; text: string }
+        | {
+            type: "tool-call";
+            toolCallId: string;
+            toolName: string;
+            args: unknown;
+          }
+        | {
+            type: "tool-result";
+            toolCallId: string;
+            toolName: string;
+            result: unknown;
+          }
+        | {
+            type: "reasoning";
+            text: string;
+          }
+      > = [];
+
+      assistantContent.push(...reasoningFromSteps);
+
+      for (const toolCallMsg of toolCallMessages) {
+        if (Array.isArray(toolCallMsg.content)) {
+          assistantContent.push(...toolCallMsg.content);
+        }
+      }
+
+      for (const toolResultMsg of toolResultMessages) {
+        if (Array.isArray(toolResultMsg.content)) {
+          assistantContent.push(...toolResultMsg.content);
+        }
+      }
+
+      if (responseText && responseText.trim().length > 0) {
+        assistantContent.push({ type: "text", text: responseText });
+      }
+
+      // Get agent info for model name
+      const { setupAgentAndTools } = await import(
+        "../../http/utils/agentSetup"
+      );
+      const { agent, usesByok: agentUsesByok } = await setupAgentAndTools(
+        workspaceId,
+        agentId,
+        [],
+        {
+          modelReferer: `${baseUrl}/api/webhooks/discord`,
+          callDepth: 0,
+          maxDelegationDepth: 3,
+          context,
+        }
+      );
+      const finalModelName =
+        typeof agent.modelName === "string"
+          ? agent.modelName
+          : "openrouter/gemini-2.0-flash-exp";
+
+      const assistantMessage: UIMessage = {
+        role: "assistant",
+        content:
+          assistantContent.length > 0 ? assistantContent : responseText || "",
+        ...(agentResult.tokenUsage && { tokenUsage: agentResult.tokenUsage }),
+        modelName: finalModelName,
+        provider: "openrouter",
+        ...(agentResult.openrouterGenerationId && {
+          openrouterGenerationId: agentResult.openrouterGenerationId,
+        }),
+        ...(agentResult.provisionalCostUsd !== undefined && {
+          provisionalCostUsd: agentResult.provisionalCostUsd,
+        }),
+        ...(generationTimeMs !== undefined && { generationTimeMs }),
+        ...(generationStartedAt && { generationStartedAt }),
+        ...(generationEndedAt && { generationEndedAt }),
+      };
+
+      const userMessage = convertTextToUIMessage(messageText);
+      const messagesForLogging: UIMessage[] = [userMessage, assistantMessage];
+
+      const validMessages: UIMessage[] = messagesForLogging.filter(
+        (msg): msg is UIMessage =>
+          msg != null &&
+          typeof msg === "object" &&
+          "role" in msg &&
+          typeof msg.role === "string" &&
+          (msg.role === "user" ||
+            msg.role === "assistant" ||
+            msg.role === "system" ||
+            msg.role === "tool") &&
+          "content" in msg
+      );
+
+      // Check if conversation exists
+      const conversationPk = `conversations/${workspaceId}/${agentId}/${finalConversationId}`;
+      const existingConversation = await db["agent-conversations"].get(
+        conversationPk
+      );
+
+      if (existingConversation) {
+        // Update existing conversation
+        await updateConversation(
+          db,
+          workspaceId,
+          agentId,
+          finalConversationId,
+          validMessages,
+          agentResult.tokenUsage,
+          agentUsesByok,
+          undefined, // error
+          undefined, // awsRequestId
+          "webhook" // conversationType
+        );
+      } else {
+        // Create new conversation
+        await startConversation(db, {
+          workspaceId,
+          agentId,
+          conversationId: finalConversationId,
+          conversationType: "webhook",
+          messages: validMessages,
+          tokenUsage: agentResult.tokenUsage,
+          usesByok: agentUsesByok,
+        });
+      }
+    } catch (conversationError) {
+      // Log error but don't throw - conversation logging should not block webhook processing
+      console.error(
+        "[Bot Webhook Queue] Error logging conversation (Discord):",
+        {
+          error:
+            conversationError instanceof Error
+              ? conversationError.message
+              : String(conversationError),
+          workspaceId,
+          agentId,
+          conversationId: finalConversationId,
+        }
+      );
+    }
 
     // Update lastUsedAt
     await db["bot-integration"].update({
@@ -279,6 +558,8 @@ async function processSlackTask(
   // Capture start time for elapsed time calculation
   const startTime = Date.now();
   const processingStartTime = Date.now();
+  let generationStartTime: number | undefined;
+  let generationStartedAt: string | undefined;
 
   // Flag to prevent updates after completion/error
   let isComplete = false;
@@ -407,7 +688,9 @@ async function processSlackTask(
         }
       } else {
         // Fetch channel history
-        const channelHistory = await client.conversations.history(historyParams);
+        const channelHistory = await client.conversations.history(
+          historyParams
+        );
 
         if (channelHistory.ok && channelHistory.messages) {
           // Filter out the current message, then convert
@@ -463,6 +746,8 @@ async function processSlackTask(
 
     let agentResult;
     try {
+      generationStartTime = Date.now();
+      generationStartedAt = new Date().toISOString();
       agentResult = await callAgentNonStreaming(
         workspaceId,
         agentId,
@@ -489,12 +774,273 @@ async function processSlackTask(
 
     // Update with complete response
     const responseText = agentResult.text || "No response generated.";
-    await updateSlackMessage(
-      client,
-      safeChannel,
-      safeMessageTs,
-      responseText
-    );
+    await updateSlackMessage(client, safeChannel, safeMessageTs, responseText);
+
+    // Log conversation to trigger judge evaluations
+    const finalConversationId =
+      conversationId || threadTs || messageTs || randomUUID();
+    const generationEndedAt = new Date().toISOString();
+    const generationTimeMs =
+      generationStartTime !== undefined
+        ? Date.now() - generationStartTime
+        : undefined;
+
+    try {
+      // Extract tool calls and results from agent result
+      let toolCallsFromResult: unknown[] = [];
+      let toolResultsFromResult: unknown[] = [];
+      const reasoningFromSteps: Array<{ type: "reasoning"; text: string }> = [];
+
+      if (agentResult.rawResult) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
+        const resultAny = agentResult.rawResult as any;
+        const stepsValue = Array.isArray(resultAny.steps)
+          ? resultAny.steps
+          : resultAny._steps?.status?.value;
+
+        const toolCallsFromSteps: unknown[] = [];
+        const toolResultsFromSteps: unknown[] = [];
+
+        if (Array.isArray(stepsValue)) {
+          for (const step of stepsValue) {
+            if (step?.content && Array.isArray(step.content)) {
+              for (const contentItem of step.content) {
+                if (
+                  typeof contentItem === "object" &&
+                  contentItem !== null &&
+                  "type" in contentItem
+                ) {
+                  if (contentItem.type === "tool-call") {
+                    if (
+                      contentItem.toolCallId &&
+                      contentItem.toolName &&
+                      typeof contentItem.toolCallId === "string" &&
+                      typeof contentItem.toolName === "string"
+                    ) {
+                      toolCallsFromSteps.push({
+                        toolCallId: contentItem.toolCallId,
+                        toolName: contentItem.toolName,
+                        args: contentItem.input || contentItem.args || {},
+                        toolCallStartedAt: generationStartedAt,
+                      });
+                    }
+                  } else if (contentItem.type === "tool-result") {
+                    if (
+                      contentItem.toolCallId &&
+                      contentItem.toolName &&
+                      typeof contentItem.toolCallId === "string" &&
+                      typeof contentItem.toolName === "string"
+                    ) {
+                      let resultValue = contentItem.output;
+                      if (
+                        typeof resultValue === "object" &&
+                        resultValue !== null &&
+                        "value" in resultValue
+                      ) {
+                        resultValue = resultValue.value;
+                      }
+                      toolResultsFromSteps.push({
+                        toolCallId: contentItem.toolCallId,
+                        toolName: contentItem.toolName,
+                        output:
+                          resultValue ||
+                          contentItem.output ||
+                          contentItem.result,
+                        result: resultValue || contentItem.result,
+                      });
+                    }
+                  } else if (
+                    contentItem.type === "reasoning" &&
+                    "text" in contentItem &&
+                    typeof contentItem.text === "string"
+                  ) {
+                    reasoningFromSteps.push({
+                      type: "reasoning",
+                      text: contentItem.text,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        if (toolCallsFromSteps.length > 0) {
+          toolCallsFromResult = toolCallsFromSteps;
+        } else {
+          toolCallsFromResult =
+            (agentResult.rawResult as { toolCalls?: unknown[] }).toolCalls ||
+            [];
+        }
+
+        if (toolResultsFromSteps.length > 0) {
+          toolResultsFromResult = toolResultsFromSteps;
+        } else {
+          toolResultsFromResult =
+            (agentResult.rawResult as { toolResults?: unknown[] })
+              .toolResults || [];
+        }
+      }
+
+      // Reconstruct tool calls from results if needed
+      if (
+        toolCallsFromResult.length === 0 &&
+        toolResultsFromResult.length > 0
+      ) {
+        toolCallsFromResult = reconstructToolCallsFromResults(
+          toolResultsFromResult,
+          "Bot Webhook Queue (Slack)"
+        ) as unknown as typeof toolCallsFromResult;
+      }
+
+      // Format tool calls and results as UI messages
+      const toolCallMessages = toolCallsFromResult.map(formatToolCallMessage);
+      const toolResultMessages = toolResultsFromResult.map(
+        formatToolResultMessage
+      );
+
+      // Build assistant response message
+      const assistantContent: Array<
+        | { type: "text"; text: string }
+        | {
+            type: "tool-call";
+            toolCallId: string;
+            toolName: string;
+            args: unknown;
+          }
+        | {
+            type: "tool-result";
+            toolCallId: string;
+            toolName: string;
+            result: unknown;
+          }
+        | {
+            type: "reasoning";
+            text: string;
+          }
+      > = [];
+
+      assistantContent.push(...reasoningFromSteps);
+
+      for (const toolCallMsg of toolCallMessages) {
+        if (Array.isArray(toolCallMsg.content)) {
+          assistantContent.push(...toolCallMsg.content);
+        }
+      }
+
+      for (const toolResultMsg of toolResultMessages) {
+        if (Array.isArray(toolResultMsg.content)) {
+          assistantContent.push(...toolResultMsg.content);
+        }
+      }
+
+      if (responseText && responseText.trim().length > 0) {
+        assistantContent.push({ type: "text", text: responseText });
+      }
+
+      // Get agent info for model name
+      const { setupAgentAndTools } = await import(
+        "../../http/utils/agentSetup"
+      );
+      const { agent, usesByok: agentUsesByok } = await setupAgentAndTools(
+        workspaceId,
+        agentId,
+        [],
+        {
+          modelReferer: `${baseUrl}/api/webhooks/slack`,
+          callDepth: 0,
+          maxDelegationDepth: 3,
+          context,
+        }
+      );
+      const finalModelName =
+        typeof agent.modelName === "string"
+          ? agent.modelName
+          : "openrouter/gemini-2.0-flash-exp";
+
+      const assistantMessage: UIMessage = {
+        role: "assistant",
+        content:
+          assistantContent.length > 0 ? assistantContent : responseText || "",
+        ...(agentResult.tokenUsage && { tokenUsage: agentResult.tokenUsage }),
+        modelName: finalModelName,
+        provider: "openrouter",
+        ...(agentResult.openrouterGenerationId && {
+          openrouterGenerationId: agentResult.openrouterGenerationId,
+        }),
+        ...(agentResult.provisionalCostUsd !== undefined && {
+          provisionalCostUsd: agentResult.provisionalCostUsd,
+        }),
+        ...(generationTimeMs !== undefined && { generationTimeMs }),
+        ...(generationStartedAt && { generationStartedAt }),
+        ...(generationEndedAt && { generationEndedAt }),
+      };
+
+      // Combine conversation history with new messages
+      const userMessage = convertTextToUIMessage(messageText);
+      const messagesForLogging: UIMessage[] = [
+        ...conversationHistory,
+        userMessage,
+        assistantMessage,
+      ];
+
+      const validMessages: UIMessage[] = messagesForLogging.filter(
+        (msg): msg is UIMessage =>
+          msg != null &&
+          typeof msg === "object" &&
+          "role" in msg &&
+          typeof msg.role === "string" &&
+          (msg.role === "user" ||
+            msg.role === "assistant" ||
+            msg.role === "system" ||
+            msg.role === "tool") &&
+          "content" in msg
+      );
+
+      // Check if conversation exists
+      const conversationPk = `conversations/${workspaceId}/${agentId}/${finalConversationId}`;
+      const existingConversation = await db["agent-conversations"].get(
+        conversationPk
+      );
+
+      if (existingConversation) {
+        // Update existing conversation
+        await updateConversation(
+          db,
+          workspaceId,
+          agentId,
+          finalConversationId,
+          validMessages,
+          agentResult.tokenUsage,
+          agentUsesByok,
+          undefined, // error
+          undefined, // awsRequestId
+          "webhook" // conversationType
+        );
+      } else {
+        // Create new conversation
+        await startConversation(db, {
+          workspaceId,
+          agentId,
+          conversationId: finalConversationId,
+          conversationType: "webhook",
+          messages: validMessages,
+          tokenUsage: agentResult.tokenUsage,
+          usesByok: agentUsesByok,
+        });
+      }
+    } catch (conversationError) {
+      // Log error but don't throw - conversation logging should not block webhook processing
+      console.error("[Bot Webhook Queue] Error logging conversation (Slack):", {
+        error:
+          conversationError instanceof Error
+            ? conversationError.message
+            : String(conversationError),
+        workspaceId,
+        agentId,
+        conversationId: finalConversationId,
+      });
+    }
 
     // Update lastUsedAt
     await db["bot-integration"].update({

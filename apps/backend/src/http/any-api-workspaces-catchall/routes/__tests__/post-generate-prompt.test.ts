@@ -3,6 +3,7 @@ import { generateText } from "ai";
 import express from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+import type { ToolMetadata } from "../../../../utils/toolMetadata";
 import {
   createMockRequest,
   createMockResponse,
@@ -17,6 +18,7 @@ const {
   mockCheckPromptGenerationLimit,
   mockIncrementPromptGenerationBucket,
   mockDatabase,
+  mockGenerateToolList,
 } = vi.hoisted(() => {
   return {
     mockCreateModel: vi.fn(),
@@ -24,6 +26,7 @@ const {
     mockCheckPromptGenerationLimit: vi.fn(),
     mockIncrementPromptGenerationBucket: vi.fn(),
     mockDatabase: vi.fn(),
+    mockGenerateToolList: vi.fn(),
   };
 });
 
@@ -43,6 +46,10 @@ vi.mock("../../../../utils/requestTracking", () => ({
 
 vi.mock("../../../../tables", () => ({
   database: mockDatabase,
+}));
+
+vi.mock("../../../../utils/toolMetadata", () => ({
+  generateToolList: mockGenerateToolList,
 }));
 
 describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
@@ -69,6 +76,7 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
     };
     // mcp-server is already in createMockDatabase
     mockDatabase.mockResolvedValue(mockDb);
+    mockGenerateToolList.mockReturnValue([]);
   });
 
   async function callRouteHandler(
@@ -100,38 +108,193 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
         }
         const workspaceId = req.params.workspaceId;
 
-        // Get agent information if agentId is provided (simplified for test)
-        let existingSystemPrompt: string | undefined;
+        // Get agent information if agentId is provided
+        let agent: {
+          systemPrompt?: string;
+          clientTools?: Array<{
+            name: string;
+            description: string;
+            parameters: Record<string, unknown>;
+          }>;
+          notificationChannelId?: string;
+          delegatableAgentIds?: string[];
+          enabledMcpServerIds?: string[];
+          enableMemorySearch?: boolean;
+          enableSearchDocuments?: boolean;
+          enableSendEmail?: boolean;
+          searchWebProvider?: "tavily" | "jina" | null;
+          fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
+          enableExaSearch?: boolean;
+        } | null = null;
+
         if (agentId && typeof agentId === "string") {
           const agentPk = `agents/${workspaceId}/${agentId}`;
           const agentRecord = await db.agent.get(agentPk, "agent");
           if (agentRecord) {
-            existingSystemPrompt = agentRecord.systemPrompt;
+            agent = {
+              systemPrompt: agentRecord.systemPrompt,
+              clientTools: agentRecord.clientTools,
+              notificationChannelId: agentRecord.notificationChannelId,
+              delegatableAgentIds: agentRecord.delegatableAgentIds,
+              enabledMcpServerIds: agentRecord.enabledMcpServerIds,
+              enableMemorySearch: agentRecord.enableMemorySearch,
+              enableSearchDocuments: agentRecord.enableSearchDocuments,
+              enableSendEmail: agentRecord.enableSendEmail,
+              searchWebProvider: agentRecord.searchWebProvider ?? null,
+              fetchWebProvider: agentRecord.fetchWebProvider ?? null,
+              enableExaSearch: agentRecord.enableExaSearch ?? false,
+            };
           }
         }
 
-        // Check for email connection (simplified for test)
+        // Check for email connection
         const emailConnectionPk = `email-connections/${workspaceId}`;
-        await db["email-connection"].get(emailConnectionPk, "connection");
+        const emailConnection = await db["email-connection"].get(
+          emailConnectionPk,
+          "connection"
+        );
+        const hasEmailConnection = !!emailConnection;
 
-        // Build tools information (simplified for test)
-        const toolsContext = ""; // Simplified - full implementation would build tools info
+        // Load enabled MCP servers if agent has them
+        const enabledMcpServerIds = agent?.enabledMcpServerIds || [];
+        const enabledMcpServers = [];
+
+        for (const serverId of enabledMcpServerIds) {
+          const serverPk = `mcp-servers/${workspaceId}/${serverId}`;
+          const server = await db["mcp-server"].get(serverPk, "server");
+          if (server) {
+            const config = server.config as { accessToken?: string };
+            const hasOAuthConnection = !!config.accessToken;
+
+            enabledMcpServers.push({
+              id: serverId,
+              name: server.name,
+              serviceType: server.serviceType,
+              authType: server.authType,
+              oauthConnected: hasOAuthConnection,
+            });
+          }
+        }
+
+        // Use shared tool metadata library to generate tool list
+        const toolList = mockGenerateToolList({
+          agent: {
+            enableSearchDocuments: agent?.enableSearchDocuments ?? false,
+            enableMemorySearch: agent?.enableMemorySearch ?? false,
+            notificationChannelId: agent?.notificationChannelId,
+            enableSendEmail: agent?.enableSendEmail ?? false,
+            searchWebProvider: agent?.searchWebProvider ?? null,
+            fetchWebProvider: agent?.fetchWebProvider ?? null,
+            enableExaSearch: agent?.enableExaSearch ?? false,
+            delegatableAgentIds: agent?.delegatableAgentIds ?? [],
+            enabledMcpServerIds: agent?.enabledMcpServerIds ?? [],
+            clientTools: agent?.clientTools ?? [],
+          },
+          workspaceId,
+          enabledMcpServers,
+          emailConnection: hasEmailConnection,
+        });
+
+        // Convert tool metadata to text format for prompt generation
+        const toolsInfo: string[] = [];
+        const availableTools: string[] = [];
+
+        for (const group of toolList) {
+          const availableToolsInGroup = group.tools.filter(
+            (tool: ToolMetadata) =>
+              tool.alwaysAvailable ||
+              (tool.condition && tool.condition.includes("Available"))
+          );
+
+          if (availableToolsInGroup.length === 0) {
+            continue;
+          }
+
+          if (group.category === "MCP Server Tools") {
+            toolsInfo.push("## MCP Server Tools");
+          } else if (group.category === "Client Tools") {
+            toolsInfo.push("## Client-Side Tools (Custom)");
+          } else {
+            toolsInfo.push(`## ${group.category}`);
+          }
+
+          if (group.category === "MCP Server Tools") {
+            const toolsByServer = new Map<string, string[]>();
+            for (const tool of availableToolsInGroup) {
+              availableTools.push(tool.name);
+
+              let serverName = "Unknown";
+              if (tool.condition) {
+                const match = tool.condition.match(/"([^"]+)"/);
+                if (match) {
+                  serverName = match[1];
+                }
+              }
+
+              let serviceType = "";
+              if (tool.name.startsWith("google_drive_")) {
+                serviceType = "Google Drive";
+              } else if (tool.name.startsWith("gmail_")) {
+                serviceType = "Gmail";
+              } else if (tool.name.startsWith("google_calendar_")) {
+                serviceType = "Google Calendar";
+              } else if (tool.name.startsWith("notion_")) {
+                serviceType = "Notion";
+              } else if (tool.name.startsWith("github_")) {
+                serviceType = "GitHub";
+              } else if (tool.name.startsWith("mcp_")) {
+                serviceType = "MCP Server";
+              }
+
+              const key = serviceType
+                ? `${serviceType} (${serverName})`
+                : `MCP Server (${serverName})`;
+              if (!toolsByServer.has(key)) {
+                toolsByServer.set(key, []);
+              }
+              toolsByServer.get(key)!.push(tool.name);
+            }
+
+            for (const [serverKey, toolNames] of toolsByServer.entries()) {
+              toolsInfo.push(`- **${serverKey}**: ${toolNames.join(", ")}`);
+            }
+          } else {
+            for (const tool of availableToolsInGroup) {
+              availableTools.push(tool.name);
+              const shortDescription = tool.description
+                .split(".")
+                .slice(0, 1)
+                .join(".")
+                .trim();
+              toolsInfo.push(`- **${tool.name}**: ${shortDescription}`);
+            }
+          }
+        }
+
+        // Build tools context for prompt generation
+        const toolsContext =
+          toolsInfo.length > 0
+            ? `\n\n## Available Tools\n\nThe agent will have access to the following tools:\n\n${toolsInfo.join(
+                "\n"
+              )}\n\nWhen generating the prompt, you may reference these tools naturally if they are relevant to the agent's goal, but do not list them exhaustively.`
+            : "";
 
         // Build existing prompt context if available
         const existingPromptContext =
-          existingSystemPrompt && existingSystemPrompt.trim().length > 0
-            ? `\n\n## Existing System Prompt\n\n${existingSystemPrompt}\n\nPlease build upon or refine this existing prompt based on the goal above.`
+          agent?.systemPrompt && agent.systemPrompt.trim().length > 0
+            ? `\n\n## Existing System Prompt\n\n${agent.systemPrompt}\n\nPlease build upon or refine this existing prompt based on the goal above.`
             : "";
 
         // Check prompt generation limit before LLM call
         await mockCheckPromptGenerationLimit(workspaceId);
 
-        // Create model for prompt generation (using Google provider with default model)
+        // Create model for prompt generation (using OpenRouter provider with default model)
         const model = await mockCreateModel(
-          "google",
+          "openrouter",
           undefined, // Use default model
           workspaceId,
-          "http://localhost:3000/api/prompt-generation"
+          "http://localhost:3000/api/prompt-generation",
+          currentUserRef
         );
 
         // Generate the prompt
@@ -194,6 +357,7 @@ Generate only the system prompt text itself, without any additional commentary o
       text: "You are a helpful customer support agent.\n\nYour role is to:\n- Answer customer questions\n- Provide clear explanations\n- Escalate complex issues",
     };
     mockGenerateText.mockResolvedValue(mockGenerateTextResult);
+    mockGenerateToolList.mockReturnValue([]);
 
     const req = createMockRequest({
       userRef: "users/user-123",
@@ -211,10 +375,11 @@ Generate only the system prompt text itself, without any additional commentary o
 
     expect(mockCheckPromptGenerationLimit).toHaveBeenCalledWith("workspace-123");
     expect(mockCreateModel).toHaveBeenCalledWith(
-      "google",
+      "openrouter",
       undefined,
       "workspace-123",
-      "http://localhost:3000/api/prompt-generation"
+      "http://localhost:3000/api/prompt-generation",
+      "users/user-123"
     );
     expect(mockGenerateText).toHaveBeenCalledWith({
       model: mockModel,
@@ -655,12 +820,26 @@ Generate only the system prompt text itself, without any additional commentary o
       workspaceId: "workspace-123",
       name: "Test Agent",
       systemPrompt: existingPrompt,
+      enableSearchDocuments: false,
+      enableMemorySearch: false,
+      enableSendEmail: false,
+      searchWebProvider: null,
+      fetchWebProvider: null,
+      enableExaSearch: false,
+      delegatableAgentIds: [],
+      enabledMcpServerIds: [],
+      clientTools: [],
     });
     mockDb.agent.get = mockAgentGet;
     (mockDb as Record<string, unknown>)["email-connection"] = {
       get: vi.fn().mockResolvedValue(null),
     };
+    (mockDb as Record<string, unknown>)["mcp-server"] = {
+      get: vi.fn().mockResolvedValue(null),
+    };
     mockDatabase.mockResolvedValue(mockDb);
+
+    mockGenerateToolList.mockReturnValue([]);
 
     const mockGenerateTextResult = {
       text: "Refined system prompt",
@@ -716,12 +895,26 @@ Generate only the system prompt text itself, without any additional commentary o
       workspaceId: "workspace-123",
       name: "Test Agent",
       systemPrompt: "",
+      enableSearchDocuments: false,
+      enableMemorySearch: false,
+      enableSendEmail: false,
+      searchWebProvider: null,
+      fetchWebProvider: null,
+      enableExaSearch: false,
+      delegatableAgentIds: [],
+      enabledMcpServerIds: [],
+      clientTools: [],
     });
     mockDb.agent.get = mockAgentGet;
     (mockDb as Record<string, unknown>)["email-connection"] = {
       get: vi.fn().mockResolvedValue(null),
     };
+    (mockDb as Record<string, unknown>)["mcp-server"] = {
+      get: vi.fn().mockResolvedValue(null),
+    };
     mockDatabase.mockResolvedValue(mockDb);
+
+    mockGenerateToolList.mockReturnValue([]);
 
     const mockGenerateTextResult = {
       text: "Generated prompt",
@@ -797,6 +990,183 @@ Generate only the system prompt text itself, without any additional commentary o
     });
     expect(res.json).toHaveBeenCalledWith({
       prompt: mockGenerateTextResult.text.trim(),
+    });
+  });
+
+  it("should include tools information when tools are available", async () => {
+    const mockModel = { model: "mock-model" };
+    mockCreateModel.mockResolvedValue(mockModel);
+
+    const mockGenerateTextResult = {
+      text: "Generated prompt with tools",
+    };
+    mockGenerateText.mockResolvedValue(mockGenerateTextResult);
+
+    const mockDb = createMockDatabase();
+    const mockAgentGet = vi.fn().mockResolvedValue({
+      pk: "agents/workspace-123/agent-123",
+      sk: "agent",
+      workspaceId: "workspace-123",
+      name: "Test Agent",
+      enableSearchDocuments: true,
+      enableMemorySearch: false,
+      enableSendEmail: false,
+      searchWebProvider: null,
+      fetchWebProvider: null,
+      enableExaSearch: false,
+      delegatableAgentIds: [],
+      enabledMcpServerIds: [],
+      clientTools: [],
+    });
+    mockDb.agent.get = mockAgentGet;
+    (mockDb as Record<string, unknown>)["email-connection"] = {
+      get: vi.fn().mockResolvedValue(null),
+    };
+    (mockDb as Record<string, unknown>)["mcp-server"] = {
+      get: vi.fn().mockResolvedValue(null),
+    };
+    mockDatabase.mockResolvedValue(mockDb);
+
+    // Mock tool list with available tools
+    mockGenerateToolList.mockReturnValue([
+      {
+        category: "Document Tools",
+        tools: [
+          {
+            name: "search_documents",
+            description: "Search workspace documents using semantic vector search.",
+            category: "Document Tools",
+            alwaysAvailable: false,
+            condition: "Available (document search enabled)",
+            parameters: [],
+          },
+        ],
+      },
+    ]);
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: "workspaces/workspace-123",
+      params: { workspaceId: "workspace-123" },
+      body: {
+        goal: "I want an agent that searches documents",
+        agentId: "agent-123",
+      },
+    });
+
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockGenerateToolList).toHaveBeenCalled();
+    expect(mockGenerateText).toHaveBeenCalledWith({
+      model: mockModel,
+      system: expect.any(String),
+      messages: [
+        {
+          role: "user",
+          content: expect.stringContaining("## Available Tools"),
+        },
+      ],
+    });
+  });
+
+  it("should include MCP server tools when enabled", async () => {
+    const mockModel = { model: "mock-model" };
+    mockCreateModel.mockResolvedValue(mockModel);
+
+    const mockGenerateTextResult = {
+      text: "Generated prompt",
+    };
+    mockGenerateText.mockResolvedValue(mockGenerateTextResult);
+
+    const mockDb = createMockDatabase();
+    const mockAgentGet = vi.fn().mockResolvedValue({
+      pk: "agents/workspace-123/agent-123",
+      sk: "agent",
+      workspaceId: "workspace-123",
+      name: "Test Agent",
+      enableSearchDocuments: false,
+      enableMemorySearch: false,
+      enableSendEmail: false,
+      searchWebProvider: null,
+      fetchWebProvider: null,
+      enableExaSearch: false,
+      delegatableAgentIds: [],
+      enabledMcpServerIds: ["server-1"],
+      clientTools: [],
+    });
+    mockDb.agent.get = mockAgentGet;
+    (mockDb as Record<string, unknown>)["email-connection"] = {
+      get: vi.fn().mockResolvedValue(null),
+    };
+    (mockDb as Record<string, unknown>)["mcp-server"] = {
+      get: vi.fn().mockResolvedValue({
+        pk: "mcp-servers/workspace-123/server-1",
+        sk: "server",
+        workspaceId: "workspace-123",
+        name: "GitHub Server",
+        serviceType: "github",
+        authType: "oauth",
+        config: { accessToken: "token-123" },
+      }),
+    };
+    mockDatabase.mockResolvedValue(mockDb);
+
+    mockGenerateToolList.mockReturnValue([
+      {
+        category: "MCP Server Tools",
+        tools: [
+          {
+            name: "github_list_repositories",
+            description: "List repositories",
+            category: "MCP Server Tools",
+            alwaysAvailable: false,
+            condition: 'Available (GitHub "GitHub Server" connected)',
+            parameters: [],
+          },
+        ],
+      },
+    ]);
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: "workspaces/workspace-123",
+      params: { workspaceId: "workspace-123" },
+      body: {
+        goal: "I want an agent with GitHub access",
+        agentId: "agent-123",
+      },
+    });
+
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    await callRouteHandler(req, res, next);
+
+    expect(mockGenerateToolList).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabledMcpServers: [
+          {
+            id: "server-1",
+            name: "GitHub Server",
+            serviceType: "github",
+            authType: "oauth",
+            oauthConnected: true,
+          },
+        ],
+      })
+    );
+    expect(mockGenerateText).toHaveBeenCalledWith({
+      model: mockModel,
+      system: expect.any(String),
+      messages: [
+        {
+          role: "user",
+          content: expect.stringContaining("GitHub (GitHub Server)"),
+        },
+      ],
     });
   });
 });

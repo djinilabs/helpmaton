@@ -26,6 +26,7 @@ import { registerGetAgentEvalJudges } from "./routes/get-agent-eval-judges";
 import { registerGetAgentEvalResults } from "./routes/get-agent-eval-results";
 import { registerGetAgentKeys } from "./routes/get-agent-keys";
 import { registerGetAgentMemory } from "./routes/get-agent-memory";
+import { registerGetAgentTools } from "./routes/get-agent-tools";
 import { registerGetAgentTransactions } from "./routes/get-agent-transactions";
 import { registerGetAgentUsage } from "./routes/get-agent-usage";
 import { registerGetAgentUsageDaily } from "./routes/get-agent-usage-daily";
@@ -170,6 +171,7 @@ export const createApp: () => express.Application = () => {
   registerPostGeneratePrompt(app);
   registerPostFileUploadUrl(app);
   registerGetWorkspaceAgent(app);
+  registerGetAgentTools(app);
   registerPutWorkspaceAgent(app);
   registerDeleteWorkspaceAgent(app);
   registerPostAgentSpendingLimits(app);

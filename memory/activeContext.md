@@ -9,6 +9,7 @@
 1. **GitHub MCP Server Integration**: Implemented complete GitHub MCP server support with OAuth authentication, read-only API access, and comprehensive tool coverage for repositories, issues, pull requests, commits, and file contents.
 
    - **OAuth Authentication** (`apps/backend/src/utils/oauth/mcp/github.ts`):
+
      - Implemented GitHub OAuth flow using GitHub Apps with `client_secret` authentication
      - Uses `repo` scope for access to both public and private repositories
      - Supports token refresh with proper error handling using `GitHubReconnectError` custom error class
@@ -17,6 +18,7 @@
      - Extracted magic numbers as constants (`ONE_YEAR_MS` for token expiration)
 
    - **GitHub API Client** (`apps/backend/src/utils/github/client.ts`):
+
      - Centralized request function with automatic token refresh on 401 errors
      - Rate limit handling (429) with retry counter (MAX_RETRIES = 3) to prevent unbounded recursion
      - Proper abort controller pattern for timeout handling
@@ -25,6 +27,7 @@
      - Functions for: authenticated user, repositories, issues, pull requests, commits, and file contents
 
    - **GitHub Tools** (`apps/backend/src/http/utils/githubTools.ts`):
+
      - 9 AI SDK tools for LLM agents:
        - `github_list_repos`: List repositories with filtering and pagination
        - `github_get_repo`: Get repository details
@@ -39,6 +42,7 @@
      - Comprehensive error handling with user-friendly messages
 
    - **Schema Updates**:
+
      - Added `"github"` to `serviceType` enum in all relevant schemas:
        - `apps/backend/src/tables/schema.ts`
        - `apps/backend/src/schemas/workspace-export.ts`
@@ -46,11 +50,13 @@
        - `apps/frontend/src/utils/api.ts`
 
    - **Frontend Integration** (`apps/frontend/src/components/McpServerModal.tsx`):
+
      - Added "GitHub" as MCP server type option
      - OAuth connection management UI
      - User guidance for OAuth setup
 
    - **Environment Variables** (`apps/backend/ENV.md`):
+
      - `GH_APP_ID`: GitHub App ID (numeric)
      - `GH_APP_CLIENT_ID`: GitHub App Client ID (string)
      - `GH_APP_CLIENT_SECRET`: GitHub App Client Secret (required for OAuth)
@@ -59,17 +65,20 @@
      - Comprehensive documentation with setup instructions
 
    - **CI/CD Integration**:
+
      - Added GitHub App environment variables to `esbuild-config.cjs`
      - Added to GitHub Actions workflows (`deploy-prod.yml`, `deploy-pr.yml`)
      - Proper environment variable propagation for build and deployment
 
    - **Test Coverage**:
+
      - **OAuth Tests** (`apps/backend/src/utils/oauth/mcp/__tests__/github.test.ts`): 21 tests covering auth URL generation, token exchange, token refresh, error handling, and JWT generation
      - **API Client Tests** (`apps/backend/src/utils/__tests__/github.test.ts`): 11 tests covering API functions, error handling, rate limiting, and retry logic
      - **Tools Tests** (`apps/backend/src/http/utils/__tests__/githubTools.test.ts`): 19 tests covering all 9 GitHub tools with OAuth validation and error handling
      - All 51 tests passing
 
    - **Key Features**:
+
      - Read-only access to GitHub repositories (public and private)
      - OAuth-based authentication with automatic token refresh
      - Rate limit handling with bounded retries (prevents Lambda timeouts)
@@ -78,6 +87,7 @@
      - Full test coverage matching patterns from other MCP integrations (Notion)
 
    - **Security Considerations**:
+
      - Uses `repo` scope which grants read/write access, but integration only performs read operations
      - Clear documentation about scope capabilities and security implications
      - Credentials properly stored in encrypted MCP server configs
@@ -88,6 +98,7 @@
 2. **Workspace Export Enhancement - refNames and Credential Filtering**: Enhanced workspace export to use refNames instead of IDs and filter out authentication credentials from MCP server configs.
 
    - **refName Implementation** (`apps/backend/src/utils/workspaceExport.ts`):
+
      - Added `generateRefName()` helper function that creates refNames in the format `"{name}"` from entity names
      - Handles duplicate names by appending numbers: `"{name 2}"`, `"{name 3}"`, etc.
      - Replaces all entity IDs with refNames: workspace, agents, output channels, email connections, MCP servers, bot integrations, agent keys, and eval judges
@@ -99,12 +110,14 @@
      - Supports names with spaces (e.g., `"{Test Agent}"`, `"{Discord Channel}"`)
 
    - **Credential Filtering** (`apps/backend/src/utils/workspaceExport.ts`):
+
      - Added `filterMcpServerCredentials()` helper function to remove sensitive authentication fields
      - Filters out: `accessToken`, `refreshToken`, `token`, `password`, `headerValue`, `apiKey`, `api_key`, `secret`, `clientSecret`, `client_secret`
      - Preserves non-sensitive configuration fields (e.g., `expiresAt`, `email`, `endpoint`, `timeout`)
      - Applied to all MCP server configs during export
 
    - **Unit Tests** (`apps/backend/src/utils/__tests__/workspaceExport.test.ts`):
+
      - Updated all existing tests to verify refName format instead of IDs
      - Added test for duplicate name disambiguation
      - Added test for cross-reference resolution with refNames
@@ -112,6 +125,7 @@
      - All 12 tests passing
 
    - **Key Features**:
+
      - Export uses human-readable refNames instead of database IDs
      - Duplicate names automatically disambiguated
      - All cross-references use refNames for consistency
@@ -120,9 +134,10 @@
 
    - **Result**: Workspace exports now use refNames (e.g., `"{Test Agent}"` instead of `"agent-123"`) and exclude authentication credentials from MCP server configs, making exports more readable and secure.
 
-2. **Workspace Import Feature**: Implemented complete workspace import functionality that creates new workspaces from exported workspace configuration JSON files.
+3. **Workspace Import Feature**: Implemented complete workspace import functionality that creates new workspaces from exported workspace configuration JSON files.
 
    - **Import Utility Function** (`apps/backend/src/utils/workspaceImport.ts`):
+
      - Created `importWorkspace()` function that creates a new workspace from exported configuration
      - Handles reference resolution: supports both actual IDs and named references (format: `"{refName}"`)
      - Creates entities in correct dependency order:
@@ -138,6 +153,7 @@
      - Comprehensive error handling with clear error messages for missing references
 
    - **Import API Endpoint** (`apps/backend/src/http/any-api-workspaces-catchall/routes/post-workspace-import.ts`):
+
      - Created POST endpoint at `/api/workspaces/import`
      - Requires Bearer token authentication (`requireAuth` middleware)
      - Validates request body against `workspaceExportSchema` using strict Zod validation
@@ -147,10 +163,12 @@
      - Proper error handling with `handleError` utility
 
    - **Route Registration** (`apps/backend/src/http/any-api-workspaces-catchall/workspaces-app.ts`):
+
      - Added import for `registerPostWorkspaceImport`
      - Registered route in Express app (alphabetically with other POST routes)
 
    - **Unit Tests** (`apps/backend/src/utils/__tests__/workspaceImport.test.ts`):
+
      - 8 comprehensive tests covering:
        - Minimal workspace import
        - Import with all entity types (agents, channels, MCP servers, etc.)
@@ -163,6 +181,7 @@
      - Type checking and linting clean
 
    - **Key Features**:
+
      - Complete workspace recreation: all agents, channels, integrations, and settings
      - Reference resolution: handles both template format (`{refName}`) and actual IDs
      - Forward reference support: agents can reference other agents defined later in the export
@@ -173,9 +192,10 @@
 
    - **Result**: Users can now import exported workspace configurations to create new workspaces with all their agents, channels, integrations, and settings. All subscription limits are validated before any database operations to ensure data integrity.
 
-2. **Workspace Export HTTP Route**: Implemented GET endpoint for exporting workspace configurations as downloadable JSON files.
+4. **Workspace Export HTTP Route**: Implemented GET endpoint for exporting workspace configurations as downloadable JSON files.
 
    - **Route Handler** (`apps/backend/src/http/any-api-workspaces-catchall/routes/get-workspace-export.ts`):
+
      - Created GET endpoint at `/api/workspaces/:workspaceId/export`
      - Requires Bearer token authentication (`requireAuth` middleware)
      - Requires READ permission level on workspace (`requirePermission(PERMISSION_LEVELS.READ)`)
@@ -188,10 +208,12 @@
      - Proper error handling with `handleError` utility
 
    - **Route Registration** (`apps/backend/src/http/any-api-workspaces-catchall/workspaces-app.ts`):
+
      - Added import for `registerGetWorkspaceExport`
      - Registered route in Express app (alphabetically with other GET routes)
 
    - **Key Features**:
+
      - Browser automatically downloads file instead of displaying JSON
      - Filename includes workspace ID for easy identification
      - Full authentication and authorization checks
@@ -199,15 +221,17 @@
      - Follows established route handler patterns
 
    - **Testing**:
+
      - Type checking passes
      - Linting clean
      - Ready for integration testing
 
    - **Result**: Workspace export functionality is now accessible via HTTP API endpoint, allowing users to download complete workspace configurations as JSON files.
 
-2. **Workspace Export Schema and Export Function**: Created a comprehensive Zod schema for workspace export/import with full unit test coverage.
+5. **Workspace Export Schema and Export Function**: Created a comprehensive Zod schema for workspace export/import with full unit test coverage.
 
    - **Schema Creation** (`apps/backend/src/schemas/workspace-export.ts`):
+
      - Created hierarchical GraphQL-style Zod schema for complete workspace configuration
      - Supports both actual IDs and named references (format: `"{refName}"`) for templates
      - Includes all workspace entities: workspace settings, agents, agent keys, eval judges, stream servers, output channels, email connections, MCP servers, and bot integrations
@@ -215,6 +239,7 @@
      - Comprehensive documentation with examples for template and actual export formats
 
    - **Export Function** (`apps/backend/src/utils/workspaceExport.ts`):
+
      - Fetches all workspace-related entities from database
      - Transforms data into export schema format
      - Validates output against schema
@@ -222,12 +247,14 @@
      - Excludes credit balance (runtime data, not configuration)
 
    - **Unit Tests**:
+
      - **Schema Tests** (`apps/backend/src/schemas/__tests__/workspace-export.test.ts`): 18 tests covering validation, reference formats, nested entities, and error cases
      - **Export Function Tests** (`apps/backend/src/utils/__tests__/workspaceExport.test.ts`): 9 tests covering export functionality, nested entities, and edge cases
      - All 27 tests passing
      - Type checking and linting clean
 
    - **Key Features**:
+
      - Hierarchical structure: workspace → agents → nested entities (keys, eval judges, stream servers)
      - Reference system: supports actual IDs and `"{refName}"` template format
      - Type safety: exports `WorkspaceExport` TypeScript type via `z.infer`
@@ -236,28 +263,31 @@
 
    - **Result**: Complete workspace export/import schema ready for use, with full test coverage and type safety.
 
-2. **Agent Evaluation System - Test Mocking Fixes**: Fixed all remaining test mocking issues in the agent evaluation system to ensure all tests pass.
+6. **Agent Evaluation System - Test Mocking Fixes**: Fixed all remaining test mocking issues in the agent evaluation system to ensure all tests pass.
 
    - **Issues Fixed**:
+
      - **evalEnqueue.test.ts**: Fixed mock path from `../tables` to `../../tables` because the test file is in the `__tests__/` subdirectory. The dynamic import `await import("../tables")` in `evalEnqueue.ts` now correctly resolves to the mocked database.
-     - **agent-eval-queue/__tests__/index.test.ts**: 
+     - **agent-eval-queue/**tests**/index.test.ts**:
        - Fixed mock path for `executeEvaluation` from `../../utils/evalExecution` to `../../../utils/evalExecution` (test file is in `__tests__/` subdirectory).
        - Updated return value expectations to match the actual `SQSBatchResponse` format returned by `handlingSQSErrors` (with `batchItemFailures` array instead of a string array).
        - Updated the "missing SQS context" test to reflect actual behavior (context is always available because `handlingSQSErrors` sets it before calling the handler).
 
    - **Key Fixes**:
+
      - All test mock paths now correctly account for the `__tests__/` subdirectory location.
      - Mock return values now match the actual API response formats.
      - Test expectations aligned with actual system behavior.
 
    - **Testing**:
+
      - All 2578 tests passing (including 4 evalEnqueue tests and 6 agent-eval-queue tests).
      - Type checking passes.
      - Linting clean.
 
    - **Result**: All unit tests for the agent evaluation system are now passing, with proper mocking of database, SQS queue, and evaluation execution functions.
 
-2. **Fixed Usage Statistics Discrepancies**: Resolved multiple issues with usage statistics aggregation that were causing incorrect token counts, model attribution, and cost reporting.
+7. **Fixed Usage Statistics Discrepancies**: Resolved multiple issues with usage statistics aggregation that were causing incorrect token counts, model attribution, and cost reporting.
 
    - **Issues Fixed**:
 
@@ -313,9 +343,9 @@
      - Total tokens properly calculated (may be higher than Input + Output due to cached/reasoning tokens, which is expected)
      - No empty entries in model/provider breakdowns
 
-2. **Enhanced Usage Analytics Dashboard**: Redesigned the usage/cost tracking UI to provide a holistic view of agent usage, including conversation counts, tool call metrics, and enhanced visualizations.
+8. **Enhanced Usage Analytics Dashboard**: Redesigned the usage/cost tracking UI to provide a holistic view of agent usage, including conversation counts, tool call metrics, and enhanced visualizations.
 
-3. **Enhanced Usage Analytics Dashboard**: Redesigned the usage/cost tracking UI to provide a holistic view of agent usage, including conversation counts, tool call metrics, and enhanced visualizations.
+9. **Enhanced Usage Analytics Dashboard**: Redesigned the usage/cost tracking UI to provide a holistic view of agent usage, including conversation counts, tool call metrics, and enhanced visualizations.
 
    - **Backend Changes**:
 
@@ -364,302 +394,302 @@
      - Fixed conversation key format inconsistency (Comments 1 & 2)
      - Improved edge case handling in supplier extraction (Comment 3)
 
-4. **File Attachments in Conversations**: Implemented comprehensive support for file attachments (any file type) in agent conversations using AI SDK v6 multi-modal inputs.
-
-   - **Architecture Overview**:
-
-     - Files are uploaded directly to S3 by clients using presigned POST URLs (no backend file handling)
-     - Files stored in nested S3 path: `conversation-files/{workspaceId}/{agentId}/{conversationId}/{high-entropy-filename}.{ext}`
-     - Automatic 30-day expiration via S3 lifecycle policies (no DynamoDB metadata storage)
-     - High-entropy filenames for security (unguessable URLs)
-     - Files must be S3 URLs in messages (no base64/data URLs allowed)
-
-   - **Backend Implementation**:
-
-     - **Presigned URL Endpoint**: `POST /api/workspaces/:workspaceId/agents/:agentId/conversations/:conversationId/files/upload-url`
-       - Generates presigned S3 POST URL with 5-minute expiration
-       - Validates request body (contentType, optional fileExtension)
-       - Supports CORS for cross-origin widget uploads (OPTIONS preflight handling)
-       - Returns `{ uploadUrl, fields, finalUrl, expiresIn }`
-     - **S3 Utilities** (`utils/s3.ts`):
-       - `generateHighEntropyFilename()`: Creates unguessable filenames using crypto.randomBytes
-       - `buildConversationFileKey()`: Constructs nested S3 key path
-       - `generatePresignedPostUrl()`: Uses AWS SDK v3 (`@aws-sdk/s3-presigned-post`) to generate presigned POST URLs
-       - Supports all file types (not just images)
-       - Configurable max file size (default: 10MB) and expiration time
-       - **No ACL in presigned POST**: Removed `acl: "public-read"` from presigned POST fields/conditions because `BlockPublicAcls: true` prevents ACL operations. Public access is granted via bucket policy instead.
-     - **S3 Public Access Configuration** (`plugins/s3/index.js`):
-       - **Bucket Policy**: `AWS::S3::BucketPolicy` resource grants public `s3:GetObject` access to `conversation-files/*` prefix
-       - **Public Access Block**: Configured to allow public bucket policies:
-         - `BlockPublicAcls: true` - Blocks ACL operations (we use bucket policy instead)
-         - `IgnorePublicAcls: true` - Ignores ACLs (we use bucket policy instead)
-         - `BlockPublicPolicy: false` - **Allows** public bucket policies (required for our bucket policy)
-         - `RestrictPublicBuckets: false` - **Allows** public access via bucket policy (required for our bucket policy)
-       - Configuration applied to both new and existing buckets
-       - Files uploaded to S3 are publicly accessible via HTTP/HTTPS URLs for agent processing
-     - **S3 Lifecycle Configuration** (`plugins/s3/index.js`):
-       - CloudFormation resource `AWS::S3::BucketLifecycleConfiguration`
-       - Automatically deletes files in `conversation-files/` prefix after 30 days
-       - No manual cleanup required
-     - **Message Conversion** (`utils/messageConversion.ts`, `utils/streamRequestContext.ts`):
-       - **AI SDK Format Detection**: Checks ALL messages in conversation history for `parts` property (not just first message), ensuring file attachments in any message are detected
-       - **Consistent Conversion**: Always uses our internal `convertUIMessagesToModelMessages()` converter instead of AI SDK's `convertToModelMessages()`, ensuring file parts are preserved from conversation history
-       - **Image Detection**: Automatically detects images based on `mediaType?.startsWith("image/")` or URL extension (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`)
-       - **Format Compliance**: Creates proper AI SDK format:
-         - `ImagePart`: `{type: "image", image: "url", mediaType?: "image/png"}` (includes mediaType when available for provider compatibility)
-         - `FilePart`: `{type: "file", data: "url", mimeType: "..."}` for non-image files
-         - `TextPart`: `{type: "text", text: "..."}` for text content
-       - **Content Order**: Messages with multiple parts are ordered as: text first, then images, then files
-       - **Validation**: Validates file URLs are HTTP/HTTPS (not base64/data URLs)
-       - **Rejects inline data**: Rejects base64/data URLs with clear error messages
-       - **Comprehensive Logging**: Added logging to track file parts through conversion pipeline (request body → converted messages → model messages)
-     - **Message Deduplication** (`utils/conversationLogger.ts`):
-       - **File Part Preservation**: `normalizeContentForComparison()` now includes file parts in deduplication keys using format `[file:${fileUrl}:${mediaType}]`
-       - **Prevents Data Loss**: Messages with identical text but different file attachments are treated as distinct messages
-       - **Tool Call/Result Handling**: Tool calls and results are also included in comparison keys to prevent incorrect deduplication
-
-   - **Frontend Implementation** (`components/AgentChat.tsx`):
-
-     - File input with paperclip icon for file selection
-     - Parallel file uploads using `Promise.all()` for better UX
-     - Image preview generation using `URL.createObjectURL()`
-     - Upload progress tracking (uploading state per file)
-     - Error handling with user-friendly error messages
-     - File cleanup on unmount (`URL.revokeObjectURL()`)
-     - Prevents message submission until all files are uploaded
-     - Includes file URLs in message parts when sending to backend
-
-   - **AWS SDK Migration**:
-
-     - Migrated from AWS SDK v2 to AWS SDK v3 for presigned POST URL generation
-     - Uses `@aws-sdk/client-s3` and `@aws-sdk/s3-presigned-post` packages
-     - AWS SDK v2 (`aws-sdk`) still bundled for legacy table support (`@architect/functions`)
-     - AWS SDK v3 marked as external in esbuild config (available in Lambda runtime)
-
-   - **Security & Validation**:
-
-     - Strict Zod schema validation for upload URL requests
-     - Content-Type validation in presigned POST conditions
-     - File size limits enforced at S3 level
-     - High-entropy filenames prevent URL guessing
-     - CORS properly configured for widget support
-
-   - **Testing**:
-
-     - Unit tests for `generatePresignedPostUrl()` covering all scenarios
-     - Unit tests for file upload URL endpoint (validation, auth, CORS)
-     - Tests verify high-entropy filename generation
-     - Tests verify S3 key path construction
-     - Tests verify presigned URL generation with correct conditions
-
-   - **Production Fixes** (January 2026):
-
-     - **S3 Public Access**: Fixed production issue where files were not publicly accessible. Removed ACL from presigned POST (conflicted with `BlockPublicAcls: true`), added bucket policy for public read access, and configured `BlockPublicPolicy: false` and `RestrictPublicBuckets: false` to allow bucket policies.
-     - **Message Conversion**: Fixed issue where image parts from conversation history were not being sent to LLM. Changed to always use our internal converter which properly preserves file parts, instead of conditionally using AI SDK's `convertToModelMessages()`.
-     - **Message Deduplication**: Fixed bug where messages with same text but different file attachments were being treated as duplicates, causing file parts to be lost. Updated `normalizeContentForComparison()` to include file URLs and media types in comparison keys.
-     - **Format Improvements**: Added `mediaType` to `ImagePart` when available for better provider compatibility (some providers may require it).
-
-   - **Result**: Users can attach any file type to conversations. Files are securely uploaded to S3 with automatic expiration and public read access for agent processing. AI models can process images and other file types in conversations, with file parts correctly preserved through the entire message pipeline (frontend → backend → LLM → conversation history).
-
-5. **Notion MCP Server Integration - Enhanced User Experience**: Improved the Notion create page tool to accept simplified parameters and fixed API structure issues.
-
-   - **Simplified Parameter Support**:
-
-     - Added `name` parameter: Accepts a simple string for page title, automatically converted to Notion title property
-     - Added `content` parameter: Accepts a simple string for page content, automatically converted to paragraph blocks (split by newlines)
-     - Made `parent` parameter optional: Defaults to workspace level (`{ type: 'workspace', workspace: true }`) if not provided
-     - Made `properties` parameter optional: Created from `name` if not provided
-     - Made `children` parameter optional: Created from `content` string if not provided
-     - Full API parameters (`parent`, `properties`, `children`) still supported for advanced use cases
+10. **File Attachments in Conversations**: Implemented comprehensive support for file attachments (any file type) in agent conversations using AI SDK v6 multi-modal inputs.
+
+    - **Architecture Overview**:
+
+      - Files are uploaded directly to S3 by clients using presigned POST URLs (no backend file handling)
+      - Files stored in nested S3 path: `conversation-files/{workspaceId}/{agentId}/{conversationId}/{high-entropy-filename}.{ext}`
+      - Automatic 30-day expiration via S3 lifecycle policies (no DynamoDB metadata storage)
+      - High-entropy filenames for security (unguessable URLs)
+      - Files must be S3 URLs in messages (no base64/data URLs allowed)
+
+    - **Backend Implementation**:
+
+      - **Presigned URL Endpoint**: `POST /api/workspaces/:workspaceId/agents/:agentId/conversations/:conversationId/files/upload-url`
+        - Generates presigned S3 POST URL with 5-minute expiration
+        - Validates request body (contentType, optional fileExtension)
+        - Supports CORS for cross-origin widget uploads (OPTIONS preflight handling)
+        - Returns `{ uploadUrl, fields, finalUrl, expiresIn }`
+      - **S3 Utilities** (`utils/s3.ts`):
+        - `generateHighEntropyFilename()`: Creates unguessable filenames using crypto.randomBytes
+        - `buildConversationFileKey()`: Constructs nested S3 key path
+        - `generatePresignedPostUrl()`: Uses AWS SDK v3 (`@aws-sdk/s3-presigned-post`) to generate presigned POST URLs
+        - Supports all file types (not just images)
+        - Configurable max file size (default: 10MB) and expiration time
+        - **No ACL in presigned POST**: Removed `acl: "public-read"` from presigned POST fields/conditions because `BlockPublicAcls: true` prevents ACL operations. Public access is granted via bucket policy instead.
+      - **S3 Public Access Configuration** (`plugins/s3/index.js`):
+        - **Bucket Policy**: `AWS::S3::BucketPolicy` resource grants public `s3:GetObject` access to `conversation-files/*` prefix
+        - **Public Access Block**: Configured to allow public bucket policies:
+          - `BlockPublicAcls: true` - Blocks ACL operations (we use bucket policy instead)
+          - `IgnorePublicAcls: true` - Ignores ACLs (we use bucket policy instead)
+          - `BlockPublicPolicy: false` - **Allows** public bucket policies (required for our bucket policy)
+          - `RestrictPublicBuckets: false` - **Allows** public access via bucket policy (required for our bucket policy)
+        - Configuration applied to both new and existing buckets
+        - Files uploaded to S3 are publicly accessible via HTTP/HTTPS URLs for agent processing
+      - **S3 Lifecycle Configuration** (`plugins/s3/index.js`):
+        - CloudFormation resource `AWS::S3::BucketLifecycleConfiguration`
+        - Automatically deletes files in `conversation-files/` prefix after 30 days
+        - No manual cleanup required
+      - **Message Conversion** (`utils/messageConversion.ts`, `utils/streamRequestContext.ts`):
+        - **AI SDK Format Detection**: Checks ALL messages in conversation history for `parts` property (not just first message), ensuring file attachments in any message are detected
+        - **Consistent Conversion**: Always uses our internal `convertUIMessagesToModelMessages()` converter instead of AI SDK's `convertToModelMessages()`, ensuring file parts are preserved from conversation history
+        - **Image Detection**: Automatically detects images based on `mediaType?.startsWith("image/")` or URL extension (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`)
+        - **Format Compliance**: Creates proper AI SDK format:
+          - `ImagePart`: `{type: "image", image: "url", mediaType?: "image/png"}` (includes mediaType when available for provider compatibility)
+          - `FilePart`: `{type: "file", data: "url", mimeType: "..."}` for non-image files
+          - `TextPart`: `{type: "text", text: "..."}` for text content
+        - **Content Order**: Messages with multiple parts are ordered as: text first, then images, then files
+        - **Validation**: Validates file URLs are HTTP/HTTPS (not base64/data URLs)
+        - **Rejects inline data**: Rejects base64/data URLs with clear error messages
+        - **Comprehensive Logging**: Added logging to track file parts through conversion pipeline (request body → converted messages → model messages)
+      - **Message Deduplication** (`utils/conversationLogger.ts`):
+        - **File Part Preservation**: `normalizeContentForComparison()` now includes file parts in deduplication keys using format `[file:${fileUrl}:${mediaType}]`
+        - **Prevents Data Loss**: Messages with identical text but different file attachments are treated as distinct messages
+        - **Tool Call/Result Handling**: Tool calls and results are also included in comparison keys to prevent incorrect deduplication
+
+    - **Frontend Implementation** (`components/AgentChat.tsx`):
+
+      - File input with paperclip icon for file selection
+      - Parallel file uploads using `Promise.all()` for better UX
+      - Image preview generation using `URL.createObjectURL()`
+      - Upload progress tracking (uploading state per file)
+      - Error handling with user-friendly error messages
+      - File cleanup on unmount (`URL.revokeObjectURL()`)
+      - Prevents message submission until all files are uploaded
+      - Includes file URLs in message parts when sending to backend
+
+    - **AWS SDK Migration**:
+
+      - Migrated from AWS SDK v2 to AWS SDK v3 for presigned POST URL generation
+      - Uses `@aws-sdk/client-s3` and `@aws-sdk/s3-presigned-post` packages
+      - AWS SDK v2 (`aws-sdk`) still bundled for legacy table support (`@architect/functions`)
+      - AWS SDK v3 marked as external in esbuild config (available in Lambda runtime)
+
+    - **Security & Validation**:
+
+      - Strict Zod schema validation for upload URL requests
+      - Content-Type validation in presigned POST conditions
+      - File size limits enforced at S3 level
+      - High-entropy filenames prevent URL guessing
+      - CORS properly configured for widget support
+
+    - **Testing**:
+
+      - Unit tests for `generatePresignedPostUrl()` covering all scenarios
+      - Unit tests for file upload URL endpoint (validation, auth, CORS)
+      - Tests verify high-entropy filename generation
+      - Tests verify S3 key path construction
+      - Tests verify presigned URL generation with correct conditions
+
+    - **Production Fixes** (January 2026):
+
+      - **S3 Public Access**: Fixed production issue where files were not publicly accessible. Removed ACL from presigned POST (conflicted with `BlockPublicAcls: true`), added bucket policy for public read access, and configured `BlockPublicPolicy: false` and `RestrictPublicBuckets: false` to allow bucket policies.
+      - **Message Conversion**: Fixed issue where image parts from conversation history were not being sent to LLM. Changed to always use our internal converter which properly preserves file parts, instead of conditionally using AI SDK's `convertToModelMessages()`.
+      - **Message Deduplication**: Fixed bug where messages with same text but different file attachments were being treated as duplicates, causing file parts to be lost. Updated `normalizeContentForComparison()` to include file URLs and media types in comparison keys.
+      - **Format Improvements**: Added `mediaType` to `ImagePart` when available for better provider compatibility (some providers may require it).
+
+    - **Result**: Users can attach any file type to conversations. Files are securely uploaded to S3 with automatic expiration and public read access for agent processing. AI models can process images and other file types in conversations, with file parts correctly preserved through the entire message pipeline (frontend → backend → LLM → conversation history).
+
+11. **Notion MCP Server Integration - Enhanced User Experience**: Improved the Notion create page tool to accept simplified parameters and fixed API structure issues.
+
+    - **Simplified Parameter Support**:
+
+      - Added `name` parameter: Accepts a simple string for page title, automatically converted to Notion title property
+      - Added `content` parameter: Accepts a simple string for page content, automatically converted to paragraph blocks (split by newlines)
+      - Made `parent` parameter optional: Defaults to workspace level (`{ type: 'workspace', workspace: true }`) if not provided
+      - Made `properties` parameter optional: Created from `name` if not provided
+      - Made `children` parameter optional: Created from `content` string if not provided
+      - Full API parameters (`parent`, `properties`, `children`) still supported for advanced use cases
 
-   - **Fixed API Structure**:
+    - **Fixed API Structure**:
 
-     - Fixed paragraph block structure to use `rich_text` instead of `text` (required by Notion API 2025-09-03)
-     - Updated content conversion to create proper paragraph blocks with `rich_text` array
-     - All tests updated and passing
+      - Fixed paragraph block structure to use `rich_text` instead of `text` (required by Notion API 2025-09-03)
+      - Updated content conversion to create proper paragraph blocks with `rich_text` array
+      - All tests updated and passing
 
-   - **Append Blocks Tool**:
+    - **Append Blocks Tool**:
 
-     - Added `notion_append_blocks_{serverName}` tool for adding content to existing pages
-     - Supports up to 100 blocks per request
-     - Optional `after` parameter for inserting blocks at specific positions
+      - Added `notion_append_blocks_{serverName}` tool for adding content to existing pages
+      - Supports up to 100 blocks per request
+      - Optional `after` parameter for inserting blocks at specific positions
 
-   - **Result**: Agents can now create Notion pages with simple syntax:
-     ```json
-     {
-       "name": "Helpmaton Haiku",
-       "content": "Green shoots emerge now,\nSunlight warms the sleepy earth,\nLife's gentle return."
-     }
-     ```
-     The tool automatically handles workspace-level parent, title property creation, and content block conversion.
+    - **Result**: Agents can now create Notion pages with simple syntax:
+      ```json
+      {
+        "name": "Helpmaton Haiku",
+        "content": "Green shoots emerge now,\nSunlight warms the sleepy earth,\nLife's gentle return."
+      }
+      ```
+      The tool automatically handles workspace-level parent, title property creation, and content block conversion.
 
-6. **Google Calendar MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Calendar, allowing agents to read, search, and write to users' Google Calendar. Follows the same architecture pattern as Google Drive and Gmail MCP servers.
+12. **Google Calendar MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Calendar, allowing agents to read, search, and write to users' Google Calendar. Follows the same architecture pattern as Google Drive and Gmail MCP servers.
 
-   - **Google Calendar OAuth Utilities**:
+    - **Google Calendar OAuth Utilities**:
 
-     - Created `utils/oauth/mcp/google-calendar.ts` with `generateGoogleCalendarAuthUrl`, `exchangeGoogleCalendarCode`, and `refreshGoogleCalendarToken` functions
-     - Uses `https://www.googleapis.com/auth/calendar` scope for full read/write access to calendars and events
-     - Reuses existing `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` environment variables
-     - OAuth callback URL: `/api/mcp/oauth/google-calendar/callback`
+      - Created `utils/oauth/mcp/google-calendar.ts` with `generateGoogleCalendarAuthUrl`, `exchangeGoogleCalendarCode`, and `refreshGoogleCalendarToken` functions
+      - Uses `https://www.googleapis.com/auth/calendar` scope for full read/write access to calendars and events
+      - Reuses existing `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` environment variables
+      - OAuth callback URL: `/api/mcp/oauth/google-calendar/callback`
 
-   - **Google Calendar API Client**:
+    - **Google Calendar API Client**:
 
-     - Created `utils/googleCalendar/client.ts` with functions for all CRUD operations:
-       - `listEvents()` - List events with pagination and optional time range filtering
-       - `getEvent()` / `readEvent()` - Get full event details
-       - `searchEvents()` - Search events by query string
-       - `createEvent()` - Create new calendar events
-       - `updateEvent()` - Update existing events
-       - `deleteEvent()` - Delete events
-     - Robust error handling with exponential backoff for recoverable errors (429, 503)
-     - Automatic token refresh on authentication errors (401, 403)
-     - Request timeout handling (30 seconds)
-     - Default calendar ID: "primary" (user's primary calendar)
+      - Created `utils/googleCalendar/client.ts` with functions for all CRUD operations:
+        - `listEvents()` - List events with pagination and optional time range filtering
+        - `getEvent()` / `readEvent()` - Get full event details
+        - `searchEvents()` - Search events by query string
+        - `createEvent()` - Create new calendar events
+        - `updateEvent()` - Update existing events
+        - `deleteEvent()` - Delete events
+      - Robust error handling with exponential backoff for recoverable errors (429, 503)
+      - Automatic token refresh on authentication errors (401, 403)
+      - Request timeout handling (30 seconds)
+      - Default calendar ID: "primary" (user's primary calendar)
 
-   - **Google Calendar Types**:
+    - **Google Calendar Types**:
 
-     - Created `utils/googleCalendar/types.ts` with TypeScript types for Calendar API responses
-     - Types for events, event lists, attendees, date/time objects, and error responses
+      - Created `utils/googleCalendar/types.ts` with TypeScript types for Calendar API responses
+      - Types for events, event lists, attendees, date/time objects, and error responses
 
-   - **Agent Tools**:
+    - **Agent Tools**:
 
-     - Six dedicated tools for Google Calendar:
-       - `google_calendar_list_{serverName}` - List events with optional filters
-       - `google_calendar_read_{serverName}` - Read full event details
-       - `google_calendar_search_{serverName}` - Search events by query
-       - `google_calendar_create_{serverName}` - Create new events
-       - `google_calendar_update_{serverName}` - Update existing events
-       - `google_calendar_delete_{serverName}` - Delete events
-     - Tool names use sanitized server name (not serverId) for better readability
-     - Tools only exposed when OAuth connection is active
-     - Support for time range filtering, pagination, and event recurrence
-     - Full CRUD operations with proper parameter validation
+      - Six dedicated tools for Google Calendar:
+        - `google_calendar_list_{serverName}` - List events with optional filters
+        - `google_calendar_read_{serverName}` - Read full event details
+        - `google_calendar_search_{serverName}` - Search events by query
+        - `google_calendar_create_{serverName}` - Create new events
+        - `google_calendar_update_{serverName}` - Update existing events
+        - `google_calendar_delete_{serverName}` - Delete events
+      - Tool names use sanitized server name (not serverId) for better readability
+      - Tools only exposed when OAuth connection is active
+      - Support for time range filtering, pagination, and event recurrence
+      - Full CRUD operations with proper parameter validation
 
-   - **Schema Updates**:
+    - **Schema Updates**:
 
-     - Added `"google-calendar"` to `serviceType` enum in `workspaceSchemas.ts` and `schema.ts`
-     - Updated frontend API types to include `"google-calendar"` in serviceType union types
+      - Added `"google-calendar"` to `serviceType` enum in `workspaceSchemas.ts` and `schema.ts`
+      - Updated frontend API types to include `"google-calendar"` in serviceType union types
 
-   - **UI Updates**:
+    - **UI Updates**:
 
-     - Added "Google Calendar" option to MCP server type selector in `McpServerModal`
-     - Added helper text explaining OAuth connection requirement
-     - Updated form submission to handle `google-calendar` service type
-     - Updated serviceType detection logic when editing existing servers
+      - Added "Google Calendar" option to MCP server type selector in `McpServerModal`
+      - Added helper text explaining OAuth connection requirement
+      - Updated form submission to handle `google-calendar` service type
+      - Updated serviceType detection logic when editing existing servers
 
-   - **Backend Integration**:
+    - **Backend Integration**:
 
-     - Updated `mcpUtils.ts` to handle `serviceType === "google-calendar"` and create Calendar tools
-     - Updated OAuth callback handler to support Google Calendar service type
-     - Updated OAuth authorize route to generate Google Calendar auth URLs
+      - Updated `mcpUtils.ts` to handle `serviceType === "google-calendar"` and create Calendar tools
+      - Updated OAuth callback handler to support Google Calendar service type
+      - Updated OAuth authorize route to generate Google Calendar auth URLs
 
-   - **Note**: Requires adding redirect URI `/api/mcp/oauth/google-calendar/callback` to Google Cloud Console OAuth client configuration
+    - **Note**: Requires adding redirect URI `/api/mcp/oauth/google-calendar/callback` to Google Cloud Console OAuth client configuration
 
-7. **Gmail MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Gmail, allowing agents to list, search, and read emails from users' Gmail accounts. Follows the same architecture pattern as Google Drive MCP server.
+13. **Gmail MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Gmail, allowing agents to list, search, and read emails from users' Gmail accounts. Follows the same architecture pattern as Google Drive MCP server.
 
-   - **Gmail OAuth Utilities**:
+    - **Gmail OAuth Utilities**:
 
-     - Created `utils/oauth/mcp/gmail.ts` with `generateGmailAuthUrl`, `exchangeGmailCode`, and `refreshGmailToken` functions
-     - Uses `gmail.readonly` scope for read-only email access
-     - Reuses existing `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` environment variables
-     - OAuth callback URL: `/api/mcp/oauth/gmail/callback`
+      - Created `utils/oauth/mcp/gmail.ts` with `generateGmailAuthUrl`, `exchangeGmailCode`, and `refreshGmailToken` functions
+      - Uses `gmail.readonly` scope for read-only email access
+      - Reuses existing `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` environment variables
+      - OAuth callback URL: `/api/mcp/oauth/gmail/callback`
 
-   - **Gmail API Client**:
+    - **Gmail API Client**:
 
-     - Created `utils/gmail/client.ts` with `listMessages`, `getMessage`, `readMessage`, and `searchMessages` functions
-     - Robust error handling with exponential backoff for recoverable errors (429, 503)
-     - Automatic token refresh on authentication errors (401, 403)
-     - Base64url decoding for email body content (text/plain and text/html)
-     - Attachment information extraction
-     - Request timeout handling (30 seconds)
+      - Created `utils/gmail/client.ts` with `listMessages`, `getMessage`, `readMessage`, and `searchMessages` functions
+      - Robust error handling with exponential backoff for recoverable errors (429, 503)
+      - Automatic token refresh on authentication errors (401, 403)
+      - Base64url decoding for email body content (text/plain and text/html)
+      - Attachment information extraction
+      - Request timeout handling (30 seconds)
 
-   - **Gmail Types**:
+    - **Gmail Types**:
 
-     - Created `utils/gmail/types.ts` with TypeScript types for Gmail API responses
-     - Types for messages, message parts, headers, body content, and error responses
+      - Created `utils/gmail/types.ts` with TypeScript types for Gmail API responses
+      - Types for messages, message parts, headers, body content, and error responses
 
-   - **Agent Tools**:
+    - **Agent Tools**:
 
-     - Three dedicated tools for Gmail: `gmail_list_{serverName}`, `gmail_search_{serverName}`, `gmail_read_{serverName}`
-     - Tool names use sanitized server name (not serverId) for better readability
-     - Tools only exposed when OAuth connection is active
-     - Support for Gmail search syntax (e.g., "from:example@gmail.com", "subject:meeting", "is:unread")
-     - Pagination support with pageToken
+      - Three dedicated tools for Gmail: `gmail_list_{serverName}`, `gmail_search_{serverName}`, `gmail_read_{serverName}`
+      - Tool names use sanitized server name (not serverId) for better readability
+      - Tools only exposed when OAuth connection is active
+      - Support for Gmail search syntax (e.g., "from:example@gmail.com", "subject:meeting", "is:unread")
+      - Pagination support with pageToken
 
-   - **Schema Updates**:
+    - **Schema Updates**:
 
-     - Added `"gmail"` to `serviceType` enum in `workspaceSchemas.ts` and `schema.ts`
-     - Updated frontend API types to include `"gmail"` in serviceType union types
+      - Added `"gmail"` to `serviceType` enum in `workspaceSchemas.ts` and `schema.ts`
+      - Updated frontend API types to include `"gmail"` in serviceType union types
 
-   - **UI Updates**:
+    - **UI Updates**:
 
-     - Added Gmail option to MCP server type selector in `McpServerModal`
-     - Updated OAuth callback page to display "Gmail" service name
-     - Updated MCP server list to show "Gmail" service type
-     - Added Gmail tools documentation in Tools Help Dialog (similar to Google Drive)
+      - Added Gmail option to MCP server type selector in `McpServerModal`
+      - Updated OAuth callback page to display "Gmail" service name
+      - Updated MCP server list to show "Gmail" service type
+      - Added Gmail tools documentation in Tools Help Dialog (similar to Google Drive)
 
-   - **Backend Integration**:
+    - **Backend Integration**:
 
-     - Updated `mcpUtils.ts` to handle `serviceType === "gmail"` and create Gmail tools
-     - Updated OAuth callback handler to support Gmail service type
-     - Updated OAuth authorize route to generate Gmail auth URLs
+      - Updated `mcpUtils.ts` to handle `serviceType === "gmail"` and create Gmail tools
+      - Updated OAuth callback handler to support Gmail service type
+      - Updated OAuth authorize route to generate Gmail auth URLs
 
-   - **Note**: Requires adding redirect URI `/api/mcp/oauth/gmail/callback` to Google Cloud Console OAuth client configuration
+    - **Note**: Requires adding redirect URI `/api/mcp/oauth/gmail/callback` to Google Cloud Console OAuth client configuration
 
-8. **Google Drive MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Drive, allowing agents to list, read, and search files in users' Google Drive accounts. The infrastructure is reusable for other OAuth-based MCP servers.
+14. **Google Drive MCP Server Integration**: Implemented a complete OAuth-based MCP server integration for Google Drive, allowing agents to list, read, and search files in users' Google Drive accounts. The infrastructure is reusable for other OAuth-based MCP servers.
 
-   - **Database Schema Updates**:
+    - **Database Schema Updates**:
 
-     - Extended `mcp-server` table schema to support OAuth authentication
-     - Added `authType: "oauth"` option alongside existing "none", "header", "basic"
-     - Added `serviceType` field ("external", "google-drive", or "gmail") to differentiate service types
-     - Made `url` optional for OAuth-based servers (not needed for built-in services)
-     - OAuth credentials (accessToken, refreshToken, expiresAt, email) stored encrypted in `config` field
+      - Extended `mcp-server` table schema to support OAuth authentication
+      - Added `authType: "oauth"` option alongside existing "none", "header", "basic"
+      - Added `serviceType` field ("external", "google-drive", or "gmail") to differentiate service types
+      - Made `url` optional for OAuth-based servers (not needed for built-in services)
+      - OAuth credentials (accessToken, refreshToken, expiresAt, email) stored encrypted in `config` field
 
-   - **OAuth Infrastructure**:
+    - **OAuth Infrastructure**:
 
-     - Reusable OAuth utilities in `utils/oauth/mcp/` for MCP-specific OAuth flows
-     - Google Drive OAuth implementation using `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`
-     - State token generation with workspaceId and serverId encoded
-     - OAuth callback handler at `/api/mcp/oauth/:serviceType/callback`
-     - Token refresh logic with automatic retry on authentication errors
+      - Reusable OAuth utilities in `utils/oauth/mcp/` for MCP-specific OAuth flows
+      - Google Drive OAuth implementation using `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET`
+      - State token generation with workspaceId and serverId encoded
+      - OAuth callback handler at `/api/mcp/oauth/:serviceType/callback`
+      - Token refresh logic with automatic retry on authentication errors
 
-   - **Google Drive API Client**:
+    - **Google Drive API Client**:
 
-     - Robust error handling with exponential backoff for recoverable errors (429, 503)
-     - Automatic token refresh on authentication errors (401, 403)
-     - Support for Google Docs (exports as plain text), Google Sheets (exports as CSV), Google Slides (exports as plain text)
-     - Full-text search support using `drive` scope (required for fullText search)
-     - Request timeout handling (30 seconds)
+      - Robust error handling with exponential backoff for recoverable errors (429, 503)
+      - Automatic token refresh on authentication errors (401, 403)
+      - Support for Google Docs (exports as plain text), Google Sheets (exports as CSV), Google Slides (exports as plain text)
+      - Full-text search support using `drive` scope (required for fullText search)
+      - Request timeout handling (30 seconds)
 
-   - **Agent Tools**:
+    - **Agent Tools**:
 
-     - Three dedicated tools for Google Drive: `google_drive_list_{serverName}`, `google_drive_read_{serverName}`, `google_drive_search_{serverName}`
-     - Tool names use sanitized server name (not serverId) for better readability
-     - Tools only exposed when OAuth connection is active
-     - Parameter validation with support for both camelCase and snake_case parameter names
+      - Three dedicated tools for Google Drive: `google_drive_list_{serverName}`, `google_drive_read_{serverName}`, `google_drive_search_{serverName}`
+      - Tool names use sanitized server name (not serverId) for better readability
+      - Tools only exposed when OAuth connection is active
+      - Parameter validation with support for both camelCase and snake_case parameter names
 
-   - **UI Improvements**:
+    - **UI Improvements**:
 
-     - Simplified MCP server creation flow: service type selector first (Google Drive or Custom MCP)
-     - For Google Drive: no URL or auth type selection needed (OAuth only)
-     - For Custom MCP: shows URL field and auth type selector (none, header, basic - no OAuth)
-     - MCP server list shows connection status and service type
-     - "Connect", "Reconnect", and "Disconnect" buttons for OAuth servers
-     - Dark mode support throughout MCP server UI
-     - Tools Help Dialog shows specific Google Drive and Gmail tools (not generic MCP interface) when respective servers are enabled
+      - Simplified MCP server creation flow: service type selector first (Google Drive or Custom MCP)
+      - For Google Drive: no URL or auth type selection needed (OAuth only)
+      - For Custom MCP: shows URL field and auth type selector (none, header, basic - no OAuth)
+      - MCP server list shows connection status and service type
+      - "Connect", "Reconnect", and "Disconnect" buttons for OAuth servers
+      - Dark mode support throughout MCP server UI
+      - Tools Help Dialog shows specific Google Drive and Gmail tools (not generic MCP interface) when respective servers are enabled
 
-   - **Error Handling**:
+    - **Error Handling**:
 
-     - Graceful handling of deleted MCP servers in agent configuration (auto-cleanup)
-     - Clear error messages for token revocation (prompts user to reconnect)
-     - Better error messages for missing/invalid parameters
-     - Improved tool descriptions to accurately reflect capabilities (including Google Sheets support)
+      - Graceful handling of deleted MCP servers in agent configuration (auto-cleanup)
+      - Clear error messages for token revocation (prompts user to reconnect)
+      - Better error messages for missing/invalid parameters
+      - Improved tool descriptions to accurately reflect capabilities (including Google Sheets support)
 
-   - **Environment Configuration**:
-     - Added `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` to deploy workflows
-     - Added to esbuild config for environment variable injection
-     - Updated all references from Gmail-specific env vars to Google OAuth env vars
+    - **Environment Configuration**:
+      - Added `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` to deploy workflows
+      - Added to esbuild config for environment variable injection
+      - Updated all references from Gmail-specific env vars to Google OAuth env vars
 
 **Previous Work**: Agent Chat Widget - Completed ✅
 
@@ -2890,6 +2920,7 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 ## Next Steps
 
 1. **Agent Evaluation System - Frontend UI**:
+
    - Add frontend UI for configuring eval judges (create, update, enable/disable)
    - Add frontend UI for displaying evaluation results (individual judgments and aggregated results over time)
    - Backend implementation is complete with all tests passing ✅

@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { LoadingScreen } from "../components/LoadingScreen";
+import { LockSpinner } from "../components/LockSpinner";
 // Lazy load modals - only load when opened
 const CreateWorkspaceModal = lazy(() =>
   import("../components/CreateWorkspaceModal").then((module) => ({
@@ -25,6 +26,9 @@ const WorkspacesList: FC = () => {
   const navigate = useNavigate();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [loadingWorkspaceId, setLoadingWorkspaceId] = useState<string | null>(
+    null
+  );
 
   const getPermissionLabel = (level: number | null): string => {
     if (level === 3) return "Owner";
@@ -35,7 +39,8 @@ const WorkspacesList: FC = () => {
 
   const getPermissionColor = (level: number | null): string => {
     if (level === 3) return "bg-gradient-primary text-white";
-    if (level === 2) return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
+    if (level === 2)
+      return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
     if (level === 1)
       return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700";
     return "bg-neutral-50 text-neutral-500 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-400 dark:border-neutral-700";
@@ -120,6 +125,7 @@ const WorkspacesList: FC = () => {
               <div
                 key={workspace.id}
                 onClick={() => {
+                  setLoadingWorkspaceId(workspace.id);
                   trackEvent("workspace_viewed", {
                     workspace_id: workspace.id,
                   });
@@ -127,6 +133,16 @@ const WorkspacesList: FC = () => {
                 }}
                 className="group relative transform cursor-pointer overflow-hidden rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-large transition-all duration-200 hover:scale-[1.03] hover:border-primary-400 hover:shadow-bold active:scale-[0.97] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500 lg:p-10"
               >
+                {loadingWorkspaceId === workspace.id && (
+                  <div className="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-white/90 backdrop-blur-sm dark:bg-neutral-900/90">
+                    <div className="flex flex-col items-center gap-3">
+                      <LockSpinner size="medium" />
+                      <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                        Loading workspace...
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <div className="group-hover:opacity-8 absolute right-0 top-0 size-40 rounded-full bg-gradient-primary opacity-0 blur-3xl transition-opacity duration-200"></div>
                 <div className="relative z-10">
                   <div className="mb-5 flex items-start justify-between">
