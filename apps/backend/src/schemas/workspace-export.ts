@@ -478,6 +478,7 @@ const mcpServerSchema = z
         "gmail",
         "google-calendar",
         "notion",
+        "github",
       ])
       .optional()
       .describe(

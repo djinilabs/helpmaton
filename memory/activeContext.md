@@ -2,11 +2,90 @@
 
 ## Current Status
 
-**Status**: Workspace Export with refNames and Credential Filtering Complete ✅
+**Status**: GitHub MCP Integration Complete ✅
 
 **Latest Work**:
 
-1. **Workspace Export Enhancement - refNames and Credential Filtering**: Enhanced workspace export to use refNames instead of IDs and filter out authentication credentials from MCP server configs.
+1. **GitHub MCP Server Integration**: Implemented complete GitHub MCP server support with OAuth authentication, read-only API access, and comprehensive tool coverage for repositories, issues, pull requests, commits, and file contents.
+
+   - **OAuth Authentication** (`apps/backend/src/utils/oauth/mcp/github.ts`):
+     - Implemented GitHub OAuth flow using GitHub Apps with `client_secret` authentication
+     - Uses `repo` scope for access to both public and private repositories
+     - Supports token refresh with proper error handling using `GitHubReconnectError` custom error class
+     - JWT generation function (`generateGithubAppJWT`) included for future installation token support
+     - Comprehensive error handling with clear user-facing messages
+     - Extracted magic numbers as constants (`ONE_YEAR_MS` for token expiration)
+
+   - **GitHub API Client** (`apps/backend/src/utils/github/client.ts`):
+     - Centralized request function with automatic token refresh on 401 errors
+     - Rate limit handling (429) with retry counter (MAX_RETRIES = 3) to prevent unbounded recursion
+     - Proper abort controller pattern for timeout handling
+     - Error handling for 401 (authentication), 403 (forbidden), 404 (not found), and 429 (rate limit)
+     - Supports both JSON and text response types
+     - Functions for: authenticated user, repositories, issues, pull requests, commits, and file contents
+
+   - **GitHub Tools** (`apps/backend/src/http/utils/githubTools.ts`):
+     - 9 AI SDK tools for LLM agents:
+       - `github_list_repos`: List repositories with filtering and pagination
+       - `github_get_repo`: Get repository details
+       - `github_list_issues`: List issues with state filtering
+       - `github_get_issue`: Get issue details
+       - `github_list_prs`: List pull requests
+       - `github_get_pr`: Get pull request details
+       - `github_read_file`: Read file contents (with proper path encoding for subdirectories)
+       - `github_list_commits`: List commits
+       - `github_get_commit`: Get commit details
+     - OAuth connection validation before tool execution
+     - Comprehensive error handling with user-friendly messages
+
+   - **Schema Updates**:
+     - Added `"github"` to `serviceType` enum in all relevant schemas:
+       - `apps/backend/src/tables/schema.ts`
+       - `apps/backend/src/schemas/workspace-export.ts`
+       - `apps/backend/src/http/utils/schemas/workspaceSchemas.ts`
+       - `apps/frontend/src/utils/api.ts`
+
+   - **Frontend Integration** (`apps/frontend/src/components/McpServerModal.tsx`):
+     - Added "GitHub" as MCP server type option
+     - OAuth connection management UI
+     - User guidance for OAuth setup
+
+   - **Environment Variables** (`apps/backend/ENV.md`):
+     - `GH_APP_ID`: GitHub App ID (numeric)
+     - `GH_APP_CLIENT_ID`: GitHub App Client ID (string)
+     - `GH_APP_CLIENT_SECRET`: GitHub App Client Secret (required for OAuth)
+     - `GH_APP_PRIVATE_KEY`: GitHub App private key (for future JWT/installation tokens)
+     - All variables use `GH_` prefix (not `GITHUB_`) due to GitHub Actions reserved prefix
+     - Comprehensive documentation with setup instructions
+
+   - **CI/CD Integration**:
+     - Added GitHub App environment variables to `esbuild-config.cjs`
+     - Added to GitHub Actions workflows (`deploy-prod.yml`, `deploy-pr.yml`)
+     - Proper environment variable propagation for build and deployment
+
+   - **Test Coverage**:
+     - **OAuth Tests** (`apps/backend/src/utils/oauth/mcp/__tests__/github.test.ts`): 21 tests covering auth URL generation, token exchange, token refresh, error handling, and JWT generation
+     - **API Client Tests** (`apps/backend/src/utils/__tests__/github.test.ts`): 11 tests covering API functions, error handling, rate limiting, and retry logic
+     - **Tools Tests** (`apps/backend/src/http/utils/__tests__/githubTools.test.ts`): 19 tests covering all 9 GitHub tools with OAuth validation and error handling
+     - All 51 tests passing
+
+   - **Key Features**:
+     - Read-only access to GitHub repositories (public and private)
+     - OAuth-based authentication with automatic token refresh
+     - Rate limit handling with bounded retries (prevents Lambda timeouts)
+     - Comprehensive tool coverage for common GitHub operations
+     - Proper error handling with user-friendly messages
+     - Full test coverage matching patterns from other MCP integrations (Notion)
+
+   - **Security Considerations**:
+     - Uses `repo` scope which grants read/write access, but integration only performs read operations
+     - Clear documentation about scope capabilities and security implications
+     - Credentials properly stored in encrypted MCP server configs
+     - Environment variables properly secured in GitHub Secrets
+
+   - **Result**: Complete GitHub MCP server integration ready for use, allowing LLM agents to read GitHub repositories, issues, pull requests, commits, and file contents through OAuth-authenticated API calls.
+
+2. **Workspace Export Enhancement - refNames and Credential Filtering**: Enhanced workspace export to use refNames instead of IDs and filter out authentication credentials from MCP server configs.
 
    - **refName Implementation** (`apps/backend/src/utils/workspaceExport.ts`):
      - Added `generateRefName()` helper function that creates refNames in the format `"{name}"` from entity names

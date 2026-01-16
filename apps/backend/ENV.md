@@ -172,7 +172,7 @@ This document describes the environment variables required for the helpmaton bac
 - **Description**: JSON array of Decodo residential proxy URLs with embedded credentials for web scraping
 - **Required**: Yes (for `/api/scrape` endpoint)
 - **Example**: `["http://username1:password1@gate.decodo.com:10001", "http://username2:password2@gate.decodo.com:10002", "http://username3:password3@gate.decodo.com:10003"]`
-- **Format**: 
+- **Format**:
   - JSON array of strings
   - Each URL format: `http://username:password@gate.decodo.com:PORT`
   - Port range: 10001 to 10010
@@ -487,6 +487,109 @@ These environment variables are used by the frontend application and must be pre
 - **Example**: `secret_abcdefghijklmnopqrstuvwxyz1234567890`
 - **How to obtain**: Found in the "Secrets" tab of your Notion integration settings
 - **Note**: Keep this secret secure and never commit it to version control
+
+## GitHub App Configuration
+
+**Note**: Helpmaton is designed to integrate with GitHub via GitHub Apps (not OAuth Apps) for its MCP server integration. In the current implementation, API calls use standard OAuth user access tokens obtained via a GitHub OAuth client ID and `client_secret`, which must be provided to the backend via appropriate environment variables. Support for private key-based JWT authentication and server-to-server installation access tokens is reserved for potential future use and may not yet be active in all deployments.
+
+**OAuth Scope**: The GitHub OAuth flow uses the `repo` scope, which grants read and write access to all repositories (both public and private) that the user has access to. This integration is designed to perform only read operations, but the token technically has write capabilities.
+
+### `GH_APP_ID`
+
+- **Description**: GitHub App ID (numeric) for GitHub MCP servers. Used as the issuer (`iss`) claim in JWT tokens for installation access tokens (server-to-server authentication). Also used as a fallback for Client ID in OAuth flows if `GH_APP_CLIENT_ID` is not set.
+- **Required**: Yes (required if using GitHub MCP servers)
+- **Example**: `123456`
+- **How to obtain**:
+  1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
+  2. Click "GitHub Apps" → "New GitHub App"
+  3. Fill in the application details:
+     - **GitHub App name**: Your app name (e.g., "Helpmaton")
+     - **Homepage URL**: Your application URL
+     - **User authorization callback URL**: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/github/callback`
+     - Enable "Request user authorization (OAuth) during installation"
+     - Set required permissions (e.g., Repository permissions: Read-only access to repositories)
+     - **Note**: The OAuth scope used is `repo`, which grants read and write access to all repositories (both public and private) that the user has access to. This integration performs only read operations, but the token technically has write capabilities.
+  4. Click "Create GitHub App"
+  5. Copy the App ID from the app settings page (shown in the "About" section)
+- **Note**: The variable name uses `GH_` prefix instead of `GITHUB_` because GitHub secrets cannot start with `GITHUB_` (reserved prefix).
+
+### `GH_APP_CLIENT_ID`
+
+- **Description**: GitHub App Client ID (string) for GitHub MCP servers. Used in OAuth authorization URLs and token exchange requests.
+- **Required**: Yes (required for OAuth flows. Falls back to `GH_APP_ID` if not set, but Client ID is preferred)
+- **Example**: `Iv1.8a61f9b3a7aba766`
+- **How to obtain**: Found on the same GitHub App settings page as the App ID. The Client ID is shown in the "About" section.
+- **Note**: The variable name uses `GH_` prefix instead of `GITHUB_` because GitHub secrets cannot start with `GITHUB_` (reserved prefix).
+
+### `GH_APP_CLIENT_SECRET`
+
+- **Description**: GitHub App Client Secret for OAuth token exchange and refresh flows. This is required for the user authorization OAuth flow (authorization code exchange and token refresh).
+- **Required**: Yes (required for OAuth flows)
+- **Example**: `github_client_secret_abc123xyz`
+- **How to obtain**:
+  1. Go to your GitHub App settings page
+  2. Scroll to "Client secrets" section
+  3. Click "Generate a new client secret"
+  4. Copy the secret immediately (it will only be shown once)
+  5. Store it securely in your `.env` file
+- **Note**:
+  - Keep this secret secure and never commit it to version control
+  - Client secrets are used for OAuth flows (user authorization)
+  - The variable name uses `GH_` prefix instead of `GITHUB_` because GitHub secrets cannot start with `GITHUB_` (reserved prefix)
+
+### `GH_APP_PRIVATE_KEY`
+
+- **Description**: GitHub App private key (PEM format) for JWT authentication. Used to sign JWTs for GitHub App installation tokens (server-to-server authentication). This is NOT used for user OAuth flows, which use `GH_APP_CLIENT_SECRET` instead.
+- **Required**: Conditionally (required only if you use GitHub App installation tokens / server-to-server GitHub API access for GitHub MCP servers; not required for user OAuth flows that use the client secret)
+- **Example**:
+  ```
+  -----BEGIN PRIVATE KEY-----
+  MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC...
+  -----END PRIVATE KEY-----
+  ```
+- **How to obtain**:
+  1. Go to your GitHub App settings page
+  2. Scroll to "Private keys" section
+  3. Click "Generate a private key"
+  4. Download the `.pem` file or copy the key content
+  5. Store it securely in your `.env` file (see formatting options below)
+- **Storage in .env file**:
+
+  The private key can be stored in several formats:
+
+  **Option 1: Single line with `\n` escape sequences** (recommended):
+
+  ```bash
+  GH_APP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC...\n-----END PRIVATE KEY-----"
+  ```
+
+  To convert your `.pem` file to this format:
+
+  ```bash
+  # On Linux/Mac:
+  cat private-key.pem | tr '\n' '\\n' | sed 's/^/GH_APP_PRIVATE_KEY="/;s/$/"/'
+  ```
+
+  **Option 2: Base64-encoded** (alternative):
+
+  ```bash
+  # Encode the key file:
+  cat private-key.pem | base64 -w 0
+
+  # Then in .env:
+  GH_APP_PRIVATE_KEY="LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0t..."
+  ```
+
+  The code automatically detects and handles both formats.
+
+- **Note**:
+  - Keep this key secure and never commit it to version control
+  - GitHub Apps can have up to 25 private keys registered at any time
+  - The private key is used to generate JWTs (RS256 algorithm) for installation access tokens (server-to-server authentication)
+  - JWTs are valid for up to 10 minutes and are automatically regenerated as needed
+  - **This is NOT used for user OAuth flows** - OAuth flows use `GH_APP_CLIENT_SECRET` instead
+  - The code handles keys with or without PEM headers, escaped newlines, and base64 encoding
+  - The variable name uses `GH_` prefix instead of `GITHUB_` because GitHub secrets cannot start with `GITHUB_` (reserved prefix)
 
 ## S3 Configuration
 
