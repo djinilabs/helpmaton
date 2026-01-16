@@ -883,9 +883,26 @@ export function createScrapeFetchTool(
       }
 
       // Validate required IDs for token generation
-      if (!workspaceId || !agentId || !conversationId) {
-        return "Error: Missing required context (workspaceId, agentId, or conversationId) for scrape authentication.";
+      const missingParams: string[] = [];
+      if (!workspaceId) missingParams.push("workspaceId");
+      if (!agentId) missingParams.push("agentId");
+      if (!conversationId) missingParams.push("conversationId");
+      
+      if (missingParams.length > 0) {
+        const missingList = missingParams.join(", ");
+        console.error("[Tool Error] fetch_url (Scrape) - Missing required context:", {
+          missingParams,
+          workspaceId: workspaceId || "MISSING",
+          agentId: agentId || "MISSING",
+          conversationId: conversationId || "MISSING",
+        });
+        return `Error: Missing required context (${missingList}) for scrape authentication. The scrape tool requires workspaceId, agentId, and conversationId to generate authentication tokens.`;
       }
+
+      // At this point, TypeScript knows these are strings due to the validation above
+      // but we need to assert for type safety
+      const validAgentId = agentId as string;
+      const validConversationId = conversationId as string;
 
       // Log tool call
       console.log("[Tool Call] fetch_url (Scrape)", {
@@ -893,8 +910,8 @@ export function createScrapeFetchTool(
         provider: "scrape",
         arguments: { url },
         workspaceId,
-        agentId,
-        conversationId,
+        agentId: validAgentId,
+        conversationId: validConversationId,
       });
 
       try {
@@ -902,8 +919,8 @@ export function createScrapeFetchTool(
         // Note: abortSignal not yet supported by scrape endpoint, but parameter is kept for future compatibility
         const authToken = await generateScrapeAuthToken(
           workspaceId,
-          agentId,
-          conversationId
+          validAgentId,
+          validConversationId
         );
 
         // Get scrape URL (Function URL in deployed environments, API Gateway URL in local dev)
@@ -943,8 +960,8 @@ export function createScrapeFetchTool(
             status: response.status,
             url,
             workspaceId,
-            agentId,
-            conversationId,
+            agentId: validAgentId,
+            conversationId: validConversationId,
           });
           return errorMessage;
         }
@@ -969,8 +986,8 @@ export function createScrapeFetchTool(
           url,
           xmlLength: xmlContent.length,
           workspaceId,
-          agentId,
-          conversationId,
+          agentId: validAgentId,
+          conversationId: validConversationId,
         });
 
         return resultText;
@@ -984,8 +1001,8 @@ export function createScrapeFetchTool(
           error: error instanceof Error ? error.message : String(error),
           arguments: { url },
           workspaceId,
-          agentId,
-          conversationId,
+          agentId: validAgentId,
+          conversationId: validConversationId,
         });
         return errorMessage;
       }

@@ -257,8 +257,8 @@ async function processDelegationTask(
           maxDepth,
           context,
           0, // timeoutMs deprecated, using abortSignal instead
-          undefined, // conversationId
-          undefined, // conversationOwnerAgentId
+          conversationId, // Pass conversationId from message if available
+          callingAgentId, // Use callingAgentId as conversationOwnerAgentId for tracking
           requestTimeout.signal
         );
       } finally {

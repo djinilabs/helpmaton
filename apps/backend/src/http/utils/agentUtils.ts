@@ -809,6 +809,13 @@ export async function callAgentInternal(
 
   const db = await database();
 
+  // Create a new conversation ID for the delegated agent
+  // Each agent should have its own conversation, even when delegating
+  // This conversation ID will be used for:
+  // 1. Tool authentication (e.g., scrape tool)
+  // 2. Conversation logging for the target agent
+  const targetAgentConversationId = randomUUID();
+
   // Validate and get target agent
   const targetAgentPk = `agents/${workspaceId}/${targetAgentId}`;
   const targetAgent = await db.agent.get(targetAgentPk, "agent");
@@ -908,20 +915,26 @@ export async function callAgentInternal(
     tools.fetch_url = createJinaFetchTool(workspaceId, targetAgentId);
   } else if (targetAgent.fetchWebProvider === "scrape") {
     // Scrape-based fetch relies on a conversationId for authentication.
-    // In the agent delegation context, conversationId is not available, so
-    // the tool will return an error if called. This is intentional - scrape
-    // requires conversation context for authentication. If scrape support is
-    // needed for delegated agents, the authentication mechanism must be updated
-    // to work without conversationId.
+    // Use the target agent's conversation ID (created above) for authentication.
     // Note: Tavily and Jina fetch tools work without conversationId and are
     // available for delegated agents.
-    const { createScrapeFetchTool } = await import("./tavilyTools");
-    tools.fetch_url = createScrapeFetchTool(
-      workspaceId,
-      context,
-      targetAgentId,
-      undefined // conversationId not available in agent delegation context
-    );
+    if (targetAgentId) {
+      const { createScrapeFetchTool } = await import("./tavilyTools");
+      tools.fetch_url = createScrapeFetchTool(
+        workspaceId,
+        context,
+        targetAgentId,
+        targetAgentConversationId // Use the delegated agent's own conversation ID
+      );
+    } else {
+      console.warn(
+        "[Agent Delegation] Scrape tool not created - targetAgentId not available:",
+        {
+          workspaceId,
+          targetAgentId,
+        }
+      );
+    }
   }
 
   // Add Exa.ai search tool if enabled
@@ -1247,9 +1260,9 @@ export async function callAgentInternal(
     // - The message it received from the calling agent
     // - The response it gave
     // - Token usage and costs
+    // Note: We use the conversation ID created earlier (targetAgentConversationId)
+    // so that tools created during the agent call use the same conversation ID
     try {
-      const delegationConversationId = randomUUID();
-
       // Build messages for the target agent's conversation
       // Include re-ranking and knowledge injection messages if they exist
       const targetAgentMessages: UIMessage[] = [];
@@ -1285,7 +1298,7 @@ export async function callAgentInternal(
         db,
         workspaceId,
         targetAgentId,
-        delegationConversationId,
+        targetAgentConversationId, // Use the conversation ID created at the start
         targetAgentMessages,
         tokenUsage,
         usesByok,
@@ -1297,7 +1310,7 @@ export async function callAgentInternal(
       console.log("[Agent Delegation] Created conversation for target agent:", {
         workspaceId,
         targetAgentId,
-        delegationConversationId,
+        targetAgentConversationId,
         messageLength: message.length,
         responseLength: result.text.length,
         tokenUsage: tokenUsage
@@ -1471,7 +1484,9 @@ export async function callAgentInternal(
     // Try to log failed delegation in target agent's conversation
     if (message) {
       try {
-        const delegationConversationId = randomUUID();
+        // Use the target agent's conversation ID that was created at the start
+        // If it wasn't created yet (error happened very early), create one now
+        const errorConversationId = targetAgentConversationId || randomUUID();
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         const errorInfo = {
@@ -1485,7 +1500,7 @@ export async function callAgentInternal(
           db,
           workspaceId,
           targetAgentId,
-          delegationConversationId,
+          errorConversationId,
           [
             {
               role: "user",
@@ -1504,7 +1519,7 @@ export async function callAgentInternal(
           {
             workspaceId,
             targetAgentId,
-            delegationConversationId,
+            errorConversationId,
             error: errorMessage,
           }
         );
