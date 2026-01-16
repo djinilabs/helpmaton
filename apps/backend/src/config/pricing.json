@@ -1041,9 +1041,9 @@
         },
         "mistralai/devstral-small": {
           "usd": {
-            "input": 0.07,
-            "output": 0.28,
-            "cachedInput": 0.007000000000000001
+            "input": 0.09999999999999999,
+            "output": 0.3,
+            "cachedInput": 0.01
           }
         },
         "cognitivecomputations/dolphin-mistral-24b-venice-edition:free": {
@@ -1363,9 +1363,9 @@
         },
         "qwen/qwen3-235b-a22b": {
           "usd": {
-            "input": 0.18,
-            "output": 0.54,
-            "cachedInput": 0.018
+            "input": 0.19999999999999998,
+            "output": 0.6,
+            "cachedInput": 0.02
           }
         },
         "tngtech/deepseek-r1t-chimera:free": {
@@ -1762,9 +1762,9 @@
         },
         "deepseek/deepseek-r1-distill-qwen-32b": {
           "usd": {
-            "input": 0.27,
-            "output": 0.27,
-            "cachedInput": 0.027000000000000003
+            "input": 0.29,
+            "output": 0.29,
+            "cachedInput": 0.028999999999999998
           }
         },
         "deepseek/deepseek-r1-distill-qwen-14b": {
@@ -1800,7 +1800,7 @@
         "deepseek/deepseek-r1": {
           "usd": {
             "input": 0.7,
-            "output": 2.4,
+            "output": 2.5,
             "cachedInput": 0.06999999999999999
           }
         },
@@ -2254,9 +2254,9 @@
         },
         "mistralai/mistral-7b-instruct": {
           "usd": {
-            "input": 0.028,
-            "output": 0.054,
-            "cachedInput": 0.0028000000000000004
+            "input": 0.19999999999999998,
+            "output": 0.19999999999999998,
+            "cachedInput": 0.02
           }
         },
         "mistralai/mistral-7b-instruct-v0.3": {
@@ -2310,9 +2310,9 @@
         },
         "meta-llama/llama-3-70b-instruct": {
           "usd": {
-            "input": 0.3,
+            "input": 0.39999999999999997,
             "output": 0.39999999999999997,
-            "cachedInput": 0.03
+            "cachedInput": 0.04
           }
         },
         "meta-llama/llama-3-8b-instruct": {
@@ -2573,6 +2573,20 @@
             "output": 14,
             "cachedInput": 0.17500000000000002
           }
+        },
+        "xiaomi/mimo-v2-flash": {
+          "usd": {
+            "input": 0.09999999999999999,
+            "output": 0.3,
+            "cachedInput": 0.01
+          }
+        },
+        "qwen/qwen3-next-80b-a3b-instruct:free": {
+          "usd": {
+            "input": 0,
+            "output": 0,
+            "cachedInput": 0
+          }
         }
       }
     }
@@ -2589,5 +2603,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-15T00:15:20.311Z"
+  "lastUpdated": "2026-01-16T00:15:33.762Z"
 }
