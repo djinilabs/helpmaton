@@ -14,15 +14,16 @@ export const TextPart = memo<TextPartProps>(({ text, isUser }) => {
   if (isUser) {
     return <div className="whitespace-pre-wrap break-words">{text}</div>;
   }
+  if (!text.trim()) {
+    return null;
+  }
   return (
-    text.trim() && (
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={markdownComponents}
-      >
-        {text}
-      </ReactMarkdown>
-    )
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={markdownComponents}
+    >
+      {text}
+    </ReactMarkdown>
   );
 });
 TextPart.displayName = "TextPart";
