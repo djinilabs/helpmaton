@@ -393,6 +393,16 @@ export async function logConversation(
           type: "reasoning";
           text: string;
         }
+      | {
+          type: "delegation";
+          toolCallId: string;
+          callingAgentId: string;
+          targetAgentId: string;
+          targetConversationId?: string;
+          status: "completed" | "failed" | "cancelled";
+          timestamp: string;
+          taskId?: string;
+        }
     > = [];
 
     // Add reasoning content first (it typically comes before tool calls or text)
@@ -406,7 +416,10 @@ export async function logConversation(
 
     for (const toolResultMsg of toolResultMessages) {
       if (Array.isArray(toolResultMsg.content)) {
-        assistantContent.push(...toolResultMsg.content);
+        // toolResultMsg.content can include both tool-result and delegation items
+        for (const contentItem of toolResultMsg.content) {
+          assistantContent.push(contentItem as typeof assistantContent[number]);
+        }
       }
     }
 

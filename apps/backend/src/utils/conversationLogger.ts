@@ -4,7 +4,11 @@ import type { DatabaseSchema } from "../tables/schema";
 
 import { writeToWorkingMemory } from "./memory/writeMemory";
 import { getMessageCost } from "./messageCostCalculation";
-import type { UIMessage } from "./messageTypes";
+import type {
+  DelegationContent,
+  ToolResultContent,
+  UIMessage,
+} from "./messageTypes";
 import { Sentry, ensureError } from "./sentry";
 
 /**
@@ -1257,10 +1261,20 @@ export function expandMessagesWithToolCalls(
         toolExecutionTimeMs?: number;
         costUsd?: number;
       }> = [];
+      const delegationParts: Array<{
+        type: "delegation";
+        toolCallId: string;
+        callingAgentId: string;
+        targetAgentId: string;
+        targetConversationId?: string;
+        status: "completed" | "failed" | "cancelled";
+        timestamp: string;
+        taskId?: string;
+      }> = [];
       const reasoningParts: Array<{ type: "reasoning"; text: string }> = [];
       const textParts: Array<{ type: "text"; text: string }> = [];
 
-      // Separate content into tool calls, tool results, reasoning, and text
+      // Separate content into tool calls, tool results, delegations, reasoning, and text
       for (const item of message.content) {
         if (typeof item === "object" && item !== null && "type" in item) {
           if (item.type === "tool-call") {
@@ -1313,6 +1327,42 @@ export function expandMessagesWithToolCalls(
                 ...(toolResult.costUsd !== undefined && {
                   costUsd: toolResult.costUsd,
                 }),
+              });
+            }
+          } else if (item.type === "delegation") {
+            const delegationItem = item as {
+              type: "delegation";
+              toolCallId?: string;
+              callingAgentId?: string;
+              targetAgentId?: string;
+              targetConversationId?: string;
+              status?: "completed" | "failed" | "cancelled";
+              timestamp?: string;
+              taskId?: string;
+            };
+            if (
+              delegationItem.toolCallId &&
+              delegationItem.callingAgentId &&
+              delegationItem.targetAgentId &&
+              delegationItem.status &&
+              delegationItem.timestamp &&
+              typeof delegationItem.toolCallId === "string" &&
+              typeof delegationItem.callingAgentId === "string" &&
+              typeof delegationItem.targetAgentId === "string" &&
+              typeof delegationItem.status === "string" &&
+              typeof delegationItem.timestamp === "string"
+            ) {
+              delegationParts.push({
+                type: "delegation",
+                toolCallId: delegationItem.toolCallId,
+                callingAgentId: delegationItem.callingAgentId,
+                targetAgentId: delegationItem.targetAgentId,
+                ...(delegationItem.targetConversationId && {
+                  targetConversationId: delegationItem.targetConversationId,
+                }),
+                status: delegationItem.status,
+                timestamp: delegationItem.timestamp,
+                ...(delegationItem.taskId && { taskId: delegationItem.taskId }),
               });
             }
           } else if (item.type === "reasoning" && "text" in item) {
@@ -1396,9 +1446,28 @@ export function expandMessagesWithToolCalls(
             }
           }
 
+          // Find any delegation associated with this tool result
+          const associatedDelegation = delegationParts.find(
+            (d) => d.toolCallId === toolResult.toolCallId
+          );
+
+          // Build content array with tool result and optionally delegation
+          const toolResultContent: Array<
+            typeof toolResult | typeof associatedDelegation
+          > = [toolResult];
+          if (associatedDelegation) {
+            toolResultContent.push(associatedDelegation);
+          }
+
+          // Filter out any undefined values and ensure type safety
+          const filteredContent = toolResultContent.filter(
+            (item): item is typeof toolResult | typeof associatedDelegation =>
+              item !== undefined
+          ) as Array<ToolResultContent | DelegationContent>;
+
           const toolResultMessage: UIMessage = {
             role: "tool",
-            content: [toolResult],
+            content: filteredContent,
             ...(awsRequestId && { awsRequestId }),
             ...(toolResultStartedAt && { generationStartedAt: toolResultStartedAt }),
             ...(toolResultEndedAt && { generationEndedAt: toolResultEndedAt }),
@@ -1476,8 +1545,36 @@ export function expandMessagesWithToolCalls(
         }
         // If there's no text content, we don't add the original message
         // since tool calls/results are already represented as separate messages
+      } else if (delegationParts.length > 0) {
+        // No tool calls/results but we have delegations - add message with delegations
+        // This shouldn't normally happen, but handle it gracefully
+        console.warn(
+          "[ConversationLogger] Found delegations without tool calls/results",
+          {
+            role: message.role,
+            delegationCount: delegationParts.length,
+          }
+        );
+        const contentWithDelegations: Array<
+          | { type: "text"; text: string }
+          | { type: "reasoning"; text: string }
+          | typeof delegationParts[0]
+        > = [...reasoningParts, ...textParts, ...delegationParts];
+        
+        if (contentWithDelegations.length > 0) {
+          expandedMessages.push({
+            ...message,
+            content: contentWithDelegations,
+            ...(awsRequestId && { awsRequestId }),
+          });
+        } else {
+          // Empty content, add as-is
+          expandedMessages.push(
+            awsRequestId ? { ...message, awsRequestId } : message
+          );
+        }
       } else {
-        // No tool calls/results, add message as-is
+        // No tool calls/results/delegations, add message as-is
         expandedMessages.push(
           awsRequestId ? { ...message, awsRequestId } : message
         );
@@ -2043,6 +2140,7 @@ export async function trackDelegation(
   delegation: {
     callingAgentId: string;
     targetAgentId: string;
+    targetConversationId?: string;
     taskId?: string;
     status: "completed" | "failed" | "cancelled";
   }
@@ -2085,6 +2183,13 @@ export async function trackDelegation(
           agentId,
           conversationId,
           delegationCount: 1,
+          delegation: {
+            callingAgentId: delegation.callingAgentId,
+            targetAgentId: delegation.targetAgentId,
+            targetConversationId: delegation.targetConversationId,
+            taskId: delegation.taskId,
+            status: delegation.status,
+          },
         }
       );
       return;
@@ -2110,6 +2215,7 @@ export async function trackDelegation(
               delegations?: Array<{
                 callingAgentId: string;
                 targetAgentId: string;
+                targetConversationId?: string;
                 taskId?: string;
                 timestamp: string;
                 status: "completed" | "failed" | "cancelled";
@@ -2133,6 +2239,8 @@ export async function trackDelegation(
             newDelegation: {
               callingAgentId: delegation.callingAgentId,
               targetAgentId: delegation.targetAgentId,
+              targetConversationId: delegation.targetConversationId,
+              taskId: delegation.taskId,
               status: delegation.status,
             },
           }

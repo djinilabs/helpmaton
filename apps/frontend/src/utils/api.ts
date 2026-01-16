@@ -993,6 +993,7 @@ export interface ConversationError {
 export interface Delegation {
   callingAgentId: string;
   targetAgentId: string;
+  targetConversationId?: string;
   taskId?: string;
   timestamp: string;
   status: "completed" | "failed" | "cancelled";

@@ -11,7 +11,6 @@ import {
 import { useState, useEffect } from "react";
 import type { FC, JSX } from "react";
 import ReactMarkdown from "react-markdown";
-import { Link } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 
 import { useDialogTracking } from "../contexts/DialogContext";
@@ -19,14 +18,13 @@ import { useAgentConversation } from "../hooks/useAgentConversations";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useToast } from "../hooks/useToast";
 import type { Conversation } from "../utils/api";
-import {
-  getTokenUsageColor,
-  getCostColor,
-} from "../utils/colorUtils";
+import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
 import { getMessageCost } from "../utils/messageCost";
 
+import { AgentNameLink } from "./AgentNameLink";
 import { ConversationTemporalGraph } from "./ConversationTemporalGraph";
+import { NestedConversationDelegation } from "./NestedConversationDelegation";
 
 interface ConversationDetailModalProps {
   isOpen: boolean;
@@ -73,8 +71,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     code: (props: any) => {
       const { className, children, ...rest } = props;
-      const isInline =
-        !className || !className.includes("language-");
+      const isInline = !className || !className.includes("language-");
       if (isInline) {
         return (
           <code
@@ -95,9 +92,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
       );
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    p: ({ children }: any) => (
-      <p className="mb-2 last:mb-0">{children}</p>
-    ),
+    p: ({ children }: any) => <p className="mb-2 last:mb-0">{children}</p>,
   };
 
   const renderMessageContent = (content: unknown): JSX.Element | string => {
@@ -109,6 +104,10 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
         <div className="space-y-3">
           {content.map((item, itemIndex) => {
             if (typeof item === "string") {
+              // Skip redacted text - don't display it
+              if (item === "[REDACTED]") {
+                return null;
+              }
               return (
                 <div key={itemIndex} className="text-sm">
                   <ReactMarkdown
@@ -231,13 +230,35 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                   </div>
                 );
               }
-              // Reasoning content
-              if ("type" in item && item.type === "reasoning" && "text" in item) {
+              // Reasoning content - skip redacted reasoning
+              if (
+                "type" in item &&
+                item.type === "reasoning" &&
+                "text" in item
+              ) {
                 const reasoningItem = item as {
                   type: "reasoning";
                   text: string;
                 };
-                const isRedacted = reasoningItem.text === "[REDACTED]";
+                // Skip redacted reasoning - don't display it
+                // Check if text is exactly "[REDACTED]" or contains it (likely at the end)
+                const trimmedText = reasoningItem.text.trim();
+                if (
+                  trimmedText === "[REDACTED]" ||
+                  trimmedText.endsWith("\n\n[REDACTED]") ||
+                  trimmedText.endsWith("\n[REDACTED]")
+                ) {
+                  return null;
+                }
+                // Remove [REDACTED] marker if present in the text
+                let cleanedText = reasoningItem.text;
+                cleanedText = cleanedText
+                  .replace(/\n*\s*\[REDACTED\]\s*$/g, "")
+                  .trim();
+                // If after cleaning the text is empty, skip it
+                if (!cleanedText) {
+                  return null;
+                }
                 return (
                   <div
                     key={itemIndex}
@@ -246,38 +267,108 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                     <div className="mb-2 flex items-center gap-2 text-xs font-medium text-indigo-700 dark:text-indigo-300">
                       <CpuChipIcon className="size-4" />
                       🧠 Reasoning
-                      {isRedacted && (
-                        <span className="text-xs text-indigo-600 dark:text-indigo-400">
-                          (Redacted)
+                    </div>
+                    <div className="overflow-x-auto whitespace-pre-wrap break-words rounded bg-indigo-100 p-2 text-sm text-indigo-900 dark:bg-indigo-900 dark:text-indigo-100">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={markdownComponents}
+                      >
+                        {cleanedText}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                );
+              }
+              // Delegation content
+              if ("type" in item && item.type === "delegation") {
+                const delegationItem = item as {
+                  type: "delegation";
+                  toolCallId?: string;
+                  callingAgentId: string;
+                  targetAgentId: string;
+                  targetConversationId?: string;
+                  status: "completed" | "failed" | "cancelled";
+                  timestamp: string;
+                  taskId?: string;
+                };
+                return (
+                  <div
+                    key={itemIndex}
+                    className="rounded-xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-950"
+                  >
+                    <div className="mb-2 flex items-center gap-2 text-xs font-medium text-orange-700 dark:text-orange-300">
+                      <ChatBubbleLeftRightIcon className="size-4" />
+                      Delegation
+                    </div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span
+                        className={`rounded border px-2 py-1 text-xs font-semibold ${
+                          delegationItem.status === "completed"
+                            ? "border-green-200 bg-green-100 text-green-800 dark:border-green-700 dark:bg-green-900 dark:text-green-200"
+                            : delegationItem.status === "failed"
+                            ? "border-red-200 bg-red-100 text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200"
+                            : "border-neutral-200 bg-neutral-100 text-neutral-800 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-200"
+                        }`}
+                      >
+                        {delegationItem.status.toUpperCase()}
+                      </span>
+                      {delegationItem.taskId && (
+                        <span className="rounded bg-blue-100 px-2 py-1 font-mono text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                          Task: {delegationItem.taskId.substring(0, 8)}...
                         </span>
                       )}
                     </div>
-                    {isRedacted ? (
-                      <div className="rounded bg-indigo-100 p-2 text-xs text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
-                        <p className="mb-1 font-medium">
-                          Reasoning content is redacted
-                        </p>
-                        <p className="text-xs">
-                          The reasoning process is hidden by default. The actual
-                          reasoning content may be available in the stream events
-                          but is not included in the message content.
-                        </p>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="font-medium text-orange-700 dark:text-orange-300">
+                          From:{" "}
+                        </span>
+                        <AgentNameLink
+                          workspaceId={workspaceId}
+                          agentId={delegationItem.callingAgentId}
+                        />
                       </div>
-                    ) : (
-                      <div className="overflow-x-auto whitespace-pre-wrap break-words rounded bg-indigo-100 p-2 text-sm text-indigo-900 dark:bg-indigo-900 dark:text-indigo-100">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={markdownComponents}
-                        >
-                          {reasoningItem.text}
-                        </ReactMarkdown>
+                      <div>
+                        <span className="font-medium text-orange-700 dark:text-orange-300">
+                          To:{" "}
+                        </span>
+                        <AgentNameLink
+                          workspaceId={workspaceId}
+                          agentId={delegationItem.targetAgentId}
+                        />
+                      </div>
+                    </div>
+                    {delegationItem.targetConversationId && (
+                      <div className="mt-2">
+                        <NestedConversationDelegation
+                          workspaceId={workspaceId}
+                          delegation={{
+                            callingAgentId: delegationItem.callingAgentId,
+                            targetAgentId: delegationItem.targetAgentId,
+                            targetConversationId:
+                              delegationItem.targetConversationId,
+                            status: delegationItem.status,
+                            timestamp: delegationItem.timestamp,
+                            taskId: delegationItem.taskId,
+                          }}
+                          depth={0}
+                        />
+                      </div>
+                    )}
+                    {!delegationItem.targetConversationId && (
+                      <div className="mt-2 text-xs text-orange-600 dark:text-orange-400">
+                        Inner conversation not available
                       </div>
                     )}
                   </div>
                 );
               }
-              // Text content
+              // Text content - skip redacted text
               if ("text" in item && typeof item.text === "string") {
+                // Skip redacted text - don't display it
+                if (item.text === "[REDACTED]") {
+                  return null;
+                }
                 return (
                   <div key={itemIndex} className="text-sm">
                     <ReactMarkdown
@@ -344,11 +435,16 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
   };
 
   // Calculate token-based cost from all messages and track provisional/final status
-  const calculateTokenBasedCost = (): {
-    cost: number;
-    isFinal: boolean | undefined;
-  } | undefined => {
-    if (!conversationDetail?.messages || !Array.isArray(conversationDetail.messages)) {
+  const calculateTokenBasedCost = ():
+    | {
+        cost: number;
+        isFinal: boolean | undefined;
+      }
+    | undefined => {
+    if (
+      !conversationDetail?.messages ||
+      !Array.isArray(conversationDetail.messages)
+    ) {
       return undefined;
     }
 
@@ -395,10 +491,12 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
   const tokenBasedCost = calculateTokenBasedCost();
 
   // Calculate total cost (sum of all costs) and track provisional/final status
-  const calculateTotalCost = (): {
-    cost: number;
-    isFinal: boolean | undefined;
-  } | undefined => {
+  const calculateTotalCost = ():
+    | {
+        cost: number;
+        isFinal: boolean | undefined;
+      }
+    | undefined => {
     let totalMillionths = 0;
     let hasAnyCost = false;
     let hasProvisionalCost = false;
@@ -431,7 +529,11 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
     }
 
     // Determine overall status: provisional if any component is provisional, otherwise final
-    const isFinal = hasProvisionalCost ? false : (hasFinalCost ? true : undefined);
+    const isFinal = hasProvisionalCost
+      ? false
+      : hasFinalCost
+      ? true
+      : undefined;
 
     return {
       cost: totalMillionths,
@@ -534,7 +636,10 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                     </div>
                     <div className="flex items-center gap-1.5 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
                       <BoltIcon className="size-3" />
-                      {(conversationDetail.totalGenerationTimeMs / 1000).toFixed(2)}s
+                      {(
+                        conversationDetail.totalGenerationTimeMs / 1000
+                      ).toFixed(2)}
+                      s
                     </div>
                   </div>
                 )}
@@ -577,9 +682,10 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                         )}
                       {conversationDetail.tokenUsage &&
                         "cachedPromptTokens" in conversationDetail.tokenUsage &&
-                        typeof conversationDetail.tokenUsage.cachedPromptTokens ===
-                          "number" &&
-                        conversationDetail.tokenUsage.cachedPromptTokens > 0 && (
+                        typeof conversationDetail.tokenUsage
+                          .cachedPromptTokens === "number" &&
+                        conversationDetail.tokenUsage.cachedPromptTokens >
+                          0 && (
                           <span
                             className={`rounded-lg border px-2 py-0.5 text-xs font-semibold ${getTokenUsageColor(
                               conversationDetail.tokenUsage.cachedPromptTokens
@@ -688,7 +794,11 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                         )}`}
                       >
                         <CurrencyDollarIcon className="size-3" />
-                        {formatCurrency(conversationDetail.rerankingCostUsd, "usd", 10)}
+                        {formatCurrency(
+                          conversationDetail.rerankingCostUsd,
+                          "usd",
+                          10
+                        )}
                         <span className="ml-1 text-[10px]">✓</span>
                       </span>
                     </div>
@@ -700,6 +810,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
 
         {/* Delegations Section */}
         {conversationDetail.delegations &&
+          Array.isArray(conversationDetail.delegations) &&
           conversationDetail.delegations.length > 0 && (
             <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
               <div className="mb-3 flex items-center justify-between">
@@ -711,64 +822,14 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                 </span>
               </div>
               <div className="space-y-3">
-                {conversationDetail.delegations.map((delegation, index) => {
-                  const statusColors = {
-                    completed:
-                      "bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200 dark:border-green-700",
-                    failed: "bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200 dark:border-red-700",
-                    cancelled:
-                      "bg-neutral-100 text-neutral-800 border-neutral-200 dark:bg-neutral-700 dark:text-neutral-200 dark:border-neutral-600",
-                  };
-
-                  return (
-                    <div
-                      key={index}
-                      className="rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`rounded border px-2 py-1 text-xs font-semibold ${statusColors[delegation.status]}`}
-                          >
-                            {delegation.status.toUpperCase()}
-                          </span>
-                          {delegation.taskId && (
-                            <span className="rounded bg-blue-100 px-2 py-1 font-mono text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                              Task: {delegation.taskId.substring(0, 8)}...
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs text-neutral-600 dark:text-neutral-400">
-                          {formatDate(delegation.timestamp)}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="font-medium text-neutral-700 dark:text-neutral-300">
-                            From:{" "}
-                          </span>
-                          <Link
-                            to={`/workspaces/${workspaceId}/agents/${delegation.callingAgentId}`}
-                            className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-                          >
-                            {delegation.callingAgentId}
-                          </Link>
-                        </div>
-                        <div>
-                          <span className="font-medium text-neutral-700 dark:text-neutral-300">
-                            To:{" "}
-                          </span>
-                          <Link
-                            to={`/workspaces/${workspaceId}/agents/${delegation.targetAgentId}`}
-                            className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-                          >
-                            {delegation.targetAgentId}
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {conversationDetail.delegations.map((delegation, index) => (
+                  <NestedConversationDelegation
+                    key={index}
+                    workspaceId={workspaceId}
+                    delegation={delegation}
+                    depth={0}
+                  />
+                ))}
               </div>
             </div>
           )}
@@ -847,7 +908,11 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
             <div className="mb-2 flex items-center justify-end">
               <button
                 onClick={() => {
-                  const jsonString = JSON.stringify(conversationDetail, null, 2);
+                  const jsonString = JSON.stringify(
+                    conversationDetail,
+                    null,
+                    2
+                  );
                   navigator.clipboard.writeText(jsonString);
                   toast.success("JSON copied to clipboard");
                 }}
@@ -908,17 +973,17 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                             (message as { knowledgeSnippets?: unknown })
                               .knowledgeSnippets
                           )
-                            ? (
-                                (message as { knowledgeSnippets: unknown[] })
-                                  .knowledgeSnippets
-                              ).length
+                            ? (message as { knowledgeSnippets: unknown[] })
+                                .knowledgeSnippets.length
                             : 0;
 
                         // Special rendering for knowledge injection messages
                         if (isKnowledgeInjection) {
                           const knowledgeMessage = message as {
                             role: "user";
-                            content?: string | Array<{ type: string; text?: string }>;
+                            content?:
+                              | string
+                              | Array<{ type: string; text?: string }>;
                             knowledgeInjection?: boolean;
                             knowledgeSnippets?: Array<{
                               snippet: string;
@@ -929,7 +994,8 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                             }>;
                           };
 
-                          const snippets = knowledgeMessage.knowledgeSnippets || [];
+                          const snippets =
+                            knowledgeMessage.knowledgeSnippets || [];
 
                           return (
                             <div key={index} className="max-w-full">
@@ -940,7 +1006,9 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                     <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
                                       Knowledge from workspace documents
                                       {snippetCount > 0 &&
-                                        ` (${snippetCount} snippet${snippetCount !== 1 ? "s" : ""})`}
+                                        ` (${snippetCount} snippet${
+                                          snippetCount !== 1 ? "s" : ""
+                                        })`}
                                     </span>
                                   </div>
                                 </summary>
@@ -968,7 +1036,8 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                                     )}
                                                   </div>
                                                   <div className="mt-1 text-xs text-purple-700 dark:text-purple-300">
-                                                    Similarity: {similarityPercent}%
+                                                    Similarity:{" "}
+                                                    {similarityPercent}%
                                                   </div>
                                                 </div>
                                                 <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
@@ -980,7 +1049,9 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                                               <div className="text-sm text-purple-900 dark:text-purple-100">
                                                 <ReactMarkdown
                                                   remarkPlugins={[remarkGfm]}
-                                                  components={markdownComponents}
+                                                  components={
+                                                    markdownComponents
+                                                  }
                                                 >
                                                   {snippet.snippet}
                                                 </ReactMarkdown>
@@ -1043,7 +1114,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                             }`}
                           >
                             <div className="mb-2 flex items-center justify-between">
-                              <div className="text-xs font-medium opacity-80 dark:opacity-90">
+                              <div className="mr-3 text-xs font-medium opacity-80 dark:opacity-90">
                                 {role}
                               </div>
                               <div className="flex items-center gap-2">

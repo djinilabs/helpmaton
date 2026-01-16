@@ -37,6 +37,17 @@ export type ReasoningContent = {
   text: string;
 };
 
+export type DelegationContent = {
+  type: "delegation";
+  toolCallId: string; // The tool call ID that triggered this delegation
+  callingAgentId: string;
+  targetAgentId: string;
+  targetConversationId?: string;
+  status: "completed" | "failed" | "cancelled";
+  timestamp: string; // ISO timestamp
+  taskId?: string; // For async delegations
+};
+
 export type RerankingRequestContent = {
   type: "reranking-request";
   query: string;
@@ -73,7 +84,7 @@ export type UIMessage =
       role: "assistant";
       content:
         | string
-        | Array<TextContent | ToolCallContent | ToolResultContent | ReasoningContent>;
+        | Array<TextContent | ToolCallContent | ToolResultContent | ReasoningContent | DelegationContent>;
       tokenUsage?: {
         promptTokens: number;
         completionTokens: number;
@@ -106,7 +117,7 @@ export type UIMessage =
     }
   | {
       role: "tool";
-      content: string | Array<ToolResultContent>;
+      content: string | Array<ToolResultContent | DelegationContent>;
       awsRequestId?: string; // AWS Lambda/API Gateway request ID that added this message
       generationStartedAt?: string; // ISO timestamp when tool execution started
       generationEndedAt?: string; // ISO timestamp when tool execution ended

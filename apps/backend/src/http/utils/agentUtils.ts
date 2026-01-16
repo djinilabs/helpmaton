@@ -806,10 +806,13 @@ export async function callAgentInternal(
   conversationId?: string,
   conversationOwnerAgentId?: string, // Agent ID that owns the conversation (for delegation tracking)
   abortSignal?: AbortSignal
-): Promise<string> {
+): Promise<{ response: string; targetAgentConversationId: string }> {
   // Check depth limit
   if (callDepth >= maxDepth) {
-    return `Error: Maximum delegation depth (${maxDepth}) reached. Cannot delegate further.`;
+    return {
+      response: `Error: Maximum delegation depth (${maxDepth}) reached. Cannot delegate further.`,
+      targetAgentConversationId: randomUUID(), // Generate a conversation ID even for errors
+    };
   }
 
   const db = await database();
@@ -825,11 +828,17 @@ export async function callAgentInternal(
   const targetAgentPk = `agents/${workspaceId}/${targetAgentId}`;
   const targetAgent = await db.agent.get(targetAgentPk, "agent");
   if (!targetAgent) {
-    return `Error: Target agent ${targetAgentId} not found.`;
+    return {
+      response: `Error: Target agent ${targetAgentId} not found.`,
+      targetAgentConversationId: targetAgentConversationId,
+    };
   }
 
   if (targetAgent.workspaceId !== workspaceId) {
-    return `Error: Target agent ${targetAgentId} does not belong to this workspace.`;
+    return {
+      response: `Error: Target agent ${targetAgentId} does not belong to this workspace.`,
+      targetAgentConversationId: targetAgentConversationId,
+    };
   }
 
   // Get workspace API key if it exists (OpenRouter provider)
@@ -1341,7 +1350,7 @@ export async function callAgentInternal(
       const toolCallMessages = toolCalls.map(formatToolCallMessage);
       const toolResultMessages = toolResults.map(formatToolResultMessage);
 
-      // Build assistant message content array with tool calls, tool results, and text
+      // Build assistant message content array with tool calls, tool results, delegations, and text
       const assistantContent: Array<
         | { type: "text"; text: string }
         | {
@@ -1359,6 +1368,16 @@ export async function callAgentInternal(
             toolExecutionTimeMs?: number;
             costUsd?: number;
           }
+        | {
+            type: "delegation";
+            toolCallId: string;
+            callingAgentId: string;
+            targetAgentId: string;
+            targetConversationId?: string;
+            status: "completed" | "failed" | "cancelled";
+            timestamp: string;
+            taskId?: string;
+          }
       > = [];
 
       // Add tool calls first
@@ -1368,10 +1387,12 @@ export async function callAgentInternal(
         }
       }
 
-      // Add tool results next
+      // Add tool results next (may include delegations)
       for (const toolResultMsg of toolResultMessages) {
         if (Array.isArray(toolResultMsg.content)) {
-          assistantContent.push(...toolResultMsg.content);
+          for (const contentItem of toolResultMsg.content) {
+            assistantContent.push(contentItem as typeof assistantContent[number]);
+          }
         }
       }
 
@@ -1479,7 +1500,10 @@ export async function callAgentInternal(
       );
     }
 
-    return result.text;
+    return {
+      response: result.text,
+      targetAgentConversationId,
+    };
   } catch (error) {
     // Handle errors based on when they occurred
     if (reservationId && reservationId !== "byok") {
@@ -1651,9 +1675,12 @@ export async function callAgentInternal(
       }
     }
 
-    return `Error calling agent: ${
-      error instanceof Error ? error.message : String(error)
-    }`;
+    return {
+      response: `Error calling agent: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      targetAgentConversationId: targetAgentConversationId || randomUUID(),
+    };
   }
 }
 
@@ -2312,7 +2339,7 @@ export function createCallAgentTool(
 
         // Call the agent internally
         // Pass conversationId and conversationOwnerAgentId through to nested delegations
-        const response = await callAgentInternal(
+        const delegationResult = await callAgentInternal(
           workspaceId,
           agentId,
           message.trim(),
@@ -2324,11 +2351,25 @@ export function createCallAgentTool(
           conversationOwnerAgentId || currentAgentId
         );
 
+        const response = delegationResult.response;
+        const targetAgentConversationId = delegationResult.targetAgentConversationId;
+
         // Wrap response with metadata
         let result = `Agent ${targetAgentName} responded: ${response}`;
         if (matchedAgentName && query) {
           result = `Matched query "${query}" to agent ${targetAgentName} (ID: ${agentId}). ${result}`;
         }
+
+        // Embed delegation metadata in the result string for message sequence tracking
+        // Format: __HM_DELEGATION__:{"callingAgentId":"...","targetAgentId":"...","targetConversationId":"...","status":"completed","timestamp":"..."}
+        const delegationMetadata = {
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId,
+          targetConversationId: targetAgentConversationId,
+          status: "completed" as const,
+          timestamp: new Date().toISOString(),
+        };
+        result += ` __HM_DELEGATION__:${JSON.stringify(delegationMetadata)}`;
 
         // Log tool result
         console.log("[Tool Result] call_agent", {
@@ -2356,10 +2397,26 @@ export function createCallAgentTool(
         // otherwise use currentAgentId (for tracking in calling agent's conversation)
         const ownerAgentId = conversationOwnerAgentId || currentAgentId;
         if (conversationId) {
+          console.log("[Delegation Tracking] Tracking sync delegation with targetConversationId:", {
+            workspaceId,
+            ownerAgentId,
+            conversationId,
+            callingAgentId: currentAgentId,
+            targetAgentId: agentId,
+            targetConversationId: targetAgentConversationId,
+            status: "completed",
+          });
           await trackDelegation(db, workspaceId, ownerAgentId, conversationId, {
             callingAgentId: currentAgentId,
             targetAgentId: agentId,
+            targetConversationId: targetAgentConversationId,
             status: "completed",
+          });
+        } else {
+          console.warn("[Delegation Tracking] Skipping delegation tracking - no conversationId:", {
+            workspaceId,
+            currentAgentId,
+            targetAgentId: agentId,
           });
         }
 
@@ -2401,6 +2458,8 @@ export function createCallAgentTool(
         const ownerAgentId = conversationOwnerAgentId || currentAgentId;
         if (conversationId) {
           const db = await database();
+          // For failed delegations, we may not have a targetConversationId
+          // (it might not have been created if the error happened early)
           await trackDelegation(db, workspaceId, ownerAgentId, conversationId, {
             callingAgentId: currentAgentId,
             targetAgentId: agentId,
@@ -2408,7 +2467,15 @@ export function createCallAgentTool(
           });
         }
 
-        return errorMessage;
+        // For failed delegations, also embed delegation metadata in error message
+        const errorDelegationMetadata = {
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId,
+          status: "failed" as const,
+          timestamp: new Date().toISOString(),
+        };
+        const errorMessageWithDelegation = `${errorMessage} __HM_DELEGATION__:${JSON.stringify(errorDelegationMetadata)}`;
+        return errorMessageWithDelegation;
       }
     },
   });
