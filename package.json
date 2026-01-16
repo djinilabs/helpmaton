@@ -73,7 +73,7 @@
       "sharp"
     ],
     "overrides": {
-      "@types/node": "24.10.7",
+      "@types/node": "24.10.8",
       "vite": "^7.2.2",
       "next": "^16.0.7"
     }
