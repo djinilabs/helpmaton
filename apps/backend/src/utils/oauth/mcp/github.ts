@@ -20,12 +20,19 @@ export class GitHubReconnectError extends Error {
 
 const GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize";
 const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
+
 // GitHub OAuth scopes
-// Using 'public_repo' scope, which grants read and write access to public repositories
-// Private repository access would require the broader 'repo' scope, but we restrict to 'public_repo'
-// to avoid granting any access to private repositories while still enabling required public repo operations
-// Note: This integration is designed to perform only read operations, but the token technically has write capabilities
-const GITHUB_SCOPES = "public_repo";
+// NOTE: GitHub's classic OAuth scopes do NOT provide a read-only equivalent for repository access.
+// We use the 'repo' scope, which *inherently* grants both read and write access to all repositories
+// (both public and private) that the user has access to.
+// SECURITY: Although the issued token technically has write capabilities, this integration MUST ONLY perform
+// read operations against GitHub repositories. Tokens from this flow must never be used for write or destructive
+// actions. For true read-only enforcement at the platform level, consider migrating to GitHub Apps or fine-grained
+// OAuth permissions when they become available for this use case.
+const GITHUB_SCOPES = "repo";
+
+// Constants for token expiration handling
+const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000; // 1 year in milliseconds
 
 export interface GithubTokenResponse {
   access_token: string;
@@ -195,7 +202,7 @@ export async function exchangeGithubCode(
   // If expires_in is provided, use it; otherwise assume tokens don't expire (set far future date)
   const expiresAt = data.expires_in
     ? new Date(Date.now() + data.expires_in * 1000).toISOString()
-    : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(); // 1 year from now if no expiration
+    : new Date(Date.now() + ONE_YEAR_MS).toISOString(); // 1 year from now if no expiration
 
   // Get refresh token if available, otherwise use access token as fallback
   const refreshToken = data.refresh_token || data.access_token;
@@ -275,7 +282,7 @@ export async function refreshGithubToken(
       // Calculate expiration time
       const expiresAt = data.expires_in
         ? new Date(Date.now() + data.expires_in * 1000).toISOString()
-        : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+        : new Date(Date.now() + ONE_YEAR_MS).toISOString();
 
       // Use new refresh token if provided, otherwise keep the existing one
       const newRefreshToken = data.refresh_token || refreshToken;
@@ -308,14 +315,12 @@ export async function refreshGithubToken(
       } else if (errorData.error) {
         errorMessage = `${errorMessage} - ${errorData.error}`;
       }
-    } catch (jsonError) {
-      // Only catch JSON parsing errors, not intentional throws
-      // Check if this is our specific error class
-      if (jsonError instanceof GitHubReconnectError) {
-        // This is our intentional error, re-throw it
-        throw jsonError;
+    } catch (error) {
+      // If this is our specific error class, re-throw it immediately
+      if (error instanceof GitHubReconnectError) {
+        throw error;
       }
-      // If JSON parsing fails, try to get text
+      // If JSON parsing fails, try to get text as a fallback
       // Note: response.json() may have consumed the body, so this might fail
       try {
         const errorText = await response.text();

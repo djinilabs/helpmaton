@@ -5,6 +5,7 @@ import {
   exchangeGithubCode,
   refreshGithubToken,
   GitHubReconnectError,
+  generateGithubAppJWT,
 } from "../github";
 
 // Mock fetch
@@ -40,7 +41,7 @@ describe("GitHub OAuth Utilities", () => {
 
       expect(authUrl).toContain("https://github.com/login/oauth/authorize");
       expect(authUrl).toContain("client_id=Iv1.8a61f9b3a7aba766");
-      expect(authUrl).toContain("scope=public_repo");
+      expect(authUrl).toContain("scope=repo");
       expect(authUrl).toContain("redirect_uri=");
       expect(authUrl).toContain("state=");
     });
@@ -385,6 +386,53 @@ describe("GitHub OAuth Utilities", () => {
       await expect(refreshGithubToken("token")).rejects.toThrow(
         "GH_APP_CLIENT_SECRET is not set"
       );
+    });
+  });
+
+  describe("generateGithubAppJWT", () => {
+    it("should generate a valid JWT token", async () => {
+      const jwt = await generateGithubAppJWT();
+
+      // JWT should be a string with three parts separated by dots
+      expect(jwt).toBeDefined();
+      expect(typeof jwt).toBe("string");
+      const parts = jwt.split(".");
+      expect(parts.length).toBe(3); // Header, payload, signature
+
+      // Decode the payload to verify it contains the expected claims
+      const payload = JSON.parse(
+        Buffer.from(parts[1], "base64url").toString("utf-8")
+      );
+      expect(payload.iss).toBe("123456"); // App ID
+      expect(payload.iat).toBeDefined();
+      expect(payload.exp).toBeDefined();
+      // JWT is valid for 10 minutes (600s), but iat is set 60s in the past for clock skew
+      // So exp - iat = 660 seconds (11 minutes total, but 10 minutes from now)
+      expect(payload.exp - payload.iat).toBeLessThanOrEqual(660); // Max 10 minutes + 60s clock skew
+      expect(payload.exp - payload.iat).toBeGreaterThan(0); // Should be positive
+    });
+
+    it("should throw error if GH_APP_ID is not set", async () => {
+      delete process.env.GH_APP_ID;
+
+      await expect(generateGithubAppJWT()).rejects.toThrow(
+        "GH_APP_ID is not set"
+      );
+    });
+
+    it("should throw error if GH_APP_PRIVATE_KEY is not set", async () => {
+      delete process.env.GH_APP_PRIVATE_KEY;
+
+      await expect(generateGithubAppJWT()).rejects.toThrow(
+        "GH_APP_PRIVATE_KEY is not set"
+      );
+    });
+
+    it("should handle PKCS8 format private key", async () => {
+      // The test key is in RSA format, but the function should convert it
+      const jwt = await generateGithubAppJWT();
+      expect(jwt).toBeDefined();
+      expect(typeof jwt).toBe("string");
     });
   });
 });

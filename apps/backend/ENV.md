@@ -492,7 +492,7 @@ These environment variables are used by the frontend application and must be pre
 
 **Note**: Helpmaton is designed to integrate with GitHub via GitHub Apps (not OAuth Apps) for its MCP server integration. In the current implementation, API calls use standard OAuth user access tokens obtained via a GitHub OAuth client ID and `client_secret`, which must be provided to the backend via appropriate environment variables. Support for private key-based JWT authentication and server-to-server installation access tokens is reserved for potential future use and may not yet be active in all deployments.
 
-**OAuth Scope**: The GitHub OAuth flow uses the `public_repo` scope, which grants read and write access to public repositories. This integration is designed to perform only read operations, but the token technically has write capabilities. We intentionally avoid the broader `repo` scope to prevent access to private repositories.
+**OAuth Scope**: The GitHub OAuth flow uses the `repo` scope, which grants read and write access to all repositories (both public and private) that the user has access to. This integration is designed to perform only read operations, but the token technically has write capabilities.
 
 ### `GH_APP_ID`
 
@@ -507,8 +507,8 @@ These environment variables are used by the frontend application and must be pre
      - **Homepage URL**: Your application URL
      - **User authorization callback URL**: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/github/callback`
      - Enable "Request user authorization (OAuth) during installation"
-     - Set required permissions (e.g., Repository permissions: Read-only access to public repositories)
-     - **Note**: The OAuth scope used is `public_repo`, which grants read and write access to public repositories. This integration performs only read operations, but the token technically has write capabilities.
+     - Set required permissions (e.g., Repository permissions: Read-only access to repositories)
+     - **Note**: The OAuth scope used is `repo`, which grants read and write access to all repositories (both public and private) that the user has access to. This integration performs only read operations, but the token technically has write capabilities.
   4. Click "Create GitHub App"
   5. Copy the App ID from the app settings page (shown in the "About" section)
 - **Note**: The variable name uses `GH_` prefix instead of `GITHUB_` because GitHub secrets cannot start with `GITHUB_` (reserved prefix).
