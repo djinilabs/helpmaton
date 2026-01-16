@@ -1400,9 +1400,7 @@ export async function callAgentInternal(
         {
           role: "assistant",
           content:
-            assistantContent.length > 0
-              ? assistantContent
-              : responseText || "", // Fallback to text if no content array
+            assistantContent.length > 0 ? assistantContent : responseText || "", // Fallback to text if no content array
           ...(tokenUsage && { tokenUsage }),
           modelName: modelName || MODEL_NAME,
           provider: "openrouter",
