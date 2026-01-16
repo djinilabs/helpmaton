@@ -2,10 +2,11 @@
 
 ## Current Status
 
-**Status**: Dev mode disables SW caching ✅
+**Status**: Service worker API navigation fix applied ✅
 
 **Latest Work**:
 
+- **Service worker API navigation fix**: API paths now bypass navigation caching so direct `/api/*` visits return JSON.
 - **Dev-safe SW registration**: Service worker registration now skips and unregisters when `VITE_ENV` is `development` (plus localhost) to avoid caching during dev.
 - **Version indicator + SW update check**: Added footer version display and wired a silent service worker update check into the version polling loop.
 - **Service worker + version upgrade flow**: Added `/api/version` endpoint, frontend service worker caching with root invalidation, and version polling with an update modal that reloads the root document after acceptance.

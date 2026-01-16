@@ -119,12 +119,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (request.mode === "navigate" || url.pathname === ROOT_URL) {
-    event.respondWith(cacheRootDocument());
+  if (url.pathname.startsWith("/api/")) {
     return;
   }
 
-  if (url.pathname.startsWith("/api/")) {
+  if (request.mode === "navigate" || url.pathname === ROOT_URL) {
+    event.respondWith(cacheRootDocument());
     return;
   }
 
