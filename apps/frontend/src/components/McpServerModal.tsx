@@ -1,3 +1,11 @@
+import {
+  CloudArrowUpIcon,
+  EnvelopeIcon,
+  CalendarIcon,
+  DocumentTextIcon,
+  CodeBracketIcon,
+  ServerIcon,
+} from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import type { FC } from "react";
 
@@ -9,6 +17,54 @@ import {
   useMcpServer,
 } from "../hooks/useMcpServers";
 import { trackEvent } from "../utils/tracking";
+
+type McpServerType = "google-drive" | "gmail" | "google-calendar" | "notion" | "github" | "custom";
+
+interface McpServerTypeMetadata {
+  value: McpServerType;
+  name: string;
+  description: string;
+  icon: FC<{ className?: string }>;
+}
+
+const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
+  {
+    value: "google-drive",
+    name: "Google Drive",
+    description: "Read files from Google Drive including Google Docs (as plain text), Google Sheets (as CSV), and Google Slides (as plain text). Search and list files.",
+    icon: CloudArrowUpIcon,
+  },
+  {
+    value: "gmail",
+    name: "Gmail",
+    description: "List, search, and read emails using Gmail's powerful search syntax. Access email content, headers, and attachments.",
+    icon: EnvelopeIcon,
+  },
+  {
+    value: "google-calendar",
+    name: "Google Calendar",
+    description: "Full calendar management - list, search, read, create, update, and delete events. Perfect for scheduling assistants.",
+    icon: CalendarIcon,
+  },
+  {
+    value: "notion",
+    name: "Notion",
+    description: "Read, search, create, and update pages and databases. Query databases, create database pages, and append content blocks.",
+    icon: DocumentTextIcon,
+  },
+  {
+    value: "github",
+    name: "GitHub",
+    description: "Read-only access to repositories, issues, pull requests, commits, and file contents. Browse code and track development activity.",
+    icon: CodeBracketIcon,
+  },
+  {
+    value: "custom",
+    name: "Custom MCP",
+    description: "Connect to external MCP servers with custom authentication (none, header, or basic auth).",
+    icon: ServerIcon,
+  },
+];
 
 interface McpServerModalProps {
   isOpen: boolean;
@@ -29,7 +85,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
   const updateServer = useUpdateMcpServer(workspaceId);
 
   const [name, setName] = useState("");
-  const [mcpType, setMcpType] = useState<"google-drive" | "gmail" | "google-calendar" | "notion" | "github" | "custom">("google-drive"); // Service type for new servers
+  const [mcpType, setMcpType] = useState<McpServerType>("google-drive"); // Service type for new servers
   const [url, setUrl] = useState("");
   const [authType, setAuthType] = useState<"none" | "header" | "basic">("none");
   const [headerValue, setHeaderValue] = useState("");
@@ -359,59 +415,88 @@ export const McpServerModal: FC<McpServerModalProps> = ({
 
           {!isEditing && (
             <div>
-              <label
-                htmlFor="mcpType"
-                className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-              >
+              <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
                 MCP Server Type *
               </label>
-              <select
-                id="mcpType"
-                value={mcpType}
-                onChange={(e) => {
-                  const newType = e.target.value as "google-drive" | "gmail" | "google-calendar" | "notion" | "github" | "custom";
-                  setMcpType(newType);
-                  // Reset auth type when switching
-                  if (newType === "google-drive" || newType === "gmail" || newType === "google-calendar" || newType === "notion" || newType === "github") {
-                    setAuthType("none");
-                    setUrl("");
-                  } else {
-                    setAuthType("none");
-                  }
-                }}
-                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-                required
-              >
-                <option value="google-drive">Google Drive</option>
-                <option value="gmail">Gmail</option>
-                <option value="google-calendar">Google Calendar</option>
-                <option value="notion">Notion</option>
-                <option value="github">GitHub</option>
-                <option value="custom">Custom MCP</option>
-              </select>
-              {mcpType === "google-drive" && (
-                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-                  After creating the server, you&apos;ll need to connect your Google account via OAuth.
-                </p>
-              )}
-              {mcpType === "gmail" && (
-                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-                  After creating the server, you&apos;ll need to connect your Gmail account via OAuth.
-                </p>
-              )}
-              {mcpType === "google-calendar" && (
-                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-                  After creating the server, you&apos;ll need to connect your Google Calendar account via OAuth.
-                </p>
-              )}
-              {mcpType === "notion" && (
-                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-                  After creating the server, you&apos;ll need to connect your Notion account via OAuth.
-                </p>
-              )}
-              {mcpType === "github" && (
-                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
-                  After creating the server, you&apos;ll need to connect your GitHub account via OAuth (read-only access).
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {MCP_SERVER_TYPES.map((serverType) => {
+                  const Icon = serverType.icon;
+                  const isSelected = mcpType === serverType.value;
+                  const isOAuthType = serverType.value !== "custom";
+
+                  return (
+                    <button
+                      key={serverType.value}
+                      type="button"
+                      onClick={() => {
+                        setMcpType(serverType.value);
+                        // Reset auth type when switching
+                        if (isOAuthType) {
+                          setAuthType("none");
+                          setUrl("");
+                        } else {
+                          setAuthType("none");
+                        }
+                      }}
+                      className={`relative flex flex-col items-center rounded-xl border-2 p-4 text-left transition-all duration-200 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 ${
+                        isSelected
+                          ? "border-primary-500 bg-primary-50 dark:border-primary-400 dark:bg-primary-900/20"
+                          : "border-neutral-300 bg-white hover:border-primary-400 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:border-primary-500"
+                      }`}
+                    >
+                      <div className="mb-3 flex size-12 items-center justify-center">
+                        <Icon
+                          className={`size-8 ${
+                            isSelected
+                              ? "text-primary-600 dark:text-primary-400"
+                              : "text-neutral-600 dark:text-neutral-400"
+                          }`}
+                        />
+                      </div>
+                      <h3
+                        className={`mb-2 text-base font-semibold ${
+                          isSelected
+                            ? "text-primary-900 dark:text-primary-100"
+                            : "text-neutral-900 dark:text-neutral-50"
+                        }`}
+                      >
+                        {serverType.name}
+                      </h3>
+                      <p
+                        className={`text-xs leading-relaxed ${
+                          isSelected
+                            ? "text-primary-700 dark:text-primary-300"
+                            : "text-neutral-600 dark:text-neutral-400"
+                        }`}
+                      >
+                        {serverType.description}
+                      </p>
+                      {isSelected && (
+                        <div className="absolute right-2 top-2">
+                          <div className="flex size-5 items-center justify-center rounded-full bg-primary-500">
+                            <svg
+                              className="size-3 text-white"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={3}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {mcpType !== "custom" && (
+                <p className="mt-3 text-xs text-neutral-600 dark:text-neutral-300">
+                  After creating the server, you&apos;ll need to connect your account via OAuth.
                 </p>
               )}
             </div>

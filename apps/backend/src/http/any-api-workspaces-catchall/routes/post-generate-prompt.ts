@@ -8,6 +8,7 @@ import {
   checkPromptGenerationLimit,
   incrementPromptGenerationBucket,
 } from "../../../utils/requestTracking";
+import { generateToolList } from "../../../utils/toolMetadata";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
 import { createModel } from "../../utils/modelFactory";
@@ -116,6 +117,9 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
           enableMemorySearch?: boolean;
           enableSearchDocuments?: boolean;
           enableSendEmail?: boolean;
+          searchWebProvider?: "tavily" | "jina" | null;
+          fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
+          enableExaSearch?: boolean;
         } | null = null;
 
         if (agentId && typeof agentId === "string") {
@@ -136,6 +140,9 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
             enableMemorySearch: agentRecord.enableMemorySearch,
             enableSearchDocuments: agentRecord.enableSearchDocuments,
             enableSendEmail: agentRecord.enableSendEmail,
+            searchWebProvider: agentRecord.searchWebProvider ?? null,
+            fetchWebProvider: agentRecord.fetchWebProvider ?? null,
+            enableExaSearch: agentRecord.enableExaSearch ?? false,
           };
         }
 
@@ -147,237 +154,130 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
         );
         const hasEmailConnection = !!emailConnection;
 
-        // Build tools information to include in prompt generation
-        const availableTools: string[] = [];
-        const toolsInfo: string[] = [];
+        // Load enabled MCP servers if agent has them
+        const enabledMcpServerIds = agent?.enabledMcpServerIds || [];
+        const enabledMcpServers = [];
 
-        // Server-side tools
-        toolsInfo.push("## Server-Side Tools (Built-in)");
-        
-        // Document search tool (conditional)
-        if (agent?.enableSearchDocuments === true) {
-          availableTools.push("search_documents");
-          toolsInfo.push(
-            "- **search_documents**: Available. Search workspace documents using semantic vector search."
-          );
-        }
+        for (const serverId of enabledMcpServerIds) {
+          const serverPk = `mcp-servers/${workspaceId}/${serverId}`;
+          const server = await db["mcp-server"].get(serverPk, "server");
+          if (server) {
+            // Check for OAuth connection
+            const config = server.config as { accessToken?: string };
+            const hasOAuthConnection = !!config.accessToken;
 
-        // Memory search tool (conditional)
-        if (agent?.enableMemorySearch === true) {
-          availableTools.push("search_memory");
-          toolsInfo.push(
-            "- **search_memory**: Available. Search the agent's factual memory across different time periods to recall past conversations and information."
-          );
-        }
-
-        if (agent?.notificationChannelId) {
-          availableTools.push("send_notification");
-          toolsInfo.push(
-            "- **send_notification**: Available. Send notifications through the configured notification channel."
-          );
-        }
-
-        // Email tool (conditional - requires both agent flag and workspace email connection)
-        if (agent?.enableSendEmail === true && hasEmailConnection) {
-          availableTools.push("send_email");
-          toolsInfo.push(
-            "- **send_email**: Available. Send emails using the workspace email connection."
-          );
-        }
-
-        if (
-          agent?.delegatableAgentIds &&
-          agent.delegatableAgentIds.length > 0
-        ) {
-          availableTools.push("list_agents", "call_agent");
-          toolsInfo.push(
-            "- **list_agents**: Available. List agents that can be delegated to.",
-            "- **call_agent**: Available. Delegate tasks to other agents."
-          );
-        }
-
-        // MCP server tools
-        if (
-          agent?.enabledMcpServerIds &&
-          agent.enabledMcpServerIds.length > 0
-        ) {
-          const mcpServerPks = agent.enabledMcpServerIds.map(
-            (id) => `mcp-servers/${workspaceId}/${id}`
-          );
-          const mcpServers = await Promise.all(
-            mcpServerPks.map((pk) => db["mcp-server"].get(pk, "server"))
-          );
-          const validMcpServers = mcpServers.filter(
-            (server) => server && server.workspaceId === workspaceId
-          );
-
-          if (validMcpServers.length > 0) {
-            // Group servers by serviceType for conflict detection
-            const serversByServiceType = new Map<
-              string,
-              Array<typeof validMcpServers[0]>
-            >();
-
-            for (const server of validMcpServers) {
-              if (!server) continue;
-
-              // Check for OAuth connection
-              const config = server.config as { accessToken?: string };
-              const hasOAuthConnection = !!config.accessToken;
-
-              // Skip OAuth servers without connection
-              if (server.authType === "oauth" && !hasOAuthConnection) {
-                continue;
-              }
-
-              // Determine grouping key
-              let groupKey: string;
-              if (
-                server.authType === "oauth" &&
-                server.serviceType &&
-                ["google-drive", "gmail", "google-calendar", "notion"].includes(
-                  server.serviceType
-                )
-              ) {
-                // OAuth servers with specific serviceTypes
-                groupKey = server.serviceType;
-              } else {
-                // Generic MCP servers (all grouped together)
-                groupKey = "__generic__";
-              }
-
-              if (!serversByServiceType.has(groupKey)) {
-                serversByServiceType.set(groupKey, []);
-              }
-              serversByServiceType.get(groupKey)!.push(server);
-            }
-
-            toolsInfo.push("## MCP Server Tools");
-            for (const server of validMcpServers) {
-              if (server) {
-                // Check for OAuth connection
-                const config = server.config as {
-                  accessToken?: string;
-                };
-                const hasOAuthConnection = !!config.accessToken;
-
-                // Skip OAuth servers without connection
-                if (server.authType === "oauth" && !hasOAuthConnection) {
-                  continue;
-                }
-
-                // Determine if there's a conflict (multiple servers of same type)
-                let groupKey: string;
-                if (
-                  server.authType === "oauth" &&
-                  server.serviceType &&
-                  ["google-drive", "gmail", "google-calendar", "notion"].includes(
-                    server.serviceType
-                  )
-                ) {
-                  groupKey = server.serviceType;
-                } else {
-                  groupKey = "__generic__";
-                }
-
-                const sameTypeServers = serversByServiceType.get(groupKey) || [];
-                const hasConflict = sameTypeServers.length > 1;
-                const serverNameSanitized = server.name
-                  .replace(/[^a-zA-Z0-9]/g, "_")
-                  .toLowerCase();
-                const suffix = hasConflict ? `_${serverNameSanitized}` : "";
-
-                if (
-                  server.authType === "oauth" &&
-                  server.serviceType === "google-drive" &&
-                  hasOAuthConnection
-                ) {
-                  // Google Drive specific tools
-                  const googleDriveTools = [
-                    `google_drive_list${suffix}`,
-                    `google_drive_read${suffix}`,
-                    `google_drive_search${suffix}`,
-                  ];
-                  availableTools.push(...googleDriveTools);
-                  toolsInfo.push(
-                    `- **Google Drive (${server.name})**: ${googleDriveTools.join(", ")}`
-                  );
-                } else if (
-                  server.authType === "oauth" &&
-                  server.serviceType === "gmail" &&
-                  hasOAuthConnection
-                ) {
-                  // Gmail specific tools
-                  const gmailTools = [
-                    `gmail_list${suffix}`,
-                    `gmail_read${suffix}`,
-                    `gmail_search${suffix}`,
-                  ];
-                  availableTools.push(...gmailTools);
-                  toolsInfo.push(
-                    `- **Gmail (${server.name})**: ${gmailTools.join(", ")}`
-                  );
-                } else if (
-                  server.authType === "oauth" &&
-                  server.serviceType === "google-calendar" &&
-                  hasOAuthConnection
-                ) {
-                  // Google Calendar specific tools
-                  const googleCalendarTools = [
-                    `google_calendar_list${suffix}`,
-                    `google_calendar_read${suffix}`,
-                    `google_calendar_search${suffix}`,
-                    `google_calendar_create${suffix}`,
-                    `google_calendar_update${suffix}`,
-                    `google_calendar_delete${suffix}`,
-                  ];
-                  availableTools.push(...googleCalendarTools);
-                  toolsInfo.push(
-                    `- **Google Calendar (${server.name})**: ${googleCalendarTools.join(", ")}`
-                  );
-                } else if (
-                  server.authType === "oauth" &&
-                  server.serviceType === "notion" &&
-                  hasOAuthConnection
-                ) {
-                  // Notion specific tools
-                  const notionTools = [
-                    `notion_read${suffix}`,
-                    `notion_search${suffix}`,
-                    `notion_create${suffix}`,
-                    `notion_update${suffix}`,
-                    `notion_query_database${suffix}`,
-                    `notion_create_database_page${suffix}`,
-                    `notion_update_database_page${suffix}`,
-                    `notion_append_blocks${suffix}`,
-                  ];
-                  availableTools.push(...notionTools);
-                  toolsInfo.push(
-                    `- **Notion (${server.name})**: ${notionTools.join(", ")}`
-                  );
-                } else {
-                  // Generic MCP server tool
-                  const toolName = `mcp_${serverNameSanitized}`;
-                  availableTools.push(toolName);
-                  toolsInfo.push(
-                    `- **${toolName}**: Available. Call MCP server "${server.name}".`
-                  );
-                }
-              }
-            }
+            enabledMcpServers.push({
+              id: serverId,
+              name: server.name,
+              serviceType: server.serviceType,
+              authType: server.authType,
+              oauthConnected: hasOAuthConnection,
+            });
           }
         }
 
-        // Client-side tools
-        if (agent?.clientTools && agent.clientTools.length > 0) {
-          toolsInfo.push("## Client-Side Tools (Custom)");
-          for (const tool of agent.clientTools) {
-            availableTools.push(tool.name);
-            toolsInfo.push(
-              `- **${tool.name}**: ${
-                tool.description || "Custom client-side tool"
-              }`
-            );
+        // Use shared tool metadata library to generate tool list
+        const toolList = generateToolList({
+          agent: {
+            enableSearchDocuments: agent?.enableSearchDocuments ?? false,
+            enableMemorySearch: agent?.enableMemorySearch ?? false,
+            notificationChannelId: agent?.notificationChannelId,
+            enableSendEmail: agent?.enableSendEmail ?? false,
+            searchWebProvider: agent?.searchWebProvider ?? null,
+            fetchWebProvider: agent?.fetchWebProvider ?? null,
+            enableExaSearch: agent?.enableExaSearch ?? false,
+            delegatableAgentIds: agent?.delegatableAgentIds ?? [],
+            enabledMcpServerIds: agent?.enabledMcpServerIds ?? [],
+            clientTools: agent?.clientTools ?? [],
+          },
+          workspaceId,
+          enabledMcpServers,
+          emailConnection: hasEmailConnection,
+        });
+
+        // Convert tool metadata to text format for prompt generation
+        const toolsInfo: string[] = [];
+        const availableTools: string[] = [];
+
+        for (const group of toolList) {
+          // Only include available tools (skip tools that are not available)
+          const availableToolsInGroup = group.tools.filter(
+            (tool) =>
+              tool.alwaysAvailable ||
+              (tool.condition && tool.condition.includes("Available"))
+          );
+
+          if (availableToolsInGroup.length === 0) {
+            continue;
+          }
+
+          // Add category header
+          if (group.category === "MCP Server Tools") {
+            toolsInfo.push("## MCP Server Tools");
+          } else if (group.category === "Client Tools") {
+            toolsInfo.push("## Client-Side Tools (Custom)");
+          } else {
+            toolsInfo.push(`## ${group.category}`);
+          }
+
+          // Group MCP tools by server name for better formatting
+          if (group.category === "MCP Server Tools") {
+            // Group tools by server (extract server name from condition)
+            const toolsByServer = new Map<string, string[]>();
+            for (const tool of availableToolsInGroup) {
+              availableTools.push(tool.name);
+
+              // Extract server name from condition if available
+              // Format: "Available (GitHub \"server-name\" connected)"
+              let serverName = "Unknown";
+              if (tool.condition) {
+                const match = tool.condition.match(/"([^"]+)"/);
+                if (match) {
+                  serverName = match[1];
+                }
+              }
+
+              // Extract service type from tool name
+              let serviceType = "";
+              if (tool.name.startsWith("google_drive_")) {
+                serviceType = "Google Drive";
+              } else if (tool.name.startsWith("gmail_")) {
+                serviceType = "Gmail";
+              } else if (tool.name.startsWith("google_calendar_")) {
+                serviceType = "Google Calendar";
+              } else if (tool.name.startsWith("notion_")) {
+                serviceType = "Notion";
+              } else if (tool.name.startsWith("github_")) {
+                serviceType = "GitHub";
+              } else if (tool.name.startsWith("mcp_")) {
+                serviceType = "MCP Server";
+              }
+
+              const key = serviceType
+                ? `${serviceType} (${serverName})`
+                : `MCP Server (${serverName})`;
+              if (!toolsByServer.has(key)) {
+                toolsByServer.set(key, []);
+              }
+              toolsByServer.get(key)!.push(tool.name);
+            }
+
+            // Format MCP tools grouped by server
+            for (const [serverKey, toolNames] of toolsByServer.entries()) {
+              toolsInfo.push(`- **${serverKey}**: ${toolNames.join(", ")}`);
+            }
+          } else {
+            // For non-MCP tools, list them individually
+            for (const tool of availableToolsInGroup) {
+              availableTools.push(tool.name);
+              // Use a simplified description for prompt generation
+              const shortDescription = tool.description
+                .split(".")
+                .slice(0, 1)
+                .join(".")
+                .trim();
+              toolsInfo.push(`- **${tool.name}**: ${shortDescription}`);
+            }
           }
         }
 

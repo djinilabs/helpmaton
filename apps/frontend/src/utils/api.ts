@@ -859,6 +859,37 @@ export async function getAgent(
   return response.json();
 }
 
+export interface ToolParameter {
+  name: string;
+  type: string;
+  required: boolean;
+  description: string;
+}
+
+export interface ToolMetadata {
+  name: string;
+  description: string;
+  category: string;
+  alwaysAvailable: boolean;
+  condition?: string;
+  parameters: ToolParameter[];
+}
+
+export interface GroupedToolMetadata {
+  category: string;
+  tools: ToolMetadata[];
+}
+
+export async function getAgentTools(
+  workspaceId: string,
+  agentId: string
+): Promise<GroupedToolMetadata[]> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/tools`
+  );
+  return response.json();
+}
+
 export async function createAgent(
   workspaceId: string,
   input: CreateAgentInput
