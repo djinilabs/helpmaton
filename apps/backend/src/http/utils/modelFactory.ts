@@ -4,6 +4,9 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { getPostHogClient } from "../../utils/posthog";
 import { getModelPricing, loadPricingConfig } from "../../utils/pricing";
 
+import type { LlmObserver } from "./llmObserver";
+import { withLlmObserver } from "./llmObserver";
+
 export type Provider = "openrouter";
 
 /**
@@ -128,7 +131,8 @@ export async function createModel(
   referer: string = process.env.DEFAULT_REFERER ||
     "http://localhost:3000/api/webhook",
   userId?: string,
-  agentConfig?: AgentModelConfig
+  agentConfig?: AgentModelConfig,
+  llmObserver?: LlmObserver
 ) {
   // Only OpenRouter is supported
   if (provider !== "openrouter") {
@@ -263,7 +267,7 @@ export async function createModel(
     // Parse OpenRouter model name to extract actual provider and model
     const { provider: actualProvider, model: actualModel } =
       parseOpenRouterModel(finalModelName);
-    return withTracing(model, phClient, {
+    const tracedModel = withTracing(model, phClient, {
       posthogDistinctId: distinctId,
       posthogProperties: {
         provider: actualProvider || "openrouter",
@@ -275,7 +279,8 @@ export async function createModel(
       },
       posthogGroups: workspaceId ? { workspace: workspaceId } : undefined,
     });
+    return withLlmObserver(tracedModel, llmObserver);
   }
 
-  return model;
+  return withLlmObserver(model, llmObserver);
 }

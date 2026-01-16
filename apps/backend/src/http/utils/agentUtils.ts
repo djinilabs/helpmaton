@@ -24,13 +24,16 @@ import { sendNotification } from "../../utils/notifications";
 import { Sentry, ensureError } from "../../utils/sentry";
 import { extractTokenUsageAndCosts } from "../utils/generationTokenExtraction";
 
+import {
+  buildConversationMessagesFromObserver,
+  createLlmObserver,
+  getGenerationTimingFromObserver,
+  wrapToolsWithObserver,
+  type LlmObserver,
+} from "./llmObserver";
 import { createMcpServerTools } from "./mcpUtils";
 import { createModel } from "./modelFactory";
 import type { Provider } from "./modelFactory";
-import {
-  formatToolCallMessage,
-  formatToolResultMessage,
-} from "./toolFormatting";
 
 export const MODEL_NAME = "google/gemini-2.5-flash";
 
@@ -236,7 +239,8 @@ export async function createAgentModel(
     maxOutputTokens?: number | null;
     stopSequences?: string[] | null;
     [key: string]: unknown;
-  }
+  },
+  llmObserver?: LlmObserver
 ) {
   // Use provided modelName or fall back to default MODEL_NAME
   const finalModelName = modelName || MODEL_NAME;
@@ -248,7 +252,8 @@ export async function createAgentModel(
     workspaceId,
     referer,
     userId,
-    agentConfig
+    agentConfig,
+    llmObserver
   );
 }
 
@@ -812,6 +817,7 @@ export async function callAgentInternal(
   }
 
   const db = await database();
+  const llmObserver = createLlmObserver();
 
   // Create a new conversation ID for the delegated agent
   // Each agent should have its own conversation, even when delegating
@@ -861,7 +867,8 @@ export async function callAgentInternal(
     usesByok,
     undefined, // userId
     agentProvider,
-    agentConfig
+    agentConfig,
+    llmObserver
   );
 
   // Extract agentId from targetAgent.pk (format: "agents/{workspaceId}/{agentId}")
@@ -871,7 +878,7 @@ export async function callAgentInternal(
   );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Tools have varying types
-  const tools: Record<string, any> = {};
+  let tools: Record<string, any> = {};
 
   // Add get_datetime tool (always available to all agents)
   tools.get_datetime = createGetDatetimeTool();
@@ -1026,6 +1033,8 @@ export async function callAgentInternal(
       createCheckDelegationStatusTool(workspaceId);
   }
 
+  tools = wrapToolsWithObserver(tools, llmObserver);
+
   // Convert message to ModelMessage format
   const modelMessages: ModelMessage[] = [
     {
@@ -1078,6 +1087,26 @@ export async function callAgentInternal(
     knowledgeInjectionResult.rerankingRequestMessage;
   const rerankingResultMessage =
     knowledgeInjectionResult.rerankingResultMessage;
+
+  const inputUserMessage: UIMessage = {
+    role: "user",
+    content: message,
+  };
+  const messagesToInsert: UIMessage[] = [];
+  if (rerankingRequestMessage) {
+    messagesToInsert.push(rerankingRequestMessage);
+  }
+  if (rerankingResultMessage) {
+    messagesToInsert.push(rerankingResultMessage);
+  }
+  if (knowledgeInjectionMessage) {
+    messagesToInsert.push(knowledgeInjectionMessage);
+  }
+  if (messagesToInsert.length > 0) {
+    llmObserver.recordInputMessages([...messagesToInsert, inputUserMessage]);
+  } else {
+    llmObserver.recordInputMessages([inputUserMessage]);
+  }
 
   let reservationId: string | undefined;
   let llmCallAttempted = false;
@@ -1268,148 +1297,27 @@ export async function callAgentInternal(
     // Note: We use the conversation ID created earlier (targetAgentConversationId)
     // so that tools created during the agent call use the same conversation ID
     try {
-      // Extract tool calls and tool results from generateText result
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
-      const resultAny = result as any;
-      const [toolCallsFromResultRaw, toolResultsFromResultRaw] =
-        await Promise.all([
-          Promise.resolve(result.toolCalls).then((tc) => tc || []),
-          Promise.resolve(result.toolResults).then((tr) => tr || []),
-        ]);
+      const observerTiming = getGenerationTimingFromObserver(
+        llmObserver.getEvents()
+      );
+      const generationTimeMs =
+        observerTiming.generationStartedAt && observerTiming.generationEndedAt
+          ? new Date(observerTiming.generationEndedAt).getTime() -
+            new Date(observerTiming.generationStartedAt).getTime()
+          : undefined;
 
-      // Extract from steps if available (source of truth for server-side tool execution)
-      const stepsValue = Array.isArray(resultAny.steps)
-        ? resultAny.steps
-        : resultAny._steps?.status?.value;
-      const toolCallsFromSteps: unknown[] = [];
-      const toolResultsFromSteps: unknown[] = [];
-
-      if (Array.isArray(stepsValue)) {
-        for (const step of stepsValue) {
-          if (step?.content && Array.isArray(step.content)) {
-            for (const contentItem of step.content) {
-              if (
-                typeof contentItem === "object" &&
-                contentItem !== null &&
-                "type" in contentItem
-              ) {
-                if (contentItem.type === "tool-call") {
-                  toolCallsFromSteps.push({
-                    toolCallId: contentItem.toolCallId,
-                    toolName: contentItem.toolName,
-                    args: contentItem.input || contentItem.args || {},
-                    toolCallStartedAt: new Date().toISOString(),
-                  });
-                } else if (contentItem.type === "tool-result") {
-                  toolResultsFromSteps.push({
-                    toolCallId: contentItem.toolCallId,
-                    toolName: contentItem.toolName,
-                    output:
-                      contentItem.output?.value ||
-                      contentItem.output ||
-                      contentItem.result,
-                    result:
-                      contentItem.output?.value ||
-                      contentItem.output ||
-                      contentItem.result,
-                  });
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // Prefer steps if available, otherwise use direct properties
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool call types vary
-      const toolCalls: any[] =
-        toolCallsFromSteps.length > 0
-          ? toolCallsFromSteps
-          : Array.isArray(toolCallsFromResultRaw)
-          ? toolCallsFromResultRaw
-          : [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
-      const toolResults: any[] =
-        toolResultsFromSteps.length > 0
-          ? toolResultsFromSteps
-          : Array.isArray(toolResultsFromResultRaw)
-          ? toolResultsFromResultRaw
-          : [];
-
-      // Format tool calls and results
-      const toolCallMessages = toolCalls.map(formatToolCallMessage);
-      const toolResultMessages = toolResults.map(formatToolResultMessage);
-
-      // Build assistant message content array with tool calls, tool results, and text
-      const assistantContent: Array<
-        | { type: "text"; text: string }
-        | {
-            type: "tool-call";
-            toolCallId: string;
-            toolName: string;
-            args: unknown;
-            toolCallStartedAt?: string;
-          }
-        | {
-            type: "tool-result";
-            toolCallId: string;
-            toolName: string;
-            result: unknown;
-            toolExecutionTimeMs?: number;
-            costUsd?: number;
-          }
-      > = [];
-
-      // Add tool calls first
-      for (const toolCallMsg of toolCallMessages) {
-        if (Array.isArray(toolCallMsg.content)) {
-          assistantContent.push(...toolCallMsg.content);
-        }
-      }
-
-      // Add tool results next
-      for (const toolResultMsg of toolResultMessages) {
-        if (Array.isArray(toolResultMsg.content)) {
-          assistantContent.push(...toolResultMsg.content);
-        }
-      }
-
-      // Add text response last (if any)
-      const responseText = await Promise.resolve(result.text);
-      if (responseText && responseText.trim().length > 0) {
-        assistantContent.push({ type: "text", text: responseText });
-      }
-
-      // Build messages for the target agent's conversation
-      // Include re-ranking and knowledge injection messages if they exist
-      const targetAgentMessages: UIMessage[] = [];
-      if (rerankingRequestMessage) {
-        targetAgentMessages.push(rerankingRequestMessage);
-      }
-      if (rerankingResultMessage) {
-        targetAgentMessages.push(rerankingResultMessage);
-      }
-      if (knowledgeInjectionMessage) {
-        targetAgentMessages.push(knowledgeInjectionMessage);
-      }
-      targetAgentMessages.push(
-        {
-          role: "user",
-          content: message,
-        },
-        {
-          role: "assistant",
-          content:
-            assistantContent.length > 0 ? assistantContent : responseText || "", // Fallback to text if no content array
-          ...(tokenUsage && { tokenUsage }),
+      const targetAgentMessages = buildConversationMessagesFromObserver({
+        observerEvents: llmObserver.getEvents(),
+        fallbackInputMessages: [inputUserMessage],
+        assistantMeta: {
+          tokenUsage,
           modelName: modelName || MODEL_NAME,
           provider: "openrouter",
-          ...(openrouterGenerationId && { openrouterGenerationId }),
-          ...(provisionalCostUsd !== undefined && {
-            provisionalCostUsd,
-          }),
-        }
-      );
+          openrouterGenerationId,
+          provisionalCostUsd,
+          generationTimeMs,
+        },
+      });
 
       // Update/create conversation for target agent
       await updateConversation(

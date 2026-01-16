@@ -39,6 +39,7 @@ import {
 } from "../../utils/workspaceCreditContext";
 import { updateTransactionBufferConversationId } from "../../utils/workspaceCreditTransactions";
 import { callAgentNonStreaming } from "../utils/agentCallNonStreaming";
+import { buildConversationMessagesFromObserver } from "../utils/llmObserver";
 import {
   convertTextToUIMessage,
 } from "../utils/messageConversion";
@@ -531,11 +532,15 @@ export const handler = adaptHttpHandler(
           assistantContent.length > 0
             ? assistantContent
             : responseContent || "",
-          ...(agentResult.tokenUsage && { tokenUsage: agentResult.tokenUsage }),
+        ...(agentResult.tokenUsage && { tokenUsage: agentResult.tokenUsage }),
         modelName: finalModelName,
         provider: "openrouter",
-          ...(agentResult.openrouterGenerationId && { openrouterGenerationId: agentResult.openrouterGenerationId }),
-          ...(agentResult.provisionalCostUsd !== undefined && { provisionalCostUsd: agentResult.provisionalCostUsd }),
+        ...(agentResult.openrouterGenerationId && {
+          openrouterGenerationId: agentResult.openrouterGenerationId,
+        }),
+        ...(agentResult.provisionalCostUsd !== undefined && {
+          provisionalCostUsd: agentResult.provisionalCostUsd,
+        }),
         ...(generationTimeMs !== undefined && { generationTimeMs }),
         ...(generationStartedAt && { generationStartedAt }),
         ...(generationEndedAt && { generationEndedAt }),
@@ -576,7 +581,20 @@ export const handler = adaptHttpHandler(
       try {
         // Combine user message and assistant message for logging
         // Deduplication will happen in startConversation (via expandMessagesWithToolCalls)
-        const messagesForLogging: UIMessage[] = [uiMessage, assistantMessage];
+        const messagesForLogging: UIMessage[] = agentResult.observerEvents
+          ? buildConversationMessagesFromObserver({
+              observerEvents: agentResult.observerEvents,
+              fallbackInputMessages: [uiMessage],
+              assistantMeta: {
+                tokenUsage: agentResult.tokenUsage,
+                modelName: finalModelName,
+                provider: "openrouter",
+                openrouterGenerationId: agentResult.openrouterGenerationId,
+                provisionalCostUsd: agentResult.provisionalCostUsd,
+                generationTimeMs,
+              },
+            })
+          : [uiMessage, assistantMessage];
 
         // Get valid messages for logging (filter out any invalid ones, but keep empty messages)
         const validMessages: UIMessage[] = messagesForLogging.filter(

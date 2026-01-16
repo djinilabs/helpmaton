@@ -40,6 +40,10 @@ import {
   trackSuccessfulRequest,
 } from "../../utils/generationRequestTracking";
 import { extractTokenUsageAndCosts } from "../../utils/generationTokenExtraction";
+import {
+  buildConversationMessagesFromObserver,
+  createLlmObserver,
+} from "../../utils/llmObserver";
 import { convertAiSdkUIMessagesToUIMessages } from "../../utils/messageConversion";
 import {
   createRequestTimeout,
@@ -401,6 +405,7 @@ export const registerPostTestAgent = (app: express.Application) => {
       const userId = extractUserId(req);
 
       // Setup agent, model, and tools
+      const llmObserver = createLlmObserver();
       const { agent, model, tools, usesByok } = await setupAgentAndTools(
         workspaceId,
         agentId,
@@ -412,6 +417,7 @@ export const registerPostTestAgent = (app: express.Application) => {
           context,
           conversationId,
           conversationOwnerAgentId: agentId, // The agent from route params owns the conversation
+          llmObserver,
         }
       );
 
@@ -459,6 +465,8 @@ export const registerPostTestAgent = (app: express.Application) => {
         );
         throw error;
       }
+
+      llmObserver.recordInputMessages(convertedMessages);
 
       // Derive the model name from the agent's modelName if set, otherwise use default
       const finalModelName =
@@ -1456,25 +1464,22 @@ export const registerPostTestAgent = (app: express.Application) => {
         assistantContent.push({ type: "text", text: responseText });
       }
 
-      // Create assistant message with token usage, modelName, provider, costs, and generation time
-      // Always create message even if content is empty (no text response, but input tokens were consumed)
-      const assistantMessage: UIMessage = {
-        role: "assistant",
-        content: assistantContent.length > 0 ? assistantContent : responseText || "",
-        ...(tokenUsage && { tokenUsage }),
-        modelName: finalModelName,
-        provider: "openrouter",
-        ...(openrouterGenerationId && { openrouterGenerationId }),
-        ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
-        ...(generationTimeMs !== undefined && { generationTimeMs }),
-      };
-
       // Combine user messages and assistant message for logging
       // Deduplication will happen in updateConversation
-      const messagesForLogging: UIMessage[] = [
-        ...convertedMessages,
-        assistantMessage,
-      ];
+      const messagesForLogging: UIMessage[] = buildConversationMessagesFromObserver(
+        {
+          observerEvents: llmObserver.getEvents(),
+          fallbackInputMessages: convertedMessages,
+          assistantMeta: {
+            tokenUsage,
+            modelName: finalModelName,
+            provider: "openrouter",
+            openrouterGenerationId,
+            provisionalCostUsd,
+            generationTimeMs,
+          },
+        }
+      );
 
       // Get valid messages for logging (filter out any invalid ones, but keep empty messages)
       const validMessages: UIMessage[] = messagesForLogging.filter(

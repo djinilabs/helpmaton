@@ -17,6 +17,8 @@ import {
   validateWorkspaceAndAgent,
   type WorkspaceAndAgent,
 } from "./agentUtils";
+import type { LlmObserver } from "./llmObserver";
+import { wrapToolsWithObserver } from "./llmObserver";
 import { createMcpServerTools } from "./mcpUtils";
 import { createSearchMemoryTool } from "./memorySearchTool";
 
@@ -37,6 +39,7 @@ export interface AgentSetupOptions {
   context?: AugmentedContext;
   conversationId?: string;
   conversationOwnerAgentId?: string; // Agent ID that owns the conversation (for delegation tracking)
+  llmObserver?: LlmObserver;
 }
 
 /**
@@ -162,7 +165,8 @@ export async function setupAgentAndTools(
     usesByok,
     options?.userId,
     agentProvider, // Pass provider to createAgentModel
-    agentConfig // Pass agent config with advanced options
+    agentConfig, // Pass agent config with advanced options
+    options?.llmObserver
   );
 
   // Extract agentId from agent.pk (format: "agents/{workspaceId}/{agentId}")
@@ -356,5 +360,10 @@ export async function setupAgentAndTools(
     Object.assign(tools, clientTools);
   }
 
-  return { agent, model, tools, usesByok };
+  return {
+    agent,
+    model,
+    tools: wrapToolsWithObserver(tools, options?.llmObserver),
+    usesByok,
+  };
 }

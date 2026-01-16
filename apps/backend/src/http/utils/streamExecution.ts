@@ -6,6 +6,7 @@ import {
 } from "../../utils/conversationLogger";
 
 import { extractTokenUsageAndCosts } from "./generationTokenExtraction";
+import { getGenerationTimingFromObserver } from "./llmObserver";
 import {
   isTimeoutError,
   createTimeoutError,
@@ -15,10 +16,6 @@ import {
   handleStreamingError,
   handleResultExtractionError,
 } from "./streamErrorHandling";
-import {
-  createEventTracking,
-  type StreamEventTimestamps,
-} from "./streamEventTracking";
 import type { StreamRequestContext } from "./streamRequestContext";
 import type { HttpResponseStream } from "./streamResponseStream";
 
@@ -33,7 +30,6 @@ export interface StreamExecutionResult {
   generationStartedAt?: string; // ISO timestamp when generation started
   generationEndedAt?: string; // ISO timestamp when generation ended
   hasWrittenData: boolean; // Track if any data has been written to the stream
-  eventTimestamps?: StreamEventTimestamps; // Event timestamps from model events
 }
 
 /**
@@ -49,9 +45,6 @@ export async function executeStream(
   let llmCallAttempted = false;
   let streamResult: Awaited<ReturnType<typeof streamText>> | undefined;
   let hasWrittenData = false; // Track if any data has been written to the stream
-
-  // Create event tracking to capture timestamps from model events
-  const eventTimestamps = createEventTracking();
   
   let generationStartTime: number | undefined;
   let generationStartedAt: string | undefined;
@@ -75,17 +68,21 @@ export async function executeStream(
         // Callback to track when data is actually written to the stream
         hasWrittenData = true;
       },
-      eventTimestamps // Pass event tracking to capture model event timestamps
+      context.llmObserver
     );
     
-    // Use event timestamps if available, otherwise fall back to manual timing
-    if (eventTimestamps.generationStartedAt) {
-      generationStartedAt = eventTimestamps.generationStartedAt;
+    // Use observer timestamps if available, otherwise fall back to manual timing
+    const observerTiming = getGenerationTimingFromObserver(
+      context.llmObserver.getEvents()
+    );
+    if (observerTiming.generationStartedAt) {
+      generationStartedAt = observerTiming.generationStartedAt;
     }
-    if (eventTimestamps.generationEndedAt) {
-      generationEndedAt = eventTimestamps.generationEndedAt;
+    if (observerTiming.generationEndedAt) {
+      generationEndedAt = observerTiming.generationEndedAt;
       if (generationStartTime !== undefined) {
-        generationTimeMs = new Date(generationEndedAt).getTime() - generationStartTime;
+        generationTimeMs =
+          new Date(generationEndedAt).getTime() - generationStartTime;
       }
     } else if (generationStartTime !== undefined) {
       generationTimeMs = Date.now() - generationStartTime;
@@ -151,6 +148,9 @@ export async function executeStream(
   }
 
   const finalResponseText = responseText || fullStreamedText;
+  if (finalResponseText && fullStreamedText.length === 0) {
+    context.llmObserver.recordText(finalResponseText);
+  }
 
   console.log("[Stream Execution] Final response text:", finalResponseText);
 
@@ -171,7 +171,6 @@ export async function executeStream(
     generationStartedAt,
     generationEndedAt,
     hasWrittenData,
-    eventTimestamps,
   };
 }
 
@@ -187,10 +186,7 @@ export async function executeStreamForApiGateway(
   let fullStreamedText = "";
   const generationStartTime = Date.now();
   let generationStartedAt = new Date().toISOString();
-  
-  // Create event tracking for API Gateway path too
-  const eventTimestamps = createEventTracking();
-  
+
   const streamResult = await pipeAIStreamToResponse(
     context.agent,
     context.model,
@@ -202,21 +198,21 @@ export async function executeStreamForApiGateway(
     },
     abortSignal,
     undefined, // No need to track data written for API Gateway (buffered)
-    eventTimestamps // Pass event tracking
+    context.llmObserver
   );
 
   if (!streamResult) {
     throw new Error("LLM call succeeded but result is undefined");
   }
 
-  // Use event timestamps if available
-  if (eventTimestamps.generationStartedAt) {
-    generationStartedAt = eventTimestamps.generationStartedAt;
+  // Use observer timestamps if available
+  const observerTiming = getGenerationTimingFromObserver(
+    context.llmObserver.getEvents()
+  );
+  if (observerTiming.generationStartedAt) {
+    generationStartedAt = observerTiming.generationStartedAt;
   }
-  let generationEndedAt = new Date().toISOString();
-  if (eventTimestamps.generationEndedAt) {
-    generationEndedAt = eventTimestamps.generationEndedAt;
-  }
+  const generationEndedAt = observerTiming.generationEndedAt || new Date().toISOString();
   const generationTimeMs = new Date(generationEndedAt).getTime() - generationStartTime;
 
   // Extract text and usage
@@ -226,6 +222,9 @@ export async function executeStreamForApiGateway(
   ]);
 
   const finalResponseText = responseText || fullStreamedText;
+  if (finalResponseText && fullStreamedText.length === 0) {
+    context.llmObserver.recordText(finalResponseText);
+  }
 
   // Extract token usage
   const totalUsage = await streamResult.totalUsage;
@@ -244,6 +243,5 @@ export async function executeStreamForApiGateway(
     generationStartedAt,
     generationEndedAt,
     hasWrittenData: true, // For API Gateway, we assume data was written if we got here
-    eventTimestamps,
   };
 }

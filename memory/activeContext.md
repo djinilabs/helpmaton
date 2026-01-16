@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **LLM observer-driven conversation records**: Added a new LLM observer wrapper with tool execution observation, and rebuilt conversation record assembly in stream/webhook/delegation flows to use observed events; added unit tests for observer-based reconstruction.
+
 1. **GitHub MCP Server Integration**: Implemented complete GitHub MCP server support with OAuth authentication, read-only API access, and comprehensive tool coverage for repositories, issues, pull requests, commits, and file contents.
 
    - **OAuth Authentication** (`apps/backend/src/utils/oauth/mcp/github.ts`):

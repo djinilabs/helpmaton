@@ -16,12 +16,8 @@ import {
 } from "./generationCreditManagement";
 import { trackSuccessfulRequest } from "./generationRequestTracking";
 import { extractTokenUsageAndCosts } from "./generationTokenExtraction";
-import type { StreamEventTimestamps } from "./streamEventTracking";
+import { buildConversationMessagesFromObserver } from "./llmObserver";
 import type { StreamRequestContext } from "./streamRequestContext";
-import {
-  formatToolCallMessage,
-  formatToolResultMessage,
-} from "./toolFormatting";
 
 
 
@@ -90,244 +86,13 @@ export async function trackRequestUsage(
 }
 
 /**
- * Extracts reasoning content from stream result
- */
-async function extractReasoning(
-  streamResult: Awaited<ReturnType<typeof streamText>>
-): Promise<Array<{ type: "reasoning"; text: string }>> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- streamText result types are complex
-  const resultAny = streamResult as any;
-  const reasoningContent: Array<{ type: "reasoning"; text: string }> = [];
-
-  // Extract from _steps if available (preferred source)
-  const stepsValue = resultAny?._steps?.status?.value;
-  if (Array.isArray(stepsValue)) {
-    for (const step of stepsValue) {
-      if (step?.content && Array.isArray(step.content)) {
-        for (const contentItem of step.content) {
-          if (
-            typeof contentItem === "object" &&
-            contentItem !== null &&
-            "type" in contentItem &&
-            contentItem.type === "reasoning" &&
-            "text" in contentItem &&
-            typeof contentItem.text === "string"
-          ) {
-            reasoningContent.push({
-              type: "reasoning",
-              text: contentItem.text,
-            });
-          }
-        }
-      }
-    }
-  }
-
-  // Also check direct properties (fallback)
-  // Some AI SDK versions might expose reasoning differently
-  if (reasoningContent.length === 0) {
-    if (resultAny?.reasoning && typeof resultAny.reasoning === "string") {
-      reasoningContent.push({
-        type: "reasoning",
-        text: resultAny.reasoning,
-      });
-    } else if (Array.isArray(resultAny?.reasoning)) {
-      // Handle array of reasoning strings
-      for (const reasoningText of resultAny.reasoning) {
-        if (typeof reasoningText === "string") {
-          reasoningContent.push({
-            type: "reasoning",
-            text: reasoningText,
-          });
-        }
-      }
-    }
-  }
-
-  return reasoningContent;
-}
-
-/**
- * Extracts tool calls and results from stream result
- * Uses event timestamps when available, otherwise falls back to step extraction
- */
-async function extractToolCallsAndResults(
-  streamResult: Awaited<ReturnType<typeof streamText>>,
-  eventTimestamps?: StreamEventTimestamps
-): Promise<{
-  toolCalls: unknown[];
-  toolResults: unknown[];
-}> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- streamText result types are complex
-  const resultAny = streamResult as any;
-  
-  const toolCallsFromSteps: unknown[] = [];
-  const toolResultsFromSteps: unknown[] = [];
-
-  // Extract from _steps if available
-  const stepsValue = resultAny?._steps?.status?.value;
-  if (Array.isArray(stepsValue)) {
-    for (const step of stepsValue) {
-      if (step?.content && Array.isArray(step.content)) {
-        for (const contentItem of step.content) {
-          if (
-            typeof contentItem === "object" &&
-            contentItem !== null &&
-            "type" in contentItem
-          ) {
-            if (contentItem.type === "tool-call") {
-              const toolCallId = contentItem.toolCallId;
-              // Use event timestamp if available, otherwise use step timestamp
-              let toolCallStartedAt: string | undefined;
-              if (toolCallId && eventTimestamps) {
-                const timestamp = eventTimestamps.toolCallTimestamps.get(toolCallId);
-                toolCallStartedAt = timestamp?.startedAt;
-              }
-              // If no event timestamp, use current time as fallback
-              if (!toolCallStartedAt) {
-                toolCallStartedAt = new Date().toISOString();
-              }
-              
-              toolCallsFromSteps.push({
-                toolCallId: toolCallId,
-                toolName: contentItem.toolName,
-                args: contentItem.input || contentItem.args || {},
-                toolCallStartedAt,
-              });
-            } else if (contentItem.type === "tool-result") {
-              const toolCallId = contentItem.toolCallId;
-              // Use event execution time if available
-              let toolExecutionTimeMs: number | undefined;
-              if (toolCallId && eventTimestamps) {
-                toolExecutionTimeMs = eventTimestamps.toolExecutionTimes.get(toolCallId);
-              }
-              
-              toolResultsFromSteps.push({
-                toolCallId: toolCallId,
-                toolName: contentItem.toolName,
-                output:
-                  contentItem.output?.value ||
-                  contentItem.output ||
-                  contentItem.result,
-                result:
-                  contentItem.output?.value ||
-                  contentItem.output ||
-                  contentItem.result,
-                ...(toolExecutionTimeMs !== undefined && { toolExecutionTimeMs }),
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Get from direct properties or steps - these may be Promises
-  const [toolCallsFromResultRaw, toolResultsFromResultRaw] = await Promise.all([
-    Promise.resolve(streamResult?.toolCalls).then((tc) => tc || []),
-    Promise.resolve(streamResult?.toolResults).then((tr) => tr || []),
-  ]);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
-  let toolCallsFromResult: any[] = Array.isArray(toolCallsFromResultRaw)
-    ? toolCallsFromResultRaw
-    : [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
-  let toolResultsFromResult: any[] = Array.isArray(toolResultsFromResultRaw)
-    ? toolResultsFromResultRaw
-    : [];
-
-  // Prefer steps if available
-  if (toolCallsFromSteps.length > 0) {
-    toolCallsFromResult = toolCallsFromSteps;
-  } else {
-    // Add timestamps to tool calls from direct properties if not already present
-    // Use event timestamps if available
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool call types vary
-    toolCallsFromResult = toolCallsFromResult.map((toolCall: any) => {
-      if (!toolCall.toolCallStartedAt) {
-        const toolCallId = toolCall.toolCallId;
-        let toolCallStartedAt: string | undefined;
-        if (toolCallId && eventTimestamps) {
-          const timestamp = eventTimestamps.toolCallTimestamps.get(toolCallId);
-          toolCallStartedAt = timestamp?.startedAt;
-        }
-        if (!toolCallStartedAt) {
-          toolCallStartedAt = new Date().toISOString();
-        }
-        return {
-          ...toolCall,
-          toolCallStartedAt,
-        };
-      }
-      return toolCall;
-    });
-  }
-
-  if (toolResultsFromSteps.length > 0) {
-    toolResultsFromResult = toolResultsFromSteps;
-  } else {
-    // Add execution time to tool results from direct properties if not already present
-    // Use event timestamps if available
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
-    toolResultsFromResult = toolResultsFromResult.map((toolResult: any) => {
-      if (toolResult.toolExecutionTimeMs === undefined) {
-        const toolCallId = toolResult.toolCallId;
-        if (toolCallId && eventTimestamps) {
-          const executionTimeMs = eventTimestamps.toolExecutionTimes.get(toolCallId);
-          if (executionTimeMs !== undefined) {
-            return {
-              ...toolResult,
-              toolExecutionTimeMs: executionTimeMs,
-            };
-          }
-        }
-      }
-      return toolResult;
-    });
-  }
-
-  // Reconstruct tool calls from results if needed
-  if (toolCallsFromResult.length === 0 && toolResultsFromResult.length > 0) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    toolCallsFromResult = toolResultsFromResult.map((toolResult: any) => {
-      const toolCallId =
-        toolResult.toolCallId ||
-        `call-${Math.random().toString(36).substring(7)}`;
-      let toolCallStartedAt: string;
-      if (toolCallId && eventTimestamps) {
-        const timestamp = eventTimestamps.toolCallTimestamps.get(toolCallId);
-        toolCallStartedAt = timestamp?.startedAt || new Date().toISOString();
-      } else {
-        toolCallStartedAt = new Date().toISOString();
-      }
-      return {
-        toolCallId,
-        toolName: toolResult.toolName || "unknown",
-        args: toolResult.args || toolResult.input || {},
-        toolCallStartedAt,
-      };
-    }) as unknown as typeof toolCallsFromResult;
-  }
-
-  return {
-    toolCalls: toolCallsFromResult,
-    toolResults: toolResultsFromResult,
-  };
-}
-
-/**
  * Logs the conversation
  */
 export async function logConversation(
   context: StreamRequestContext,
-  finalResponseText: string,
   tokenUsage: TokenUsage | undefined,
   streamResult: Awaited<ReturnType<typeof streamText>>,
-  generationTimeMs?: number,
-  generationStartedAt?: string,
-  generationEndedAt?: string,
-  eventTimestamps?: StreamEventTimestamps
+  generationTimeMs?: number
 ): Promise<void> {
   try {
     // Extract tokenUsage from streamResult if not provided
@@ -359,61 +124,6 @@ export async function logConversation(
       return;
     }
 
-    const { toolCalls, toolResults } = await extractToolCallsAndResults(
-      streamResult,
-      eventTimestamps
-    );
-
-    // Extract reasoning content from stream result
-    const reasoningContent = await extractReasoning(streamResult);
-
-    const toolCallMessages = toolCalls.map(formatToolCallMessage);
-    const toolResultMessages = toolResults.map(formatToolResultMessage);
-
-    // Always use the original generationEndedAt which includes the full LLM call time
-    // (including text generation after tool execution)
-    // The expandMessagesWithToolCalls function will split this correctly
-    const finalGenerationEndedAt = generationEndedAt;
-
-    const assistantContent: Array<
-      | { type: "text"; text: string }
-      | {
-          type: "tool-call";
-          toolCallId: string;
-          toolName: string;
-          args: unknown;
-        }
-      | {
-          type: "tool-result";
-          toolCallId: string;
-          toolName: string;
-          result: unknown;
-        }
-      | {
-          type: "reasoning";
-          text: string;
-        }
-    > = [];
-
-    // Add reasoning content first (it typically comes before tool calls or text)
-    assistantContent.push(...reasoningContent);
-
-    for (const toolCallMsg of toolCallMessages) {
-      if (Array.isArray(toolCallMsg.content)) {
-        assistantContent.push(...toolCallMsg.content);
-      }
-    }
-
-    for (const toolResultMsg of toolResultMessages) {
-      if (Array.isArray(toolResultMsg.content)) {
-        assistantContent.push(...toolResultMsg.content);
-      }
-    }
-
-    if (finalResponseText && finalResponseText.trim().length > 0) {
-      assistantContent.push({ type: "text", text: finalResponseText });
-    }
-
     const totalUsage = await streamResult.totalUsage;
     const {
       openrouterGenerationId,
@@ -426,26 +136,18 @@ export async function logConversation(
     );
     const provisionalCostUsd = extractedProvisionalCostUsd;
 
-    // Always create assistant message, even if content is empty
-    // Empty content means no text response, but input tokens were still consumed
-    const assistantMessage: UIMessage = {
-      role: "assistant",
-      content:
-        assistantContent.length > 0 ? assistantContent : finalResponseText || "",
-      ...{ tokenUsage: finalTokenUsage },
-      modelName: context.finalModelName,
-      provider: "openrouter",
-      ...(openrouterGenerationId && { openrouterGenerationId }),
-      ...(provisionalCostUsd !== undefined && { provisionalCostUsd }),
-      ...(generationTimeMs !== undefined && { generationTimeMs }),
-      ...(generationStartedAt && { generationStartedAt }),
-      ...(finalGenerationEndedAt && { generationEndedAt: finalGenerationEndedAt }),
-    };
-
-    const messagesForLogging: UIMessage[] = [
-      ...context.convertedMessages,
-      assistantMessage,
-    ];
+    const messagesForLogging = buildConversationMessagesFromObserver({
+      observerEvents: context.llmObserver.getEvents(),
+      fallbackInputMessages: context.convertedMessages,
+      assistantMeta: {
+        tokenUsage: finalTokenUsage,
+        modelName: context.finalModelName,
+        provider: "openrouter",
+        openrouterGenerationId,
+        provisionalCostUsd,
+        generationTimeMs,
+      },
+    });
 
     // Log messages with file parts before filtering
     const messagesWithFiles = messagesForLogging.filter(
@@ -578,13 +280,9 @@ export async function logConversation(
  */
 export async function performPostProcessing(
   context: StreamRequestContext,
-  finalResponseText: string,
   tokenUsage: TokenUsage | undefined,
   streamResult: Awaited<ReturnType<typeof streamText>>,
-  generationTimeMs?: number,
-  generationStartedAt?: string,
-  generationEndedAt?: string,
-  eventTimestamps?: StreamEventTimestamps
+  generationTimeMs?: number
 ): Promise<void> {
   // Adjust credits (but don't enqueue cost verification yet - we'll do that after saving conversation)
   try {
@@ -612,13 +310,9 @@ export async function performPostProcessing(
   // Log conversation FIRST - this ensures messages are saved before cost verification runs
   await logConversation(
     context,
-    finalResponseText,
     tokenUsage,
     streamResult,
-    generationTimeMs,
-    generationStartedAt,
-    generationEndedAt,
-    eventTimestamps
+    generationTimeMs
   );
 
   // Enqueue cost verification AFTER conversation is saved

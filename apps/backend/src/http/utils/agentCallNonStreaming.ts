@@ -17,6 +17,7 @@ import {
 } from "./generationCreditManagement";
 import { prepareLLMCall } from "./generationLLMSetup";
 import { extractTokenUsageAndCosts } from "./generationTokenExtraction";
+import { createLlmObserver, type LlmObserverEvent } from "./llmObserver";
 import {
   convertTextToUIMessage,
   convertUIMessagesToModelMessages,
@@ -32,6 +33,7 @@ export interface AgentCallNonStreamingOptions {
   endpointType?: "bridge" | "webhook" | "test" | "stream";
   conversationHistory?: UIMessage[];
   abortSignal?: AbortSignal;
+  llmObserver?: ReturnType<typeof createLlmObserver>;
 }
 
 export interface AgentCallNonStreamingResult {
@@ -43,6 +45,7 @@ export interface AgentCallNonStreamingResult {
   openrouterGenerationId?: string;
   openrouterGenerationIds?: string[];
   provisionalCostUsd?: number;
+  observerEvents?: LlmObserverEvent[];
 }
 
 /**
@@ -57,6 +60,7 @@ export async function callAgentNonStreaming(
 ): Promise<AgentCallNonStreamingResult> {
   const { database } = await import("../../tables");
   const db = await database();
+  const llmObserver = options?.llmObserver || createLlmObserver();
 
   // Setup agent, model, and tools
   const setupOptions: AgentSetupOptions = {
@@ -67,6 +71,7 @@ export async function callAgentNonStreaming(
     conversationId: options?.conversationId,
     conversationOwnerAgentId: options?.conversationOwnerAgentId || agentId,
     userId: options?.userId,
+    llmObserver,
     searchDocumentsOptions: {
       description:
         "Search workspace documents using semantic vector search. Returns the most relevant document snippets based on the query.",
@@ -141,6 +146,38 @@ export async function callAgentNonStreaming(
   );
 
   const modelMessagesWithKnowledge = knowledgeInjectionResult.modelMessages;
+  const knowledgeInjectionMessage =
+    knowledgeInjectionResult.knowledgeInjectionMessage;
+  const rerankingRequestMessage =
+    knowledgeInjectionResult.rerankingRequestMessage;
+  const rerankingResultMessage =
+    knowledgeInjectionResult.rerankingResultMessage;
+
+  const messagesToInsert: UIMessage[] = [];
+  if (rerankingRequestMessage) {
+    messagesToInsert.push(rerankingRequestMessage);
+  }
+  if (rerankingResultMessage) {
+    messagesToInsert.push(rerankingResultMessage);
+  }
+  if (knowledgeInjectionMessage) {
+    messagesToInsert.push(knowledgeInjectionMessage);
+  }
+
+  if (messagesToInsert.length > 0) {
+    const userMessageIndex = allMessages.findIndex(
+      (msg) => msg.role === "user"
+    );
+    if (userMessageIndex === -1) {
+      llmObserver.recordInputMessages([...messagesToInsert, ...allMessages]);
+    } else {
+      const mergedMessages = [...allMessages];
+      mergedMessages.splice(userMessageIndex, 0, ...messagesToInsert);
+      llmObserver.recordInputMessages(mergedMessages);
+    }
+  } else {
+    llmObserver.recordInputMessages(allMessages);
+  }
 
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
@@ -290,5 +327,6 @@ export async function callAgentNonStreaming(
     openrouterGenerationId: extractionResult?.openrouterGenerationId,
     openrouterGenerationIds: extractionResult?.openrouterGenerationIds,
     provisionalCostUsd: extractionResult?.provisionalCostUsd,
+    observerEvents: llmObserver.getEvents(),
   };
 }

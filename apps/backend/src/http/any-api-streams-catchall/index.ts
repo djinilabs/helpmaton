@@ -226,13 +226,9 @@ const internalHandler = async (
     // Post-processing
     await performPostProcessing(
       context,
-      executionResult.finalResponseText,
       executionResult.tokenUsage,
       executionResult.streamResult,
-      executionResult.generationTimeMs,
-      executionResult.generationStartedAt,
-      executionResult.generationEndedAt,
-      executionResult.eventTimestamps
+      executionResult.generationTimeMs
     );
 
     // Track stream endpoint call
