@@ -413,13 +413,16 @@ export function withLlmObserver<TModel extends object>(
 ): TModel {
   if (!observer) return model;
 
-  const wrappedModel = { ...model } as TModel & {
+  const wrappedModel = Object.assign(
+    Object.create(Object.getPrototypeOf(model)),
+    model
+  ) as TModel & {
     doGenerate?: (options: unknown) => Promise<unknown>;
     doStream?: (options: unknown) => Promise<unknown>;
   };
 
-  if (typeof wrappedModel.doGenerate === "function") {
-    const originalDoGenerate = wrappedModel.doGenerate.bind(model);
+  if ("doGenerate" in model && typeof model.doGenerate === "function") {
+    const originalDoGenerate = model.doGenerate.bind(model);
     wrappedModel.doGenerate = async (options: unknown) => {
       observer.recordGenerationStarted();
       try {
@@ -434,8 +437,8 @@ export function withLlmObserver<TModel extends object>(
     };
   }
 
-  if (typeof wrappedModel.doStream === "function") {
-    const originalDoStream = wrappedModel.doStream.bind(model);
+  if ("doStream" in model && typeof model.doStream === "function") {
+    const originalDoStream = model.doStream.bind(model);
     wrappedModel.doStream = async (options: unknown) => {
       observer.recordGenerationStarted();
       try {
