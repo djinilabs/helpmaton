@@ -274,46 +274,95 @@ REVIEW_COMMENTS_JSON=$(gh api "repos/$REPO_NAME/pulls/$PR_NUMBER/comments" 2>/de
 print_status "Fetching issue comments (general comments)..."
 ISSUE_COMMENTS_JSON=$(gh api "repos/$REPO_NAME/issues/$PR_NUMBER/comments" 2>/dev/null || echo "[]")
 
+# Fetch reviews to check for dismissed reviews
+# Comments that belong to dismissed reviews should also be excluded
+print_status "Fetching reviews to check for dismissed reviews..."
+REVIEWS_JSON=$(gh api "repos/$REPO_NAME/pulls/$PR_NUMBER/reviews" 2>/dev/null || echo "[]")
+
+# Also fetch review threads via GraphQL to check for resolved/outdated threads
+# This is important because REST API doesn't expose thread resolution status
+REPO_OWNER=$(echo "$REPO_NAME" | cut -d'/' -f1)
+REPO_NAME_ONLY=$(echo "$REPO_NAME" | cut -d'/' -f2)
+
+REVIEW_THREADS_JSON=$(gh api graphql -f query="query {
+  repository(owner: \"$REPO_OWNER\", name: \"$REPO_NAME_ONLY\") {
+    pullRequest(number: $PR_NUMBER) {
+      reviewThreads(first: 100) {
+        nodes {
+          id
+          isResolved
+          isOutdated
+          resolvedBy {
+            login
+          }
+          comments(first: 10) {
+            nodes {
+              id
+              databaseId
+            }
+          }
+        }
+      }
+    }
+  }
+}" 2>/dev/null | jq -r '.data.repository.pullRequest.reviewThreads.nodes // []' || echo "[]")
+
 # Process and combine all comments, filtering out dismissed ones
-# Review comments can have state "DISMISSED", issue comments don't have state
-# Use jq to properly handle JSON with control characters
+# Review comments can belong to a dismissed review or be part of resolved/outdated threads
+# Issue comments don't have state and cannot be dismissed
+
 ALL_COMMENTS=$(jq -n \
     --argjson review_comments "$REVIEW_COMMENTS_JSON" \
     --argjson issue_comments "$ISSUE_COMMENTS_JSON" \
+    --argjson reviews "$REVIEWS_JSON" \
+    --argjson review_threads "$REVIEW_THREADS_JSON" \
     '
-    (
-        ($review_comments // []) | map({
-            id: .id,
-            author: .user.login,
-            body: .body,
-            created_at: .created_at,
-            path: .path,
-            original_line: (.original_line // null),
-            original_start_line: (.original_start_line // null),
-            line: (.line // null),
-            start_line: (.start_line // null),
-            diff_hunk: (.diff_hunk // null),
-            side: (.side // null),
-            state: (.state // null)
-        })
-    ) + (
-        ($issue_comments // []) | map({
-            id: .id,
-            author: .user.login,
-            body: .body,
-            created_at: .created_at,
-            path: null,
-            original_line: null,
-            original_start_line: null,
-            line: null,
-            start_line: null,
-            diff_hunk: null,
-            side: null,
-            state: null
-        })
-    ) |
+    # Create a set of dismissed review IDs (as strings for consistent comparison)
+    (($reviews // []) | map(select((.state | ascii_upcase) == "DISMISSED")) | map(.id | tostring)) as $dismissed_review_ids |
+    # Create a set of comment IDs from resolved/outdated threads
+    (($review_threads // []) | 
+     map(select(.isResolved == true or .isOutdated == true)) | 
+     map(.comments.nodes[].databaseId) | 
+     flatten | 
+     map(tostring)) as $resolved_or_outdated_comment_ids |
+    # Process review comments
+    (($review_comments // []) | map({
+        id: .id,
+        author: .user.login,
+        body: .body,
+        created_at: .created_at,
+        path: .path,
+        original_line: (.original_line // null),
+        original_start_line: (.original_start_line // null),
+        line: (.line // null),
+        start_line: (.start_line // null),
+        diff_hunk: (.diff_hunk // null),
+        side: (.side // null),
+        state: (.state // null),
+        pull_request_review_id: (.pull_request_review_id // null)
+    })) + (($issue_comments // []) | map({
+        id: .id,
+        author: .user.login,
+        body: .body,
+        created_at: .created_at,
+        path: null,
+        original_line: null,
+        original_start_line: null,
+        line: null,
+        start_line: null,
+        diff_hunk: null,
+        side: null,
+        state: null,
+        pull_request_review_id: null
+    })) |
     unique_by(.id) |
-    map(select(.state != "DISMISSED" and .state != "dismissed"))
+    # Filter out comments that:
+    # 1. Belong to dismissed reviews, OR
+    # 2. Are part of resolved or outdated threads
+    map(select(
+        (.pull_request_review_id == null or ((.pull_request_review_id | tostring) | IN($dismissed_review_ids[])) == false) and
+        ((.id | tostring) | IN($resolved_or_outdated_comment_ids[])) == false
+    ))
 ')
 
 COMMENT_COUNT=$(echo "$ALL_COMMENTS" | jq 'length')

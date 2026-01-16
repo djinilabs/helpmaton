@@ -27,6 +27,10 @@ import { extractTokenUsageAndCosts } from "../utils/generationTokenExtraction";
 import { createMcpServerTools } from "./mcpUtils";
 import { createModel } from "./modelFactory";
 import type { Provider } from "./modelFactory";
+import {
+  formatToolCallMessage,
+  formatToolResultMessage,
+} from "./toolFormatting";
 
 export const MODEL_NAME = "google/gemini-2.5-flash";
 
@@ -1259,10 +1263,123 @@ export async function callAgentInternal(
     // This ensures the target agent has a conversation record showing:
     // - The message it received from the calling agent
     // - The response it gave
+    // - Tool calls and tool results
     // - Token usage and costs
     // Note: We use the conversation ID created earlier (targetAgentConversationId)
     // so that tools created during the agent call use the same conversation ID
     try {
+      // Extract tool calls and tool results from generateText result
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK generateText result types are complex
+      const resultAny = result as any;
+      const [toolCallsFromResultRaw, toolResultsFromResultRaw] =
+        await Promise.all([
+          Promise.resolve(result.toolCalls).then((tc) => tc || []),
+          Promise.resolve(result.toolResults).then((tr) => tr || []),
+        ]);
+
+      // Extract from steps if available (source of truth for server-side tool execution)
+      const stepsValue = Array.isArray(resultAny.steps)
+        ? resultAny.steps
+        : resultAny._steps?.status?.value;
+      const toolCallsFromSteps: unknown[] = [];
+      const toolResultsFromSteps: unknown[] = [];
+
+      if (Array.isArray(stepsValue)) {
+        for (const step of stepsValue) {
+          if (step?.content && Array.isArray(step.content)) {
+            for (const contentItem of step.content) {
+              if (
+                typeof contentItem === "object" &&
+                contentItem !== null &&
+                "type" in contentItem
+              ) {
+                if (contentItem.type === "tool-call") {
+                  toolCallsFromSteps.push({
+                    toolCallId: contentItem.toolCallId,
+                    toolName: contentItem.toolName,
+                    args: contentItem.input || contentItem.args || {},
+                    toolCallStartedAt: new Date().toISOString(),
+                  });
+                } else if (contentItem.type === "tool-result") {
+                  toolResultsFromSteps.push({
+                    toolCallId: contentItem.toolCallId,
+                    toolName: contentItem.toolName,
+                    output:
+                      contentItem.output?.value ||
+                      contentItem.output ||
+                      contentItem.result,
+                    result:
+                      contentItem.output?.value ||
+                      contentItem.output ||
+                      contentItem.result,
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Prefer steps if available, otherwise use direct properties
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool call types vary
+      const toolCalls: any[] =
+        toolCallsFromSteps.length > 0
+          ? toolCallsFromSteps
+          : Array.isArray(toolCallsFromResultRaw)
+          ? toolCallsFromResultRaw
+          : [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK tool result types vary
+      const toolResults: any[] =
+        toolResultsFromSteps.length > 0
+          ? toolResultsFromSteps
+          : Array.isArray(toolResultsFromResultRaw)
+          ? toolResultsFromResultRaw
+          : [];
+
+      // Format tool calls and results
+      const toolCallMessages = toolCalls.map(formatToolCallMessage);
+      const toolResultMessages = toolResults.map(formatToolResultMessage);
+
+      // Build assistant message content array with tool calls, tool results, and text
+      const assistantContent: Array<
+        | { type: "text"; text: string }
+        | {
+            type: "tool-call";
+            toolCallId: string;
+            toolName: string;
+            args: unknown;
+            toolCallStartedAt?: string;
+          }
+        | {
+            type: "tool-result";
+            toolCallId: string;
+            toolName: string;
+            result: unknown;
+            toolExecutionTimeMs?: number;
+            costUsd?: number;
+          }
+      > = [];
+
+      // Add tool calls first
+      for (const toolCallMsg of toolCallMessages) {
+        if (Array.isArray(toolCallMsg.content)) {
+          assistantContent.push(...toolCallMsg.content);
+        }
+      }
+
+      // Add tool results next
+      for (const toolResultMsg of toolResultMessages) {
+        if (Array.isArray(toolResultMsg.content)) {
+          assistantContent.push(...toolResultMsg.content);
+        }
+      }
+
+      // Add text response last (if any)
+      const responseText = await Promise.resolve(result.text);
+      if (responseText && responseText.trim().length > 0) {
+        assistantContent.push({ type: "text", text: responseText });
+      }
+
       // Build messages for the target agent's conversation
       // Include re-ranking and knowledge injection messages if they exist
       const targetAgentMessages: UIMessage[] = [];
@@ -1282,7 +1399,8 @@ export async function callAgentInternal(
         },
         {
           role: "assistant",
-          content: result.text,
+          content:
+            assistantContent.length > 0 ? assistantContent : responseText || "", // Fallback to text if no content array
           ...(tokenUsage && { tokenUsage }),
           modelName: modelName || MODEL_NAME,
           provider: "openrouter",
