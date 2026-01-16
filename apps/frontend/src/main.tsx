@@ -6,6 +6,7 @@ import App from './App'
 import { setupGlobalFetchOverride } from './utils/api'
 import { initPostHog } from './utils/posthog'
 import { initSentry } from './utils/sentry'
+import { registerServiceWorker } from './utils/serviceWorker'
 
 // Initialize theme before React renders to prevent flash
 function initializeTheme() {
@@ -49,6 +50,9 @@ initPostHog()
 // Setup global fetch override to automatically add Authorization header
 // This prevents race conditions and ensures all fetch calls include the token
 setupGlobalFetchOverride()
+
+// Register service worker for static asset caching
+registerServiceWorker()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
