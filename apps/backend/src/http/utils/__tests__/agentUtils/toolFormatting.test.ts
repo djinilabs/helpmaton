@@ -91,7 +91,9 @@ describe("formatToolResultMessage", () => {
     };
 
     const result = formatToolResultMessage(toolResult);
-    expect(result.content[0].result).toBe("Search results here");
+    const toolResultContent = result.content.find((item) => item.type === "tool-result");
+    expect(toolResultContent).toBeDefined();
+    expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("Search results here");
   });
 
   it("should truncate long string results", () => {
@@ -103,7 +105,9 @@ describe("formatToolResultMessage", () => {
     };
 
     const result = formatToolResultMessage(toolResult);
-    const formattedResult = result.content[0].result as string;
+    const toolResultContent = result.content.find((item) => item.type === "tool-result");
+    expect(toolResultContent).toBeDefined();
+    const formattedResult = toolResultContent && "result" in toolResultContent ? toolResultContent.result as string : "";
     expect(formattedResult.length).toBeLessThan(longString.length);
     expect(formattedResult).toContain("[Results truncated");
   });
@@ -117,7 +121,9 @@ describe("formatToolResultMessage", () => {
     };
 
     const result = formatToolResultMessage(toolResult);
-    expect(result.content[0].result).toBe(shortString);
+    const toolResultContent = result.content.find((item) => item.type === "tool-result");
+    expect(toolResultContent).toBeDefined();
+    expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe(shortString);
   });
 
   it("should handle object results", () => {
@@ -129,7 +135,9 @@ describe("formatToolResultMessage", () => {
     };
 
     const result = formatToolResultMessage(toolResult);
-    expect(result.content[0].result).toEqual(objectResult);
+    const toolResultContent = result.content.find((item) => item.type === "tool-result");
+    expect(toolResultContent).toBeDefined();
+    expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toEqual(objectResult);
   });
 
   it("should convert non-string, non-object results to string", () => {
@@ -140,7 +148,9 @@ describe("formatToolResultMessage", () => {
     };
 
     const result = formatToolResultMessage(toolResult);
-    expect(result.content[0].result).toBe("42");
+    const toolResultContent = result.content.find((item) => item.type === "tool-result");
+    expect(toolResultContent).toBeDefined();
+    expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("42");
   });
 
   it("should handle null result", () => {
@@ -151,7 +161,9 @@ describe("formatToolResultMessage", () => {
     };
 
     const result = formatToolResultMessage(toolResult);
-    expect(result.content[0].result).toBe("null");
+    const toolResultContent = result.content.find((item) => item.type === "tool-result");
+    expect(toolResultContent).toBeDefined();
+    expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("null");
   });
 
   it("should use empty string when neither output nor result provided", () => {
@@ -161,7 +173,9 @@ describe("formatToolResultMessage", () => {
     };
 
     const result = formatToolResultMessage(toolResult);
-    expect(result.content[0].result).toBe("");
+    const toolResultContent = result.content.find((item) => item.type === "tool-result");
+    expect(toolResultContent).toBeDefined();
+    expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("");
   });
 
   describe("cost extraction", () => {
@@ -174,8 +188,10 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].costUsd).toBe(8000);
-      expect(result.content[0].result).toBe(
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(8000);
+      expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe(
         'Found 5 search results for "TimeClout":\n\n1. **TimeClout**\n   URL: https://example.com'
       );
     });
@@ -188,8 +204,10 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].result).toBe("Search results here");
-      expect(result.content[0].costUsd).toBe(8000);
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("Search results here");
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(8000);
     });
 
     it("should extract cost when using result property instead of output", () => {
@@ -200,8 +218,10 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].costUsd).toBe(8000);
-      expect(result.content[0].result).toBe("Search results here");
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(8000);
+      expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("Search results here");
     });
 
     it("should prefer output property over result property for cost extraction", () => {
@@ -213,8 +233,10 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].costUsd).toBe(8000);
-      expect(result.content[0].result).toBe("Output with cost");
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(8000);
+      expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("Output with cost");
     });
 
     it("should extract cost from long strings before truncation", () => {
@@ -226,9 +248,11 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].costUsd).toBe(8000);
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(8000);
       // Cost marker should be removed, and string should be truncated if needed
-      const formattedResult = result.content[0].result as string;
+      const formattedResult = toolResultContent && "result" in toolResultContent ? toolResultContent.result as string : "";
       expect(formattedResult).not.toContain("__HM_TOOL_COST__:8000");
     });
 
@@ -240,7 +264,9 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].costUsd).toBe(16000);
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(16000);
     });
 
     it("should not extract cost when marker is missing", () => {
@@ -251,8 +277,10 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].costUsd).toBeUndefined();
-      expect(result.content[0].result).toBe("Search results here");
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBeUndefined();
+      expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("Search results here");
     });
 
     it("should not extract cost when marker format is invalid", () => {
@@ -263,9 +291,12 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].costUsd).toBeUndefined();
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBeUndefined();
       // Invalid marker should remain in result
-      expect(result.content[0].result).toContain("__HM_TOOL_COST__:invalid");
+      const resultValue = toolResultContent && "result" in toolResultContent ? toolResultContent.result as string : "";
+      expect(resultValue).toContain("__HM_TOOL_COST__:invalid");
     });
 
     it("should extract cost when marker appears anywhere in string (uses last occurrence)", () => {
@@ -277,11 +308,14 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
       // Should use the last occurrence (8000)
-      expect(result.content[0].costUsd).toBe(8000);
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(8000);
       // All markers should be removed
-      expect(result.content[0].result).not.toContain("__HM_TOOL_COST__");
-      expect(result.content[0].result).toBe(
+      const resultValue = toolResultContent && "result" in toolResultContent ? toolResultContent.result as string : "";
+      expect(resultValue).not.toContain("__HM_TOOL_COST__");
+      expect(resultValue).toBe(
         "Results with  in the middle and  at end"
       );
     });
@@ -294,8 +328,10 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].costUsd).toBe(8000);
-      expect(result.content[0].result).toBe("Results");
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(8000);
+      expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("Results");
     });
 
     it("should handle multiple markers and use the last one", () => {
@@ -307,8 +343,10 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].costUsd).toBe(3000);
-      expect(result.content[0].result).toBe("Result");
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(3000);
+      expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("Result");
     });
   });
 
@@ -324,8 +362,10 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].costUsd).toBe(8000);
-      expect(result.content[0].result).toBe("Search results");
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(8000);
+      expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("Search results");
     });
 
     it("should handle type: 'json' format with cost marker", () => {
@@ -340,8 +380,10 @@ describe("formatToolResultMessage", () => {
 
       const result = formatToolResultMessage(toolResult);
       // JSON is stringified, so cost marker should be extracted from stringified JSON
-      const resultString = result.content[0].result as string;
-      expect(result.content[0].costUsd).toBe(8000);
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      const resultString = toolResultContent && "result" in toolResultContent ? toolResultContent.result as string : "";
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(8000);
       expect(resultString).not.toContain("__HM_TOOL_COST__");
     });
 
@@ -356,8 +398,10 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].costUsd).toBeUndefined();
-      expect(result.content[0].result).toBe("Search results");
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBeUndefined();
+      expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("Search results");
     });
 
     it("should handle other type formats by converting to string", () => {
@@ -371,8 +415,10 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].costUsd).toBe(8000);
-      expect(result.content[0].result).toBe("Result");
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(8000);
+      expect(toolResultContent && "result" in toolResultContent ? toolResultContent.result : undefined).toBe("Result");
     });
 
     it("should handle nested AI SDK format with cost extraction", () => {
@@ -386,8 +432,11 @@ describe("formatToolResultMessage", () => {
       };
 
       const result = formatToolResultMessage(toolResult);
-      expect(result.content[0].costUsd).toBe(8000); // Should use last occurrence
-      expect(result.content[0].result).not.toContain("__HM_TOOL_COST__");
+      const toolResultContent = result.content.find((item) => item.type === "tool-result");
+      expect(toolResultContent).toBeDefined();
+      expect(toolResultContent && "costUsd" in toolResultContent ? toolResultContent.costUsd : undefined).toBe(8000); // Should use last occurrence
+      const resultValue = toolResultContent && "result" in toolResultContent ? toolResultContent.result as string : "";
+      expect(resultValue).not.toContain("__HM_TOOL_COST__");
     });
   });
 });

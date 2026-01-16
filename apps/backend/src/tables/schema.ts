@@ -232,6 +232,7 @@ export const tableSchemas = {
         z.object({
           callingAgentId: z.string(),
           targetAgentId: z.string(),
+          targetConversationId: z.string().optional(), // conversation ID of the target agent's conversation
           taskId: z.string().optional(),
           // ISO 8601 datetime string (accepts any precision: seconds, milliseconds, microseconds)
           timestamp: z.iso.datetime(),

@@ -1,5 +1,6 @@
 import {
   useInfiniteQuery,
+  useQuery,
   useSuspenseQuery,
 } from "@tanstack/react-query";
 
@@ -50,6 +51,29 @@ export function useAgentConversation(
       conversationId,
     ],
     queryFn: () => getAgentConversation(workspaceId, agentId, conversationId),
+  });
+}
+
+/**
+ * Non-suspense version for nested conversations that need loading/error states
+ */
+export function useAgentConversationNested(
+  workspaceId: string,
+  agentId: string,
+  conversationId: string,
+  enabled: boolean = true
+) {
+  return useQuery({
+    queryKey: [
+      "workspaces",
+      workspaceId,
+      "agents",
+      agentId,
+      "conversations",
+      conversationId,
+    ],
+    queryFn: () => getAgentConversation(workspaceId, agentId, conversationId),
+    enabled: enabled && !!workspaceId && !!agentId && !!conversationId,
   });
 }
 

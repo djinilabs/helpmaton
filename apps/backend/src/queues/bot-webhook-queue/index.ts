@@ -328,6 +328,16 @@ async function processDiscordTask(
             type: "reasoning";
             text: string;
           }
+        | {
+            type: "delegation";
+            toolCallId: string;
+            callingAgentId: string;
+            targetAgentId: string;
+            targetConversationId?: string;
+            status: "completed" | "failed" | "cancelled";
+            timestamp: string;
+            taskId?: string;
+          }
       > = [];
 
       assistantContent.push(...reasoningFromSteps);
@@ -340,7 +350,11 @@ async function processDiscordTask(
 
       for (const toolResultMsg of toolResultMessages) {
         if (Array.isArray(toolResultMsg.content)) {
-          assistantContent.push(...toolResultMsg.content);
+          for (const contentItem of toolResultMsg.content) {
+            assistantContent.push(
+              contentItem as (typeof assistantContent)[number]
+            );
+          }
         }
       }
 
@@ -937,6 +951,16 @@ async function processSlackTask(
             type: "reasoning";
             text: string;
           }
+        | {
+            type: "delegation";
+            toolCallId: string;
+            callingAgentId: string;
+            targetAgentId: string;
+            targetConversationId?: string;
+            status: "completed" | "failed" | "cancelled";
+            timestamp: string;
+            taskId?: string;
+          }
       > = [];
 
       assistantContent.push(...reasoningFromSteps);
@@ -949,7 +973,11 @@ async function processSlackTask(
 
       for (const toolResultMsg of toolResultMessages) {
         if (Array.isArray(toolResultMsg.content)) {
-          assistantContent.push(...toolResultMsg.content);
+          for (const contentItem of toolResultMsg.content) {
+            assistantContent.push(
+              contentItem as (typeof assistantContent)[number]
+            );
+          }
         }
       }
 

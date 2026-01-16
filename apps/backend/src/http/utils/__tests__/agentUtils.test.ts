@@ -473,7 +473,9 @@ describe("agentUtils - Agent List Formatting", () => {
       const result = await (tool as any).execute();
 
       expect(result).toContain("Format No Caps Agent");
-      expect(result).toContain("Capabilities: none");
+      // When there are no capabilities, the capabilities line should not be shown
+      expect(result).not.toContain("Capabilities: none");
+      expect(result).not.toContain("Capabilities:");
     });
 
     it("should handle empty delegatable agents list", async () => {
@@ -807,6 +809,7 @@ describe("agentUtils - Delegation Tools", () => {
         {
           callingAgentId: callingAgentId,
           targetAgentId: targetAgentId,
+          targetConversationId: expect.any(String), // callAgentInternal creates a UUID for targetAgentConversationId
           status: "completed",
         }
       );
@@ -877,17 +880,22 @@ describe("agentUtils - Delegation Tools", () => {
       // Verify the delegation was tracked with callingAgentId as the owner
       // Note: The status might be "failed" if callAgentInternal fails, but the important thing
       // is that the ownerAgentId (3rd parameter) is correct
-      expect(mockTrackDelegation).toHaveBeenCalledWith(
-        expect.anything(), // db
-        workspaceId,
-        callingAgentId, // Should default to callingAgentId when conversationOwnerAgentId is not provided
-        conversationId,
-        expect.objectContaining({
-          callingAgentId: callingAgentId,
-          targetAgentId: targetAgentId,
-          // status can be "completed" or "failed" depending on whether callAgentInternal succeeds
-        })
-      );
+      const trackDelegationCall = (mockTrackDelegation as ReturnType<typeof vi.fn>).mock.calls[0];
+      expect(trackDelegationCall).toBeDefined();
+      expect(trackDelegationCall[0]).toBeDefined(); // db
+      expect(trackDelegationCall[1]).toBe(workspaceId);
+      expect(trackDelegationCall[2]).toBe(callingAgentId); // Should default to callingAgentId when conversationOwnerAgentId is not provided
+      expect(trackDelegationCall[3]).toBe(conversationId);
+      expect(trackDelegationCall[4]).toMatchObject({
+        callingAgentId: callingAgentId,
+        targetAgentId: targetAgentId,
+        // status can be "completed" or "failed" depending on whether callAgentInternal succeeds
+      });
+      // targetConversationId may or may not be present depending on when the error occurred
+      // If present, it should be a string (UUID)
+      if (trackDelegationCall[4].targetConversationId !== undefined) {
+        expect(typeof trackDelegationCall[4].targetConversationId).toBe("string");
+      }
     });
   });
 });

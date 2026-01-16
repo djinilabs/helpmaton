@@ -458,7 +458,7 @@ export const handler = adaptHttpHandler(
         formatToolResultMessage
       );
 
-      // Build assistant response message with reasoning, tool calls, results, and text
+      // Build assistant response message with reasoning, tool calls, results, delegations, and text
       const assistantContent: Array<
         | { type: "text"; text: string }
         | {
@@ -477,6 +477,16 @@ export const handler = adaptHttpHandler(
             type: "reasoning";
             text: string;
           }
+        | {
+            type: "delegation";
+            toolCallId: string;
+            callingAgentId: string;
+            targetAgentId: string;
+            targetConversationId?: string;
+            status: "completed" | "failed" | "cancelled";
+            timestamp: string;
+            taskId?: string;
+          }
       > = [];
 
       // Add reasoning content first (it typically comes before tool calls or text)
@@ -489,10 +499,12 @@ export const handler = adaptHttpHandler(
         }
       }
 
-      // Add tool results
+      // Add tool results (may include delegations)
       for (const toolResultMsg of toolResultMessages) {
         if (Array.isArray(toolResultMsg.content)) {
-          assistantContent.push(...toolResultMsg.content);
+          for (const contentItem of toolResultMsg.content) {
+            assistantContent.push(contentItem as typeof assistantContent[number]);
+          }
         }
       }
 

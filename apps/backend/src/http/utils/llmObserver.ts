@@ -1,4 +1,4 @@
-import type { UIMessage } from "../../utils/messageTypes";
+import type { DelegationContent, UIMessage } from "../../utils/messageTypes";
 
 import { formatToolResultMessage } from "./toolFormatting";
 
@@ -613,6 +613,7 @@ export function buildConversationMessagesFromObserver(params: {
         toolExecutionTimeMs?: number;
       }
     | { type: "reasoning"; text: string }
+    | DelegationContent
   > = [];
 
   let generationStartedAt: string | undefined;
