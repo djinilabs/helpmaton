@@ -692,14 +692,24 @@ export const AgentChat: FC<AgentChatProps> = ({
         ) : (
           <div className="space-y-4">
             {/* Render all messages using optimized ChatMessage component */}
-            {messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message as unknown as ChatMessageProps["message"]}
-                agent={agent}
-                isWidget={isWidget}
-              />
-            ))}
+            {messages.map((message, index) => {
+              // The last message is streaming if status is "streaming" or "submitted"
+              // and it's an assistant message
+              const isLastMessage = index === messages.length - 1;
+              const isStreamingMessage =
+                isLastMessage &&
+                (status === "streaming" || status === "submitted") &&
+                message.role === "assistant";
+              return (
+                <ChatMessage
+                  key={message.id}
+                  message={message as unknown as ChatMessageProps["message"]}
+                  agent={agent}
+                  isWidget={isWidget}
+                  isStreaming={isStreamingMessage}
+                />
+              );
+            })}
             {isLoading && (
               <div className="max-w-[80%] overflow-x-auto rounded-xl border border-neutral-200 bg-neutral-50 p-4 text-neutral-900">
                 <div className="mb-2 flex items-center gap-2">

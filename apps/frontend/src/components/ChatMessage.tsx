@@ -30,6 +30,7 @@ export interface ChatMessageProps {
   };
   agent?: { name?: string; avatar?: string };
   isWidget?: boolean;
+  isStreaming?: boolean; // If true, always re-render to show streaming updates
 }
 
 /**
@@ -37,7 +38,7 @@ export interface ChatMessageProps {
  * Only re-renders when the message content actually changes.
  */
 export const ChatMessage = memo<ChatMessageProps>(
-  ({ message, agent, isWidget = false }) => {
+  ({ message, agent, isWidget = false, isStreaming = false }) => {
     // Check if this is a knowledge injection message
     const isKnowledgeInjection = useMemo(
       () =>
@@ -521,10 +522,33 @@ export const ChatMessage = memo<ChatMessageProps>(
 
     // Regular message rendering
     // Normalize message content: useChat can return either 'content' (string) or 'parts' (array)
+    // During streaming, messages may have empty parts initially, then parts get added incrementally
     let parts: unknown[] = [];
 
     if (Array.isArray(message.parts)) {
-      parts = message.parts;
+      // AI SDK format: parts array
+      // Filter out null/undefined parts but keep empty arrays to show message structure
+      parts = message.parts
+        .filter((part) => part !== null && part !== undefined)
+        .map((part) => {
+          // Handle string parts (AI SDK sometimes returns strings directly)
+          if (typeof part === "string") {
+            return { type: "text", text: part };
+          }
+          // Handle part objects
+          if (typeof part === "object" && part !== null) {
+            // If it already has a type, use as is
+            if ("type" in part && typeof part.type === "string") {
+              return part;
+            }
+            // If it has text but no type, assume it's a text part
+            if ("text" in part && typeof part.text === "string") {
+              return { type: "text", text: part.text };
+            }
+          }
+          // Return as-is for other formats
+          return part;
+        });
     } else if ("content" in message) {
       // Convert content to parts array
       const content = message.content;
@@ -655,6 +679,16 @@ export const ChatMessage = memo<ChatMessageProps>(
               ? part.type
               : "unknown";
 
+          // Render the part
+          const renderedPart = renderPart(part, partIndex);
+
+          // If part renders to null, skip it (but still show metadata if it's the first part)
+          if (!renderedPart) {
+            // If this is the first part and we have other parts, we'll show metadata with the next part
+            // If this is the only part or all parts are null, the empty message fallback will handle it
+            return null;
+          }
+
           // For text parts, wrap in message container with role styling
           if (partType === "text") {
             return (
@@ -748,7 +782,7 @@ export const ChatMessage = memo<ChatMessageProps>(
                     </div>
                   </div>
                 )}
-                {renderPart(part, partIndex)}
+                {renderedPart}
               </div>
             );
           }
@@ -844,37 +878,49 @@ export const ChatMessage = memo<ChatMessageProps>(
                     )}
                   </div>
                 </div>
-                {renderPart(part, partIndex)}
+                {renderedPart}
               </div>
             );
           }
 
           // For subsequent parts, render directly
-          return renderPart(part, partIndex);
+          return renderedPart;
         })}
       </div>
     );
   },
   (prevProps, nextProps) => {
-    // Custom comparison function for React.memo
-    // Only re-render if message content actually changes
-    if (prevProps.message.id !== nextProps.message.id) return false;
-    if (prevProps.agent?.avatar !== nextProps.agent?.avatar) return false;
-    if (prevProps.isWidget !== nextProps.isWidget) return false;
+    // During streaming, always re-render to show updates
+    if (prevProps.isStreaming || nextProps.isStreaming) {
+      return false; // Re-render
+    }
 
-    // Deep comparison of message parts/content
-    // Normalize both messages to compare properly
+    // If message ID changed, it's a different message - re-render
+    if (prevProps.message.id !== nextProps.message.id) {
+      return false; // Re-render
+    }
+
+    // If agent or widget props changed, re-render
+    if (prevProps.agent?.avatar !== nextProps.agent?.avatar) {
+      return false; // Re-render
+    }
+    if (prevProps.isWidget !== nextProps.isWidget) {
+      return false; // Re-render
+    }
+
+    // For non-streaming messages, do a content-based comparison
+    // Normalize parts for comparison
     const getNormalizedParts = (msg: ChatMessageProps["message"]) => {
       if (Array.isArray(msg.parts)) {
-        return msg.parts;
+        return msg.parts.filter((p) => p != null);
       }
       if ("content" in msg) {
         const content = msg.content;
         if (typeof content === "string") {
-          return [{ type: "text", text: content }];
+          return content.trim() ? [{ type: "text", text: content }] : [];
         }
         if (Array.isArray(content)) {
-          return content;
+          return content.filter((c) => c != null);
         }
       }
       return [];
@@ -883,35 +929,36 @@ export const ChatMessage = memo<ChatMessageProps>(
     const prevParts = getNormalizedParts(prevProps.message);
     const nextParts = getNormalizedParts(nextProps.message);
 
-    if (prevParts.length !== nextParts.length) return false;
-
-    // Compare each part (simplified - could be more thorough)
-    for (let i = 0; i < prevParts.length; i++) {
-      if (JSON.stringify(prevParts[i]) !== JSON.stringify(nextParts[i])) {
-        return false;
-      }
+    // If parts length changed, re-render
+    if (prevParts.length !== nextParts.length) {
+      return false; // Re-render
     }
 
-    // Compare other message properties (excluding parts and content since we already compared them)
-    const prevKeys = Object.keys(prevProps.message).filter(
-      (k) => k !== "parts" && k !== "content" && k !== "id"
-    );
-    const nextKeys = Object.keys(nextProps.message).filter(
-      (k) => k !== "parts" && k !== "content" && k !== "id"
-    );
-
-    if (prevKeys.length !== nextKeys.length) return false;
-
-    for (const key of prevKeys) {
-      if (
-        JSON.stringify(prevProps.message[key]) !==
-        JSON.stringify(nextProps.message[key])
-      ) {
-        return false;
-      }
+    // Compare parts using JSON serialization for deep equality
+    // This catches content changes even if object references are the same
+    const prevPartsStr = JSON.stringify(prevParts);
+    const nextPartsStr = JSON.stringify(nextParts);
+    if (prevPartsStr !== nextPartsStr) {
+      return false; // Re-render - content changed
     }
 
-    return true; // Props are equal, skip re-render
+    // Compare other message properties (tokenUsage, modelName, etc.)
+    const prevStr = JSON.stringify({
+      tokenUsage: prevProps.message.tokenUsage,
+      modelName: prevProps.message.modelName,
+      provider: prevProps.message.provider,
+    });
+    const nextStr = JSON.stringify({
+      tokenUsage: nextProps.message.tokenUsage,
+      modelName: nextProps.message.modelName,
+      provider: nextProps.message.provider,
+    });
+    if (prevStr !== nextStr) {
+      return false; // Re-render - metadata changed
+    }
+
+    // Everything is the same, skip re-render
+    return true;
   }
 );
 ChatMessage.displayName = "ChatMessage";
