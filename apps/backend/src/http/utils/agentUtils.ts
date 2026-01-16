@@ -927,10 +927,13 @@ export async function callAgentInternal(
         targetAgentConversationId // Use the delegated agent's own conversation ID
       );
     } else {
-      console.warn("[Agent Delegation] Scrape tool not created - targetAgentId not available:", {
-        workspaceId,
-        targetAgentId,
-      });
+      console.warn(
+        "[Agent Delegation] Scrape tool not created - targetAgentId not available:",
+        {
+          workspaceId,
+          targetAgentId,
+        }
+      );
     }
   }
 
@@ -1260,7 +1263,6 @@ export async function callAgentInternal(
     // Note: We use the conversation ID created earlier (targetAgentConversationId)
     // so that tools created during the agent call use the same conversation ID
     try {
-
       // Build messages for the target agent's conversation
       // Include re-ranking and knowledge injection messages if they exist
       const targetAgentMessages: UIMessage[] = [];
