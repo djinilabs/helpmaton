@@ -685,6 +685,10 @@ export function convertUIMessagesToModelMessages(
               toolResults.push(
                 createToolResultPart(item.toolCallId, item.toolName, rawValue)
               );
+            } else if (item.type === "delegation") {
+              // Skip delegation content items - they're UI-only metadata
+              // Delegations are tracked separately in conversation.delegations
+              continue;
             }
           }
         }
@@ -753,23 +757,29 @@ export function convertUIMessagesToModelMessages(
           if (
             item &&
             typeof item === "object" &&
-            "type" in item &&
-            item.type === "tool-result" &&
-            "toolCallId" in item &&
-            "toolName" in item &&
-            typeof item.toolCallId === "string" &&
-            typeof item.toolName === "string"
+            "type" in item
           ) {
-            // AI SDK expects 'output' instead of 'result'
-            const rawValue =
-              "result" in item && item.result !== undefined
-                ? item.result
-                : "output" in item && item.output !== undefined
-                ? item.output
-                : "";
-            toolResults.push(
-              createToolResultPart(item.toolCallId, item.toolName, rawValue)
-            );
+            if (
+              item.type === "tool-result" &&
+              "toolCallId" in item &&
+              "toolName" in item &&
+              typeof item.toolCallId === "string" &&
+              typeof item.toolName === "string"
+            ) {
+              // AI SDK expects 'output' instead of 'result'
+              const rawValue =
+                "result" in item && item.result !== undefined
+                  ? item.result
+                  : "output" in item && item.output !== undefined
+                  ? item.output
+                  : "";
+              toolResults.push(
+                createToolResultPart(item.toolCallId, item.toolName, rawValue)
+              );
+            } else if ("type" in item && item.type === "delegation") {
+              // Skip delegation content items - they're UI-only metadata
+              continue;
+            }
           }
         }
       } else if (typeof message.content === "string") {

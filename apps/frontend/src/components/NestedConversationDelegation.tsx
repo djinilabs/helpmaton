@@ -29,6 +29,15 @@ export const NestedConversationDelegation: FC<NestedConversationDelegationProps>
 
   const hasNestedConversation = !!delegation.targetConversationId;
 
+  // Debug logging
+  if (hasNestedConversation) {
+    console.log("[NestedConversationDelegation] Delegation has targetConversationId:", {
+      targetConversationId: delegation.targetConversationId,
+      targetAgentId: delegation.targetAgentId,
+      isExpanded,
+    });
+  }
+
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
       <div className="mb-2 flex items-center justify-between">
@@ -93,6 +102,7 @@ export const NestedConversationDelegation: FC<NestedConversationDelegationProps>
             conversationId={delegation.targetConversationId}
             depth={depth}
             isExpanded={true} // Auto-expand when delegation is expanded to trigger lazy load
+            parentDelegation={delegation} // Pass the delegation that created this conversation
           />
         </div>
       )}

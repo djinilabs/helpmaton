@@ -11,6 +11,7 @@ import {
 import { useState, useEffect } from "react";
 import type { FC, JSX } from "react";
 import ReactMarkdown from "react-markdown";
+import { Link } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 
 import { useDialogTracking } from "../contexts/DialogContext";
@@ -51,6 +52,16 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
   const { registerDialog, unregisterDialog } = useDialogTracking();
   const [showRawJson, setShowRawJson] = useState(false);
   const toast = useToast();
+
+  // Debug: Log delegations to help diagnose rendering issues
+  useEffect(() => {
+    if (conversationDetail?.delegations) {
+      console.log("[ConversationDetailModal] Delegations found:", {
+        count: conversationDetail.delegations.length,
+        delegations: conversationDetail.delegations,
+      });
+    }
+  }, [conversationDetail?.delegations]);
 
   useEscapeKey(isOpen, onClose);
 
@@ -271,6 +282,93 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
                         >
                           {reasoningItem.text}
                         </ReactMarkdown>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              // Delegation content
+              if ("type" in item && item.type === "delegation") {
+                const delegationItem = item as {
+                  type: "delegation";
+                  toolCallId?: string;
+                  callingAgentId: string;
+                  targetAgentId: string;
+                  targetConversationId?: string;
+                  status: "completed" | "failed" | "cancelled";
+                  timestamp: string;
+                  taskId?: string;
+                };
+                return (
+                  <div
+                    key={itemIndex}
+                    className="rounded-xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-800 dark:bg-orange-950"
+                  >
+                    <div className="mb-2 flex items-center gap-2 text-xs font-medium text-orange-700 dark:text-orange-300">
+                      <ChatBubbleLeftRightIcon className="size-4" />
+                      🔄 Delegation
+                    </div>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span
+                        className={`rounded border px-2 py-1 text-xs font-semibold ${
+                          delegationItem.status === "completed"
+                            ? "border-green-200 bg-green-100 text-green-800 dark:border-green-700 dark:bg-green-900 dark:text-green-200"
+                            : delegationItem.status === "failed"
+                            ? "border-red-200 bg-red-100 text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200"
+                            : "border-neutral-200 bg-neutral-100 text-neutral-800 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-200"
+                        }`}
+                      >
+                        {delegationItem.status.toUpperCase()}
+                      </span>
+                      {delegationItem.taskId && (
+                        <span className="rounded bg-blue-100 px-2 py-1 font-mono text-xs text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                          Task: {delegationItem.taskId.substring(0, 8)}...
+                        </span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="font-medium text-orange-700 dark:text-orange-300">
+                          From:{" "}
+                        </span>
+                        <Link
+                          to={`/workspaces/${workspaceId}/agents/${delegationItem.callingAgentId}`}
+                          className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                        >
+                          {delegationItem.callingAgentId}
+                        </Link>
+                      </div>
+                      <div>
+                        <span className="font-medium text-orange-700 dark:text-orange-300">
+                          To:{" "}
+                        </span>
+                        <Link
+                          to={`/workspaces/${workspaceId}/agents/${delegationItem.targetAgentId}`}
+                          className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                        >
+                          {delegationItem.targetAgentId}
+                        </Link>
+                      </div>
+                    </div>
+                    {delegationItem.targetConversationId && (
+                      <div className="mt-2">
+                        <NestedConversationDelegation
+                          workspaceId={workspaceId}
+                          delegation={{
+                            callingAgentId: delegationItem.callingAgentId,
+                            targetAgentId: delegationItem.targetAgentId,
+                            targetConversationId: delegationItem.targetConversationId,
+                            status: delegationItem.status,
+                            timestamp: delegationItem.timestamp,
+                            taskId: delegationItem.taskId,
+                          }}
+                          depth={0}
+                        />
+                      </div>
+                    )}
+                    {!delegationItem.targetConversationId && (
+                      <div className="mt-2 text-xs text-orange-600 dark:text-orange-400">
+                        Inner conversation not available
                       </div>
                     )}
                   </div>
@@ -700,6 +798,7 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
 
         {/* Delegations Section */}
         {conversationDetail.delegations &&
+          Array.isArray(conversationDetail.delegations) &&
           conversationDetail.delegations.length > 0 && (
             <div className="mb-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
               <div className="mb-3 flex items-center justify-between">

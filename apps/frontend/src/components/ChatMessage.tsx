@@ -38,7 +38,7 @@ export interface ChatMessageProps {
  * Only re-renders when the message content actually changes.
  */
 export const ChatMessage = memo<ChatMessageProps>(
-  ({ message, agent, isWidget = false, isStreaming = false }) => {
+  ({ message, agent, isWidget = false }) => {
     // Check if this is a knowledge injection message
     const isKnowledgeInjection = useMemo(
       () =>

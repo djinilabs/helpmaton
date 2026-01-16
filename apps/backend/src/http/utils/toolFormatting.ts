@@ -36,6 +36,10 @@ import {
   extractToolCostFromResult,
   TOOL_COST_MARKER_PATTERN,
 } from "./toolCostExtraction";
+import {
+  extractDelegationFromResult,
+  type DelegationMetadata,
+} from "./toolDelegationExtraction";
 
 // Re-export for use in other modules
 export { TOOL_COST_MARKER_PATTERN };
@@ -78,16 +82,21 @@ export function formatToolResultMessage(
     }
   }
 
-  // Extract cost from result string if present (format: __HM_TOOL_COST__:8000)
-  // IMPORTANT: Extract BEFORE truncation to ensure we don't lose the marker
+  // Extract cost and delegation from result string if present
+  // IMPORTANT: Extract BEFORE truncation to ensure we don't lose the markers
   let costUsd: number | undefined;
+  let delegation: DelegationMetadata | undefined;
   if (typeof outputValue === "string") {
-    const { costUsd: extractedCost, processedResult } =
+    const { costUsd: extractedCost, processedResult: costProcessedResult } =
       extractToolCostFromResult(outputValue);
     costUsd = extractedCost;
-    outputValue = processedResult;
 
-    // Truncate if string (after cost extraction)
+    const { delegation: extractedDelegation, processedResult: finalProcessedResult } =
+      extractDelegationFromResult(costProcessedResult);
+    delegation = extractedDelegation;
+    outputValue = finalProcessedResult;
+
+    // Truncate if string (after cost and delegation extraction)
     if (outputValue.length > MAX_RESULT_LENGTH) {
       outputValue =
         outputValue.substring(0, MAX_RESULT_LENGTH) +
@@ -97,20 +106,58 @@ export function formatToolResultMessage(
     outputValue = String(outputValue);
   }
 
+  // Build content array with tool result and optionally delegation
+  const content: Array<
+    | {
+        type: "tool-result";
+        toolCallId: string;
+        toolName: string;
+        result: unknown;
+        toolExecutionTimeMs?: number;
+        costUsd?: number;
+      }
+    | {
+        type: "delegation";
+        toolCallId: string;
+        callingAgentId: string;
+        targetAgentId: string;
+        targetConversationId?: string;
+        status: "completed" | "failed" | "cancelled";
+        timestamp: string;
+        taskId?: string;
+      }
+  > = [
+    {
+      type: "tool-result" as const,
+      toolCallId: toolResult.toolCallId,
+      toolName: toolResult.toolName,
+      result: outputValue,
+      ...(toolResult.toolExecutionTimeMs !== undefined && {
+        toolExecutionTimeMs: toolResult.toolExecutionTimeMs,
+      }),
+      ...(costUsd !== undefined && { costUsd }),
+    },
+  ];
+
+  // Add delegation content item if delegation metadata was found
+  if (delegation) {
+    content.push({
+      type: "delegation" as const,
+      toolCallId: toolResult.toolCallId,
+      callingAgentId: delegation.callingAgentId,
+      targetAgentId: delegation.targetAgentId,
+      ...(delegation.targetConversationId && {
+        targetConversationId: delegation.targetConversationId,
+      }),
+      status: delegation.status,
+      timestamp: delegation.timestamp,
+      ...(delegation.taskId && { taskId: delegation.taskId }),
+    });
+  }
+
   // In AI SDK v5, tool results should be in assistant messages, not tool messages
   return {
     role: "assistant" as const,
-    content: [
-      {
-        type: "tool-result" as const,
-        toolCallId: toolResult.toolCallId,
-        toolName: toolResult.toolName,
-        result: outputValue,
-        ...(toolResult.toolExecutionTimeMs !== undefined && {
-          toolExecutionTimeMs: toolResult.toolExecutionTimeMs,
-        }),
-        ...(costUsd !== undefined && { costUsd }),
-      },
-    ],
+    content,
   };
 }

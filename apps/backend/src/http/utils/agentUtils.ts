@@ -1349,7 +1349,7 @@ export async function callAgentInternal(
       const toolCallMessages = toolCalls.map(formatToolCallMessage);
       const toolResultMessages = toolResults.map(formatToolResultMessage);
 
-      // Build assistant message content array with tool calls, tool results, and text
+      // Build assistant message content array with tool calls, tool results, delegations, and text
       const assistantContent: Array<
         | { type: "text"; text: string }
         | {
@@ -1367,6 +1367,16 @@ export async function callAgentInternal(
             toolExecutionTimeMs?: number;
             costUsd?: number;
           }
+        | {
+            type: "delegation";
+            toolCallId: string;
+            callingAgentId: string;
+            targetAgentId: string;
+            targetConversationId?: string;
+            status: "completed" | "failed" | "cancelled";
+            timestamp: string;
+            taskId?: string;
+          }
       > = [];
 
       // Add tool calls first
@@ -1376,10 +1386,12 @@ export async function callAgentInternal(
         }
       }
 
-      // Add tool results next
+      // Add tool results next (may include delegations)
       for (const toolResultMsg of toolResultMessages) {
         if (Array.isArray(toolResultMsg.content)) {
-          assistantContent.push(...toolResultMsg.content);
+          for (const contentItem of toolResultMsg.content) {
+            assistantContent.push(contentItem as typeof assistantContent[number]);
+          }
         }
       }
 
@@ -2342,6 +2354,17 @@ export function createCallAgentTool(
           result = `Matched query "${query}" to agent ${targetAgentName} (ID: ${agentId}). ${result}`;
         }
 
+        // Embed delegation metadata in the result string for message sequence tracking
+        // Format: __HM_DELEGATION__:{"callingAgentId":"...","targetAgentId":"...","targetConversationId":"...","status":"completed","timestamp":"..."}
+        const delegationMetadata = {
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId,
+          targetConversationId: targetAgentConversationId,
+          status: "completed" as const,
+          timestamp: new Date().toISOString(),
+        };
+        result += ` __HM_DELEGATION__:${JSON.stringify(delegationMetadata)}`;
+
         // Log tool result
         console.log("[Tool Result] call_agent", {
           toolName: "call_agent",
@@ -2368,11 +2391,26 @@ export function createCallAgentTool(
         // otherwise use currentAgentId (for tracking in calling agent's conversation)
         const ownerAgentId = conversationOwnerAgentId || currentAgentId;
         if (conversationId) {
+          console.log("[Delegation Tracking] Tracking sync delegation with targetConversationId:", {
+            workspaceId,
+            ownerAgentId,
+            conversationId,
+            callingAgentId: currentAgentId,
+            targetAgentId: agentId,
+            targetConversationId: targetAgentConversationId,
+            status: "completed",
+          });
           await trackDelegation(db, workspaceId, ownerAgentId, conversationId, {
             callingAgentId: currentAgentId,
             targetAgentId: agentId,
             targetConversationId: targetAgentConversationId,
             status: "completed",
+          });
+        } else {
+          console.warn("[Delegation Tracking] Skipping delegation tracking - no conversationId:", {
+            workspaceId,
+            currentAgentId,
+            targetAgentId: agentId,
           });
         }
 
@@ -2423,7 +2461,15 @@ export function createCallAgentTool(
           });
         }
 
-        return errorMessage;
+        // For failed delegations, also embed delegation metadata in error message
+        const errorDelegationMetadata = {
+          callingAgentId: currentAgentId,
+          targetAgentId: agentId,
+          status: "failed" as const,
+          timestamp: new Date().toISOString(),
+        };
+        const errorMessageWithDelegation = `${errorMessage} __HM_DELEGATION__:${JSON.stringify(errorDelegationMetadata)}`;
+        return errorMessageWithDelegation;
       }
     },
   });

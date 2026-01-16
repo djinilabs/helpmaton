@@ -16,6 +16,7 @@ interface NestedConversationProps {
   conversationId: string;
   depth: number;
   isExpanded?: boolean;
+  parentDelegation?: Delegation; // The delegation that created this conversation
 }
 
 export const NestedConversation: FC<NestedConversationProps> = ({
@@ -24,6 +25,7 @@ export const NestedConversation: FC<NestedConversationProps> = ({
   conversationId,
   depth,
   isExpanded: initialExpanded = false,
+  parentDelegation,
 }) => {
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
   // Only fetch when expanded - lazy loading
@@ -33,6 +35,18 @@ export const NestedConversation: FC<NestedConversationProps> = ({
     conversationId,
     isExpanded // Only fetch when expanded
   );
+
+  // Debug logging
+  console.log("[NestedConversation] Render state:", {
+    workspaceId,
+    agentId,
+    conversationId,
+    isExpanded,
+    initialExpanded,
+    isLoading,
+    hasError: !!error,
+    hasConversation: !!conversation,
+  });
 
   // Calculate indentation - use fixed Tailwind classes
   const indentClasses = [
@@ -131,7 +145,30 @@ export const NestedConversation: FC<NestedConversationProps> = ({
     );
   }
 
-  // If expanded but no conversation data yet (shouldn't happen due to loading state above, but safety check)
+  // If expanded but no conversation data yet and not loading (query might not be enabled or failed silently)
+  // Show a message instead of returning null
+  if (!conversation && !isLoading && !error) {
+    return (
+      <div className={`${indentClass} mt-2`}>
+        <div
+          className={`rounded-lg border ${borderColor} ${bgColor} p-3 text-sm text-neutral-600 dark:text-neutral-400`}
+        >
+          <div className="mb-2 font-semibold">Conversation not loaded</div>
+          <div className="text-xs">
+            Conversation ID: {conversationId}
+            <br />
+            Agent ID: {agentId}
+            <br />
+            Workspace ID: {workspaceId}
+            <br />
+            Query enabled: {String(isExpanded && !!workspaceId && !!agentId && !!conversationId)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If we still don't have conversation data at this point, don't render
   if (!conversation) {
     return null;
   }
@@ -170,6 +207,58 @@ export const NestedConversation: FC<NestedConversationProps> = ({
         </button>
 
         <div className="mt-3 space-y-2 border-t border-neutral-200 pt-3 dark:border-neutral-700">
+          {/* Show parent delegation if this conversation was created by a delegation */}
+          {parentDelegation && (
+            <div className="mb-3 rounded-lg border border-orange-200 bg-orange-50 p-3 dark:border-orange-800 dark:bg-orange-950">
+              <div className="mb-2 flex items-center gap-2 text-xs font-medium text-orange-700 dark:text-orange-300">
+                <span>🔄 Created by Delegation</span>
+                <span
+                  className={`rounded border px-2 py-1 text-xs font-semibold ${
+                    parentDelegation.status === "completed"
+                      ? "border-green-200 bg-green-100 text-green-800 dark:border-green-700 dark:bg-green-900 dark:text-green-200"
+                      : parentDelegation.status === "failed"
+                      ? "border-red-200 bg-red-100 text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-200"
+                      : "border-neutral-200 bg-neutral-100 text-neutral-800 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-200"
+                  }`}
+                >
+                  {parentDelegation.status.toUpperCase()}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="font-medium text-orange-700 dark:text-orange-300">
+                    From:{" "}
+                  </span>
+                  <Link
+                    to={`/workspaces/${workspaceId}/agents/${parentDelegation.callingAgentId}`}
+                    className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                  >
+                    {parentDelegation.callingAgentId}
+                  </Link>
+                </div>
+                <div>
+                  <span className="font-medium text-orange-700 dark:text-orange-300">
+                    To:{" "}
+                  </span>
+                  <Link
+                    to={`/workspaces/${workspaceId}/agents/${parentDelegation.targetAgentId}`}
+                    className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                  >
+                    {parentDelegation.targetAgentId}
+                  </Link>
+                </div>
+              </div>
+              {parentDelegation.taskId && (
+                <div className="mt-2 text-xs text-orange-600 dark:text-orange-400">
+                  Task ID: {parentDelegation.taskId}
+                </div>
+              )}
+              <div className="mt-1 text-xs text-orange-600 dark:text-orange-400">
+                {new Date(parentDelegation.timestamp).toLocaleString()}
+              </div>
+            </div>
+          )}
+
           <div className="text-xs text-neutral-600 dark:text-neutral-400">
             <div>
               Type:{" "}
