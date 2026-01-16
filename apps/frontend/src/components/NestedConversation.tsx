@@ -184,7 +184,11 @@ export const NestedConversation: FC<NestedConversationProps> = ({
                 );
               }
               // Reasoning content - skip redacted reasoning
-              if ("type" in item && item.type === "reasoning" && "text" in item) {
+              if (
+                "type" in item &&
+                item.type === "reasoning" &&
+                "text" in item
+              ) {
                 const reasoningItem = item as {
                   type: "reasoning";
                   text: string;
@@ -192,12 +196,18 @@ export const NestedConversation: FC<NestedConversationProps> = ({
                 // Skip redacted reasoning - don't display it
                 // Check if text is exactly "[REDACTED]" or contains it (likely at the end)
                 const trimmedText = reasoningItem.text.trim();
-                if (trimmedText === "[REDACTED]" || trimmedText.endsWith("\n\n[REDACTED]") || trimmedText.endsWith("\n[REDACTED]")) {
+                if (
+                  trimmedText === "[REDACTED]" ||
+                  trimmedText.endsWith("\n\n[REDACTED]") ||
+                  trimmedText.endsWith("\n[REDACTED]")
+                ) {
                   return null;
                 }
                 // Remove [REDACTED] marker if present in the text
                 let cleanedText = reasoningItem.text;
-                cleanedText = cleanedText.replace(/\n*\s*\[REDACTED\]\s*$/g, "").trim();
+                cleanedText = cleanedText
+                  .replace(/\n*\s*\[REDACTED\]\s*$/g, "")
+                  .trim();
                 // If after cleaning the text is empty, skip it
                 if (!cleanedText) {
                   return null;
@@ -270,7 +280,8 @@ export const NestedConversation: FC<NestedConversationProps> = ({
                           delegation={{
                             callingAgentId: delegationItem.callingAgentId,
                             targetAgentId: delegationItem.targetAgentId,
-                            targetConversationId: delegationItem.targetConversationId,
+                            targetConversationId:
+                              delegationItem.targetConversationId,
                             status: delegationItem.status,
                             timestamp: delegationItem.timestamp,
                             taskId: delegationItem.taskId,
@@ -664,7 +675,9 @@ export const NestedConversation: FC<NestedConversationProps> = ({
                           <span className="ml-1 text-[10px]">✓</span>
                         )}
                         {tokenBasedCost.isFinal === false && (
-                          <span className="ml-1 text-[10px]">(provisional)</span>
+                          <span className="ml-1 text-[10px]">
+                            (provisional)
+                          </span>
                         )}
                       </span>
                     </div>
@@ -715,286 +728,303 @@ export const NestedConversation: FC<NestedConversationProps> = ({
               </div>
               <div className="space-y-4">
                 {Array.isArray(conversation.messages) &&
-                  conversation.messages.map((message: unknown, index: number) => {
-                    if (
-                      typeof message === "object" &&
-                      message !== null &&
-                      "role" in message &&
-                      "content" in message
-                    ) {
-                      const role = message.role as string;
-                      const content = message.content;
+                  conversation.messages.map(
+                    (message: unknown, index: number) => {
+                      if (
+                        typeof message === "object" &&
+                        message !== null &&
+                        "role" in message &&
+                        "content" in message
+                      ) {
+                        const role = message.role as string;
+                        const content = message.content;
 
-                      // Check if this is a knowledge injection message
-                      const isKnowledgeInjection =
-                        role === "user" &&
-                        "knowledgeInjection" in message &&
-                        (message as { knowledgeInjection?: boolean })
-                          .knowledgeInjection === true;
+                        // Check if this is a knowledge injection message
+                        const isKnowledgeInjection =
+                          role === "user" &&
+                          "knowledgeInjection" in message &&
+                          (message as { knowledgeInjection?: boolean })
+                            .knowledgeInjection === true;
 
-                      // Get snippet count for knowledge injection messages
-                      const snippetCount =
-                        isKnowledgeInjection &&
-                        "knowledgeSnippets" in message &&
-                        Array.isArray(
-                          (message as { knowledgeSnippets?: unknown })
-                            .knowledgeSnippets
-                        )
-                          ? (message as { knowledgeSnippets: unknown[] })
-                              .knowledgeSnippets.length
-                          : 0;
+                        // Get snippet count for knowledge injection messages
+                        const snippetCount =
+                          isKnowledgeInjection &&
+                          "knowledgeSnippets" in message &&
+                          Array.isArray(
+                            (message as { knowledgeSnippets?: unknown })
+                              .knowledgeSnippets
+                          )
+                            ? (message as { knowledgeSnippets: unknown[] })
+                                .knowledgeSnippets.length
+                            : 0;
 
-                      // Special rendering for knowledge injection messages
-                      if (isKnowledgeInjection) {
-                        const knowledgeMessage = message as {
-                          role: "user";
-                          content?:
-                            | string
-                            | Array<{ type: string; text?: string }>;
-                          knowledgeInjection?: boolean;
-                          knowledgeSnippets?: Array<{
-                            snippet: string;
-                            documentName: string;
-                            documentId: string;
-                            folderPath: string;
-                            similarity: number;
-                          }>;
+                        // Special rendering for knowledge injection messages
+                        if (isKnowledgeInjection) {
+                          const knowledgeMessage = message as {
+                            role: "user";
+                            content?:
+                              | string
+                              | Array<{ type: string; text?: string }>;
+                            knowledgeInjection?: boolean;
+                            knowledgeSnippets?: Array<{
+                              snippet: string;
+                              documentName: string;
+                              documentId: string;
+                              folderPath: string;
+                              similarity: number;
+                            }>;
+                          };
+
+                          const snippets =
+                            knowledgeMessage.knowledgeSnippets || [];
+
+                          return (
+                            <div key={index} className="max-w-full">
+                              <details className="rounded-xl border border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950">
+                                <summary className="cursor-pointer p-4">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-lg">📚</span>
+                                    <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                                      Knowledge from workspace documents
+                                      {snippetCount > 0 &&
+                                        ` (${snippetCount} snippet${
+                                          snippetCount !== 1 ? "s" : ""
+                                        })`}
+                                    </span>
+                                  </div>
+                                </summary>
+                                <div className="border-t border-purple-200 p-4 dark:border-purple-800">
+                                  <div className="space-y-3">
+                                    {snippets.length > 0 ? (
+                                      snippets.map((snippet, snippetIndex) => {
+                                        const similarityPercent = (
+                                          snippet.similarity * 100
+                                        ).toFixed(1);
+                                        return (
+                                          <details
+                                            key={snippetIndex}
+                                            className="rounded-lg border border-purple-300 bg-purple-100 dark:border-purple-700 dark:bg-purple-900"
+                                          >
+                                            <summary className="cursor-pointer p-3">
+                                              <div className="flex items-start justify-between gap-2">
+                                                <div className="flex-1">
+                                                  <div className="text-xs font-semibold text-purple-800 dark:text-purple-200">
+                                                    {snippet.documentName}
+                                                    {snippet.folderPath && (
+                                                      <span className="ml-2 font-normal text-purple-600 dark:text-purple-400">
+                                                        ({snippet.folderPath})
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  <div className="mt-1 text-xs text-purple-700 dark:text-purple-300">
+                                                    Similarity:{" "}
+                                                    {similarityPercent}%
+                                                  </div>
+                                                </div>
+                                                <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
+                                                  #{snippetIndex + 1}
+                                                </span>
+                                              </div>
+                                            </summary>
+                                            <div className="border-t border-purple-300 p-3 dark:border-purple-700">
+                                              <div className="text-sm text-purple-900 dark:text-purple-100">
+                                                <ReactMarkdown
+                                                  remarkPlugins={[remarkGfm]}
+                                                  components={
+                                                    markdownComponents
+                                                  }
+                                                >
+                                                  {snippet.snippet}
+                                                </ReactMarkdown>
+                                              </div>
+                                            </div>
+                                          </details>
+                                        );
+                                      })
+                                    ) : (
+                                      <div className="text-sm text-purple-700 dark:text-purple-300">
+                                        No snippets available
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </details>
+                            </div>
+                          );
+                        }
+
+                        // Format token usage helper
+                        const formatTokenUsage = (
+                          tokenUsage: unknown
+                        ): string | null => {
+                          if (
+                            !tokenUsage ||
+                            typeof tokenUsage !== "object" ||
+                            !("totalTokens" in tokenUsage)
+                          ) {
+                            return null;
+                          }
+                          const usage = tokenUsage as {
+                            promptTokens?: number;
+                            completionTokens?: number;
+                            totalTokens?: number;
+                            reasoningTokens?: number;
+                            cachedPromptTokens?: number;
+                          };
+                          if (typeof usage.totalTokens !== "number") {
+                            return null;
+                          }
+                          const parts: string[] = [];
+                          if (typeof usage.promptTokens === "number") {
+                            parts.push(
+                              `Prompt: ${usage.promptTokens.toLocaleString()}`
+                            );
+                          }
+                          if (typeof usage.completionTokens === "number") {
+                            parts.push(
+                              `Completion: ${usage.completionTokens.toLocaleString()}`
+                            );
+                          }
+                          if (
+                            typeof usage.reasoningTokens === "number" &&
+                            usage.reasoningTokens > 0
+                          ) {
+                            parts.push(
+                              `Reasoning: ${usage.reasoningTokens.toLocaleString()}`
+                            );
+                          }
+                          if (
+                            typeof usage.cachedPromptTokens === "number" &&
+                            usage.cachedPromptTokens > 0
+                          ) {
+                            parts.push(
+                              `Cached: ${usage.cachedPromptTokens.toLocaleString()}`
+                            );
+                          }
+                          const total = usage.totalTokens.toLocaleString();
+                          return parts.length > 0
+                            ? `${total} (${parts.join(", ")})`
+                            : total;
                         };
 
-                        const snippets =
-                          knowledgeMessage.knowledgeSnippets || [];
+                        const tokenUsage =
+                          "tokenUsage" in message
+                            ? formatTokenUsage(message.tokenUsage)
+                            : null;
+                        const modelName =
+                          role === "assistant" &&
+                          "modelName" in message &&
+                          typeof message.modelName === "string"
+                            ? message.modelName
+                            : null;
+                        const provider =
+                          role === "assistant" &&
+                          "provider" in message &&
+                          typeof message.provider === "string"
+                            ? message.provider
+                            : null;
+                        // Use getMessageCost() helper to get best available cost
+                        const messageCost = getMessageCost(message);
+                        const costUsd = messageCost?.costUsd;
+                        const isFinal = messageCost?.isFinal;
+                        const awsRequestId =
+                          "awsRequestId" in message &&
+                          typeof message.awsRequestId === "string"
+                            ? message.awsRequestId
+                            : null;
+                        const generationTimeMs =
+                          role === "assistant" &&
+                          "generationTimeMs" in message &&
+                          typeof message.generationTimeMs === "number"
+                            ? message.generationTimeMs
+                            : null;
 
                         return (
-                          <div key={index} className="max-w-full">
-                            <details className="rounded-xl border border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950">
-                              <summary className="cursor-pointer p-4">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-lg">📚</span>
-                                  <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
-                                    Knowledge from workspace documents
-                                    {snippetCount > 0 &&
-                                      ` (${snippetCount} snippet${
-                                        snippetCount !== 1 ? "s" : ""
-                                      })`}
-                                  </span>
-                                </div>
-                              </summary>
-                              <div className="border-t border-purple-200 p-4 dark:border-purple-800">
-                                <div className="space-y-3">
-                                  {snippets.length > 0 ? (
-                                    snippets.map((snippet, snippetIndex) => {
-                                      const similarityPercent = (
-                                        snippet.similarity * 100
-                                      ).toFixed(1);
-                                      return (
-                                        <details
-                                          key={snippetIndex}
-                                          className="rounded-lg border border-purple-300 bg-purple-100 dark:border-purple-700 dark:bg-purple-900"
-                                        >
-                                          <summary className="cursor-pointer p-3">
-                                            <div className="flex items-start justify-between gap-2">
-                                              <div className="flex-1">
-                                                <div className="text-xs font-semibold text-purple-800 dark:text-purple-200">
-                                                  {snippet.documentName}
-                                                  {snippet.folderPath && (
-                                                    <span className="ml-2 font-normal text-purple-600 dark:text-purple-400">
-                                                      ({snippet.folderPath})
-                                                    </span>
-                                                  )}
-                                                </div>
-                                                <div className="mt-1 text-xs text-purple-700 dark:text-purple-300">
-                                                  Similarity:{" "}
-                                                  {similarityPercent}%
-                                                </div>
-                                              </div>
-                                              <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
-                                                #{snippetIndex + 1}
-                                              </span>
-                                            </div>
-                                          </summary>
-                                          <div className="border-t border-purple-300 p-3 dark:border-purple-700">
-                                            <div className="text-sm text-purple-900 dark:text-purple-100">
-                                              <ReactMarkdown
-                                                remarkPlugins={[remarkGfm]}
-                                                components={markdownComponents}
-                                              >
-                                                {snippet.snippet}
-                                              </ReactMarkdown>
-                                            </div>
-                                          </div>
-                                        </details>
-                                      );
-                                    })
-                                  ) : (
-                                    <div className="text-sm text-purple-700 dark:text-purple-300">
-                                      No snippets available
-                                    </div>
-                                  )}
-                                </div>
+                          <div
+                            key={index}
+                            className={`rounded-xl p-4 ${
+                              role === "user"
+                                ? "bg-gradient-primary text-white"
+                                : role === "assistant"
+                                ? "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                                : "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                            }`}
+                          >
+                            <div className="mb-2 flex items-center justify-between">
+                              <div className="text-xs font-medium opacity-80 dark:opacity-90">
+                                {role}
                               </div>
-                            </details>
+                              <div className="flex items-center gap-2">
+                                {modelName && provider && (
+                                  <div className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 opacity-70 dark:bg-blue-900 dark:text-blue-200">
+                                    {provider}/{modelName}
+                                  </div>
+                                )}
+                                {tokenUsage && (
+                                  <div className="rounded bg-black bg-opacity-10 px-2 py-1 font-mono text-xs opacity-70 dark:bg-white dark:bg-opacity-10 dark:text-neutral-200">
+                                    {tokenUsage}
+                                  </div>
+                                )}
+                                {costUsd !== undefined && (
+                                  <div
+                                    className={`rounded px-2 py-1 text-xs font-medium opacity-70 ${
+                                      isFinal === true
+                                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                        : isFinal === false
+                                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                                        : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                                    }`}
+                                  >
+                                    {formatCurrency(costUsd, "usd", 10)}
+                                    {isFinal === true && " ✓"}
+                                    {isFinal === false && " (provisional)"}
+                                  </div>
+                                )}
+                                {generationTimeMs !== null && (
+                                  <div className="rounded bg-indigo-100 px-2 py-1 text-xs font-medium text-indigo-800 opacity-70 dark:bg-indigo-900 dark:text-indigo-200">
+                                    {(generationTimeMs / 1000).toFixed(2)}s
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            {awsRequestId && (
+                              <div className="mb-2 flex items-center gap-1">
+                                <span className="text-xs font-medium opacity-60 dark:opacity-70">
+                                  Request ID:
+                                </span>
+                                <span
+                                  className="rounded bg-purple-100 px-1.5 py-0.5 font-mono text-xs text-purple-800 opacity-80 dark:bg-purple-900 dark:text-purple-200"
+                                  title={`AWS Request ID: ${awsRequestId}`}
+                                >
+                                  {awsRequestId.length > 20
+                                    ? `${awsRequestId.substring(0, 20)}...`
+                                    : awsRequestId}
+                                </span>
+                              </div>
+                            )}
+                            <div className="text-sm">
+                              {(() => {
+                                const renderedContent =
+                                  renderMessageContent(content);
+                                if (typeof renderedContent === "string") {
+                                  return renderedContent.trim() ? (
+                                    <ReactMarkdown
+                                      remarkPlugins={[remarkGfm]}
+                                      components={markdownComponents}
+                                    >
+                                      {renderedContent}
+                                    </ReactMarkdown>
+                                  ) : null;
+                                }
+                                return renderedContent;
+                              })()}
+                            </div>
                           </div>
                         );
                       }
-
-                      // Format token usage helper
-                      const formatTokenUsage = (tokenUsage: unknown): string | null => {
-                        if (
-                          !tokenUsage ||
-                          typeof tokenUsage !== "object" ||
-                          !("totalTokens" in tokenUsage)
-                        ) {
-                          return null;
-                        }
-                        const usage = tokenUsage as {
-                          promptTokens?: number;
-                          completionTokens?: number;
-                          totalTokens?: number;
-                          reasoningTokens?: number;
-                          cachedPromptTokens?: number;
-                        };
-                        if (typeof usage.totalTokens !== "number") {
-                          return null;
-                        }
-                        const parts: string[] = [];
-                        if (typeof usage.promptTokens === "number") {
-                          parts.push(`Prompt: ${usage.promptTokens.toLocaleString()}`);
-                        }
-                        if (typeof usage.completionTokens === "number") {
-                          parts.push(`Completion: ${usage.completionTokens.toLocaleString()}`);
-                        }
-                        if (
-                          typeof usage.reasoningTokens === "number" &&
-                          usage.reasoningTokens > 0
-                        ) {
-                          parts.push(`Reasoning: ${usage.reasoningTokens.toLocaleString()}`);
-                        }
-                        if (
-                          typeof usage.cachedPromptTokens === "number" &&
-                          usage.cachedPromptTokens > 0
-                        ) {
-                          parts.push(`Cached: ${usage.cachedPromptTokens.toLocaleString()}`);
-                        }
-                        const total = usage.totalTokens.toLocaleString();
-                        return parts.length > 0 ? `${total} (${parts.join(", ")})` : total;
-                      };
-
-                      const tokenUsage =
-                        "tokenUsage" in message
-                          ? formatTokenUsage(message.tokenUsage)
-                          : null;
-                      const modelName =
-                        role === "assistant" &&
-                        "modelName" in message &&
-                        typeof message.modelName === "string"
-                          ? message.modelName
-                          : null;
-                      const provider =
-                        role === "assistant" &&
-                        "provider" in message &&
-                        typeof message.provider === "string"
-                          ? message.provider
-                          : null;
-                      // Use getMessageCost() helper to get best available cost
-                      const messageCost = getMessageCost(message);
-                      const costUsd = messageCost?.costUsd;
-                      const isFinal = messageCost?.isFinal;
-                      const awsRequestId =
-                        "awsRequestId" in message &&
-                        typeof message.awsRequestId === "string"
-                          ? message.awsRequestId
-                          : null;
-                      const generationTimeMs =
-                        role === "assistant" &&
-                        "generationTimeMs" in message &&
-                        typeof message.generationTimeMs === "number"
-                          ? message.generationTimeMs
-                          : null;
-
-                      return (
-                        <div
-                          key={index}
-                          className={`rounded-xl p-4 ${
-                            role === "user"
-                              ? "bg-gradient-primary text-white"
-                              : role === "assistant"
-                              ? "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
-                              : "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
-                          }`}
-                        >
-                          <div className="mb-2 flex items-center justify-between">
-                            <div className="text-xs font-medium opacity-80 dark:opacity-90">
-                              {role}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {modelName && provider && (
-                                <div className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 opacity-70 dark:bg-blue-900 dark:text-blue-200">
-                                  {provider}/{modelName}
-                                </div>
-                              )}
-                              {tokenUsage && (
-                                <div className="rounded bg-black bg-opacity-10 px-2 py-1 font-mono text-xs opacity-70 dark:bg-white dark:bg-opacity-10 dark:text-neutral-200">
-                                  {tokenUsage}
-                                </div>
-                              )}
-                              {costUsd !== undefined && (
-                                <div
-                                  className={`rounded px-2 py-1 text-xs font-medium opacity-70 ${
-                                    isFinal === true
-                                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                      : isFinal === false
-                                      ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                                      : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
-                                  }`}
-                                >
-                                  {formatCurrency(costUsd, "usd", 10)}
-                                  {isFinal === true && " ✓"}
-                                  {isFinal === false && " (provisional)"}
-                                </div>
-                              )}
-                              {generationTimeMs !== null && (
-                                <div className="rounded bg-indigo-100 px-2 py-1 text-xs font-medium text-indigo-800 opacity-70 dark:bg-indigo-900 dark:text-indigo-200">
-                                  {(generationTimeMs / 1000).toFixed(2)}s
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          {awsRequestId && (
-                            <div className="mb-2 flex items-center gap-1">
-                              <span className="text-xs font-medium opacity-60 dark:opacity-70">
-                                Request ID:
-                              </span>
-                              <span
-                                className="rounded bg-purple-100 px-1.5 py-0.5 font-mono text-xs text-purple-800 opacity-80 dark:bg-purple-900 dark:text-purple-200"
-                                title={`AWS Request ID: ${awsRequestId}`}
-                              >
-                                {awsRequestId.length > 20
-                                  ? `${awsRequestId.substring(0, 20)}...`
-                                  : awsRequestId}
-                              </span>
-                            </div>
-                          )}
-                          <div className="text-sm">
-                            {(() => {
-                              const renderedContent = renderMessageContent(content);
-                              if (typeof renderedContent === "string") {
-                                return renderedContent.trim() ? (
-                                  <ReactMarkdown
-                                    remarkPlugins={[remarkGfm]}
-                                    components={markdownComponents}
-                                  >
-                                    {renderedContent}
-                                  </ReactMarkdown>
-                                ) : null;
-                              }
-                              return renderedContent;
-                            })()}
-                          </div>
-                        </div>
-                      );
+                      return null;
                     }
-                    return null;
-                  })}
+                  )}
               </div>
             </div>
           )}

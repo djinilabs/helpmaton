@@ -37,7 +37,11 @@ export const ReasoningPart = memo<ReasoningPartProps>(({ text, isWidget }) => {
   // Skip redacted reasoning - don't display it
   // Check if text is exactly "[REDACTED]" or contains it (likely at the end)
   const trimmedText = text.trim();
-  if (trimmedText === "[REDACTED]" || trimmedText.endsWith("\n\n[REDACTED]") || trimmedText.endsWith("\n[REDACTED]")) {
+  if (
+    trimmedText === "[REDACTED]" ||
+    trimmedText.endsWith("\n\n[REDACTED]") ||
+    trimmedText.endsWith("\n[REDACTED]")
+  ) {
     return null;
   }
   // Remove [REDACTED] marker if present in the text
