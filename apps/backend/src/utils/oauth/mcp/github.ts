@@ -4,18 +4,27 @@ import { SignJWT, importPKCS8 } from "jose";
 
 import { getDefined } from "../../../utils";
 
-import {
-  buildMcpOAuthCallbackUrl,
-  generateMcpOAuthStateToken,
-} from "./common";
+import { buildMcpOAuthCallbackUrl, generateMcpOAuthStateToken } from "./common";
 import type { McpOAuthTokenInfo } from "./types";
+
+/**
+ * Error indicating that the user needs to reconnect their GitHub account
+ * (e.g., refresh token is invalid or expired)
+ */
+export class GitHubReconnectError extends Error {
+  constructor(message: string = "GitHub refresh token is invalid or expired. Please reconnect your GitHub account.") {
+    super(message);
+    this.name = "GitHubReconnectError";
+  }
+}
 
 const GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize";
 const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
 // GitHub OAuth scopes
-// Using 'repo' scope to support both public and private repositories
-// Note: GitHub doesn't have a read-only scope for private repos, but we'll implement only read operations
-const GITHUB_SCOPES = "repo";
+// Using 'public_repo' scope for read-only access to public repositories
+// Private repository access would require the broader 'repo' scope, but we restrict to public_repo
+// for better security alignment with read-only operations
+const GITHUB_SCOPES = "public_repo";
 
 export interface GithubTokenResponse {
   access_token: string;
@@ -27,13 +36,19 @@ export interface GithubTokenResponse {
 }
 
 /**
- * Generate a JWT for GitHub App authentication
+ * Generate a JWT for GitHub App authentication as a GitHub App (for installation token flows).
+ *
+ * This helper is ONLY intended for GitHub App installation token support, where a GitHub App
+ * authenticates as itself using a short-lived JWT. It MUST NOT be used in the standard
+ * GitHub OAuth web flow (i.e., the authorization code / access token exchange for users).
+ *
+ * For user OAuth flows, use client_secret authentication instead.
+ *
+ * @internal This function is exported for potential future use with installation tokens.
+ * Currently, it is not used in the OAuth flow implementation.
  */
-async function generateGithubAppJWT(): Promise<string> {
-  const appId = getDefined(
-    process.env.GH_APP_ID,
-    "GH_APP_ID is not set"
-  );
+export async function generateGithubAppJWT(): Promise<string> {
+  const appId = getDefined(process.env.GH_APP_ID, "GH_APP_ID is not set");
   const privateKey = getDefined(
     process.env.GH_APP_PRIVATE_KEY,
     "GH_APP_PRIVATE_KEY is not set"
@@ -42,7 +57,7 @@ async function generateGithubAppJWT(): Promise<string> {
   // Normalize the private key (ensure it has proper line breaks)
   // Handle keys that might be stored as a single line or with escaped newlines
   let normalizedKey = privateKey;
-  
+
   // If the key doesn't have line breaks, try to add them
   if (!normalizedKey.includes("\n") && !normalizedKey.includes("\\n")) {
     // If it's a base64 string without headers, we can't easily parse it
@@ -56,7 +71,10 @@ async function generateGithubAppJWT(): Promise<string> {
   // Ensure the key has proper PEM headers if missing
   if (!normalizedKey.includes("BEGIN")) {
     // If no headers, assume it's PKCS8 format
-    normalizedKey = `-----BEGIN PRIVATE KEY-----\n${normalizedKey.replace(/\s/g, "")}\n-----END PRIVATE KEY-----`;
+    normalizedKey = `-----BEGIN PRIVATE KEY-----\n${normalizedKey.replace(
+      /\s/g,
+      ""
+    )}\n-----END PRIVATE KEY-----`;
   }
 
   // Import the private key using jose
@@ -80,7 +98,9 @@ async function generateGithubAppJWT(): Promise<string> {
     } catch {
       // If both fail, the key is invalid
       throw new Error(
-        `Failed to import GitHub App private key. Please ensure it's in PKCS8 or RSA format. Original error: ${pkcs8Error instanceof Error ? pkcs8Error.message : String(pkcs8Error)}`
+        `Failed to import GitHub App private key. Please ensure it's in PKCS8 or RSA format. Original error: ${
+          pkcs8Error instanceof Error ? pkcs8Error.message : String(pkcs8Error)
+        }`
       );
     }
   }
@@ -135,20 +155,23 @@ export async function exchangeGithubCode(
     process.env.GH_APP_CLIENT_ID || process.env.GH_APP_ID,
     "GH_APP_CLIENT_ID or GH_APP_ID is not set"
   );
+  const clientSecret = getDefined(
+    process.env.GH_APP_CLIENT_SECRET,
+    "GH_APP_CLIENT_SECRET is not set"
+  );
   const redirectUri = buildMcpOAuthCallbackUrl("github");
 
-  // Generate JWT for GitHub App authentication
-  const jwt = await generateGithubAppJWT();
-
+  // GitHub Apps OAuth flow requires client_secret in the request body
+  // JWT authentication is only used for installation tokens, not user OAuth flows
   const response = await fetch(GITHUB_TOKEN_URL, {
     method: "POST",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      Authorization: `Bearer ${jwt}`,
     },
     body: JSON.stringify({
       client_id: clientId,
+      client_secret: clientSecret,
       code,
       redirect_uri: redirectUri,
     }),
@@ -216,10 +239,13 @@ export async function refreshGithubToken(
     process.env.GH_APP_CLIENT_ID || process.env.GH_APP_ID,
     "GH_APP_CLIENT_ID or GH_APP_ID is not set"
   );
+  const clientSecret = getDefined(
+    process.env.GH_APP_CLIENT_SECRET,
+    "GH_APP_CLIENT_SECRET is not set"
+  );
 
-  // Generate JWT for GitHub App authentication
-  const jwt = await generateGithubAppJWT();
-
+  // GitHub Apps OAuth refresh flow requires client_secret in the request body
+  // JWT authentication is only used for installation tokens, not user OAuth flows
   // Check if this looks like a refresh token (longer, different format) or an access token
   // If it's the same as what we'd use as a fallback, it might be an access token
   // Try to refresh it first, and if that fails, assume it's a non-expiring token
@@ -229,10 +255,10 @@ export async function refreshGithubToken(
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        Authorization: `Bearer ${jwt}`,
       },
       body: JSON.stringify({
         client_id: clientId,
+        client_secret: clientSecret,
         refresh_token: refreshToken,
         grant_type: "refresh_token",
       }),
@@ -268,13 +294,14 @@ export async function refreshGithubToken(
         error?: string;
         error_description?: string;
       };
-      if (errorData.error === "invalid_grant" || errorData.error === "invalid_request") {
+      if (
+        errorData.error === "invalid_grant" ||
+        errorData.error === "invalid_request"
+      ) {
         // This could mean:
         // 1. The refresh token is invalid/expired
         // 2. This is actually an access token (non-expiring token scenario)
-        specificError = new Error(
-          "GitHub refresh token is invalid or expired. Please reconnect your GitHub account."
-        );
+        specificError = new GitHubReconnectError();
       } else if (errorData.error_description) {
         errorMessage = errorData.error_description;
       } else if (errorData.error) {
@@ -282,8 +309,8 @@ export async function refreshGithubToken(
       }
     } catch (jsonError) {
       // Only catch JSON parsing errors, not intentional throws
-      // Check if this is a SyntaxError (JSON parsing failure) or our specific error
-      if (jsonError instanceof Error && jsonError.message.includes("reconnect")) {
+      // Check if this is our specific error class
+      if (jsonError instanceof GitHubReconnectError) {
         // This is our intentional error, re-throw it
         throw jsonError;
       }
@@ -296,16 +323,16 @@ export async function refreshGithubToken(
         // Ignore text parsing errors (body may already be consumed)
       }
     }
-    
+
     // If we have a specific error, throw it instead of the generic one
     if (specificError) {
       throw specificError;
     }
-    
+
     throw new Error(errorMessage);
   } catch (error) {
-    // Re-throw if it's already a helpful error message
-    if (error instanceof Error && error.message.includes("reconnect")) {
+    // Re-throw if it's already our specific error class
+    if (error instanceof GitHubReconnectError) {
       throw error;
     }
     // Otherwise, wrap it in a helpful error

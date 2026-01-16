@@ -176,22 +176,24 @@ export async function listRepositories(
     per_page?: number;
     page?: number;
   }
-): Promise<Array<{
-  id: number;
-  name: string;
-  full_name: string;
-  description?: string;
-  private: boolean;
-  html_url: string;
-  clone_url: string;
-  default_branch: string;
-  created_at: string;
-  updated_at: string;
-  pushed_at: string;
-  language?: string;
-  stargazers_count: number;
-  forks_count: number;
-}>> {
+): Promise<
+  Array<{
+    id: number;
+    name: string;
+    full_name: string;
+    description?: string;
+    private: boolean;
+    html_url: string;
+    clone_url: string;
+    default_branch: string;
+    created_at: string;
+    updated_at: string;
+    pushed_at: string;
+    language?: string;
+    stargazers_count: number;
+    forks_count: number;
+  }>
+> {
   const params = new URLSearchParams();
   if (options?.type) params.append("type", options.type);
   if (options?.sort) params.append("sort", options.sort);
@@ -248,24 +250,26 @@ export async function listIssues(
     per_page?: number;
     page?: number;
   }
-): Promise<Array<{
-  id: number;
-  number: number;
-  title: string;
-  body?: string;
-  state: string;
-  html_url: string;
-  created_at: string;
-  updated_at: string;
-  user: {
-    login: string;
-    avatar_url?: string;
-  };
-  labels: Array<{
-    name: string;
-    color?: string;
-  }>;
-}>> {
+): Promise<
+  Array<{
+    id: number;
+    number: number;
+    title: string;
+    body?: string;
+    state: string;
+    html_url: string;
+    created_at: string;
+    updated_at: string;
+    user: {
+      login: string;
+      avatar_url?: string;
+    };
+    labels: Array<{
+      name: string;
+      color?: string;
+    }>;
+  }>
+> {
   const params = new URLSearchParams();
   if (options?.state) params.append("state", options.state);
   if (options?.sort) params.append("sort", options.sort);
@@ -325,31 +329,33 @@ export async function listPullRequests(
     per_page?: number;
     page?: number;
   }
-): Promise<Array<{
-  id: number;
-  number: number;
-  title: string;
-  body?: string;
-  state: string;
-  html_url: string;
-  created_at: string;
-  updated_at: string;
-  merged_at?: string;
-  user: {
-    login: string;
-    avatar_url?: string;
-  };
-  head: {
-    ref: string;
-    sha: string;
-  };
-  base: {
-    ref: string;
-    sha: string;
-  };
-  mergeable?: boolean;
-  merged: boolean;
-}>> {
+): Promise<
+  Array<{
+    id: number;
+    number: number;
+    title: string;
+    body?: string;
+    state: string;
+    html_url: string;
+    created_at: string;
+    updated_at: string;
+    merged_at?: string;
+    user: {
+      login: string;
+      avatar_url?: string;
+    };
+    head: {
+      ref: string;
+      sha: string;
+    };
+    base: {
+      ref: string;
+      sha: string;
+    };
+    mergeable?: boolean;
+    merged: boolean;
+  }>
+> {
   const params = new URLSearchParams();
   if (options?.state) params.append("state", options.state);
   if (options?.sort) params.append("sort", options.sort);
@@ -469,32 +475,34 @@ export async function listCommits(
     per_page?: number;
     page?: number;
   }
-): Promise<Array<{
-  sha: string;
-  commit: {
-    message: string;
-    author: {
-      name: string;
-      email: string;
-      date: string;
+): Promise<
+  Array<{
+    sha: string;
+    commit: {
+      message: string;
+      author: {
+        name: string;
+        email: string;
+        date: string;
+      };
+      committer: {
+        name: string;
+        email: string;
+        date: string;
+      };
     };
-    committer: {
-      name: string;
-      email: string;
-      date: string;
+    author?: {
+      login: string;
+      avatar_url?: string;
     };
-  };
-  author?: {
-    login: string;
-    avatar_url?: string;
-  };
-  html_url: string;
-  stats?: {
-    additions: number;
-    deletions: number;
-    total: number;
-  };
-}>> {
+    html_url: string;
+    stats?: {
+      additions: number;
+      deletions: number;
+      total: number;
+    };
+  }>
+> {
   const params = new URLSearchParams();
   if (options?.sha) params.append("sha", options.sha);
   if (options?.path) params.append("path", options.path);

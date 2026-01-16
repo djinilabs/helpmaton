@@ -4,6 +4,7 @@ import {
   generateGithubAuthUrl,
   exchangeGithubCode,
   refreshGithubToken,
+  GitHubReconnectError,
 } from "../github";
 
 // Mock fetch
@@ -19,6 +20,7 @@ describe("GitHub OAuth Utilities", () => {
       ...originalEnv,
       GH_APP_ID: "123456",
       GH_APP_CLIENT_ID: "Iv1.8a61f9b3a7aba766",
+      GH_APP_CLIENT_SECRET: "github-client-secret-123",
       GH_APP_PRIVATE_KEY:
         "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAzIsntbwyfPPFxR/u4U13UXCZkIeDGYMAizz7KixY1S8te0rM\nVeEr41ko+vm0qgopBxT/LoM0CjAfYnIEJKjmKt0BDH9YF92/trHq/jFd6y7+qaoH\ntfeOpeOSsKeZofIxP5+He/JUAQe11KCJV6xxaBmDp2uHSRTmpOXnwyoe3EL7FOBn\nxbx2WnQdqsAdHszVx0GcIssjxYkqoFJXVvGvGufCrs8gbLJ6anuCtRInjpgeEqoS\n2mbqgtleFqrDQzzY+Djadhy2uD/qlkoP+kUYSdEjqK/uCxZqiPZeT9NeIj1QnHI5\n/wk/REuWrjBbFkabsJ3gOFdqAkrc67RHIz7JjQIDAQABAoIBAEKHME9H+xPxJe5L\nyKK3U4vFgxwjN1zg4xhmqTq6WdpdEen8FiIIrwGvSkj3Vu/Hhjird6RlQFQUBWE7\nvGVAGjzuzRyHftukYGrHy6sJ24ZXLrV4fDGPZ3JFZrzWhn3KDIKpHKQP2YrMJmMW\nJBXEHM7DHbMiokn5shsIPC2aUZdKDQADm9Ka9MTnFUSChcgHG728f0OwKp0/ZSTh\nQpOrJJ6EATAWIyN2u+i2oaOwWynlAqU/+kUCXf5CO9kLkLMqE00GA/JrnIJnNyDX\nnYV4/AN58YafdolySQJDz7LSAZRtAUPrglGwqnr1xOigPSI4bmKQuI/BnPwm3PrX\nBgmgrXECgYEA6uYjtAwXg/OFMhfefo7qNaeT2Bj1zEDRnGRW6B08kq/14Gljh7UY\njsUzkWSrzPKUpIqR0Hv9cGumftyQaRhBL7xge9GrSf7XXqzq8OjJ4Ts+wx+aUIUt\nwYHayesq0/ee3VhVd9d7vPuVTnVZRXh3ZKPcMNpHrQ6uro7AhtCN2x8CgYEA3ury\nXRWOwqcpyj1TilrjNGj7xOagqdcgu3vYX1yD3hdZdadhRwgXmR8HisVZ1FyA/oZJ\nKzO+5vzSk5L7cTGgjKlPcmGT+kVlvetnf/MvxqPahQnRMZ3SiGcUckD+MEGZPeIz\nEdY8IPYhREEKg1spFrtLCgLnwr49lCMpQZaV8dMCgYAWHkOAYZ8ZOqXxGJRHwHdH\nRBdEwtzqNbRHEJ+qTY51lYIGdoX7sk60qtb3Os5+htz+PVoLkpFDs69CxMwISVNi\nBk/jeNOzLP7kmE2rD5Bq1+RKBUDHkjLDxNFwL+ehe/CGkRnDJhQtsFbXw277fqNn\nY5KJOxSCtB44q5JvX1XsKwKBgCwqzvSEhfGpX01T006RbXz/5AqCS4j7N+ANzLQw\nR2xkofP+wvZo8wwCquLi8UZzQZeskai+qu9nXm2g7LLjy1SzYytdjA1FXMBBeRNP\n4sJvyqcbZ9h11bXy/okYuYRkKvGo9Mdu9CDvw22bmXKnSD/ZwidspfDe8qJ8SPtW\n08TDAoGBALafIqFLV7CIylVpdmIKw+aELhspXcagzR+bsawUre5nI6EicWL+X2rX\n2syRgjQU0vXNplrIwEZCDFF9NQ6K1ppRwxmTNF0+l9toZkiNL8F66MjSK7swbwKw\nxayVtM5F1AAFD2cX5kVeuwI3P0+/u5ft4nSXc1nKzxXuz1kjhbUa\n-----END RSA PRIVATE KEY-----",
       OAUTH_REDIRECT_BASE_URL: "https://app.helpmaton.com",
@@ -38,7 +40,7 @@ describe("GitHub OAuth Utilities", () => {
 
       expect(authUrl).toContain("https://github.com/login/oauth/authorize");
       expect(authUrl).toContain("client_id=Iv1.8a61f9b3a7aba766");
-      expect(authUrl).toContain("scope=repo");
+      expect(authUrl).toContain("scope=public_repo");
       expect(authUrl).toContain("redirect_uri=");
       expect(authUrl).toContain("state=");
     });
@@ -104,6 +106,14 @@ describe("GitHub OAuth Utilities", () => {
           body: expect.stringContaining("client_id"),
         })
       );
+
+      // Verify client_secret is in the body, not JWT in Authorization header
+      const callArgs = vi.mocked(fetch).mock.calls[0];
+      const headers = callArgs[1]?.headers as HeadersInit;
+      expect(headers).not.toHaveProperty("Authorization");
+      const body = JSON.parse(callArgs[1]?.body as string);
+      expect(body).toHaveProperty("client_secret", "github-client-secret-123");
+      expect(body).toHaveProperty("client_id", "Iv1.8a61f9b3a7aba766");
 
       expect(result.accessToken).toBe("github-access-token");
       expect(result.refreshToken).toBe("github-refresh-token");
@@ -235,19 +245,20 @@ describe("GitHub OAuth Utilities", () => {
       );
     });
 
-    it("should throw error if GH_APP_ID is not set", async () => {
+    it("should throw error if both GH_APP_ID and GH_APP_CLIENT_ID are not set", async () => {
       delete process.env.GH_APP_ID;
+      delete process.env.GH_APP_CLIENT_ID;
 
       await expect(exchangeGithubCode("code")).rejects.toThrow(
-        "GH_APP_ID is not set"
+        "GH_APP_CLIENT_ID or GH_APP_ID is not set"
       );
     });
 
-    it("should throw error if GH_APP_PRIVATE_KEY is not set", async () => {
-      delete process.env.GH_APP_PRIVATE_KEY;
+    it("should throw error if GH_APP_CLIENT_SECRET is not set", async () => {
+      delete process.env.GH_APP_CLIENT_SECRET;
 
       await expect(exchangeGithubCode("code")).rejects.toThrow(
-        "GH_APP_PRIVATE_KEY is not set"
+        "GH_APP_CLIENT_SECRET is not set"
       );
     });
 
@@ -318,6 +329,15 @@ describe("GitHub OAuth Utilities", () => {
       expect(result.accessToken).toBe("new-github-access-token");
       expect(result.refreshToken).toBe("new-github-refresh-token");
       expect(result.expiresAt).toBeDefined();
+
+      // Verify client_secret is in the body, not JWT in Authorization header
+      const callArgs = vi.mocked(fetch).mock.calls[0];
+      const headers = callArgs[1]?.headers as HeadersInit;
+      expect(headers).not.toHaveProperty("Authorization");
+      const body = JSON.parse(callArgs[1]?.body as string);
+      expect(body).toHaveProperty("client_secret", "github-client-secret-123");
+      expect(body).toHaveProperty("client_id", "Iv1.8a61f9b3a7aba766");
+      expect(body).toHaveProperty("grant_type", "refresh_token");
     });
 
     it("should handle refresh token that doesn't return new refresh token", async () => {
@@ -355,7 +375,7 @@ describe("GitHub OAuth Utilities", () => {
       } as Partial<Response> as Response);
 
       await expect(refreshGithubToken(refreshToken)).rejects.toThrow(
-        "GitHub refresh token is invalid or expired"
+        GitHubReconnectError
       );
     });
 
@@ -368,11 +388,11 @@ describe("GitHub OAuth Utilities", () => {
       );
     });
 
-    it("should throw error if GH_APP_ID is not set", async () => {
-      delete process.env.GH_APP_ID;
+    it("should throw error if GH_APP_CLIENT_SECRET is not set", async () => {
+      delete process.env.GH_APP_CLIENT_SECRET;
 
       await expect(refreshGithubToken("token")).rejects.toThrow(
-        "GH_APP_ID is not set"
+        "GH_APP_CLIENT_SECRET is not set"
       );
     });
   });
