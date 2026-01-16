@@ -120,8 +120,11 @@ function extractToolCallsFromStep(step: unknown): Array<{
 }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK step shapes vary
   const stepAny = step as any;
-  const toolCalls: Array<{ toolCallId: string; toolName: string; args: unknown }> =
-    [];
+  const toolCalls: Array<{
+    toolCallId: string;
+    toolName: string;
+    args: unknown;
+  }> = [];
 
   if (Array.isArray(stepAny?.toolCalls)) {
     for (const toolCall of stepAny.toolCalls) {
@@ -162,8 +165,11 @@ function extractToolResultsFromStep(step: unknown): Array<{
 }> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- AI SDK step shapes vary
   const stepAny = step as any;
-  const toolResults: Array<{ toolCallId: string; toolName: string; result: unknown }> =
-    [];
+  const toolResults: Array<{
+    toolCallId: string;
+    toolName: string;
+    result: unknown;
+  }> = [];
 
   if (Array.isArray(stepAny?.toolResults)) {
     for (const toolResult of stepAny.toolResults) {
