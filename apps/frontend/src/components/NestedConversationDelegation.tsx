@@ -1,9 +1,9 @@
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import { useState, type FC } from "react";
-import { Link } from "react-router-dom";
 
 import type { Delegation } from "../utils/api";
 
+import { AgentNameLink } from "./AgentNameLink";
 import { NestedConversation } from "./NestedConversation";
 
 interface NestedConversationDelegationProps {
@@ -28,15 +28,6 @@ export const NestedConversationDelegation: FC<NestedConversationDelegationProps>
   };
 
   const hasNestedConversation = !!delegation.targetConversationId;
-
-  // Debug logging
-  if (hasNestedConversation) {
-    console.log("[NestedConversationDelegation] Delegation has targetConversationId:", {
-      targetConversationId: delegation.targetConversationId,
-      targetAgentId: delegation.targetAgentId,
-      isExpanded,
-    });
-  }
 
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
@@ -74,23 +65,19 @@ export const NestedConversationDelegation: FC<NestedConversationDelegationProps>
           <span className="font-medium text-neutral-700 dark:text-neutral-300">
             From:{" "}
           </span>
-          <Link
-            to={`/workspaces/${workspaceId}/agents/${delegation.callingAgentId}`}
-            className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-          >
-            {delegation.callingAgentId}
-          </Link>
+          <AgentNameLink
+            workspaceId={workspaceId}
+            agentId={delegation.callingAgentId}
+          />
         </div>
         <div>
           <span className="font-medium text-neutral-700 dark:text-neutral-300">
             To:{" "}
           </span>
-          <Link
-            to={`/workspaces/${workspaceId}/agents/${delegation.targetAgentId}`}
-            className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-          >
-            {delegation.targetAgentId}
-          </Link>
+          <AgentNameLink
+            workspaceId={workspaceId}
+            agentId={delegation.targetAgentId}
+          />
         </div>
       </div>
 

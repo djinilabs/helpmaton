@@ -1,13 +1,22 @@
 import {
+  CheckCircleIcon,
+  ChatBubbleLeftRightIcon,
+  CpuChipIcon,
+  CurrencyDollarIcon,
   ChevronDownIcon,
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
-import { useState, type FC } from "react";
-import { Link } from "react-router-dom";
+import { useState, type FC, type JSX } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { useAgentConversationNested } from "../hooks/useAgentConversations";
 import type { Delegation } from "../utils/api";
+import { getCostColor } from "../utils/colorUtils";
+import { formatCurrency } from "../utils/currency";
+import { getMessageCost } from "../utils/messageCost";
 
+import { AgentNameLink } from "./AgentNameLink";
 import { NestedConversationDelegation } from "./NestedConversationDelegation";
 
 interface NestedConversationProps {
@@ -29,36 +38,282 @@ export const NestedConversation: FC<NestedConversationProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
   // Only fetch when expanded - lazy loading
-  const { data: conversation, isLoading, error } = useAgentConversationNested(
+  const {
+    data: conversation,
+    isLoading,
+    error,
+  } = useAgentConversationNested(
     workspaceId,
     agentId,
     conversationId,
     isExpanded // Only fetch when expanded
   );
 
-  // Debug logging
-  console.log("[NestedConversation] Render state:", {
-    workspaceId,
-    agentId,
-    conversationId,
-    isExpanded,
-    initialExpanded,
-    isLoading,
-    hasError: !!error,
-    hasConversation: !!conversation,
-  });
+  // Markdown components for rendering message content
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const markdownComponents: Record<string, React.ComponentType<any>> = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    code: (props: any) => {
+      const { className, children, ...rest } = props;
+      const isInline = !className || !className.includes("language-");
+      if (isInline) {
+        return (
+          <code
+            className="rounded-lg border-2 border-neutral-300 bg-neutral-100 px-2 py-1 font-mono text-xs font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+            {...rest}
+          >
+            {children}
+          </code>
+        );
+      }
+      return (
+        <code
+          className="block overflow-x-auto rounded-xl border-2 border-neutral-300 bg-neutral-100 p-5 font-mono text-sm font-bold dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+          {...rest}
+        >
+          {children}
+        </code>
+      );
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    p: ({ children }: any) => <p className="mb-2 last:mb-0">{children}</p>,
+  };
 
-  // Calculate indentation - use fixed Tailwind classes
-  const indentClasses = [
-    "",
-    "ml-4",
-    "ml-8",
-    "ml-12",
-    "ml-16",
-    "ml-20",
-  ];
-  const indentClass =
-    indentClasses[Math.min(depth, indentClasses.length - 1)] || "ml-20";
+  // Render message content (similar to ConversationDetailModal)
+  const renderMessageContent = (content: unknown): JSX.Element | string => {
+    if (typeof content === "string") {
+      return content;
+    }
+    if (Array.isArray(content)) {
+      return (
+        <div className="space-y-3">
+          {content.map((item, itemIndex) => {
+            if (typeof item === "string") {
+              // Skip redacted text - don't display it
+              if (item === "[REDACTED]") {
+                return null;
+              }
+              return (
+                <div key={itemIndex} className="text-sm">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {item}
+                  </ReactMarkdown>
+                </div>
+              );
+            }
+            if (typeof item === "object" && item !== null) {
+              // Tool call
+              if ("type" in item && item.type === "tool-call") {
+                const toolCall = item as {
+                  type: "tool-call";
+                  toolCallId?: string;
+                  toolName?: string;
+                  args?: unknown;
+                };
+                const toolName = toolCall.toolName || "unknown";
+                const args = toolCall.args || {};
+                return (
+                  <div
+                    key={itemIndex}
+                    className="rounded-xl border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950"
+                  >
+                    <div className="mb-2 text-xs font-medium text-blue-700 dark:text-blue-300">
+                      🔧 Tool Call: {toolName}
+                    </div>
+                    <details className="text-xs">
+                      <summary className="cursor-pointer font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
+                        View arguments
+                      </summary>
+                      <div className="mt-2">
+                        <pre className="overflow-x-auto rounded bg-blue-100 p-2 text-xs dark:bg-blue-900 dark:text-blue-50">
+                          {JSON.stringify(args, null, 2)}
+                        </pre>
+                      </div>
+                    </details>
+                  </div>
+                );
+              }
+              // Tool result
+              if ("type" in item && item.type === "tool-result") {
+                const toolResult = item as {
+                  type: "tool-result";
+                  toolCallId?: string;
+                  toolName?: string;
+                  result?: unknown;
+                  costUsd?: number;
+                };
+                const toolName = toolResult.toolName || "unknown";
+                const result = toolResult.result;
+                const hasResult = result !== undefined;
+                return (
+                  <div
+                    key={itemIndex}
+                    className="rounded-xl border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950"
+                  >
+                    <div className="mb-2 flex items-center gap-2 text-xs font-medium text-green-700 dark:text-green-300">
+                      <CheckCircleIcon className="size-3" />
+                      Tool Result: {toolName}
+                    </div>
+                    {hasResult && (
+                      <details className="text-xs">
+                        <summary className="cursor-pointer font-medium text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300">
+                          View result
+                        </summary>
+                        <div className="mt-2">
+                          {typeof result === "string" ? (
+                            <div className="rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={markdownComponents}
+                              >
+                                {result}
+                              </ReactMarkdown>
+                            </div>
+                          ) : (
+                            <pre className="overflow-x-auto rounded bg-green-100 p-2 text-xs dark:bg-green-900 dark:text-green-50">
+                              {JSON.stringify(result, null, 2)}
+                            </pre>
+                          )}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                );
+              }
+              // Reasoning content - skip redacted reasoning
+              if ("type" in item && item.type === "reasoning" && "text" in item) {
+                const reasoningItem = item as {
+                  type: "reasoning";
+                  text: string;
+                };
+                // Skip redacted reasoning - don't display it
+                // Check if text is exactly "[REDACTED]" or contains it (likely at the end)
+                const trimmedText = reasoningItem.text.trim();
+                if (trimmedText === "[REDACTED]" || trimmedText.endsWith("\n\n[REDACTED]") || trimmedText.endsWith("\n[REDACTED]")) {
+                  return null;
+                }
+                // Remove [REDACTED] marker if present in the text
+                let cleanedText = reasoningItem.text;
+                cleanedText = cleanedText.replace(/\n*\s*\[REDACTED\]\s*$/g, "").trim();
+                // If after cleaning the text is empty, skip it
+                if (!cleanedText) {
+                  return null;
+                }
+                return (
+                  <div
+                    key={itemIndex}
+                    className="rounded-xl border border-indigo-200 bg-indigo-50 p-3 dark:border-indigo-800 dark:bg-indigo-950"
+                  >
+                    <div className="mb-2 flex items-center gap-2 text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                      <CpuChipIcon className="size-4" />
+                      🧠 Reasoning
+                    </div>
+                    <div className="overflow-x-auto whitespace-pre-wrap break-words rounded bg-indigo-100 p-2 text-xs text-indigo-900 dark:bg-indigo-900 dark:text-indigo-100">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={markdownComponents}
+                      >
+                        {cleanedText}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                );
+              }
+              // Delegation content
+              if ("type" in item && item.type === "delegation") {
+                const delegationItem = item as {
+                  type: "delegation";
+                  toolCallId?: string;
+                  callingAgentId: string;
+                  targetAgentId: string;
+                  targetConversationId?: string;
+                  status: "completed" | "failed" | "cancelled";
+                  timestamp: string;
+                  taskId?: string;
+                };
+                return (
+                  <div
+                    key={itemIndex}
+                    className="rounded-xl border border-orange-200 bg-orange-50 p-3 dark:border-orange-800 dark:bg-orange-950"
+                  >
+                    <div className="mb-2 flex items-center gap-2 text-xs font-medium text-orange-700 dark:text-orange-300">
+                      <ChatBubbleLeftRightIcon className="size-4" />
+                      Delegation
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="font-medium text-orange-700 dark:text-orange-300">
+                          From:{" "}
+                        </span>
+                        <AgentNameLink
+                          workspaceId={workspaceId}
+                          agentId={delegationItem.callingAgentId}
+                        />
+                      </div>
+                      <div>
+                        <span className="font-medium text-orange-700 dark:text-orange-300">
+                          To:{" "}
+                        </span>
+                        <AgentNameLink
+                          workspaceId={workspaceId}
+                          agentId={delegationItem.targetAgentId}
+                        />
+                      </div>
+                    </div>
+                    {delegationItem.targetConversationId && (
+                      <div className="mt-2">
+                        <NestedConversationDelegation
+                          workspaceId={workspaceId}
+                          delegation={{
+                            callingAgentId: delegationItem.callingAgentId,
+                            targetAgentId: delegationItem.targetAgentId,
+                            targetConversationId: delegationItem.targetConversationId,
+                            status: delegationItem.status,
+                            timestamp: delegationItem.timestamp,
+                            taskId: delegationItem.taskId,
+                          }}
+                          depth={depth + 1}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              // Text content - skip redacted text
+              if ("text" in item && typeof item.text === "string") {
+                // Skip redacted text - don't display it
+                if (item.text === "[REDACTED]") {
+                  return null;
+                }
+                return (
+                  <div key={itemIndex} className="text-sm">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={markdownComponents}
+                    >
+                      {item.text}
+                    </ReactMarkdown>
+                  </div>
+                );
+              }
+            }
+            return (
+              <div key={itemIndex} className="text-xs text-neutral-500">
+                {JSON.stringify(item)}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+    return JSON.stringify(content, null, 2);
+  };
+
+  // No indentation for nested conversations
+  const indentClass = "";
 
   const borderColor =
     depth % 2 === 0
@@ -73,9 +328,7 @@ export const NestedConversation: FC<NestedConversationProps> = ({
   if (isExpanded && isLoading) {
     return (
       <div className={`${indentClass} mt-2`}>
-        <div
-          className={`rounded-lg border ${borderColor} ${bgColor} p-4`}
-        >
+        <div className={`rounded-lg border ${borderColor} ${bgColor} p-4`}>
           <div className="flex items-center gap-3">
             <div className="size-5 animate-spin rounded-full border-2 border-neutral-300 border-t-primary-600 dark:border-neutral-600 dark:border-t-primary-400" />
             <div className="text-sm text-neutral-600 dark:text-neutral-400">
@@ -128,13 +381,17 @@ export const NestedConversation: FC<NestedConversationProps> = ({
               <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
                 Conversation: {conversationId.substring(0, 8)}...
               </span>
-              <Link
-                to={`/workspaces/${workspaceId}/agents/${agentId}`}
-                className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+              <span
+                className="text-xs text-primary-600 dark:text-primary-400"
                 onClick={(e) => e.stopPropagation()}
               >
-                Agent: {agentId}
-              </Link>
+                Agent:{" "}
+                <AgentNameLink
+                  workspaceId={workspaceId}
+                  agentId={agentId}
+                  className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                />
+              </span>
             </div>
             <span className="text-xs text-neutral-500 dark:text-neutral-400">
               Click to expand
@@ -161,7 +418,10 @@ export const NestedConversation: FC<NestedConversationProps> = ({
             <br />
             Workspace ID: {workspaceId}
             <br />
-            Query enabled: {String(isExpanded && !!workspaceId && !!agentId && !!conversationId)}
+            Query enabled:{" "}
+            {String(
+              isExpanded && !!workspaceId && !!agentId && !!conversationId
+            )}
           </div>
         </div>
       </div>
@@ -190,13 +450,17 @@ export const NestedConversation: FC<NestedConversationProps> = ({
             <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-50">
               Conversation: {conversationId.substring(0, 8)}...
             </span>
-            <Link
-              to={`/workspaces/${workspaceId}/agents/${agentId}`}
-              className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+            <span
+              className="text-xs text-primary-600 dark:text-primary-400"
               onClick={(e) => e.stopPropagation()}
             >
-              Agent: {agentId}
-            </Link>
+              Agent:{" "}
+              <AgentNameLink
+                workspaceId={workspaceId}
+                agentId={agentId}
+                className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+              />
+            </span>
           </div>
           {hasDelegations && (
             <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-800 dark:bg-primary-900 dark:text-primary-200">
@@ -211,7 +475,7 @@ export const NestedConversation: FC<NestedConversationProps> = ({
           {parentDelegation && (
             <div className="mb-3 rounded-lg border border-orange-200 bg-orange-50 p-3 dark:border-orange-800 dark:bg-orange-950">
               <div className="mb-2 flex items-center gap-2 text-xs font-medium text-orange-700 dark:text-orange-300">
-                <span>🔄 Created by Delegation</span>
+                <span>Created by Delegation</span>
                 <span
                   className={`rounded border px-2 py-1 text-xs font-semibold ${
                     parentDelegation.status === "completed"
@@ -229,23 +493,19 @@ export const NestedConversation: FC<NestedConversationProps> = ({
                   <span className="font-medium text-orange-700 dark:text-orange-300">
                     From:{" "}
                   </span>
-                  <Link
-                    to={`/workspaces/${workspaceId}/agents/${parentDelegation.callingAgentId}`}
-                    className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-                  >
-                    {parentDelegation.callingAgentId}
-                  </Link>
+                  <AgentNameLink
+                    workspaceId={workspaceId}
+                    agentId={parentDelegation.callingAgentId}
+                  />
                 </div>
                 <div>
                   <span className="font-medium text-orange-700 dark:text-orange-300">
                     To:{" "}
                   </span>
-                  <Link
-                    to={`/workspaces/${workspaceId}/agents/${parentDelegation.targetAgentId}`}
-                    className="font-medium text-primary-600 transition-colors hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-                  >
-                    {parentDelegation.targetAgentId}
-                  </Link>
+                  <AgentNameLink
+                    workspaceId={workspaceId}
+                    agentId={parentDelegation.targetAgentId}
+                  />
                 </div>
               </div>
               {parentDelegation.taskId && (
@@ -262,7 +522,9 @@ export const NestedConversation: FC<NestedConversationProps> = ({
           <div className="text-xs text-neutral-600 dark:text-neutral-400">
             <div>
               Type:{" "}
-              <span className="font-medium">{conversation.conversationType}</span>
+              <span className="font-medium">
+                {conversation.conversationType}
+              </span>
             </div>
             <div>
               Messages:{" "}
@@ -279,6 +541,463 @@ export const NestedConversation: FC<NestedConversationProps> = ({
               </div>
             )}
           </div>
+
+          {/* Costs */}
+          {(() => {
+            // Calculate token-based cost from messages
+            let tokenBasedCostMillionths = 0;
+            let hasFinalCost = false;
+            let hasProvisionalCost = false;
+            let hasCalculatedCost = false;
+
+            if (conversation.messages && Array.isArray(conversation.messages)) {
+              for (const message of conversation.messages) {
+                const messageCost = getMessageCost(message);
+                if (messageCost?.costUsd !== undefined) {
+                  tokenBasedCostMillionths += messageCost.costUsd;
+                  if (messageCost.isFinal === true) {
+                    hasFinalCost = true;
+                  } else if (messageCost.isFinal === false) {
+                    hasProvisionalCost = true;
+                  } else {
+                    hasCalculatedCost = true;
+                  }
+                }
+              }
+            }
+
+            // Determine overall status
+            let isFinal: boolean | undefined;
+            if (hasProvisionalCost) {
+              isFinal = false;
+            } else if (hasFinalCost && !hasCalculatedCost) {
+              isFinal = true;
+            } else {
+              isFinal = undefined;
+            }
+
+            const tokenBasedCost =
+              tokenBasedCostMillionths > 0
+                ? { cost: tokenBasedCostMillionths, isFinal }
+                : undefined;
+
+            // Get conversation cost if available
+            const conversationCostUsd = conversation.costUsd;
+            const rerankingCostUsd = conversation.rerankingCostUsd;
+
+            // Calculate total cost
+            let totalCostMillionths = 0;
+            let totalIsFinal: boolean | undefined;
+            if (tokenBasedCost) {
+              totalCostMillionths += tokenBasedCost.cost;
+              totalIsFinal = tokenBasedCost.isFinal;
+            }
+            if (conversationCostUsd !== undefined) {
+              totalCostMillionths += conversationCostUsd;
+              // Conversation cost from backend is typically final
+              if (totalIsFinal === undefined) {
+                totalIsFinal = true;
+              }
+            }
+            if (rerankingCostUsd !== undefined && rerankingCostUsd !== null) {
+              totalCostMillionths += rerankingCostUsd;
+              // Reranking cost is typically final
+              if (totalIsFinal === undefined) {
+                totalIsFinal = true;
+              }
+            }
+
+            const totalCost =
+              totalCostMillionths > 0
+                ? { cost: totalCostMillionths, isFinal: totalIsFinal }
+                : undefined;
+
+            const hasAnyCost =
+              tokenBasedCost !== undefined ||
+              conversationCostUsd !== undefined ||
+              (rerankingCostUsd !== undefined && rerankingCostUsd !== null);
+
+            if (!hasAnyCost) {
+              return null;
+            }
+
+            return (
+              <div className="mt-3 space-y-2">
+                <div className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+                  Costs:
+                </div>
+                {totalCost && (
+                  <div className="mb-2">
+                    <div className="mb-1 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                      Total Cost
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
+                        totalCost.cost / 1_000_000
+                      )}`}
+                    >
+                      <CurrencyDollarIcon className="size-3" />
+                      {formatCurrency(totalCost.cost, "usd", 10)}
+                      {totalCost.isFinal === true && (
+                        <span className="ml-1 text-[10px]">✓</span>
+                      )}
+                      {totalCost.isFinal === false && (
+                        <span className="ml-1 text-[10px]">(provisional)</span>
+                      )}
+                    </span>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  {tokenBasedCost && (
+                    <div>
+                      <div className="mb-1 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                        Token-Based
+                      </div>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
+                          tokenBasedCost.cost / 1_000_000
+                        )}`}
+                      >
+                        <CurrencyDollarIcon className="size-3" />
+                        {formatCurrency(tokenBasedCost.cost, "usd", 10)}
+                        {tokenBasedCost.isFinal === true && (
+                          <span className="ml-1 text-[10px]">✓</span>
+                        )}
+                        {tokenBasedCost.isFinal === false && (
+                          <span className="ml-1 text-[10px]">(provisional)</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  {conversationCostUsd !== undefined && (
+                    <div>
+                      <div className="mb-1 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                        Conversation
+                      </div>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
+                          conversationCostUsd / 1_000_000
+                        )}`}
+                      >
+                        <CurrencyDollarIcon className="size-3" />
+                        {formatCurrency(conversationCostUsd, "usd", 10)}
+                        <span className="ml-1 text-[10px]">✓</span>
+                      </span>
+                    </div>
+                  )}
+                  {rerankingCostUsd !== undefined &&
+                    rerankingCostUsd !== null && (
+                      <div>
+                        <div className="mb-1 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+                          Reranking
+                        </div>
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-xs font-semibold ${getCostColor(
+                            rerankingCostUsd / 1_000_000
+                          )}`}
+                        >
+                          <CurrencyDollarIcon className="size-3" />
+                          {formatCurrency(rerankingCostUsd, "usd", 10)}
+                          <span className="ml-1 text-[10px]">✓</span>
+                        </span>
+                      </div>
+                    )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Messages */}
+          {conversation.messages && conversation.messages.length > 0 && (
+            <div className="mt-3 space-y-2">
+              <div className="text-xs font-semibold text-neutral-700 dark:text-neutral-300">
+                Messages:
+              </div>
+              <div className="space-y-4">
+                {Array.isArray(conversation.messages) &&
+                  conversation.messages.map((message: unknown, index: number) => {
+                    if (
+                      typeof message === "object" &&
+                      message !== null &&
+                      "role" in message &&
+                      "content" in message
+                    ) {
+                      const role = message.role as string;
+                      const content = message.content;
+
+                      // Check if this is a knowledge injection message
+                      const isKnowledgeInjection =
+                        role === "user" &&
+                        "knowledgeInjection" in message &&
+                        (message as { knowledgeInjection?: boolean })
+                          .knowledgeInjection === true;
+
+                      // Get snippet count for knowledge injection messages
+                      const snippetCount =
+                        isKnowledgeInjection &&
+                        "knowledgeSnippets" in message &&
+                        Array.isArray(
+                          (message as { knowledgeSnippets?: unknown })
+                            .knowledgeSnippets
+                        )
+                          ? (message as { knowledgeSnippets: unknown[] })
+                              .knowledgeSnippets.length
+                          : 0;
+
+                      // Special rendering for knowledge injection messages
+                      if (isKnowledgeInjection) {
+                        const knowledgeMessage = message as {
+                          role: "user";
+                          content?:
+                            | string
+                            | Array<{ type: string; text?: string }>;
+                          knowledgeInjection?: boolean;
+                          knowledgeSnippets?: Array<{
+                            snippet: string;
+                            documentName: string;
+                            documentId: string;
+                            folderPath: string;
+                            similarity: number;
+                          }>;
+                        };
+
+                        const snippets =
+                          knowledgeMessage.knowledgeSnippets || [];
+
+                        return (
+                          <div key={index} className="max-w-full">
+                            <details className="rounded-xl border border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950">
+                              <summary className="cursor-pointer p-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg">📚</span>
+                                  <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                                    Knowledge from workspace documents
+                                    {snippetCount > 0 &&
+                                      ` (${snippetCount} snippet${
+                                        snippetCount !== 1 ? "s" : ""
+                                      })`}
+                                  </span>
+                                </div>
+                              </summary>
+                              <div className="border-t border-purple-200 p-4 dark:border-purple-800">
+                                <div className="space-y-3">
+                                  {snippets.length > 0 ? (
+                                    snippets.map((snippet, snippetIndex) => {
+                                      const similarityPercent = (
+                                        snippet.similarity * 100
+                                      ).toFixed(1);
+                                      return (
+                                        <details
+                                          key={snippetIndex}
+                                          className="rounded-lg border border-purple-300 bg-purple-100 dark:border-purple-700 dark:bg-purple-900"
+                                        >
+                                          <summary className="cursor-pointer p-3">
+                                            <div className="flex items-start justify-between gap-2">
+                                              <div className="flex-1">
+                                                <div className="text-xs font-semibold text-purple-800 dark:text-purple-200">
+                                                  {snippet.documentName}
+                                                  {snippet.folderPath && (
+                                                    <span className="ml-2 font-normal text-purple-600 dark:text-purple-400">
+                                                      ({snippet.folderPath})
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                <div className="mt-1 text-xs text-purple-700 dark:text-purple-300">
+                                                  Similarity:{" "}
+                                                  {similarityPercent}%
+                                                </div>
+                                              </div>
+                                              <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
+                                                #{snippetIndex + 1}
+                                              </span>
+                                            </div>
+                                          </summary>
+                                          <div className="border-t border-purple-300 p-3 dark:border-purple-700">
+                                            <div className="text-sm text-purple-900 dark:text-purple-100">
+                                              <ReactMarkdown
+                                                remarkPlugins={[remarkGfm]}
+                                                components={markdownComponents}
+                                              >
+                                                {snippet.snippet}
+                                              </ReactMarkdown>
+                                            </div>
+                                          </div>
+                                        </details>
+                                      );
+                                    })
+                                  ) : (
+                                    <div className="text-sm text-purple-700 dark:text-purple-300">
+                                      No snippets available
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </details>
+                          </div>
+                        );
+                      }
+
+                      // Format token usage helper
+                      const formatTokenUsage = (tokenUsage: unknown): string | null => {
+                        if (
+                          !tokenUsage ||
+                          typeof tokenUsage !== "object" ||
+                          !("totalTokens" in tokenUsage)
+                        ) {
+                          return null;
+                        }
+                        const usage = tokenUsage as {
+                          promptTokens?: number;
+                          completionTokens?: number;
+                          totalTokens?: number;
+                          reasoningTokens?: number;
+                          cachedPromptTokens?: number;
+                        };
+                        if (typeof usage.totalTokens !== "number") {
+                          return null;
+                        }
+                        const parts: string[] = [];
+                        if (typeof usage.promptTokens === "number") {
+                          parts.push(`Prompt: ${usage.promptTokens.toLocaleString()}`);
+                        }
+                        if (typeof usage.completionTokens === "number") {
+                          parts.push(`Completion: ${usage.completionTokens.toLocaleString()}`);
+                        }
+                        if (
+                          typeof usage.reasoningTokens === "number" &&
+                          usage.reasoningTokens > 0
+                        ) {
+                          parts.push(`Reasoning: ${usage.reasoningTokens.toLocaleString()}`);
+                        }
+                        if (
+                          typeof usage.cachedPromptTokens === "number" &&
+                          usage.cachedPromptTokens > 0
+                        ) {
+                          parts.push(`Cached: ${usage.cachedPromptTokens.toLocaleString()}`);
+                        }
+                        const total = usage.totalTokens.toLocaleString();
+                        return parts.length > 0 ? `${total} (${parts.join(", ")})` : total;
+                      };
+
+                      const tokenUsage =
+                        "tokenUsage" in message
+                          ? formatTokenUsage(message.tokenUsage)
+                          : null;
+                      const modelName =
+                        role === "assistant" &&
+                        "modelName" in message &&
+                        typeof message.modelName === "string"
+                          ? message.modelName
+                          : null;
+                      const provider =
+                        role === "assistant" &&
+                        "provider" in message &&
+                        typeof message.provider === "string"
+                          ? message.provider
+                          : null;
+                      // Use getMessageCost() helper to get best available cost
+                      const messageCost = getMessageCost(message);
+                      const costUsd = messageCost?.costUsd;
+                      const isFinal = messageCost?.isFinal;
+                      const awsRequestId =
+                        "awsRequestId" in message &&
+                        typeof message.awsRequestId === "string"
+                          ? message.awsRequestId
+                          : null;
+                      const generationTimeMs =
+                        role === "assistant" &&
+                        "generationTimeMs" in message &&
+                        typeof message.generationTimeMs === "number"
+                          ? message.generationTimeMs
+                          : null;
+
+                      return (
+                        <div
+                          key={index}
+                          className={`rounded-xl p-4 ${
+                            role === "user"
+                              ? "bg-gradient-primary text-white"
+                              : role === "assistant"
+                              ? "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                              : "border border-neutral-200 bg-neutral-50 text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50"
+                          }`}
+                        >
+                          <div className="mb-2 flex items-center justify-between">
+                            <div className="text-xs font-medium opacity-80 dark:opacity-90">
+                              {role}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {modelName && provider && (
+                                <div className="rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 opacity-70 dark:bg-blue-900 dark:text-blue-200">
+                                  {provider}/{modelName}
+                                </div>
+                              )}
+                              {tokenUsage && (
+                                <div className="rounded bg-black bg-opacity-10 px-2 py-1 font-mono text-xs opacity-70 dark:bg-white dark:bg-opacity-10 dark:text-neutral-200">
+                                  {tokenUsage}
+                                </div>
+                              )}
+                              {costUsd !== undefined && (
+                                <div
+                                  className={`rounded px-2 py-1 text-xs font-medium opacity-70 ${
+                                    isFinal === true
+                                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                      : isFinal === false
+                                      ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                                      : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+                                  }`}
+                                >
+                                  {formatCurrency(costUsd, "usd", 10)}
+                                  {isFinal === true && " ✓"}
+                                  {isFinal === false && " (provisional)"}
+                                </div>
+                              )}
+                              {generationTimeMs !== null && (
+                                <div className="rounded bg-indigo-100 px-2 py-1 text-xs font-medium text-indigo-800 opacity-70 dark:bg-indigo-900 dark:text-indigo-200">
+                                  {(generationTimeMs / 1000).toFixed(2)}s
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {awsRequestId && (
+                            <div className="mb-2 flex items-center gap-1">
+                              <span className="text-xs font-medium opacity-60 dark:opacity-70">
+                                Request ID:
+                              </span>
+                              <span
+                                className="rounded bg-purple-100 px-1.5 py-0.5 font-mono text-xs text-purple-800 opacity-80 dark:bg-purple-900 dark:text-purple-200"
+                                title={`AWS Request ID: ${awsRequestId}`}
+                              >
+                                {awsRequestId.length > 20
+                                  ? `${awsRequestId.substring(0, 20)}...`
+                                  : awsRequestId}
+                              </span>
+                            </div>
+                          )}
+                          <div className="text-sm">
+                            {(() => {
+                              const renderedContent = renderMessageContent(content);
+                              if (typeof renderedContent === "string") {
+                                return renderedContent.trim() ? (
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    components={markdownComponents}
+                                  >
+                                    {renderedContent}
+                                  </ReactMarkdown>
+                                ) : null;
+                              }
+                              return renderedContent;
+                            })()}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
+              </div>
+            </div>
+          )}
 
           {hasDelegations && (
             <div className="mt-3 space-y-2">

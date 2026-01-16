@@ -350,7 +350,9 @@ async function processDiscordTask(
       for (const toolResultMsg of toolResultMessages) {
         if (Array.isArray(toolResultMsg.content)) {
           for (const contentItem of toolResultMsg.content) {
-            assistantContent.push(contentItem as typeof assistantContent[number]);
+            assistantContent.push(
+              contentItem as (typeof assistantContent)[number]
+            );
           }
         }
       }
@@ -953,7 +955,9 @@ async function processSlackTask(
       for (const toolResultMsg of toolResultMessages) {
         if (Array.isArray(toolResultMsg.content)) {
           for (const contentItem of toolResultMsg.content) {
-            assistantContent.push(contentItem as typeof assistantContent[number]);
+            assistantContent.push(
+              contentItem as (typeof assistantContent)[number]
+            );
           }
         }
       }

@@ -348,6 +348,10 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
         <div className="space-y-3">
           {content.map((item, itemIndex) => {
             if (typeof item === "string") {
+              // Skip redacted text - don't display it
+              if (item === "[REDACTED]") {
+                return null;
+              }
               return (
                 <div key={itemIndex} className="text-sm">
                   <ReactMarkdown
@@ -470,13 +474,25 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                   </div>
                 );
               }
-              // Reasoning content
+              // Reasoning content - skip redacted reasoning
               if ("type" in item && item.type === "reasoning" && "text" in item) {
                 const reasoningItem = item as {
                   type: "reasoning";
                   text: string;
                 };
-                const isRedacted = reasoningItem.text === "[REDACTED]";
+                // Skip redacted reasoning - don't display it
+                // Check if text is exactly "[REDACTED]" or contains it (likely at the end)
+                const trimmedText = reasoningItem.text.trim();
+                if (trimmedText === "[REDACTED]" || trimmedText.endsWith("\n\n[REDACTED]") || trimmedText.endsWith("\n[REDACTED]")) {
+                  return null;
+                }
+                // Remove [REDACTED] marker if present in the text
+                let cleanedText = reasoningItem.text;
+                cleanedText = cleanedText.replace(/\n*\s*\[REDACTED\]\s*$/g, "").trim();
+                // If after cleaning the text is empty, skip it
+                if (!cleanedText) {
+                  return null;
+                }
                 return (
                   <div
                     key={itemIndex}
@@ -484,36 +500,24 @@ export const ConversationTemporalGraph: FC<ConversationTemporalGraphProps> = ({
                   >
                     <div className="mb-2 flex items-center gap-2 text-xs font-medium text-indigo-700 dark:text-indigo-300">
                       🧠 Reasoning
-                      {isRedacted && (
-                        <span className="text-xs text-indigo-600 dark:text-indigo-400">
-                          (Redacted)
-                        </span>
-                      )}
                     </div>
-                    {isRedacted ? (
-                      <div className="rounded bg-indigo-100 p-2 text-xs text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
-                        <p className="mb-1 font-medium">
-                          Reasoning content is redacted
-                        </p>
-                        <p className="text-xs">
-                          The reasoning process is hidden by default.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto whitespace-pre-wrap break-words rounded bg-indigo-100 p-2 text-xs text-indigo-900 dark:bg-indigo-900 dark:text-indigo-100">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={markdownComponents}
-                        >
-                          {reasoningItem.text}
-                        </ReactMarkdown>
-                      </div>
-                    )}
+                    <div className="overflow-x-auto whitespace-pre-wrap break-words rounded bg-indigo-100 p-2 text-xs text-indigo-900 dark:bg-indigo-900 dark:text-indigo-100">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={markdownComponents}
+                      >
+                        {cleanedText}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 );
               }
-              // Text content
+              // Text content - skip redacted text
               if ("text" in item && typeof item.text === "string") {
+                // Skip redacted text - don't display it
+                if (item.text === "[REDACTED]") {
+                  return null;
+                }
                 return (
                   <div key={itemIndex} className="text-sm">
                     <ReactMarkdown
