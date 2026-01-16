@@ -7,6 +7,7 @@ import { updateDiscordMessage } from "../../http/any-api-webhooks-000type-000wor
 import { updateSlackMessage } from "../../http/any-api-webhooks-000type-000workspaceId-000integrationId/services/slackResponse";
 import { callAgentNonStreaming } from "../../http/utils/agentCallNonStreaming";
 import { reconstructToolCallsFromResults } from "../../http/utils/generationToolReconstruction";
+import { buildConversationMessagesFromObserver } from "../../http/utils/llmObserver";
 import { convertTextToUIMessage } from "../../http/utils/messageConversion";
 import {
   formatToolCallMessage,
@@ -381,26 +382,44 @@ async function processDiscordTask(
           ? agent.modelName
           : "openrouter/gemini-2.0-flash-exp";
 
-      const assistantMessage: UIMessage = {
-        role: "assistant",
-        content:
-          assistantContent.length > 0 ? assistantContent : responseText || "",
-        ...(agentResult.tokenUsage && { tokenUsage: agentResult.tokenUsage }),
-        modelName: finalModelName,
-        provider: "openrouter",
-        ...(agentResult.openrouterGenerationId && {
-          openrouterGenerationId: agentResult.openrouterGenerationId,
-        }),
-        ...(agentResult.provisionalCostUsd !== undefined && {
-          provisionalCostUsd: agentResult.provisionalCostUsd,
-        }),
-        ...(generationTimeMs !== undefined && { generationTimeMs }),
-        ...(generationStartedAt && { generationStartedAt }),
-        ...(generationEndedAt && { generationEndedAt }),
-      };
-
       const userMessage = convertTextToUIMessage(messageText);
-      const messagesForLogging: UIMessage[] = [userMessage, assistantMessage];
+      const messagesForLogging: UIMessage[] = agentResult.observerEvents
+        ? buildConversationMessagesFromObserver({
+            observerEvents: agentResult.observerEvents,
+            fallbackInputMessages: [userMessage],
+            assistantMeta: {
+              tokenUsage: agentResult.tokenUsage,
+              modelName: finalModelName,
+              provider: "openrouter",
+              openrouterGenerationId: agentResult.openrouterGenerationId,
+              provisionalCostUsd: agentResult.provisionalCostUsd,
+              generationTimeMs,
+            },
+          })
+        : [
+            userMessage,
+            {
+              role: "assistant",
+              content:
+                assistantContent.length > 0
+                  ? assistantContent
+                  : responseText || "",
+              ...(agentResult.tokenUsage && {
+                tokenUsage: agentResult.tokenUsage,
+              }),
+              modelName: finalModelName,
+              provider: "openrouter",
+              ...(agentResult.openrouterGenerationId && {
+                openrouterGenerationId: agentResult.openrouterGenerationId,
+              }),
+              ...(agentResult.provisionalCostUsd !== undefined && {
+                provisionalCostUsd: agentResult.provisionalCostUsd,
+              }),
+              ...(generationTimeMs !== undefined && { generationTimeMs }),
+              ...(generationStartedAt && { generationStartedAt }),
+              ...(generationEndedAt && { generationEndedAt }),
+            },
+          ];
 
       const validMessages: UIMessage[] = messagesForLogging.filter(
         (msg): msg is UIMessage =>
@@ -986,31 +1005,46 @@ async function processSlackTask(
           ? agent.modelName
           : "openrouter/gemini-2.0-flash-exp";
 
-      const assistantMessage: UIMessage = {
-        role: "assistant",
-        content:
-          assistantContent.length > 0 ? assistantContent : responseText || "",
-        ...(agentResult.tokenUsage && { tokenUsage: agentResult.tokenUsage }),
-        modelName: finalModelName,
-        provider: "openrouter",
-        ...(agentResult.openrouterGenerationId && {
-          openrouterGenerationId: agentResult.openrouterGenerationId,
-        }),
-        ...(agentResult.provisionalCostUsd !== undefined && {
-          provisionalCostUsd: agentResult.provisionalCostUsd,
-        }),
-        ...(generationTimeMs !== undefined && { generationTimeMs }),
-        ...(generationStartedAt && { generationStartedAt }),
-        ...(generationEndedAt && { generationEndedAt }),
-      };
-
       // Combine conversation history with new messages
       const userMessage = convertTextToUIMessage(messageText);
-      const messagesForLogging: UIMessage[] = [
-        ...conversationHistory,
-        userMessage,
-        assistantMessage,
-      ];
+      const messagesForLogging: UIMessage[] = agentResult.observerEvents
+        ? buildConversationMessagesFromObserver({
+            observerEvents: agentResult.observerEvents,
+            fallbackInputMessages: [...conversationHistory, userMessage],
+            assistantMeta: {
+              tokenUsage: agentResult.tokenUsage,
+              modelName: finalModelName,
+              provider: "openrouter",
+              openrouterGenerationId: agentResult.openrouterGenerationId,
+              provisionalCostUsd: agentResult.provisionalCostUsd,
+              generationTimeMs,
+            },
+          })
+        : [
+            ...conversationHistory,
+            userMessage,
+            {
+              role: "assistant",
+              content:
+                assistantContent.length > 0
+                  ? assistantContent
+                  : responseText || "",
+              ...(agentResult.tokenUsage && {
+                tokenUsage: agentResult.tokenUsage,
+              }),
+              modelName: finalModelName,
+              provider: "openrouter",
+              ...(agentResult.openrouterGenerationId && {
+                openrouterGenerationId: agentResult.openrouterGenerationId,
+              }),
+              ...(agentResult.provisionalCostUsd !== undefined && {
+                provisionalCostUsd: agentResult.provisionalCostUsd,
+              }),
+              ...(generationTimeMs !== undefined && { generationTimeMs }),
+              ...(generationStartedAt && { generationStartedAt }),
+              ...(generationEndedAt && { generationEndedAt }),
+            },
+          ];
 
       const validMessages: UIMessage[] = messagesForLogging.filter(
         (msg): msg is UIMessage =>

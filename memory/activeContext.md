@@ -6,23 +6,11 @@
 
 **Latest Work**:
 
-1. **Workspace Page Credit Balance Display**:
-   - Added workspace credit balance display to the first box on the workspace detail page
-   - Balance is shown with color coding based on balance level (using `getBalanceColor` utility)
-   - Added "Purchase credits" link that scrolls to the Credit Balance section
-   - Link automatically expands the Credit Balance accordion section if collapsed
-   - Implemented smooth scroll behavior with proper anchor targeting
-   - Updated `apps/frontend/src/pages/WorkspaceDetail.tsx`:
-     - Added credit balance display in the workspace header box (first box)
-     - Added anchor id `credit-balance-section` to the Credit Balance AccordionSection wrapper
-     - Added scroll-to behavior that expands section if needed before scrolling
-   - All type checks and linting pass
-
-1. **Agent Detail Page Organization**:
-   - Renamed the "Memory" group to "Knowledge and Memory"
-   - Moved "Inject Knowledge" and "Document Search Tool" sections into the group
-   - Relocated "Embeddable Widget" to the "Servers" section
-   - Renamed "Integration" group to "Tools" with matching icon
+- **LLM observer-driven conversation records**: Added a new LLM observer wrapper with tool execution observation, and rebuilt conversation record assembly in stream/webhook/delegation flows to use observed events; added unit tests for observer-based reconstruction.
+- **Streaming observer fixes**: StreamText now receives observer step callbacks directly, and SSE parsing now records `tool-call`/`tool-result` events for complete conversation logging.
+- **Observer test coverage + helpers**: Added more unit tests for observer behavior and extracted a shared helper for observer input message insertion.
+- **Merge conflict resolution**: Resolved `agentUtils.ts` and `streamPostProcessing.ts` conflicts, keeping observer-driven conversation logging and delegation metadata support intact.
+- **PR 152 review fixes**: Switched model wrapping to Proxy, preserved tool execute bindings, ensured observer text capture ordering and empty-string handling, and clarified fallback tool timing.
 
 1. **GitHub MCP Server Integration**: Implemented complete GitHub MCP server support with OAuth authentication, read-only API access, and comprehensive tool coverage for repositories, issues, pull requests, commits, and file contents.
 

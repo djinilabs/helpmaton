@@ -76,6 +76,7 @@
 - **Testing**: Jest for unit tests, Playwright for E2E
 - **Error Handling**: Custom error utilities in `utils/handlingErrors.ts`
 - **Logging**: Structured logging with table logger
+- **LLM Observers**: Wrap models with `llmObserver` to emit events; wrap tools for execution timing; build conversation records from observed events
 - **SQS Queue Processing**: Use partial batch failures via `handlingSQSErrors` utility
   - Handler returns array of failed message IDs
   - Successful messages are deleted immediately
