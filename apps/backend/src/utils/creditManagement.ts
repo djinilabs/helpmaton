@@ -1107,6 +1107,7 @@ export async function creditCredits(
         pk: workspacePk,
         sk: "workspace",
         creditBalance: newBalance,
+        currency: current.currency, // Preserve currency field
       };
     },
     { maxRetries }

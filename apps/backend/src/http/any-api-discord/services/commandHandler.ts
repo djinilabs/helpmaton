@@ -234,10 +234,13 @@ async function handleCreditCommand(
     const amountDisplay = fromMillionths(amountInMillionths);
     const balanceDisplay = fromMillionths(updated.creditBalance);
     const oldBalanceDisplay = fromMillionths(workspace.creditBalance);
+    
+    // Ensure currency is available (fallback to workspace currency if missing from updated)
+    const currency = updated.currency || workspace.currency || "usd";
 
     return discordResponse(
-      `✅ Successfully credited **${amountDisplay.toFixed(10).replace(/\.?0+$/, "")} ${updated.currency.toUpperCase()}** to workspace \`${workspaceId}\`\n` +
-        `📊 Balance: **${balanceDisplay.toFixed(10).replace(/\.?0+$/, "")} ${updated.currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(10).replace(/\.?0+$/, "")})${trialInfo}`
+      `✅ Successfully credited **${amountDisplay.toFixed(10).replace(/\.?0+$/, "")} ${currency.toUpperCase()}** to workspace \`${workspaceId}\`\n` +
+        `📊 Balance: **${balanceDisplay.toFixed(10).replace(/\.?0+$/, "")} ${currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(10).replace(/\.?0+$/, "")})${trialInfo}`
     );
   } catch (error) {
     console.error("Error crediting workspace:", error);
