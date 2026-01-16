@@ -473,7 +473,9 @@ describe("agentUtils - Agent List Formatting", () => {
       const result = await (tool as any).execute();
 
       expect(result).toContain("Format No Caps Agent");
-      expect(result).toContain("Capabilities: none");
+      // When there are no capabilities, the capabilities line should not be shown
+      expect(result).not.toContain("Capabilities: none");
+      expect(result).not.toContain("Capabilities:");
     });
 
     it("should handle empty delegatable agents list", async () => {

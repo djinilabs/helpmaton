@@ -52,6 +52,7 @@ type CachedAgent = {
   enableSendEmail?: boolean;
   notificationChannelId?: string;
   enabledMcpServerIds?: string[];
+  delegatableAgentIds?: string[];
   clientTools?: Array<{ name: string }>;
   [key: string]: unknown;
 };
@@ -1813,6 +1814,12 @@ function buildAgentCapabilities(agent: CachedAgent): string[] {
     capabilities.push(`client_tools (${agent.clientTools.length} tools)`);
   }
 
+  if (agent.delegatableAgentIds && agent.delegatableAgentIds.length > 0) {
+    capabilities.push(
+      `delegation (${agent.delegatableAgentIds.length} agents)`
+    );
+  }
+
   return capabilities;
 }
 
@@ -1967,8 +1974,6 @@ function formatAgentList(agents: CachedAgent[], workspaceId: string): string {
 
       if (capabilities.length > 0) {
         agentInfo += `\n  Capabilities: ${capabilities.join(", ")}`;
-      } else {
-        agentInfo += `\n  Capabilities: none`;
       }
 
       return agentInfo;
@@ -2012,6 +2017,7 @@ async function fetchAndCacheAgent(
       enableSendEmail: agent.enableSendEmail,
       notificationChannelId: agent.notificationChannelId,
       enabledMcpServerIds: agent.enabledMcpServerIds,
+      delegatableAgentIds: agent.delegatableAgentIds,
       clientTools: agent.clientTools,
     };
     setCachedAgent(workspaceId, agentId, cachedAgent);
