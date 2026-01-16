@@ -18,7 +18,7 @@ const WorkspaceLocationBar: FC<{ workspaceId: string }> = ({ workspaceId }) => {
         Home
       </Link>
       <span className="font-black text-neutral-900 dark:text-neutral-50">
-        /
+        {" / "}
       </span>
       <Link
         to="/workspaces"
@@ -27,7 +27,7 @@ const WorkspaceLocationBar: FC<{ workspaceId: string }> = ({ workspaceId }) => {
         Workspaces
       </Link>
       <span className="font-black text-neutral-900 dark:text-neutral-50">
-        /
+        {" / "}
       </span>
       <span className="uppercase tracking-wide text-neutral-900 dark:text-neutral-50">
         {workspace.name}
@@ -51,7 +51,7 @@ const AgentLocationBar: FC<{ workspaceId: string; agentId: string }> = ({
         Home
       </Link>
       <span className="font-black text-neutral-900 dark:text-neutral-50">
-        /
+        {" / "}
       </span>
       <Link
         to="/workspaces"
@@ -60,7 +60,7 @@ const AgentLocationBar: FC<{ workspaceId: string; agentId: string }> = ({
         Workspaces
       </Link>
       <span className="font-black text-neutral-900 dark:text-neutral-50">
-        /
+        {" / "}
       </span>
       <Link
         to={`/workspaces/${workspaceId}`}
@@ -69,7 +69,7 @@ const AgentLocationBar: FC<{ workspaceId: string; agentId: string }> = ({
         {workspace.name}
       </Link>
       <span className="font-black text-neutral-900 dark:text-neutral-50">
-        /
+        {" / "}
       </span>
       <span className="uppercase tracking-wide text-neutral-900 dark:text-neutral-50">
         {agent.name}

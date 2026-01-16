@@ -121,6 +121,8 @@ import {
   deleteWorkspaceApiKey,
   type Workspace,
 } from "../utils/api";
+import { getBalanceColor } from "../utils/colorUtils";
+import { formatCurrency } from "../utils/currency";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
 import { trackEvent } from "../utils/tracking";
 
@@ -495,23 +497,60 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                     {workspace.description}
                   </p>
                 )}
-                <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-300">
-                  <svg
-                    className="size-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                  <span>
-                    Created {new Date(workspace.createdAt).toLocaleString()}
-                  </span>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+                  <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-300">
+                    <svg
+                      className="size-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <span>
+                      Created {new Date(workspace.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-neutral-500 dark:text-neutral-300">
+                      Credit Balance:
+                    </span>
+                    <span
+                      className={`rounded-lg border px-3 py-1.5 text-lg font-semibold ${getBalanceColor(workspace.creditBalance ?? 0)}`}
+                    >
+                      {formatCurrency(workspace.creditBalance ?? 0, "usd", 10)}
+                    </span>
+                    <a
+                      href="#credit-balance-section"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        const element = document.getElementById(
+                          "credit-balance-section"
+                        );
+                        if (element) {
+                          // Expand the section if it's collapsed
+                          if (expandedSection !== "credits") {
+                            toggleSection("credits");
+                          }
+                          // Scroll to the section after a brief delay to allow expansion
+                          setTimeout(() => {
+                            element.scrollIntoView({
+                              behavior: "smooth",
+                              block: "start",
+                            });
+                          }, 100);
+                        }
+                      }}
+                      className="text-sm font-semibold text-primary-600 transition-colors duration-200 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                    >
+                      Purchase credits
+                    </a>
+                  </div>
                 </div>
               </div>
             )}
@@ -671,18 +710,19 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             </>
           }
         >
-          <AccordionSection
-            id="credits"
-            title={
-              <>
-                <CreditCardIcon className="mr-2 inline-block size-5" />
-                Credit Balance
-              </>
-            }
-            isExpanded={expandedSection === "credits"}
-            onToggle={() => toggleSection("credits")}
-          >
-            <LazyAccordionContent isExpanded={expandedSection === "credits"}>
+          <div id="credit-balance-section" className="scroll-mt-8">
+            <AccordionSection
+              id="credits"
+              title={
+                <>
+                  <CreditCardIcon className="mr-2 inline-block size-5" />
+                  Credit Balance
+                </>
+              }
+              isExpanded={expandedSection === "credits"}
+              onToggle={() => toggleSection("credits")}
+            >
+              <LazyAccordionContent isExpanded={expandedSection === "credits"}>
               <CreditBalance
                 workspaceId={id!}
                 balance={workspace.creditBalance ?? 0}
@@ -727,6 +767,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               )}
             </LazyAccordionContent>
           </AccordionSection>
+          </div>
 
           {canEdit && (
             <AccordionSection

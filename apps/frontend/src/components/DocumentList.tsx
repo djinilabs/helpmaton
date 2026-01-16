@@ -179,7 +179,7 @@ export const DocumentList: FC<DocumentListProps> = ({
           <div className="mb-4 flex flex-wrap items-center gap-2">
             {breadcrumbs.map((crumb, index) => (
               <div key={index} className="flex items-center gap-2">
-                {index > 0 && <span className="text-neutral-400">/</span>}
+                {index > 0 && <span className="text-neutral-400"> / </span>}
                 <button
                   onClick={() => handleBreadcrumbClick(index)}
                   className={`text-sm font-medium transition-colors hover:text-primary-600 ${

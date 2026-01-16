@@ -2,9 +2,27 @@
 
 ## Current Status
 
-**Status**: GitHub MCP Integration Complete ✅
+**Status**: Workspace Credit Balance Display Complete ✅
 
 **Latest Work**:
+
+1. **Workspace Page Credit Balance Display**:
+   - Added workspace credit balance display to the first box on the workspace detail page
+   - Balance is shown with color coding based on balance level (using `getBalanceColor` utility)
+   - Added "Purchase credits" link that scrolls to the Credit Balance section
+   - Link automatically expands the Credit Balance accordion section if collapsed
+   - Implemented smooth scroll behavior with proper anchor targeting
+   - Updated `apps/frontend/src/pages/WorkspaceDetail.tsx`:
+     - Added credit balance display in the workspace header box (first box)
+     - Added anchor id `credit-balance-section` to the Credit Balance AccordionSection wrapper
+     - Added scroll-to behavior that expands section if needed before scrolling
+   - All type checks and linting pass
+
+1. **Agent Detail Page Organization**:
+   - Renamed the "Memory" group to "Knowledge and Memory"
+   - Moved "Inject Knowledge" and "Document Search Tool" sections into the group
+   - Relocated "Embeddable Widget" to the "Servers" section
+   - Renamed "Integration" group to "Tools" with matching icon
 
 1. **GitHub MCP Server Integration**: Implemented complete GitHub MCP server support with OAuth authentication, read-only API access, and comprehensive tool coverage for repositories, issues, pull requests, commits, and file contents.
 

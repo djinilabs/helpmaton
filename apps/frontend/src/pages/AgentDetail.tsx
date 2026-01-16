@@ -1793,7 +1793,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           title={
             <>
               <LightBulbIcon className="mr-2 inline-block size-5" />
-              Memory
+              Knowledge and Memory
             </>
           }
         >
@@ -1878,98 +1878,6 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               </LazyAccordionContent>
             </AccordionSection>
           )}
-        </SectionGroup>
-
-        <SectionGroup
-          title={
-            <>
-              <Cog6ToothIcon className="mr-2 inline-block size-5" />
-              Configuration
-            </>
-          }
-        >
-          {/* Delegation Section */}
-          {canEdit && (
-            <AccordionSection
-              id="delegation"
-              title={
-                <>
-                  <UserGroupIcon className="mr-2 inline-block size-5" />
-                  DELEGATION
-                </>
-              }
-              isExpanded={expandedSection === "delegation"}
-              onToggle={() => toggleSection("delegation")}
-            >
-              <LazyAccordionContent
-                isExpanded={expandedSection === "delegation"}
-              >
-                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
-                  Configure which other agents in this workspace this agent can
-                  delegate tasks to. When delegation is enabled, this agent will
-                  have access to the{" "}
-                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
-                    list_agents
-                  </code>{" "}
-                  and{" "}
-                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
-                    call_agent
-                  </code>{" "}
-                  tools.
-                </p>
-                {allAgents && allAgents.length > 1 ? (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      {allAgents
-                        .filter((a) => a.id !== agentId)
-                        .map((targetAgent) => (
-                          <label
-                            key={targetAgent.id}
-                            className="flex cursor-pointer items-start gap-2 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-800"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={delegatableAgentIds.includes(
-                                targetAgent.id
-                              )}
-                              onChange={() =>
-                                handleDelegationToggle(targetAgent.id)
-                              }
-                              className="mt-1 rounded border-2 border-neutral-300 dark:border-neutral-700"
-                            />
-                            <div className="flex-1">
-                              <div className="font-bold dark:text-neutral-50">
-                                {targetAgent.name}
-                              </div>
-                              <div className="mt-1 text-xs opacity-75 dark:text-neutral-300">
-                                {targetAgent.systemPrompt.length > 100
-                                  ? `${targetAgent.systemPrompt.substring(
-                                      0,
-                                      100
-                                    )}...`
-                                  : targetAgent.systemPrompt}
-                              </div>
-                            </div>
-                          </label>
-                        ))}
-                    </div>
-                    <button
-                      onClick={handleSaveDelegation}
-                      disabled={updateAgent.isPending}
-                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {updateAgent.isPending ? "Saving..." : "Save Delegation"}
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-sm opacity-75 dark:text-neutral-300">
-                    No other agents available in this workspace. Create another
-                    agent to enable delegation.
-                  </p>
-                )}
-              </LazyAccordionContent>
-            </AccordionSection>
-          )}
 
           {/* Inject Knowledge Section */}
           {canEdit && (
@@ -2035,7 +1943,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           min={1}
                           max={50}
                           step={1}
-                          onChange={(value) => setKnowledgeInjectionSnippetCount(value ?? 5)}
+                          onChange={(value) =>
+                            setKnowledgeInjectionSnippetCount(value ?? 5)
+                          }
                         />
                         <p className="text-xs opacity-75 dark:text-neutral-300">
                           Number of document snippets to retrieve and inject
@@ -2049,7 +1959,9 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                           min={0}
                           max={1}
                           step={0.01}
-                          onChange={(value) => setKnowledgeInjectionMinSimilarity(value ?? 0)}
+                          onChange={(value) =>
+                            setKnowledgeInjectionMinSimilarity(value ?? 0)
+                          }
                           formatValue={(v) => `${Math.round(v * 100)}%`}
                         />
                         <p className="text-xs opacity-75 dark:text-neutral-300">
@@ -2200,7 +2112,98 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               </LazyAccordionContent>
             </AccordionSection>
           )}
+        </SectionGroup>
 
+        <SectionGroup
+          title={
+            <>
+              <Cog6ToothIcon className="mr-2 inline-block size-5" />
+              Configuration
+            </>
+          }
+        >
+          {/* Delegation Section */}
+          {canEdit && (
+            <AccordionSection
+              id="delegation"
+              title={
+                <>
+                  <UserGroupIcon className="mr-2 inline-block size-5" />
+                  DELEGATION
+                </>
+              }
+              isExpanded={expandedSection === "delegation"}
+              onToggle={() => toggleSection("delegation")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "delegation"}
+              >
+                <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
+                  Configure which other agents in this workspace this agent can
+                  delegate tasks to. When delegation is enabled, this agent will
+                  have access to the{" "}
+                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                    list_agents
+                  </code>{" "}
+                  and{" "}
+                  <code className="rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-50">
+                    call_agent
+                  </code>{" "}
+                  tools.
+                </p>
+                {allAgents && allAgents.length > 1 ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      {allAgents
+                        .filter((a) => a.id !== agentId)
+                        .map((targetAgent) => (
+                          <label
+                            key={targetAgent.id}
+                            className="flex cursor-pointer items-start gap-2 rounded-lg border border-neutral-200 p-3 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800 dark:hover:bg-neutral-800"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={delegatableAgentIds.includes(
+                                targetAgent.id
+                              )}
+                              onChange={() =>
+                                handleDelegationToggle(targetAgent.id)
+                              }
+                              className="mt-1 rounded border-2 border-neutral-300 dark:border-neutral-700"
+                            />
+                            <div className="flex-1">
+                              <div className="font-bold dark:text-neutral-50">
+                                {targetAgent.name}
+                              </div>
+                              <div className="mt-1 text-xs opacity-75 dark:text-neutral-300">
+                                {targetAgent.systemPrompt.length > 100
+                                  ? `${targetAgent.systemPrompt.substring(
+                                      0,
+                                      100
+                                    )}...`
+                                  : targetAgent.systemPrompt}
+                              </div>
+                            </div>
+                          </label>
+                        ))}
+                    </div>
+                    <button
+                      onClick={handleSaveDelegation}
+                      disabled={updateAgent.isPending}
+                      className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {updateAgent.isPending ? "Saving..." : "Save Delegation"}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    No other agents available in this workspace. Create another
+                    agent to enable delegation.
+                  </p>
+                )}
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
           {/* Advanced Section */}
           {canEdit && (
             <AccordionSection
@@ -2374,8 +2377,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
         <SectionGroup
           title={
             <>
-              <BoltIcon className="mr-2 inline-block size-5" />
-              Integration
+              <WrenchScrewdriverIcon className="mr-2 inline-block size-5" />
+              Tools
             </>
           }
         >
@@ -2799,7 +2802,16 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               </LazyAccordionContent>
             </AccordionSection>
           )}
+        </SectionGroup>
 
+        <SectionGroup
+          title={
+            <>
+              <ServerIcon className="mr-2 inline-block size-5" />
+              Servers
+            </>
+          }
+        >
           {/* Embeddable Widget Section */}
           {canEdit && (
             <AccordionSection
@@ -3590,16 +3602,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               </LazyAccordionContent>
             </AccordionSection>
           )}
-        </SectionGroup>
 
-        <SectionGroup
-          title={
-            <>
-              <ServerIcon className="mr-2 inline-block size-5" />
-              Servers
-            </>
-          }
-        >
           {/* Stream Server Section */}
           {canEdit && (
             <AccordionSection
