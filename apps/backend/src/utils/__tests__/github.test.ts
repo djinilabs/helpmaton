@@ -258,7 +258,7 @@ describe("GitHub API Client", () => {
       expect(result.login).toBe("testuser");
     });
 
-    it("should handle 429 rate limiting", async () => {
+    it("should handle 429 rate limiting with retry", async () => {
       vi.mocked(fetch)
         .mockResolvedValueOnce({
           ok: false,
@@ -279,6 +279,25 @@ describe("GitHub API Client", () => {
       );
 
       expect(result.login).toBe("testuser");
+      expect(fetch).toHaveBeenCalledTimes(2); // Initial + 1 retry
+    });
+
+    it("should throw error after max retries for 429 rate limiting", async () => {
+      // Mock 4 consecutive 429 responses (MAX_RETRIES = 3, so 1 initial + 3 retries = 4 total)
+      vi.mocked(fetch)
+        .mockResolvedValue({
+          ok: false,
+          status: 429,
+          statusText: "Too Many Requests",
+          headers: new Headers([["Retry-After", "1"]]),
+        } as Partial<Response> as Response);
+
+      await expect(
+        githubClient.getAuthenticatedUser("workspace-1", "server-1")
+      ).rejects.toThrow("GitHub API rate limit exceeded after");
+
+      // Should have attempted MAX_RETRIES + 1 times (4 total: initial + 3 retries)
+      expect(fetch).toHaveBeenCalledTimes(4);
     });
 
     it("should handle 403 forbidden errors", async () => {

@@ -8,6 +8,10 @@ import { refreshGithubToken } from "../oauth/mcp/github";
 
 const GITHUB_API_BASE = "https://api.github.com";
 
+// Rate limit retry configuration
+const MAX_RETRIES = 3; // Maximum number of retries for rate limiting (429)
+const DEFAULT_RATE_LIMIT_DELAY_MS = 60000; // Default delay if Retry-After header is missing
+
 /**
  * Make a request to GitHub API with error handling and retry logic
  */
@@ -16,7 +20,8 @@ async function makeGithubApiRequest<T>(
   serverId: string,
   url: string,
   options: RequestInit = {},
-  responseType: "json" | "text" = "json"
+  responseType: "json" | "text" = "json",
+  attempt: number = 0
 ): Promise<T> {
   // Get OAuth tokens
   let tokens = await getOAuthTokens(workspaceId, serverId);
@@ -93,17 +98,32 @@ async function makeGithubApiRequest<T>(
 
     // Handle rate limiting (429)
     if (response.status === 429) {
-      const retryAfter = response.headers.get("Retry-After");
-      const delay = retryAfter ? parseInt(retryAfter, 10) * 1000 : 60000; // Default to 60 seconds
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      // Retry once after rate limit delay
-      return makeGithubApiRequest<T>(
-        workspaceId,
-        serverId,
-        url,
-        options,
-        responseType
-      );
+      if (attempt < MAX_RETRIES) {
+        const retryAfter = response.headers.get("Retry-After");
+        const delay = retryAfter
+          ? parseInt(retryAfter, 10) * 1000
+          : DEFAULT_RATE_LIMIT_DELAY_MS;
+        console.log(
+          `[GitHub API] Rate limited (429), retrying in ${delay}ms (attempt ${
+            attempt + 1
+          }/${MAX_RETRIES + 1})`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        // Retry with incremented attempt counter
+        return makeGithubApiRequest<T>(
+          workspaceId,
+          serverId,
+          url,
+          options,
+          responseType,
+          attempt + 1
+        );
+      } else {
+        // Max retries exceeded
+        throw new Error(
+          `GitHub API rate limit exceeded after ${MAX_RETRIES + 1} attempts. Please try again later.`
+        );
+      }
     }
 
     // Handle other errors
