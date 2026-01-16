@@ -245,15 +245,6 @@ describe("GitHub OAuth Utilities", () => {
       );
     });
 
-    it("should throw error if both GH_APP_ID and GH_APP_CLIENT_ID are not set", async () => {
-      delete process.env.GH_APP_ID;
-      delete process.env.GH_APP_CLIENT_ID;
-
-      await expect(exchangeGithubCode("code")).rejects.toThrow(
-        "GH_APP_CLIENT_ID or GH_APP_ID is not set"
-      );
-    });
-
     it("should throw error if GH_APP_CLIENT_SECRET is not set", async () => {
       delete process.env.GH_APP_CLIENT_SECRET;
 

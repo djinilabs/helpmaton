@@ -21,9 +21,10 @@ export class GitHubReconnectError extends Error {
 const GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize";
 const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
 // GitHub OAuth scopes
-// Using 'public_repo' scope for read-only access to public repositories
-// Private repository access would require the broader 'repo' scope, but we restrict to public_repo
-// for better security alignment with read-only operations
+// Using 'public_repo' scope, which grants read and write access to public repositories
+// Private repository access would require the broader 'repo' scope, but we restrict to 'public_repo'
+// to avoid granting any access to private repositories while still enabling required public repo operations
+// Note: This integration is designed to perform only read operations, but the token technically has write capabilities
 const GITHUB_SCOPES = "public_repo";
 
 export interface GithubTokenResponse {

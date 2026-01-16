@@ -61,27 +61,34 @@ async function makeGithubApiRequest<T>(
 
       // Retry with new token
       tokens = await getOAuthTokens(workspaceId, serverId);
-      const retryResponse = await fetch(url, {
-        ...options,
-        headers: {
-          Authorization: `Bearer ${tokens.accessToken}`,
-          Accept: "application/vnd.github.v3+json",
-          "User-Agent": "Helpmaton/1.0",
-          ...options.headers,
-        },
-        signal: AbortSignal.timeout(30000),
-      });
+      const retryController = new AbortController();
+      const retryTimeoutId = setTimeout(() => retryController.abort(), 30000); // 30 seconds
 
-      if (!retryResponse.ok) {
-        throw new Error(
-          `GitHub API authentication failed: ${retryResponse.status} ${retryResponse.statusText}`
-        );
-      }
+      try {
+        const retryResponse = await fetch(url, {
+          ...options,
+          headers: {
+            Authorization: `Bearer ${tokens.accessToken}`,
+            Accept: "application/vnd.github.v3+json",
+            "User-Agent": "Helpmaton/1.0",
+            ...options.headers,
+          },
+          signal: retryController.signal,
+        });
 
-      if (responseType === "text") {
-        return (await retryResponse.text()) as T;
+        if (!retryResponse.ok) {
+          throw new Error(
+            `GitHub API authentication failed: ${retryResponse.status} ${retryResponse.statusText}`
+          );
+        }
+
+        if (responseType === "text") {
+          return (await retryResponse.text()) as T;
+        }
+        return (await retryResponse.json()) as T;
+      } finally {
+        clearTimeout(retryTimeoutId);
       }
-      return (await retryResponse.json()) as T;
     }
 
     // Handle rate limiting (429)
