@@ -26,7 +26,9 @@ const WorkspacesList: FC = () => {
   const navigate = useNavigate();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [loadingWorkspaceId, setLoadingWorkspaceId] = useState<string | null>(null);
+  const [loadingWorkspaceId, setLoadingWorkspaceId] = useState<string | null>(
+    null
+  );
 
   const getPermissionLabel = (level: number | null): string => {
     if (level === 3) return "Owner";
@@ -37,7 +39,8 @@ const WorkspacesList: FC = () => {
 
   const getPermissionColor = (level: number | null): string => {
     if (level === 3) return "bg-gradient-primary text-white";
-    if (level === 2) return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
+    if (level === 2)
+      return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
     if (level === 1)
       return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700";
     return "bg-neutral-50 text-neutral-500 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-400 dark:border-neutral-700";
