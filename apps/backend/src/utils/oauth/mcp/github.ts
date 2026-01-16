@@ -262,6 +262,7 @@ export async function refreshGithubToken(
 
     // If refresh fails, parse the error response
     let errorMessage = `Failed to refresh GitHub token: ${response.status}`;
+    let specificError: Error | null = null;
     try {
       const errorData = (await response.json()) as {
         error?: string;
@@ -271,7 +272,7 @@ export async function refreshGithubToken(
         // This could mean:
         // 1. The refresh token is invalid/expired
         // 2. This is actually an access token (non-expiring token scenario)
-        throw new Error(
+        specificError = new Error(
           "GitHub refresh token is invalid or expired. Please reconnect your GitHub account."
         );
       } else if (errorData.error_description) {
@@ -279,15 +280,28 @@ export async function refreshGithubToken(
       } else if (errorData.error) {
         errorMessage = `${errorMessage} - ${errorData.error}`;
       }
-    } catch {
+    } catch (jsonError) {
+      // Only catch JSON parsing errors, not intentional throws
+      // Check if this is a SyntaxError (JSON parsing failure) or our specific error
+      if (jsonError instanceof Error && jsonError.message.includes("reconnect")) {
+        // This is our intentional error, re-throw it
+        throw jsonError;
+      }
       // If JSON parsing fails, try to get text
+      // Note: response.json() may have consumed the body, so this might fail
       try {
         const errorText = await response.text();
         errorMessage = `${errorMessage} ${errorText}`;
       } catch {
-        // Ignore text parsing errors
+        // Ignore text parsing errors (body may already be consumed)
       }
     }
+    
+    // If we have a specific error, throw it instead of the generic one
+    if (specificError) {
+      throw specificError;
+    }
+    
     throw new Error(errorMessage);
   } catch (error) {
     // Re-throw if it's already a helpful error message

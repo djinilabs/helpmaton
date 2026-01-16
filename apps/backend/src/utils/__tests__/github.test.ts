@@ -186,6 +186,48 @@ describe("GitHub API Client", () => {
       expect(result.content).toBe("Hello World");
       expect(result.encoding).toBe("base64");
     });
+
+    it("should correctly encode paths with subdirectories", async () => {
+      const mockFile = {
+        name: "index.ts",
+        path: "src/index.ts",
+        sha: "abc123",
+        size: 100,
+        type: "file",
+        content: Buffer.from("export const x = 1;").toString("base64"),
+        encoding: "base64",
+        html_url: "https://github.com/owner/repo/blob/main/src/index.ts",
+      };
+
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockResolvedValue(mockFile),
+        headers: new Headers(),
+      } as Partial<Response> as Response);
+
+      const result = await githubClient.getFileContents(
+        "workspace-1",
+        "server-1",
+        "owner",
+        "repo",
+        "src/index.ts"
+      );
+
+      // Verify the URL was constructed correctly (slashes preserved, not encoded)
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/repos/owner/repo/contents/src/index.ts"),
+        expect.anything()
+      );
+      // Verify it does NOT contain encoded slashes
+      const callArgs = vi.mocked(fetch).mock.calls[0];
+      const url = callArgs[0] as string;
+      expect(url).not.toContain("%2F");
+      expect(url).toContain("src/index.ts");
+
+      expect(result.content).toBe("export const x = 1;");
+      expect(result.encoding).toBe("base64");
+    });
   });
 
   describe("error handling", () => {

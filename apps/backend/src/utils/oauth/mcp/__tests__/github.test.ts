@@ -355,7 +355,7 @@ describe("GitHub OAuth Utilities", () => {
       } as Partial<Response> as Response);
 
       await expect(refreshGithubToken(refreshToken)).rejects.toThrow(
-        "GitHub token refresh failed"
+        "GitHub refresh token is invalid or expired"
       );
     });
 

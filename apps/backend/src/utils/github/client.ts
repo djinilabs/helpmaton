@@ -425,7 +425,14 @@ export async function getFileContents(
   const params = new URLSearchParams();
   if (ref) params.append("ref", ref);
 
-  const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?${params.toString()}`;
+  // Encode each path segment separately to preserve directory structure
+  // e.g., "src/index.ts" -> "src/index.ts" (not "src%2Findex.ts")
+  const encodedPath = path
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+
+  const url = `${GITHUB_API_BASE}/repos/${owner}/${repo}/contents/${encodedPath}?${params.toString()}`;
   const file = await makeGithubApiRequest<{
     name: string;
     path: string;
