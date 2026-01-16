@@ -2,7 +2,7 @@ const SERVICE_WORKER_URL = "/service-worker.js";
 const INVALIDATE_TIMEOUT_MS = 1500;
 
 const isServiceWorkerEnabled = () => {
-  if (import.meta.env.MODE === "development") {
+  if (import.meta.env.VITE_ENV === "development") {
     return false;
   }
 

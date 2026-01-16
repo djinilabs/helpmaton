@@ -6,7 +6,7 @@
 
 **Latest Work**:
 
-- **Dev-safe SW registration**: Service worker registration now skips and unregisters in development/localhost to avoid caching during dev.
+- **Dev-safe SW registration**: Service worker registration now skips and unregisters when `VITE_ENV` is `development` (plus localhost) to avoid caching during dev.
 - **Version indicator + SW update check**: Added footer version display and wired a silent service worker update check into the version polling loop.
 - **Service worker + version upgrade flow**: Added `/api/version` endpoint, frontend service worker caching with root invalidation, and version polling with an update modal that reloads the root document after acceptance.
 - **LLM observer-driven conversation records**: Added a new LLM observer wrapper with tool execution observation, and rebuilt conversation record assembly in stream/webhook/delegation flows to use observed events; added unit tests for observer-based reconstruction.
