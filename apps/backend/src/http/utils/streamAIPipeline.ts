@@ -47,7 +47,7 @@ export async function pipeAIStreamToResponse(
     tools,
     ...generateOptions,
     ...(abortSignal && { abortSignal }),
-    ...(observerCallbacks && observerCallbacks),
+    ...(observerCallbacks ? observerCallbacks : {}),
   });
 
   // Get the UI message stream response from streamText result

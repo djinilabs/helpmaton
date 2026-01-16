@@ -99,9 +99,7 @@ describe("buildConversationMessagesFromObserver", () => {
     expect(assistantMessage.generationStartedAt).toBe(
       "2025-01-01T00:00:01.000Z"
     );
-    expect(assistantMessage.generationEndedAt).toBe(
-      "2025-01-01T00:00:07.000Z"
-    );
+    expect(assistantMessage.generationEndedAt).toBe("2025-01-01T00:00:07.000Z");
   });
 
   it("falls back to provided input messages when none observed", () => {
@@ -216,7 +214,9 @@ describe("llmObserver helpers", () => {
     expect(events.some((event) => event.type === "generation-started")).toBe(
       true
     );
-    expect(events.some((event) => event.type === "generation-ended")).toBe(true);
+    expect(events.some((event) => event.type === "generation-ended")).toBe(
+      true
+    );
     expect(events.some((event) => event.type === "tool-call")).toBe(true);
   });
 
@@ -236,8 +236,8 @@ describe("llmObserver helpers", () => {
     expect(
       events.some((event) => event.type === "tool-execution-started")
     ).toBe(true);
-    expect(
-      events.some((event) => event.type === "tool-execution-ended")
-    ).toBe(true);
+    expect(events.some((event) => event.type === "tool-execution-ended")).toBe(
+      true
+    );
   });
 });
