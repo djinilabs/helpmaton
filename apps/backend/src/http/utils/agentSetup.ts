@@ -267,12 +267,15 @@ export async function setupAgentAndTools(
       );
     } else {
       // Log warning if scrape tool cannot be created due to missing context
-      console.warn("[Agent Setup] Scrape tool not created - missing required context:", {
-        workspaceId,
-        agentId: extractedAgentId,
-        hasConversationId: !!conversationId,
-        hasAgentId: !!extractedAgentId,
-      });
+      console.warn(
+        "[Agent Setup] Scrape tool not created - missing required context:",
+        {
+          workspaceId,
+          agentId: extractedAgentId,
+          hasConversationId: !!conversationId,
+          hasAgentId: !!extractedAgentId,
+        }
+      );
     }
   }
 

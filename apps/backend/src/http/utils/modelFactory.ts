@@ -144,9 +144,8 @@ export async function createModel(
   // For OpenRouter, determine the final model name
   // Note: "auto" is not a valid model ID for OpenRouter, so we treat it the same as undefined
   // and use getDefaultModel() instead
-  const finalModelName = modelName && modelName !== "auto" 
-    ? modelName 
-    : getDefaultModel();
+  const finalModelName =
+    modelName && modelName !== "auto" ? modelName : getDefaultModel();
 
   // Validate that pricing exists for this model
   const pricing = getModelPricing("openrouter", finalModelName);

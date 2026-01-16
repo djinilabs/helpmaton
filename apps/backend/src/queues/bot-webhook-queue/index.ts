@@ -387,8 +387,12 @@ async function processDiscordTask(
             {
               role: "assistant",
               content:
-                assistantContent.length > 0 ? assistantContent : responseText || "",
-              ...(agentResult.tokenUsage && { tokenUsage: agentResult.tokenUsage }),
+                assistantContent.length > 0
+                  ? assistantContent
+                  : responseText || "",
+              ...(agentResult.tokenUsage && {
+                tokenUsage: agentResult.tokenUsage,
+              }),
               modelName: finalModelName,
               provider: "openrouter",
               ...(agentResult.openrouterGenerationId && {
@@ -994,8 +998,12 @@ async function processSlackTask(
             {
               role: "assistant",
               content:
-                assistantContent.length > 0 ? assistantContent : responseText || "",
-              ...(agentResult.tokenUsage && { tokenUsage: agentResult.tokenUsage }),
+                assistantContent.length > 0
+                  ? assistantContent
+                  : responseText || "",
+              ...(agentResult.tokenUsage && {
+                tokenUsage: agentResult.tokenUsage,
+              }),
               modelName: finalModelName,
               provider: "openrouter",
               ...(agentResult.openrouterGenerationId && {
