@@ -681,7 +681,7 @@ export const ChatMessage = memo<ChatMessageProps>(
 
           // Render the part
           const renderedPart = renderPart(part, partIndex);
-          
+
           // If part renders to null, skip it (but still show metadata if it's the first part)
           if (!renderedPart) {
             // If this is the first part and we have other parts, we'll show metadata with the next part

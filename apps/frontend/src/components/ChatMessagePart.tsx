@@ -18,10 +18,7 @@ export const TextPart = memo<TextPartProps>(({ text, isUser }) => {
     return null;
   }
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={markdownComponents}
-    >
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
       {text}
     </ReactMarkdown>
   );
