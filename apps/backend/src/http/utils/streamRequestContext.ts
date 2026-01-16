@@ -18,6 +18,7 @@ import { getContextFromRequestId } from "../../utils/workspaceCreditContext";
 import { MODEL_NAME } from "./agentUtils";
 import { validateAndReserveCredits } from "./generationCreditManagement";
 import { validateSubscriptionAndLimits } from "./generationRequestTracking";
+import { createLlmObserver, type LlmObserver } from "./llmObserver";
 import { streamRequestSchema } from "./schemas/requestSchemas";
 import type { EndpointType } from "./streamEndpointDetection";
 import type { PathParameters } from "./streamPathExtraction";
@@ -41,6 +42,7 @@ export interface StreamRequestContext {
   agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"];
   model: Awaited<ReturnType<typeof setupAgentAndTools>>["model"];
   tools: Awaited<ReturnType<typeof setupAgentAndTools>>["tools"];
+  llmObserver: LlmObserver;
   usesByok: boolean;
   reservationId: string | undefined;
   finalModelName: string;
@@ -56,7 +58,8 @@ async function setupAgentContext(
   agentId: string,
   modelReferer: string,
   context?: Awaited<ReturnType<typeof getContextFromRequestId>>,
-  conversationId?: string
+  conversationId?: string,
+  llmObserver?: LlmObserver
 ): Promise<{
   agent: Awaited<ReturnType<typeof setupAgentAndTools>>["agent"];
   model: Awaited<ReturnType<typeof setupAgentAndTools>>["model"];
@@ -73,6 +76,7 @@ async function setupAgentContext(
       maxDelegationDepth: 3,
       context,
       conversationId,
+      llmObserver,
       searchDocumentsOptions: {
         description:
           "Search workspace documents using semantic vector search. Returns the most relevant document snippets based on the query.",
@@ -568,12 +572,14 @@ export async function buildStreamRequestContext(
   // Setup agent context
   // Always use "https://app.helpmaton.com" as the Referer header for LLM provider calls
   const modelReferer = "https://app.helpmaton.com";
+  const llmObserver = createLlmObserver();
   const { agent, model, tools, usesByok } = await setupAgentContext(
     workspaceId,
     agentId,
     modelReferer,
     lambdaContext,
-    conversationId
+    conversationId,
+    llmObserver
   );
 
   // Extract and convert request body
@@ -732,6 +738,8 @@ export async function buildStreamRequestContext(
     }
   }
 
+  llmObserver.recordInputMessages(updatedConvertedMessages);
+
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =
     typeof agent.modelName === "string" ? agent.modelName : MODEL_NAME;
@@ -808,6 +816,7 @@ export async function buildStreamRequestContext(
     agent,
     model,
     tools,
+    llmObserver,
     usesByok,
     reservationId,
     finalModelName,
