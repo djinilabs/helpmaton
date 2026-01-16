@@ -1,10 +1,28 @@
 const SERVICE_WORKER_URL = "/service-worker.js";
 const INVALIDATE_TIMEOUT_MS = 1500;
 
+const isServiceWorkerEnabled = () => {
+  if (import.meta.env.MODE === "development") {
+    return false;
+  }
+
+  const host = window.location.hostname;
+  return host !== "localhost" && host !== "127.0.0.1";
+};
+
 export async function registerServiceWorker(): Promise<
   ServiceWorkerRegistration | null
 > {
   if (!("serviceWorker" in navigator)) {
+    return null;
+  }
+
+  if (!isServiceWorkerEnabled()) {
+    const existingRegistration =
+      await navigator.serviceWorker.getRegistration();
+    if (existingRegistration) {
+      await existingRegistration.unregister();
+    }
     return null;
   }
 
@@ -18,6 +36,10 @@ export async function registerServiceWorker(): Promise<
 
 export async function invalidateRootCache(): Promise<void> {
   if (!("serviceWorker" in navigator)) {
+    return;
+  }
+
+  if (!isServiceWorkerEnabled()) {
     return;
   }
 
@@ -51,6 +73,10 @@ export async function invalidateRootCache(): Promise<void> {
 
 export async function checkForServiceWorkerUpdate(): Promise<void> {
   if (!("serviceWorker" in navigator)) {
+    return;
+  }
+
+  if (!isServiceWorkerEnabled()) {
     return;
   }
 
