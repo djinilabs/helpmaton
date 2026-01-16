@@ -29,7 +29,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
   const updateServer = useUpdateMcpServer(workspaceId);
 
   const [name, setName] = useState("");
-  const [mcpType, setMcpType] = useState<"google-drive" | "gmail" | "google-calendar" | "notion" | "custom">("google-drive"); // Service type for new servers
+  const [mcpType, setMcpType] = useState<"google-drive" | "gmail" | "google-calendar" | "notion" | "github" | "custom">("google-drive"); // Service type for new servers
   const [url, setUrl] = useState("");
   const [authType, setAuthType] = useState<"none" | "header" | "basic">("none");
   const [headerValue, setHeaderValue] = useState("");
@@ -54,6 +54,9 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           // OAuth servers don't have authType in the UI
         } else if (server.authType === "oauth" && server.serviceType === "notion") {
           setMcpType("notion");
+          // OAuth servers don't have authType in the UI
+        } else if (server.authType === "oauth" && server.serviceType === "github") {
+          setMcpType("github");
           // OAuth servers don't have authType in the UI
         } else {
           setMcpType("custom");
@@ -150,7 +153,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           name?: string;
           url?: string;
           authType?: "none" | "header" | "basic" | "oauth";
-          serviceType?: "external" | "google-drive" | "gmail" | "google-calendar" | "notion";
+          serviceType?: "external" | "google-drive" | "gmail" | "google-calendar" | "notion" | "github";
           config?: typeof config;
         } = {
           name: name.trim(),
@@ -166,7 +169,8 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           server?.serviceType === "google-drive" ||
           server?.serviceType === "gmail" ||
           server?.serviceType === "google-calendar" ||
-          server?.serviceType === "notion"
+          server?.serviceType === "notion" ||
+          server?.serviceType === "github"
         );
         
         // OAuth servers can only update name (OAuth connection is managed separately)
@@ -288,6 +292,20 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             auth_type: "oauth",
             service_type: "notion",
           });
+        } else if (mcpType === "github") {
+          // GitHub - OAuth-based
+          const result = await createServer.mutateAsync({
+            name: name.trim(),
+            authType: "oauth",
+            serviceType: "github",
+            config: {}, // Empty config for OAuth servers (credentials set via OAuth flow)
+          });
+          trackEvent("mcp_server_created", {
+            workspace_id: workspaceId,
+            server_id: result.id,
+            auth_type: "oauth",
+            service_type: "github",
+          });
         } else {
           // Custom MCP - external server
           const result = await createServer.mutateAsync({
@@ -351,10 +369,10 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 id="mcpType"
                 value={mcpType}
                 onChange={(e) => {
-                  const newType = e.target.value as "google-drive" | "gmail" | "google-calendar" | "notion" | "custom";
+                  const newType = e.target.value as "google-drive" | "gmail" | "google-calendar" | "notion" | "github" | "custom";
                   setMcpType(newType);
                   // Reset auth type when switching
-                  if (newType === "google-drive" || newType === "gmail" || newType === "google-calendar" || newType === "notion") {
+                  if (newType === "google-drive" || newType === "gmail" || newType === "google-calendar" || newType === "notion" || newType === "github") {
                     setAuthType("none");
                     setUrl("");
                   } else {
@@ -368,6 +386,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 <option value="gmail">Gmail</option>
                 <option value="google-calendar">Google Calendar</option>
                 <option value="notion">Notion</option>
+                <option value="github">GitHub</option>
                 <option value="custom">Custom MCP</option>
               </select>
               {mcpType === "google-drive" && (
@@ -388,6 +407,11 @@ export const McpServerModal: FC<McpServerModalProps> = ({
               {mcpType === "notion" && (
                 <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
                   After creating the server, you&apos;ll need to connect your Notion account via OAuth.
+                </p>
+              )}
+              {mcpType === "github" && (
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  After creating the server, you&apos;ll need to connect your GitHub account via OAuth (read-only access).
                 </p>
               )}
             </div>
@@ -449,6 +473,24 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
                     This is a Gmail MCP server. OAuth connection is managed separately.
+                  </p>
+                </div>
+              ) : server.authType === "oauth" && server.serviceType === "google-calendar" ? (
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                    This is a Google Calendar MCP server. OAuth connection is managed separately.
+                  </p>
+                </div>
+              ) : server.authType === "oauth" && server.serviceType === "notion" ? (
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                    This is a Notion MCP server. OAuth connection is managed separately.
+                  </p>
+                </div>
+              ) : server.authType === "oauth" && server.serviceType === "github" ? (
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                    This is a GitHub MCP server. OAuth connection is managed separately.
                   </p>
                 </div>
               ) : (

@@ -103,6 +103,11 @@ export const registerGetMcpServerOauthAuthorize = (
             "../../../utils/oauth/mcp/notion"
           );
           authUrl = generateNotionAuthUrl(workspaceId, serverId);
+        } else if (server.serviceType === "github") {
+          const { generateGithubAuthUrl } = await import(
+            "../../../utils/oauth/mcp/github"
+          );
+          authUrl = generateGithubAuthUrl(workspaceId, serverId);
         } else {
           throw badRequest(
             `Unsupported service type: ${server.serviceType || "unknown"}`

@@ -275,7 +275,7 @@ export async function createMcpServerTools(
     if (
       server.authType === "oauth" &&
       server.serviceType &&
-      ["google-drive", "gmail", "google-calendar", "notion"].includes(
+      ["google-drive", "gmail", "google-calendar", "notion", "github"].includes(
         server.serviceType
       )
     ) {
@@ -299,7 +299,7 @@ export async function createMcpServerTools(
     if (
       server.authType === "oauth" &&
       server.serviceType &&
-      ["google-drive", "gmail", "google-calendar", "notion"].includes(
+      ["google-drive", "gmail", "google-calendar", "notion", "github"].includes(
         server.serviceType
       )
     ) {
@@ -437,6 +437,49 @@ export async function createMcpServerTools(
         updateDatabasePageTool as ReturnType<typeof createMcpServerTool>;
       tools[`notion_append_blocks${suffix}`] =
         appendBlocksTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "github") {
+      // Import GitHub tools dynamically to avoid circular dependencies
+      const {
+        createGithubListRepositoriesTool,
+        createGithubGetRepositoryTool,
+        createGithubListIssuesTool,
+        createGithubGetIssueTool,
+        createGithubListPullRequestsTool,
+        createGithubGetPullRequestTool,
+        createGithubReadFileTool,
+        createGithubListCommitsTool,
+        createGithubGetCommitTool,
+      } = await import("./githubTools");
+
+      // Create dedicated GitHub tools
+      const listReposTool = createGithubListRepositoriesTool(workspaceId, serverId);
+      const getRepoTool = createGithubGetRepositoryTool(workspaceId, serverId);
+      const listIssuesTool = createGithubListIssuesTool(workspaceId, serverId);
+      const getIssueTool = createGithubGetIssueTool(workspaceId, serverId);
+      const listPRsTool = createGithubListPullRequestsTool(workspaceId, serverId);
+      const getPRTool = createGithubGetPullRequestTool(workspaceId, serverId);
+      const readFileTool = createGithubReadFileTool(workspaceId, serverId);
+      const listCommitsTool = createGithubListCommitsTool(workspaceId, serverId);
+      const getCommitTool = createGithubGetCommitTool(workspaceId, serverId);
+
+      tools[`github_list_repos${suffix}`] =
+        listReposTool as ReturnType<typeof createMcpServerTool>;
+      tools[`github_get_repo${suffix}`] =
+        getRepoTool as ReturnType<typeof createMcpServerTool>;
+      tools[`github_list_issues${suffix}`] =
+        listIssuesTool as ReturnType<typeof createMcpServerTool>;
+      tools[`github_get_issue${suffix}`] =
+        getIssueTool as ReturnType<typeof createMcpServerTool>;
+      tools[`github_list_prs${suffix}`] =
+        listPRsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`github_get_pr${suffix}`] =
+        getPRTool as ReturnType<typeof createMcpServerTool>;
+      tools[`github_read_file${suffix}`] =
+        readFileTool as ReturnType<typeof createMcpServerTool>;
+      tools[`github_list_commits${suffix}`] =
+        listCommitsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`github_get_commit${suffix}`] =
+        getCommitTool as ReturnType<typeof createMcpServerTool>;
     } else {
       // Create a generic MCP tool for external servers
       // For generic servers, always use server name since they're inherently different
