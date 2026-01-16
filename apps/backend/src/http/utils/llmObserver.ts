@@ -387,8 +387,7 @@ export function withLlmObserver<TModel extends object>(
     wrappedModel.doGenerate = async (options: unknown) => {
       observer.recordGenerationStarted();
       try {
-        const wrappedOptions = attachObserverCallbacks(options, observer);
-        const result = await originalDoGenerate(wrappedOptions);
+        const result = await originalDoGenerate(options);
         observer.recordGenerationEnded();
         observer.recordFromResult(result);
         return result;
@@ -404,8 +403,7 @@ export function withLlmObserver<TModel extends object>(
     wrappedModel.doStream = async (options: unknown) => {
       observer.recordGenerationStarted();
       try {
-        const wrappedOptions = attachObserverCallbacks(options, observer);
-        const result = await originalDoStream(wrappedOptions);
+        const result = await originalDoStream(options);
         return result;
       } catch (error) {
         observer.recordGenerationEnded();
@@ -417,14 +415,18 @@ export function withLlmObserver<TModel extends object>(
   return wrappedModel as TModel;
 }
 
-function attachObserverCallbacks(
-  options: unknown,
-  observer: LlmObserver
-): unknown {
-  if (!options || typeof options !== "object") return options;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- options are provider-specific
-  const optionsAny = options as any;
-
+export function createStreamObserverCallbacks(
+  observer: LlmObserver,
+  options?: {
+    onStepStart?: (step: unknown) => void;
+    onStepFinish?: (step: unknown) => void;
+    onFinish?: () => void;
+  }
+): {
+  onStepStart: (step: unknown) => void;
+  onStepFinish: (step: unknown) => void;
+  onFinish: () => void;
+} {
   const onStepStart = (step: unknown) => {
     const timestamp = nowIso();
     for (const toolCall of extractToolCallsFromStep(step)) {
@@ -460,10 +462,9 @@ function attachObserverCallbacks(
   };
 
   return {
-    ...optionsAny,
-    onStepStart: mergeCallback(optionsAny.onStepStart, onStepStart),
-    onStepFinish: mergeCallback(optionsAny.onStepFinish, onStepFinish),
-    onFinish: mergeCallback(optionsAny.onFinish, onFinish),
+    onStepStart: mergeCallback(options?.onStepStart, onStepStart),
+    onStepFinish: mergeCallback(options?.onStepFinish, onStepFinish),
+    onFinish: mergeCallback(options?.onFinish, onFinish),
   };
 }
 

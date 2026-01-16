@@ -5,7 +5,7 @@ import type { setupAgentAndTools } from "../../http/utils/agentSetup";
 import { Sentry, ensureError } from "../../utils/sentry";
 
 import { prepareLLMCall } from "./generationLLMSetup";
-import type { LlmObserver } from "./llmObserver";
+import { createStreamObserverCallbacks, type LlmObserver } from "./llmObserver";
 import {
   writeChunkToStream,
   type HttpResponseStream,
@@ -36,6 +36,10 @@ export async function pipeAIStreamToResponse(
     "stream"
   );
 
+  const observerCallbacks = observer
+    ? createStreamObserverCallbacks(observer)
+    : undefined;
+
   const streamResult = streamText({
     model: model as unknown as Parameters<typeof streamText>[0]["model"],
     system: agent.systemPrompt,
@@ -43,6 +47,7 @@ export async function pipeAIStreamToResponse(
     tools,
     ...generateOptions,
     ...(abortSignal && { abortSignal }),
+    ...(observerCallbacks && observerCallbacks),
   });
 
   // Get the UI message stream response from streamText result
@@ -107,6 +112,26 @@ export async function pipeAIStreamToResponse(
                 } else if (parsed.type === "text" && parsed.text) {
                   onTextChunk(parsed.text);
                   observer?.recordText(parsed.text);
+                } else if (parsed.type === "tool-call") {
+                  if (parsed.toolCallId && parsed.toolName) {
+                    observer?.recordToolCall({
+                      toolCallId: parsed.toolCallId,
+                      toolName: parsed.toolName,
+                      args: parsed.args ?? parsed.input ?? {},
+                    });
+                  }
+                } else if (parsed.type === "tool-result") {
+                  if (parsed.toolCallId && parsed.toolName) {
+                    observer?.recordToolResult({
+                      toolCallId: parsed.toolCallId,
+                      toolName: parsed.toolName,
+                      result:
+                        parsed.result ??
+                        parsed.output?.value ??
+                        parsed.output ??
+                        parsed.value,
+                    });
+                  }
                 }
               } catch {
                 console.error("[Stream Handler] Error parsing JSON:", line);
