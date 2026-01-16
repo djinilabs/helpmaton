@@ -167,6 +167,11 @@ export async function setupAgentAndTools(
 
   // Extract agentId from agent.pk (format: "agents/{workspaceId}/{agentId}")
   const extractedAgentId = agent.pk.replace(`agents/${workspaceId}/`, "");
+  if (!extractedAgentId || extractedAgentId.trim() === "") {
+    throw new Error(
+      `Invalid agent primary key format: expected "agents/${workspaceId}/{agentId}", got "${agent.pk}"`
+    );
+  }
 
   const tools: AgentSetup["tools"] = {};
 
@@ -245,13 +250,26 @@ export async function setupAgentAndTools(
       options?.conversationId
     );
   } else if (agent.fetchWebProvider === "scrape") {
-    const { createScrapeFetchTool } = await import("./tavilyTools");
-    tools.fetch_url = createScrapeFetchTool(
-      workspaceId,
-      effectiveContext,
-      extractedAgentId,
-      options?.conversationId
-    );
+    // Scrape tool requires conversationId for authentication
+    // Only create the tool if conversationId is available
+    const conversationId = options?.conversationId;
+    if (conversationId && extractedAgentId) {
+      const { createScrapeFetchTool } = await import("./tavilyTools");
+      tools.fetch_url = createScrapeFetchTool(
+        workspaceId,
+        effectiveContext,
+        extractedAgentId,
+        conversationId
+      );
+    } else {
+      // Log warning if scrape tool cannot be created due to missing context
+      console.warn("[Agent Setup] Scrape tool not created - missing required context:", {
+        workspaceId,
+        agentId: extractedAgentId,
+        hasConversationId: !!conversationId,
+        hasAgentId: !!extractedAgentId,
+      });
+    }
   }
 
   // Add Exa.ai search tool if enabled
