@@ -2043,6 +2043,7 @@ export async function trackDelegation(
   delegation: {
     callingAgentId: string;
     targetAgentId: string;
+    targetConversationId?: string;
     taskId?: string;
     status: "completed" | "failed" | "cancelled";
   }
@@ -2110,6 +2111,7 @@ export async function trackDelegation(
               delegations?: Array<{
                 callingAgentId: string;
                 targetAgentId: string;
+                targetConversationId?: string;
                 taskId?: string;
                 timestamp: string;
                 status: "completed" | "failed" | "cancelled";

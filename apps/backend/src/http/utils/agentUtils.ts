@@ -805,10 +805,13 @@ export async function callAgentInternal(
   conversationId?: string,
   conversationOwnerAgentId?: string, // Agent ID that owns the conversation (for delegation tracking)
   abortSignal?: AbortSignal
-): Promise<string> {
+): Promise<{ response: string; targetAgentConversationId: string }> {
   // Check depth limit
   if (callDepth >= maxDepth) {
-    return `Error: Maximum delegation depth (${maxDepth}) reached. Cannot delegate further.`;
+    return {
+      response: `Error: Maximum delegation depth (${maxDepth}) reached. Cannot delegate further.`,
+      targetAgentConversationId: randomUUID(), // Generate a conversation ID even for errors
+    };
   }
 
   const db = await database();
@@ -824,11 +827,17 @@ export async function callAgentInternal(
   const targetAgentPk = `agents/${workspaceId}/${targetAgentId}`;
   const targetAgent = await db.agent.get(targetAgentPk, "agent");
   if (!targetAgent) {
-    return `Error: Target agent ${targetAgentId} not found.`;
+    return {
+      response: `Error: Target agent ${targetAgentId} not found.`,
+      targetAgentConversationId: targetAgentConversationId,
+    };
   }
 
   if (targetAgent.workspaceId !== workspaceId) {
-    return `Error: Target agent ${targetAgentId} does not belong to this workspace.`;
+    return {
+      response: `Error: Target agent ${targetAgentId} does not belong to this workspace.`,
+      targetAgentConversationId: targetAgentConversationId,
+    };
   }
 
   // Get workspace API key if it exists (OpenRouter provider)
@@ -1478,7 +1487,10 @@ export async function callAgentInternal(
       );
     }
 
-    return result.text;
+    return {
+      response: result.text,
+      targetAgentConversationId,
+    };
   } catch (error) {
     // Handle errors based on when they occurred
     if (reservationId && reservationId !== "byok") {
@@ -1650,9 +1662,12 @@ export async function callAgentInternal(
       }
     }
 
-    return `Error calling agent: ${
-      error instanceof Error ? error.message : String(error)
-    }`;
+    return {
+      response: `Error calling agent: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      targetAgentConversationId: targetAgentConversationId || randomUUID(),
+    };
   }
 }
 
@@ -2306,7 +2321,7 @@ export function createCallAgentTool(
 
         // Call the agent internally
         // Pass conversationId and conversationOwnerAgentId through to nested delegations
-        const response = await callAgentInternal(
+        const delegationResult = await callAgentInternal(
           workspaceId,
           agentId,
           message.trim(),
@@ -2317,6 +2332,9 @@ export function createCallAgentTool(
           conversationId,
           conversationOwnerAgentId || currentAgentId
         );
+
+        const response = delegationResult.response;
+        const targetAgentConversationId = delegationResult.targetAgentConversationId;
 
         // Wrap response with metadata
         let result = `Agent ${targetAgentName} responded: ${response}`;
@@ -2353,6 +2371,7 @@ export function createCallAgentTool(
           await trackDelegation(db, workspaceId, ownerAgentId, conversationId, {
             callingAgentId: currentAgentId,
             targetAgentId: agentId,
+            targetConversationId: targetAgentConversationId,
             status: "completed",
           });
         }
@@ -2395,6 +2414,8 @@ export function createCallAgentTool(
         const ownerAgentId = conversationOwnerAgentId || currentAgentId;
         if (conversationId) {
           const db = await database();
+          // For failed delegations, we may not have a targetConversationId
+          // (it might not have been created if the error happened early)
           await trackDelegation(db, workspaceId, ownerAgentId, conversationId, {
             callingAgentId: currentAgentId,
             targetAgentId: agentId,

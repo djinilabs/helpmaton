@@ -142,7 +142,8 @@ async function trackDelegationSafely(
   conversationId: string | undefined,
   targetAgentId: string,
   taskId: string,
-  status: "completed" | "failed"
+  status: "completed" | "failed",
+  targetConversationId?: string
 ): Promise<void> {
   if (!conversationId) {
     return;
@@ -152,6 +153,7 @@ async function trackDelegationSafely(
     await trackDelegation(db, workspaceId, callingAgentId, conversationId, {
       callingAgentId,
       targetAgentId,
+      targetConversationId,
       taskId,
       status,
     });
@@ -213,6 +215,7 @@ async function processDelegationTask(
   // Retry logic with exponential backoff
   let lastError: Error | undefined;
   let result: string | undefined;
+  let targetAgentConversationId: string | undefined;
 
   for (let attempt = 0; attempt < BACKOFF_MAX_ATTEMPTS; attempt++) {
     try {
@@ -249,7 +252,7 @@ async function processDelegationTask(
       const requestTimeout = createRequestTimeout();
 
       try {
-        result = await callAgentInternal(
+        const delegationResult = await callAgentInternal(
           workspaceId,
           targetAgentId,
           taskMessage,
@@ -261,6 +264,8 @@ async function processDelegationTask(
           callingAgentId, // Use callingAgentId as conversationOwnerAgentId for tracking
           requestTimeout.signal
         );
+        result = delegationResult.response;
+        targetAgentConversationId = delegationResult.targetAgentConversationId;
       } finally {
         cleanupRequestTimeout(requestTimeout);
       }
@@ -317,7 +322,8 @@ async function processDelegationTask(
       conversationId,
       targetAgentId,
       taskId,
-      "completed"
+      "completed",
+      targetAgentConversationId
     );
   } else {
     // This shouldn't happen, but handle it
