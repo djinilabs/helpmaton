@@ -32,6 +32,22 @@ export interface StreamExecutionResult {
   hasWrittenData: boolean; // Track if any data has been written to the stream
 }
 
+function recordFinalTextIfNotStreamed(params: {
+  observer: StreamRequestContext["llmObserver"];
+  finalResponseText: string;
+  streamedTextLength: number;
+}): void {
+  const { observer, finalResponseText, streamedTextLength } = params;
+  if (!finalResponseText || streamedTextLength > 0) {
+    return;
+  }
+  // In normal streaming, `streamedTextLength` grows as chunks are sent and
+  // the observer is notified per chunk. In some edge cases, the final text is
+  // only available via `streamResult.text` and no chunks are streamed at all.
+  // In that case, record the text once to keep conversation logging complete.
+  observer.recordText(finalResponseText);
+}
+
 /**
  * Executes the AI stream and handles all processing
  * Returns the execution result or null if an error was handled
@@ -148,9 +164,11 @@ export async function executeStream(
   }
 
   const finalResponseText = responseText || fullStreamedText;
-  if (finalResponseText && fullStreamedText.length === 0) {
-    context.llmObserver.recordText(finalResponseText);
-  }
+  recordFinalTextIfNotStreamed({
+    observer: context.llmObserver,
+    finalResponseText,
+    streamedTextLength: fullStreamedText.length,
+  });
 
   console.log("[Stream Execution] Final response text:", finalResponseText);
 
@@ -222,9 +240,11 @@ export async function executeStreamForApiGateway(
   ]);
 
   const finalResponseText = responseText || fullStreamedText;
-  if (finalResponseText && fullStreamedText.length === 0) {
-    context.llmObserver.recordText(finalResponseText);
-  }
+  recordFinalTextIfNotStreamed({
+    observer: context.llmObserver,
+    finalResponseText,
+    streamedTextLength: fullStreamedText.length,
+  });
 
   // Extract token usage
   const totalUsage = await streamResult.totalUsage;

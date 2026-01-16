@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { LlmObserverEvent } from "../llmObserver";
-import { buildConversationMessagesFromObserver } from "../llmObserver";
+import {
+  buildConversationMessagesFromObserver,
+  createLlmObserver,
+  withLlmObserver,
+  wrapToolsWithObserver,
+} from "../llmObserver";
 
 describe("buildConversationMessagesFromObserver", () => {
   it("builds assistant content with tool timing and cost extraction", () => {
@@ -119,5 +124,120 @@ describe("buildConversationMessagesFromObserver", () => {
     expect(messages).toHaveLength(2);
     expect(messages[0].role).toBe("user");
     expect(messages[1].role).toBe("assistant");
+  });
+});
+
+describe("llmObserver helpers", () => {
+  it("records events from AI SDK-style result steps", () => {
+    const observer = createLlmObserver();
+    observer.recordFromResult({
+      steps: [
+        {
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call-1",
+              toolName: "search_documents",
+              input: { query: "docs" },
+            },
+            {
+              type: "tool-result",
+              toolCallId: "call-1",
+              toolName: "search_documents",
+              result: "ok",
+            },
+            { type: "reasoning", text: "thinking" },
+          ],
+        },
+      ],
+      text: "done",
+    });
+
+    const events = observer.getEvents();
+    expect(events.some((event) => event.type === "tool-call")).toBe(true);
+    expect(events.some((event) => event.type === "tool-result")).toBe(true);
+    expect(
+      events.some(
+        (event) =>
+          event.type === "assistant-reasoning" && event.text === "thinking"
+      )
+    ).toBe(true);
+    expect(
+      events.some(
+        (event) => event.type === "assistant-text" && event.text === "done"
+      )
+    ).toBe(true);
+  });
+
+  it("deduplicates generation start/end events", () => {
+    const observer = createLlmObserver();
+    observer.recordGenerationStarted();
+    observer.recordGenerationStarted();
+    observer.recordGenerationEnded();
+    observer.recordGenerationEnded();
+
+    const events = observer.getEvents();
+    const startCount = events.filter(
+      (event) => event.type === "generation-started"
+    ).length;
+    const endCount = events.filter(
+      (event) => event.type === "generation-ended"
+    ).length;
+    expect(startCount).toBe(1);
+    expect(endCount).toBe(1);
+  });
+
+  it("wraps models to record generation events", async () => {
+    const observer = createLlmObserver();
+    const model = {
+      doGenerate: async () => {
+        return {
+          steps: [
+            {
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "call-1",
+                  toolName: "search_documents",
+                  args: { query: "docs" },
+                },
+              ],
+            },
+          ],
+          text: "ok",
+        };
+      },
+    };
+
+    const wrapped = withLlmObserver(model, observer);
+    await wrapped.doGenerate?.();
+
+    const events = observer.getEvents();
+    expect(events.some((event) => event.type === "generation-started")).toBe(
+      true
+    );
+    expect(events.some((event) => event.type === "generation-ended")).toBe(true);
+    expect(events.some((event) => event.type === "tool-call")).toBe(true);
+  });
+
+  it("wraps tools and records execution timing events", async () => {
+    const observer = createLlmObserver();
+    const tools = {
+      search_documents: {
+        description: "Search docs",
+        execute: async () => "ok",
+      },
+    };
+
+    const wrapped = wrapToolsWithObserver(tools, observer);
+    await wrapped.search_documents.execute?.();
+
+    const events = observer.getEvents();
+    expect(
+      events.some((event) => event.type === "tool-execution-started")
+    ).toBe(true);
+    expect(
+      events.some((event) => event.type === "tool-execution-ended")
+    ).toBe(true);
   });
 });

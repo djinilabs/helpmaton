@@ -8,6 +8,7 @@
 
 - **LLM observer-driven conversation records**: Added a new LLM observer wrapper with tool execution observation, and rebuilt conversation record assembly in stream/webhook/delegation flows to use observed events; added unit tests for observer-based reconstruction.
 - **Streaming observer fixes**: StreamText now receives observer step callbacks directly, and SSE parsing now records `tool-call`/`tool-result` events for complete conversation logging.
+- **Observer test coverage + helpers**: Added more unit tests for observer behavior and extracted a shared helper for observer input message insertion.
 
 1. **GitHub MCP Server Integration**: Implemented complete GitHub MCP server support with OAuth authentication, read-only API access, and comprehensive tool coverage for repositories, issues, pull requests, commits, and file contents.
 

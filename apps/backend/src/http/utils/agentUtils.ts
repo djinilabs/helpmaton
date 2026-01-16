@@ -26,6 +26,7 @@ import { extractTokenUsageAndCosts } from "../utils/generationTokenExtraction";
 
 import {
   buildConversationMessagesFromObserver,
+  buildObserverInputMessages,
   createLlmObserver,
   getGenerationTimingFromObserver,
   wrapToolsWithObserver,
@@ -1092,21 +1093,14 @@ export async function callAgentInternal(
     role: "user",
     content: message,
   };
-  const messagesToInsert: UIMessage[] = [];
-  if (rerankingRequestMessage) {
-    messagesToInsert.push(rerankingRequestMessage);
-  }
-  if (rerankingResultMessage) {
-    messagesToInsert.push(rerankingResultMessage);
-  }
-  if (knowledgeInjectionMessage) {
-    messagesToInsert.push(knowledgeInjectionMessage);
-  }
-  if (messagesToInsert.length > 0) {
-    llmObserver.recordInputMessages([...messagesToInsert, inputUserMessage]);
-  } else {
-    llmObserver.recordInputMessages([inputUserMessage]);
-  }
+  llmObserver.recordInputMessages(
+    buildObserverInputMessages({
+      baseMessages: [inputUserMessage],
+      rerankingRequestMessage: rerankingRequestMessage ?? undefined,
+      rerankingResultMessage: rerankingResultMessage ?? undefined,
+      knowledgeInjectionMessage: knowledgeInjectionMessage ?? undefined,
+    })
+  );
 
   let reservationId: string | undefined;
   let llmCallAttempted = false;

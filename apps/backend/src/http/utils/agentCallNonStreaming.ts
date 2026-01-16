@@ -17,7 +17,11 @@ import {
 } from "./generationCreditManagement";
 import { prepareLLMCall } from "./generationLLMSetup";
 import { extractTokenUsageAndCosts } from "./generationTokenExtraction";
-import { createLlmObserver, type LlmObserverEvent } from "./llmObserver";
+import {
+  buildObserverInputMessages,
+  createLlmObserver,
+  type LlmObserverEvent,
+} from "./llmObserver";
 import {
   convertTextToUIMessage,
   convertUIMessagesToModelMessages,
@@ -153,31 +157,14 @@ export async function callAgentNonStreaming(
   const rerankingResultMessage =
     knowledgeInjectionResult.rerankingResultMessage;
 
-  const messagesToInsert: UIMessage[] = [];
-  if (rerankingRequestMessage) {
-    messagesToInsert.push(rerankingRequestMessage);
-  }
-  if (rerankingResultMessage) {
-    messagesToInsert.push(rerankingResultMessage);
-  }
-  if (knowledgeInjectionMessage) {
-    messagesToInsert.push(knowledgeInjectionMessage);
-  }
-
-  if (messagesToInsert.length > 0) {
-    const userMessageIndex = allMessages.findIndex(
-      (msg) => msg.role === "user"
-    );
-    if (userMessageIndex === -1) {
-      llmObserver.recordInputMessages([...messagesToInsert, ...allMessages]);
-    } else {
-      const mergedMessages = [...allMessages];
-      mergedMessages.splice(userMessageIndex, 0, ...messagesToInsert);
-      llmObserver.recordInputMessages(mergedMessages);
-    }
-  } else {
-    llmObserver.recordInputMessages(allMessages);
-  }
+  llmObserver.recordInputMessages(
+    buildObserverInputMessages({
+      baseMessages: allMessages,
+      rerankingRequestMessage: rerankingRequestMessage ?? undefined,
+      rerankingResultMessage: rerankingResultMessage ?? undefined,
+      knowledgeInjectionMessage: knowledgeInjectionMessage ?? undefined,
+    })
+  );
 
   // Derive the model name from the agent's modelName if set, otherwise use default
   const finalModelName =

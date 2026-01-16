@@ -368,6 +368,42 @@ export function createLlmObserver(): LlmObserver {
   };
 }
 
+export function buildObserverInputMessages(params: {
+  baseMessages: UIMessage[];
+  rerankingRequestMessage?: UIMessage;
+  rerankingResultMessage?: UIMessage;
+  knowledgeInjectionMessage?: UIMessage;
+}): UIMessage[] {
+  const {
+    baseMessages,
+    rerankingRequestMessage,
+    rerankingResultMessage,
+    knowledgeInjectionMessage,
+  } = params;
+  const messagesToInsert: UIMessage[] = [];
+  if (rerankingRequestMessage) {
+    messagesToInsert.push(rerankingRequestMessage);
+  }
+  if (rerankingResultMessage) {
+    messagesToInsert.push(rerankingResultMessage);
+  }
+  if (knowledgeInjectionMessage) {
+    messagesToInsert.push(knowledgeInjectionMessage);
+  }
+  if (messagesToInsert.length === 0) {
+    return baseMessages;
+  }
+  const userMessageIndex = baseMessages.findIndex(
+    (message) => message.role === "user"
+  );
+  if (userMessageIndex === -1) {
+    return [...messagesToInsert, ...baseMessages];
+  }
+  const mergedMessages = [...baseMessages];
+  mergedMessages.splice(userMessageIndex, 0, ...messagesToInsert);
+  return mergedMessages;
+}
+
 type AssistantMessage = Extract<UIMessage, { role: "assistant" }>;
 type AssistantTokenUsage = AssistantMessage["tokenUsage"];
 
