@@ -45,7 +45,8 @@ export const ChatMessage = memo<ChatMessageProps>(
         typeof message === "object" &&
         message !== null &&
         "knowledgeInjection" in message &&
-        (message as { knowledgeInjection?: boolean }).knowledgeInjection === true,
+        (message as { knowledgeInjection?: boolean }).knowledgeInjection ===
+          true,
       [message]
     );
 
@@ -56,9 +57,13 @@ export const ChatMessage = memo<ChatMessageProps>(
         typeof message === "object" &&
         message !== null &&
         "knowledgeSnippets" in message &&
-        Array.isArray((message as { knowledgeSnippets?: unknown }).knowledgeSnippets)
+        Array.isArray(
+          (message as { knowledgeSnippets?: unknown }).knowledgeSnippets
+        )
       ) {
-        return ((message as { knowledgeSnippets?: unknown[] }).knowledgeSnippets || []).length;
+        return (
+          (message as { knowledgeSnippets?: unknown[] }).knowledgeSnippets || []
+        ).length;
       }
       return 0;
     }, [isKnowledgeInjection, message]);
@@ -299,11 +304,7 @@ export const ChatMessage = memo<ChatMessageProps>(
       }
 
       // Source URL part
-      if (
-        partType === "source-url" &&
-        "url" in part &&
-        "sourceId" in part
-      ) {
+      if (partType === "source-url" && "url" in part && "sourceId" in part) {
         const sourcePart = part as {
           type: "source-url";
           sourceId: string;
@@ -349,11 +350,7 @@ export const ChatMessage = memo<ChatMessageProps>(
       }
 
       // File part (alternative format)
-      if (
-        partType === "file" &&
-        "url" in part &&
-        "mediaType" in part
-      ) {
+      if (partType === "file" && "url" in part && "mediaType" in part) {
         const filePart = part as {
           type: "file";
           url: string;
@@ -469,7 +466,9 @@ export const ChatMessage = memo<ChatMessageProps>(
               <div className="space-y-3">
                 {snippets.length > 0 ? (
                   snippets.map((snippet, snippetIndex) => {
-                    const similarityPercent = (snippet.similarity * 100).toFixed(1);
+                    const similarityPercent = (
+                      snippet.similarity * 100
+                    ).toFixed(1);
                     return (
                       <details
                         key={snippetIndex}
@@ -523,7 +522,7 @@ export const ChatMessage = memo<ChatMessageProps>(
     // Regular message rendering
     // Normalize message content: useChat can return either 'content' (string) or 'parts' (array)
     let parts: unknown[] = [];
-    
+
     if (Array.isArray(message.parts)) {
       parts = message.parts;
     } else if ("content" in message) {
@@ -862,7 +861,7 @@ export const ChatMessage = memo<ChatMessageProps>(
     if (prevProps.message.id !== nextProps.message.id) return false;
     if (prevProps.agent?.avatar !== nextProps.agent?.avatar) return false;
     if (prevProps.isWidget !== nextProps.isWidget) return false;
-    
+
     // Deep comparison of message parts/content
     // Normalize both messages to compare properly
     const getNormalizedParts = (msg: ChatMessageProps["message"]) => {
@@ -880,19 +879,19 @@ export const ChatMessage = memo<ChatMessageProps>(
       }
       return [];
     };
-    
+
     const prevParts = getNormalizedParts(prevProps.message);
     const nextParts = getNormalizedParts(nextProps.message);
-    
+
     if (prevParts.length !== nextParts.length) return false;
-    
+
     // Compare each part (simplified - could be more thorough)
     for (let i = 0; i < prevParts.length; i++) {
       if (JSON.stringify(prevParts[i]) !== JSON.stringify(nextParts[i])) {
         return false;
       }
     }
-    
+
     // Compare other message properties (excluding parts and content since we already compared them)
     const prevKeys = Object.keys(prevProps.message).filter(
       (k) => k !== "parts" && k !== "content" && k !== "id"
@@ -900,9 +899,9 @@ export const ChatMessage = memo<ChatMessageProps>(
     const nextKeys = Object.keys(nextProps.message).filter(
       (k) => k !== "parts" && k !== "content" && k !== "id"
     );
-    
+
     if (prevKeys.length !== nextKeys.length) return false;
-    
+
     for (const key of prevKeys) {
       if (
         JSON.stringify(prevProps.message[key]) !==
@@ -911,7 +910,7 @@ export const ChatMessage = memo<ChatMessageProps>(
         return false;
       }
     }
-    
+
     return true; // Props are equal, skip re-render
   }
 );

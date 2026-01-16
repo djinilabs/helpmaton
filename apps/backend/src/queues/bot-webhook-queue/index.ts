@@ -688,7 +688,9 @@ async function processSlackTask(
         }
       } else {
         // Fetch channel history
-        const channelHistory = await client.conversations.history(historyParams);
+        const channelHistory = await client.conversations.history(
+          historyParams
+        );
 
         if (channelHistory.ok && channelHistory.messages) {
           // Filter out the current message, then convert
@@ -772,15 +774,11 @@ async function processSlackTask(
 
     // Update with complete response
     const responseText = agentResult.text || "No response generated.";
-    await updateSlackMessage(
-      client,
-      safeChannel,
-      safeMessageTs,
-      responseText
-    );
+    await updateSlackMessage(client, safeChannel, safeMessageTs, responseText);
 
     // Log conversation to trigger judge evaluations
-    const finalConversationId = conversationId || threadTs || messageTs || randomUUID();
+    const finalConversationId =
+      conversationId || threadTs || messageTs || randomUUID();
     const generationEndedAt = new Date().toISOString();
     const generationTimeMs =
       generationStartTime !== undefined
@@ -1033,18 +1031,15 @@ async function processSlackTask(
       }
     } catch (conversationError) {
       // Log error but don't throw - conversation logging should not block webhook processing
-      console.error(
-        "[Bot Webhook Queue] Error logging conversation (Slack):",
-        {
-          error:
-            conversationError instanceof Error
-              ? conversationError.message
-              : String(conversationError),
-          workspaceId,
-          agentId,
-          conversationId: finalConversationId,
-        }
-      );
+      console.error("[Bot Webhook Queue] Error logging conversation (Slack):", {
+        error:
+          conversationError instanceof Error
+            ? conversationError.message
+            : String(conversationError),
+        workspaceId,
+        agentId,
+        conversationId: finalConversationId,
+      });
     }
 
     // Update lastUsedAt

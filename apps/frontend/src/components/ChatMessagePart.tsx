@@ -1,7 +1,4 @@
-import {
-  ChartBarIcon,
-  PaperClipIcon,
-} from "@heroicons/react/24/outline";
+import { ChartBarIcon, PaperClipIcon } from "@heroicons/react/24/outline";
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -15,13 +12,14 @@ interface TextPartProps {
 
 export const TextPart = memo<TextPartProps>(({ text, isUser }) => {
   if (isUser) {
-    return (
-      <div className="whitespace-pre-wrap break-words">{text}</div>
-    );
+    return <div className="whitespace-pre-wrap break-words">{text}</div>;
   }
   return (
     text.trim() && (
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={markdownComponents}
+      >
         {text}
       </ReactMarkdown>
     )
@@ -34,49 +32,47 @@ interface ReasoningPartProps {
   isWidget: boolean;
 }
 
-export const ReasoningPart = memo<ReasoningPartProps>(
-  ({ text, isWidget }) => {
-    if (isWidget) {
-      return null;
-    }
-    const isRedacted = text === "[REDACTED]";
-    return (
-      <div className="max-w-[80%] overflow-x-auto rounded-xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-950">
-        <details className="text-xs">
-          <summary className="cursor-pointer font-medium text-indigo-700 hover:text-indigo-800 dark:text-indigo-300 dark:hover:text-indigo-200">
-            🧠 Reasoning
-            {isRedacted && (
-              <span className="ml-2 text-xs text-indigo-600 dark:text-indigo-400">
-                (Click to view)
-              </span>
-            )}
-          </summary>
-          <div className="mt-2">
-            {isRedacted ? (
-              <div className="rounded bg-indigo-100 p-2 text-xs text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
-                <p className="mb-1 font-medium">Reasoning content is redacted</p>
-                <p className="text-xs">
-                  The reasoning process is hidden by default. The actual
-                  reasoning content may be available in the stream events but is
-                  not included in the message content.
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto rounded bg-indigo-100 p-2 text-sm text-indigo-900 dark:bg-indigo-900 dark:text-indigo-100">
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={markdownComponents}
-                >
-                  {text}
-                </ReactMarkdown>
-              </div>
-            )}
-          </div>
-        </details>
-      </div>
-    );
+export const ReasoningPart = memo<ReasoningPartProps>(({ text, isWidget }) => {
+  if (isWidget) {
+    return null;
   }
-);
+  const isRedacted = text === "[REDACTED]";
+  return (
+    <div className="max-w-[80%] overflow-x-auto rounded-xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-800 dark:bg-indigo-950">
+      <details className="text-xs">
+        <summary className="cursor-pointer font-medium text-indigo-700 hover:text-indigo-800 dark:text-indigo-300 dark:hover:text-indigo-200">
+          🧠 Reasoning
+          {isRedacted && (
+            <span className="ml-2 text-xs text-indigo-600 dark:text-indigo-400">
+              (Click to view)
+            </span>
+          )}
+        </summary>
+        <div className="mt-2">
+          {isRedacted ? (
+            <div className="rounded bg-indigo-100 p-2 text-xs text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+              <p className="mb-1 font-medium">Reasoning content is redacted</p>
+              <p className="text-xs">
+                The reasoning process is hidden by default. The actual reasoning
+                content may be available in the stream events but is not
+                included in the message content.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded bg-indigo-100 p-2 text-sm text-indigo-900 dark:bg-indigo-900 dark:text-indigo-100">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={markdownComponents}
+              >
+                {text}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
+      </details>
+    </div>
+  );
+});
 ReasoningPart.displayName = "ReasoningPart";
 
 interface FilePartProps {
@@ -94,10 +90,7 @@ export const FilePart = memo<FilePartProps>(
 
     if (isImage) {
       return (
-        <div
-          key={`${messageId}-part-${partIndex}`}
-          className="mt-2 max-w-full"
-        >
+        <div key={`${messageId}-part-${partIndex}`} className="mt-2 max-w-full">
           <img
             src={fileUrl}
             alt="Uploaded image"

@@ -1,8 +1,5 @@
 import { useChat } from "@ai-sdk/react";
-import {
-  PaperClipIcon,
-  TrashIcon,
-} from "@heroicons/react/24/outline";
+import { PaperClipIcon, TrashIcon } from "@heroicons/react/24/outline";
 import {
   DefaultChatTransport,
   lastAssistantMessageIsCompleteWithToolCalls,
