@@ -68,6 +68,7 @@
 - **Throttling**: Subscription-based rate limits (Free/Starter/Pro)
 - **Error Handling**: Centralized error handling utilities
 - **OpenAPI**: Auto-generated from code annotations
+- **MCP Integrations**: Non-OAuth MCP services (e.g., PostHog) use API keys in `mcp-server.config.apiKey` and validate base URLs against approved regions before requests.
 
 ### Code Patterns
 

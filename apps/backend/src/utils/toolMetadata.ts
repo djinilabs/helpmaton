@@ -1975,6 +1975,293 @@ function getMcpServerToolMetadata(
         },
       ],
     });
+  } else if (serviceType === "posthog") {
+    const condition = `Available (PostHog "${serverName}" enabled)`;
+
+    tools.push({
+      name: `posthog_list_projects${suffix}`,
+      description:
+        "List PostHog projects accessible to the API key. Returns project metadata including id and name.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [],
+    });
+
+    tools.push({
+      name: `posthog_get_project${suffix}`,
+      description: "Get details for a specific PostHog project by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "projectId",
+          type: "string",
+          required: true,
+          description: "PostHog project ID",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `posthog_list_events${suffix}`,
+      description:
+        "List events from a PostHog project with optional filters and pagination.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "projectId",
+          type: "string",
+          required: true,
+          description: "PostHog project ID",
+        },
+        {
+          name: "after",
+          type: "string",
+          required: false,
+          description: "Only return events after this ISO timestamp",
+        },
+        {
+          name: "before",
+          type: "string",
+          required: false,
+          description: "Only return events before this ISO timestamp",
+        },
+        {
+          name: "event",
+          type: "string",
+          required: false,
+          description: "Filter by event name",
+        },
+        {
+          name: "distinctId",
+          type: "string",
+          required: false,
+          description: "Filter by distinct_id",
+        },
+        {
+          name: "personId",
+          type: "number",
+          required: false,
+          description: "Filter by person id",
+        },
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of results to return",
+        },
+        {
+          name: "offset",
+          type: "number",
+          required: false,
+          description: "Number of results to skip",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `posthog_list_feature_flags${suffix}`,
+      description:
+        "List feature flags for a PostHog project with optional search and pagination.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "projectId",
+          type: "string",
+          required: true,
+          description: "PostHog project ID",
+        },
+        {
+          name: "search",
+          type: "string",
+          required: false,
+          description: "Search by flag key or name",
+        },
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of results to return",
+        },
+        {
+          name: "offset",
+          type: "number",
+          required: false,
+          description: "Number of results to skip",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `posthog_get_feature_flag${suffix}`,
+      description: "Get a specific PostHog feature flag by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "projectId",
+          type: "string",
+          required: true,
+          description: "PostHog project ID",
+        },
+        {
+          name: "featureFlagId",
+          type: "string",
+          required: true,
+          description: "Feature flag ID",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `posthog_list_insights${suffix}`,
+      description:
+        "List insights for a PostHog project with optional filters and pagination.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "projectId",
+          type: "string",
+          required: true,
+          description: "PostHog project ID",
+        },
+        {
+          name: "saved",
+          type: "boolean",
+          required: false,
+          description: "Filter by saved insights only",
+        },
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of results to return",
+        },
+        {
+          name: "offset",
+          type: "number",
+          required: false,
+          description: "Number of results to skip",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `posthog_get_insight${suffix}`,
+      description: "Get details for a specific PostHog insight by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "projectId",
+          type: "string",
+          required: true,
+          description: "PostHog project ID",
+        },
+        {
+          name: "insightId",
+          type: "string",
+          required: true,
+          description: "Insight ID",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `posthog_list_persons${suffix}`,
+      description:
+        "List persons in a PostHog project with optional filters and pagination.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "projectId",
+          type: "string",
+          required: true,
+          description: "PostHog project ID",
+        },
+        {
+          name: "search",
+          type: "string",
+          required: false,
+          description: "Search by person name or email",
+        },
+        {
+          name: "distinctId",
+          type: "string",
+          required: false,
+          description: "Filter by distinct_id",
+        },
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of results to return",
+        },
+        {
+          name: "offset",
+          type: "number",
+          required: false,
+          description: "Number of results to skip",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `posthog_get_person${suffix}`,
+      description: "Get details for a specific PostHog person by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "projectId",
+          type: "string",
+          required: true,
+          description: "PostHog project ID",
+        },
+        {
+          name: "personId",
+          type: "string",
+          required: true,
+          description: "Person ID",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `posthog_get${suffix}`,
+      description:
+        "Fetch any read-only PostHog endpoint via GET. Use this for endpoints not covered by other PostHog tools.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "path",
+          type: "string",
+          required: true,
+          description: 'PostHog API path (must start with "/api/")',
+        },
+        {
+          name: "params",
+          type: "object",
+          required: false,
+          description: "Optional query parameters for the request",
+        },
+      ],
+    });
   } else {
     // Generic MCP server tool
     const condition = `Available (MCP server "${serverName}" enabled)`;
@@ -2024,6 +2311,15 @@ export function generateToolList(
 
   // Add MCP server tools
   if (options.enabledMcpServers && options.enabledMcpServers.length > 0) {
+    const oauthServiceTypes = [
+      "google-drive",
+      "gmail",
+      "google-calendar",
+      "notion",
+      "github",
+      "linear",
+    ];
+
     // Group servers by serviceType for conflict detection
     const serversByServiceType = new Map<
       string,
@@ -2033,16 +2329,10 @@ export function generateToolList(
     for (const server of options.enabledMcpServers) {
       let groupKey: string;
       if (
-        server.authType === "oauth" &&
         server.serviceType &&
-        [
-          "google-drive",
-          "gmail",
-          "google-calendar",
-          "notion",
-          "github",
-          "linear",
-        ].includes(server.serviceType)
+        ((server.authType === "oauth" &&
+          oauthServiceTypes.includes(server.serviceType)) ||
+          server.serviceType === "posthog")
       ) {
         groupKey = server.serviceType;
       } else {
@@ -2059,16 +2349,10 @@ export function generateToolList(
     for (const server of options.enabledMcpServers) {
       let groupKey: string;
       if (
-        server.authType === "oauth" &&
         server.serviceType &&
-        [
-          "google-drive",
-          "gmail",
-          "google-calendar",
-          "notion",
-          "github",
-          "linear",
-        ].includes(server.serviceType)
+        ((server.authType === "oauth" &&
+          oauthServiceTypes.includes(server.serviceType)) ||
+          server.serviceType === "posthog")
       ) {
         groupKey = server.serviceType;
       } else {
@@ -2080,17 +2364,18 @@ export function generateToolList(
       const serverNameSanitized = sanitizeServerName(server.name);
       const suffix = hasConflict ? `_${serverNameSanitized}` : "";
 
-      if (
+      if (server.serviceType === "posthog") {
+        const serviceTools = getMcpServerToolMetadata(
+          server.serviceType,
+          server.name,
+          suffix,
+          true
+        );
+        tools.push(...serviceTools);
+      } else if (
         server.authType === "oauth" &&
         server.serviceType &&
-        [
-          "google-drive",
-          "gmail",
-          "google-calendar",
-          "notion",
-          "github",
-          "linear",
-        ].includes(server.serviceType)
+        oauthServiceTypes.includes(server.serviceType)
       ) {
         // Only add service-specific tools if OAuth is connected
         if (server.oauthConnected === true) {

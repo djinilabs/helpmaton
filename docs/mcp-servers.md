@@ -146,6 +146,30 @@ HTTP Basic Authentication:
 
 Credentials are sent as HTTP Basic Auth.
 
+### PostHog MCP Server (Read-only)
+
+PostHog does not support OAuth. Configure it using a personal API key and a
+regional base URL:
+
+```json
+{
+  "name": "PostHog Analytics",
+  "url": "https://eu.posthog.com",
+  "authType": "header",
+  "serviceType": "posthog",
+  "config": {
+    "apiKey": "phx_your_personal_api_key"
+  }
+}
+```
+
+**Allowed PostHog base URLs**:
+
+- `https://us.posthog.com`
+- `https://eu.posthog.com`
+
+The PostHog MCP tools are read-only and use the API key for authorization.
+
 ### Updating an MCP Server
 
 **Endpoint**:
