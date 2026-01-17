@@ -597,7 +597,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             title={
               <>
                 <CpuChipIcon className="mr-2 inline-block size-5" />
-                Assistants (agents)
+                Assistants
               </>
             }
             isExpanded={expandedSection === "agents"}
@@ -868,7 +868,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               title={
                 <>
                   <BoltIcon className="mr-2 inline-block size-5" />
-                  Connected tools (MCP)
+                  Connected tools
                 </>
               }
               isExpanded={expandedSection === "mcp-servers"}

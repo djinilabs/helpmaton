@@ -1414,7 +1414,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold dark:text-neutral-300">
-                      Model (AI engine):{" "}
+                      Model:{" "}
                     </span>
                     <span className="text-sm dark:text-neutral-300">
                       {isEditing ? (
@@ -1497,7 +1497,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             <div className="mt-4">
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-semibold dark:text-neutral-300">
-                  Agent instructions (system prompt):
+                  Agent instructions:
                 </p>
                 <button
                   type="button"

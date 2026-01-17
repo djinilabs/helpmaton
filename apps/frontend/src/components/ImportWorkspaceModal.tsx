@@ -52,7 +52,7 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
 
     // Validate file type
     if (!file.name.toLowerCase().endsWith(".json")) {
-      setFileError("Choose a .json export file.");
+      setFileError("Choose a .json export file");
       setSelectedFile(null);
       return;
     }
@@ -64,7 +64,7 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) {
-      setFileError("Choose a file to import.");
+      setFileError("Choose a file to import");
       return;
     }
 
@@ -91,19 +91,19 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
         exportData = JSON.parse(fileContent);
       } catch {
         setFileError(
-          "This file isn't valid JSON. Please check the file and try again."
+          "This file isn't valid JSON. Please check the file and try again"
         );
         return;
       }
 
       // Validate basic structure
       if (!exportData || typeof exportData !== "object") {
-        setFileError("This file doesn't look like a workspace export.");
+        setFileError("This file doesn't look like a workspace export");
         return;
       }
 
       if (!exportData.name || typeof exportData.name !== "string") {
-        setFileError("The export is missing a workspace name.");
+        setFileError("The export is missing a workspace name");
         return;
       }
 

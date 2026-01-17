@@ -273,7 +273,7 @@ const SubscriptionManagement: FC = () => {
     }
 
     if (isManagerLimitReached) {
-      setEmailError("Billing manager limit reached for this plan.");
+      setEmailError("Billing manager limit reached for this plan");
       return;
     }
 
@@ -388,7 +388,7 @@ const SubscriptionManagement: FC = () => {
                 </div>
               )}
               <div className="mb-4 font-mono text-sm text-neutral-600 dark:text-neutral-300">
-                Subscription ID (support): {subscription.subscriptionId}
+                Subscription ID (for support): {subscription.subscriptionId}
               </div>
               <div className="flex gap-4">
                 {subscription.status === "past_due" && (
@@ -591,7 +591,7 @@ const SubscriptionManagement: FC = () => {
               {/* Agents */}
               <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
-                  Assistants (agents)
+                  Assistants
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   {subscription.usage.agents} / {subscription.limits.maxAgents}
@@ -636,7 +636,7 @@ const SubscriptionManagement: FC = () => {
               {/* MCP Servers */}
               <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
-                  Connected tools (MCP)
+                  Connected tools
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   {subscription.usage.mcpServers} /{" "}
