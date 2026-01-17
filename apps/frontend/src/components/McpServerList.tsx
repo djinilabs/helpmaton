@@ -106,6 +106,8 @@ const McpServerItem: FC<McpServerItemProps> = ({
       ? "GitHub"
       : server.serviceType === "linear"
       ? "Linear"
+      : server.serviceType === "posthog"
+      ? "PostHog"
       : "Unknown";
 
   return (

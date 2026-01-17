@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Status**: Linear MCP OAuth Integration Review Fixes Complete ✅
+**Status**: PostHog MCP API-Key Integration Complete ✅
 
 **Latest Work**:
 
