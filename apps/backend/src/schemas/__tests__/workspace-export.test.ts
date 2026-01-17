@@ -483,6 +483,13 @@ describe("workspaceExportSchema", () => {
             serviceType: "notion",
             config: {},
           },
+          {
+            id: "mcp-6",
+            name: "Linear",
+            authType: "oauth",
+            serviceType: "linear",
+            config: {},
+          },
         ],
       };
 

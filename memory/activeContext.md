@@ -2,9 +2,11 @@
 
 ## Current Status
 
-**Status**: Workspace Credit Balance Display Complete ✅
+**Status**: Linear MCP OAuth Integration Complete ✅
 
 **Latest Work**:
+
+- **Linear MCP integration**: Added OAuth (app-actor) flow, Linear GraphQL client, and read-only tools for teams/projects/issues/search. Wired service type across schemas, tool metadata, and MCP tool creation. Updated frontend MCP UI for Linear selection and OAuth status, plus docs/env vars, tests, and CI env passthrough for Linear OAuth secrets.
 
 - **Eval judge enqueueing**: Updated conversation logging to enqueue eval judges for all conversations, including webhook tool-only responses.
 - **LLM observer-driven conversation records**: Added a new LLM observer wrapper with tool execution observation, and rebuilt conversation record assembly in stream/webhook/delegation flows to use observed events; added unit tests for observer-based reconstruction.

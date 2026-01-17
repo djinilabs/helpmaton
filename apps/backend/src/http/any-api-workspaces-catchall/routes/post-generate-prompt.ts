@@ -249,6 +249,8 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
                 serviceType = "Notion";
               } else if (tool.name.startsWith("github_")) {
                 serviceType = "GitHub";
+              } else if (tool.name.startsWith("linear_")) {
+                serviceType = "Linear";
               } else if (tool.name.startsWith("mcp_")) {
                 serviceType = "MCP Server";
               }

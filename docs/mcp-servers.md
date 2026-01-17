@@ -486,6 +486,49 @@ Once connected, agents can use the following Notion tools:
 - Database operations require properties to match the database schema
 - Search can return pages, databases, and data sources (new in API 2025-09-03)
 
+### Linear Integration
+
+```json
+{
+  "name": "My Linear Workspace",
+  "authType": "oauth",
+  "serviceType": "linear",
+  "config": {}
+}
+```
+
+**Setup Requirements**:
+
+1. Create a Linear OAuth application:
+   - Go to [Linear developer settings](https://linear.app/settings/api)
+   - Create a new OAuth application
+   - Add redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/linear/callback`
+   - Copy the client ID and client secret
+
+2. Configure Environment Variables:
+   - Set `LINEAR_OAUTH_CLIENT_ID` to your Linear OAuth client ID
+   - Set `LINEAR_OAUTH_CLIENT_SECRET` to your Linear OAuth client secret
+   - Ensure `OAUTH_REDIRECT_BASE_URL` is set correctly
+
+3. Connect Your Linear Account:
+   - After creating the MCP server, click "Connect" to authorize the integration
+   - The integration requests read-only access via the `read` scope
+
+**Available Tools**:
+
+Once connected, agents can use the following Linear tools:
+
+- `linear_list_teams_{serverName}` - List teams with IDs, names, and keys
+- `linear_list_projects_{serverName}` - List projects with pagination
+- `linear_list_issues_{serverName}` - List issues with optional filters (team, project, assignee, state)
+- `linear_get_issue_{serverName}` - Get issue details by issue ID
+- `linear_search_issues_{serverName}` - Search issues by query with optional filters
+
+**Important Notes**:
+
+- Linear OAuth uses app-actor authorization for MCP tools
+- Tokens are automatically refreshed when supported by the Linear OAuth app
+
 ## Troubleshooting
 
 ### Server Not Found

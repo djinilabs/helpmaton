@@ -1821,6 +1821,160 @@ function getMcpServerToolMetadata(
         },
       ],
     });
+  } else if (serviceType === "linear") {
+    const condition = oauthConnected
+      ? `Available (Linear "${serverName}" connected)`
+      : `Not available (Linear "${serverName}" not connected)`;
+
+    tools.push({
+      name: `linear_list_teams${suffix}`,
+      description:
+        "List Linear teams available to the connected account. Returns team IDs, names, and keys.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [],
+    });
+
+    tools.push({
+      name: `linear_list_projects${suffix}`,
+      description:
+        "List Linear projects. Returns project metadata and pagination info.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "first",
+          type: "number",
+          required: false,
+          description: "Number of results to return (default: 50, max: 100)",
+        },
+        {
+          name: "after",
+          type: "string",
+          required: false,
+          description: "Pagination cursor for the next page",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `linear_list_issues${suffix}`,
+      description:
+        "List Linear issues with optional filters for team, project, assignee, and state.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "teamId",
+          type: "string",
+          required: false,
+          description: "Filter issues by team ID",
+        },
+        {
+          name: "projectId",
+          type: "string",
+          required: false,
+          description: "Filter issues by project ID",
+        },
+        {
+          name: "assigneeId",
+          type: "string",
+          required: false,
+          description: "Filter issues by assignee ID",
+        },
+        {
+          name: "state",
+          type: "string",
+          required: false,
+          description: "Filter issues by state name",
+        },
+        {
+          name: "first",
+          type: "number",
+          required: false,
+          description: "Number of results to return (default: 50, max: 100)",
+        },
+        {
+          name: "after",
+          type: "string",
+          required: false,
+          description: "Pagination cursor for the next page",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `linear_get_issue${suffix}`,
+      description:
+        "Get detailed information about a Linear issue by its ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "issueId",
+          type: "string",
+          required: true,
+          description: "Linear issue ID to retrieve",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `linear_search_issues${suffix}`,
+      description:
+        "Search Linear issues by query text with optional filters.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "string",
+          required: true,
+          description: "Search query text",
+        },
+        {
+          name: "teamId",
+          type: "string",
+          required: false,
+          description: "Filter issues by team ID",
+        },
+        {
+          name: "projectId",
+          type: "string",
+          required: false,
+          description: "Filter issues by project ID",
+        },
+        {
+          name: "assigneeId",
+          type: "string",
+          required: false,
+          description: "Filter issues by assignee ID",
+        },
+        {
+          name: "state",
+          type: "string",
+          required: false,
+          description: "Filter issues by state name",
+        },
+        {
+          name: "first",
+          type: "number",
+          required: false,
+          description: "Number of results to return (default: 50, max: 100)",
+        },
+        {
+          name: "after",
+          type: "string",
+          required: false,
+          description: "Pagination cursor for the next page",
+        },
+      ],
+    });
   } else {
     // Generic MCP server tool
     const condition = `Available (MCP server "${serverName}" enabled)`;
@@ -1887,6 +2041,7 @@ export function generateToolList(
           "google-calendar",
           "notion",
           "github",
+          "linear",
         ].includes(server.serviceType)
       ) {
         groupKey = server.serviceType;
@@ -1912,6 +2067,7 @@ export function generateToolList(
           "google-calendar",
           "notion",
           "github",
+          "linear",
         ].includes(server.serviceType)
       ) {
         groupKey = server.serviceType;
@@ -1933,6 +2089,7 @@ export function generateToolList(
           "google-calendar",
           "notion",
           "github",
+          "linear",
         ].includes(server.serviceType)
       ) {
         // Only add service-specific tools if OAuth is connected

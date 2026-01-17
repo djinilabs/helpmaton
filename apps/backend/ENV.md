@@ -488,6 +488,25 @@ These environment variables are used by the frontend application and must be pre
 - **How to obtain**: Found in the "Secrets" tab of your Notion integration settings
 - **Note**: Keep this secret secure and never commit it to version control
 
+### `LINEAR_OAUTH_CLIENT_ID`
+
+- **Description**: Linear OAuth 2.0 client ID for Linear MCP servers
+- **Required**: No (required only if using Linear MCP servers)
+- **Example**: `lin_1234567890abcdef`
+- **How to obtain**:
+  1. Go to [Linear developer settings](https://linear.app/settings/api)
+  2. Create a new OAuth application
+  3. Add the redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/linear/callback`
+  4. Copy the Client ID
+
+### `LINEAR_OAUTH_CLIENT_SECRET`
+
+- **Description**: Linear OAuth 2.0 client secret for Linear MCP servers
+- **Required**: No (required only if using Linear MCP servers)
+- **Example**: `lin_secret_abcdefghijklmnopqrstuvwxyz1234567890`
+- **How to obtain**: Found in the OAuth application settings
+- **Note**: Keep this secret secure and never commit it to version control
+
 ## GitHub App Configuration
 
 **Note**: Helpmaton is designed to integrate with GitHub via GitHub Apps (not OAuth Apps) for its MCP server integration. In the current implementation, API calls use standard OAuth user access tokens obtained via a GitHub OAuth client ID and `client_secret`, which must be provided to the backend via appropriate environment variables. Support for private key-based JWT authentication and server-to-server installation access tokens is reserved for potential future use and may not yet be active in all deployments.

@@ -98,6 +98,14 @@ const McpServerItem: FC<McpServerItemProps> = ({
       ? "Google Drive"
       : server.serviceType === "gmail"
       ? "Gmail"
+      : server.serviceType === "google-calendar"
+      ? "Google Calendar"
+      : server.serviceType === "notion"
+      ? "Notion"
+      : server.serviceType === "github"
+      ? "GitHub"
+      : server.serviceType === "linear"
+      ? "Linear"
       : "Unknown";
 
   return (

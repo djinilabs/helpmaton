@@ -479,6 +479,7 @@ const mcpServerSchema = z
         "google-calendar",
         "notion",
         "github",
+        "linear",
       ])
       .optional()
       .describe(

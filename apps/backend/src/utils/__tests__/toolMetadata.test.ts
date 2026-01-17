@@ -421,6 +421,43 @@ describe("toolMetadata", () => {
         );
       });
 
+      it("should include Linear tools when OAuth-connected server is enabled", () => {
+        const mcpServers: McpServerInfo[] = [
+          {
+            id: "server-1",
+            name: "My Linear",
+            serviceType: "linear",
+            authType: "oauth",
+            oauthConnected: true,
+          },
+        ];
+
+        const options: ToolListOptions = {
+          ...baseOptions,
+          agent: {
+            ...baseOptions.agent,
+            enabledMcpServerIds: ["server-1"],
+          },
+          enabledMcpServers: mcpServers,
+        };
+
+        const result = generateToolList(options);
+
+        const mcpGroup = result.find((g) => g.category === "MCP Server Tools");
+        expect(mcpGroup).toBeDefined();
+
+        const linearTools = mcpGroup?.tools.filter((t) =>
+          t.name.startsWith("linear_")
+        );
+        expect(linearTools?.length).toBeGreaterThan(0);
+        expect(linearTools?.some((t) => t.name === "linear_list_teams")).toBe(
+          true
+        );
+        expect(linearTools?.some((t) => t.name === "linear_get_issue")).toBe(
+          true
+        );
+      });
+
       it("should add suffix to tool names when multiple servers of same type exist", () => {
         const mcpServers: McpServerInfo[] = [
           {
