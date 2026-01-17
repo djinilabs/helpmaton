@@ -17,6 +17,8 @@ const SubscriptionManagement = lazy(
 const UserSettings = lazy(() => import("./pages/UserSettings"));
 const InviteAccept = lazy(() => import("./pages/InviteAccept"));
 const ApiDocs = lazy(() => import("./pages/ApiDocs"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const RouteLoadingFallback: FC = () => {
@@ -53,6 +55,8 @@ export const AppRoutes: FC = () => {
         <Route path="/subscription" element={<SubscriptionManagement />} />
         <Route path="/settings" element={<UserSettings />} />
         <Route path="/docs/api" element={<ApiDocs />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

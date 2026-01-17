@@ -29,6 +29,11 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
   // Allow API docs route without authentication (but still show layout)
   const isApiDocsRoute = location.pathname.startsWith("/docs/api");
 
+  // Allow legal routes without authentication (but still show layout)
+  const isLegalRoute =
+    location.pathname === "/privacy" ||
+    location.pathname === "/terms-of-service";
+
   if (status === "loading") {
     return <LoadingScreen />;
   }
@@ -53,7 +58,7 @@ export const RequiresSession: FC<PropsWithChildren> = ({ children }) => {
 
   // If it's an API docs route, allow it through without requiring authentication
   // but still show the layout (Header, LocationBar, Footer)
-  if (isApiDocsRoute) {
+  if (isApiDocsRoute || isLegalRoute) {
     return (
       <div className="flex min-h-screen flex-col">
         <Header />
