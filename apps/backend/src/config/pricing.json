@@ -586,9 +586,9 @@
         },
         "qwen/qwen3-vl-235b-a22b-thinking": {
           "usd": {
-            "input": 0.44999999999999996,
-            "output": 3.5,
-            "cachedInput": 0.045
+            "input": 0.98,
+            "output": 3.95,
+            "cachedInput": 0.098
           }
         },
         "qwen/qwen3-vl-235b-a22b-instruct": {
@@ -2576,9 +2576,9 @@
         },
         "xiaomi/mimo-v2-flash": {
           "usd": {
-            "input": 0.09999999999999999,
-            "output": 0.3,
-            "cachedInput": 0.01
+            "input": 0.09,
+            "output": 0.29,
+            "cachedInput": 0.009
           }
         },
         "qwen/qwen3-next-80b-a3b-instruct:free": {
@@ -2603,5 +2603,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-16T00:15:33.762Z"
+  "lastUpdated": "2026-01-17T00:14:42.858Z"
 }
