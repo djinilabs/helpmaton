@@ -1,0 +1,26 @@
+import type { FC } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+import { legalMarkdownComponents } from "../components/LegalMarkdownComponents";
+import termsMarkdown from "../legal/terms-of-service.md?raw";
+
+const TermsOfService: FC = () => {
+  return (
+    <div className="size-full bg-neutral-50 px-6 py-10 dark:bg-neutral-950">
+      <div className="mx-auto w-full max-w-4xl">
+        <div className="rounded-2xl border-2 border-neutral-200 bg-white p-8 shadow-large dark:border-neutral-800 dark:bg-neutral-900 sm:p-10">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={legalMarkdownComponents}
+          >
+            {termsMarkdown}
+          </ReactMarkdown>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TermsOfService;
+

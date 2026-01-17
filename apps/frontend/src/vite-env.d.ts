@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
+declare module "*.md?raw" {
+  const content: string;
+  export default content;
+}
+
 interface ImportMetaEnv {
   readonly VITE_SENTRY_DSN?: string;
   readonly VITE_POSTHOG_API_KEY?: string;
