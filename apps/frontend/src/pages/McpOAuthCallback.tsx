@@ -64,6 +64,8 @@ const McpOAuthCallback = () => {
       ? "GitHub"
       : serviceType === "linear"
       ? "Linear"
+      : serviceType === "hubspot"
+      ? "HubSpot"
       : serviceType || "service";
 
   if (!workspaceId || !serverId) {

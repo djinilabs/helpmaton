@@ -507,6 +507,25 @@ These environment variables are used by the frontend application and must be pre
 - **How to obtain**: Found in the OAuth application settings
 - **Note**: Keep this secret secure and never commit it to version control
 
+### `HUBSPOT_OAUTH_CLIENT_ID`
+
+- **Description**: HubSpot OAuth client ID for HubSpot MCP servers
+- **Required**: No (required only if using HubSpot MCP servers)
+- **Example**: `12345678-abcd-1234-abcd-1234567890ab`
+- **How to obtain**:
+  1. Go to [HubSpot developer app settings](https://developers.hubspot.com/)
+  2. Create or open your app
+  3. Add the redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/hubspot/callback`
+  4. Copy the Client ID
+
+### `HUBSPOT_OAUTH_CLIENT_SECRET`
+
+- **Description**: HubSpot OAuth client secret for HubSpot MCP servers
+- **Required**: No (required only if using HubSpot MCP servers)
+- **Example**: `abcd1234efgh5678ijkl9012mnop3456`
+- **How to obtain**: Found in the HubSpot app settings
+- **Note**: Keep this secret secure and never commit it to version control
+
 ## GitHub App Configuration
 
 **Note**: Helpmaton is designed to integrate with GitHub via GitHub Apps (not OAuth Apps) for its MCP server integration. In the current implementation, API calls use standard OAuth user access tokens obtained via a GitHub OAuth client ID and `client_secret`, which must be provided to the backend via appropriate environment variables. Support for private key-based JWT authentication and server-to-server installation access tokens is reserved for potential future use and may not yet be active in all deployments.
