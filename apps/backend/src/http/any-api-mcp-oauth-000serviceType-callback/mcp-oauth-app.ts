@@ -94,7 +94,7 @@ export const createApp: () => express.Application = () => {
         }
         const { workspaceId, serverId } = stateData;
 
-        if (serviceType !== "google-drive" && serviceType !== "gmail" && serviceType !== "google-calendar" && serviceType !== "notion" && serviceType !== "github" && serviceType !== "linear") {
+        if (serviceType !== "google-drive" && serviceType !== "gmail" && serviceType !== "google-calendar" && serviceType !== "notion" && serviceType !== "github" && serviceType !== "linear" && serviceType !== "hubspot") {
           const errorMsg = encodeURIComponent(
             `Unsupported service type: ${serviceType}`
           );
@@ -223,6 +223,11 @@ export const createApp: () => express.Application = () => {
               "../../utils/oauth/mcp/linear"
             );
             tokenInfo = await exchangeLinearCode(code);
+          } else if (serviceType === "hubspot") {
+            const { exchangeHubspotCode } = await import(
+              "../../utils/oauth/mcp/hubspot"
+            );
+            tokenInfo = await exchangeHubspotCode(code);
           } else {
             throw new Error(`Unsupported service type: ${serviceType}`);
           }

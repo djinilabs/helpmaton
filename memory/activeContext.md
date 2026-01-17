@@ -2,9 +2,11 @@
 
 ## Current Status
 
-**Status**: PostHog MCP API-Key Integration Complete ✅
+**Status**: HubSpot MCP OAuth Integration Complete ✅
 
 **Latest Work**:
+
+- **HubSpot MCP integration**: Added OAuth-based HubSpot MCP server support with read-only CRM tools (contacts, companies, deals, owners), HubSpot API client with token refresh, tool metadata wiring, frontend MCP UI updates, and OAuth callbacks. Added env/docs updates, workflow passthrough, and unit tests for OAuth, client, tools, and metadata.
 
 - **PostHog MCP integration**: Added API-key based PostHog MCP server support with region selection (US/EU), read-only tools (projects, events, feature flags, insights, persons, generic GET), backend validation for base URL and apiKey, tool metadata wiring, and unit tests for client/tools. Updated MCP UI and docs.
 - **PostHog MCP tool input fix**: Accepted snake_case aliases for PostHog tool IDs (e.g., `project_id`) to prevent missing-parameter errors and improved person/distinct ID handling.

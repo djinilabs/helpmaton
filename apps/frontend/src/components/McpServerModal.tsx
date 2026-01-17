@@ -7,6 +7,7 @@ import {
   Squares2X2Icon,
   ServerIcon,
   ChartBarIcon,
+  BuildingOfficeIcon,
 } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import type { FC } from "react";
@@ -27,6 +28,7 @@ type McpServerType =
   | "notion"
   | "github"
   | "linear"
+  | "hubspot"
   | "posthog"
   | "custom";
 
@@ -81,6 +83,13 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     icon: Squares2X2Icon,
   },
   {
+    value: "hubspot",
+    name: "HubSpot",
+    description:
+      "Read-only access to HubSpot CRM data. List and search contacts, companies, deals, and owners.",
+    icon: BuildingOfficeIcon,
+  },
+  {
     value: "posthog",
     name: "PostHog",
     description:
@@ -122,6 +131,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     | "notion"
     | "github"
     | "linear"
+    | "hubspot"
     | "posthog"
     | "custom"
   >("google-drive"); // Service type for new servers
@@ -183,6 +193,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           server.serviceType === "linear"
         ) {
           setMcpType("linear");
+          // OAuth servers don't have authType in the UI
+        } else if (
+          server.authType === "oauth" &&
+          server.serviceType === "hubspot"
+        ) {
+          setMcpType("hubspot");
           // OAuth servers don't have authType in the UI
         } else if (server.serviceType === "posthog") {
           setMcpType("posthog");
