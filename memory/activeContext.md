@@ -2,10 +2,14 @@
 
 ## Current Status
 
-**Status**: Workspace Credit Balance Display Complete ✅
+**Status**: Service worker API navigation fix applied ✅
 
 **Latest Work**:
 
+- **Service worker API navigation fix**: API paths now bypass navigation caching so direct `/api/*` visits return JSON.
+- **Dev-safe SW registration**: Service worker registration now skips and unregisters when `VITE_ENV` is `development` (plus localhost) to avoid caching during dev.
+- **Version indicator + SW update check**: Added footer version display and wired a silent service worker update check into the version polling loop.
+- **Service worker + version upgrade flow**: Added `/api/version` endpoint, frontend service worker caching with root invalidation, and version polling with an update modal that reloads the root document after acceptance.
 - **Eval judge enqueueing**: Updated conversation logging to enqueue eval judges for all conversations, including webhook tool-only responses.
 - **LLM observer-driven conversation records**: Added a new LLM observer wrapper with tool execution observation, and rebuilt conversation record assembly in stream/webhook/delegation flows to use observed events; added unit tests for observer-based reconstruction.
 - **Streaming observer fixes**: StreamText now receives observer step callbacks directly, and SSE parsing now records `tool-call`/`tool-result` events for complete conversation logging.
