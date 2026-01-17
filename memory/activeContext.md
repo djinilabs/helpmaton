@@ -4,6 +4,11 @@
 
 **Status**: Linear MCP OAuth Integration Review Fixes Complete ✅
 
+**Latest Work**:
+
+- **Test endpoint streaming**: Reworked `/api/workspaces/:workspaceId/agents/:agentId/test` to reuse shared stream pipeline with buffered mock response in dev, switched Function URL usage to the same test path, updated stream endpoint detection/extraction and unit tests, aligned test endpoint request parsing with stream endpoint (accepts text/array JSON bodies), and registered the test route in `workspaces-app`.
+- **PostHog MCP integration**: Added API-key based PostHog MCP server support with region selection (US/EU), read-only tools (projects, events, feature flags, insights, persons, generic GET), backend validation for base URL and apiKey, tool metadata wiring, and unit tests for client/tools. Updated MCP UI and docs.
+- **PostHog MCP tool input fix**: Accepted snake_case aliases for PostHog tool IDs (e.g., `project_id`) to prevent missing-parameter errors and improved person/distinct ID handling.
 - **Linear MCP integration**: Added OAuth (app-actor) flow, Linear GraphQL client, and read-only tools for teams/projects/issues/search. Wired service type across schemas, tool metadata, and MCP tool creation. Updated frontend MCP UI for Linear selection and OAuth status, plus docs/env vars, tests, and CI env passthrough for Linear OAuth secrets.
 - **PR 159 review fixes**: Removed redundant token refresh assignment in Linear client and cleaned up formatting in Linear tools. Re-ran typecheck and lint.
 - **Linear search fix**: Switched Linear issue search to `searchIssues` GraphQL field (replacing deprecated `issueSearch`) and mapped query term accordingly.
