@@ -164,7 +164,12 @@ export function createLinearGetIssueTool(
     description:
       "Get detailed information about a Linear issue by its ID.",
     parameters: z.object({
-      issueId: z.string().describe("Linear issue ID to retrieve"),
+      issueId: z
+        .string()
+        .optional()
+        .describe("Linear issue ID to retrieve"),
+      id: z.string().optional().describe("Alias for issueId"),
+      issue_id: z.string().optional().describe("Alias for issueId"),
     }),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
@@ -175,10 +180,15 @@ export function createLinearGetIssueTool(
           return "Error: Linear is not connected. Please connect your Linear account first.";
         }
 
+        const issueId = args.issueId || args.id || args.issue_id;
+        if (!issueId || typeof issueId !== "string") {
+          return "Error: issueId parameter is required. Please provide the Linear issue ID as 'issueId'.";
+        }
+
         const result = await linearClient.getIssue(
           workspaceId,
           serverId,
-          args.issueId
+          issueId
         );
         return JSON.stringify(result, null, 2);
       } catch (error) {

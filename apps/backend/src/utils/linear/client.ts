@@ -142,7 +142,7 @@ export async function listProjects(
     description?: string | null;
     startDate?: string | null;
     targetDate?: string | null;
-    state?: { type: string; name: string };
+    state?: string | null;
   }>;
   pageInfo: { hasNextPage: boolean; endCursor?: string | null };
 }> {
@@ -155,10 +155,7 @@ export async function listProjects(
           description
           startDate
           targetDate
-          state {
-            type
-            name
-          }
+          state
         }
         pageInfo {
           hasNextPage
@@ -176,7 +173,7 @@ export async function listProjects(
         description?: string | null;
         startDate?: string | null;
         targetDate?: string | null;
-        state?: { type: string; name: string };
+        state?: string | null;
       }>;
       pageInfo: { hasNextPage: boolean; endCursor?: string | null };
     };
@@ -394,8 +391,8 @@ export async function searchIssues(
   pageInfo: { hasNextPage: boolean; endCursor?: string | null };
 }> {
   const query = `
-    query SearchIssues($query: String!, $first: Int, $after: String, $filter: IssueFilter) {
-      issueSearch(query: $query, first: $first, after: $after, filter: $filter) {
+    query SearchIssues($term: String!, $first: Int, $after: String, $filter: IssueFilter) {
+      searchIssues(term: $term, first: $first, after: $after, filter: $filter) {
         nodes {
           id
           identifier
@@ -430,7 +427,7 @@ export async function searchIssues(
   `;
 
   const data = await makeLinearRequest<{
-    issueSearch: {
+    searchIssues: {
       nodes: Array<{
         id: string;
         identifier: string;
@@ -446,11 +443,11 @@ export async function searchIssues(
       pageInfo: { hasNextPage: boolean; endCursor?: string | null };
     };
   }>(workspaceId, serverId, query, {
-    query: options.query,
+    term: options.query,
     first: options.first ?? DEFAULT_PAGE_SIZE,
     after: options.after,
     filter: buildIssueFilter(options),
   });
 
-  return data.issueSearch;
+  return data.searchIssues;
 }
