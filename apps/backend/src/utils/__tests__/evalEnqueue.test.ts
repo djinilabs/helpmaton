@@ -40,11 +40,13 @@ describe("evalEnqueue", () => {
         judgeId: "judge-1",
         name: "Judge 1",
         enabled: true,
+        samplingProbability: 100,
       };
       yield {
         judgeId: "judge-2",
         name: "Judge 2",
         enabled: true,
+        samplingProbability: 100,
       };
     });
 
@@ -145,16 +147,19 @@ describe("evalEnqueue", () => {
         judgeId: "judge-1",
         name: "Judge 1",
         enabled: true,
+        samplingProbability: 100,
       };
       yield {
         judgeId: "judge-2",
         name: "Judge 2",
         enabled: true,
+        samplingProbability: 100,
       };
       yield {
         judgeId: "judge-3",
         name: "Judge 3",
         enabled: true,
+        samplingProbability: 100,
       };
     });
 
@@ -176,5 +181,59 @@ describe("evalEnqueue", () => {
 
     // All three should have been attempted
     expect(mockQueuesPublish).toHaveBeenCalledTimes(3);
+  });
+
+  it("should skip enqueueing when sampling probability is 0", async () => {
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
+
+    const mockQueryAsync = vi.fn(async function* () {
+      yield {
+        judgeId: "judge-1",
+        name: "Judge 1",
+        enabled: true,
+        samplingProbability: 0,
+      };
+    });
+
+    const mockDb = {
+      "agent-eval-judge": {
+        queryAsync: mockQueryAsync,
+      },
+    };
+
+    mockDatabase.mockResolvedValue(mockDb as never);
+
+    await enqueueEvaluations("workspace-123", "agent-456", "conversation-789");
+
+    expect(mockQueuesPublish).not.toHaveBeenCalled();
+    expect(randomSpy).toHaveBeenCalledTimes(1);
+    randomSpy.mockRestore();
+  });
+
+  it("should always enqueue when sampling probability is 100", async () => {
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0);
+
+    const mockQueryAsync = vi.fn(async function* () {
+      yield {
+        judgeId: "judge-1",
+        name: "Judge 1",
+        enabled: true,
+        samplingProbability: 100,
+      };
+    });
+
+    const mockDb = {
+      "agent-eval-judge": {
+        queryAsync: mockQueryAsync,
+      },
+    };
+
+    mockDatabase.mockResolvedValue(mockDb as never);
+
+    await enqueueEvaluations("workspace-123", "agent-456", "conversation-789");
+
+    expect(mockQueuesPublish).toHaveBeenCalledTimes(1);
+    expect(randomSpy).not.toHaveBeenCalled();
+    randomSpy.mockRestore();
   });
 });

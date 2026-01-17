@@ -146,6 +146,7 @@ describe("exportWorkspace", () => {
           judgeId: "judge-1",
           name: "Quality Judge",
           enabled: true,
+          samplingProbability: 80,
           provider: "openrouter",
           modelName: "gpt-4o",
           evalPrompt: "Evaluate quality",
@@ -188,6 +189,7 @@ describe("exportWorkspace", () => {
     expect(result.agents![0].keys![0].id).toBe("{Webhook Key}");
     expect(result.agents![0].evalJudges).toHaveLength(1);
     expect(result.agents![0].evalJudges![0].id).toBe("{Quality Judge}");
+    expect(result.agents![0].evalJudges![0].samplingProbability).toBe(80);
     expect(result.agents![0].streamServer).toBeDefined();
     expect(result.agents![0].streamServer!.secret).toBe("stream-secret");
   });

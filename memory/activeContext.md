@@ -7,6 +7,7 @@
 **Latest Work**:
 
 - **UI copy refresh for non-technical users**: Simplified wording and added helper text across core frontend pages and modals (Home, Workspaces, Workspace/Agent details, Integrations, Settings, Subscription, API docs, widget preview, 404). Updated section titles and warnings to be clearer; ran `pnpm lint --fix` and `pnpm typecheck`.
+- **Eval judge sampling probability**: Added per-judge sampling probability (0-100, default 100) across backend schemas/routes/export/import and frontend UI, applied sampling during eval enqueue, updated tests, and ran typecheck/lint.
 - **PR 163 review fix**: Set `llmCallAttempted` before executing the stream so error handling reflects attempted LLM calls. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Test agent body validation**: Ensured JSON string bodies validate with schema errors surfaced (only JSON parse failures are ignored), keeping behavior aligned with array/object validation. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Merge conflict cleanup**: Resolved conflict markers in `post-test-agent` handler/tests, kept shared stream pipeline behavior, ensured JSON/array bodies and AWS request ID validation remain covered, and regenerated the test file to remove stale conflict blocks. Ran `pnpm typecheck` and `pnpm lint --fix`.

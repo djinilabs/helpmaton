@@ -78,6 +78,7 @@ export const registerGetAgentEvalJudge = (app: express.Application) => {
           id: judge.judgeId,
           name: judge.name,
           enabled: judge.enabled,
+          samplingProbability: judge.samplingProbability ?? 100,
           provider: judge.provider,
           modelName: judge.modelName,
           evalPrompt: judge.evalPrompt,

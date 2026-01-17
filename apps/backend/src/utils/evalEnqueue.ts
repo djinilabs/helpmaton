@@ -14,7 +14,11 @@ export async function enqueueEvaluations(
   const db = await database();
 
   // Query all enabled judges for this agent using queryAsync for memory efficiency
-  const judges: Array<{ judgeId: string; name: string }> = [];
+  const judges: Array<{
+    judgeId: string;
+    name: string;
+    samplingProbability: number;
+  }> = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   for await (const judge of (db as any)["agent-eval-judge"].queryAsync({
     IndexName: "byAgentId",
@@ -31,6 +35,10 @@ export async function enqueueEvaluations(
     judges.push({
       judgeId: judge.judgeId,
       name: judge.name,
+      samplingProbability:
+        typeof judge.samplingProbability === "number"
+          ? judge.samplingProbability
+          : 100,
     });
   }
 
@@ -44,10 +52,23 @@ export async function enqueueEvaluations(
   }
 
   // Enqueue evaluation task for each judge
-  const enqueuePromises = judges.map(async (judge: {
-    judgeId: string;
-    name: string;
-  }) => {
+  const enqueuePromises = judges.map(async (judge) => {
+    const samplingProbability = judge.samplingProbability;
+    if (samplingProbability < 100) {
+      const shouldEnqueue = Math.random() < samplingProbability / 100;
+      if (!shouldEnqueue) {
+        console.log("[Eval Enqueue] Skipped evaluation by sampling:", {
+          workspaceId,
+          agentId,
+          conversationId,
+          judgeId: judge.judgeId,
+          judgeName: judge.name,
+          samplingProbability,
+        });
+        return;
+      }
+    }
+
     const message = {
       workspaceId,
       agentId,
