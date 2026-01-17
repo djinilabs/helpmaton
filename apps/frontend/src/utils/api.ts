@@ -1427,7 +1427,8 @@ export interface McpServer {
     | "google-calendar"
     | "notion"
     | "github"
-    | "linear";
+    | "linear"
+    | "posthog";
   oauthConnected?: boolean;
   createdAt: string;
   updatedAt?: string;
@@ -1444,8 +1445,10 @@ export interface CreateMcpServerInput {
     | "google-calendar"
     | "notion"
     | "github"
-    | "linear";
+    | "linear"
+    | "posthog";
   config?: {
+    apiKey?: string;
     headerValue?: string;
     username?: string;
     password?: string;
@@ -1463,8 +1466,10 @@ export interface UpdateMcpServerInput {
     | "google-calendar"
     | "notion"
     | "github"
-    | "linear";
+    | "linear"
+    | "posthog";
   config?: {
+    apiKey?: string;
     headerValue?: string;
     username?: string;
     password?: string;

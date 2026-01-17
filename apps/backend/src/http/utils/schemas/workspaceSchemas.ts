@@ -300,7 +300,16 @@ export const createMcpServerSchema = z
     url: z.string().url("url must be a valid URL").optional(),
     authType: z.enum(["none", "header", "basic", "oauth"]),
     serviceType: z
-      .enum(["external", "google-drive", "gmail", "google-calendar", "notion", "github", "linear"])
+      .enum([
+        "external",
+        "google-drive",
+        "gmail",
+        "google-calendar",
+        "notion",
+        "github",
+        "linear",
+        "posthog",
+      ])
       .optional(),
     config: z.record(z.string(), z.unknown()),
   })
@@ -325,7 +334,16 @@ export const updateMcpServerSchema = z
     url: z.string().url().optional(),
     authType: z.enum(["none", "header", "basic", "oauth"]).optional(),
     serviceType: z
-      .enum(["external", "google-drive", "gmail", "google-calendar", "notion", "github", "linear"])
+      .enum([
+        "external",
+        "google-drive",
+        "gmail",
+        "google-calendar",
+        "notion",
+        "github",
+        "linear",
+        "posthog",
+      ])
       .optional(),
     config: z.record(z.string(), z.unknown()).optional(),
   })
