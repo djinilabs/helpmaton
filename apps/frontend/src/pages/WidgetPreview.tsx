@@ -68,9 +68,9 @@ const WidgetPreview: FC = () => {
       setScriptLoaded(true);
     };
     script.onerror = () => {
-      setScriptError(
-        "Failed to load widget script. Make sure the widget has been built (run 'pnpm build' in the widget package)."
-      );
+        setScriptError(
+          "We couldn't load the widget preview. Ask a developer to build the widget package."
+        );
     };
     document.body.appendChild(script);
 
@@ -101,7 +101,7 @@ const WidgetPreview: FC = () => {
       // Check if widget is enabled
       if (!agent.widgetConfig?.enabled) {
         setTimeout(() => {
-          setScriptError("Widget is not enabled for this agent");
+          setScriptError("The widget isn't enabled for this assistant.");
         }, 0);
         return;
       }
@@ -110,7 +110,9 @@ const WidgetPreview: FC = () => {
       const widgetKey = keys.find((k) => k.type === "widget");
       if (!widgetKey?.key) {
         setTimeout(() => {
-          setScriptError("No widget key found. Please generate a widget key first.");
+          setScriptError(
+            "No widget key yet. Create one in the agent settings."
+          );
         }, 0);
         return;
       }
@@ -194,7 +196,7 @@ const WidgetPreview: FC = () => {
       <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-4 dark:bg-neutral-900">
         <div className="max-w-md rounded-lg border border-red-200 bg-white p-6 shadow-lg dark:border-red-800 dark:bg-neutral-800">
           <h2 className="mb-2 text-xl font-bold text-red-600 dark:text-red-400">
-            Widget Preview Error
+            Widget preview isn&apos;t ready
           </h2>
           <p className="text-neutral-600 dark:text-neutral-300">{scriptError}</p>
         </div>

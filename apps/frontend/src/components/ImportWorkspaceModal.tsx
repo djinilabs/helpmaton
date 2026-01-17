@@ -52,7 +52,7 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
 
     // Validate file type
     if (!file.name.toLowerCase().endsWith(".json")) {
-      setFileError("Please select a JSON file");
+      setFileError("Choose a .json export file.");
       setSelectedFile(null);
       return;
     }
@@ -64,7 +64,7 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) {
-      setFileError("Please select a file");
+      setFileError("Choose a file to import.");
       return;
     }
 
@@ -90,18 +90,20 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
       try {
         exportData = JSON.parse(fileContent);
       } catch {
-        setFileError("Invalid JSON file. Please check the file format.");
+        setFileError(
+          "This file isn't valid JSON. Please check the file and try again."
+        );
         return;
       }
 
       // Validate basic structure
       if (!exportData || typeof exportData !== "object") {
-        setFileError("Invalid workspace export format");
+        setFileError("This file doesn't look like a workspace export.");
         return;
       }
 
       if (!exportData.name || typeof exportData.name !== "string") {
-        setFileError("Invalid workspace export: missing or invalid name");
+        setFileError("The export is missing a workspace name.");
         return;
       }
 
@@ -126,7 +128,7 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
         <h2 className="mb-8 text-4xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
-          Import Workspace
+          Import a workspace
         </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -134,7 +136,7 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
               htmlFor="workspace-file"
               className="mb-2.5 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
             >
-              Workspace Export File *
+              Export file (JSON) *
             </label>
             <input
               id="workspace-file"
@@ -147,7 +149,7 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
             />
             {selectedFile && (
               <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-                Selected: {selectedFile.name}
+                Selected file: {selectedFile.name}
               </p>
             )}
             {fileError && (
@@ -156,8 +158,8 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
               </p>
             )}
             <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
-              Select a workspace export JSON file to create a new workspace from
-              it.
+              This creates a new workspace from the export file and won&apos;t
+              overwrite anything.
             </p>
           </div>
           <div className="flex gap-3">
@@ -166,7 +168,7 @@ export const ImportWorkspaceModal: FC<ImportWorkspaceModalProps> = ({
               disabled={importWorkspace.isPending || !selectedFile}
               className="flex-1 transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
             >
-              {importWorkspace.isPending ? "Importing..." : "Import"}
+              {importWorkspace.isPending ? "Importing..." : "Import workspace"}
             </button>
             <button
               type="button"

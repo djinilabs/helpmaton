@@ -43,7 +43,7 @@ const Home: FC = () => {
               </div>
               <div>
                 <h1 className="mb-3 text-5xl font-black tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-6xl">
-                  Dashboard
+                  Your dashboard
                 </h1>
                 <p className="text-2xl font-bold text-neutral-700 dark:text-neutral-300">
                   Welcome, {session?.user?.email || "User"}
@@ -51,8 +51,8 @@ const Home: FC = () => {
               </div>
             </div>
             <p className="max-w-2xl text-lg font-semibold leading-relaxed text-neutral-700 dark:text-neutral-300">
-              Your central hub for managing workspaces, agents, and monitoring
-              usage across all your projects.
+              Start here to organize your workspaces, set up assistants (agents),
+              and see usage at a glance.
             </p>
           </div>
         </div>
@@ -60,18 +60,17 @@ const Home: FC = () => {
         <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-large dark:border-neutral-700 dark:bg-neutral-900">
             <h2 className="mb-5 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
-              Get Started
+              Get started
             </h2>
             <p className="mb-8 text-base font-medium leading-relaxed text-neutral-700 dark:text-neutral-300">
-              Workspaces are isolated environments where you can organize your
-              agents, documents, and settings. Each workspace has its own credit
-              balance and spending limits.
+              A workspace is a place for one team or project. It keeps your
+              assistants, documents, and spending in one spot.
             </p>
             <Link
               to="/workspaces"
               className="inline-flex transform items-center gap-3 rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
             >
-              Manage Workspaces
+              Go to Workspaces
               <svg
                 className="size-5"
                 fill="none"
@@ -104,7 +103,7 @@ const Home: FC = () => {
             }}
             className="transform rounded-xl border-2 border-neutral-300 px-7 py-3.5 font-bold text-neutral-900 transition-all duration-200 hover:scale-[1.02] hover:border-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 active:scale-[0.98] dark:border-neutral-700 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
           >
-            Sign Out
+            Sign out
           </button>
         </div>
       </div>
@@ -188,7 +187,7 @@ const UserUsageSection: FC<UserUsageSectionProps> = () => {
       <UsageDashboard
         stats={usageData.stats}
         dailyData={dailyData?.daily}
-        title="YOUR USAGE"
+        title="Your usage"
         dateRange={dateRange}
         dateRangePreset={dateRangePreset}
         onDateRangeChange={setDateRangePreset}

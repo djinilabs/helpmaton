@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **UI copy refresh for non-technical users**: Simplified wording and added helper text across core frontend pages and modals (Home, Workspaces, Workspace/Agent details, Integrations, Settings, Subscription, API docs, widget preview, 404). Updated section titles and warnings to be clearer; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Test endpoint streaming**: Reworked `/api/workspaces/:workspaceId/agents/:agentId/test` to reuse shared stream pipeline with buffered mock response in dev, switched Function URL usage to the same test path, updated stream endpoint detection/extraction and unit tests, aligned test endpoint request parsing with stream endpoint (accepts text/array JSON bodies), and registered the test route in `workspaces-app`.
 - **Test endpoint error logging**: Ensured generic test endpoint failures persist conversation errors when streaming error handling returns no response.
 - **PostHog MCP integration**: Added API-key based PostHog MCP server support with region selection (US/EU), read-only tools (projects, events, feature flags, insights, persons, generic GET), backend validation for base URL and apiKey, tool metadata wiring, and unit tests for client/tools. Updated MCP UI and docs.

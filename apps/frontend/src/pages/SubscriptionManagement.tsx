@@ -273,7 +273,7 @@ const SubscriptionManagement: FC = () => {
     }
 
     if (isManagerLimitReached) {
-      setEmailError("Manager limit reached for this plan");
+      setEmailError("Billing manager limit reached for this plan.");
       return;
     }
 
@@ -332,11 +332,11 @@ const SubscriptionManagement: FC = () => {
           <div className="absolute right-0 top-0 size-64 -translate-y-1/2 translate-x-1/2 rounded-full bg-gradient-primary opacity-5 blur-3xl"></div>
           <div className="relative z-10">
             <h1 className="mb-4 text-4xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-5xl">
-              Subscription Management
+              Plan & billing
             </h1>
             <div className="mb-6">
               <div className="mb-2 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
-                {planName} Plan
+                {planName} plan
               </div>
               {subscription.status && (
                 <div className="mb-2 text-base">
@@ -388,7 +388,7 @@ const SubscriptionManagement: FC = () => {
                 </div>
               )}
               <div className="mb-4 font-mono text-sm text-neutral-600 dark:text-neutral-300">
-                Subscription ID: {subscription.subscriptionId}
+                Subscription ID (support): {subscription.subscriptionId}
               </div>
               <div className="flex gap-4">
                 {subscription.status === "past_due" && (
@@ -402,7 +402,7 @@ const SubscriptionManagement: FC = () => {
                     }}
                     className="rounded-xl bg-error-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-error-700"
                   >
-                    Update Payment Method
+                    Update payment method
                   </button>
                 )}
                 {(subscription.plan === "starter" ||
@@ -429,7 +429,7 @@ const SubscriptionManagement: FC = () => {
                   >
                     {cancelMutation.isPending
                       ? "Cancelling..."
-                      : "Cancel Subscription"}
+                      : "Cancel plan"}
                   </button>
                 )}
                 {(subscription.status || subscription.renewsAt) && (
@@ -443,7 +443,7 @@ const SubscriptionManagement: FC = () => {
                     }}
                     className="rounded-xl border border-neutral-300 px-6 py-3 font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:text-neutral-50 dark:hover:bg-neutral-800"
                   >
-                    Manage Payment
+                    Manage payment
                   </button>
                 )}
               </div>
@@ -453,7 +453,7 @@ const SubscriptionManagement: FC = () => {
 
         <div className="mb-8 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
           <h2 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
-            Upgrade or Downgrade Plan
+            Change your plan
           </h2>
           <PlanComparison
             currentPlan={subscription.plan}
@@ -531,14 +531,14 @@ const SubscriptionManagement: FC = () => {
 
         <div className="mb-8 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
           <h2 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
-            Subscription Limits & Usage
+            Plan limits & usage
           </h2>
 
           <div className="space-y-6">
             {/* Seat Usage - Prominently Displayed */}
             <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-6 dark:border-neutral-700 dark:bg-neutral-800">
               <div className="mb-2 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
-                Seats
+                Team seats
               </div>
               <div className="mb-2 text-4xl font-bold text-neutral-900 dark:text-neutral-50">
                 {subscription.usage.users} / {subscription.limits.maxUsers}
@@ -548,7 +548,7 @@ const SubscriptionManagement: FC = () => {
                   ? "Limit reached"
                   : `${
                       subscription.limits.maxUsers - subscription.usage.users
-                    } seats remaining`}
+                    } seats left`}
               </div>
             </div>
 
@@ -591,7 +591,7 @@ const SubscriptionManagement: FC = () => {
               {/* Agents */}
               <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
-                  Agents
+                  Assistants (agents)
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   {subscription.usage.agents} / {subscription.limits.maxAgents}
@@ -601,7 +601,7 @@ const SubscriptionManagement: FC = () => {
               {/* Managers */}
               <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
-                  Managers
+                  Billing managers
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   {subscription.managers.length}
@@ -614,7 +614,7 @@ const SubscriptionManagement: FC = () => {
               {/* Webhooks */}
               <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
-                  Webhooks
+                  Webhook keys
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   {subscription.usage.agentKeys} /{" "}
@@ -625,7 +625,7 @@ const SubscriptionManagement: FC = () => {
               {/* Channels */}
               <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
-                  Channels
+                  Message channels
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   {subscription.usage.channels} /{" "}
@@ -636,7 +636,7 @@ const SubscriptionManagement: FC = () => {
               {/* MCP Servers */}
               <div className="rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:hover:bg-neutral-800">
                 <div className="mb-1 text-sm font-semibold text-neutral-600 dark:text-neutral-300">
-                  MCP Servers
+                  Connected tools (MCP)
                 </div>
                 <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   {subscription.usage.mcpServers} /{" "}
@@ -649,11 +649,13 @@ const SubscriptionManagement: FC = () => {
 
         <div className="mb-8 rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
           <h2 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
-            Managers
+            Billing managers
           </h2>
 
           {subscription.managers.length === 0 ? (
-            <p className="text-neutral-600 dark:text-neutral-300">No managers found.</p>
+            <p className="text-neutral-600 dark:text-neutral-300">
+              No billing managers yet.
+            </p>
           ) : (
             <div className="space-y-4">
               {subscription.managers.map((manager) => {
@@ -681,7 +683,7 @@ const SubscriptionManagement: FC = () => {
                       >
                         {removeManagerMutation.isPending
                           ? "Removing..."
-                          : "Remove"}
+                          : "Remove access"}
                       </button>
                     )}
                     {manager.userId === currentUserId && (
@@ -692,7 +694,7 @@ const SubscriptionManagement: FC = () => {
                     {manager.userId !== currentUserId &&
                       subscription.managers.length === 1 && (
                         <span className="text-sm font-medium text-neutral-500 dark:text-neutral-500">
-                          Cannot remove last manager
+                          You need at least one billing manager
                         </span>
                       )}
                   </div>
@@ -705,7 +707,7 @@ const SubscriptionManagement: FC = () => {
         {!isManagerLimitReached && (
           <div className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
             <h2 className="mb-6 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
-              Add Manager
+              Add a billing manager
             </h2>
             <form onSubmit={handleAddManager}>
               <div className="mb-4">
@@ -713,7 +715,7 @@ const SubscriptionManagement: FC = () => {
                   htmlFor="email"
                   className="mb-2 block text-sm font-semibold text-neutral-900 dark:text-neutral-300"
                 >
-                  Email Address
+                  Email address
                 </label>
                 <input
                   id="email"
@@ -753,7 +755,7 @@ const SubscriptionManagement: FC = () => {
                 disabled={isSubmitting || !email.trim() || !userByEmail}
                 className="transform rounded-xl bg-gradient-primary px-6 py-3 font-semibold text-white transition-all duration-200 hover:scale-[1.02] hover:shadow-colored active:scale-[0.98] disabled:transform-none disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isSubmitting ? "Adding..." : "Add Manager"}
+                {isSubmitting ? "Adding..." : "Add billing manager"}
               </button>
             </form>
           </div>

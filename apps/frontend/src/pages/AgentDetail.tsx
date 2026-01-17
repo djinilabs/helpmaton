@@ -243,7 +243,7 @@ const WidgetKeyList: FC<WidgetKeyListProps> = ({
   if (keys.length === 0) {
     return (
       <p className="text-sm opacity-75">
-        No widget keys. Generate one to get started.
+        No widget keys yet. Create one to get started.
       </p>
     );
   }
@@ -1370,21 +1370,21 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               onClick={() => navigate(`/workspaces/${workspaceId}`)}
               className="rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
             >
-              ← Back
+              ← Back to workspace
             </button>
             {canEdit && !isEditing && (
               <button
                 onClick={handleEdit}
                 className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored"
               >
-                Edit
+                Edit settings
               </button>
             )}
           </div>
           <p className="mb-4 text-sm opacity-75 dark:text-neutral-300">
-            Configure your agent&apos;s behavior, system prompt, spending
-            limits, and webhook keys. Use the sections below to manage
-            conversations, test the agent, and monitor usage.
+            Set how this assistant behaves, its instructions, and spending
+            limits. Use the sections below to test it, view conversations, and
+            check usage.
           </p>
 
           <div>
@@ -1407,14 +1407,14 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <div className="flex items-center gap-4">
                 <div>
                   <span className="text-sm font-semibold dark:text-neutral-300">
-                    Provider:{" "}
+                    AI provider:{" "}
                   </span>
                   <span className="text-sm dark:text-neutral-300">Google</span>
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold dark:text-neutral-300">
-                      Model:{" "}
+                      Model (AI engine):{" "}
                     </span>
                     <span className="text-sm dark:text-neutral-300">
                       {isEditing ? (
@@ -1461,7 +1461,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                       onClick={() => setIsModelPricesOpen(true)}
                       className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
                     >
-                      💰 Model prices
+                      See model prices
                     </button>
                   </div>
                 </div>
@@ -1489,20 +1489,28 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   </button>
                 )}
               </div>
+              <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+                The provider is the company that runs the model. The model is
+                the specific AI engine your assistant uses.
+              </p>
             </div>
             <div className="mt-4">
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-semibold dark:text-neutral-300">
-                  System Prompt:
+                  Agent instructions (system prompt):
                 </p>
                 <button
                   type="button"
                   onClick={() => setIsHelpOpen(true)}
                   className="rounded-xl border-2 border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold transition-all duration-200 hover:bg-neutral-50 dark:bg-neutral-800"
                 >
-                  ? Available Tools
+                  Tools this assistant can use
                 </button>
               </div>
+              <p className="mb-2 text-xs text-neutral-500 dark:text-neutral-400">
+                This is the main guidance the assistant follows for every
+                conversation.
+              </p>
               <div className="relative rounded-lg border border-neutral-200 dark:border-neutral-700">
                 <div
                   ref={systemPromptRef}
@@ -4094,7 +4102,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             title={
               <>
                 <ChartBarIcon className="mr-2 inline-block size-5" />
-                AGENT USAGE
+                Assistant usage
               </>
             }
             isExpanded={expandedSection === "usage"}
@@ -4111,7 +4119,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
             title={
               <>
                 <CurrencyDollarIcon className="mr-2 inline-block size-5" />
-                TRANSACTIONS
+                Payment history
               </>
             }
             isExpanded={expandedSection === "transactions"}
@@ -4605,7 +4613,7 @@ const AgentUsageSection: FC<AgentUsageSectionProps> = ({
     <UsageDashboard
       stats={usageData.stats}
       dailyData={dailyUsageData?.daily}
-      title="AGENT USAGE"
+      title="Usage over time"
       dateRange={dateRange}
       dateRangePreset={dateRangePreset}
       onDateRangeChange={setDateRangePreset}
