@@ -6,6 +6,7 @@ import { checkForServiceWorkerUpdate } from "../utils/serviceWorker";
 const CURRENT_VERSION = import.meta.env.VITE_APP_VERSION || "0.0.0";
 const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
 
+// Note: prerelease/build metadata is treated as numeric segments only.
 const parseSemver = (version: string): number[] => {
   return version.split(".").map((part) => {
     const numeric = part.replace(/[^0-9]/g, "");

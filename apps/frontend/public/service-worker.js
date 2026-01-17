@@ -27,7 +27,7 @@ const isSameOrigin = (url) => url.origin === self.location.origin;
 const isVersionedAsset = (url) => {
   const hasVersionParam =
     url.searchParams.has("v") || url.searchParams.has("version");
-  const hasHash = /-[a-f0-9]{8,}\./.test(url.pathname);
+  const hasHash = /-[a-f0-9]+\./.test(url.pathname);
   return hasVersionParam || hasHash;
 };
 
@@ -123,6 +123,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  // SPA navigation requests should return cached root HTML.
+  // Updates are handled via the version polling flow.
   if (request.mode === "navigate" || url.pathname === ROOT_URL) {
     event.respondWith(cacheRootDocument());
     return;
