@@ -118,6 +118,11 @@ export const registerGetMcpServerOauthAuthorize = (
             "../../../utils/oauth/mcp/hubspot"
           );
           authUrl = generateHubspotAuthUrl(workspaceId, serverId);
+        } else if (server.serviceType === "stripe") {
+          const { generateStripeAuthUrl } = await import(
+            "../../../utils/oauth/mcp/stripe"
+          );
+          authUrl = generateStripeAuthUrl(workspaceId, serverId);
         } else {
           throw badRequest(
             `Unsupported service type: ${server.serviceType || "unknown"}`

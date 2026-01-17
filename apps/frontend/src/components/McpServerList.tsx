@@ -108,6 +108,8 @@ const McpServerItem: FC<McpServerItemProps> = ({
       ? "Linear"
       : server.serviceType === "hubspot"
       ? "HubSpot"
+      : server.serviceType === "stripe"
+      ? "Stripe"
       : server.serviceType === "posthog"
       ? "PostHog"
       : "Unknown";
