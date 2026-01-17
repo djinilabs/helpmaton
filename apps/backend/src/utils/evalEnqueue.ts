@@ -53,7 +53,7 @@ export async function enqueueEvaluations(
 
   // Enqueue evaluation task for each judge
   const enqueuePromises = judges.map(async (judge) => {
-    const samplingProbability = judge.samplingProbability ?? 100;
+    const samplingProbability = judge.samplingProbability;
     if (samplingProbability < 100) {
       const shouldEnqueue = Math.random() < samplingProbability / 100;
       if (!shouldEnqueue) {
