@@ -163,6 +163,7 @@ describe("workspaceExportSchema", () => {
                 id: "judge-1",
                 name: "Quality Judge",
                 enabled: true,
+                samplingProbability: 100,
                 provider: "openrouter",
                 modelName: "gpt-4o",
                 evalPrompt: "Evaluate the conversation quality",
@@ -181,6 +182,9 @@ describe("workspaceExportSchema", () => {
       if (result.success) {
         expect(result.data.agents?.[0]?.keys).toHaveLength(2);
         expect(result.data.agents?.[0]?.evalJudges).toHaveLength(1);
+        expect(result.data.agents?.[0]?.evalJudges?.[0]?.samplingProbability).toBe(
+          100
+        );
         expect(result.data.agents?.[0]?.streamServer).toBeDefined();
       }
     });

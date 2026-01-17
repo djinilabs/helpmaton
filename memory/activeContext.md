@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Eval judge sampling probability**: Added per-judge sampling probability (0-100, default 100) across backend schemas/routes/export/import and frontend UI, applied sampling during eval enqueue, updated tests, and ran typecheck/lint.
 - **Test endpoint streaming**: Reworked `/api/workspaces/:workspaceId/agents/:agentId/test` to reuse shared stream pipeline with buffered mock response in dev, switched Function URL usage to the same test path, updated stream endpoint detection/extraction and unit tests, aligned test endpoint request parsing with stream endpoint (accepts text/array JSON bodies), and registered the test route in `workspaces-app`.
 - **Test endpoint error logging**: Ensured generic test endpoint failures persist conversation errors when streaming error handling returns no response.
 - **PostHog MCP integration**: Added API-key based PostHog MCP server support with region selection (US/EU), read-only tools (projects, events, feature flags, insights, persons, generic GET), backend validation for base URL and apiKey, tool metadata wiring, and unit tests for client/tools. Updated MCP UI and docs.

@@ -62,7 +62,8 @@ const EvalJudgeItem: FC<EvalJudgeItemProps> = ({
           )}
         </div>
         <div className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-          Provider: {judge.provider} | Model: {judge.modelName}
+          Provider: {judge.provider} | Model: {judge.modelName} | Sampling:{" "}
+          {judge.samplingProbability}%
         </div>
         <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-500">
           Created: {new Date(judge.createdAt).toLocaleDateString()}

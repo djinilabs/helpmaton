@@ -455,6 +455,7 @@ export const createEvalJudgeSchema = z
   .object({
     name: z.string().min(1, "name is required and must be a string"),
     enabled: z.boolean().optional().default(true),
+    samplingProbability: z.number().int().min(0).max(100).optional().default(100),
     provider: z.enum(["openrouter"]).default("openrouter"), // Only openrouter is supported for eval judges
     modelName: z.string().min(1, "modelName is required and must be a string"),
     evalPrompt: z.string().min(1, "evalPrompt is required and must be a string"),
@@ -465,6 +466,7 @@ export const updateEvalJudgeSchema = z
   .object({
     name: z.string().min(1).optional(),
     enabled: z.boolean().optional(),
+    samplingProbability: z.number().int().min(0).max(100).optional(),
     provider: z.enum(["openrouter"]).optional(), // Only openrouter is supported for eval judges
     modelName: z.string().min(1).optional(),
     evalPrompt: z.string().min(1).optional(),
