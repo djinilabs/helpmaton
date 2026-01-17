@@ -1975,6 +1975,391 @@ function getMcpServerToolMetadata(
         },
       ],
     });
+  } else if (serviceType === "hubspot") {
+    const condition = oauthConnected
+      ? `Available (HubSpot "${serverName}" connected)`
+      : `Not available (HubSpot "${serverName}" not connected)`;
+
+    tools.push({
+      name: `hubspot_list_contacts${suffix}`,
+      description:
+        "List HubSpot contacts with optional pagination and selected properties.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of results to return (default: 100, max: 100)",
+        },
+        {
+          name: "after",
+          type: "string",
+          required: false,
+          description: "Pagination cursor for the next page",
+        },
+        {
+          name: "properties",
+          type: "string[]",
+          required: false,
+          description: "Optional list of properties to include",
+        },
+        {
+          name: "archived",
+          type: "boolean",
+          required: false,
+          description: "Whether to return archived records",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `hubspot_get_contact${suffix}`,
+      description: "Get a HubSpot contact by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "contactId",
+          type: "string",
+          required: true,
+          description: "Contact ID to retrieve",
+        },
+        {
+          name: "properties",
+          type: "string[]",
+          required: false,
+          description: "Optional list of properties to include",
+        },
+        {
+          name: "archived",
+          type: "boolean",
+          required: false,
+          description: "Whether to return archived records",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `hubspot_search_contacts${suffix}`,
+      description: "Search HubSpot contacts by query text.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "string",
+          required: true,
+          description: "Search query text",
+        },
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of results to return (default: 100, max: 100)",
+        },
+        {
+          name: "after",
+          type: "string",
+          required: false,
+          description: "Pagination cursor for the next page",
+        },
+        {
+          name: "properties",
+          type: "string[]",
+          required: false,
+          description: "Optional list of properties to include",
+        },
+        {
+          name: "archived",
+          type: "boolean",
+          required: false,
+          description: "Whether to return archived records",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `hubspot_list_companies${suffix}`,
+      description:
+        "List HubSpot companies with optional pagination and selected properties.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of results to return (default: 100, max: 100)",
+        },
+        {
+          name: "after",
+          type: "string",
+          required: false,
+          description: "Pagination cursor for the next page",
+        },
+        {
+          name: "properties",
+          type: "string[]",
+          required: false,
+          description: "Optional list of properties to include",
+        },
+        {
+          name: "archived",
+          type: "boolean",
+          required: false,
+          description: "Whether to return archived records",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `hubspot_get_company${suffix}`,
+      description: "Get a HubSpot company by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "companyId",
+          type: "string",
+          required: true,
+          description: "Company ID to retrieve",
+        },
+        {
+          name: "properties",
+          type: "string[]",
+          required: false,
+          description: "Optional list of properties to include",
+        },
+        {
+          name: "archived",
+          type: "boolean",
+          required: false,
+          description: "Whether to return archived records",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `hubspot_search_companies${suffix}`,
+      description: "Search HubSpot companies by query text.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "string",
+          required: true,
+          description: "Search query text",
+        },
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of results to return (default: 100, max: 100)",
+        },
+        {
+          name: "after",
+          type: "string",
+          required: false,
+          description: "Pagination cursor for the next page",
+        },
+        {
+          name: "properties",
+          type: "string[]",
+          required: false,
+          description: "Optional list of properties to include",
+        },
+        {
+          name: "archived",
+          type: "boolean",
+          required: false,
+          description: "Whether to return archived records",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `hubspot_list_deals${suffix}`,
+      description:
+        "List HubSpot deals with optional pagination and selected properties.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of results to return (default: 100, max: 100)",
+        },
+        {
+          name: "after",
+          type: "string",
+          required: false,
+          description: "Pagination cursor for the next page",
+        },
+        {
+          name: "properties",
+          type: "string[]",
+          required: false,
+          description: "Optional list of properties to include",
+        },
+        {
+          name: "archived",
+          type: "boolean",
+          required: false,
+          description: "Whether to return archived records",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `hubspot_get_deal${suffix}`,
+      description: "Get a HubSpot deal by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "dealId",
+          type: "string",
+          required: true,
+          description: "Deal ID to retrieve",
+        },
+        {
+          name: "properties",
+          type: "string[]",
+          required: false,
+          description: "Optional list of properties to include",
+        },
+        {
+          name: "archived",
+          type: "boolean",
+          required: false,
+          description: "Whether to return archived records",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `hubspot_search_deals${suffix}`,
+      description: "Search HubSpot deals by query text.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "string",
+          required: true,
+          description: "Search query text",
+        },
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of results to return (default: 100, max: 100)",
+        },
+        {
+          name: "after",
+          type: "string",
+          required: false,
+          description: "Pagination cursor for the next page",
+        },
+        {
+          name: "properties",
+          type: "string[]",
+          required: false,
+          description: "Optional list of properties to include",
+        },
+        {
+          name: "archived",
+          type: "boolean",
+          required: false,
+          description: "Whether to return archived records",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `hubspot_list_owners${suffix}`,
+      description: "List HubSpot owners with optional pagination.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of results to return (default: 100, max: 100)",
+        },
+        {
+          name: "after",
+          type: "string",
+          required: false,
+          description: "Pagination cursor for the next page",
+        },
+        {
+          name: "email",
+          type: "string",
+          required: false,
+          description: "Optional email to filter owners",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `hubspot_get_owner${suffix}`,
+      description: "Get a HubSpot owner by ID.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "ownerId",
+          type: "string",
+          required: true,
+          description: "Owner ID to retrieve",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `hubspot_search_owners${suffix}`,
+      description: "Search HubSpot owners by email.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "email",
+          type: "string",
+          required: true,
+          description: "Owner email to search for",
+        },
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of results to return (default: 100, max: 100)",
+        },
+        {
+          name: "after",
+          type: "string",
+          required: false,
+          description: "Pagination cursor for the next page",
+        },
+      ],
+    });
   } else if (serviceType === "posthog") {
     const condition = `Available (PostHog "${serverName}" enabled)`;
 
@@ -2318,6 +2703,7 @@ export function generateToolList(
       "notion",
       "github",
       "linear",
+      "hubspot",
     ];
 
     // Group servers by serviceType for conflict detection

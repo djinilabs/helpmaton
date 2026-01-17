@@ -230,6 +230,7 @@ export async function createMcpServerTools(
     "notion",
     "github",
     "linear",
+    "hubspot",
   ];
 
   // First pass: collect all valid servers
@@ -511,6 +512,86 @@ export async function createMcpServerTools(
         getIssueTool as ReturnType<typeof createMcpServerTool>;
       tools[`linear_search_issues${suffix}`] =
         searchIssuesTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "hubspot") {
+      const {
+        createHubspotListContactsTool,
+        createHubspotGetContactTool,
+        createHubspotSearchContactsTool,
+        createHubspotListCompaniesTool,
+        createHubspotGetCompanyTool,
+        createHubspotSearchCompaniesTool,
+        createHubspotListDealsTool,
+        createHubspotGetDealTool,
+        createHubspotSearchDealsTool,
+        createHubspotListOwnersTool,
+        createHubspotGetOwnerTool,
+        createHubspotSearchOwnersTool,
+      } = await import("./hubspotTools");
+
+      const listContactsTool = createHubspotListContactsTool(
+        workspaceId,
+        serverId
+      );
+      const getContactTool = createHubspotGetContactTool(
+        workspaceId,
+        serverId
+      );
+      const searchContactsTool = createHubspotSearchContactsTool(
+        workspaceId,
+        serverId
+      );
+      const listCompaniesTool = createHubspotListCompaniesTool(
+        workspaceId,
+        serverId
+      );
+      const getCompanyTool = createHubspotGetCompanyTool(
+        workspaceId,
+        serverId
+      );
+      const searchCompaniesTool = createHubspotSearchCompaniesTool(
+        workspaceId,
+        serverId
+      );
+      const listDealsTool = createHubspotListDealsTool(workspaceId, serverId);
+      const getDealTool = createHubspotGetDealTool(workspaceId, serverId);
+      const searchDealsTool = createHubspotSearchDealsTool(
+        workspaceId,
+        serverId
+      );
+      const listOwnersTool = createHubspotListOwnersTool(
+        workspaceId,
+        serverId
+      );
+      const getOwnerTool = createHubspotGetOwnerTool(workspaceId, serverId);
+      const searchOwnersTool = createHubspotSearchOwnersTool(
+        workspaceId,
+        serverId
+      );
+
+      tools[`hubspot_list_contacts${suffix}`] =
+        listContactsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`hubspot_get_contact${suffix}`] =
+        getContactTool as ReturnType<typeof createMcpServerTool>;
+      tools[`hubspot_search_contacts${suffix}`] =
+        searchContactsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`hubspot_list_companies${suffix}`] =
+        listCompaniesTool as ReturnType<typeof createMcpServerTool>;
+      tools[`hubspot_get_company${suffix}`] =
+        getCompanyTool as ReturnType<typeof createMcpServerTool>;
+      tools[`hubspot_search_companies${suffix}`] =
+        searchCompaniesTool as ReturnType<typeof createMcpServerTool>;
+      tools[`hubspot_list_deals${suffix}`] =
+        listDealsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`hubspot_get_deal${suffix}`] =
+        getDealTool as ReturnType<typeof createMcpServerTool>;
+      tools[`hubspot_search_deals${suffix}`] =
+        searchDealsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`hubspot_list_owners${suffix}`] =
+        listOwnersTool as ReturnType<typeof createMcpServerTool>;
+      tools[`hubspot_get_owner${suffix}`] =
+        getOwnerTool as ReturnType<typeof createMcpServerTool>;
+      tools[`hubspot_search_owners${suffix}`] =
+        searchOwnersTool as ReturnType<typeof createMcpServerTool>;
     } else if (server.serviceType === "posthog") {
       const {
         createPosthogListProjectsTool,

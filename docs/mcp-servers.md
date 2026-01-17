@@ -553,6 +553,62 @@ Once connected, agents can use the following Linear tools:
 - Linear OAuth uses app-actor authorization for MCP tools
 - Tokens are automatically refreshed when supported by the Linear OAuth app
 
+### HubSpot Integration
+
+```json
+{
+  "name": "My HubSpot Account",
+  "authType": "oauth",
+  "serviceType": "hubspot",
+  "config": {}
+}
+```
+
+**Setup Requirements**:
+
+1. Create a HubSpot app:
+   - Go to [HubSpot developer portal](https://developers.hubspot.com/)
+   - Create or open your app
+   - Add redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/hubspot/callback`
+   - Enable these scopes:
+     - `crm.objects.contacts.read`
+     - `crm.objects.companies.read`
+     - `crm.objects.deals.read`
+     - `crm.objects.owners.read`
+     - `oauth`
+   - Copy the client ID and client secret
+
+2. Configure Environment Variables:
+   - Set `HUBSPOT_OAUTH_CLIENT_ID` to your HubSpot OAuth client ID
+   - Set `HUBSPOT_OAUTH_CLIENT_SECRET` to your HubSpot OAuth client secret
+   - Ensure `OAUTH_REDIRECT_BASE_URL` is set correctly
+
+3. Connect Your HubSpot Account:
+   - After creating the MCP server, click "Connect" to authorize the integration
+   - The integration requests read-only CRM scopes for contacts, companies, deals, and owners
+
+**Available Tools**:
+
+Once connected, agents can use the following HubSpot tools:
+
+- `hubspot_list_contacts_{serverName}` - List contacts with pagination and selected properties
+- `hubspot_get_contact_{serverName}` - Get a contact by ID
+- `hubspot_search_contacts_{serverName}` - Search contacts by query text
+- `hubspot_list_companies_{serverName}` - List companies with pagination and selected properties
+- `hubspot_get_company_{serverName}` - Get a company by ID
+- `hubspot_search_companies_{serverName}` - Search companies by query text
+- `hubspot_list_deals_{serverName}` - List deals with pagination and selected properties
+- `hubspot_get_deal_{serverName}` - Get a deal by ID
+- `hubspot_search_deals_{serverName}` - Search deals by query text
+- `hubspot_list_owners_{serverName}` - List owners with optional email filter
+- `hubspot_get_owner_{serverName}` - Get an owner by ID
+- `hubspot_search_owners_{serverName}` - Search owners by email
+
+**Important Notes**:
+
+- HubSpot OAuth tokens are refreshed automatically when expired
+- The integration is read-only; only GET/search operations are performed
+
 ## Troubleshooting
 
 ### Server Not Found

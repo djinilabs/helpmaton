@@ -7,6 +7,7 @@ import {
   Squares2X2Icon,
   ServerIcon,
   ChartBarIcon,
+  BuildingOfficeIcon,
 } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import type { FC } from "react";
@@ -27,6 +28,7 @@ type McpServerType =
   | "notion"
   | "github"
   | "linear"
+  | "hubspot"
   | "posthog"
   | "custom";
 
@@ -81,6 +83,13 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     icon: Squares2X2Icon,
   },
   {
+    value: "hubspot",
+    name: "HubSpot",
+    description:
+      "Read-only access to HubSpot CRM data. List and search contacts, companies, deals, and owners.",
+    icon: BuildingOfficeIcon,
+  },
+  {
     value: "posthog",
     name: "PostHog",
     description:
@@ -122,6 +131,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     | "notion"
     | "github"
     | "linear"
+    | "hubspot"
     | "posthog"
     | "custom"
   >("google-drive"); // Service type for new servers
@@ -183,6 +193,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           server.serviceType === "linear"
         ) {
           setMcpType("linear");
+          // OAuth servers don't have authType in the UI
+        } else if (
+          server.authType === "oauth" &&
+          server.serviceType === "hubspot"
+        ) {
+          setMcpType("hubspot");
           // OAuth servers don't have authType in the UI
         } else if (server.serviceType === "posthog") {
           setMcpType("posthog");
@@ -314,6 +330,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             | "notion"
             | "github"
             | "linear"
+            | "hubspot"
             | "posthog";
           config?: typeof config;
         } = {
@@ -333,7 +350,8 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server?.serviceType === "google-calendar" ||
             server?.serviceType === "notion" ||
             server?.serviceType === "github" ||
-            server?.serviceType === "linear");
+            server?.serviceType === "linear" ||
+            server?.serviceType === "hubspot");
         const isPosthogServer = server?.serviceType === "posthog";
 
         // OAuth servers can only update name (OAuth connection is managed separately)
@@ -494,6 +512,20 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server_id: result.id,
             auth_type: "oauth",
             service_type: "linear",
+          });
+        } else if (mcpType === "hubspot") {
+          // HubSpot - OAuth-based
+          const result = await createServer.mutateAsync({
+            name: name.trim(),
+            authType: "oauth",
+            serviceType: "hubspot",
+            config: {}, // Empty config for OAuth servers (credentials set via OAuth flow)
+          });
+          trackEvent("mcp_server_created", {
+            workspace_id: workspaceId,
+            server_id: result.id,
+            auth_type: "oauth",
+            service_type: "hubspot",
           });
         } else if (mcpType === "posthog") {
           const result = await createServer.mutateAsync({

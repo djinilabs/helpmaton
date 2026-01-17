@@ -1428,6 +1428,7 @@ export interface McpServer {
     | "notion"
     | "github"
     | "linear"
+    | "hubspot"
     | "posthog";
   oauthConnected?: boolean;
   createdAt: string;
@@ -1446,6 +1447,7 @@ export interface CreateMcpServerInput {
     | "notion"
     | "github"
     | "linear"
+    | "hubspot"
     | "posthog";
   config?: {
     apiKey?: string;
@@ -1467,6 +1469,7 @@ export interface UpdateMcpServerInput {
     | "notion"
     | "github"
     | "linear"
+    | "hubspot"
     | "posthog";
   config?: {
     apiKey?: string;
