@@ -2100,30 +2100,20 @@ export async function startConversation(
     });
   }
 
-  // Enqueue evaluations for enabled judges if conversation has a final assistant response
+  // Enqueue evaluations for enabled judges after conversation logging completes
   // Must await to ensure SQS messages are published before Lambda terminates (workspace rule #8)
-  const hasFinalResponse = data.messages.some(
-    (msg) =>
-      msg.role === "assistant" &&
-      (typeof msg.content === "string" ||
-        (Array.isArray(msg.content) &&
-          msg.content.some((c) => typeof c === "object" && c !== null && "type" in c && c.type === "text" && "text" in c && typeof c.text === "string" && c.text.trim().length > 0)))
-  );
-
-  if (hasFinalResponse) {
-    try {
-      const { enqueueEvaluations } = await import("./evalEnqueue");
-      // Must await to ensure SQS messages are published before Lambda terminates
-      await enqueueEvaluations(data.workspaceId, data.agentId, conversationId);
-    } catch (error) {
-      // Log error but don't throw - evaluation enqueueing should not block conversation logging
-      console.error("[Conversation Logger] Failed to enqueue evaluations:", {
-        error: error instanceof Error ? error.message : String(error),
-        workspaceId: data.workspaceId,
-        agentId: data.agentId,
-        conversationId,
-      });
-    }
+  try {
+    const { enqueueEvaluations } = await import("./evalEnqueue");
+    // Must await to ensure SQS messages are published before Lambda terminates
+    await enqueueEvaluations(data.workspaceId, data.agentId, conversationId);
+  } catch (error) {
+    // Log error but don't throw - evaluation enqueueing should not block conversation logging
+    console.error("[Conversation Logger] Failed to enqueue evaluations:", {
+      error: error instanceof Error ? error.message : String(error),
+      workspaceId: data.workspaceId,
+      agentId: data.agentId,
+      conversationId,
+    });
   }
 
   return conversationId;
@@ -2305,10 +2295,6 @@ export async function updateConversation(
   // Track truly new messages (not duplicates) to send to queue
   // This will be set inside atomicUpdate callback
   let trulyNewMessages: UIMessage[] = [];
-  // Track the final merged messages to check for assistant responses for evaluation triggering
-  // This will be set inside atomicUpdate callback
-  let finalMergedMessages: UIMessage[] = [];
-
   // Use atomicUpdate to ensure thread-safe conversation updates
   await db["agent-conversations"].atomicUpdate(
     pk,
@@ -2324,8 +2310,6 @@ export async function updateConversation(
           awsRequestId
         );
         trulyNewMessages = expandedMessages;
-        finalMergedMessages = expandedMessages;
-
         // Calculate costs and generation times from per-message model/provider data
         // IMPORTANT: Calculate from 0 based on ALL expanded messages
         // Use getMessageCost() helper to get best available cost for each message
@@ -2450,9 +2434,6 @@ export async function updateConversation(
         allMessages,
         awsRequestId
       );
-      // Track final merged messages for evaluation triggering
-      finalMergedMessages = expandedAllMessages;
-
       // Aggregate token usage
       const existingTokenUsage = existing.tokenUsage as TokenUsage | undefined;
       const aggregatedTokenUsage = aggregateTokenUsage(
@@ -2642,39 +2623,19 @@ export async function updateConversation(
     );
   }
 
-  // Enqueue evaluations for enabled judges
-  // Only trigger if conversation has a final assistant response
+  // Enqueue evaluations for enabled judges after conversation logging completes
   // Must await to ensure SQS messages are published before Lambda terminates (workspace rule #8)
-  // Check the final merged messages (not just newMessages) to ensure we catch assistant responses
-  // that might be in the merged conversation
-  const hasFinalResponse = finalMergedMessages.some(
-    (msg) =>
-      msg.role === "assistant" &&
-      (typeof msg.content === "string" ||
-        (Array.isArray(msg.content) &&
-          msg.content.some((c) => {
-            if (typeof c === "string") return c.trim().length > 0;
-            if (typeof c === "object" && c !== null && "type" in c && c.type === "text" && "text" in c) {
-              const textContent = c as { text: unknown };
-              return typeof textContent.text === "string" && textContent.text.trim().length > 0;
-            }
-            return false;
-          })))
-  );
-
-  if (hasFinalResponse) {
-    try {
-      const { enqueueEvaluations } = await import("./evalEnqueue");
-      // Must await to ensure SQS messages are published before Lambda terminates
-      await enqueueEvaluations(workspaceId, agentId, conversationId);
-    } catch (error) {
-      // Log error but don't throw - evaluation enqueueing should not block conversation logging
-      console.error("[Conversation Logger] Failed to enqueue evaluations:", {
-        error: error instanceof Error ? error.message : String(error),
-        workspaceId,
-        agentId,
-        conversationId,
-      });
-    }
+  try {
+    const { enqueueEvaluations } = await import("./evalEnqueue");
+    // Must await to ensure SQS messages are published before Lambda terminates
+    await enqueueEvaluations(workspaceId, agentId, conversationId);
+  } catch (error) {
+    // Log error but don't throw - evaluation enqueueing should not block conversation logging
+    console.error("[Conversation Logger] Failed to enqueue evaluations:", {
+      error: error instanceof Error ? error.message : String(error),
+      workspaceId,
+      agentId,
+      conversationId,
+    });
   }
 }
