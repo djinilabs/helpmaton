@@ -339,6 +339,8 @@ export const registerPostTestAgent = (app: express.Application) => {
             res.status(statusCode).send(body);
             return;
           }
+
+          await persistConversationError(streamContext, error);
         }
 
         throw error;
