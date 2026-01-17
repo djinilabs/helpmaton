@@ -43,7 +43,7 @@ const Home: FC = () => {
               </div>
               <div>
                 <h1 className="mb-3 text-5xl font-black tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-6xl">
-                  Dashbroard
+                  Dashboard
                 </h1>
                 <p className="text-2xl font-bold text-neutral-700 dark:text-neutral-300">
                   Welcome, {session?.user?.email || "User"}
