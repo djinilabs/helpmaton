@@ -30,7 +30,6 @@ export function createLinearListTeamsTool(
     parameters: z.object({}),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
-     
     execute: async () => {
       try {
         if (!(await hasOAuthConnection(workspaceId, serverId))) {

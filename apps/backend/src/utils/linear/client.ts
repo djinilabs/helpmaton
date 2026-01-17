@@ -21,7 +21,7 @@ async function makeLinearRequest<T>(
   variables?: Record<string, unknown>,
   attempt: number = 0
 ): Promise<T> {
-  let tokens = await getOAuthTokens(workspaceId, serverId);
+  const tokens = await getOAuthTokens(workspaceId, serverId);
   const refreshTokenFn: RefreshTokenFunction = refreshLinearToken;
   const accessToken = await ensureValidToken(
     workspaceId,
@@ -56,7 +56,6 @@ async function makeLinearRequest<T>(
         refreshToken: refreshed.refreshToken,
         expiresAt: refreshed.expiresAt,
       });
-      tokens = await getOAuthTokens(workspaceId, serverId);
       return makeLinearRequest<T>(
         workspaceId,
         serverId,
