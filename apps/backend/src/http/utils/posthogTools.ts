@@ -7,6 +7,8 @@ function buildProjectPath(projectId: string, path: string) {
   return `/api/projects/${encodeURIComponent(projectId)}${path}`;
 }
 
+const posthogIdSchema = z.union([z.string(), z.number().int()]);
+
 const posthogQuerySchema = z.record(
   z.string(),
   z.union([
@@ -16,6 +18,24 @@ const posthogQuerySchema = z.record(
     z.array(z.union([z.string(), z.number(), z.boolean()])),
   ])
 );
+
+function resolvePosthogId(args: Record<string, unknown>, key: string): string | null {
+  const camelValue = args[key];
+  const snakeValue = args[key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)];
+  const value = camelValue ?? snakeValue;
+  if (value === undefined || value === null) {
+    return null;
+  }
+  return String(value);
+}
+
+function requirePosthogId(args: Record<string, unknown>, key: string): string | null {
+  const value = resolvePosthogId(args, key);
+  if (!value) {
+    return null;
+  }
+  return value;
+}
 
 export function createPosthogListProjectsTool(
   workspaceId: string,
@@ -48,17 +68,24 @@ export function createPosthogGetProjectTool(
   return tool({
     description: "Get details for a specific PostHog project by ID.",
     parameters: z.object({
-      projectId: z.string().describe("PostHog project ID"),
+      projectId: posthogIdSchema.optional().describe("PostHog project ID"),
+      project_id: posthogIdSchema
+        .optional()
+        .describe("Alias for projectId"),
     }),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute: async (args: any) => {
       try {
+        const projectId = requirePosthogId(args, "projectId");
+        if (!projectId) {
+          return "Error: projectId parameter is required.";
+        }
         const result = await getPosthogJson(
           workspaceId,
           serverId,
-          buildProjectPath(args.projectId, "/")
+          buildProjectPath(projectId, "/")
         );
         return JSON.stringify(result, null, 2);
       } catch (error) {
@@ -79,7 +106,10 @@ export function createPosthogListEventsTool(
     description:
       "List events from a PostHog project with optional filters for event name, time range, distinct id, and pagination.",
     parameters: z.object({
-      projectId: z.string().describe("PostHog project ID"),
+      projectId: posthogIdSchema.optional().describe("PostHog project ID"),
+      project_id: posthogIdSchema
+        .optional()
+        .describe("Alias for projectId"),
       after: z
         .string()
         .optional()
@@ -94,10 +124,13 @@ export function createPosthogListEventsTool(
         .optional()
         .describe("Filter by distinct_id"),
       personId: z
-        .number()
-        .int()
+        .union([z.number().int(), z.string()])
         .optional()
         .describe("Filter by person id"),
+      person_id: z
+        .union([z.number().int(), z.string()])
+        .optional()
+        .describe("Alias for personId"),
       limit: z.number().int().optional().describe("Number of results to return"),
       offset: z.number().int().optional().describe("Number of results to skip"),
     }),
@@ -106,16 +139,21 @@ export function createPosthogListEventsTool(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute: async (args: any) => {
       try {
+        const projectId = requirePosthogId(args, "projectId");
+        if (!projectId) {
+          return "Error: projectId parameter is required.";
+        }
+        const personId = resolvePosthogId(args, "personId");
         const result = await getPosthogJson(
           workspaceId,
           serverId,
-          buildProjectPath(args.projectId, "/events/"),
+          buildProjectPath(projectId, "/events/"),
           {
             after: args.after,
             before: args.before,
             event: args.event,
             distinct_id: args.distinctId,
-            person_id: args.personId,
+            person_id: personId ?? undefined,
             limit: args.limit,
             offset: args.offset,
           }
@@ -139,7 +177,10 @@ export function createPosthogListFeatureFlagsTool(
     description:
       "List feature flags for a PostHog project. Returns feature flag definitions and metadata.",
     parameters: z.object({
-      projectId: z.string().describe("PostHog project ID"),
+      projectId: posthogIdSchema.optional().describe("PostHog project ID"),
+      project_id: posthogIdSchema
+        .optional()
+        .describe("Alias for projectId"),
       search: z.string().optional().describe("Search by flag key or name"),
       limit: z.number().int().optional().describe("Number of results to return"),
       offset: z.number().int().optional().describe("Number of results to skip"),
@@ -149,10 +190,14 @@ export function createPosthogListFeatureFlagsTool(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute: async (args: any) => {
       try {
+        const projectId = requirePosthogId(args, "projectId");
+        if (!projectId) {
+          return "Error: projectId parameter is required.";
+        }
         const result = await getPosthogJson(
           workspaceId,
           serverId,
-          buildProjectPath(args.projectId, "/feature_flags/"),
+          buildProjectPath(projectId, "/feature_flags/"),
           {
             search: args.search,
             limit: args.limit,
@@ -177,20 +222,34 @@ export function createPosthogGetFeatureFlagTool(
   return tool({
     description: "Get a specific feature flag by ID.",
     parameters: z.object({
-      projectId: z.string().describe("PostHog project ID"),
-      featureFlagId: z.string().describe("Feature flag ID"),
+      projectId: posthogIdSchema.optional().describe("PostHog project ID"),
+      project_id: posthogIdSchema
+        .optional()
+        .describe("Alias for projectId"),
+      featureFlagId: posthogIdSchema.optional().describe("Feature flag ID"),
+      feature_flag_id: posthogIdSchema
+        .optional()
+        .describe("Alias for featureFlagId"),
     }),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute: async (args: any) => {
       try {
+        const projectId = requirePosthogId(args, "projectId");
+        if (!projectId) {
+          return "Error: projectId parameter is required.";
+        }
+        const featureFlagId = requirePosthogId(args, "featureFlagId");
+        if (!featureFlagId) {
+          return "Error: featureFlagId parameter is required.";
+        }
         const result = await getPosthogJson(
           workspaceId,
           serverId,
           buildProjectPath(
-            args.projectId,
-            `/feature_flags/${encodeURIComponent(args.featureFlagId)}/`
+            projectId,
+            `/feature_flags/${encodeURIComponent(featureFlagId)}/`
           )
         );
         return JSON.stringify(result, null, 2);
@@ -212,7 +271,10 @@ export function createPosthogListInsightsTool(
     description:
       "List insights for a PostHog project. Returns saved insight metadata and optional filters.",
     parameters: z.object({
-      projectId: z.string().describe("PostHog project ID"),
+      projectId: posthogIdSchema.optional().describe("PostHog project ID"),
+      project_id: posthogIdSchema
+        .optional()
+        .describe("Alias for projectId"),
       saved: z
         .boolean()
         .optional()
@@ -225,10 +287,14 @@ export function createPosthogListInsightsTool(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute: async (args: any) => {
       try {
+        const projectId = requirePosthogId(args, "projectId");
+        if (!projectId) {
+          return "Error: projectId parameter is required.";
+        }
         const result = await getPosthogJson(
           workspaceId,
           serverId,
-          buildProjectPath(args.projectId, "/insights/"),
+          buildProjectPath(projectId, "/insights/"),
           {
             saved: args.saved,
             limit: args.limit,
@@ -253,20 +319,34 @@ export function createPosthogGetInsightTool(
   return tool({
     description: "Get details for a specific PostHog insight by ID.",
     parameters: z.object({
-      projectId: z.string().describe("PostHog project ID"),
-      insightId: z.string().describe("Insight ID"),
+      projectId: posthogIdSchema.optional().describe("PostHog project ID"),
+      project_id: posthogIdSchema
+        .optional()
+        .describe("Alias for projectId"),
+      insightId: posthogIdSchema.optional().describe("Insight ID"),
+      insight_id: posthogIdSchema
+        .optional()
+        .describe("Alias for insightId"),
     }),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute: async (args: any) => {
       try {
+        const projectId = requirePosthogId(args, "projectId");
+        if (!projectId) {
+          return "Error: projectId parameter is required.";
+        }
+        const insightId = requirePosthogId(args, "insightId");
+        if (!insightId) {
+          return "Error: insightId parameter is required.";
+        }
         const result = await getPosthogJson(
           workspaceId,
           serverId,
           buildProjectPath(
-            args.projectId,
-            `/insights/${encodeURIComponent(args.insightId)}/`
+            projectId,
+            `/insights/${encodeURIComponent(insightId)}/`
           )
         );
         return JSON.stringify(result, null, 2);
@@ -288,12 +368,19 @@ export function createPosthogListPersonsTool(
     description:
       "List persons in a PostHog project with optional filters and pagination.",
     parameters: z.object({
-      projectId: z.string().describe("PostHog project ID"),
+      projectId: posthogIdSchema.optional().describe("PostHog project ID"),
+      project_id: posthogIdSchema
+        .optional()
+        .describe("Alias for projectId"),
       search: z.string().optional().describe("Search by person name or email"),
       distinctId: z
         .string()
         .optional()
         .describe("Filter by distinct_id"),
+      distinct_id: z
+        .string()
+        .optional()
+        .describe("Alias for distinctId"),
       limit: z.number().int().optional().describe("Number of results to return"),
       offset: z.number().int().optional().describe("Number of results to skip"),
     }),
@@ -302,13 +389,18 @@ export function createPosthogListPersonsTool(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute: async (args: any) => {
       try {
+        const projectId = requirePosthogId(args, "projectId");
+        if (!projectId) {
+          return "Error: projectId parameter is required.";
+        }
+        const distinctId = resolvePosthogId(args, "distinctId");
         const result = await getPosthogJson(
           workspaceId,
           serverId,
-          buildProjectPath(args.projectId, "/persons/"),
+          buildProjectPath(projectId, "/persons/"),
           {
             search: args.search,
-            distinct_id: args.distinctId,
+            distinct_id: distinctId ?? undefined,
             limit: args.limit,
             offset: args.offset,
           }
@@ -331,20 +423,32 @@ export function createPosthogGetPersonTool(
   return tool({
     description: "Get details for a specific PostHog person by ID.",
     parameters: z.object({
-      projectId: z.string().describe("PostHog project ID"),
-      personId: z.string().describe("Person ID"),
+      projectId: posthogIdSchema.optional().describe("PostHog project ID"),
+      project_id: posthogIdSchema
+        .optional()
+        .describe("Alias for projectId"),
+      personId: posthogIdSchema.optional().describe("Person ID"),
+      person_id: posthogIdSchema.optional().describe("Alias for personId"),
     }),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     execute: async (args: any) => {
       try {
+        const projectId = requirePosthogId(args, "projectId");
+        if (!projectId) {
+          return "Error: projectId parameter is required.";
+        }
+        const personId = requirePosthogId(args, "personId");
+        if (!personId) {
+          return "Error: personId parameter is required.";
+        }
         const result = await getPosthogJson(
           workspaceId,
           serverId,
           buildProjectPath(
-            args.projectId,
-            `/persons/${encodeURIComponent(args.personId)}/`
+            projectId,
+            `/persons/${encodeURIComponent(personId)}/`
           )
         );
         return JSON.stringify(result, null, 2);

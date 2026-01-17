@@ -39,7 +39,7 @@ describe("PostHog Tools", () => {
 
     const tool = createPosthogListEventsTool(workspaceId, serverId);
     await (tool as any).execute({
-      projectId: "123",
+      project_id: "123",
       event: "pageview",
       distinctId: "user-1",
       limit: 25,
