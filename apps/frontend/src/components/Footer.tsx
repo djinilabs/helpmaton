@@ -35,19 +35,19 @@ export const Footer: FC = () => {
                 API Docs
               </Link>
               <span className="text-neutral-400 dark:text-neutral-600">|</span>
-              <a
-                href="/privacy"
+              <Link
+                to="/privacy"
                 className="border-b-2 border-neutral-900 font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-neutral-50 dark:text-neutral-300 dark:hover:text-neutral-50"
               >
                 Privacy Statement
-              </a>
+              </Link>
               <span className="text-neutral-400 dark:text-neutral-600">|</span>
-              <a
-                href="/terms-of-service"
+              <Link
+                to="/terms-of-service"
                 className="border-b-2 border-neutral-900 font-semibold text-neutral-600 transition-colors hover:text-neutral-900 dark:border-neutral-50 dark:text-neutral-300 dark:hover:text-neutral-50"
               >
                 Terms of Service
-              </a>
+              </Link>
             </div>
           </div>
         </div>
