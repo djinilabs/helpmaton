@@ -44,6 +44,11 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *                     type: string
  *                   enabled:
  *                     type: boolean
+ *                   samplingProbability:
+ *                     type: integer
+ *                     minimum: 0
+ *                     maximum: 100
+ *                     description: Probability percent for evaluating conversations
  *                   provider:
  *                     type: string
  *                   modelName:
@@ -92,6 +97,7 @@ export const registerGetAgentEvalJudges = (app: express.Application) => {
           id: string;
           name: string;
           enabled: boolean;
+          samplingProbability: number;
           provider: string;
           modelName: string;
           evalPrompt: string;
@@ -109,6 +115,7 @@ export const registerGetAgentEvalJudges = (app: express.Application) => {
             id: judge.judgeId,
             name: judge.name,
             enabled: judge.enabled,
+            samplingProbability: judge.samplingProbability ?? 100,
             provider: judge.provider,
             modelName: judge.modelName,
             evalPrompt: judge.evalPrompt,

@@ -45,6 +45,7 @@ export const EvalJudgeModal: FC<EvalJudgeModalProps> = ({
 
   const [name, setName] = useState("");
   const [enabled, setEnabled] = useState(true);
+  const [samplingProbability, setSamplingProbability] = useState(100);
   const provider = "openrouter" as const; // Only openrouter is supported
   const [modelName, setModelName] = useState<string | null>(null);
   
@@ -146,12 +147,14 @@ You must respond with valid JSON only. Do not include markdown formatting like \
       if (judge) {
         setName(judge.name);
         setEnabled(judge.enabled);
+        setSamplingProbability(judge.samplingProbability ?? 100);
         // Provider is always "openrouter" - no need to set it
         setModelName(judge.modelName || null);
         setEvalPrompt(judge.evalPrompt);
       } else {
         setName("");
         setEnabled(true);
+        setSamplingProbability(100);
         setModelName(null);
         setEvalPrompt(defaultEvalPrompt);
       }
@@ -162,6 +165,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
   const handleClose = () => {
     setName("");
     setEnabled(true);
+    setSamplingProbability(100);
     setModelName(null);
     setEvalPrompt(defaultEvalPrompt);
     setIsModelPricesOpen(false);
@@ -188,6 +192,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
         await updateJudge.mutateAsync({
           name: name.trim(),
           enabled,
+          samplingProbability,
           provider,
           modelName: finalModelName,
           evalPrompt: evalPrompt.trim(),
@@ -196,6 +201,7 @@ You must respond with valid JSON only. Do not include markdown formatting like \
         await createJudge.mutateAsync({
           name: name.trim(),
           enabled,
+          samplingProbability,
           provider,
           modelName: finalModelName,
           evalPrompt: evalPrompt.trim(),
@@ -249,6 +255,30 @@ You must respond with valid JSON only. Do not include markdown formatting like \
             >
               Enabled
             </label>
+          </div>
+
+          <div>
+            <label
+              htmlFor="samplingProbability"
+              className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+            >
+              Sampling Probability ({samplingProbability}%)
+            </label>
+            <input
+              id="samplingProbability"
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={samplingProbability}
+              onChange={(e) =>
+                setSamplingProbability(Number.parseInt(e.target.value, 10))
+              }
+              className="w-full accent-primary-500"
+            />
+            <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+              Controls how often this judge evaluates conversations (0–100%).
+            </p>
           </div>
 
           <div>
