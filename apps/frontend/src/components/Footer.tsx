@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 export const Footer: FC = () => {
   const currentYear = new Date().getFullYear();
+  const version = import.meta.env.VITE_APP_VERSION || "0.0.0";
 
   return (
     <footer className="mt-auto border-t border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
@@ -25,6 +26,7 @@ export const Footer: FC = () => {
             <div className="text-[10px]">
               © {currentYear} DjiniLabs & Gordon & Teixeira Lda.
             </div>
+            <div className="mt-1 text-[10px]">Version {version}</div>
             <div className="mt-3 flex items-center justify-end gap-2">
               <Link
                 to="/docs/api"

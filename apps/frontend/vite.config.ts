@@ -1,3 +1,4 @@
+import fs from "fs";
 import path from "path";
 
 import { sentryVitePlugin } from "@sentry/vite-plugin";
@@ -10,6 +11,11 @@ export default defineConfig(({ mode }) => {
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const envDir = path.resolve(__dirname);
   const env = loadEnv(mode, envDir, "");
+  const packageJsonPath = path.resolve(__dirname, "../../package.json");
+  const packageJson = JSON.parse(
+    fs.readFileSync(packageJsonPath, "utf-8")
+  ) as { version?: string };
+  const appVersion = packageJson.version || "0.0.0";
 
   // Map CLOUDFLARE_TURNSTILE_SITE_KEY to VITE_CLOUDFLARE_TURNSTILE_SITE_KEY
   // This allows using either CLOUDFLARE_TURNSTILE_SITE_KEY or VITE_CLOUDFLARE_TURNSTILE_SITE_KEY
@@ -63,6 +69,7 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.VITE_SENTRY_RELEASE": JSON.stringify(
         env.VITE_SENTRY_RELEASE || release
       ),
+      "import.meta.env.VITE_APP_VERSION": JSON.stringify(appVersion),
     },
     build: {
       sourcemap: true,
