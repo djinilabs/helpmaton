@@ -94,7 +94,7 @@ function buildDefine() {
 
   for (const varName of ENV_VARS_TO_INJECT) {
     const value = process.env[varName];
-    
+
     // Only inject if the variable is explicitly set
     if (value !== undefined && value !== null) {
       // Use JSON.stringify to properly escape the value and handle special characters

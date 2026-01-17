@@ -3,6 +3,10 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import {
+  isValidPosthogBaseUrl,
+  normalizePosthogBaseUrl,
+} from "../../../utils/posthog/constants";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
 import { updateMcpServerSchema } from "../../utils/schemas/workspaceSchemas";
@@ -159,16 +163,19 @@ export const registerPutMcpServer = (app: express.Application) => {
           }
         }
 
+        const finalServiceType = serviceType ?? server.serviceType;
+        const finalAuthType = (authType || server.authType) as
+          | "none"
+          | "header"
+          | "basic"
+          | "oauth";
+
         // Validate config if provided
         if (config !== undefined) {
           if (typeof config !== "object" || config === null) {
             throw badRequest("config must be an object");
           }
-          const finalAuthType = (authType || server.authType) as
-            | "none"
-            | "header"
-            | "basic";
-          if (finalAuthType === "header") {
+          if (finalAuthType === "header" && finalServiceType !== "posthog") {
             if (!config.headerValue || typeof config.headerValue !== "string") {
               throw badRequest(
                 "config.headerValue is required for header authentication"
@@ -183,6 +190,38 @@ export const registerPutMcpServer = (app: express.Application) => {
             if (!config.password || typeof config.password !== "string") {
               throw badRequest(
                 "config.password is required for basic authentication"
+              );
+            }
+          } else if (finalServiceType === "posthog") {
+            if (!config.apiKey || typeof config.apiKey !== "string") {
+              throw badRequest(
+                "config.apiKey is required for PostHog authentication"
+              );
+            }
+          }
+        }
+
+        if (finalServiceType === "posthog") {
+          if (finalAuthType !== "header") {
+            throw badRequest("PostHog requires header authentication");
+          }
+          const baseUrl = url ?? server.url;
+          if (!baseUrl || typeof baseUrl !== "string") {
+            throw badRequest(
+              "url is required for PostHog and must be a valid PostHog base URL"
+            );
+          }
+          const normalizedUrl = normalizePosthogBaseUrl(baseUrl);
+          if (!isValidPosthogBaseUrl(normalizedUrl)) {
+            throw badRequest(
+              "url must be https://us.posthog.com or https://eu.posthog.com"
+            );
+          }
+          if (config === undefined) {
+            const existingConfig = server.config as { apiKey?: string };
+            if (!existingConfig.apiKey) {
+              throw badRequest(
+                "config.apiKey is required for PostHog authentication"
               );
             }
           }

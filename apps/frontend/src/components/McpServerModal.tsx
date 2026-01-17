@@ -6,6 +6,7 @@ import {
   CodeBracketIcon,
   Squares2X2Icon,
   ServerIcon,
+  ChartBarIcon,
 } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import type { FC } from "react";
@@ -26,6 +27,7 @@ type McpServerType =
   | "notion"
   | "github"
   | "linear"
+  | "posthog"
   | "custom";
 
 interface McpServerTypeMetadata {
@@ -79,6 +81,13 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     icon: Squares2X2Icon,
   },
   {
+    value: "posthog",
+    name: "PostHog",
+    description:
+      "Read-only access to PostHog analytics. Browse projects, events, insights, feature flags, and people.",
+    icon: ChartBarIcon,
+  },
+  {
     value: "custom",
     name: "Custom MCP",
     description:
@@ -113,6 +122,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     | "notion"
     | "github"
     | "linear"
+    | "posthog"
     | "custom"
   >("google-drive"); // Service type for new servers
   const [url, setUrl] = useState("");
@@ -120,11 +130,21 @@ export const McpServerModal: FC<McpServerModalProps> = ({
   const [headerValue, setHeaderValue] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [posthogRegion, setPosthogRegion] = useState<"us" | "eu">("us");
+  const [posthogApiKey, setPosthogApiKey] = useState("");
+
+  const posthogBaseUrls = {
+    us: "https://us.posthog.com",
+    eu: "https://eu.posthog.com",
+  } as const;
 
   // Reset form when modal opens/closes or server changes
   useEffect(() => {
     if (isOpen) {
       if (server) {
+        const resolvePosthogRegion = (serverUrl?: string) =>
+          serverUrl?.includes("eu.posthog.com") ? "eu" : "us";
+
         setName(server.name);
         setUrl(server.url || "");
         // Determine MCP type based on server
@@ -164,6 +184,10 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         ) {
           setMcpType("linear");
           // OAuth servers don't have authType in the UI
+        } else if (server.serviceType === "posthog") {
+          setMcpType("posthog");
+          setAuthType("header");
+          setPosthogRegion(resolvePosthogRegion(server.url || undefined));
         } else {
           setMcpType("custom");
           // For custom servers, preserve the authType (should never be "oauth")
@@ -173,6 +197,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         setHeaderValue("");
         setUsername("");
         setPassword("");
+        setPosthogApiKey("");
       } else {
         setName("");
         setMcpType("google-drive"); // Default to Google Drive for new servers
@@ -181,6 +206,8 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         setHeaderValue("");
         setUsername("");
         setPassword("");
+        setPosthogRegion("us");
+        setPosthogApiKey("");
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -194,6 +221,8 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     setHeaderValue("");
     setUsername("");
     setPassword("");
+    setPosthogRegion("us");
+    setPosthogApiKey("");
     onClose();
   };
 
@@ -206,6 +235,10 @@ export const McpServerModal: FC<McpServerModalProps> = ({
       return () => unregisterDialog();
     }
   }, [isOpen, registerDialog, unregisterDialog]);
+
+  const isPosthogType = mcpType === "posthog";
+  const isOAuthType = mcpType !== "custom" && mcpType !== "posthog";
+  const selectedPosthogBaseUrl = posthogBaseUrls[posthogRegion];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,14 +276,25 @@ export const McpServerModal: FC<McpServerModalProps> = ({
       }
     }
 
+    if (isPosthogType) {
+      if (!isEditing && !posthogApiKey.trim()) {
+        return;
+      }
+    }
+
     try {
       const config: {
+        apiKey?: string;
         headerValue?: string;
         username?: string;
         password?: string;
       } = {};
 
-      if (authType === "header") {
+      if (isPosthogType) {
+        if (posthogApiKey.trim()) {
+          config.apiKey = posthogApiKey.trim();
+        }
+      } else if (authType === "header") {
         config.headerValue = headerValue.trim();
       } else if (authType === "basic") {
         config.username = username.trim();
@@ -269,7 +313,8 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             | "google-calendar"
             | "notion"
             | "github"
-            | "linear";
+            | "linear"
+            | "posthog";
           config?: typeof config;
         } = {
           name: name.trim(),
@@ -289,10 +334,11 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server?.serviceType === "notion" ||
             server?.serviceType === "github" ||
             server?.serviceType === "linear");
+        const isPosthogServer = server?.serviceType === "posthog";
 
         // OAuth servers can only update name (OAuth connection is managed separately)
         // Custom MCP servers can update URL and auth
-        if (!isOAuthServer) {
+        if (!isOAuthServer && !isPosthogServer) {
           if (server && url !== (server.url || "")) {
             updateData.url = url.trim() || undefined;
             updatedFields.push("url");
@@ -302,8 +348,15 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             updatedFields.push("auth_type");
           }
         }
+
+        if (isPosthogServer) {
+          if (server && selectedPosthogBaseUrl !== (server.url || "")) {
+            updateData.url = selectedPosthogBaseUrl;
+            updatedFields.push("region");
+          }
+        }
         // Only include config for custom MCP servers
-        if (!isOAuthServer) {
+        if (!isOAuthServer && !isPosthogServer) {
           // Only include config if:
           // 1. Auth type changed (need new credentials for new auth type)
           // 2. User provided new credentials (non-empty values)
@@ -339,6 +392,11 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             updatedFields.push("config");
           }
           // If neither condition is true, don't send config (will keep existing)
+        }
+
+        if (isPosthogServer && posthogApiKey.trim()) {
+          updateData.config = { apiKey: posthogApiKey.trim() };
+          updatedFields.push("config");
         }
 
         await updateServer.mutateAsync({
@@ -437,6 +495,20 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             auth_type: "oauth",
             service_type: "linear",
           });
+        } else if (mcpType === "posthog") {
+          const result = await createServer.mutateAsync({
+            name: name.trim(),
+            url: selectedPosthogBaseUrl,
+            authType: "header",
+            serviceType: "posthog",
+            config: { apiKey: posthogApiKey.trim() },
+          });
+          trackEvent("mcp_server_created", {
+            workspace_id: workspaceId,
+            server_id: result.id,
+            auth_type: "header",
+            service_type: "posthog",
+          });
         } else {
           // Custom MCP - external server
           const result = await createServer.mutateAsync({
@@ -497,7 +569,9 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 {MCP_SERVER_TYPES.map((serverType) => {
                   const Icon = serverType.icon;
                   const isSelected = mcpType === serverType.value;
-                  const isOAuthType = serverType.value !== "custom";
+                  const isPosthogOption = serverType.value === "posthog";
+                  const isOAuthType =
+                    serverType.value !== "custom" && !isPosthogOption;
 
                   return (
                     <button
@@ -509,6 +583,13 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                         if (isOAuthType) {
                           setAuthType("none");
                           setUrl("");
+                          setPosthogRegion("us");
+                          setPosthogApiKey("");
+                        } else if (isPosthogOption) {
+                          setAuthType("header");
+                          setUrl(posthogBaseUrls.us);
+                          setPosthogRegion("us");
+                          setPosthogApiKey("");
                         } else {
                           setAuthType("none");
                         }
@@ -569,7 +650,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   );
                 })}
               </div>
-              {mcpType !== "custom" && (
+              {isOAuthType && (
                 <p className="mt-3 text-xs text-neutral-600 dark:text-neutral-300">
                   After creating the server, you&apos;ll need to connect your
                   account via OAuth.
@@ -585,6 +666,13 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
                   After creating the server, you&apos;ll need to connect your
                   Linear account via OAuth (read-only access).
+                </p>
+              )}
+              {mcpType === "posthog" && (
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  You&apos;ll be prompted for a PostHog personal API key and
+                  region (US or EU). This gives read-only access via the
+                  PostHog API.
                 </p>
               )}
             </div>
@@ -634,9 +722,60 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             </>
           )}
 
+          {mcpType === "posthog" && (
+            <>
+              <div>
+                <label
+                  htmlFor="posthogRegion"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                >
+                  PostHog Region *
+                </label>
+                <select
+                  id="posthogRegion"
+                  value={posthogRegion}
+                  onChange={(e) =>
+                    setPosthogRegion(e.target.value as "us" | "eu")
+                  }
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  required
+                >
+                  <option value="us">US (us.posthog.com)</option>
+                  <option value="eu">EU (eu.posthog.com)</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="posthogApiKey"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                >
+                  Personal API Key {!isEditing ? "*" : ""}
+                </label>
+                <input
+                  id="posthogApiKey"
+                  type="password"
+                  value={posthogApiKey}
+                  onChange={(e) => setPosthogApiKey(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  placeholder={
+                    isEditing
+                      ? "Leave empty to keep existing key"
+                      : "phx_xxxxxxxxxxxxxxxxx"
+                  }
+                  required={!isEditing}
+                />
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  {isEditing
+                    ? "Leave empty to keep the existing key. Enter a new key to update it."
+                    : "Create a personal API key in PostHog settings."}
+                </p>
+              </div>
+            </>
+          )}
+
           {isEditing && server && (
             <>
-              {server.authType === "oauth" &&
+              {server.serviceType === "posthog" ? null : server.authType === "oauth" &&
               server.serviceType === "google-drive" ? (
                 <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
@@ -733,7 +872,10 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           )}
 
           {(mcpType === "custom" ||
-            (isEditing && server && server.authType !== "oauth")) &&
+            (isEditing &&
+              server &&
+              server.authType !== "oauth" &&
+              server.serviceType !== "posthog")) &&
             authType === "header" && (
               <div>
                 <label
@@ -764,7 +906,10 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             )}
 
           {(mcpType === "custom" ||
-            (isEditing && server && server.authType !== "oauth")) &&
+            (isEditing &&
+              server &&
+              server.authType !== "oauth" &&
+              server.serviceType !== "posthog")) &&
             authType === "basic" && (
               <>
                 <div>

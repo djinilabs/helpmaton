@@ -6,6 +6,10 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import {
+  isValidPosthogBaseUrl,
+  normalizePosthogBaseUrl,
+} from "../../../utils/posthog/constants";
+import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
 } from "../../../utils/subscriptionUtils";
@@ -109,7 +113,7 @@ export const registerPostMcpServer = (app: express.Application) => {
         const { name, url, authType, serviceType, config } = body;
 
         // Validate config based on authType
-        if (authType === "header") {
+        if (authType === "header" && serviceType !== "posthog") {
           if (!config.headerValue || typeof config.headerValue !== "string") {
             throw badRequest(
               "config.headerValue is required for header authentication"
@@ -135,6 +139,26 @@ export const registerPostMcpServer = (app: express.Application) => {
           }
           // Config should be empty initially (OAuth connection happens via separate flow)
           // But we allow it to be empty or contain serviceType
+        }
+
+        if (serviceType === "posthog") {
+          if (authType !== "header") {
+            throw badRequest("PostHog requires header authentication");
+          }
+          if (!config.apiKey || typeof config.apiKey !== "string") {
+            throw badRequest("config.apiKey is required for PostHog authentication");
+          }
+          if (!url || typeof url !== "string") {
+            throw badRequest(
+              "url is required for PostHog and must be a valid PostHog base URL"
+            );
+          }
+          const normalizedUrl = normalizePosthogBaseUrl(url);
+          if (!isValidPosthogBaseUrl(normalizedUrl)) {
+            throw badRequest(
+              "url must be https://us.posthog.com or https://eu.posthog.com"
+            );
+          }
         }
 
         const db = await database();

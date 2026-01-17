@@ -223,6 +223,14 @@ export async function createMcpServerTools(
   enabledMcpServerIds: string[]
 ): Promise<Record<string, ReturnType<typeof createMcpServerTool>>> {
   const tools: Record<string, ReturnType<typeof createMcpServerTool>> = {};
+  const oauthServiceTypes = [
+    "google-drive",
+    "gmail",
+    "google-calendar",
+    "notion",
+    "github",
+    "linear",
+  ];
 
   // First pass: collect all valid servers
   interface ValidServer {
@@ -273,11 +281,10 @@ export async function createMcpServerTools(
     // Determine grouping key
     let groupKey: string;
     if (
-      server.authType === "oauth" &&
       server.serviceType &&
-      ["google-drive", "gmail", "google-calendar", "notion", "github", "linear"].includes(
-        server.serviceType
-      )
+      ((server.authType === "oauth" &&
+        oauthServiceTypes.includes(server.serviceType)) ||
+        server.serviceType === "posthog")
     ) {
       // OAuth servers with specific serviceTypes
       groupKey = server.serviceType;
@@ -297,11 +304,10 @@ export async function createMcpServerTools(
     // Determine if there's a conflict (multiple servers of same type)
     let groupKey: string;
     if (
-      server.authType === "oauth" &&
       server.serviceType &&
-      ["google-drive", "gmail", "google-calendar", "notion", "github", "linear"].includes(
-        server.serviceType
-      )
+      ((server.authType === "oauth" &&
+        oauthServiceTypes.includes(server.serviceType)) ||
+        server.serviceType === "posthog")
     ) {
       groupKey = server.serviceType;
     } else {
@@ -505,6 +511,66 @@ export async function createMcpServerTools(
         getIssueTool as ReturnType<typeof createMcpServerTool>;
       tools[`linear_search_issues${suffix}`] =
         searchIssuesTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.serviceType === "posthog") {
+      const {
+        createPosthogListProjectsTool,
+        createPosthogGetProjectTool,
+        createPosthogListEventsTool,
+        createPosthogListFeatureFlagsTool,
+        createPosthogGetFeatureFlagTool,
+        createPosthogListInsightsTool,
+        createPosthogGetInsightTool,
+        createPosthogListPersonsTool,
+        createPosthogGetPersonTool,
+        createPosthogGetTool,
+      } = await import("./posthogTools");
+
+      const listProjectsTool = createPosthogListProjectsTool(
+        workspaceId,
+        serverId
+      );
+      const getProjectTool = createPosthogGetProjectTool(workspaceId, serverId);
+      const listEventsTool = createPosthogListEventsTool(workspaceId, serverId);
+      const listFlagsTool = createPosthogListFeatureFlagsTool(
+        workspaceId,
+        serverId
+      );
+      const getFlagTool = createPosthogGetFeatureFlagTool(
+        workspaceId,
+        serverId
+      );
+      const listInsightsTool = createPosthogListInsightsTool(
+        workspaceId,
+        serverId
+      );
+      const getInsightTool = createPosthogGetInsightTool(workspaceId, serverId);
+      const listPersonsTool = createPosthogListPersonsTool(
+        workspaceId,
+        serverId
+      );
+      const getPersonTool = createPosthogGetPersonTool(workspaceId, serverId);
+      const getTool = createPosthogGetTool(workspaceId, serverId);
+
+      tools[`posthog_list_projects${suffix}`] =
+        listProjectsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`posthog_get_project${suffix}`] =
+        getProjectTool as ReturnType<typeof createMcpServerTool>;
+      tools[`posthog_list_events${suffix}`] =
+        listEventsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`posthog_list_feature_flags${suffix}`] =
+        listFlagsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`posthog_get_feature_flag${suffix}`] =
+        getFlagTool as ReturnType<typeof createMcpServerTool>;
+      tools[`posthog_list_insights${suffix}`] =
+        listInsightsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`posthog_get_insight${suffix}`] =
+        getInsightTool as ReturnType<typeof createMcpServerTool>;
+      tools[`posthog_list_persons${suffix}`] =
+        listPersonsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`posthog_get_person${suffix}`] =
+        getPersonTool as ReturnType<typeof createMcpServerTool>;
+      tools[`posthog_get${suffix}`] =
+        getTool as ReturnType<typeof createMcpServerTool>;
     } else {
       // Create a generic MCP tool for external servers
       // For generic servers, always use server name since they're inherently different
