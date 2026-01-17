@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **PR 163 review fix**: Set `llmCallAttempted` before executing the stream so error handling reflects attempted LLM calls. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Test agent body validation**: Ensured JSON string bodies validate with schema errors surfaced (only JSON parse failures are ignored), keeping behavior aligned with array/object validation. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Merge conflict cleanup**: Resolved conflict markers in `post-test-agent` handler/tests, kept shared stream pipeline behavior, ensured JSON/array bodies and AWS request ID validation remain covered, and regenerated the test file to remove stale conflict blocks. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Test endpoint streaming**: Reworked `/api/workspaces/:workspaceId/agents/:agentId/test` to reuse shared stream pipeline with buffered mock response in dev, switched Function URL usage to the same test path, updated stream endpoint detection/extraction and unit tests, aligned test endpoint request parsing with stream endpoint (accepts text/array JSON bodies), and registered the test route in `workspaces-app`.

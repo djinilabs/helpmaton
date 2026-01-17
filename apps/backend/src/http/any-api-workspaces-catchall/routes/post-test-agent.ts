@@ -307,12 +307,12 @@ export const registerPostTestAgent = (app: express.Application) => {
         );
 
         const { stream, getBody } = createMockResponseStream();
+        llmCallAttempted = true;
         const executionResult = await executeStreamForApiGateway(
           streamContext,
           stream,
           requestTimeout.signal
         );
-        llmCallAttempted = true;
 
         await performPostProcessing(
           streamContext,
