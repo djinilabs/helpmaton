@@ -308,6 +308,7 @@ export const createMcpServerSchema = z
         "notion",
         "github",
         "linear",
+        "hubspot",
         "posthog",
       ])
       .optional(),
@@ -342,6 +343,7 @@ export const updateMcpServerSchema = z
         "notion",
         "github",
         "linear",
+        "hubspot",
         "posthog",
       ])
       .optional(),

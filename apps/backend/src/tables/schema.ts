@@ -336,6 +336,7 @@ export const tableSchemas = {
         "notion",
         "github",
         "linear",
+        "hubspot",
         "posthog",
       ])
       .optional(), // service type (defaults to "external" for backward compatibility)

@@ -488,6 +488,7 @@ const mcpServerSchema = z
         "notion",
         "github",
         "linear",
+        "hubspot",
         "posthog",
       ])
       .optional()
