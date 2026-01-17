@@ -2,13 +2,19 @@
 
 ## Current Status
 
-**Status**: PostHog MCP API-Key Integration Complete ✅
+**Status**: HubSpot MCP OAuth Integration Complete ✅
 
 **Latest Work**:
 
 - **Legal docs consistency (in-app)**: Added in-app, unauthenticated `/privacy` and `/terms-of-service` pages backed by markdown (`apps/frontend/src/legal/*`), created shared `LegalMarkdownComponents`, updated footer links to use app routing, and added Vite `*.md?raw` typing. Ran `pnpm typecheck` and `pnpm lint --fix` successfully.
+- **PR 163 review fix**: Set `llmCallAttempted` before executing the stream so error handling reflects attempted LLM calls. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Test agent body validation**: Ensured JSON string bodies validate with schema errors surfaced (only JSON parse failures are ignored), keeping behavior aligned with array/object validation. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Merge conflict cleanup**: Resolved conflict markers in `post-test-agent` handler/tests, kept shared stream pipeline behavior, ensured JSON/array bodies and AWS request ID validation remain covered, and regenerated the test file to remove stale conflict blocks. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Test endpoint streaming**: Reworked `/api/workspaces/:workspaceId/agents/:agentId/test` to reuse shared stream pipeline with buffered mock response in dev, switched Function URL usage to the same test path, updated stream endpoint detection/extraction and unit tests, aligned test endpoint request parsing with stream endpoint (accepts text/array JSON bodies), and registered the test route in `workspaces-app`.
 - **Test endpoint error logging**: Ensured generic test endpoint failures persist conversation errors when streaming error handling returns no response.
+- **PR 162 review fixes**: Added parsing/validation for string/array test-agent request bodies, AWS request ID validation, and extra tests for body formats and missing/invalid request IDs.
+- **HubSpot MCP docs update**: Documented required HubSpot OAuth scopes for the MCP integration in `docs/mcp-servers.md`.
+- **HubSpot MCP integration**: Added OAuth-based HubSpot MCP server support with read-only CRM tools (contacts, companies, deals, owners), HubSpot API client with token refresh, tool metadata wiring, frontend MCP UI updates, and OAuth callbacks. Added env/docs updates, workflow passthrough, and unit tests for OAuth, client, tools, and metadata.
 - **PostHog MCP integration**: Added API-key based PostHog MCP server support with region selection (US/EU), read-only tools (projects, events, feature flags, insights, persons, generic GET), backend validation for base URL and apiKey, tool metadata wiring, and unit tests for client/tools. Updated MCP UI and docs.
 - **PostHog MCP tool input fix**: Accepted snake_case aliases for PostHog tool IDs (e.g., `project_id`) to prevent missing-parameter errors and improved person/distinct ID handling.
 - **Linear MCP integration**: Added OAuth (app-actor) flow, Linear GraphQL client, and read-only tools for teams/projects/issues/search. Wired service type across schemas, tool metadata, and MCP tool creation. Updated frontend MCP UI for Linear selection and OAuth status, plus docs/env vars, tests, and CI env passthrough for Linear OAuth secrets.

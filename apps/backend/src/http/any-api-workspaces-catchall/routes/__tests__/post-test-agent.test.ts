@@ -182,6 +182,125 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
+  it("should accept JSON string bodies", async () => {
+    const handler = getPostHandler();
+    const req = createMockRequest({
+      method: "POST",
+      path: "/api/workspaces/workspace-123/agents/agent-123/test",
+      originalUrl: "/api/workspaces/workspace-123/agents/agent-123/test",
+      params: { workspaceId: "workspace-123", agentId: "agent-123" },
+      body: JSON.stringify({ messages: [{ role: "user", content: "Hello" }] }),
+      headers: {
+        "x-conversation-id": "conv-123",
+        "x-request-id": "req-123",
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    mockBuildStreamRequestContext.mockResolvedValue({
+      workspaceId: "workspace-123",
+      agentId: "agent-123",
+    });
+    mockExecuteStreamForApiGateway.mockResolvedValue({
+      streamResult: {},
+      tokenUsage: undefined,
+      generationTimeMs: 12,
+    });
+
+    await handler(req as express.Request, res as express.Response, next);
+    await flushPromises();
+
+    expect(mockBuildStreamRequestContext).toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should accept array bodies for messages", async () => {
+    const handler = getPostHandler();
+    const req = createMockRequest({
+      method: "POST",
+      path: "/api/workspaces/workspace-123/agents/agent-123/test",
+      originalUrl: "/api/workspaces/workspace-123/agents/agent-123/test",
+      params: { workspaceId: "workspace-123", agentId: "agent-123" },
+      body: [{ role: "user", content: "Hello" }],
+      headers: {
+        "x-conversation-id": "conv-123",
+        "x-request-id": "req-123",
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    mockBuildStreamRequestContext.mockResolvedValue({
+      workspaceId: "workspace-123",
+      agentId: "agent-123",
+    });
+    mockExecuteStreamForApiGateway.mockResolvedValue({
+      streamResult: {},
+      tokenUsage: undefined,
+      generationTimeMs: 12,
+    });
+
+    await handler(req as express.Request, res as express.Response, next);
+    await flushPromises();
+
+    expect(mockBuildStreamRequestContext).toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should throw when AWS request ID is missing", async () => {
+    const handler = getPostHandler();
+    const req = createMockRequest({
+      method: "POST",
+      path: "/api/workspaces/workspace-123/agents/agent-123/test",
+      originalUrl: "/api/workspaces/workspace-123/agents/agent-123/test",
+      params: { workspaceId: "workspace-123", agentId: "agent-123" },
+      body: { messages: [{ role: "user", content: "Hello" }] },
+      headers: {
+        "x-conversation-id": "conv-123",
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await handler(req as express.Request, res as express.Response, next);
+    await flushPromises();
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          "AWS request ID is required for workspace credit transactions",
+      })
+    );
+  });
+
+  it("should throw when AWS request ID is not a string", async () => {
+    const handler = getPostHandler();
+    const req = createMockRequest({
+      method: "POST",
+      path: "/api/workspaces/workspace-123/agents/agent-123/test",
+      originalUrl: "/api/workspaces/workspace-123/agents/agent-123/test",
+      params: { workspaceId: "workspace-123", agentId: "agent-123" },
+      body: { messages: [{ role: "user", content: "Hello" }] },
+      headers: {
+        "x-conversation-id": "conv-123",
+        "x-request-id": 123 as unknown as string,
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await handler(req as express.Request, res as express.Response, next);
+    await flushPromises();
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          "AWS request ID is required for workspace credit transactions",
+      })
+    );
+  });
+
   it("should handle timeout errors with 504", async () => {
     const handler = getPostHandler();
     const req = createMockRequest({

@@ -458,6 +458,43 @@ describe("toolMetadata", () => {
         );
       });
 
+      it("should include HubSpot tools when OAuth-connected server is enabled", () => {
+        const mcpServers: McpServerInfo[] = [
+          {
+            id: "server-1",
+            name: "My HubSpot",
+            serviceType: "hubspot",
+            authType: "oauth",
+            oauthConnected: true,
+          },
+        ];
+
+        const options: ToolListOptions = {
+          ...baseOptions,
+          agent: {
+            ...baseOptions.agent,
+            enabledMcpServerIds: ["server-1"],
+          },
+          enabledMcpServers: mcpServers,
+        };
+
+        const result = generateToolList(options);
+
+        const mcpGroup = result.find((g) => g.category === "MCP Server Tools");
+        expect(mcpGroup).toBeDefined();
+
+        const hubspotTools = mcpGroup?.tools.filter((t) =>
+          t.name.startsWith("hubspot_")
+        );
+        expect(hubspotTools?.length).toBeGreaterThan(0);
+        expect(
+          hubspotTools?.some((t) => t.name === "hubspot_list_contacts")
+        ).toBe(true);
+        expect(
+          hubspotTools?.some((t) => t.name === "hubspot_get_deal")
+        ).toBe(true);
+      });
+
       it("should include PostHog tools when PostHog server is enabled", () => {
         const mcpServers: McpServerInfo[] = [
           {

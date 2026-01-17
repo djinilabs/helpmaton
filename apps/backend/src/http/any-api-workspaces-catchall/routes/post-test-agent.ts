@@ -174,7 +174,23 @@ export const registerPostTestAgent = (app: express.Application) => {
       let requestBodyText: string;
       if (typeof req.body === "string") {
         requestBodyText = req.body;
+        let parsed: unknown = null;
+        let isJson = false;
+        try {
+          parsed = JSON.parse(req.body) as unknown;
+          isJson = true;
+        } catch {
+          // If it's not valid JSON, treat as plain text (stream pipeline will handle)
+        }
+        if (isJson) {
+          if (Array.isArray(parsed)) {
+            validateBody({ messages: parsed }, testAgentRequestSchema);
+          } else {
+            validateBody(parsed, testAgentRequestSchema);
+          }
+        }
       } else if (Array.isArray(req.body)) {
+        validateBody({ messages: req.body }, testAgentRequestSchema);
         requestBodyText = JSON.stringify(req.body);
       } else {
         const validatedBody = validateBody(req.body, testAgentRequestSchema);
@@ -199,6 +215,23 @@ export const registerPostTestAgent = (app: express.Application) => {
       const awsRequestId = Array.isArray(awsRequestIdRaw)
         ? awsRequestIdRaw[0]
         : awsRequestIdRaw;
+      if (!awsRequestId || typeof awsRequestId !== "string") {
+        console.error("[post-test-agent] AWS request ID missing or invalid:", {
+          awsRequestId,
+          hasApiGateway: !!req.apiGateway,
+          hasEvent: !!req.apiGateway?.event,
+          requestIdFromEvent: req.apiGateway?.event?.requestContext?.requestId,
+          headers: {
+            "x-amzn-requestid": req.headers["x-amzn-requestid"],
+            "X-Amzn-Requestid": req.headers["X-Amzn-Requestid"],
+            "x-request-id": req.headers["x-request-id"],
+            "X-Request-Id": req.headers["X-Request-Id"],
+          },
+        });
+        throw new Error(
+          "AWS request ID is required for workspace credit transactions"
+        );
+      }
 
       const userId = extractUserId(req);
       const requestTimeout = createRequestTimeout();
@@ -219,6 +252,12 @@ export const registerPostTestAgent = (app: express.Application) => {
           } else if (Array.isArray(value) && value[0]) {
             normalizedHeaders[key.toLowerCase()] = value[0];
           }
+        }
+        const existingConversationId = normalizedHeaders["x-conversation-id"];
+        if (existingConversationId && existingConversationId !== conversationId) {
+          throw badRequest(
+            "x-conversation-id header does not match the extracted conversationId"
+          );
         }
         normalizedHeaders["x-conversation-id"] = conversationId;
 
