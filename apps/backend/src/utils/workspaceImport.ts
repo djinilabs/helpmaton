@@ -461,6 +461,7 @@ export async function importWorkspace(
             judgeId: newJudgeId,
             name: judgeData.name,
             enabled: judgeData.enabled ?? true,
+            samplingProbability: judgeData.samplingProbability ?? 100,
             provider: judgeData.provider ?? "openrouter",
             modelName: judgeData.modelName,
             evalPrompt: judgeData.evalPrompt,

@@ -220,6 +220,7 @@ describe("importWorkspace", () => {
               id: "{judge}",
               name: "Quality Judge",
               enabled: true,
+              samplingProbability: 25,
               provider: "openrouter",
               modelName: "gpt-4o",
               evalPrompt: "Evaluate the response",
@@ -279,6 +280,11 @@ describe("importWorkspace", () => {
     expect(mockDb.agent.create).toHaveBeenCalledTimes(1);
     expect(mockDb["agent-key"].create).toHaveBeenCalledTimes(1);
     expect(mockDb["agent-eval-judge"].create).toHaveBeenCalledTimes(1);
+    expect(mockDb["agent-eval-judge"].create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        samplingProbability: 25,
+      })
+    );
     const { createStreamServerConfig } = await import("../streamServerUtils");
     expect(createStreamServerConfig).toHaveBeenCalledTimes(1);
   });
