@@ -330,6 +330,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             | "notion"
             | "github"
             | "linear"
+            | "hubspot"
             | "posthog";
           config?: typeof config;
         } = {
@@ -349,7 +350,8 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server?.serviceType === "google-calendar" ||
             server?.serviceType === "notion" ||
             server?.serviceType === "github" ||
-            server?.serviceType === "linear");
+            server?.serviceType === "linear" ||
+            server?.serviceType === "hubspot");
         const isPosthogServer = server?.serviceType === "posthog";
 
         // OAuth servers can only update name (OAuth connection is managed separately)
@@ -510,6 +512,20 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server_id: result.id,
             auth_type: "oauth",
             service_type: "linear",
+          });
+        } else if (mcpType === "hubspot") {
+          // HubSpot - OAuth-based
+          const result = await createServer.mutateAsync({
+            name: name.trim(),
+            authType: "oauth",
+            serviceType: "hubspot",
+            config: {}, // Empty config for OAuth servers (credentials set via OAuth flow)
+          });
+          trackEvent("mcp_server_created", {
+            workspace_id: workspaceId,
+            server_id: result.id,
+            auth_type: "oauth",
+            service_type: "hubspot",
           });
         } else if (mcpType === "posthog") {
           const result = await createServer.mutateAsync({
