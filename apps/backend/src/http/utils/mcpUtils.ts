@@ -275,7 +275,7 @@ export async function createMcpServerTools(
     if (
       server.authType === "oauth" &&
       server.serviceType &&
-      ["google-drive", "gmail", "google-calendar", "notion", "github"].includes(
+      ["google-drive", "gmail", "google-calendar", "notion", "github", "linear"].includes(
         server.serviceType
       )
     ) {
@@ -299,7 +299,7 @@ export async function createMcpServerTools(
     if (
       server.authType === "oauth" &&
       server.serviceType &&
-      ["google-drive", "gmail", "google-calendar", "notion", "github"].includes(
+      ["google-drive", "gmail", "google-calendar", "notion", "github", "linear"].includes(
         server.serviceType
       )
     ) {
@@ -480,6 +480,31 @@ export async function createMcpServerTools(
         listCommitsTool as ReturnType<typeof createMcpServerTool>;
       tools[`github_get_commit${suffix}`] =
         getCommitTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "linear") {
+      const {
+        createLinearListTeamsTool,
+        createLinearListProjectsTool,
+        createLinearListIssuesTool,
+        createLinearGetIssueTool,
+        createLinearSearchIssuesTool,
+      } = await import("./linearTools");
+
+      const listTeamsTool = createLinearListTeamsTool(workspaceId, serverId);
+      const listProjectsTool = createLinearListProjectsTool(workspaceId, serverId);
+      const listIssuesTool = createLinearListIssuesTool(workspaceId, serverId);
+      const getIssueTool = createLinearGetIssueTool(workspaceId, serverId);
+      const searchIssuesTool = createLinearSearchIssuesTool(workspaceId, serverId);
+
+      tools[`linear_list_teams${suffix}`] =
+        listTeamsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`linear_list_projects${suffix}`] =
+        listProjectsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`linear_list_issues${suffix}`] =
+        listIssuesTool as ReturnType<typeof createMcpServerTool>;
+      tools[`linear_get_issue${suffix}`] =
+        getIssueTool as ReturnType<typeof createMcpServerTool>;
+      tools[`linear_search_issues${suffix}`] =
+        searchIssuesTool as ReturnType<typeof createMcpServerTool>;
     } else {
       // Create a generic MCP tool for external servers
       // For generic servers, always use server name since they're inherently different

@@ -242,6 +242,8 @@ describe("POST /api/workspaces/:workspaceId/agents/generate-prompt", () => {
                 serviceType = "Notion";
               } else if (tool.name.startsWith("github_")) {
                 serviceType = "GitHub";
+              } else if (tool.name.startsWith("linear_")) {
+                serviceType = "Linear";
               } else if (tool.name.startsWith("mcp_")) {
                 serviceType = "MCP Server";
               }

@@ -2,10 +2,11 @@
 
 ## Current Status
 
-**Status**: Service worker API navigation fix applied ✅
+**Status**: Linear MCP OAuth Integration Review Fixes Complete ✅
 
-**Latest Work**:
-
+- **Linear MCP integration**: Added OAuth (app-actor) flow, Linear GraphQL client, and read-only tools for teams/projects/issues/search. Wired service type across schemas, tool metadata, and MCP tool creation. Updated frontend MCP UI for Linear selection and OAuth status, plus docs/env vars, tests, and CI env passthrough for Linear OAuth secrets.
+- **PR 159 review fixes**: Removed redundant token refresh assignment in Linear client and cleaned up formatting in Linear tools. Re-ran typecheck and lint.
+- **Linear search fix**: Switched Linear issue search to `searchIssues` GraphQL field (replacing deprecated `issueSearch`) and mapped query term accordingly.
 - **Service worker API navigation fix**: API paths now bypass navigation caching so direct `/api/*` visits return JSON.
 - **Dev-safe SW registration**: Service worker registration now skips and unregisters when `VITE_ENV` is `development` (plus localhost) to avoid caching during dev.
 - **Version indicator + SW update check**: Added footer version display and wired a silent service worker update check into the version polling loop.

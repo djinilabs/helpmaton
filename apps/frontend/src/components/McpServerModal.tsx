@@ -4,6 +4,7 @@ import {
   CalendarIcon,
   DocumentTextIcon,
   CodeBracketIcon,
+  Squares2X2Icon,
   ServerIcon,
 } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
@@ -24,6 +25,7 @@ type McpServerType =
   | "google-calendar"
   | "notion"
   | "github"
+  | "linear"
   | "custom";
 
 interface McpServerTypeMetadata {
@@ -70,6 +72,13 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     icon: CodeBracketIcon,
   },
   {
+    value: "linear",
+    name: "Linear",
+    description:
+      "Read-only access to Linear teams, projects, and issues. Search issues and review project tracking data.",
+    icon: Squares2X2Icon,
+  },
+  {
     value: "custom",
     name: "Custom MCP",
     description:
@@ -103,6 +112,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     | "google-calendar"
     | "notion"
     | "github"
+    | "linear"
     | "custom"
   >("google-drive"); // Service type for new servers
   const [url, setUrl] = useState("");
@@ -147,6 +157,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           server.serviceType === "github"
         ) {
           setMcpType("github");
+          // OAuth servers don't have authType in the UI
+        } else if (
+          server.authType === "oauth" &&
+          server.serviceType === "linear"
+        ) {
+          setMcpType("linear");
           // OAuth servers don't have authType in the UI
         } else {
           setMcpType("custom");
@@ -252,7 +268,8 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             | "gmail"
             | "google-calendar"
             | "notion"
-            | "github";
+            | "github"
+            | "linear";
           config?: typeof config;
         } = {
           name: name.trim(),
@@ -270,7 +287,8 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server?.serviceType === "gmail" ||
             server?.serviceType === "google-calendar" ||
             server?.serviceType === "notion" ||
-            server?.serviceType === "github");
+            server?.serviceType === "github" ||
+            server?.serviceType === "linear");
 
         // OAuth servers can only update name (OAuth connection is managed separately)
         // Custom MCP servers can update URL and auth
@@ -404,6 +422,20 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server_id: result.id,
             auth_type: "oauth",
             service_type: "github",
+          });
+        } else if (mcpType === "linear") {
+          // Linear - OAuth-based
+          const result = await createServer.mutateAsync({
+            name: name.trim(),
+            authType: "oauth",
+            serviceType: "linear",
+            config: {}, // Empty config for OAuth servers (credentials set via OAuth flow)
+          });
+          trackEvent("mcp_server_created", {
+            workspace_id: workspaceId,
+            server_id: result.id,
+            auth_type: "oauth",
+            service_type: "linear",
           });
         } else {
           // Custom MCP - external server
@@ -549,6 +581,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   GitHub account via OAuth (read-only access).
                 </p>
               )}
+              {mcpType === "linear" && (
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  After creating the server, you&apos;ll need to connect your
+                  Linear account via OAuth (read-only access).
+                </p>
+              )}
             </div>
           )}
 
@@ -635,6 +673,14 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
                     This is a GitHub MCP server. OAuth connection is managed
+                    separately.
+                  </p>
+                </div>
+              ) : server.authType === "oauth" &&
+                server.serviceType === "linear" ? (
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                    This is a Linear MCP server. OAuth connection is managed
                     separately.
                   </p>
                 </div>

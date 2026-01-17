@@ -108,6 +108,11 @@ export const registerGetMcpServerOauthAuthorize = (
             "../../../utils/oauth/mcp/github"
           );
           authUrl = generateGithubAuthUrl(workspaceId, serverId);
+        } else if (server.serviceType === "linear") {
+          const { generateLinearAuthUrl } = await import(
+            "../../../utils/oauth/mcp/linear"
+          );
+          authUrl = generateLinearAuthUrl(workspaceId, serverId);
         } else {
           throw badRequest(
             `Unsupported service type: ${server.serviceType || "unknown"}`

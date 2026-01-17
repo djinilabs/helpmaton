@@ -56,6 +56,14 @@ const McpOAuthCallback = () => {
       ? "Google Drive"
       : serviceType === "gmail"
       ? "Gmail"
+      : serviceType === "google-calendar"
+      ? "Google Calendar"
+      : serviceType === "notion"
+      ? "Notion"
+      : serviceType === "github"
+      ? "GitHub"
+      : serviceType === "linear"
+      ? "Linear"
       : serviceType || "service";
 
   if (!workspaceId || !serverId) {
