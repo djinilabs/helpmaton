@@ -570,6 +570,12 @@ Once connected, agents can use the following Linear tools:
    - Go to [HubSpot developer portal](https://developers.hubspot.com/)
    - Create or open your app
    - Add redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/hubspot/callback`
+   - Enable these scopes:
+     - `crm.objects.contacts.read`
+     - `crm.objects.companies.read`
+     - `crm.objects.deals.read`
+     - `crm.objects.owners.read`
+     - `oauth`
    - Copy the client ID and client secret
 
 2. Configure Environment Variables:

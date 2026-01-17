@@ -352,7 +352,23 @@ export const registerPostTestAgent = (app: express.Application) => {
         throw badRequest("workspaceId and agentId are required");
       }
 
-      const validatedBody = validateBody(req.body, testAgentRequestSchema);
+      let bodyToValidate: unknown;
+      if (typeof req.body === "string") {
+        try {
+          const parsed = JSON.parse(req.body) as unknown;
+          bodyToValidate = Array.isArray(parsed)
+            ? { messages: parsed }
+            : parsed;
+        } catch {
+          throw badRequest("Invalid JSON in request body");
+        }
+      } else if (Array.isArray(req.body)) {
+        bodyToValidate = { messages: req.body };
+      } else {
+        bodyToValidate = req.body;
+      }
+
+      const validatedBody = validateBody(bodyToValidate, testAgentRequestSchema);
       const { messages } = validatedBody;
 
       // Read and validate X-Conversation-Id header
@@ -373,6 +389,23 @@ export const registerPostTestAgent = (app: express.Application) => {
       const awsRequestId = Array.isArray(awsRequestIdRaw)
         ? awsRequestIdRaw[0]
         : awsRequestIdRaw;
+      if (!awsRequestId || typeof awsRequestId !== "string") {
+        console.error("[post-test-agent] AWS request ID missing or invalid:", {
+          awsRequestId,
+          hasApiGateway: !!req.apiGateway,
+          hasEvent: !!req.apiGateway?.event,
+          requestIdFromEvent: req.apiGateway?.event?.requestContext?.requestId,
+          headers: {
+            "x-amzn-requestid": req.headers["x-amzn-requestid"],
+            "X-Amzn-Requestid": req.headers["X-Amzn-Requestid"],
+            "x-request-id": req.headers["x-request-id"],
+            "X-Request-Id": req.headers["X-Request-Id"],
+          },
+        });
+        throw new Error(
+          "AWS request ID is required for workspace credit transactions"
+        );
+      }
 
       // Get context for workspace credit transactions
       const context = getContextFromRequestId(awsRequestId);

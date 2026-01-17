@@ -10,6 +10,8 @@ import {
   createMockRequest,
   createMockResponse,
 } from "../../../utils/__tests__/test-helpers";
+import { validateBody } from "../../../utils/bodyValidation";
+import { testAgentRequestSchema } from "../../../utils/schemas/requestSchemas";
 
 // Mock dependencies using vi.hoisted to ensure they're set up before imports
 const {
@@ -104,6 +106,19 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
     res: Partial<express.Response>,
     next: express.NextFunction
   ) {
+    const headers = req.headers || {};
+    const hasAwsRequestIdHeader =
+      "x-amzn-requestid" in headers ||
+      "X-Amzn-Requestid" in headers ||
+      "x-request-id" in headers ||
+      "X-Request-Id" in headers;
+    if (!hasAwsRequestIdHeader && !req.apiGateway?.event?.requestContext?.requestId) {
+      req.headers = {
+        ...headers,
+        "x-request-id": "test-request-id",
+      };
+    }
+
     // Extract the handler logic directly
     const handler = async (
       req: express.Request,
@@ -112,14 +127,44 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
     ) => {
       try {
         const { workspaceId, agentId } = req.params;
-        const { messages } = req.body;
+        let bodyToValidate: unknown;
+        if (typeof req.body === "string") {
+          try {
+            const parsed = JSON.parse(req.body) as unknown;
+            bodyToValidate = Array.isArray(parsed)
+              ? { messages: parsed }
+              : parsed;
+          } catch {
+            throw badRequest("Invalid JSON in request body");
+          }
+        } else if (Array.isArray(req.body)) {
+          bodyToValidate = { messages: req.body };
+        } else {
+          bodyToValidate = req.body;
+        }
+        const validatedBody = validateBody(
+          bodyToValidate,
+          testAgentRequestSchema
+        );
+        const { messages } = validatedBody;
 
         if (!workspaceId || !agentId) {
           throw badRequest("workspaceId and agentId are required");
         }
 
-        if (!Array.isArray(messages) || messages.length === 0) {
-          throw badRequest("messages array is required");
+        const awsRequestIdRaw =
+          req.headers?.["x-amzn-requestid"] ||
+          req.headers?.["X-Amzn-Requestid"] ||
+          req.headers?.["x-request-id"] ||
+          req.headers?.["X-Request-Id"] ||
+          req.apiGateway?.event?.requestContext?.requestId;
+        const awsRequestId = Array.isArray(awsRequestIdRaw)
+          ? awsRequestIdRaw[0]
+          : awsRequestIdRaw;
+        if (!awsRequestId || typeof awsRequestId !== "string") {
+          throw new Error(
+            "AWS request ID is required for workspace credit transactions"
+          );
         }
 
         // Check if free plan has expired (block agent execution if expired)
@@ -314,7 +359,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
             agentId,
             conversationType: "test",
             messages: messages.filter(
-              (msg): msg is unknown =>
+              (msg) =>
                 msg != null &&
                 typeof msg === "object" &&
                 "role" in msg &&
@@ -347,6 +392,85 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
     };
 
     await handler(req as express.Request, res as express.Response, next);
+  }
+
+  async function runSuccessfulRequest(body: unknown) {
+    const workspaceId = "workspace-123";
+    const agentId = "agent-123";
+    const subscriptionId = "sub-123";
+    const messages = [{ role: "user", content: "Hello" }];
+    const reservationId = "reservation-123";
+
+    const mockAgent = {
+      pk: `agents/${workspaceId}/${agentId}`,
+      sk: "agent",
+      workspaceId,
+      name: "Test Agent",
+      systemPrompt: "You are helpful",
+      modelName: undefined,
+    };
+
+    mockSetupAgentAndTools.mockResolvedValue({
+      agent: mockAgent,
+      model: {} as unknown,
+      tools: {},
+      usesByok: false,
+    });
+    mockConvertToModelMessages.mockResolvedValue([
+      { role: "user", content: "Hello" },
+    ]);
+    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
+      reservationId,
+      reservedAmount: 10.0,
+    });
+
+    const mockStreamResponse = {
+      body: new ReadableStream({
+        start(controller) {
+          const encoder = new TextEncoder();
+          controller.enqueue(encoder.encode("data: test\n\n"));
+          controller.close();
+        },
+      }),
+      headers: new Headers({
+        "Content-Type": "text/event-stream",
+      }),
+      status: 200,
+    };
+
+    const mockStreamTextResult = {
+      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
+    };
+
+    mockStreamText.mockReturnValue(mockStreamTextResult);
+    mockExtractTokenUsage.mockReturnValue({
+      promptTokens: 10,
+      completionTokens: 20,
+    });
+    mockAdjustCreditReservation.mockResolvedValue(undefined);
+    mockIncrementRequestBucket.mockResolvedValue(undefined);
+    mockStartConversation.mockResolvedValue(undefined);
+
+    const req = createMockRequest({
+      params: {
+        workspaceId,
+        agentId,
+      },
+      body,
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    return {
+      workspaceId,
+      subscriptionId,
+      mockStreamTextResult,
+      res,
+      next,
+      messages,
+    };
   }
 
   it("should throw badRequest when workspaceId is missing", async () => {
@@ -423,7 +547,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
         output: expect.objectContaining({
           statusCode: 400,
           payload: expect.objectContaining({
-            message: "messages array is required",
+            message: expect.stringContaining("messages"),
           }),
         }),
       })
@@ -451,9 +575,63 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
         output: expect.objectContaining({
           statusCode: 400,
           payload: expect.objectContaining({
-            message: "messages array is required",
+            message: expect.stringContaining("messages array must not be empty"),
           }),
         }),
+      })
+    );
+    expect(mockCheckFreePlanExpiration).not.toHaveBeenCalled();
+  });
+
+  it("should throw when AWS request ID is missing", async () => {
+    const req = createMockRequest({
+      params: {
+        workspaceId: "workspace-123",
+        agentId: "agent-123",
+      },
+      headers: {
+        "x-request-id": undefined,
+      },
+      body: {
+        messages: [{ role: "user", content: "Hello" }],
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          "AWS request ID is required for workspace credit transactions",
+      })
+    );
+    expect(mockCheckFreePlanExpiration).not.toHaveBeenCalled();
+  });
+
+  it("should throw when AWS request ID is not a string", async () => {
+    const req = createMockRequest({
+      params: {
+        workspaceId: "workspace-123",
+        agentId: "agent-123",
+      },
+      headers: {
+        "x-request-id": 123 as unknown as string,
+      },
+      body: {
+        messages: [{ role: "user", content: "Hello" }],
+      },
+    });
+    const res = createMockResponse();
+    const next = vi.fn();
+
+    await callRouteHandler(req, res, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          "AWS request ID is required for workspace credit transactions",
       })
     );
     expect(mockCheckFreePlanExpiration).not.toHaveBeenCalled();
@@ -619,76 +797,10 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
   });
 
   it("should handle successful request with streaming response", async () => {
-    const workspaceId = "workspace-123";
-    const agentId = "agent-123";
-    const subscriptionId = "sub-123";
-    const messages = [{ role: "user", content: "Hello" }];
-    const reservationId = "reservation-123";
-
-    const mockAgent = {
-      pk: `agents/${workspaceId}/${agentId}`,
-      sk: "agent",
-      workspaceId,
-      name: "Test Agent",
-      systemPrompt: "You are helpful",
-      modelName: undefined,
-    };
-
-    mockSetupAgentAndTools.mockResolvedValue({
-      agent: mockAgent,
-      model: {} as unknown,
-      tools: {},
-      usesByok: false,
-    });
-    mockConvertToModelMessages.mockResolvedValue([
-      { role: "user", content: "Hello" },
-    ]);
-    mockValidateCreditsAndLimitsAndReserve.mockResolvedValue({
-      reservationId,
-      reservedAmount: 10.0,
-    });
-
-    // Mock streamText result
-    const mockStreamResponse = {
-      body: new ReadableStream({
-        start(controller) {
-          const encoder = new TextEncoder();
-          controller.enqueue(encoder.encode("data: test\n\n"));
-          controller.close();
-        },
-      }),
-      headers: new Headers({
-        "Content-Type": "text/event-stream",
-      }),
-      status: 200,
-    };
-
-    const mockStreamTextResult = {
-      toUIMessageStreamResponse: vi.fn().mockReturnValue(mockStreamResponse),
-    };
-
-    mockStreamText.mockReturnValue(mockStreamTextResult);
-    mockExtractTokenUsage.mockReturnValue({
-      promptTokens: 10,
-      completionTokens: 20,
-    });
-    mockAdjustCreditReservation.mockResolvedValue(undefined);
-    mockIncrementRequestBucket.mockResolvedValue(undefined);
-    mockStartConversation.mockResolvedValue(undefined);
-
-    const req = createMockRequest({
-      params: {
-        workspaceId,
-        agentId,
-      },
-      body: {
-        messages,
-      },
-    });
-    const res = createMockResponse();
-    const next = vi.fn();
-
-    await callRouteHandler(req, res, next);
+    const { workspaceId, subscriptionId, mockStreamTextResult, res, next } =
+      await runSuccessfulRequest({
+        messages: [{ role: "user", content: "Hello" }],
+      });
 
     expect(mockCheckFreePlanExpiration).toHaveBeenCalledWith(workspaceId);
     expect(mockGetWorkspaceSubscription).toHaveBeenCalledWith(workspaceId);
@@ -702,6 +814,24 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/test", () => {
     expect(mockStartConversation).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.send).toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should accept JSON string bodies", async () => {
+    const { next } = await runSuccessfulRequest(
+      JSON.stringify({
+        messages: [{ role: "user", content: "Hello" }],
+      })
+    );
+
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should accept array bodies for messages", async () => {
+    const { next } = await runSuccessfulRequest([
+      { role: "user", content: "Hello" },
+    ]);
+
     expect(next).not.toHaveBeenCalled();
   });
 
