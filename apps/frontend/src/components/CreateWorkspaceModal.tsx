@@ -64,7 +64,7 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-2xl border-2 border-neutral-300 bg-white p-10 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
         <h2 className="mb-8 text-4xl font-black tracking-tight text-neutral-900 dark:text-neutral-50">
-          Create Workspace
+          Create a workspace
         </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -72,7 +72,7 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
               htmlFor="name"
               className="mb-2.5 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
             >
-              Name *
+              Workspace name *
             </label>
             <input
               id="name"
@@ -83,13 +83,17 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
               required
               autoFocus
             />
+            <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-300">
+              Use a short, clear name like &quot;Customer Support&quot; or
+              &quot;Marketing&quot;.
+            </p>
           </div>
           <div>
             <label
               htmlFor="description"
               className="mb-2.5 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
             >
-              Description
+              Description (optional)
             </label>
             <textarea
               id="description"
@@ -98,6 +102,9 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
               className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               rows={4}
             />
+            <p className="mt-2 text-sm text-neutral-500 dark:text-neutral-300">
+              Add a sentence about what this workspace is for.
+            </p>
           </div>
           <div className="flex gap-3">
             <button
@@ -105,7 +112,7 @@ export const CreateWorkspaceModal: FC<CreateWorkspaceModalProps> = ({
               disabled={createWorkspace.isPending || !name.trim()}
               className="flex-1 transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
             >
-              {createWorkspace.isPending ? "Creating..." : "Create"}
+              {createWorkspace.isPending ? "Creating..." : "Create workspace"}
             </button>
             <button
               type="button"

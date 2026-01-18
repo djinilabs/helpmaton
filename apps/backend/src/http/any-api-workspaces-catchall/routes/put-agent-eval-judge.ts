@@ -47,6 +47,11 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *                 type: string
  *               enabled:
  *                 type: boolean
+ *               samplingProbability:
+ *                 type: integer
+ *                 minimum: 0
+ *                 maximum: 100
+ *                 description: Probability percent for evaluating conversations
  *               provider:
  *                 type: string
  *                 enum: [google, openai, anthropic, openrouter]
@@ -76,7 +81,8 @@ export const registerPutAgentEvalJudge = (app: express.Application) => {
     async (req, res, next) => {
       try {
         const body = validateBody(req.body, updateEvalJudgeSchema);
-        const { name, enabled, provider, modelName, evalPrompt } = body;
+        const { name, enabled, samplingProbability, provider, modelName, evalPrompt } =
+          body;
 
         const db = await database();
         const workspaceResource = req.workspaceResource;
@@ -107,6 +113,9 @@ export const registerPutAgentEvalJudge = (app: express.Application) => {
 
         if (name !== undefined) updateData.name = name;
         if (enabled !== undefined) updateData.enabled = enabled;
+        if (samplingProbability !== undefined) {
+          updateData.samplingProbability = samplingProbability;
+        }
         if (provider !== undefined) updateData.provider = provider;
         if (modelName !== undefined) updateData.modelName = modelName;
         if (evalPrompt !== undefined) updateData.evalPrompt = evalPrompt;
@@ -127,6 +136,7 @@ export const registerPutAgentEvalJudge = (app: express.Application) => {
           id: updatedJudge.judgeId,
           name: updatedJudge.name,
           enabled: updatedJudge.enabled,
+          samplingProbability: updatedJudge.samplingProbability ?? 100,
           provider: updatedJudge.provider,
           modelName: updatedJudge.modelName,
           evalPrompt: updatedJudge.evalPrompt,

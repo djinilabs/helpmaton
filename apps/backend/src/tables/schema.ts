@@ -524,6 +524,7 @@ export const tableSchemas = {
     judgeId: z.string(), // unique judge ID (UUID)
     name: z.string(), // user-friendly name for the judge
     enabled: z.boolean().default(true), // whether this judge is enabled
+    samplingProbability: z.number().int().min(0).max(100).default(100), // percent (0-100) for sampling evaluations
     provider: z.enum(["openrouter"]).default("openrouter"), // LLM provider for the judge (only openrouter is supported)
     modelName: z.string(), // model name for the judge (e.g., "gpt-4o")
     evalPrompt: z.string(), // the evaluation prompt template

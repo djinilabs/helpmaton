@@ -50,6 +50,12 @@ import { handleError, requireAuth, requirePermission } from "../middleware";
  *                 type: boolean
  *                 default: true
  *                 description: Whether the judge is enabled
+ *               samplingProbability:
+ *                 type: integer
+ *                 minimum: 0
+ *                 maximum: 100
+ *                 default: 100
+ *                 description: Probability percent for evaluating conversations
  *               provider:
  *                 type: string
  *                 enum: [google, openai, anthropic, openrouter]
@@ -82,7 +88,14 @@ export const registerPostAgentEvalJudges = (app: express.Application) => {
       try {
         const body = validateBody(req.body, createEvalJudgeSchema);
         // Schema already provides defaults for enabled and provider
-        const { name, enabled, provider, modelName, evalPrompt } = body;
+        const {
+          name,
+          enabled,
+          samplingProbability,
+          provider,
+          modelName,
+          evalPrompt,
+        } = body;
 
         const db = await database();
         const workspaceResource = req.workspaceResource;
@@ -120,6 +133,7 @@ export const registerPostAgentEvalJudges = (app: express.Application) => {
           judgeId,
           name,
           enabled,
+          samplingProbability,
           provider,
           modelName,
           evalPrompt,
@@ -134,6 +148,7 @@ export const registerPostAgentEvalJudges = (app: express.Application) => {
           id: judgeId,
           name,
           enabled,
+          samplingProbability,
           provider,
           modelName,
           evalPrompt,

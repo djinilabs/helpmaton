@@ -11,8 +11,8 @@ export class HomePage extends BasePage {
     super(page);
 
     // Usage dashboard locators
-    this.usageDashboard = page.locator('h2:has-text("YOUR USAGE")');
-    this.usageTitle = page.locator('h2:has-text("YOUR USAGE")');
+    this.usageDashboard = page.locator('h2:has-text("Your usage")');
+    this.usageTitle = page.locator('h2:has-text("Your usage")');
   }
 
   /**
@@ -28,7 +28,7 @@ export class HomePage extends BasePage {
    */
   async waitForHomePage(): Promise<void> {
     // Wait for the dashboard heading
-    await this.page.waitForSelector('h1:has-text("Dashboard")', {
+    await this.page.waitForSelector('h1:has-text("Your dashboard")', {
       timeout: 15000,
     });
   }
@@ -39,7 +39,7 @@ export class HomePage extends BasePage {
    */
   async waitForUsageDashboard(): Promise<void> {
     // Wait for the usage dashboard title to appear
-    await this.page.waitForSelector('h2:has-text("YOUR USAGE")', {
+    await this.page.waitForSelector('h2:has-text("Your usage")', {
       timeout: 15000,
       state: "visible",
     });
@@ -131,7 +131,7 @@ export class HomePage extends BasePage {
    * Get dashboard heading text
    */
   async getDashboardHeading(): Promise<string> {
-    const heading = this.page.locator('h1:has-text("Dashboard")');
+    const heading = this.page.locator('h1:has-text("Your dashboard")');
     return await this.getElementText(heading);
   }
 }

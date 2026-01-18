@@ -1202,9 +1202,9 @@
         },
         "deepseek/deepseek-r1-0528": {
           "usd": {
-            "input": 0.44999999999999996,
-            "output": 2.1500000000000004,
-            "cachedInput": 0.045
+            "input": 0.39999999999999997,
+            "output": 1.75,
+            "cachedInput": 0.04
           }
         },
         "anthropic/claude-opus-4": {
@@ -2603,5 +2603,5 @@
       }
     }
   },
-  "lastUpdated": "2026-01-17T00:14:42.858Z"
+  "lastUpdated": "2026-01-18T00:16:50.471Z"
 }

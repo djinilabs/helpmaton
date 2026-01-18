@@ -223,6 +223,14 @@ const evalJudgeSchema = z
       .boolean()
       .default(true)
       .describe("Whether this judge is enabled"),
+    samplingProbability: z
+      .number()
+      .int()
+      .min(0)
+      .max(100)
+      .optional()
+      .default(100)
+      .describe("Percent (0-100) probability of evaluating a conversation"),
     provider: z
       .enum(["openrouter"])
       .default("openrouter")

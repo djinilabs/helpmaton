@@ -330,6 +330,7 @@ export async function exportWorkspace(
                 judgeId: string;
                 name: string;
                 enabled: boolean;
+                samplingProbability?: number;
                 provider: "openrouter";
                 modelName: string;
                 evalPrompt: string;
@@ -337,6 +338,7 @@ export async function exportWorkspace(
                 id: judgeIdToRefNameMap.get(judge.judgeId) || judge.judgeId,
                 name: judge.name,
                 enabled: judge.enabled,
+                samplingProbability: judge.samplingProbability ?? 100,
                 provider: judge.provider,
                 modelName: judge.modelName,
                 evalPrompt: judge.evalPrompt,
