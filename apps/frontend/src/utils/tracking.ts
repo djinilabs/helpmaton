@@ -16,6 +16,13 @@ export interface TrackingProperties {
  * Track a custom event in PostHog
  * @param eventName - Name of the event (snake_case format: feature_action)
  * @param properties - Event properties (workspace_id, agent_id, etc.)
+ *
+ * Event checklist:
+ * - Always include `workspace_id` for workspace-scoped actions
+ * - Include `agent_id` when the action targets a specific agent
+ * - Include `user_id` for user-specific actions when available
+ * - Include `subscription_tier` for billing/limits-related actions
+ * - Prefer backend tracking for critical billing or webhook flows
  */
 export function trackEvent(
   eventName: string,

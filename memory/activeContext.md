@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **README capabilities refresh**: Added conversation attachments, agent schedules, custom summarization prompts, and explicit MCP integration list to `README.md`. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Documented Lemon Squeezy payment failure flow**: Added subscription payment failure, grace period, and expiry behavior to `docs/subscription-management.md`.
 - **Eval detail modal escape close**: Wired `useEscapeKey` so evaluation details modal closes on Escape; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Eval detail conversation modal**: Added one-click conversation view from eval detail, refactored conversation detail modal to accept conversationId, and added helper/test coverage. Ran `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter frontend test`.
