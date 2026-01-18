@@ -1,5 +1,5 @@
 /* eslint-disable import/order */
-import type { RequestHandler } from "express";
+import type { Application, RequestHandler } from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import {
@@ -30,15 +30,14 @@ vi.mock("../../../../utils/cron", () => ({
 
 import { registerPostAgentSchedules } from "../post-agent-schedules";
 
-function capturePostHandler(
-  register: (app: { post: (...args: unknown[]) => void }) => void
-) {
+function capturePostHandler(register: (app: Application) => void) {
   let captured: RequestHandler | undefined;
   const app = {
-    post: (_path: string, ...handlers: RequestHandler[]) => {
+    post: (...args: unknown[]) => {
+      const handlers = args.slice(1) as RequestHandler[];
       captured = handlers[handlers.length - 1];
     },
-  };
+  } as unknown as Application;
   register(app);
   if (!captured) {
     throw new Error("Post handler not registered");

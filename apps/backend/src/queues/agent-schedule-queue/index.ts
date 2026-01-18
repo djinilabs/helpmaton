@@ -62,7 +62,7 @@ async function persistScheduleConversationError(params: {
       error: logError instanceof Error ? logError.message : String(logError),
       workspaceId: params.workspaceId,
       agentId: params.agentId,
-      scheduleId: params.conversationId,
+      conversationId: params.conversationId,
     });
   }
 }

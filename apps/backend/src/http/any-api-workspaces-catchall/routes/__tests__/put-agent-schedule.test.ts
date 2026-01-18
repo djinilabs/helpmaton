@@ -1,5 +1,5 @@
 /* eslint-disable import/order */
-import type { RequestHandler } from "express";
+import type { Application, RequestHandler } from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import {
@@ -24,15 +24,14 @@ vi.mock("../../../../utils/cron", () => ({
 
 import { registerPutAgentSchedule } from "../put-agent-schedule";
 
-function capturePutHandler(
-  register: (app: { put: (...args: unknown[]) => void }) => void
-) {
+function capturePutHandler(register: (app: Application) => void) {
   let captured: RequestHandler | undefined;
   const app = {
-    put: (_path: string, ...handlers: RequestHandler[]) => {
+    put: (...args: unknown[]) => {
+      const handlers = args.slice(1) as RequestHandler[];
       captured = handlers[handlers.length - 1];
     },
-  };
+  } as unknown as Application;
   register(app);
   if (!captured) {
     throw new Error("Put handler not registered");
