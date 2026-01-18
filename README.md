@@ -46,9 +46,21 @@ Create and configure AI agents with custom system prompts. Define their behavior
 
 Upload markdown and text documents to build knowledge bases for your agents. Organize documents into folders and keep them updated as your information evolves.
 
+### Conversation Attachments
+
+Attach files and images directly to conversations. Upload documents, screenshots, and other files to give agents richer context and enable more accurate, multi-modal responses.
+
 ### Agent Memory System
 
 Agents remember important facts, people, and events from conversations through a stratified memory architecture. Memories are progressively summarized across temporal grains (daily, weekly, monthly, quarterly, yearly) and searchable via semantic vector search, enabling context-aware responses informed by past interactions.
+
+### Custom Summarization Prompts
+
+Tailor memory summaries with per-agent, per-grain prompts (daily, weekly, monthly, quarterly, yearly) so each agent retains and synthesizes context in a way that fits your workflow.
+
+### Agent Schedules
+
+Automate agent runs on a schedule with cron-based prompts. Perfect for recurring reports, proactive monitoring, and routine operational tasks.
 
 ### Web Search & Content Extraction
 
@@ -93,6 +105,18 @@ Agents come with a comprehensive set of built-in tools and can be extended with 
 - **Google Drive Integration**: Give agents access to files stored in Google Drive. Agents can read text files, Google Docs (exported as plain text), Google Sheets (exported as CSV), and Google Slides (exported as plain text). Ideal for document analysis, data extraction, and content management workflows.
 
 All Google Workspace integrations use secure OAuth 2.0 authentication, ensuring your data remains private and secure. Simply create an MCP server with the appropriate service type (Gmail, Google Calendar, or Google Drive), connect your Google account via OAuth, and enable the server for your agents.
+
+**Additional MCP Integrations**:
+
+- **GitHub**: Read repositories, issues, pull requests, commits, and files
+- **Slack**: List channels, read channel history, and post messages
+- **Linear**: Access teams, projects, issues, and search
+- **HubSpot**: Read CRM contacts, companies, deals, and owners
+- **PostHog**: Access projects, events, feature flags, insights, and persons
+- **Salesforce**: Discover objects, inspect fields, and run queries
+- **Notion**: Read pages and databases with shared workspace access
+
+See the [MCP Servers](./docs/mcp-servers.md) guide for setup and full tool coverage.
 
 ### Cost Management & Billing
 
@@ -277,7 +301,7 @@ The platform is designed for reliability, scalability, and performance, handling
 
 - [Slack Bot Integration](./docs/slack-integration.md) - Deploy your agents as Slack bots for team collaboration
 - [Discord Bot Integration](./docs/discord-integration.md) - Deploy your agents as Discord bots for community engagement
-- [MCP Servers](./docs/mcp-servers.md) - Configure and use MCP servers for external tools
+- [MCP Servers](./docs/mcp-servers.md) - Configure and use MCP servers (GitHub, Slack, Linear, HubSpot, PostHog, Salesforce, Notion, Google Workspace)
 - [Tavily Integration](./docs/tavily-integration.md) - Web search and content extraction with Tavily API
 - [Discord Setup](./docs/discord-setup.md) - Configure Discord notification channels for your agents
 - [Email Setup](./docs/email-setup.md) - Configure email authentication and notifications

@@ -36,6 +36,13 @@ function identifyUserFromRequest(req: {
  * @param eventName - Name of the event (snake_case format: feature_action)
  * @param properties - Event properties (workspace_id, agent_id, etc.)
  * @param req - Optional request object for user identification
+ *
+ * Event checklist:
+ * - Always include `workspace_id` for workspace-scoped actions
+ * - Include `agent_id` when the action targets a specific agent
+ * - Include `user_id` for system or admin-triggered events when known
+ * - Include `subscription_tier` for billing/limits-related actions
+ * - Use backend tracking for webhook/async flows to avoid client loss
  */
 export function trackEvent(
   eventName: string,
