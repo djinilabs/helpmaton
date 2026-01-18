@@ -6,6 +6,7 @@ export interface McpOAuthTokenInfo {
   refreshToken: string;
   expiresAt: string; // ISO datetime string
   email?: string;
+  instanceUrl?: string;
 }
 
 /**

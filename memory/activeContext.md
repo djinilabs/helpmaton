@@ -2,10 +2,11 @@
 
 ## Current Status
 
-**Status**: Slack MCP OAuth Integration Complete ✅
+**Status**: Salesforce MCP integration complete ✅
 
 **Latest Work**:
 
+- **Salesforce MCP integration**: Added Salesforce OAuth flow (instance_url storage), Salesforce API client + tools (list objects, describe, SOQL query), tool metadata/UI wiring, schemas, env/workflow updates, docs, and unit tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Slack MCP OAuth integration**: Added Slack OAuth MCP server support with bot-token scopes, Slack API client, MCP tools (list channels, channel history, post message), tool metadata, UI wiring, and OAuth callbacks. Updated schemas, docs, env passthroughs, and added unit tests for OAuth, client, tools, and metadata. Ran `pnpm typecheck` and `pnpm lint --fix`.
 
 - **E2E copy selector fixes**: Updated workspace detail page object labels (team/spending) and reran `pnpm test:e2e` with all tests passing.

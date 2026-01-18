@@ -526,6 +526,25 @@ These environment variables are used by the frontend application and must be pre
 - **How to obtain**: Found in the HubSpot app settings
 - **Note**: Keep this secret secure and never commit it to version control
 
+### `SALESFORCE_OAUTH_CLIENT_ID`
+
+- **Description**: Salesforce OAuth client ID for Salesforce MCP servers
+- **Required**: No (required only if using Salesforce MCP servers)
+- **Example**: `3MVG9...`
+- **How to obtain**:
+  1. Go to Salesforce Setup → App Manager
+  2. Create or open a Connected App
+  3. Add the redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/salesforce/callback`
+  4. Copy the Consumer Key
+
+### `SALESFORCE_OAUTH_CLIENT_SECRET`
+
+- **Description**: Salesforce OAuth client secret for Salesforce MCP servers
+- **Required**: No (required only if using Salesforce MCP servers)
+- **Example**: `1955279925675241571`
+- **How to obtain**: Found in the Connected App settings
+- **Note**: Keep this secret secure and never commit it to version control
+
 ### `SLACK_OAUTH_CLIENT_ID`
 
 - **Description**: Slack OAuth client ID for Slack MCP servers

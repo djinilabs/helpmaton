@@ -2497,6 +2497,55 @@ function getMcpServerToolMetadata(
         },
       ],
     });
+  } else if (serviceType === "salesforce") {
+    const condition = oauthConnected
+      ? `Available (Salesforce "${serverName}" connected)`
+      : `Not available (Salesforce "${serverName}" not connected)`;
+
+    tools.push({
+      name: `salesforce_list_objects${suffix}`,
+      description:
+        "Lists standard and custom objects in Salesforce to understand available data.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [],
+    });
+
+    tools.push({
+      name: `salesforce_describe_object${suffix}`,
+      description:
+        "Returns fields and relationships for a Salesforce object (e.g., 'Opportunity'). Use this before querying.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "objectName",
+          type: "string",
+          required: true,
+          description: "Salesforce object name (e.g., Account, Opportunity)",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `salesforce_query${suffix}`,
+      description:
+        "Executes a SOQL query to find records. Supports filtering, sorting, and joins.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "string",
+          required: true,
+          description:
+            "SOQL query string (e.g., SELECT Name, Amount FROM Opportunity WHERE Amount > 10000)",
+        },
+      ],
+    });
   } else if (serviceType === "posthog") {
     const condition = `Available (PostHog "${serverName}" enabled)`;
 
@@ -2843,6 +2892,7 @@ export function generateToolList(
       "hubspot",
       "slack",
       "stripe",
+      "salesforce",
     ];
 
     // Group servers by serviceType for conflict detection

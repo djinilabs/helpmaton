@@ -128,6 +128,11 @@ export const registerGetMcpServerOauthAuthorize = (
             "../../../utils/oauth/mcp/stripe"
           );
           authUrl = generateStripeAuthUrl(workspaceId, serverId);
+        } else if (server.serviceType === "salesforce") {
+          const { generateSalesforceAuthUrl } = await import(
+            "../../../utils/oauth/mcp/salesforce"
+          );
+          authUrl = generateSalesforceAuthUrl(workspaceId, serverId);
         } else {
           throw badRequest(
             `Unsupported service type: ${server.serviceType || "unknown"}`

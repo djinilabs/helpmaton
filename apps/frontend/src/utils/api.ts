@@ -1431,6 +1431,7 @@ export interface McpServer {
     | "hubspot"
     | "slack"
     | "stripe"
+    | "salesforce"
     | "posthog";
   oauthConnected?: boolean;
   createdAt: string;
@@ -1452,6 +1453,7 @@ export interface CreateMcpServerInput {
     | "hubspot"
     | "slack"
     | "stripe"
+    | "salesforce"
     | "posthog";
   config?: {
     apiKey?: string;
@@ -1476,6 +1478,7 @@ export interface UpdateMcpServerInput {
     | "hubspot"
     | "slack"
     | "stripe"
+    | "salesforce"
     | "posthog";
   config?: {
     apiKey?: string;
