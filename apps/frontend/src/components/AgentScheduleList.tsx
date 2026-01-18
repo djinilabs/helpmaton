@@ -37,6 +37,58 @@ const formatUtcIso = (value: string | null): string => {
   return date.toISOString().replace("T", " ").replace("Z", " UTC");
 };
 
+const padTwo = (value: number) => String(value).padStart(2, "0");
+
+const describeCron = (expression: string): string => {
+  const parts = expression.trim().split(/\s+/);
+  if (parts.length !== 5) {
+    return "Custom schedule (UTC)";
+  }
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+  if (month !== "*") {
+    return "Custom schedule (UTC)";
+  }
+  const isNumber = (value: string) => /^\d+$/.test(value);
+
+  if (hour === "*" && dayOfMonth === "*" && dayOfWeek === "*" && isNumber(minute)) {
+    return `Every hour at :${padTwo(Number(minute))} UTC`;
+  }
+
+  if (isNumber(hour) && isNumber(minute) && dayOfMonth === "*" && dayOfWeek === "*") {
+    return `Every day at ${padTwo(Number(hour))}:${padTwo(Number(minute))} UTC`;
+  }
+
+  if (isNumber(hour) && isNumber(minute) && dayOfMonth === "*" && isNumber(dayOfWeek)) {
+    const dayNames = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const dayIndex = Number(dayOfWeek) === 7 ? 0 : Number(dayOfWeek);
+    const dayLabel = dayNames[dayIndex] ?? "Monday";
+    return `Every week on ${dayLabel} at ${padTwo(Number(hour))}:${padTwo(
+      Number(minute)
+    )} UTC`;
+  }
+
+  if (
+    isNumber(hour) &&
+    isNumber(minute) &&
+    isNumber(dayOfMonth) &&
+    dayOfWeek === "*"
+  ) {
+    return `Every month on day ${dayOfMonth} at ${padTwo(Number(hour))}:${padTwo(
+      Number(minute)
+    )} UTC`;
+  }
+
+  return "Custom schedule (UTC)";
+};
+
 const ScheduleItem: FC<ScheduleItemProps> = ({
   schedule,
   workspaceId,
@@ -83,8 +135,13 @@ const ScheduleItem: FC<ScheduleItemProps> = ({
           )}
         </div>
         <div className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-          Cron: {schedule.cronExpression} (UTC)
+          {describeCron(schedule.cronExpression)}
         </div>
+        {describeCron(schedule.cronExpression) === "Custom schedule (UTC)" && (
+          <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-500">
+            Advanced: {schedule.cronExpression}
+          </div>
+        )}
         <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-500">
           Next run: {formatUtc(schedule.nextRunAt)} · Last run:{" "}
           {formatUtcIso(schedule.lastRunAt)}
@@ -174,14 +231,14 @@ export const AgentScheduleList: FC<AgentScheduleListProps> = ({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-neutral-600 dark:text-neutral-300">
-          Times are in UTC.
+          All times are in UTC.
         </p>
         {canEdit && (
           <button
             onClick={() => setIsCreateModalOpen(true)}
             className="rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:shadow-colored"
           >
-            Create Schedule
+            Add schedule
           </button>
         )}
       </div>
@@ -189,7 +246,7 @@ export const AgentScheduleList: FC<AgentScheduleListProps> = ({
       {schedulesList.length === 0 ? (
         <div className="rounded-xl border-2 border-neutral-300 bg-white p-6 dark:border-neutral-700 dark:bg-neutral-900">
           <p className="text-base font-bold text-neutral-700 dark:text-neutral-300">
-            No schedules configured.
+            No schedules yet.
           </p>
         </div>
       ) : (

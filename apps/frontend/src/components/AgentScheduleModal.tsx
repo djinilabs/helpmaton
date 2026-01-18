@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FC } from "react";
 
 import { useDialogTracking } from "../contexts/DialogContext";
@@ -9,17 +9,231 @@ import {
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import type { AgentSchedule } from "../utils/api";
 
-const PRESET_OPTIONS: Array<{
-  value: string;
+type ScheduleFrequency = "hourly" | "daily" | "weekly" | "monthly" | "custom";
+
+const FREQUENCY_OPTIONS: Array<{
+  value: ScheduleFrequency;
   label: string;
-  cronExpression: string;
 }> = [
-  { value: "hourly", label: "Hourly", cronExpression: "0 * * * *" },
-  { value: "daily", label: "Daily (00:00 UTC)", cronExpression: "0 0 * * *" },
-  { value: "weekly", label: "Weekly (Mon 00:00 UTC)", cronExpression: "0 0 * * 1" },
-  { value: "monthly", label: "Monthly (1st 00:00 UTC)", cronExpression: "0 0 1 * *" },
-  { value: "custom", label: "Custom cron", cronExpression: "" },
+  { value: "hourly", label: "Every hour" },
+  { value: "daily", label: "Every day" },
+  { value: "weekly", label: "Every week" },
+  { value: "monthly", label: "Every month" },
+  { value: "custom", label: "Advanced (custom)" },
 ];
+
+const DAYS_OF_WEEK = [
+  { value: "1", label: "Monday" },
+  { value: "2", label: "Tuesday" },
+  { value: "3", label: "Wednesday" },
+  { value: "4", label: "Thursday" },
+  { value: "5", label: "Friday" },
+  { value: "6", label: "Saturday" },
+  { value: "0", label: "Sunday" },
+];
+
+const DEFAULT_TIME = "09:00";
+const DEFAULT_MINUTE = "0";
+const DEFAULT_DAY_OF_MONTH = "1";
+const DEFAULT_DAY_OF_WEEK = "1";
+
+const padTwo = (value: number) => String(value).padStart(2, "0");
+
+const isValidNumber = (value: string, min: number, max: number) => {
+  if (!/^\d+$/.test(value)) return false;
+  const num = Number(value);
+  return num >= min && num <= max;
+};
+
+const parseCronExpression = (expression?: string) => {
+  if (!expression) {
+    return {
+      frequency: "daily" as ScheduleFrequency,
+      timeOfDay: DEFAULT_TIME,
+      minuteOfHour: DEFAULT_MINUTE,
+      dayOfMonth: DEFAULT_DAY_OF_MONTH,
+      dayOfWeek: DEFAULT_DAY_OF_WEEK,
+      customCron: "",
+    };
+  }
+
+  const parts = expression.trim().split(/\s+/);
+  if (parts.length !== 5) {
+    return {
+      frequency: "custom" as ScheduleFrequency,
+      timeOfDay: DEFAULT_TIME,
+      minuteOfHour: DEFAULT_MINUTE,
+      dayOfMonth: DEFAULT_DAY_OF_MONTH,
+      dayOfWeek: DEFAULT_DAY_OF_WEEK,
+      customCron: expression,
+    };
+  }
+
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+  if (month !== "*") {
+    return {
+      frequency: "custom" as ScheduleFrequency,
+      timeOfDay: DEFAULT_TIME,
+      minuteOfHour: DEFAULT_MINUTE,
+      dayOfMonth: DEFAULT_DAY_OF_MONTH,
+      dayOfWeek: DEFAULT_DAY_OF_WEEK,
+      customCron: expression,
+    };
+  }
+
+  if (
+    hour === "*" &&
+    dayOfMonth === "*" &&
+    dayOfWeek === "*" &&
+    isValidNumber(minute, 0, 59)
+  ) {
+    return {
+      frequency: "hourly" as ScheduleFrequency,
+      timeOfDay: DEFAULT_TIME,
+      minuteOfHour: minute,
+      dayOfMonth: DEFAULT_DAY_OF_MONTH,
+      dayOfWeek: DEFAULT_DAY_OF_WEEK,
+      customCron: "",
+    };
+  }
+
+  if (
+    isValidNumber(hour, 0, 23) &&
+    isValidNumber(minute, 0, 59) &&
+    dayOfMonth === "*" &&
+    dayOfWeek === "*"
+  ) {
+    return {
+      frequency: "daily" as ScheduleFrequency,
+      timeOfDay: `${padTwo(Number(hour))}:${padTwo(Number(minute))}`,
+      minuteOfHour: minute,
+      dayOfMonth: DEFAULT_DAY_OF_MONTH,
+      dayOfWeek: DEFAULT_DAY_OF_WEEK,
+      customCron: "",
+    };
+  }
+
+  if (
+    isValidNumber(hour, 0, 23) &&
+    isValidNumber(minute, 0, 59) &&
+    dayOfMonth === "*" &&
+    isValidNumber(dayOfWeek, 0, 7)
+  ) {
+    const normalizedDay = dayOfWeek === "7" ? "0" : dayOfWeek;
+    return {
+      frequency: "weekly" as ScheduleFrequency,
+      timeOfDay: `${padTwo(Number(hour))}:${padTwo(Number(minute))}`,
+      minuteOfHour: minute,
+      dayOfMonth: DEFAULT_DAY_OF_MONTH,
+      dayOfWeek: normalizedDay,
+      customCron: "",
+    };
+  }
+
+  if (
+    isValidNumber(hour, 0, 23) &&
+    isValidNumber(minute, 0, 59) &&
+    isValidNumber(dayOfMonth, 1, 31) &&
+    dayOfWeek === "*"
+  ) {
+    return {
+      frequency: "monthly" as ScheduleFrequency,
+      timeOfDay: `${padTwo(Number(hour))}:${padTwo(Number(minute))}`,
+      minuteOfHour: minute,
+      dayOfMonth,
+      dayOfWeek: DEFAULT_DAY_OF_WEEK,
+      customCron: "",
+    };
+  }
+
+  return {
+    frequency: "custom" as ScheduleFrequency,
+    timeOfDay: DEFAULT_TIME,
+    minuteOfHour: DEFAULT_MINUTE,
+    dayOfMonth: DEFAULT_DAY_OF_MONTH,
+    dayOfWeek: DEFAULT_DAY_OF_WEEK,
+    customCron: expression,
+  };
+};
+
+const buildCronExpression = (values: {
+  frequency: ScheduleFrequency;
+  timeOfDay: string;
+  minuteOfHour: string;
+  dayOfMonth: string;
+  dayOfWeek: string;
+  customCron: string;
+}) => {
+  if (values.frequency === "custom") {
+    return values.customCron.trim();
+  }
+
+  if (values.frequency === "hourly") {
+    const minute = isValidNumber(values.minuteOfHour, 0, 59)
+      ? values.minuteOfHour
+      : DEFAULT_MINUTE;
+    return `${minute} * * * *`;
+  }
+
+  const [hour = "0", minute = "0"] = values.timeOfDay.split(":");
+  const safeHour = isValidNumber(hour, 0, 23) ? hour : "0";
+  const safeMinute = isValidNumber(minute, 0, 59) ? minute : "0";
+
+  if (values.frequency === "daily") {
+    return `${safeMinute} ${safeHour} * * *`;
+  }
+
+  if (values.frequency === "weekly") {
+    const day = isValidNumber(values.dayOfWeek, 0, 6)
+      ? values.dayOfWeek
+      : DEFAULT_DAY_OF_WEEK;
+    return `${safeMinute} ${safeHour} * * ${day}`;
+  }
+
+  const day = isValidNumber(values.dayOfMonth, 1, 31)
+    ? values.dayOfMonth
+    : DEFAULT_DAY_OF_MONTH;
+  return `${safeMinute} ${safeHour} ${day} * *`;
+};
+
+const describeSchedule = (values: {
+  frequency: ScheduleFrequency;
+  timeOfDay: string;
+  minuteOfHour: string;
+  dayOfMonth: string;
+  dayOfWeek: string;
+}) => {
+  const [hour = "0", minute = "0"] = values.timeOfDay.split(":");
+  const safeHour = padTwo(Number(hour || 0));
+  const safeMinute = padTwo(Number(minute || 0));
+
+  if (values.frequency === "hourly") {
+    const minuteValue = isValidNumber(values.minuteOfHour, 0, 59)
+      ? values.minuteOfHour
+      : DEFAULT_MINUTE;
+    return `Every hour at :${padTwo(Number(minuteValue))} UTC`;
+  }
+
+  if (values.frequency === "daily") {
+    return `Every day at ${safeHour}:${safeMinute} UTC`;
+  }
+
+  if (values.frequency === "weekly") {
+    const dayLabel =
+      DAYS_OF_WEEK.find((day) => day.value === values.dayOfWeek)?.label ||
+      "Monday";
+    return `Every week on ${dayLabel} at ${safeHour}:${safeMinute} UTC`;
+  }
+
+  if (values.frequency === "monthly") {
+    const dayOfMonth = isValidNumber(values.dayOfMonth, 1, 31)
+      ? values.dayOfMonth
+      : DEFAULT_DAY_OF_MONTH;
+    return `Every month on day ${dayOfMonth} at ${safeHour}:${safeMinute} UTC`;
+  }
+
+  return "Custom schedule (UTC)";
+};
 
 interface AgentScheduleModalProps {
   isOpen: boolean;
@@ -46,17 +260,30 @@ export const AgentScheduleModal: FC<AgentScheduleModalProps> = ({
   );
 
   const [name, setName] = useState(() => schedule?.name ?? "");
-  const [cronExpression, setCronExpression] = useState(
-    () => schedule?.cronExpression ?? ""
+  const initialScheduleState = useMemo(
+    () => parseCronExpression(schedule?.cronExpression),
+    [schedule?.cronExpression]
+  );
+  const [frequency, setFrequency] = useState<ScheduleFrequency>(
+    () => initialScheduleState.frequency
+  );
+  const [timeOfDay, setTimeOfDay] = useState(
+    () => initialScheduleState.timeOfDay
+  );
+  const [minuteOfHour, setMinuteOfHour] = useState(
+    () => initialScheduleState.minuteOfHour
+  );
+  const [dayOfMonth, setDayOfMonth] = useState(
+    () => initialScheduleState.dayOfMonth
+  );
+  const [dayOfWeek, setDayOfWeek] = useState(
+    () => initialScheduleState.dayOfWeek
+  );
+  const [customCron, setCustomCron] = useState(
+    () => initialScheduleState.customCron
   );
   const [prompt, setPrompt] = useState(() => schedule?.prompt ?? "");
   const [enabled, setEnabled] = useState(() => schedule?.enabled ?? true);
-  const [preset, setPreset] = useState(() => {
-    const matchedPreset = PRESET_OPTIONS.find(
-      (option) => option.cronExpression === schedule?.cronExpression
-    );
-    return matchedPreset?.value || "custom";
-  });
 
   const { registerDialog, unregisterDialog } = useDialogTracking();
   useEscapeKey(isOpen, handleClose);
@@ -72,13 +299,29 @@ export const AgentScheduleModal: FC<AgentScheduleModalProps> = ({
     }
   }, [isOpen, registerDialog, unregisterDialog]);
 
-  const handlePresetChange = (value: string) => {
-    setPreset(value);
-    const presetOption = PRESET_OPTIONS.find((option) => option.value === value);
-    if (presetOption && presetOption.cronExpression) {
-      setCronExpression(presetOption.cronExpression);
-    }
-  };
+  const cronExpression = useMemo(
+    () =>
+      buildCronExpression({
+        frequency,
+        timeOfDay,
+        minuteOfHour,
+        dayOfMonth,
+        dayOfWeek,
+        customCron,
+      }),
+    [frequency, timeOfDay, minuteOfHour, dayOfMonth, dayOfWeek, customCron]
+  );
+  const scheduleDescription = useMemo(
+    () =>
+      describeSchedule({
+        frequency,
+        timeOfDay,
+        minuteOfHour,
+        dayOfMonth,
+        dayOfWeek,
+      }),
+    [frequency, timeOfDay, minuteOfHour, dayOfMonth, dayOfWeek]
+  );
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -118,7 +361,7 @@ export const AgentScheduleModal: FC<AgentScheduleModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-2 border-neutral-300 bg-white p-8 shadow-dramatic dark:border-neutral-700 dark:bg-neutral-900">
         <h2 className="mb-6 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
-          {isEditing ? "Edit Schedule" : "Create Schedule"}
+          {isEditing ? "Edit schedule" : "Create schedule"}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -126,7 +369,7 @@ export const AgentScheduleModal: FC<AgentScheduleModalProps> = ({
               htmlFor="schedule-name"
               className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
             >
-              Name *
+              Schedule name *
             </label>
             <input
               id="schedule-name"
@@ -135,23 +378,29 @@ export const AgentScheduleModal: FC<AgentScheduleModalProps> = ({
               onChange={(event) => setName(event.target.value)}
               className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               required
+              placeholder="e.g., Daily check-in"
             />
+            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+              This is just for you to recognize the schedule.
+            </p>
           </div>
 
           <div>
             <label
-              htmlFor="schedule-preset"
+              htmlFor="schedule-frequency"
               className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
             >
-              Schedule preset
+              How often should this run?
             </label>
             <select
-              id="schedule-preset"
-              value={preset}
-              onChange={(event) => handlePresetChange(event.target.value)}
+              id="schedule-frequency"
+              value={frequency}
+              onChange={(event) =>
+                setFrequency(event.target.value as ScheduleFrequency)
+              }
               className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
             >
-              {PRESET_OPTIONS.map((option) => (
+              {FREQUENCY_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -159,28 +408,123 @@ export const AgentScheduleModal: FC<AgentScheduleModalProps> = ({
             </select>
           </div>
 
-          <div>
-            <label
-              htmlFor="schedule-cron"
-              className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
-            >
-              Cron expression (UTC) *
-            </label>
-            <input
-              id="schedule-cron"
-              type="text"
-              value={cronExpression}
-              onChange={(event) => {
-                setCronExpression(event.target.value);
-                setPreset("custom");
-              }}
-              placeholder="0 0 * * *"
-              className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-              required
-            />
-            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-              Times are in UTC.
-            </p>
+          {frequency === "hourly" && (
+            <div>
+              <label
+                htmlFor="schedule-minute"
+                className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+              >
+                Minute of the hour (UTC)
+              </label>
+              <input
+                id="schedule-minute"
+                type="number"
+                min={0}
+                max={59}
+                value={minuteOfHour}
+                onChange={(event) => setMinuteOfHour(event.target.value)}
+                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              />
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                Runs at that minute every hour (UTC).
+              </p>
+            </div>
+          )}
+
+          {(frequency === "daily" ||
+            frequency === "weekly" ||
+            frequency === "monthly") && (
+            <div>
+              <label
+                htmlFor="schedule-time"
+                className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+              >
+                Time of day (UTC)
+              </label>
+              <input
+                id="schedule-time"
+                type="time"
+                value={timeOfDay}
+                onChange={(event) => setTimeOfDay(event.target.value)}
+                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              />
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                Times are always in UTC.
+              </p>
+            </div>
+          )}
+
+          {frequency === "weekly" && (
+            <div>
+              <label
+                htmlFor="schedule-day-of-week"
+                className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+              >
+                Day of the week
+              </label>
+              <select
+                id="schedule-day-of-week"
+                value={dayOfWeek}
+                onChange={(event) => setDayOfWeek(event.target.value)}
+                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              >
+                {DAYS_OF_WEEK.map((day) => (
+                  <option key={day.value} value={day.value}>
+                    {day.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {frequency === "monthly" && (
+            <div>
+              <label
+                htmlFor="schedule-day-of-month"
+                className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+              >
+                Day of the month
+              </label>
+              <input
+                id="schedule-day-of-month"
+                type="number"
+                min={1}
+                max={31}
+                value={dayOfMonth}
+                onChange={(event) => setDayOfMonth(event.target.value)}
+                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+              />
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                If the month has fewer days, it will run on the last day.
+              </p>
+            </div>
+          )}
+
+          {frequency === "custom" && (
+            <div>
+              <label
+                htmlFor="schedule-cron"
+                className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+              >
+                Advanced schedule (cron)
+              </label>
+              <input
+                id="schedule-cron"
+                type="text"
+                value={customCron}
+                onChange={(event) => setCustomCron(event.target.value)}
+                placeholder="0 0 * * *"
+                className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                required
+              />
+              <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                Use this only if you already know cron expressions (UTC).
+              </p>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-primary-100 bg-primary-50 px-4 py-3 text-sm text-primary-800 dark:border-primary-900 dark:bg-primary-950 dark:text-primary-200">
+            {scheduleDescription}
           </div>
 
           <div>
@@ -188,7 +532,7 @@ export const AgentScheduleModal: FC<AgentScheduleModalProps> = ({
               htmlFor="schedule-prompt"
               className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
             >
-              Schedule prompt *
+              What should the agent do? *
             </label>
             <textarea
               id="schedule-prompt"
@@ -196,11 +540,11 @@ export const AgentScheduleModal: FC<AgentScheduleModalProps> = ({
               onChange={(event) => setPrompt(event.target.value)}
               rows={5}
               className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
-              placeholder="Describe what the agent should do every run."
+              placeholder="e.g., Summarize new customer feedback from the last 24 hours."
               required
             />
             <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
-              This becomes the first user message for each scheduled run.
+              We will send this as the first message every time it runs.
             </p>
           </div>
 
@@ -216,7 +560,7 @@ export const AgentScheduleModal: FC<AgentScheduleModalProps> = ({
               htmlFor="schedule-enabled"
               className="text-sm font-medium text-neutral-700 dark:text-neutral-300"
             >
-              Enabled
+              Turn on this schedule
             </label>
           </div>
 
@@ -231,7 +575,7 @@ export const AgentScheduleModal: FC<AgentScheduleModalProps> = ({
               }
               className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-colors hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isPending ? "Saving..." : isEditing ? "Save" : "Create"}
+              {isPending ? "Saving..." : isEditing ? "Save changes" : "Create schedule"}
             </button>
             <button
               type="button"
