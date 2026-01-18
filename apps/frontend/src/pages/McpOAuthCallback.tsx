@@ -66,6 +66,8 @@ const McpOAuthCallback = () => {
       ? "Linear"
       : serviceType === "hubspot"
       ? "HubSpot"
+      : serviceType === "slack"
+      ? "Slack"
       : serviceType || "service";
 
   if (!workspaceId || !serverId) {

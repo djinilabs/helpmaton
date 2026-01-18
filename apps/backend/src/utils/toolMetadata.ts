@@ -2360,6 +2360,84 @@ function getMcpServerToolMetadata(
         },
       ],
     });
+  } else if (serviceType === "slack") {
+    const condition = oauthConnected
+      ? `Available (Slack "${serverName}" connected)`
+      : `Not available (Slack "${serverName}" not connected)`;
+
+    tools.push({
+      name: `slack_list_channels${suffix}`,
+      description:
+        "List public and private Slack channels with IDs and metadata. Use this to find the channel ID for follow-up actions.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of channels to return (default: 100, max: 1000)",
+        },
+        {
+          name: "cursor",
+          type: "string",
+          required: false,
+          description: "Pagination cursor for the next page",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `slack_get_channel_history${suffix}`,
+      description:
+        "Read the most recent messages from a Slack channel. Returns a plain-text summary of messages.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "channel_id",
+          type: "string",
+          required: true,
+          description: "Slack channel ID (e.g., C12345)",
+        },
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Number of messages to return (default: 100, max: 1000)",
+        },
+        {
+          name: "cursor",
+          type: "string",
+          required: false,
+          description: "Pagination cursor for the next page",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `slack_post_message${suffix}`,
+      description: "Post a message to a Slack channel.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "channel_id",
+          type: "string",
+          required: true,
+          description: "Slack channel ID (e.g., C12345)",
+        },
+        {
+          name: "text",
+          type: "string",
+          required: true,
+          description: "Message text to post",
+        },
+      ],
+    });
   } else if (serviceType === "stripe") {
     const condition = oauthConnected
       ? `Available (Stripe "${serverName}" connected)`
@@ -2763,6 +2841,7 @@ export function generateToolList(
       "github",
       "linear",
       "hubspot",
+      "slack",
       "stripe",
     ];
 

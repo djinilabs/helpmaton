@@ -231,6 +231,7 @@ export async function createMcpServerTools(
     "github",
     "linear",
     "hubspot",
+    "slack",
     "stripe",
   ];
 
@@ -593,6 +594,23 @@ export async function createMcpServerTools(
         getOwnerTool as ReturnType<typeof createMcpServerTool>;
       tools[`hubspot_search_owners${suffix}`] =
         searchOwnersTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "slack") {
+      const {
+        createSlackListChannelsTool,
+        createSlackGetChannelHistoryTool,
+        createSlackPostMessageTool,
+      } = await import("./slackTools");
+
+      const listChannelsTool = createSlackListChannelsTool(workspaceId, serverId);
+      const historyTool = createSlackGetChannelHistoryTool(workspaceId, serverId);
+      const postMessageTool = createSlackPostMessageTool(workspaceId, serverId);
+
+      tools[`slack_list_channels${suffix}`] =
+        listChannelsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`slack_get_channel_history${suffix}`] =
+        historyTool as ReturnType<typeof createMcpServerTool>;
+      tools[`slack_post_message${suffix}`] =
+        postMessageTool as ReturnType<typeof createMcpServerTool>;
     } else if (server.authType === "oauth" && server.serviceType === "stripe") {
       const {
         createStripeSearchChargesTool,
