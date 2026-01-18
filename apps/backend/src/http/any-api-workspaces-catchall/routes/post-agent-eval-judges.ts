@@ -5,6 +5,10 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import {
+  checkAgentEvalJudgeLimit,
+  ensureWorkspaceSubscription,
+} from "../../../utils/subscriptionUtils";
 import { validateBody } from "../../utils/bodyValidation";
 import { createEvalJudgeSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
@@ -118,6 +122,13 @@ export const registerPostAgentEvalJudges = (app: express.Application) => {
         if (agent.workspaceId !== workspaceId) {
           throw badRequest("Agent does not belong to this workspace");
         }
+
+        const userId = currentUserRef.replace("users/", "");
+        const subscriptionId = await ensureWorkspaceSubscription(
+          workspaceId,
+          userId
+        );
+        await checkAgentEvalJudgeLimit(subscriptionId, workspaceId, agentId);
 
         const judgeId = randomUUID();
         const judgePk = `agent-eval-judges/${workspaceId}/${agentId}/${judgeId}`;

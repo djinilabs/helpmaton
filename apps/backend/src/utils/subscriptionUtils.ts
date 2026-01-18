@@ -426,6 +426,84 @@ export async function checkSubscriptionLimits(
   }
 }
 
+async function countByAgentId(options: {
+  tableName: "agent-eval-judge" | "agent-schedule";
+  agentId: string;
+  workspaceId: string;
+}): Promise<number> {
+  const { tableName, agentId, workspaceId } = options;
+  const db = await database();
+  let count = 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const table = (db as any)[tableName];
+  for await (const item of table.queryAsync({
+    IndexName: "byAgentId",
+    KeyConditionExpression: "agentId = :agentId",
+    ExpressionAttributeValues: {
+      ":agentId": agentId,
+    },
+  })) {
+    if (item.workspaceId === workspaceId) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+export async function checkAgentEvalJudgeLimit(
+  subscriptionId: string,
+  workspaceId: string,
+  agentId: string
+): Promise<void> {
+  const subscription = await getSubscriptionById(subscriptionId);
+  if (!subscription) {
+    throw badRequest("Subscription not found");
+  }
+
+  const limits = getPlanLimits(subscription.plan);
+  if (!limits) {
+    throw badRequest(`Invalid subscription plan: ${subscription.plan}`);
+  }
+
+  const currentCount = await countByAgentId({
+    tableName: "agent-eval-judge",
+    agentId,
+    workspaceId,
+  });
+  if (currentCount >= limits.maxEvalJudgesPerAgent) {
+    throw badRequest(
+      `Eval judge limit exceeded. Maximum ${limits.maxEvalJudgesPerAgent} eval judge(s) allowed per agent for ${subscription.plan} plan.`
+    );
+  }
+}
+
+export async function checkAgentScheduleLimit(
+  subscriptionId: string,
+  workspaceId: string,
+  agentId: string
+): Promise<void> {
+  const subscription = await getSubscriptionById(subscriptionId);
+  if (!subscription) {
+    throw badRequest("Subscription not found");
+  }
+
+  const limits = getPlanLimits(subscription.plan);
+  if (!limits) {
+    throw badRequest(`Invalid subscription plan: ${subscription.plan}`);
+  }
+
+  const currentCount = await countByAgentId({
+    tableName: "agent-schedule",
+    agentId,
+    workspaceId,
+  });
+  if (currentCount >= limits.maxAgentSchedulesPerAgent) {
+    throw badRequest(
+      `Agent schedule limit exceeded. Maximum ${limits.maxAgentSchedulesPerAgent} schedule(s) allowed per agent for ${subscription.plan} plan.`
+    );
+  }
+}
+
 /**
  * Check if a user is a manager of a subscription
  * @param userId - User ID

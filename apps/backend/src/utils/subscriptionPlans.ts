@@ -12,6 +12,8 @@ export interface PlanLimits {
   maxAgentKeys: number; // Maximum agent keys across all agents in subscription
   maxChannels: number; // Maximum output channels across all workspaces in subscription
   maxMcpServers: number; // Maximum MCP servers across all workspaces in subscription
+  maxEvalJudgesPerAgent: number; // Maximum eval judges per agent
+  maxAgentSchedulesPerAgent: number; // Maximum schedules per agent
 }
 
 const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
@@ -26,6 +28,8 @@ const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
     maxAgentKeys: 5,
     maxChannels: 2,
     maxMcpServers: 2,
+    maxEvalJudgesPerAgent: 1,
+    maxAgentSchedulesPerAgent: 1,
   },
   starter: {
     maxWorkspaces: 1,
@@ -38,6 +42,8 @@ const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
     maxAgentKeys: 25,
     maxChannels: 10,
     maxMcpServers: 10,
+    maxEvalJudgesPerAgent: 2,
+    maxAgentSchedulesPerAgent: 2,
   },
   pro: {
     maxWorkspaces: 5,
@@ -50,6 +56,8 @@ const PLAN_LIMITS: Record<SubscriptionPlan, PlanLimits> = {
     maxAgentKeys: 250,
     maxChannels: 50,
     maxMcpServers: 50,
+    maxEvalJudgesPerAgent: 8,
+    maxAgentSchedulesPerAgent: 5,
   },
 };
 

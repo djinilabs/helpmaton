@@ -12,15 +12,13 @@ import {
 const {
   mockRandomUUID,
   mockDatabase,
-  mockGetNextRunAtEpochSeconds,
   mockEnsureWorkspaceSubscription,
-  mockCheckAgentScheduleLimit,
+  mockCheckAgentEvalJudgeLimit,
 } = vi.hoisted(() => ({
   mockRandomUUID: vi.fn(),
   mockDatabase: vi.fn(),
-  mockGetNextRunAtEpochSeconds: vi.fn(),
   mockEnsureWorkspaceSubscription: vi.fn(),
-  mockCheckAgentScheduleLimit: vi.fn(),
+  mockCheckAgentEvalJudgeLimit: vi.fn(),
 }));
 
 vi.mock("crypto", () => ({
@@ -31,17 +29,12 @@ vi.mock("../../../../tables", () => ({
   database: mockDatabase,
 }));
 
-vi.mock("../../../../utils/cron", () => ({
-  getNextRunAtEpochSeconds: mockGetNextRunAtEpochSeconds,
-  isValidCronExpression: vi.fn().mockReturnValue(true),
-}));
-
 vi.mock("../../../../utils/subscriptionUtils", () => ({
   ensureWorkspaceSubscription: mockEnsureWorkspaceSubscription,
-  checkAgentScheduleLimit: mockCheckAgentScheduleLimit,
+  checkAgentEvalJudgeLimit: mockCheckAgentEvalJudgeLimit,
 }));
 
-import { registerPostAgentSchedules } from "../post-agent-schedules";
+import { registerPostAgentEvalJudges } from "../post-agent-eval-judges";
 
 function capturePostHandler(register: (app: Application) => void) {
   let captured: RequestHandler | undefined;
@@ -58,25 +51,21 @@ function capturePostHandler(register: (app: Application) => void) {
   return captured;
 }
 
-describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
+describe("POST /api/workspaces/:workspaceId/agents/:agentId/eval-judges", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("creates a schedule and returns its details", async () => {
-    const handler = capturePostHandler(registerPostAgentSchedules);
+  it("creates an eval judge and returns its details", async () => {
+    const handler = capturePostHandler(registerPostAgentEvalJudges);
 
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
 
     const workspaceId = "workspace-123";
     const agentId = "agent-456";
-    const scheduleId = "schedule-789";
-    const nextRunAt = 1712345678;
-    mockRandomUUID.mockReturnValue(scheduleId);
-    mockGetNextRunAtEpochSeconds.mockReturnValue(nextRunAt);
-    mockEnsureWorkspaceSubscription.mockResolvedValue("subscription-123");
-    mockCheckAgentScheduleLimit.mockResolvedValue(undefined);
+    const judgeId = "judge-789";
+    mockRandomUUID.mockReturnValue(judgeId);
 
     const mockAgent = {
       pk: `agents/${workspaceId}/${agentId}`,
@@ -88,22 +77,25 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
     mockDb.agent.get = vi.fn().mockResolvedValue(mockAgent);
 
     const mockCreate = vi.fn().mockResolvedValue({
-      pk: `agent-schedules/${workspaceId}/${agentId}/${scheduleId}`,
-      sk: "schedule",
+      pk: `agent-eval-judges/${workspaceId}/${agentId}/${judgeId}`,
+      sk: "judge",
       workspaceId,
       agentId,
-      scheduleId,
-      name: "Daily run",
-      cronExpression: "0 0 * * *",
-      prompt: "Run daily report",
+      judgeId,
+      name: "Accuracy Judge",
       enabled: true,
-      duePartition: "due",
-      nextRunAt,
+      samplingProbability: 100,
+      provider: "openrouter",
+      modelName: "gpt-4o",
+      evalPrompt: "Evaluate accuracy",
       createdAt: new Date().toISOString(),
     });
-    (mockDb as Record<string, unknown>)["agent-schedule"] = {
+    (mockDb as Record<string, unknown>)["agent-eval-judge"] = {
       create: mockCreate,
     };
+
+    mockEnsureWorkspaceSubscription.mockResolvedValue("subscription-123");
+    mockCheckAgentEvalJudgeLimit.mockResolvedValue(undefined);
 
     const req = createMockRequest({
       workspaceResource: `workspaces/${workspaceId}`,
@@ -113,10 +105,12 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
         agentId,
       },
       body: {
-        name: "Daily run",
-        cronExpression: "0 0 * * *",
-        prompt: "Run daily report",
+        name: "Accuracy Judge",
         enabled: true,
+        samplingProbability: 100,
+        provider: "openrouter",
+        modelName: "gpt-4o",
+        evalPrompt: "Evaluate accuracy",
       },
     });
     const res = createMockResponse();
@@ -128,45 +122,41 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
       workspaceId,
       "user-123"
     );
-    expect(mockCheckAgentScheduleLimit).toHaveBeenCalledWith(
+    expect(mockCheckAgentEvalJudgeLimit).toHaveBeenCalledWith(
       "subscription-123",
       workspaceId,
       agentId
     );
-    expect(mockGetNextRunAtEpochSeconds).toHaveBeenCalledWith(
-      "0 0 * * *",
-      expect.any(Date)
-    );
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        pk: `agent-schedules/${workspaceId}/${agentId}/${scheduleId}`,
-        sk: "schedule",
+        pk: `agent-eval-judges/${workspaceId}/${agentId}/${judgeId}`,
+        sk: "judge",
         workspaceId,
         agentId,
-        scheduleId,
-        name: "Daily run",
-        cronExpression: "0 0 * * *",
-        prompt: "Run daily report",
+        judgeId,
+        name: "Accuracy Judge",
         enabled: true,
-        duePartition: "due",
-        nextRunAt,
+        samplingProbability: 100,
+        provider: "openrouter",
+        modelName: "gpt-4o",
+        evalPrompt: "Evaluate accuracy",
       })
     );
     expect(res.status).toHaveBeenCalledWith(201);
     expect((res as { body: unknown }).body).toEqual({
-      id: scheduleId,
-      name: "Daily run",
-      cronExpression: "0 0 * * *",
-      prompt: "Run daily report",
+      id: judgeId,
+      name: "Accuracy Judge",
       enabled: true,
-      nextRunAt,
-      lastRunAt: null,
+      samplingProbability: 100,
+      provider: "openrouter",
+      modelName: "gpt-4o",
+      evalPrompt: "Evaluate accuracy",
       createdAt: expect.any(String),
     });
   });
 
-  it("rejects when schedule limit is exceeded", async () => {
-    const handler = capturePostHandler(registerPostAgentSchedules);
+  it("rejects when eval judge limit is exceeded", async () => {
+    const handler = capturePostHandler(registerPostAgentEvalJudges);
 
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
@@ -184,9 +174,9 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
     mockDb.agent.get = vi.fn().mockResolvedValue(mockAgent);
 
     mockEnsureWorkspaceSubscription.mockResolvedValue("subscription-123");
-    mockCheckAgentScheduleLimit.mockRejectedValue(
+    mockCheckAgentEvalJudgeLimit.mockRejectedValue(
       badRequest(
-        "Agent schedule limit exceeded. Maximum 1 schedule(s) allowed per agent for free plan."
+        "Eval judge limit exceeded. Maximum 1 eval judge(s) allowed per agent for free plan."
       )
     );
 
@@ -198,10 +188,12 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
         agentId,
       },
       body: {
-        name: "Daily run",
-        cronExpression: "0 0 * * *",
-        prompt: "Run daily report",
+        name: "Accuracy Judge",
         enabled: true,
+        samplingProbability: 100,
+        provider: "openrouter",
+        modelName: "gpt-4o",
+        evalPrompt: "Evaluate accuracy",
       },
     });
     const res = createMockResponse();
@@ -213,7 +205,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
       workspaceId,
       "user-123"
     );
-    expect(mockCheckAgentScheduleLimit).toHaveBeenCalledWith(
+    expect(mockCheckAgentEvalJudgeLimit).toHaveBeenCalledWith(
       "subscription-123",
       workspaceId,
       agentId

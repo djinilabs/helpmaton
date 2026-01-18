@@ -76,7 +76,7 @@ describe("importWorkspace", () => {
       pk: "subscriptions/sub-123",
       sk: "subscription",
       userId: "user-123",
-      planId: "free",
+      plan: "free",
       version: 1,
       createdAt: "2024-01-01T00:00:00Z",
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Mock subscription type

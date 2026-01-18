@@ -9,6 +9,7 @@ import { ensureAuthorization } from "../tables/permissions";
 import { PERMISSION_LEVELS } from "../tables/schema";
 
 import { createStreamServerConfig } from "./streamServerUtils";
+import { getPlanLimits } from "./subscriptionPlans";
 import {
   checkSubscriptionLimits,
   getUserSubscription,
@@ -159,6 +160,10 @@ export async function importWorkspace(
   // Get or create user subscription
   const subscription = await getUserSubscription(userId);
   const subscriptionId = subscription.pk.replace("subscriptions/", "");
+  const limits = getPlanLimits(subscription.plan);
+  if (!limits) {
+    throw badRequest(`Invalid subscription plan: ${subscription.plan}`);
+  }
 
   // Pre-generate all reference mappings before any entity creation
   // This ensures all refNames are mapped to UUIDs before we start creating entities
@@ -190,6 +195,8 @@ export async function importWorkspace(
       (sum, agent) => sum + (agent.keys?.length ?? 0),
       0
     ) ?? 0;
+  const perAgentEvalJudgeCounts =
+    validatedData.agents?.map((agent) => agent.evalJudges?.length ?? 0) ?? [];
 
   // Validate ALL subscription limits BEFORE creating any entities
   // This ensures we fail fast if limits would be exceeded, without creating partial data
@@ -213,6 +220,14 @@ export async function importWorkspace(
       "agentKey",
       agentKeyCount
     );
+  }
+  if (perAgentEvalJudgeCounts.length > 0) {
+    const maxEvalJudges = Math.max(...perAgentEvalJudgeCounts);
+    if (maxEvalJudges > limits.maxEvalJudgesPerAgent) {
+      throw badRequest(
+        `Eval judge limit exceeded. Maximum ${limits.maxEvalJudgesPerAgent} eval judge(s) allowed per agent for ${subscription.plan} plan.`
+      );
+    }
   }
   // Note: Bot integrations don't have subscription limits currently
 

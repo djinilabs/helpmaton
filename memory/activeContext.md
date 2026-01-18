@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **Per-agent plan limits**: Added per-agent caps for eval judges and agent schedules (free/starter/pro), enforced in create routes and workspace import validation, and added unit tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Workspace import test fix**: Updated mocked subscription plan in `workspaceImport` tests so plan limits validate correctly; re-ran backend tests.
 - **Documented Lemon Squeezy payment failure flow**: Added subscription payment failure, grace period, and expiry behavior to `docs/subscription-management.md`.
 - **Eval detail modal escape close**: Wired `useEscapeKey` so evaluation details modal closes on Escape; ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Eval detail conversation modal**: Added one-click conversation view from eval detail, refactored conversation detail modal to accept conversationId, and added helper/test coverage. Ran `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter frontend test`.
