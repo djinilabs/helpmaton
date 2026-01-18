@@ -163,6 +163,11 @@ agent-eval-result
   pk *String
   sk **String
 
+agent-schedule
+  pk *String
+  sk **String
+  encrypt true
+
 @tables-indexes
 
 next-auth
@@ -330,6 +335,16 @@ agent-eval-result
   pk **String
   name byConversationId
 
+agent-schedule
+  agentId *String
+  createdAt **String
+  name byAgentId
+
+agent-schedule
+  duePartition *String
+  nextRunAt **Number
+  name byNextRunAt
+
 @scheduled
 aggregate-token-usage rate(1 day)
 cleanup-expired-reservations rate(10 minutes)
@@ -340,6 +355,7 @@ summarize-memory-monthly rate(30 days)
 summarize-memory-quarterly rate(90 days)
 summarize-memory-yearly rate(365 days)
 cleanup-memory-retention rate(1 day)
+run-agent-schedules rate(1 minute)
 
 @queues
 agent-temporal-grain-queue
@@ -358,6 +374,9 @@ bot-webhook-queue
 agent-eval-queue
   visibilityTimeout 300
   messageRetentionPeriod 604800
+agent-schedule-queue
+  visibilityTimeout 720
+  messageRetentionPeriod 1209600
 
 @api-throttling
 free
@@ -393,6 +412,7 @@ scheduled cleanup-memory-retention lancedb
 queue agent-temporal-grain-queue lancedb
 queue agent-delegation-queue lancedb
 queue bot-webhook-queue lancedb
+queue agent-schedule-queue lancedb
 queue agent-eval-queue lancedb
 
 @plugins

@@ -1027,7 +1027,7 @@ export interface Delegation {
 
 export interface Conversation {
   id: string;
-  conversationType: "test" | "webhook" | "stream";
+  conversationType: "test" | "webhook" | "stream" | "scheduled";
   startedAt: string;
   lastMessageAt: string;
   messageCount: number;
@@ -2609,6 +2609,34 @@ export interface UpdateEvalJudgeInput {
   evalPrompt?: string;
 }
 
+// Agent Schedule Management API
+
+export interface AgentSchedule {
+  id: string;
+  name: string;
+  cronExpression: string;
+  prompt: string;
+  enabled: boolean;
+  nextRunAt: number;
+  lastRunAt: string | null;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface CreateAgentScheduleInput {
+  name: string;
+  cronExpression: string;
+  prompt: string;
+  enabled?: boolean;
+}
+
+export interface UpdateAgentScheduleInput {
+  name?: string;
+  cronExpression?: string;
+  prompt?: string;
+  enabled?: boolean;
+}
+
 export interface EvalResult {
   conversationId: string;
   judgeId: string;
@@ -2702,6 +2730,71 @@ export async function deleteEvalJudge(
 ): Promise<void> {
   await apiFetch(
     `/api/workspaces/${workspaceId}/agents/${agentId}/eval-judges/${judgeId}`,
+    {
+      method: "DELETE",
+    }
+  );
+}
+
+export async function listAgentSchedules(
+  workspaceId: string,
+  agentId: string
+): Promise<AgentSchedule[]> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/schedules`
+  );
+  return response.json();
+}
+
+export async function getAgentSchedule(
+  workspaceId: string,
+  agentId: string,
+  scheduleId: string
+): Promise<AgentSchedule> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/schedules/${scheduleId}`
+  );
+  return response.json();
+}
+
+export async function createAgentSchedule(
+  workspaceId: string,
+  agentId: string,
+  input: CreateAgentScheduleInput
+): Promise<AgentSchedule> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/schedules`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    }
+  );
+  return response.json();
+}
+
+export async function updateAgentSchedule(
+  workspaceId: string,
+  agentId: string,
+  scheduleId: string,
+  input: UpdateAgentScheduleInput
+): Promise<AgentSchedule> {
+  const response = await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/schedules/${scheduleId}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }
+  );
+  return response.json();
+}
+
+export async function deleteAgentSchedule(
+  workspaceId: string,
+  agentId: string,
+  scheduleId: string
+): Promise<void> {
+  await apiFetch(
+    `/api/workspaces/${workspaceId}/agents/${agentId}/schedules/${scheduleId}`,
     {
       method: "DELETE",
     }

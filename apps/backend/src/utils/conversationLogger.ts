@@ -78,7 +78,7 @@ export interface ConversationLogData {
   workspaceId: string;
   agentId: string;
   conversationId: string;
-  conversationType: "test" | "webhook" | "stream";
+  conversationType: "test" | "webhook" | "stream" | "scheduled";
   messages: UIMessage[];
   tokenUsage?: TokenUsage;
   usesByok?: boolean;
@@ -2279,7 +2279,7 @@ export async function updateConversation(
   usesByok?: boolean,
   error?: ConversationErrorInfo,
   awsRequestId?: string,
-  conversationType?: "test" | "webhook" | "stream"
+  conversationType?: "test" | "webhook" | "stream" | "scheduled"
 ): Promise<void> {
   const pk = `conversations/${workspaceId}/${agentId}/${conversationId}`;
 
