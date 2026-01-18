@@ -36,7 +36,7 @@ export class WorkspaceDetailPage extends BasePage {
     // Wait for the workspace detail page to load
     await this.page.waitForLoadState("domcontentloaded");
     // Wait for the heading or accordion sections to appear
-    await this.page.waitForSelector('h2:has-text("Agents")', {
+    await this.page.waitForSelector('h2:has-text("Assistants")', {
       timeout: 15000,
     });
   }
@@ -84,7 +84,7 @@ export class WorkspaceDetailPage extends BasePage {
    * Expand Agents section
    */
   async expandAgentsSection(): Promise<void> {
-    await this.expandAccordion("Agents");
+    await this.expandAccordion("Assistants");
   }
 
   /**
@@ -316,7 +316,7 @@ export class WorkspaceDetailPage extends BasePage {
    * Expand Team section
    */
   async expandTeamSection(): Promise<void> {
-    await this.expandAccordion("Team");
+    await this.expandAccordion("Team members");
   }
 
   /**
@@ -346,13 +346,14 @@ export class WorkspaceDetailPage extends BasePage {
       // If networkidle times out, continue anyway - API might have already completed
     }
 
-    // Wait for any "User Limit Reached" error message to NOT be visible
+    // Wait for any "Team limit reached" error message to NOT be visible
     // This indicates that canInvite is true (backend returned canInvite=true)
     // Use waitForFunction to wait for the error message to disappear or never appear
     await this.page.waitForFunction(
       () => {
         const errorText = document.body.textContent || "";
         return (
+          !errorText.includes("Team limit reached") &&
           !errorText.includes("User Limit Reached") &&
           !errorText.includes("user limit")
         );
@@ -478,7 +479,7 @@ export class WorkspaceDetailPage extends BasePage {
    * Expand Spending Limits section
    */
   async expandSpendingLimitsSection(): Promise<void> {
-    await this.expandAccordion("Spending Limits");
+    await this.expandAccordion("Spending limits");
   }
 
   /**

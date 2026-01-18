@@ -192,19 +192,17 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
       {isFreePlan ? (
         <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-5 dark:border-orange-800 dark:bg-orange-950/50">
           <p className="mb-2 text-sm font-semibold text-orange-900 dark:text-orange-50">
-            Bring Your Own Key (BYOK) is only available for Starter and Pro
-            plans
+            Using your own key is available on Starter and Pro
           </p>
           <p className="mb-3 text-sm text-orange-800 dark:text-orange-200">
-            Upgrade your plan to use your own API keys and pay providers
-            directly while still benefiting from Helpmaton&apos;s
-            infrastructure, analytics, and management features.
+            Upgrade to use your own provider key and pay the provider directly
+            while still using Helpmaton&apos;s tools and dashboards.
           </p>
           <Link
             to="/subscription"
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored"
           >
-            Upgrade Your Plan
+            Upgrade plan
             <svg
               className="size-4"
               fill="none"
@@ -223,22 +221,19 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
       ) : (
         <div className="rounded-xl border border-primary-200 bg-primary-50/50 p-5 dark:border-primary-800 dark:bg-primary-950/50">
           <p className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-50">
-            Help:
+            Using your own AI key
           </p>
           <ul className="list-inside list-disc space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
             <li>
-              Configure your OpenRouter API key to use your own key for LLM
-              requests
+              Add your OpenRouter key to use your own AI account for requests.
             </li>
             <li>
-              By default, if you add no key, we will use workspace credits (if
-              any)
+              If you don&apos;t add a key, we use your workspace credits (if
+              available).
             </li>
             <li>
-              When you add an OpenRouter key, you are responsible for the
-              billing and correctness of the key. Costs will be applied to your
-              spending rate limits but will not be deducted from workspace
-              credits.
+              When you use your own key, charges go to your OpenRouter account.
+              We still track spending limits here.
             </li>
           </ul>
         </div>
@@ -247,12 +242,11 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
       {hasKey && (
         <div className="rounded-xl border border-accent-200 bg-accent-50/50 p-5 dark:border-accent-800 dark:bg-accent-950/50">
           <p className="text-sm font-semibold text-accent-800 dark:text-accent-300">
-            OpenRouter API Key is Configured
+            OpenRouter key is connected
           </p>
           <p className="mt-1.5 text-xs text-accent-700 dark:text-accent-400">
-            An OpenRouter API key is currently set for this workspace. Requests
-            will use your key, costs will be applied to spending rate limits,
-            and workspace credits will not be deducted.
+            This workspace will use your OpenRouter key. Workspace credits
+            won&apos;t be used for requests.
           </p>
         </div>
       )}
@@ -261,7 +255,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
         <div className="space-y-3">
           <div>
             <label className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-              OpenRouter API Key
+              OpenRouter key
             </label>
             <input
               type="password"
@@ -269,8 +263,8 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
               onChange={(e) => setApiKey(e.target.value)}
               placeholder={
                 hasKey
-                  ? "Enter new key to replace existing"
-                  : "Enter your OpenRouter API key"
+                  ? "Paste a new key to replace the current one"
+                  : "Paste your OpenRouter key"
               }
               className="w-full rounded-xl border border-neutral-300 bg-white p-3 font-mono text-sm text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
               disabled={isSaving || isClearing}
@@ -282,7 +276,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
               disabled={!apiKey.trim() || isSaving || isClearing}
               className="rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
             >
-              {isSaving ? "Saving..." : "Save Key"}
+              {isSaving ? "Saving..." : "Save key"}
             </button>
             {hasKey && (
               <button
@@ -290,7 +284,7 @@ const WorkspaceApiKeyManager: FC<WorkspaceApiKeyManagerProps> = ({
                 disabled={isSaving || isClearing}
                 className="rounded-xl border border-neutral-300 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
               >
-                {isClearing ? "Clearing..." : "Clear Key"}
+                {isClearing ? "Removing..." : "Remove key"}
               </button>
             )}
           </div>
@@ -416,7 +410,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                     d="M15 19l-7-7 7-7"
                   />
                 </svg>
-                Back
+                Back to workspaces
               </button>
               <div className="flex items-center gap-3">
                 {canRead && !isEditing && (
@@ -426,7 +420,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                     className="flex items-center gap-2 rounded-xl border border-neutral-300 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-700 transition-all duration-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
                   >
                     <ArrowDownTrayIcon className="size-4" />
-                    {exportWorkspace.isPending ? "Exporting..." : "Export"}
+                    {exportWorkspace.isPending ? "Exporting..." : "Export workspace"}
                   </button>
                 )}
                 {canEdit && !isEditing && (
@@ -434,22 +428,22 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                     onClick={handleEdit}
                     className="rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored"
                   >
-                    Edit
+                    Edit details
                   </button>
                 )}
               </div>
             </div>
             <p className="mb-6 text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">
-              This workspace contains your agents, documents, and settings. Use
-              the sections below to manage credits, spending limits, channels,
-              agents, and documents.
+              This workspace is where your assistants, documents, and settings
+              live. Use the sections below to manage spending, channels, and
+              content.
             </p>
 
             {isEditing ? (
               <div className="space-y-5">
                 <div>
                   <label className="mb-2.5 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    Name
+                    Workspace name
                   </label>
                   <input
                     type="text"
@@ -458,10 +452,13 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                     className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                     required
                   />
+                  <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+                    Keep it short so teammates can recognize it quickly.
+                  </p>
                 </div>
                 <div>
                   <label className="mb-2.5 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    Description
+                    Description (optional)
                   </label>
                   <textarea
                     value={description}
@@ -469,6 +466,9 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                     className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
                     rows={4}
                   />
+                  <p className="mt-2 text-xs text-neutral-500 dark:text-neutral-400">
+                    Add a short note about who this workspace is for.
+                  </p>
                 </div>
                 <div className="flex gap-3">
                   <button
@@ -518,7 +518,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-neutral-500 dark:text-neutral-300">
-                      Credit Balance:
+                      Credit balance:
                     </span>
                     <span
                       className={`rounded-lg border px-3 py-1.5 text-lg font-semibold ${getBalanceColor(workspace.creditBalance ?? 0)}`}
@@ -548,7 +548,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                       }}
                       className="text-sm font-semibold text-primary-600 transition-colors duration-200 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
                     >
-                      Purchase credits
+                      Buy credits
                     </a>
                   </div>
                 </div>
@@ -561,17 +561,17 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
         {workspace.creditBalance === 0 && canEdit && (
           <div className="bg-gradient-accent/5 mb-8 rounded-2xl border border-accent-200/50 p-8 shadow-medium dark:border-accent-800/50 dark:bg-accent-950/50">
             <h3 className="mb-3 text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
-              Trial Credits
+              Try with free credits
             </h3>
             <p className="mb-6 text-base leading-relaxed text-neutral-600 dark:text-neutral-300">
-              Your workspace balance is 0. Request trial credits (2 USD) to test
-              the application.
+              Your balance is $0. Get a small set of trial credits ($2) to test
+              the app.
             </p>
             <button
               onClick={() => setIsTrialCreditModalOpen(true)}
               className="rounded-xl bg-gradient-primary px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored"
             >
-              Request Trial Credits
+              Get trial credits
             </button>
           </div>
         )}
@@ -588,7 +588,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           title={
             <>
               <ArchiveBoxIcon className="mr-2 inline-block size-5" />
-              Resources
+              Workspace items
             </>
           }
         >
@@ -597,7 +597,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             title={
               <>
                 <CpuChipIcon className="mr-2 inline-block size-5" />
-                Agents
+                Assistants
               </>
             }
             isExpanded={expandedSection === "agents"}
@@ -606,7 +606,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             <LazyAccordionContent isExpanded={expandedSection === "agents"}>
               <QueryPanel
                 fallback={
-                  <LoadingScreen compact message="Assembling agent squad..." />
+                  <LoadingScreen compact message="Loading assistants..." />
                 }
               >
                 <AgentList workspaceId={id!} canEdit={!!canEdit} />
@@ -628,7 +628,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             <LazyAccordionContent isExpanded={expandedSection === "documents"}>
               <QueryPanel
                 fallback={
-                  <LoadingScreen compact message="Organizing paper trail..." />
+                  <LoadingScreen compact message="Loading documents..." />
                 }
               >
                 <DocumentList
@@ -652,7 +652,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           title={
             <>
               <ChatBubbleLeftRightIcon className="mr-2 inline-block size-5" />
-              Communications
+              Messages & channels
             </>
           }
         >
@@ -661,7 +661,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             title={
               <>
                 <MegaphoneIcon className="mr-2 inline-block size-5" />
-                Channels
+                Message channels
               </>
             }
             isExpanded={expandedSection === "channels"}
@@ -672,7 +672,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                 fallback={
                   <LoadingScreen
                     compact
-                    message="Tuning communication frequencies..."
+                    message="Loading channels..."
                   />
                 }
               >
@@ -686,7 +686,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             title={
               <>
                 <EnvelopeIcon className="mr-2 inline-block size-5" />
-                Email Connection
+                Email connection
               </>
             }
             isExpanded={expandedSection === "email-connection"}
@@ -706,7 +706,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           title={
             <>
               <CurrencyDollarIcon className="mr-2 inline-block size-5" />
-              Billing & Usage
+              Spending & usage
             </>
           }
         >
@@ -716,7 +716,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               title={
                 <>
                   <CreditCardIcon className="mr-2 inline-block size-5" />
-                  Credit Balance
+                  Credit balance
                 </>
               }
               isExpanded={expandedSection === "credits"}
@@ -733,18 +733,17 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                   {isFreePlan ? (
                     <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-5 dark:border-orange-800 dark:bg-orange-950/50">
                       <p className="mb-2 text-sm font-semibold text-orange-900 dark:text-orange-50">
-                        Credit purchases are only available for Starter and Pro
-                        plans
+                        Buying credits is only available on Starter and Pro
                       </p>
                       <p className="mb-3 text-sm text-orange-800 dark:text-orange-200">
-                        Upgrade your plan to purchase credits and add funds to
-                        your workspace balance.
+                        Upgrade to buy credits and add funds to your workspace
+                        balance.
                       </p>
                       <Link
                         to="/subscription"
                         className="inline-flex items-center gap-2 rounded-xl bg-gradient-primary px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:shadow-colored"
                       >
-                        Upgrade Your Plan
+                        Upgrade plan
                         <svg
                           className="size-4"
                           fill="none"
@@ -775,7 +774,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               title={
                 <>
                   <ArrowTrendingDownIcon className="mr-2 inline-block size-5" />
-                  Spending Limits
+                  Spending limits
                 </>
               }
               isExpanded={expandedSection === "spending-limits"}
@@ -798,7 +797,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             title={
               <>
                 <ChartBarIcon className="mr-2 inline-block size-5" />
-                Workspace Usage
+                Usage over time
               </>
             }
             isExpanded={expandedSection === "usage"}
@@ -814,7 +813,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             title={
               <>
                 <CurrencyDollarIcon className="mr-2 inline-block size-5" />
-                Transactions
+                Payment history
               </>
             }
             isExpanded={expandedSection === "transactions"}
@@ -838,7 +837,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           title={
             <>
               <Cog6ToothIcon className="mr-2 inline-block size-5" />
-              Configuration
+              Settings
             </>
           }
         >
@@ -848,7 +847,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               title={
                 <>
                   <KeyIcon className="mr-2 inline-block size-5" />
-                  API Key
+                  Workspace API key
                 </>
               }
               isExpanded={expandedSection === "api-key"}
@@ -869,7 +868,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
               title={
                 <>
                   <BoltIcon className="mr-2 inline-block size-5" />
-                  MCP Servers
+                  Connected tools
                 </>
               }
               isExpanded={expandedSection === "mcp-servers"}
@@ -889,7 +888,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           title={
             <>
               <UsersIcon className="mr-2 inline-block size-5" />
-              Team
+              Team members
             </>
           }
           isExpanded={expandedSection === "team"}
@@ -898,7 +897,7 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
           <LazyAccordionContent isExpanded={expandedSection === "team"}>
             <QueryPanel
               fallback={
-                <LoadingScreen compact message="Gathering the crew..." />
+                <LoadingScreen compact message="Loading team..." />
               }
             >
               <div className="space-y-6">
@@ -908,24 +907,24 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
                     {userLimit && !userLimit.canInvite && (
                       <div className="mb-6 border-4 border-error-600 bg-error-50 p-5">
                         <div className="mb-2 text-lg font-bold text-error-900">
-                          User Limit Reached
+                      Team limit reached
                         </div>
                         <div className="text-sm font-semibold text-error-800">
-                          Your {userLimit.plan} plan allows a maximum of{" "}
-                          {userLimit.maxUsers} user
-                          {userLimit.maxUsers !== 1 ? "s" : ""}. You currently
-                          have {userLimit.currentUserCount} user
-                          {userLimit.currentUserCount !== 1 ? "s" : ""}.
+                      Your {userLimit.plan} plan allows up to{" "}
+                      {userLimit.maxUsers} teammate
+                      {userLimit.maxUsers !== 1 ? "s" : ""}. You currently
+                      have {userLimit.currentUserCount} teammate
+                      {userLimit.currentUserCount !== 1 ? "s" : ""}.
                         </div>
                         {userLimit.plan !== "pro" && (
                           <div className="mt-2 text-sm font-semibold text-error-800">
-                            Upgrade to Pro plan to invite up to 5 users.
+                        Upgrade to Pro to invite up to 5 teammates.
                           </div>
                         )}
                       </div>
                     )}
                     <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-                      Invite Member
+                  Invite a teammate
                     </h3>
                     <InviteMember
                       workspaceId={id!}
@@ -944,26 +943,25 @@ const WorkspaceDetailContent: FC<WorkspaceDetailContentProps> = ({
             title={
               <>
                 <ExclamationTriangleIcon className="mr-2 inline-block size-5" />
-                Danger Zone
+                Delete workspace
               </>
             }
             isExpanded={expandedSection === "danger"}
             onToggle={() => toggleSection("danger")}
           >
             <p className="mb-4 text-sm leading-relaxed text-neutral-600 dark:text-neutral-300">
-              This section contains destructive actions. Deleting a workspace
-              will permanently remove all agents, documents, conversations, and
-              settings. This action cannot be undone.
+              Deleting a workspace permanently removes all assistants,
+              documents, conversations, and settings.
             </p>
             <p className="mb-6 font-medium text-neutral-700 dark:text-neutral-300">
-              Deleting a workspace is permanent and cannot be undone.
+              This can&apos;t be undone.
             </p>
             <button
               onClick={handleDelete}
               disabled={isDeleting}
               className="rounded-xl bg-error-600 px-6 py-3 font-semibold text-white shadow-medium transition-all duration-200 hover:bg-error-700 hover:shadow-large disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isDeleting ? "Deleting..." : "Delete Workspace"}
+              {isDeleting ? "Deleting..." : "Delete workspace"}
             </button>
           </AccordionSection>
         )}
@@ -1106,7 +1104,7 @@ const WorkspaceUsageSection: FC<WorkspaceUsageSectionProps> = ({
     <UsageDashboard
       stats={usageData.stats}
       dailyData={dailyData?.daily}
-      title="Workspace Usage"
+      title="Usage over time"
       dateRange={dateRange}
       dateRangePreset={dateRangePreset}
       onDateRangeChange={setDateRangePreset}

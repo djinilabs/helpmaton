@@ -40,6 +40,15 @@ const ApiDocs = () => {
 
   return (
     <div className="size-full bg-neutral-50 dark:bg-neutral-950">
+      <div className="mx-auto max-w-5xl p-6 text-neutral-700 dark:text-neutral-200">
+        <h1 className="text-3xl font-semibold text-neutral-900 dark:text-neutral-50">
+          API reference
+        </h1>
+        <p className="mt-2 text-sm">
+          This section is for developers building integrations. If you&apos;re
+          just getting started, you can manage everything from the UI.
+        </p>
+      </div>
       <style>
         {`
           /* Override Scalar background colors to match app theme */

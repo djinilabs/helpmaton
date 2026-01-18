@@ -136,7 +136,8 @@ const Integrations: FC = () => {
             Integrations
           </h1>
           <p className="mt-2 text-neutral-600 dark:text-neutral-400">
-            Connect your agents to Slack or Discord bots
+            Connect your assistants to Slack or Discord so they can respond in
+            your channels.
           </p>
         </div>
         <div className="flex gap-2">
@@ -180,7 +181,8 @@ const Integrations: FC = () => {
       ) : (
         <div className="rounded-lg border border-neutral-200 bg-white p-12 text-center dark:border-neutral-700 dark:bg-neutral-900">
           <p className="text-neutral-600 dark:text-neutral-400">
-            No integrations yet. Connect a Slack or Discord bot to get started.
+            No integrations yet. Connect Slack or Discord to let your assistant
+            reply there.
           </p>
         </div>
       )}

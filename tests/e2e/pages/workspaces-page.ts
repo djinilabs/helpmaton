@@ -16,17 +16,17 @@ export class WorkspacesPage extends BasePage {
 
     // Main page locators
     this.createWorkspaceButton = page
-      .locator('button:has-text("Create Workspace")')
+      .locator('button:has-text("Create a workspace")')
       .first();
 
     // Modal locators
     this.createWorkspaceModal = page.locator(
-      'div.fixed.inset-0:has(h2:text("Create Workspace"))'
+      'div.fixed.inset-0:has(h2:text("Create a workspace"))'
     );
     this.workspaceNameInput = page.locator("input#name");
     this.workspaceDescriptionInput = page.locator("textarea#description");
     this.createButton = page.locator(
-      'button[type="submit"]:has-text("Create")'
+      'button[type="submit"]:has-text("Create workspace")'
     );
     this.cancelButton = page.locator(
       'button[type="button"]:has-text("Cancel")'
@@ -51,7 +51,7 @@ export class WorkspacesPage extends BasePage {
     await this.page.waitForSelector("h1", { timeout: 15000 });
     // Verify we're on the workspaces page by checking the heading text
     const heading = await this.page.locator("h1").first().textContent();
-    if (!heading?.includes("Workspaces")) {
+    if (!heading?.toLowerCase().includes("workspaces")) {
       throw new Error(
         `Expected to be on Workspaces page, but found heading: "${heading}"`
       );

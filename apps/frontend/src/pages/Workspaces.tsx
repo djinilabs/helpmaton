@@ -55,13 +55,11 @@ const WorkspacesList: FC = () => {
             <div className="mb-8 flex flex-col items-start justify-between gap-8 sm:flex-row sm:items-center">
               <div>
                 <h1 className="mb-4 text-5xl font-black tracking-tight text-neutral-900 dark:text-neutral-50 lg:text-6xl">
-                  Workspaces
+                  Your workspaces
                 </h1>
                 <p className="max-w-2xl text-lg font-semibold leading-relaxed text-neutral-700 dark:text-neutral-300">
-                  Workspaces help you organize your AI agents and resources.
-                  Each workspace has its own agents, documents, credit balance,
-                  and spending limits. Use workspaces to separate different
-                  projects or teams.
+                  Workspaces keep each team or project separate. Each workspace
+                  has its own assistants, documents, and spending.
                 </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
@@ -70,13 +68,13 @@ const WorkspacesList: FC = () => {
                   className="flex transform items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-neutral-300 bg-white px-8 py-4 font-bold text-neutral-900 transition-all duration-200 hover:scale-[1.03] hover:border-neutral-400 hover:bg-neutral-50 active:scale-[0.97] dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:border-neutral-600 dark:hover:bg-neutral-800"
                 >
                   <ArrowUpTrayIcon className="size-5" />
-                  Import Workspace
+                  Import a workspace
                 </button>
                 <button
                   onClick={() => setIsCreateModalOpen(true)}
                   className="transform whitespace-nowrap rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
                 >
-                  Create Workspace
+                  Create a workspace
                 </button>
               </div>
             </div>
@@ -102,20 +100,20 @@ const WorkspacesList: FC = () => {
                 </svg>
               </div>
               <p className="mb-4 text-3xl font-bold text-neutral-900 dark:text-neutral-50">
-                No workspaces found.
+                No workspaces yet.
               </p>
               <p className="mb-6 text-lg font-medium text-neutral-700 dark:text-neutral-300">
                 Create your first workspace to get started.
               </p>
               <p className="mb-10 text-base text-neutral-600 dark:text-neutral-300">
-                A workspace is where you&apos;ll create agents, upload
-                documents, and manage your AI resources.
+                A workspace is where you&apos;ll create assistants, upload
+                documents, and manage spending.
               </p>
               <button
                 onClick={() => setIsCreateModalOpen(true)}
                 className="transform rounded-xl bg-gradient-primary px-8 py-4 font-bold text-white transition-all duration-200 hover:scale-[1.03] hover:shadow-colored active:scale-[0.97]"
               >
-                Create Your First Workspace
+                Create your first workspace
               </button>
             </div>
           </div>
@@ -138,7 +136,7 @@ const WorkspacesList: FC = () => {
                     <div className="flex flex-col items-center gap-3">
                       <LockSpinner size="medium" />
                       <span className="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                        Loading workspace...
+                        Opening workspace...
                       </span>
                     </div>
                   </div>

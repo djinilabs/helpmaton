@@ -589,7 +589,7 @@ testWithUserManagement.describe.serial(
 
         // Verify dashboard title is present
         const dashboardHeading = await homePage.getDashboardHeading();
-        expect(dashboardHeading).toContain("Dashboard");
+        expect(dashboardHeading).toContain("Your dashboard");
 
         console.log(
           `✅ Test 11: Usage analytics dashboard is accessible and functional`
