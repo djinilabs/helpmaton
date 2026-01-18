@@ -3,6 +3,7 @@ import express from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
  
+import * as summarizeMemory from "../../../../utils/memory/summarizeMemory";
 import {
   createMockRequest,
   createMockResponse,
@@ -52,6 +53,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
           delegatableAgentIds,
           enabledMcpServerIds,
           clientTools,
+          summarizationPrompts,
           temperature,
           topP,
           topK,
@@ -262,6 +264,9 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
           }
         }
 
+        const normalizedSummarizationPrompts =
+          summarizeMemory.normalizeSummarizationPrompts(summarizationPrompts);
+
         // Update agent
         const updated = await db.agent.update({
           pk: agentPk,
@@ -286,6 +291,10 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
               : agent.enabledMcpServerIds,
           clientTools:
             clientTools !== undefined ? clientTools : agent.clientTools,
+          summarizationPrompts:
+            summarizationPrompts !== undefined
+              ? normalizedSummarizationPrompts
+              : agent.summarizationPrompts,
           spendingLimits:
             spendingLimits !== undefined
               ? spendingLimits
@@ -344,6 +353,7 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
           delegatableAgentIds: updated.delegatableAgentIds ?? [],
           enabledMcpServerIds: updated.enabledMcpServerIds ?? [],
           clientTools: updated.clientTools ?? [],
+          summarizationPrompts: updated.summarizationPrompts,
           spendingLimits: updated.spendingLimits ?? [],
           temperature: updated.temperature ?? null,
           topP: updated.topP ?? null,
@@ -427,6 +437,119 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId", () => {
         systemPrompt: "New Prompt",
       })
     );
+  });
+
+  it("should normalize summarization prompts on update", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const mockAgent = {
+      pk: "agents/workspace-123/agent-456",
+      sk: "agent",
+      workspaceId: "workspace-123",
+      name: "Old Name",
+      systemPrompt: "Old Prompt",
+      provider: "google",
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    const mockUpdatedAgent = {
+      ...mockAgent,
+      summarizationPrompts: { daily: "Custom daily prompt" },
+      updatedBy: "users/user-123",
+      updatedAt: "2024-01-02T00:00:00Z",
+    };
+
+    mockDb.agent.get = vi.fn().mockResolvedValue(mockAgent);
+    const mockAgentUpdate = vi.fn().mockResolvedValue(mockUpdatedAgent);
+    mockDb.agent.update = mockAgentUpdate;
+
+    const normalizeSpy = vi.spyOn(
+      summarizeMemory,
+      "normalizeSummarizationPrompts"
+    );
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: "workspaces/workspace-123",
+      params: {
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+      },
+      body: {
+        summarizationPrompts: {
+          daily: "  Custom daily prompt  ",
+          weekly: "",
+          monthly: null,
+        },
+      },
+    });
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    await callRouteHandler(req, res, next);
+
+    expect(normalizeSpy).toHaveBeenCalledWith({
+      daily: "  Custom daily prompt  ",
+      weekly: "",
+      monthly: null,
+    });
+    const updateArgs = mockAgentUpdate.mock.calls[0][0];
+    expect(updateArgs.summarizationPrompts).toEqual({
+      daily: "Custom daily prompt",
+    });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        summarizationPrompts: { daily: "Custom daily prompt" },
+      })
+    );
+  });
+
+  it("should keep existing summarization prompts when omitted", async () => {
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    const mockAgent = {
+      pk: "agents/workspace-123/agent-456",
+      sk: "agent",
+      workspaceId: "workspace-123",
+      name: "Old Name",
+      systemPrompt: "Old Prompt",
+      summarizationPrompts: { weekly: "Existing weekly prompt" },
+      provider: "google",
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    const mockUpdatedAgent = {
+      ...mockAgent,
+      updatedBy: "users/user-123",
+      updatedAt: "2024-01-02T00:00:00Z",
+    };
+
+    mockDb.agent.get = vi.fn().mockResolvedValue(mockAgent);
+    const mockAgentUpdate = vi.fn().mockResolvedValue(mockUpdatedAgent);
+    mockDb.agent.update = mockAgentUpdate;
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: "workspaces/workspace-123",
+      params: {
+        workspaceId: "workspace-123",
+        agentId: "agent-456",
+      },
+      body: {
+        name: "New Name",
+      },
+    });
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    await callRouteHandler(req, res, next);
+
+    const updateArgs = mockAgentUpdate.mock.calls[0][0];
+    expect(updateArgs.summarizationPrompts).toEqual({
+      weekly: "Existing weekly prompt",
+    });
   });
 
   it("should throw badRequest when workspace resource is missing", async () => {

@@ -170,6 +170,20 @@ const clientToolSchema = z
   .describe("User-defined client-side tool");
 
 /**
+ * Summarization prompt overrides per temporal grain
+ */
+const summarizationPromptsSchema = z
+  .object({
+    daily: z.string().optional(),
+    weekly: z.string().optional(),
+    monthly: z.string().optional(),
+    quarterly: z.string().optional(),
+    yearly: z.string().optional(),
+  })
+  .optional()
+  .describe("Summarization prompt overrides per temporal grain");
+
+/**
  * Widget configuration
  */
 const widgetConfigSchema = z
@@ -271,6 +285,7 @@ const agentSchema = z
     id: referenceString.describe("Agent ID or reference"),
     name: z.string().describe("Agent name"),
     systemPrompt: z.string().describe("System prompt defining agent behavior"),
+    summarizationPrompts: summarizationPromptsSchema,
     notificationChannelId: referenceString
       .optional()
       .describe("Reference to output channel"),

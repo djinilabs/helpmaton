@@ -394,6 +394,7 @@ export async function importWorkspace(
         workspaceId,
         name: agentData.name,
         systemPrompt: agentData.systemPrompt,
+        summarizationPrompts: agentData.summarizationPrompts,
         provider: agentData.provider ?? "openrouter",
         modelName: agentData.modelName,
         notificationChannelId,

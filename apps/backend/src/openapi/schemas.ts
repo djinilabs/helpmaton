@@ -174,6 +174,9 @@ export const openApiSchemas = {
         type: "boolean",
         description: "Enable the email sending tool for this agent (requires workspace email connection)",
       },
+      summarizationPrompts: {
+        $ref: "#/components/schemas/SummarizationPrompts",
+      },
       createdAt: {
         type: "string",
         format: "date-time",
@@ -197,6 +200,37 @@ export const openApiSchemas = {
         type: "object",
         description: "JSON Schema for tool parameters",
         additionalProperties: true,
+      },
+    },
+  },
+  SummarizationPrompts: {
+    type: "object",
+    description: "Optional summarization prompt overrides per temporal grain",
+    properties: {
+      daily: {
+        type: "string",
+        description: "Override prompt for daily summaries",
+        nullable: true,
+      },
+      weekly: {
+        type: "string",
+        description: "Override prompt for weekly summaries",
+        nullable: true,
+      },
+      monthly: {
+        type: "string",
+        description: "Override prompt for monthly summaries",
+        nullable: true,
+      },
+      quarterly: {
+        type: "string",
+        description: "Override prompt for quarterly summaries",
+        nullable: true,
+      },
+      yearly: {
+        type: "string",
+        description: "Override prompt for yearly summaries",
+        nullable: true,
       },
     },
   },
@@ -268,6 +302,9 @@ export const openApiSchemas = {
         type: "boolean",
         description: "Enable the email sending tool for this agent (requires workspace email connection)",
       },
+      summarizationPrompts: {
+        $ref: "#/components/schemas/SummarizationPrompts",
+      },
     },
   },
   UpdateAgentRequest: {
@@ -318,6 +355,9 @@ export const openApiSchemas = {
       enableSendEmail: {
         type: "boolean",
         description: "Enable the email sending tool for this agent (requires workspace email connection)",
+      },
+      summarizationPrompts: {
+        $ref: "#/components/schemas/SummarizationPrompts",
       },
     },
   },
