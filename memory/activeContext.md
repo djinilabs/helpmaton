@@ -6,6 +6,8 @@
 
 **Latest Work**:
 
+- **Accordion scroll offset**: Adjusted accordion scroll positioning to account for sticky nav height so expanded sections align below the nav on workspace/agent detail pages. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Discord /credit admin notifications**: Added Mailgun emails to workspace owners when the Discord `/credit` command succeeds, with helper + tests. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm --filter backend test`.
 - **SQS handler parallelism**: Updated `handlingSQSErrors` to process records concurrently with Promise.all and de-duplicated batch failure IDs; adjusted tests for order-agnostic assertions and updated handler mocks. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm --filter backend test`.
 - **Per-agent plan limits**: Added per-agent caps for eval judges and agent schedules (free/starter/pro), enforced in create routes and workspace import validation, and added unit tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Workspace import test fix**: Updated mocked subscription plan in `workspaceImport` tests so plan limits validate correctly; re-ran backend tests.

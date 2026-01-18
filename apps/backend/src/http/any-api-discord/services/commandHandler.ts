@@ -1,6 +1,7 @@
 import { APIGatewayProxyResultV2 } from "aws-lambda";
 
-import { database } from "../../../tables/index";
+import { database } from "../../../tables";
+import { sendWorkspaceCreditNotifications } from "../../../utils/creditAdminNotifications";
 import { fromMillionths, toMillionths } from "../../../utils/creditConversions";
 import { creditCredits } from "../../../utils/creditManagement";
 
@@ -238,9 +239,27 @@ async function handleCreditCommand(
     // Ensure currency is available (fallback to workspace currency if missing from updated)
     const currency = updated.currency || workspace.currency || "usd";
 
+    let notificationWarning = "";
+    try {
+      await sendWorkspaceCreditNotifications({
+        workspace,
+        amountInMillionths,
+        oldBalance: workspace.creditBalance,
+        newBalance: updated.creditBalance,
+        currency,
+        trialRequestId,
+      });
+    } catch (notificationError) {
+      console.error(
+        "[handleCreditCommand] Failed to send workspace credit notification:",
+        notificationError
+      );
+      notificationWarning = "\n⚠️ Admin email notification failed.";
+    }
+
     return discordResponse(
       `✅ Successfully credited **${amountDisplay.toFixed(10).replace(/\.?0+$/, "")} ${currency.toUpperCase()}** to workspace \`${workspaceId}\`\n` +
-        `📊 Balance: **${balanceDisplay.toFixed(10).replace(/\.?0+$/, "")} ${currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(10).replace(/\.?0+$/, "")})${trialInfo}`
+        `📊 Balance: **${balanceDisplay.toFixed(10).replace(/\.?0+$/, "")} ${currency.toUpperCase()}** (was ${oldBalanceDisplay.toFixed(10).replace(/\.?0+$/, "")})${trialInfo}${notificationWarning}`
     );
   } catch (error) {
     console.error("Error crediting workspace:", error);

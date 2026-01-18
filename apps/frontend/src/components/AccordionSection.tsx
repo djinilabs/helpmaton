@@ -27,6 +27,16 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
     elementTop: number;
   } | null>(null);
   const [maxHeight, setMaxHeight] = useState<number>(0);
+  const getStickyNavOffset = () => {
+    const navElement = document.querySelector("nav.sticky") as HTMLElement | null;
+    if (!navElement) {
+      return 0;
+    }
+
+    const navHeight = navElement.getBoundingClientRect().height;
+    const padding = 8;
+    return navHeight + padding;
+  };
 
   // Measure content height when expanded or when content changes
   // Use ResizeObserver to handle dynamic content and ensure accurate measurements
@@ -132,14 +142,14 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
         // Use requestAnimationFrame to ensure DOM is fully settled after transition
         requestAnimationFrame(() => {
           if (headerRef.current) {
-            // Calculate exact scroll position to place header at top of viewport
+            // Calculate scroll position to place header below sticky nav
             const rect = headerRef.current.getBoundingClientRect();
             const scrollTop =
               window.scrollY || document.documentElement.scrollTop;
-            // Add a small offset to account for any rounding or browser behavior
-            const targetScroll = scrollTop + rect.top - 1;
+            const stickyOffset = getStickyNavOffset();
+            const targetScroll = scrollTop + rect.top - stickyOffset;
 
-            // Scroll to position header at the top (with small offset to prevent overscroll)
+            // Scroll to position header below the sticky nav
             window.scrollTo({
               top: Math.max(0, targetScroll), // Ensure we don't scroll to negative position
               behavior: "smooth",
