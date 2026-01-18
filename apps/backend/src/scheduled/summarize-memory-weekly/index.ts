@@ -84,7 +84,8 @@ export const handler = handlingScheduledErrors(
             const summary = await summarizeWithLLM(
               content,
               "weekly",
-              workspaceId
+              workspaceId,
+              agent.summarizationPrompts
             );
 
             if (!summary || summary.trim().length === 0) {

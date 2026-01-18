@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 
 import type { TemporalGrain } from "../../vectordb/types";
-import { getSummarizationPrompt } from "../summarizeMemory";
+import {
+  getSummarizationPrompt,
+  normalizeSummarizationPrompts,
+  resolveSummarizationPrompt,
+} from "../summarizeMemory";
 
 describe("summarizeMemory", () => {
   describe("getSummarizationPrompt", () => {
@@ -77,6 +81,44 @@ describe("summarizeMemory", () => {
         expect(prompt.length).toBeGreaterThan(0);
         expect(typeof prompt).toBe("string");
       }
+    });
+  });
+
+  describe("normalizeSummarizationPrompts", () => {
+    it("should trim and keep non-empty prompts", () => {
+      const prompts = normalizeSummarizationPrompts({
+        daily: "  Daily override  ",
+        weekly: "\nWeekly override\n",
+      });
+      expect(prompts).toEqual({
+        daily: "Daily override",
+        weekly: "Weekly override",
+      });
+    });
+
+    it("should drop empty or null prompts", () => {
+      const prompts = normalizeSummarizationPrompts({
+        daily: "   ",
+        weekly: null,
+        monthly: "",
+      });
+      expect(prompts).toBeUndefined();
+    });
+  });
+
+  describe("resolveSummarizationPrompt", () => {
+    it("should use override when provided", () => {
+      const prompt = resolveSummarizationPrompt("daily", {
+        daily: "Custom daily prompt",
+      });
+      expect(prompt).toBe("Custom daily prompt");
+    });
+
+    it("should fall back to default when no override exists", () => {
+      const prompt = resolveSummarizationPrompt("weekly", {
+        daily: "Custom daily prompt",
+      });
+      expect(prompt).toContain("week's worth");
     });
   });
 });

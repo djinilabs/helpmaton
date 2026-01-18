@@ -281,6 +281,9 @@ export async function exportWorkspace(
         id: agentRefName,
         name: agent.name,
         systemPrompt: agent.systemPrompt,
+        ...(agent.summarizationPrompts
+          ? { summarizationPrompts: agent.summarizationPrompts }
+          : {}),
         notificationChannelId: notificationChannelRefName,
         delegatableAgentIds: delegatableAgentRefNames,
         enabledMcpServerIds: enabledMcpServerRefNames,

@@ -4,6 +4,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { isValidAvatar } from "../../../utils/avatarUtils";
+import { normalizeSummarizationPrompts } from "../../../utils/memory/summarizeMemory";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
 import { updateAgentSchema } from "../../utils/schemas/workspaceSchemas";
@@ -119,6 +120,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           fetchWebProvider,
           enableExaSearch,
           clientTools,
+          summarizationPrompts,
           widgetConfig,
           temperature,
           topP,
@@ -134,6 +136,9 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
         if (!workspaceResource) {
           throw badRequest("Workspace resource not found");
         }
+
+        const normalizedSummarizationPrompts =
+          normalizeSummarizationPrompts(summarizationPrompts);
         const workspaceId = req.params.workspaceId;
         const agentId = req.params.agentId;
         const agentPk = `agents/${workspaceId}/${agentId}`;
@@ -549,6 +554,10 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
               : agent.enableExaSearch,
           clientTools:
             clientTools !== undefined ? clientTools : agent.clientTools,
+          summarizationPrompts:
+            summarizationPrompts !== undefined
+              ? normalizedSummarizationPrompts
+              : agent.summarizationPrompts,
           widgetConfig:
             widgetConfig !== undefined
               ? widgetConfig === null
@@ -616,6 +625,7 @@ export const registerPutWorkspaceAgent = (app: express.Application) => {
           id: agentId,
           name: updated.name,
           systemPrompt: updated.systemPrompt,
+          summarizationPrompts: updated.summarizationPrompts,
           notificationChannelId: updated.notificationChannelId,
           delegatableAgentIds: updated.delegatableAgentIds ?? [],
           enabledMcpServerIds: updated.enabledMcpServerIds ?? [],

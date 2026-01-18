@@ -3,6 +3,60 @@ import { generateText } from "ai";
 import { createModel } from "../../http/utils/modelFactory";
 import type { TemporalGrain } from "../vectordb/types";
 
+export type SummarizationPromptGrain =
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "quarterly"
+  | "yearly";
+
+export type SummarizationPrompts = Partial<
+  Record<SummarizationPromptGrain, string>
+>;
+
+const SUMMARIZATION_PROMPT_GRAINS: SummarizationPromptGrain[] = [
+  "daily",
+  "weekly",
+  "monthly",
+  "quarterly",
+  "yearly",
+];
+
+export function normalizeSummarizationPrompts(
+  prompts?: Partial<Record<SummarizationPromptGrain, string | null>> | null
+): SummarizationPrompts | undefined {
+  if (!prompts) {
+    return undefined;
+  }
+
+  const cleaned: SummarizationPrompts = {};
+  for (const grain of SUMMARIZATION_PROMPT_GRAINS) {
+    const value = prompts[grain];
+    if (typeof value !== "string") {
+      continue;
+    }
+    const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      cleaned[grain] = trimmed;
+    }
+  }
+
+  return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+}
+
+export function resolveSummarizationPrompt(
+  grain: TemporalGrain,
+  prompts?: SummarizationPrompts
+): string {
+  if (prompts && grain in prompts) {
+    const override = prompts[grain as SummarizationPromptGrain];
+    if (override && override.trim().length > 0) {
+      return override;
+    }
+  }
+  return getSummarizationPrompt(grain);
+}
+
 /**
  * Get the system prompt for summarizing memory at a specific grain level
  */
@@ -63,7 +117,8 @@ Create a high-level overview of the year's most important information.`;
 export async function summarizeWithLLM(
   content: string[],
   summaryType: TemporalGrain,
-  workspaceId?: string
+  workspaceId?: string,
+  summarizationPrompts?: SummarizationPrompts
 ): Promise<string> {
   if (content.length === 0) {
     return "";
@@ -73,7 +128,10 @@ export async function summarizeWithLLM(
   const combinedContent = content.join("\n\n---\n\n");
 
   // Get the system prompt for this grain type
-  const systemPrompt = getSummarizationPrompt(summaryType);
+  const systemPrompt = resolveSummarizationPrompt(
+    summaryType,
+    summarizationPrompts
+  );
 
   // Create model (will use workspace API key if available, otherwise system key)
   // Use DEFAULT_REFERER env var or fallback to webhook endpoint
