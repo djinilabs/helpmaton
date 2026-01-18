@@ -337,6 +337,7 @@ export const tableSchemas = {
         "github",
         "linear",
         "hubspot",
+        "slack",
         "stripe",
         "posthog",
       ])

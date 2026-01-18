@@ -9,7 +9,6 @@
 - **Typecheck fix (cron-parser + test helpers)**: Restored `CronExpressionParser` import after confirming module exports, and updated schedule route test handler capture types to cast mock apps as `express.Application`. Re-ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Agent schedules (UTC)**: Added agent schedule table, API routes, cron validation, scheduled runner + queue worker, and scheduled conversation logging. Frontend now supports creating and managing schedules (UTC notices in UI) and displays scheduled conversations. Added schedule tests and scheduler test. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Schedule test fixes**: Adjusted schedule route tests to use lightweight handler capture, corrected mocks and cron validation stubs, and relaxed createdAt assertion. Re-ran `pnpm test --run` successfully.
-
 - **Production evals investigation**: Checked CloudWatch logs for HelpmatonProduction; webhook handler is enqueueing evals, but `agent-eval-queue` fails at runtime with `Cannot find module '@lancedb/lancedb'` from `utils/vectordb/readClient.ts`, so eval execution aborts before results are emitted.
 - **E2E copy selector fixes**: Updated workspace detail page object labels (team/spending) and reran `pnpm test:e2e` with all tests passing.
 - **E2E selector updates for UI copy**: Updated Playwright page object selectors and assertions to match new dashboard/workspace/assistants labels; ran `pnpm lint --fix` and `pnpm typecheck`.
