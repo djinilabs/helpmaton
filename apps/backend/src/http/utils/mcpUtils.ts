@@ -231,6 +231,7 @@ export async function createMcpServerTools(
     "github",
     "linear",
     "hubspot",
+    "stripe",
   ];
 
   // First pass: collect all valid servers
@@ -592,6 +593,22 @@ export async function createMcpServerTools(
         getOwnerTool as ReturnType<typeof createMcpServerTool>;
       tools[`hubspot_search_owners${suffix}`] =
         searchOwnersTool as ReturnType<typeof createMcpServerTool>;
+    } else if (server.authType === "oauth" && server.serviceType === "stripe") {
+      const {
+        createStripeSearchChargesTool,
+        createStripeGetMetricsTool,
+      } = await import("./stripeTools");
+
+      const searchChargesTool = createStripeSearchChargesTool(
+        workspaceId,
+        serverId
+      );
+      const getMetricsTool = createStripeGetMetricsTool(workspaceId, serverId);
+
+      tools[`stripe_search_charges${suffix}`] =
+        searchChargesTool as ReturnType<typeof createMcpServerTool>;
+      tools[`stripe_get_metrics${suffix}`] =
+        getMetricsTool as ReturnType<typeof createMcpServerTool>;
     } else if (server.serviceType === "posthog") {
       const {
         createPosthogListProjectsTool,
