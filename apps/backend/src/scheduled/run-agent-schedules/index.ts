@@ -96,12 +96,6 @@ export const handler = handlingScheduledErrors(
           new Date()
         );
 
-        await db["agent-schedule"].update({
-          ...schedule,
-          nextRunAt,
-          updatedAt: nowIso,
-        });
-
         await queues.publish({
           name: QUEUE_NAME,
           payload: {
@@ -110,6 +104,12 @@ export const handler = handlingScheduledErrors(
             agentId,
             enqueuedAt: nowIso,
           },
+        });
+
+        await db["agent-schedule"].update({
+          ...schedule,
+          nextRunAt,
+          updatedAt: nowIso,
         });
 
         console.log("[Agent Schedules] Enqueued schedule run:", {
