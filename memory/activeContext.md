@@ -2,12 +2,14 @@
 
 ## Current Status
 
-**Status**: HubSpot MCP OAuth Integration Complete ✅
+**Status**: Slack MCP OAuth Integration Complete ✅
 
 **Latest Work**:
 
 - **PR 173 review fixes**: Added create/update agent API tests for summarization prompt normalization (including empty/null cases) and kept summarization prompts in update responses; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Agent summarization prompt overrides**: Added per-grain summarization prompts on agents (UI editor with default prefill), persisted in API/export/import, and wired summarization jobs/dev script to use overrides; ran `pnpm lint --fix` and `pnpm typecheck`.
+- **Slack MCP OAuth integration**: Added Slack OAuth MCP server support with bot-token scopes, Slack API client, MCP tools (list channels, channel history, post message), tool metadata, UI wiring, and OAuth callbacks. Updated schemas, docs, env passthroughs, and added unit tests for OAuth, client, tools, and metadata. Ran `pnpm typecheck` and `pnpm lint --fix`.
+
 - **E2E copy selector fixes**: Updated workspace detail page object labels (team/spending) and reran `pnpm test:e2e` with all tests passing.
 - **E2E selector updates for UI copy**: Updated Playwright page object selectors and assertions to match new dashboard/workspace/assistants labels; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **UI copy refresh for non-technical users**: Simplified wording and added helper text across core frontend pages and modals (Home, Workspaces, Workspace/Agent details, Integrations, Settings, Subscription, API docs, widget preview, 404). Updated section titles and warnings to be clearer; ran `pnpm lint --fix` and `pnpm typecheck`.
@@ -2947,6 +2949,27 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 - Proper TypeScript types using `BotIntegrationRecord`
 
 **Verification**: All typecheck, lint, and tests passing (2255 tests) ✅
+
+## Recent Completed Work: Stripe MCP OAuth Integration
+
+**Status**: Completed ✅
+
+**Overview**: Added OAuth-based Stripe MCP integration with read-only tools for charge search and metrics (balance + refunds), plus UI and docs updates.
+
+**Key Changes**:
+
+- Added Stripe OAuth helper, token refresh flow, and OAuth endpoint wiring
+- Implemented Stripe API client + MCP tools (`stripe_search_charges`, `stripe_get_metrics`)
+- Updated MCP tool metadata and service type enums across backend/frontend
+- Added Stripe-specific tests for OAuth utilities and tools; updated tool metadata tests
+- Updated MCP docs to include Stripe setup requirements and tool list
+
+**Verification**: `pnpm typecheck` and `pnpm lint --fix` ✅
+
+**Follow-up**:
+
+- Fixed Stripe MCP tool metadata generation by adding `stripe` to the OAuth service type list
+- Test suite passing (`pnpm test`) ✅
 
 ## Next Steps
 

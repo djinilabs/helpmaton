@@ -504,6 +504,8 @@ const mcpServerSchema = z
         "github",
         "linear",
         "hubspot",
+        "slack",
+        "stripe",
         "posthog",
       ])
       .optional()

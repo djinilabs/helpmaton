@@ -495,6 +495,80 @@ describe("toolMetadata", () => {
         ).toBe(true);
       });
 
+      it("should include Slack tools when OAuth-connected server is enabled", () => {
+        const mcpServers: McpServerInfo[] = [
+          {
+            id: "server-1",
+            name: "My Slack",
+            serviceType: "slack",
+            authType: "oauth",
+            oauthConnected: true,
+          },
+        ];
+
+        const options: ToolListOptions = {
+          ...baseOptions,
+          agent: {
+            ...baseOptions.agent,
+            enabledMcpServerIds: ["server-1"],
+          },
+          enabledMcpServers: mcpServers,
+        };
+
+        const result = generateToolList(options);
+
+        const mcpGroup = result.find((g) => g.category === "MCP Server Tools");
+        expect(mcpGroup).toBeDefined();
+
+        const slackTools = mcpGroup?.tools.filter((t) =>
+          t.name.startsWith("slack_")
+        );
+        expect(slackTools?.length).toBeGreaterThan(0);
+        expect(
+          slackTools?.some((t) => t.name === "slack_list_channels")
+        ).toBe(true);
+        expect(
+          slackTools?.some((t) => t.name === "slack_post_message")
+        ).toBe(true);
+      });
+
+      it("should include Stripe tools when OAuth-connected server is enabled", () => {
+        const mcpServers: McpServerInfo[] = [
+          {
+            id: "server-1",
+            name: "My Stripe",
+            serviceType: "stripe",
+            authType: "oauth",
+            oauthConnected: true,
+          },
+        ];
+
+        const options: ToolListOptions = {
+          ...baseOptions,
+          agent: {
+            ...baseOptions.agent,
+            enabledMcpServerIds: ["server-1"],
+          },
+          enabledMcpServers: mcpServers,
+        };
+
+        const result = generateToolList(options);
+
+        const mcpGroup = result.find((g) => g.category === "MCP Server Tools");
+        expect(mcpGroup).toBeDefined();
+
+        const stripeTools = mcpGroup?.tools.filter((t) =>
+          t.name.startsWith("stripe_")
+        );
+        expect(stripeTools?.length).toBeGreaterThan(0);
+        expect(
+          stripeTools?.some((t) => t.name === "stripe_search_charges")
+        ).toBe(true);
+        expect(
+          stripeTools?.some((t) => t.name === "stripe_get_metrics")
+        ).toBe(true);
+      });
+
       it("should include PostHog tools when PostHog server is enabled", () => {
         const mcpServers: McpServerInfo[] = [
           {
