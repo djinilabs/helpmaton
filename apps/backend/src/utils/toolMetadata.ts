@@ -2438,6 +2438,65 @@ function getMcpServerToolMetadata(
         },
       ],
     });
+  } else if (serviceType === "stripe") {
+    const condition = oauthConnected
+      ? `Available (Stripe "${serverName}" connected)`
+      : `Not available (Stripe "${serverName}" not connected)`;
+
+    tools.push({
+      name: `stripe_search_charges${suffix}`,
+      description:
+        "Search Stripe charges using Stripe's query language. Provide a search query and/or email.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "query",
+          type: "string",
+          required: false,
+          description:
+            "Optional Stripe search query (e.g., \"email:'bob@example.com' AND status:'succeeded'\")",
+        },
+        {
+          name: "email",
+          type: "string",
+          required: false,
+          description: "Optional email address to filter charges",
+        },
+      ],
+    });
+
+    tools.push({
+      name: `stripe_get_metrics${suffix}`,
+      description:
+        "Retrieve Stripe balance and refunds for a required date range.",
+      category: "MCP Server Tools",
+      alwaysAvailable: false,
+      condition,
+      parameters: [
+        {
+          name: "startDate",
+          type: "string|number",
+          required: true,
+          description:
+            "Start date (ISO 8601 string or Unix timestamp in seconds)",
+        },
+        {
+          name: "endDate",
+          type: "string|number",
+          required: true,
+          description:
+            "End date (ISO 8601 string or Unix timestamp in seconds)",
+        },
+        {
+          name: "limit",
+          type: "number",
+          required: false,
+          description: "Maximum number of refunds to return (default: 20, max: 100)",
+        },
+      ],
+    });
   } else if (serviceType === "posthog") {
     const condition = `Available (PostHog "${serverName}" enabled)`;
 
@@ -2783,6 +2842,7 @@ export function generateToolList(
       "linear",
       "hubspot",
       "slack",
+      "stripe",
     ];
 
     // Group servers by serviceType for conflict detection

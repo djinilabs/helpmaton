@@ -656,6 +656,45 @@ Once connected, agents can use the following Slack tools:
 - The Slack app must be installed in the workspace and invited to private channels to read them
 - Message history is returned as plain text to reduce token usage
 
+### Stripe Integration
+
+```json
+{
+  "name": "My Stripe Account",
+  "authType": "oauth",
+  "serviceType": "stripe",
+  "config": {}
+}
+```
+
+**Setup Requirements**:
+
+1. Create a Stripe Connect application:
+   - Go to [Stripe Connect settings](https://dashboard.stripe.com/settings/connect)
+   - Set redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/stripe/callback`
+   - Copy the client ID and client secret
+
+2. Configure Environment Variables:
+   - Set `STRIPE_OAUTH_CLIENT_ID` to your Stripe OAuth client ID
+   - Set `STRIPE_OAUTH_CLIENT_SECRET` to your Stripe OAuth client secret
+   - Ensure `OAUTH_REDIRECT_BASE_URL` is set correctly
+
+3. Connect Your Stripe Account:
+   - After creating the MCP server, click "Connect" to authorize the integration
+   - The integration requests read-only access via Stripe's `read_only` scope
+
+**Available Tools**:
+
+Once connected, agents can use the following Stripe tools:
+
+- `stripe_search_charges_{serverName}` - Search charges by Stripe query string and/or email
+- `stripe_get_metrics_{serverName}` - Retrieve balance and refunds within a required date range
+
+**Important Notes**:
+
+- Stripe OAuth tokens are refreshed automatically when expired
+- The integration is read-only; no write operations are performed
+
 ## Troubleshooting
 
 ### Server Not Found

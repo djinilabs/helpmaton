@@ -338,6 +338,7 @@ export const tableSchemas = {
         "linear",
         "hubspot",
         "slack",
+        "stripe",
         "posthog",
       ])
       .optional(), // service type (defaults to "external" for backward compatibility)

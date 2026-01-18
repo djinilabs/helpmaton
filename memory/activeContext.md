@@ -2948,6 +2948,27 @@ The SQS queue processing now supports partial batch failures, allowing successfu
 
 **Verification**: All typecheck, lint, and tests passing (2255 tests) ✅
 
+## Recent Completed Work: Stripe MCP OAuth Integration
+
+**Status**: Completed ✅
+
+**Overview**: Added OAuth-based Stripe MCP integration with read-only tools for charge search and metrics (balance + refunds), plus UI and docs updates.
+
+**Key Changes**:
+
+- Added Stripe OAuth helper, token refresh flow, and OAuth endpoint wiring
+- Implemented Stripe API client + MCP tools (`stripe_search_charges`, `stripe_get_metrics`)
+- Updated MCP tool metadata and service type enums across backend/frontend
+- Added Stripe-specific tests for OAuth utilities and tools; updated tool metadata tests
+- Updated MCP docs to include Stripe setup requirements and tool list
+
+**Verification**: `pnpm typecheck` and `pnpm lint --fix` ✅
+
+**Follow-up**:
+
+- Fixed Stripe MCP tool metadata generation by adding `stripe` to the OAuth service type list
+- Test suite passing (`pnpm test`) ✅
+
 ## Next Steps
 
 1. **Agent Evaluation System - Frontend UI**:

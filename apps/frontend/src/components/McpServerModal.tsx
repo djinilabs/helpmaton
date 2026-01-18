@@ -9,6 +9,7 @@ import {
   ChartBarIcon,
   BuildingOfficeIcon,
   ChatBubbleLeftRightIcon,
+  CreditCardIcon,
 } from "@heroicons/react/24/outline";
 import { useState, useEffect } from "react";
 import type { FC } from "react";
@@ -31,6 +32,7 @@ type McpServerType =
   | "linear"
   | "hubspot"
   | "slack"
+  | "stripe"
   | "posthog"
   | "custom";
 
@@ -99,6 +101,13 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     icon: ChatBubbleLeftRightIcon,
   },
   {
+    value: "stripe",
+    name: "Stripe",
+    description:
+      "Read-only access to Stripe balance, refunds, and charge search via Stripe's query language.",
+    icon: CreditCardIcon,
+  },
+  {
     value: "posthog",
     name: "PostHog",
     description:
@@ -142,6 +151,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     | "linear"
     | "hubspot"
     | "slack"
+    | "stripe"
     | "posthog"
     | "custom"
   >("google-drive"); // Service type for new servers
@@ -215,6 +225,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           server.serviceType === "slack"
         ) {
           setMcpType("slack");
+          // OAuth servers don't have authType in the UI
+        } else if (
+          server.authType === "oauth" &&
+          server.serviceType === "stripe"
+        ) {
+          setMcpType("stripe");
           // OAuth servers don't have authType in the UI
         } else if (server.serviceType === "posthog") {
           setMcpType("posthog");
@@ -348,6 +364,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             | "linear"
             | "hubspot"
             | "slack"
+            | "stripe"
             | "posthog";
           config?: typeof config;
         } = {
@@ -369,7 +386,8 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server?.serviceType === "github" ||
             server?.serviceType === "linear" ||
             server?.serviceType === "hubspot" ||
-            server?.serviceType === "slack");
+            server?.serviceType === "slack" ||
+            server?.serviceType === "stripe");
         const isPosthogServer = server?.serviceType === "posthog";
 
         // OAuth servers can only update name (OAuth connection is managed separately)
@@ -558,6 +576,20 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server_id: result.id,
             auth_type: "oauth",
             service_type: "slack",
+          });
+        } else if (mcpType === "stripe") {
+          // Stripe - OAuth-based
+          const result = await createServer.mutateAsync({
+            name: name.trim(),
+            authType: "oauth",
+            serviceType: "stripe",
+            config: {}, // Empty config for OAuth servers (credentials set via OAuth flow)
+          });
+          trackEvent("mcp_server_created", {
+            workspace_id: workspaceId,
+            server_id: result.id,
+            auth_type: "oauth",
+            service_type: "stripe",
           });
         } else if (mcpType === "posthog") {
           const result = await createServer.mutateAsync({

@@ -103,6 +103,7 @@ export const createApp: () => express.Application = () => {
           "linear",
           "hubspot",
           "slack",
+          "stripe",
         ]);
 
         if (!allowedServiceTypes.has(serviceType)) {
@@ -244,6 +245,11 @@ export const createApp: () => express.Application = () => {
               "../../utils/oauth/mcp/slack"
             );
             tokenInfo = await exchangeSlackCode(code);
+          } else if (serviceType === "stripe") {
+            const { exchangeStripeCode } = await import(
+              "../../utils/oauth/mcp/stripe"
+            );
+            tokenInfo = await exchangeStripeCode(code);
           } else {
             throw new Error(`Unsupported service type: ${serviceType}`);
           }

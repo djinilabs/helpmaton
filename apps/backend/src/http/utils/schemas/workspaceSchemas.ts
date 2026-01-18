@@ -310,6 +310,7 @@ export const createMcpServerSchema = z
         "linear",
         "hubspot",
         "slack",
+        "stripe",
         "posthog",
       ])
       .optional(),
@@ -346,6 +347,7 @@ export const updateMcpServerSchema = z
         "linear",
         "hubspot",
         "slack",
+        "stripe",
         "posthog",
       ])
       .optional(),

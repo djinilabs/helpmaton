@@ -1430,6 +1430,7 @@ export interface McpServer {
     | "linear"
     | "hubspot"
     | "slack"
+    | "stripe"
     | "posthog";
   oauthConnected?: boolean;
   createdAt: string;
@@ -1450,6 +1451,7 @@ export interface CreateMcpServerInput {
     | "linear"
     | "hubspot"
     | "slack"
+    | "stripe"
     | "posthog";
   config?: {
     apiKey?: string;
@@ -1473,6 +1475,7 @@ export interface UpdateMcpServerInput {
     | "linear"
     | "hubspot"
     | "slack"
+    | "stripe"
     | "posthog";
   config?: {
     apiKey?: string;
