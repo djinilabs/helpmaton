@@ -8,6 +8,7 @@ import {
 } from "../hooks/useAgentSchedules";
 import type { AgentSchedule } from "../utils/api";
 import { describeCronExpression } from "../utils/scheduleCron";
+import { trackEvent } from "../utils/tracking";
 
 import { AgentScheduleModal } from "./AgentScheduleModal";
 
@@ -62,8 +63,14 @@ const ScheduleItem: FC<ScheduleItemProps> = ({
 
   const handleToggleEnabled = async () => {
     try {
-      await updateSchedule.mutateAsync({
+      const updatedSchedule = await updateSchedule.mutateAsync({
         enabled: !schedule.enabled,
+      });
+      trackEvent("agent_schedule_toggled", {
+        workspace_id: workspaceId,
+        agent_id: agentId,
+        schedule_id: updatedSchedule.id,
+        enabled: updatedSchedule.enabled,
       });
     } catch {
       // Error handled by toast
@@ -120,7 +127,14 @@ const ScheduleItem: FC<ScheduleItemProps> = ({
               : "Enable"}
           </button>
           <button
-            onClick={() => onEdit(schedule.id)}
+            onClick={() => {
+              trackEvent("agent_schedule_edit_started", {
+                workspace_id: workspaceId,
+                agent_id: agentId,
+                schedule_id: schedule.id,
+              });
+              onEdit(schedule.id);
+            }}
             className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
           >
             Edit
@@ -136,6 +150,11 @@ const ScheduleItem: FC<ScheduleItemProps> = ({
               }
               try {
                 await deleteSchedule.mutateAsync();
+                trackEvent("agent_schedule_deleted", {
+                  workspace_id: workspaceId,
+                  agent_id: agentId,
+                  schedule_id: schedule.id,
+                });
               } catch {
                 // Error handled by toast
               }
@@ -190,7 +209,13 @@ export const AgentScheduleList: FC<AgentScheduleListProps> = ({
         </p>
         {canEdit && (
           <button
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => {
+              trackEvent("agent_schedule_create_started", {
+                workspace_id: workspaceId,
+                agent_id: agentId,
+              });
+              setIsCreateModalOpen(true);
+            }}
             className="rounded-xl bg-gradient-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:shadow-colored"
           >
             Add schedule

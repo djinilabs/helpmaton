@@ -8,9 +8,14 @@ import {
   createMockDatabase,
 } from "../../../utils/__tests__/test-helpers";
 
-const { mockDatabase, mockGetNextRunAtEpochSeconds } = vi.hoisted(() => ({
+const {
+  mockDatabase,
+  mockGetNextRunAtEpochSeconds,
+  mockTrackBusinessEvent,
+} = vi.hoisted(() => ({
   mockDatabase: vi.fn(),
   mockGetNextRunAtEpochSeconds: vi.fn(),
+  mockTrackBusinessEvent: vi.fn(),
 }));
 
 vi.mock("../../../../tables", () => ({
@@ -20,6 +25,10 @@ vi.mock("../../../../tables", () => ({
 vi.mock("../../../../utils/cron", () => ({
   getNextRunAtEpochSeconds: mockGetNextRunAtEpochSeconds,
   isValidCronExpression: vi.fn().mockReturnValue(true),
+}));
+
+vi.mock("../../../../utils/tracking", () => ({
+  trackBusinessEvent: mockTrackBusinessEvent,
 }));
 
 import { registerPutAgentSchedule } from "../put-agent-schedule";
@@ -73,7 +82,19 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId/schedules/:scheduleId
       createdAt: "2026-01-01T00:00:00Z",
     };
 
-    const mockGet = vi.fn().mockResolvedValue(existingSchedule);
+    const updatedSchedule = {
+      ...existingSchedule,
+      name: "New name",
+      cronExpression: "0 12 * * *",
+      enabled: true,
+      duePartition: "due",
+      nextRunAt,
+      updatedAt: "2026-01-02T00:00:00Z",
+    };
+    const mockGet = vi
+      .fn()
+      .mockResolvedValueOnce(existingSchedule)
+      .mockResolvedValueOnce(updatedSchedule);
     const mockUpdate = vi.fn().mockResolvedValue(existingSchedule);
     (mockDb as Record<string, unknown>)["agent-schedule"] = {
       get: mockGet,
@@ -99,6 +120,21 @@ describe("PUT /api/workspaces/:workspaceId/agents/:agentId/schedules/:scheduleId
 
     await handler(req as never, res as never, next);
 
+    expect(mockTrackBusinessEvent).toHaveBeenCalledWith(
+      "agent_schedule",
+      "updated",
+      expect.objectContaining({
+        workspace_id: workspaceId,
+        agent_id: agentId,
+        schedule_id: scheduleId,
+        enabled: true,
+        name_updated: true,
+        prompt_updated: false,
+        cron_expression_updated: true,
+        enabled_updated: true,
+      }),
+      req
+    );
     expect(mockGet).toHaveBeenCalledWith(schedulePk, "schedule");
     expect(mockGetNextRunAtEpochSeconds).toHaveBeenCalledWith(
       "0 12 * * *",
