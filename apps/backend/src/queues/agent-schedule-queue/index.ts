@@ -203,9 +203,9 @@ async function processScheduleExecution(record: SQSRecord): Promise<void> {
     });
 
     await db["agent-schedule"].update({
-      ...schedule,
+      pk: schedule.pk,
+      sk: schedule.sk,
       lastRunAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     });
 
     console.log("[Schedule Queue] Schedule execution completed:", {

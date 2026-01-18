@@ -1,5 +1,5 @@
 /* eslint-disable import/order */
-import express from "express";
+import type { RequestHandler } from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import {
@@ -19,31 +19,31 @@ vi.mock("crypto", () => ({
   randomUUID: mockRandomUUID,
 }));
 
-vi.mock("../../../tables", () => ({
+vi.mock("../../../../tables", () => ({
   database: mockDatabase,
 }));
 
-vi.mock("../../../utils/cron", () => ({
+vi.mock("../../../../utils/cron", () => ({
   getNextRunAtEpochSeconds: mockGetNextRunAtEpochSeconds,
+  isValidCronExpression: vi.fn().mockReturnValue(true),
 }));
 
 import { registerPostAgentSchedules } from "../post-agent-schedules";
 
-function getRouteHandler(app: express.Application, path: string) {
-  const stack = (
-    app as unknown as { _router: { stack: Array<Record<string, unknown>> } }
-  )._router.stack;
-  const layer = stack.find((layerItem) => {
-    const route = (layerItem as {
-      route?: { path?: string; methods?: Record<string, boolean> };
-    }).route;
-    return route?.path === path && route.methods?.post;
-  }) as { route?: { stack?: Array<{ handle?: unknown }> } } | undefined;
-  if (!layer || !layer.route) {
-    throw new Error(`Route ${path} not found`);
+function capturePostHandler(
+  register: (app: { post: (...args: unknown[]) => void }) => void
+) {
+  let captured: RequestHandler | undefined;
+  const app = {
+    post: (_path: string, ...handlers: RequestHandler[]) => {
+      captured = handlers[handlers.length - 1];
+    },
+  };
+  register(app);
+  if (!captured) {
+    throw new Error("Post handler not registered");
   }
-  const handlers = layer.route.stack || [];
-  return handlers[handlers.length - 1]?.handle as express.RequestHandler;
+  return captured;
 }
 
 describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
@@ -52,12 +52,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
   });
 
   it("creates a schedule and returns its details", async () => {
-    const app = express();
-    registerPostAgentSchedules(app);
-    const handler = getRouteHandler(
-      app,
-      "/api/workspaces/:workspaceId/agents/:agentId/schedules"
-    );
+    const handler = capturePostHandler(registerPostAgentSchedules);
 
     const mockDb = createMockDatabase();
     mockDatabase.mockResolvedValue(mockDb);
@@ -66,8 +61,6 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
     const agentId = "agent-456";
     const scheduleId = "schedule-789";
     const nextRunAt = 1712345678;
-    const createdAt = "2026-01-18T00:00:00Z";
-
     mockRandomUUID.mockReturnValue(scheduleId);
     mockGetNextRunAtEpochSeconds.mockReturnValue(nextRunAt);
 
@@ -92,7 +85,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
       enabled: true,
       duePartition: "due",
       nextRunAt,
-      createdAt,
+      createdAt: new Date().toISOString(),
     });
     (mockDb as Record<string, unknown>)["agent-schedule"] = {
       create: mockCreate,
@@ -115,7 +108,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
     const res = createMockResponse();
     const next = vi.fn();
 
-    await handler(req as express.Request, res as express.Response, next);
+    await handler(req as never, res as never, next);
 
     expect(mockGetNextRunAtEpochSeconds).toHaveBeenCalledWith(
       "0 0 * * *",
@@ -145,7 +138,7 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
       enabled: true,
       nextRunAt,
       lastRunAt: null,
-      createdAt,
+      createdAt: expect.any(String),
     });
   });
 });

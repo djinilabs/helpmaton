@@ -14,22 +14,23 @@ vi.mock("@architect/functions", () => ({
   queues: {
     publish: mockQueuesPublish,
   },
+  tables: vi.fn(),
 }));
 
-vi.mock("../../tables", () => ({
+vi.mock("../../../tables", () => ({
   database: mockDatabase,
 }));
 
-vi.mock("../../utils/cron", () => ({
+vi.mock("../../../utils/cron", () => ({
   getNextRunAtEpochSeconds: mockGetNextRunAtEpochSeconds,
 }));
 
-vi.mock("../../utils/handlingErrors", () => ({
+vi.mock("../../../utils/handlingErrors", () => ({
   handlingScheduledErrors: (handler: (event: unknown) => Promise<void>) =>
     handler,
 }));
 
-vi.mock("../../utils/sentry", () => ({
+vi.mock("../../../utils/sentry", () => ({
   Sentry: {
     captureException: vi.fn(),
   },
@@ -57,11 +58,13 @@ describe("run-agent-schedules", () => {
       nextRunAt: 1710000000,
     };
 
-    const mockQuery = vi.fn().mockResolvedValue({ items: [schedule] });
+    const mockQueryAsync = vi.fn(async function* () {
+      yield schedule;
+    });
     const mockUpdate = vi.fn().mockResolvedValue(schedule);
     mockDatabase.mockResolvedValue({
       "agent-schedule": {
-        query: mockQuery,
+        queryAsync: mockQueryAsync,
         update: mockUpdate,
       },
     });
@@ -70,7 +73,7 @@ describe("run-agent-schedules", () => {
 
     await handler({} as never);
 
-    expect(mockQuery).toHaveBeenCalledWith(
+    expect(mockQueryAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         IndexName: "byNextRunAt",
       })
