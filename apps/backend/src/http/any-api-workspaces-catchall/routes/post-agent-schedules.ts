@@ -11,6 +11,10 @@ import {
   buildAgentSchedulePk,
 } from "../../../utils/agentSchedule";
 import { getNextRunAtEpochSeconds } from "../../../utils/cron";
+import {
+  checkAgentScheduleLimit,
+  ensureWorkspaceSubscription,
+} from "../../../utils/subscriptionUtils";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { requireAgentInWorkspace } from "../../utils/agentScheduleAccess";
 import { validateBody } from "../../utils/bodyValidation";
@@ -100,6 +104,13 @@ export const registerPostAgentSchedules = (app: express.Application) => {
         const agentId = req.params.agentId;
 
         await requireAgentInWorkspace(db, workspaceId, agentId);
+
+        const userId = currentUserRef.replace("users/", "");
+        const subscriptionId = await ensureWorkspaceSubscription(
+          workspaceId,
+          userId
+        );
+        await checkAgentScheduleLimit(subscriptionId, workspaceId, agentId);
 
         const scheduleId = randomUUID();
         const schedulePk = buildAgentSchedulePk(

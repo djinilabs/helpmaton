@@ -66,6 +66,7 @@
 - **REST API**: HTTP-to-REST plugin converts Architect routes to REST
 - **Authentication**: Lambda authorizer extracts workspace, applies throttling
 - **Throttling**: Subscription-based rate limits (Free/Starter/Pro)
+- **Per-agent limits**: Enforce plan caps for eval judges and schedules via GSI count checks before creation
 - **Error Handling**: Centralized error handling utilities
 - **OpenAPI**: Auto-generated from code annotations
 - **MCP Integrations**: Non-OAuth MCP services (e.g., PostHog) use API keys in `mcp-server.config.apiKey` and validate base URLs against approved regions before requests.
