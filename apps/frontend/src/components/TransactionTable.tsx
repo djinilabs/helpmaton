@@ -7,7 +7,7 @@ import {
   useAgentTransactions,
   useWorkspaceTransactions,
 } from "../hooks/useTransactions";
-import type { Conversation, Transaction } from "../utils/api";
+import type { Transaction } from "../utils/api";
 import {
   getTransactionTypeColor,
   getCostColor,
@@ -31,7 +31,7 @@ export const TransactionTable: FC<TransactionTableProps> = ({
   agentId,
 }) => {
   const [selectedConversation, setSelectedConversation] = useState<{
-    conversation: Conversation;
+    conversationId: string;
     agentId: string;
   } | null>(null);
 
@@ -266,14 +266,7 @@ export const TransactionTable: FC<TransactionTableProps> = ({
                         <button
                           onClick={() => {
                             setSelectedConversation({
-                              conversation: {
-                                id: transaction.conversationId!,
-                                conversationType: "test", // Will be fetched by the modal
-                                startedAt: transaction.createdAt,
-                                lastMessageAt: transaction.createdAt,
-                                messageCount: 0,
-                                tokenUsage: null,
-                              },
+                              conversationId: transaction.conversationId!,
                               agentId: transaction.agentId!,
                             });
                           }}
@@ -346,7 +339,7 @@ export const TransactionTable: FC<TransactionTableProps> = ({
             onClose={() => setSelectedConversation(null)}
             workspaceId={workspaceId}
             agentId={selectedConversation.agentId}
-            conversation={selectedConversation.conversation}
+            conversationId={selectedConversation.conversationId}
           />
         </Suspense>
       )}

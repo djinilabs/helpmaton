@@ -6,6 +6,9 @@
 
 **Latest Work**:
 
+- **Documented Lemon Squeezy payment failure flow**: Added subscription payment failure, grace period, and expiry behavior to `docs/subscription-management.md`.
+- **Eval detail modal escape close**: Wired `useEscapeKey` so evaluation details modal closes on Escape; ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Eval detail conversation modal**: Added one-click conversation view from eval detail, refactored conversation detail modal to accept conversationId, and added helper/test coverage. Ran `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter frontend test`.
 - **Salesforce MCP integration**: Added Salesforce OAuth flow (instance_url storage), Salesforce API client + tools (list objects, describe, SOQL query), tool metadata/UI wiring, schemas, env/workflow updates, docs, and unit tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
 **Status**: Agent scheduling implemented ✅
 - **Schedule cron utils + tests**: Extracted cron parsing/building/description into `apps/frontend/src/utils/scheduleCron.ts`, wired modal/list to use it, and added Vitest setup plus unit tests. Ran `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter frontend test`.

@@ -17,7 +17,6 @@ import { useDialogTracking } from "../contexts/DialogContext";
 import { useAgentConversation } from "../hooks/useAgentConversations";
 import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useToast } from "../hooks/useToast";
-import type { Conversation } from "../utils/api";
 import { getTokenUsageColor, getCostColor } from "../utils/colorUtils";
 import { formatCurrency } from "../utils/currency";
 import { getMessageCost } from "../utils/messageCost";
@@ -31,7 +30,7 @@ interface ConversationDetailModalProps {
   onClose: () => void;
   workspaceId: string;
   agentId: string;
-  conversation: Conversation;
+  conversationId: string;
 }
 
 export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
@@ -39,12 +38,12 @@ export const ConversationDetailModal: FC<ConversationDetailModalProps> = ({
   onClose,
   workspaceId,
   agentId,
-  conversation,
+  conversationId,
 }) => {
   const { data: conversationDetail } = useAgentConversation(
     workspaceId,
     agentId,
-    conversation.id
+    conversationId
   );
   const { registerDialog, unregisterDialog } = useDialogTracking();
   const [showRawJson, setShowRawJson] = useState(false);

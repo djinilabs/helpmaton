@@ -4,8 +4,10 @@ import { useState, useMemo, Suspense } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { useEscapeKey } from "../hooks/useEscapeKey";
 import { useAgentEvalResults, useEvalJudges } from "../hooks/useEvalJudges";
 import type { EvalResult, EvalResultsResponse } from "../utils/api";
+import { canOpenEvalConversation } from "../utils/evalResults";
 
 interface EvalResultsListProps {
   workspaceId: string;
@@ -13,6 +15,7 @@ interface EvalResultsListProps {
   judgeId?: string;
   startDate?: string;
   endDate?: string;
+  onConversationOpen?: (conversationId: string) => void;
 }
 
 export const EvalResultsList: FC<EvalResultsListProps> = ({
@@ -21,6 +24,7 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
   judgeId,
   startDate,
   endDate,
+  onConversationOpen,
 }) => {
   const [selectedResult, setSelectedResult] = useState<EvalResult | null>(
     null
@@ -29,6 +33,9 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
   const [filterJudgeId, setFilterJudgeId] = useState<string | undefined>(
     judgeId
   );
+  const isDetailsOpen = !!selectedResult;
+
+  useEscapeKey(isDetailsOpen, () => setSelectedResult(null));
 
   const {
     data,
@@ -385,12 +392,25 @@ export const EvalResultsList: FC<EvalResultsListProps> = ({
                 <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-50">
                   Evaluation Details
                 </h2>
-                <button
-                  onClick={() => setSelectedResult(null)}
-                  className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
-                >
-                  Close
-                </button>
+                <div className="flex items-center gap-2">
+                  {onConversationOpen &&
+                    canOpenEvalConversation(selectedResult) && (
+                      <button
+                        onClick={() =>
+                          onConversationOpen(selectedResult.conversationId)
+                        }
+                        className="rounded-xl border border-primary-200 bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700 transition-colors hover:bg-primary-100 dark:border-primary-700 dark:bg-primary-950 dark:text-primary-200 dark:hover:bg-primary-900"
+                      >
+                        View Conversation
+                      </button>
+                    )}
+                  <button
+                    onClick={() => setSelectedResult(null)}
+                    className="rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
               <div className="space-y-4">
                 <div>

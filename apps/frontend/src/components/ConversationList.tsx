@@ -13,7 +13,7 @@ import { trackEvent } from "../utils/tracking";
 interface ConversationListProps {
   workspaceId: string;
   agentId: string;
-  onConversationClick: (conversation: Conversation) => void;
+  onConversationClick: (conversationId: string) => void;
 }
 
 export const ConversationList: FC<ConversationListProps> = ({
@@ -176,7 +176,7 @@ export const ConversationList: FC<ConversationListProps> = ({
                     conversation_id: conversation.id,
                     conversation_type: conversation.conversationType,
                   });
-                  onConversationClick(conversation);
+                  onConversationClick(conversation.id);
                 }}
                 className="transform cursor-pointer rounded-xl border-2 border-neutral-300 bg-white p-4 transition-all duration-200 hover:scale-[1.01] hover:border-primary-400 hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900 dark:hover:border-primary-500"
               >

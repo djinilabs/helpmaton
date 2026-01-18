@@ -144,7 +144,6 @@ import { useAgentUsage, useAgentDailyUsage } from "../hooks/useUsage";
 import { useWorkspace } from "../hooks/useWorkspaces";
 import type {
   ClientTool,
-  Conversation,
   SummarizationPromptGrain,
   SummarizationPromptsInput,
 } from "../utils/api";
@@ -369,8 +368,8 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
   const [allowedOrigins, setAllowedOrigins] = useState<string>("");
   const [isStreamTestModalOpen, setIsStreamTestModalOpen] = useState(false);
   const [isModelPricesOpen, setIsModelPricesOpen] = useState(false);
-  const [selectedConversation, setSelectedConversation] =
-    useState<Conversation | null>(null);
+  const [selectedConversationId, setSelectedConversationId] =
+    useState<string | null>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [showSlackModal, setShowSlackModal] = useState(false);
@@ -1819,7 +1818,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <ConversationList
                 workspaceId={workspaceId}
                 agentId={agentId}
-                onConversationClick={setSelectedConversation}
+                onConversationClick={setSelectedConversationId}
               />
             </LazyAccordionContent>
           </AccordionSection>
@@ -1875,6 +1874,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                     <EvalResultsList
                       workspaceId={workspaceId}
                       agentId={agentId}
+                      onConversationOpen={setSelectedConversationId}
                     />
                   </div>
                 </div>
@@ -4367,7 +4367,7 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
           </Suspense>
         )}
 
-        {selectedConversation && (
+        {selectedConversationId && (
           <Suspense
             fallback={
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
@@ -4391,11 +4391,11 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               }
             >
               <ConversationDetailModal
-                isOpen={!!selectedConversation}
-                onClose={() => setSelectedConversation(null)}
+                isOpen={!!selectedConversationId}
+                onClose={() => setSelectedConversationId(null)}
                 workspaceId={workspaceId}
                 agentId={agentId}
-                conversation={selectedConversation}
+                conversationId={selectedConversationId}
               />
             </QueryPanel>
           </Suspense>

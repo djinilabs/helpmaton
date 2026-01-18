@@ -207,6 +207,13 @@ DELETE /api/subscriptions/:subscriptionId/managers/:userId
 4. **Expiration**: Free plans never expire (active indefinitely)
 5. **Upgrade/Downgrade**: (Future feature - not yet implemented)
 
+## Payment Failures and Grace Period (Lemon Squeezy)
+
+- **Missed payment**: When Lemon Squeezy sends `subscription_past_due`, the subscription is marked `past_due` and a **7-day grace period** starts (`gracePeriodEndsAt = now + 7 days`). A payment failure email is sent.
+- **Status updates**: If Lemon Squeezy later reports `unpaid` via `subscription_updated`, we persist that status as-is.
+- **Grace period warnings**: During the grace period, we send a warning email when **3 days or fewer** remain (no more than once every 24 hours).
+- **Grace period expiry**: Once the grace period ends (or Lemon Squeezy emits `subscription_expired`), the subscription is **downgraded to free** and marked `expired`. We clear Lemon Squeezy IDs and billing fields (`renewsAt`, `endsAt`) and remove the sync key. A downgrade email is sent.
+
 ## API Endpoints
 
 ### Get Current User's Subscription
