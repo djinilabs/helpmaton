@@ -6,6 +6,9 @@
 
 **Latest Work**:
 
+- **SQS handler parallelism**: Updated `handlingSQSErrors` to process records concurrently with Promise.all and de-duplicated batch failure IDs; adjusted tests for order-agnostic assertions and updated handler mocks. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm --filter backend test`.
+- **Per-agent plan limits**: Added per-agent caps for eval judges and agent schedules (free/starter/pro), enforced in create routes and workspace import validation, and added unit tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Workspace import test fix**: Updated mocked subscription plan in `workspaceImport` tests so plan limits validate correctly; re-ran backend tests.
 - **PostHog telemetry coverage**: Added agent schedule tracking in frontend, backend schedule API events, event checklist notes in tracking helpers, and a short analytics doc. Added schedule route tests and ran `pnpm typecheck` + `pnpm lint --fix`.
 - **README capabilities refresh**: Added conversation attachments, agent schedules, custom summarization prompts, and explicit MCP integration list to `README.md`. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **README eval judges note**: Added Evaluation & Quality Control section covering eval judges and sampling in `README.md`. Ran `pnpm typecheck` and `pnpm lint --fix`.

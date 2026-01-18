@@ -43,135 +43,144 @@ export const handlingSQSErrors = (
 ): ((event: SQSEvent) => Promise<SQSBatchResponse>) => {
   return async (event: SQSEvent): Promise<SQSBatchResponse> => {
     try {
-      const failedMessageIds: string[] = [];
+      const failedMessageIds = new Set<string>();
 
       // Process each record separately with its own context
-      for (const record of event.Records) {
-        const messageId = record.messageId || "unknown";
-        const queueName = extractQueueName(record.eventSourceARN);
+      await Promise.all(
+        event.Records.map(async (record) => {
+          const messageId = record.messageId || "unknown";
+          const queueName = extractQueueName(record.eventSourceARN);
 
-        // Create a new context for this record
-        const recordContext = {
-          awsRequestId: messageId,
-        } as Context;
+          // Create a new context for this record
+          const recordContext = {
+            awsRequestId: messageId,
+          } as Context;
 
-        // Create a fresh transaction buffer for this record
-        const recordBuffer = createTransactionBuffer();
-        setTransactionBuffer(recordContext, recordBuffer);
+          // Create a fresh transaction buffer for this record
+          const recordBuffer = createTransactionBuffer();
+          setTransactionBuffer(recordContext, recordBuffer);
 
-        // Augment context with workspace credit transaction capability
-        // Database will be lazy-loaded only if workspace credit transactions are actually used
-        const augmentedContext = augmentContextWithCreditTransactions(
-          recordContext
-        );
-
-        // Make context available to handler code via module-level storage
-        setCurrentSQSContext(messageId, augmentedContext);
-
-        // Create a single-record event for this record
-        const singleRecordEvent: SQSEvent = {
-          Records: [record],
-        };
-
-        try {
-          // Process this record
-          const recordFailedIds = await userHandler(singleRecordEvent);
-
-          // If the handler returned this message as failed, track it
-          if (recordFailedIds.includes(messageId)) {
-            failedMessageIds.push(messageId);
-          } else {
-            // Record processed successfully - commit transactions
-            try {
-              await commitContextTransactions(recordContext, false);
-              console.log(
-                `[SQS Handler] Successfully processed and committed transactions for message ${messageId}`
-              );
-            } catch (commitError: unknown) {
-              // Commit failures cause handler to fail (per user requirement)
-              console.error(
-                `[SQS Handler] Failed to commit credit transactions for message ${messageId} in queue ${queueName}:`,
-                {
-                  error: commitError instanceof Error ? commitError.message : String(commitError),
-                  stack: commitError instanceof Error ? commitError.stack : undefined,
-                  queueName,
-                  messageId,
-                  messageBody: record.body,
-                }
-              );
-              // Mark this message as failed due to commit error
-              failedMessageIds.push(messageId);
-
-              // Re-throw to fail the handler
-              const errorToThrow =
-                commitError instanceof Error
-                  ? commitError
-                  : new Error(String(commitError));
-              throw errorToThrow;
-            }
-          }
-        } catch (error) {
-          failedMessageIds.push(messageId);
-
-          // Log error for this specific record with queue name and message body
-          const boomed = boomify(ensureError(error));
-          console.error(
-            `[SQS Handler] Error processing message ${messageId} in queue ${queueName}:`,
-            {
-              error: error instanceof Error ? error.message : String(error),
-              stack: error instanceof Error ? error.stack : undefined,
-              queueName,
-              messageId,
-              messageBody: record.body,
-              boom: {
-                statusCode: boomed.output.statusCode,
-                message: boomed.message,
-                isServer: boomed.isServer,
-              },
-            }
+          // Augment context with workspace credit transaction capability
+          // Database will be lazy-loaded only if workspace credit transactions are actually used
+          const augmentedContext = augmentContextWithCreditTransactions(
+            recordContext
           );
 
-          // Report to Sentry
-          if (boomed.isServer) {
-            Sentry.captureException(ensureError(error), {
-              tags: {
-                handler: "SQSFunction",
-                statusCode: boomed.output.statusCode,
-                messageId,
+          // Make context available to handler code via module-level storage
+          setCurrentSQSContext(messageId, augmentedContext);
+
+          // Create a single-record event for this record
+          const singleRecordEvent: SQSEvent = {
+            Records: [record],
+          };
+
+          try {
+            // Process this record
+            const recordFailedIds = await userHandler(singleRecordEvent);
+
+            // If the handler returned this message as failed, track it
+            if (recordFailedIds.includes(messageId)) {
+              failedMessageIds.add(messageId);
+            } else {
+              // Record processed successfully - commit transactions
+              try {
+                await commitContextTransactions(recordContext, false);
+                console.log(
+                  `[SQS Handler] Successfully processed and committed transactions for message ${messageId}`
+                );
+              } catch (commitError: unknown) {
+                // Commit failures cause handler to fail (per user requirement)
+                console.error(
+                  `[SQS Handler] Failed to commit credit transactions for message ${messageId} in queue ${queueName}:`,
+                  {
+                    error:
+                      commitError instanceof Error
+                        ? commitError.message
+                        : String(commitError),
+                    stack:
+                      commitError instanceof Error
+                        ? commitError.stack
+                        : undefined,
+                    queueName,
+                    messageId,
+                    messageBody: record.body,
+                  }
+                );
+                // Mark this message as failed due to commit error
+                failedMessageIds.add(messageId);
+
+                // Re-throw to fail the handler
+                const errorToThrow =
+                  commitError instanceof Error
+                    ? commitError
+                    : new Error(String(commitError));
+                throw errorToThrow;
+              }
+            }
+          } catch (error) {
+            failedMessageIds.add(messageId);
+
+            // Log error for this specific record with queue name and message body
+            const boomed = boomify(ensureError(error));
+            console.error(
+              `[SQS Handler] Error processing message ${messageId} in queue ${queueName}:`,
+              {
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined,
                 queueName,
-              },
-              contexts: {
-                event: {
+                messageId,
+                messageBody: record.body,
+                boom: {
+                  statusCode: boomed.output.statusCode,
+                  message: boomed.message,
+                  isServer: boomed.isServer,
+                },
+              }
+            );
+
+            // Report to Sentry
+            if (boomed.isServer) {
+              Sentry.captureException(ensureError(error), {
+                tags: {
+                  handler: "SQSFunction",
+                  statusCode: boomed.output.statusCode,
                   messageId,
                   queueName,
-                  eventSource: record.eventSource,
-                  awsRegion: record.awsRegion,
-                  messageBody: record.body,
                 },
-              },
-            });
-          }
+                contexts: {
+                  event: {
+                    messageId,
+                    queueName,
+                    eventSource: record.eventSource,
+                    awsRegion: record.awsRegion,
+                    messageBody: record.body,
+                  },
+                },
+              });
+            }
 
-          // Continue processing other records even if this one failed
-          // The error will be tracked in failedMessageIds
-        } finally {
-          // Always clear the context after processing this record
-          clearCurrentSQSContext(messageId);
-        }
-      }
+            // Continue processing other records even if this one failed
+            // The error will be tracked in failedMessageIds
+          } finally {
+            // Always clear the context after processing this record
+            clearCurrentSQSContext(messageId);
+          }
+        })
+      );
 
       // Return batch response with failed message IDs
-      if (failedMessageIds.length > 0) {
+      const failedMessageIdList = [...failedMessageIds];
+      if (failedMessageIdList.length > 0) {
         const failedRecords = event.Records.filter((r) =>
-          failedMessageIds.includes(r.messageId || "unknown")
+          failedMessageIds.has(r.messageId || "unknown")
         );
         const failedQueueNames = failedRecords.map((r) =>
           extractQueueName(r.eventSourceARN)
         );
         console.warn(
-          `[SQS Handler] ${failedMessageIds.length} message(s) failed out of ${event.Records.length}:`,
+          `[SQS Handler] ${failedMessageIdList.length} message(s) failed out of ${event.Records.length}:`,
           {
-            failedMessageIds,
+            failedMessageIds: failedMessageIdList,
             queueNames: failedQueueNames,
             failedMessages: failedRecords.map((r) => ({
               messageId: r.messageId,
@@ -181,7 +190,7 @@ export const handlingSQSErrors = (
           }
         );
         return {
-          batchItemFailures: failedMessageIds.map((id) => ({
+          batchItemFailures: failedMessageIdList.map((id) => ({
             itemIdentifier: id,
           })),
         };
