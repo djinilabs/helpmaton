@@ -78,6 +78,8 @@ export const ConversationList: FC<ConversationListProps> = ({
         return "bg-accent-100 text-accent-700 border-accent-200 dark:bg-accent-900 dark:text-accent-300 dark:border-accent-700";
       case "stream":
         return "bg-success-100 text-success-700 border-success-200 dark:bg-success-900 dark:text-success-300 dark:border-success-700";
+      case "scheduled":
+        return "bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900 dark:text-indigo-300 dark:border-indigo-700";
       default:
         return "bg-neutral-100 text-neutral-700 border-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:border-neutral-700";
     }

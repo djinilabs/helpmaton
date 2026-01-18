@@ -34,7 +34,7 @@ export interface AgentCallNonStreamingOptions {
   conversationId?: string;
   conversationOwnerAgentId?: string;
   userId?: string;
-  endpointType?: "bridge" | "webhook" | "test" | "stream";
+  endpointType?: "bridge" | "webhook" | "test" | "stream" | "scheduled";
   conversationHistory?: UIMessage[];
   abortSignal?: AbortSignal;
   llmObserver?: ReturnType<typeof createLlmObserver>;

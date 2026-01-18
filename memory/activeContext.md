@@ -2,14 +2,19 @@
 
 ## Current Status
 
-**Status**: Slack MCP OAuth Integration Complete ✅
+**Status**: Agent scheduling implemented ✅
 
 **Latest Work**:
 
+- **Schedule cron utils + tests**: Extracted cron parsing/building/description into `apps/frontend/src/utils/scheduleCron.ts`, wired modal/list to use it, and added Vitest setup plus unit tests. Ran `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter frontend test`.
+- **Schedule UI simplification**: Reworded schedule form copy for non-technical users, replaced cron input with a frequency/time builder (hourly/daily/weekly/monthly + advanced cron), and improved schedule list summaries with friendly descriptions. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Typecheck fix (cron-parser + test helpers)**: Restored `CronExpressionParser` import after confirming module exports, and updated schedule route test handler capture types to cast mock apps as `express.Application`. Re-ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Agent schedules (UTC)**: Added agent schedule table, API routes, cron validation, scheduled runner + queue worker, and scheduled conversation logging. Frontend now supports creating and managing schedules (UTC notices in UI) and displays scheduled conversations. Added schedule tests and scheduler test. Ran `pnpm lint --fix` and `pnpm typecheck`.
+- **Schedule test fixes**: Adjusted schedule route tests to use lightweight handler capture, corrected mocks and cron validation stubs, and relaxed createdAt assertion. Re-ran `pnpm test --run` successfully.
+- **Production evals investigation**: Checked CloudWatch logs for HelpmatonProduction; webhook handler is enqueueing evals, but `agent-eval-queue` fails at runtime with `Cannot find module '@lancedb/lancedb'` from `utils/vectordb/readClient.ts`, so eval execution aborts before results are emitted.
 - **PR 173 review fixes**: Added create/update agent API tests for summarization prompt normalization (including empty/null cases) and kept summarization prompts in update responses; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Agent summarization prompt overrides**: Added per-grain summarization prompts on agents (UI editor with default prefill), persisted in API/export/import, and wired summarization jobs/dev script to use overrides; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Slack MCP OAuth integration**: Added Slack OAuth MCP server support with bot-token scopes, Slack API client, MCP tools (list channels, channel history, post message), tool metadata, UI wiring, and OAuth callbacks. Updated schemas, docs, env passthroughs, and added unit tests for OAuth, client, tools, and metadata. Ran `pnpm typecheck` and `pnpm lint --fix`.
-
 - **E2E copy selector fixes**: Updated workspace detail page object labels (team/spending) and reran `pnpm test:e2e` with all tests passing.
 - **E2E selector updates for UI copy**: Updated Playwright page object selectors and assertions to match new dashboard/workspace/assistants labels; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **UI copy refresh for non-technical users**: Simplified wording and added helper text across core frontend pages and modals (Home, Workspaces, Workspace/Agent details, Integrations, Settings, Subscription, API docs, widget preview, 404). Updated section titles and warnings to be clearer; ran `pnpm lint --fix` and `pnpm typecheck`.

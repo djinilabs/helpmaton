@@ -11,7 +11,12 @@ import { isAuthenticationError } from "../../utils/handlingErrors";
 /**
  * Endpoint type for logging context
  */
-export type GenerationEndpoint = "test" | "stream" | "webhook" | "bridge";
+export type GenerationEndpoint =
+  | "test"
+  | "stream"
+  | "webhook"
+  | "bridge"
+  | "scheduled";
 
 /**
  * Checks if an error is a NoOutputGeneratedError

@@ -21,6 +21,7 @@ import {
   WrenchScrewdriverIcon,
   ArrowTopRightOnSquareIcon,
   ArrowPathIcon,
+  ClockIcon,
 } from "@heroicons/react/24/outline";
 import {
   useQueryErrorResetBoundary,
@@ -90,6 +91,11 @@ const EvalResultsChart = lazy(() =>
 const EvalResultsList = lazy(() =>
   import("../components/EvalResultsList").then((module) => ({
     default: module.EvalResultsList,
+  }))
+);
+const AgentScheduleList = lazy(() =>
+  import("../components/AgentScheduleList").then((module) => ({
+    default: module.AgentScheduleList,
   }))
 );
 const IntegrationCard = lazy(() =>
@@ -1873,6 +1879,27 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
                   </div>
                 </div>
               </QueryPanel>
+            </LazyAccordionContent>
+          </AccordionSection>
+
+          {/* Schedules Section */}
+          <AccordionSection
+            id="schedules"
+            title={
+              <>
+                <ClockIcon className="mr-2 inline-block size-5" />
+                SCHEDULES
+              </>
+            }
+            isExpanded={expandedSection === "schedules"}
+            onToggle={() => toggleSection("schedules")}
+          >
+            <LazyAccordionContent isExpanded={expandedSection === "schedules"}>
+              <AgentScheduleList
+                workspaceId={workspaceId}
+                agentId={agentId}
+                canEdit={canEdit}
+              />
             </LazyAccordionContent>
           </AccordionSection>
         </SectionGroup>

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isValidCronExpression } from "../../../utils/cron";
+
 /**
  * Common schemas reused across multiple request types
  */
@@ -50,6 +52,12 @@ const summarizationPromptsSchema = z
     yearly: z.string().nullable().optional(),
   })
   .strict();
+const cronExpressionSchema = z
+  .string()
+  .min(1, "cronExpression is required and must be a string")
+  .refine(isValidCronExpression, {
+    message: "cronExpression must be a valid cron expression (UTC)",
+  });
 
 /**
  * Workspace schemas
@@ -130,6 +138,28 @@ export const updateAgentSchema = z
     maxToolRoundtrips: z.number().int().positive().nullable().optional(),
     modelName: z.string().nullable().optional(),
     avatar: z.string().nullable().optional(),
+  })
+  .strict();
+
+/**
+ * Agent schedule schemas
+ */
+
+export const createAgentScheduleSchema = z
+  .object({
+    name: z.string().min(1, "name is required and must be a string"),
+    cronExpression: cronExpressionSchema,
+    prompt: z.string().min(1, "prompt is required and must be a string"),
+    enabled: z.boolean().optional(),
+  })
+  .strict();
+
+export const updateAgentScheduleSchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    cronExpression: cronExpressionSchema.optional(),
+    prompt: z.string().min(1).optional(),
+    enabled: z.boolean().optional(),
   })
   .strict();
 
