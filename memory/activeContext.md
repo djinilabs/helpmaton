@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Schedule cron utils + tests**: Extracted cron parsing/building/description into `apps/frontend/src/utils/scheduleCron.ts`, wired modal/list to use it, and added Vitest setup plus unit tests. Ran `pnpm typecheck`, `pnpm lint --fix`, `pnpm --filter frontend test`.
 - **Schedule UI simplification**: Reworded schedule form copy for non-technical users, replaced cron input with a frequency/time builder (hourly/daily/weekly/monthly + advanced cron), and improved schedule list summaries with friendly descriptions. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Typecheck fix (cron-parser + test helpers)**: Restored `CronExpressionParser` import after confirming module exports, and updated schedule route test handler capture types to cast mock apps as `express.Application`. Re-ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Agent schedules (UTC)**: Added agent schedule table, API routes, cron validation, scheduled runner + queue worker, and scheduled conversation logging. Frontend now supports creating and managing schedules (UTC notices in UI) and displays scheduled conversations. Added schedule tests and scheduler test. Ran `pnpm lint --fix` and `pnpm typecheck`.

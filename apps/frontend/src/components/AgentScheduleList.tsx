@@ -7,6 +7,7 @@ import {
   useUpdateAgentSchedule,
 } from "../hooks/useAgentSchedules";
 import type { AgentSchedule } from "../utils/api";
+import { describeCronExpression } from "../utils/scheduleCron";
 
 import { AgentScheduleModal } from "./AgentScheduleModal";
 
@@ -40,57 +41,6 @@ const formatUtcIso = (value: string | null): string => {
   return formatUtcFromDate(date);
 };
 
-const padTwo = (value: number) => String(value).padStart(2, "0");
-
-const describeCron = (expression: string): string => {
-  const parts = expression.trim().split(/\s+/);
-  if (parts.length !== 5) {
-    return "Custom schedule (UTC)";
-  }
-  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
-  if (month !== "*") {
-    return "Custom schedule (UTC)";
-  }
-  const isNumber = (value: string) => /^\d+$/.test(value);
-
-  if (hour === "*" && dayOfMonth === "*" && dayOfWeek === "*" && isNumber(minute)) {
-    return `Every hour at :${padTwo(Number(minute))} UTC`;
-  }
-
-  if (isNumber(hour) && isNumber(minute) && dayOfMonth === "*" && dayOfWeek === "*") {
-    return `Every day at ${padTwo(Number(hour))}:${padTwo(Number(minute))} UTC`;
-  }
-
-  if (isNumber(hour) && isNumber(minute) && dayOfMonth === "*" && isNumber(dayOfWeek)) {
-    const dayNames = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ];
-    const dayIndex = Number(dayOfWeek) === 7 ? 0 : Number(dayOfWeek);
-    const dayLabel = dayNames[dayIndex] ?? "Monday";
-    return `Every week on ${dayLabel} at ${padTwo(Number(hour))}:${padTwo(
-      Number(minute)
-    )} UTC`;
-  }
-
-  if (
-    isNumber(hour) &&
-    isNumber(minute) &&
-    isNumber(dayOfMonth) &&
-    dayOfWeek === "*"
-  ) {
-    return `Every month on day ${dayOfMonth} at ${padTwo(Number(hour))}:${padTwo(
-      Number(minute)
-    )} UTC`;
-  }
-
-  return "Custom schedule (UTC)";
-};
 
 const ScheduleItem: FC<ScheduleItemProps> = ({
   schedule,
@@ -120,6 +70,8 @@ const ScheduleItem: FC<ScheduleItemProps> = ({
     }
   };
 
+  const scheduleDescription = describeCronExpression(schedule.cronExpression);
+
   return (
     <div className="flex items-center justify-between rounded-xl border-2 border-neutral-300 bg-white p-6 transition-all duration-200 hover:scale-[1.01] hover:shadow-bold active:scale-[0.99] dark:border-neutral-700 dark:bg-neutral-900">
       <div className="flex-1">
@@ -138,9 +90,9 @@ const ScheduleItem: FC<ScheduleItemProps> = ({
           )}
         </div>
         <div className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">
-          {describeCron(schedule.cronExpression)}
+          {scheduleDescription}
         </div>
-        {describeCron(schedule.cronExpression) === "Custom schedule (UTC)" && (
+        {scheduleDescription === "Custom schedule (UTC)" && (
           <div className="mt-1 text-xs text-neutral-500 dark:text-neutral-500">
             Advanced: {schedule.cronExpression}
           </div>
