@@ -65,6 +65,7 @@ export const registerGetWorkspaceAgents = (app: express.Application) => {
           id: agent.pk.replace(`agents/${workspaceId}/`, ""),
           name: agent.name,
           systemPrompt: agent.systemPrompt,
+          summarizationPrompts: agent.summarizationPrompts,
           notificationChannelId: agent.notificationChannelId,
           delegatableAgentIds: agent.delegatableAgentIds ?? [],
           enabledMcpServerIds: agent.enabledMcpServerIds ?? [],

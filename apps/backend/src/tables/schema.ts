@@ -85,6 +85,15 @@ export const tableSchemas = {
     workspaceId: z.string(), // workspace ID for GSI queries
     name: z.string(),
     systemPrompt: z.string(),
+    summarizationPrompts: z
+      .object({
+        daily: z.string().min(1).optional(),
+        weekly: z.string().min(1).optional(),
+        monthly: z.string().min(1).optional(),
+        quarterly: z.string().min(1).optional(),
+        yearly: z.string().min(1).optional(),
+      })
+      .optional(),
     notificationChannelId: z.string().optional(), // reference to output_channel
     delegatableAgentIds: z.array(z.string()).optional(), // list of agent IDs this agent can delegate to
     enabledMcpServerIds: z.array(z.string()).optional(), // list of MCP server IDs enabled for this agent
