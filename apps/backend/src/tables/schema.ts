@@ -195,7 +195,7 @@ export const tableSchemas = {
     workspaceId: z.string(), // workspace ID
     agentId: z.string(), // agent ID for GSI queries
     conversationId: z.string(), // unique conversation ID (UUID)
-    conversationType: z.enum(["test", "webhook", "stream"]), // type of conversation
+    conversationType: z.enum(["test", "webhook", "stream", "scheduled"]), // type of conversation
     messages: z.array(z.unknown()), // array of all messages in the conversation
     tokenUsage: z
       .object({
@@ -559,6 +559,23 @@ export const tableSchemas = {
     version: z.number().default(1),
     createdAt: z.iso.datetime().default(new Date().toISOString()),
   }),
+  "agent-schedule": TableBaseSchema.extend({
+    pk: z.string(), // schedule ID (e.g., "agent-schedules/{workspaceId}/{agentId}/{scheduleId}")
+    sk: z.string().optional(), // optional sort key
+    workspaceId: z.string(), // workspace ID
+    agentId: z.string(), // agent ID for GSI queries
+    scheduleId: z.string(), // unique schedule ID (UUID)
+    name: z.string(), // user-friendly name for the schedule
+    cronExpression: z.string(), // cron expression (UTC)
+    prompt: z.string(), // first user message for the scheduled run
+    enabled: z.boolean().default(true),
+    duePartition: z.string(), // partition key for due schedule GSI (e.g., "due")
+    nextRunAt: z.number().int(), // epoch seconds for next run
+    lastRunAt: z.iso.datetime().optional(),
+    version: z.number().default(1),
+    createdAt: z.iso.datetime().default(new Date().toISOString()),
+    updatedAt: z.iso.datetime().optional(),
+  }),
 } as const;
 
 export type TableBaseSchemaType = z.infer<typeof TableBaseSchema>;
@@ -589,7 +606,8 @@ export type TableName =
   | "agent-delegation-tasks"
   | "bot-integration"
   | "agent-eval-judge"
-  | "agent-eval-result";
+  | "agent-eval-result"
+  | "agent-schedule";
 
 export type WorkspaceRecord = z.infer<typeof tableSchemas.workspace>;
 export type PermissionRecord = z.infer<typeof tableSchemas.permission>;
@@ -642,6 +660,9 @@ export type WorkspaceCreditTransactionRecord = z.infer<
 >;
 export type BotIntegrationRecord = z.infer<
   (typeof tableSchemas)["bot-integration"]
+>;
+export type AgentScheduleRecord = z.infer<
+  (typeof tableSchemas)["agent-schedule"]
 >;
 
 export const PERMISSION_LEVELS = {
@@ -766,6 +787,7 @@ export type DatabaseSchema = {
   "workspace-credit-transactions": TableAPI<"workspace-credit-transactions">;
   "agent-delegation-tasks": TableAPI<"agent-delegation-tasks">;
   "bot-integration": TableAPI<"bot-integration">;
+  "agent-schedule": TableAPI<"agent-schedule">;
 };
 
 /**
@@ -809,7 +831,8 @@ export type TableRecord =
   | z.infer<(typeof tableSchemas)["user-api-key"]>
   | z.infer<(typeof tableSchemas)["user-refresh-token"]>
   | z.infer<(typeof tableSchemas)["workspace-credit-transactions"]>
-  | z.infer<(typeof tableSchemas)["bot-integration"]>;
+  | z.infer<(typeof tableSchemas)["bot-integration"]>
+  | z.infer<(typeof tableSchemas)["agent-schedule"]>;
 
 /**
  * Callback function for atomic update operations

@@ -2,9 +2,11 @@
 
 ## Current Status
 
-**Status**: HubSpot MCP OAuth Integration Complete ✅
+**Status**: Agent scheduling implemented ✅
 
 **Latest Work**:
+
+- **Agent schedules (UTC)**: Added agent schedule table, API routes, cron validation, scheduled runner + queue worker, and scheduled conversation logging. Frontend now supports creating and managing schedules (UTC notices in UI) and displays scheduled conversations. Added schedule tests and scheduler test. Ran `pnpm lint --fix` and `pnpm typecheck`.
 
 - **Production evals investigation**: Checked CloudWatch logs for HelpmatonProduction; webhook handler is enqueueing evals, but `agent-eval-queue` fails at runtime with `Cannot find module '@lancedb/lancedb'` from `utils/vectordb/readClient.ts`, so eval execution aborts before results are emitted.
 - **E2E copy selector fixes**: Updated workspace detail page object labels (team/spending) and reran `pnpm test:e2e` with all tests passing.
