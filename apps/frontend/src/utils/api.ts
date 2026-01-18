@@ -1429,6 +1429,7 @@ export interface McpServer {
     | "github"
     | "linear"
     | "hubspot"
+    | "slack"
     | "stripe"
     | "posthog";
   oauthConnected?: boolean;
@@ -1449,6 +1450,7 @@ export interface CreateMcpServerInput {
     | "github"
     | "linear"
     | "hubspot"
+    | "slack"
     | "stripe"
     | "posthog";
   config?: {
@@ -1472,6 +1474,7 @@ export interface UpdateMcpServerInput {
     | "github"
     | "linear"
     | "hubspot"
+    | "slack"
     | "stripe"
     | "posthog";
   config?: {

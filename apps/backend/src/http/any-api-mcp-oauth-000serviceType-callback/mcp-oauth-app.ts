@@ -94,7 +94,7 @@ export const createApp: () => express.Application = () => {
         }
         const { workspaceId, serverId } = stateData;
 
-        const supportedServiceTypes = [
+        const allowedServiceTypes = new Set([
           "google-drive",
           "gmail",
           "google-calendar",
@@ -102,10 +102,11 @@ export const createApp: () => express.Application = () => {
           "github",
           "linear",
           "hubspot",
+          "slack",
           "stripe",
-        ];
+        ]);
 
-        if (!supportedServiceTypes.includes(serviceType)) {
+        if (!allowedServiceTypes.has(serviceType)) {
           const errorMsg = encodeURIComponent(
             `Unsupported service type: ${serviceType}`
           );
@@ -239,6 +240,11 @@ export const createApp: () => express.Application = () => {
               "../../utils/oauth/mcp/hubspot"
             );
             tokenInfo = await exchangeHubspotCode(code);
+          } else if (serviceType === "slack") {
+            const { exchangeSlackCode } = await import(
+              "../../utils/oauth/mcp/slack"
+            );
+            tokenInfo = await exchangeSlackCode(code);
           } else if (serviceType === "stripe") {
             const { exchangeStripeCode } = await import(
               "../../utils/oauth/mcp/stripe"

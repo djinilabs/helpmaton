@@ -526,6 +526,25 @@ These environment variables are used by the frontend application and must be pre
 - **How to obtain**: Found in the HubSpot app settings
 - **Note**: Keep this secret secure and never commit it to version control
 
+### `SLACK_OAUTH_CLIENT_ID`
+
+- **Description**: Slack OAuth client ID for Slack MCP servers
+- **Required**: No (required only if using Slack MCP servers)
+- **Example**: `1234567890.123456789012`
+- **How to obtain**:
+  1. Go to [Slack API apps](https://api.slack.com/apps)
+  2. Create or open your Slack app
+  3. Add the redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/slack/callback`
+  4. Copy the Client ID from "Basic Information"
+
+### `SLACK_OAUTH_CLIENT_SECRET`
+
+- **Description**: Slack OAuth client secret for Slack MCP servers
+- **Required**: No (required only if using Slack MCP servers)
+- **Example**: `abcd1234efgh5678ijkl9012mnop3456`
+- **How to obtain**: Found in the Slack app "Basic Information" section
+- **Note**: Keep this secret secure and never commit it to version control
+
 ## GitHub App Configuration
 
 **Note**: Helpmaton is designed to integrate with GitHub via GitHub Apps (not OAuth Apps) for its MCP server integration. In the current implementation, API calls use standard OAuth user access tokens obtained via a GitHub OAuth client ID and `client_secret`, which must be provided to the backend via appropriate environment variables. Support for private key-based JWT authentication and server-to-server installation access tokens is reserved for potential future use and may not yet be active in all deployments.
