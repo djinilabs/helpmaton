@@ -94,7 +94,18 @@ export const createApp: () => express.Application = () => {
         }
         const { workspaceId, serverId } = stateData;
 
-        if (serviceType !== "google-drive" && serviceType !== "gmail" && serviceType !== "google-calendar" && serviceType !== "notion" && serviceType !== "github" && serviceType !== "linear" && serviceType !== "hubspot" && serviceType !== "stripe") {
+        const supportedServiceTypes = [
+          "google-drive",
+          "gmail",
+          "google-calendar",
+          "notion",
+          "github",
+          "linear",
+          "hubspot",
+          "stripe",
+        ];
+
+        if (!supportedServiceTypes.includes(serviceType)) {
           const errorMsg = encodeURIComponent(
             `Unsupported service type: ${serviceType}`
           );

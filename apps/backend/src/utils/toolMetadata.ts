@@ -2763,6 +2763,7 @@ export function generateToolList(
       "github",
       "linear",
       "hubspot",
+      "stripe",
     ];
 
     // Group servers by serviceType for conflict detection
