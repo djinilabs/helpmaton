@@ -34,28 +34,34 @@ const listChannelsSchema = z.object({
     .describe("Pagination cursor from a previous response"),
 });
 
-const channelIdSchema = z.object({
-  channelId: z
-    .string()
-    .optional()
-    .describe("Slack channel ID (e.g., C12345)"),
-  channel_id: z
-    .string()
-    .optional()
-    .describe("Alias for channelId"),
-  channel: z.string().optional().describe("Alias for channelId"),
-  limit: z
-    .number()
-    .int()
-    .min(1)
-    .max(1000)
-    .optional()
-    .describe("Number of messages to return (default: 100)"),
-  cursor: z
-    .string()
-    .optional()
-    .describe("Pagination cursor from a previous response"),
-});
+const channelIdSchema = z
+  .object({
+    channelId: z
+      .string()
+      .optional()
+      .describe("Slack channel ID (e.g., C12345)"),
+    channel_id: z
+      .string()
+      .optional()
+      .describe("Alias for channelId"),
+    channel: z.string().optional().describe("Alias for channelId"),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(1000)
+      .optional()
+      .describe("Number of messages to return (default: 100)"),
+    cursor: z
+      .string()
+      .optional()
+      .describe("Pagination cursor from a previous response"),
+  })
+  .refine((data) => data.channelId || data.channel_id || data.channel, {
+    message:
+      "One of channelId, channel_id, or channel must be provided as the Slack channel identifier.",
+    path: ["channelId"],
+  });
 
 export function createSlackListChannelsTool(
   workspaceId: string,
@@ -138,15 +144,21 @@ export function createSlackPostMessageTool(
   return tool({
     description:
       "Post a message to a Slack channel. Provide the channel ID and message text.",
-    parameters: z.object({
-      channelId: z
-        .string()
-        .optional()
-        .describe("Slack channel ID (e.g., C12345)"),
-      channel_id: z.string().optional().describe("Alias for channelId"),
-      channel: z.string().optional().describe("Alias for channelId"),
-      text: z.string().min(1).describe("Message text to post"),
-    }),
+    parameters: z
+      .object({
+        channelId: z
+          .string()
+          .optional()
+          .describe("Slack channel ID (e.g., C12345)"),
+        channel_id: z.string().optional().describe("Alias for channelId"),
+        channel: z.string().optional().describe("Alias for channelId"),
+        text: z.string().min(1).describe("Message text to post"),
+      })
+      .refine((data) => data.channelId || data.channel_id || data.channel, {
+        message:
+          "At least one of channelId, channel_id, or channel is required.",
+        path: ["channel_id"],
+      }),
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- AI SDK tool function has type inference limitations when schema is extracted
     // @ts-ignore - The execute function signature doesn't match the expected type, but works at runtime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

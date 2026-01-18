@@ -626,7 +626,7 @@ Once connected, agents can use the following HubSpot tools:
    - Go to [Slack API apps](https://api.slack.com/apps)
    - Create or open your Slack app
    - Add redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/slack/callback`
-   - Add these OAuth scopes:
+   - Add these Bot Token Scopes:
      - `channels:read`
      - `channels:history`
      - `groups:read`
