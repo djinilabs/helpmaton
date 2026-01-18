@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { requireAgentInWorkspace } from "../../utils/agentScheduleAccess";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -55,15 +56,7 @@ export const registerGetAgentSchedules = (app: express.Application) => {
         const workspaceId = req.params.workspaceId;
         const agentId = req.params.agentId;
 
-        // Verify agent exists and belongs to workspace
-        const agentPk = `agents/${workspaceId}/${agentId}`;
-        const agent = await db.agent.get(agentPk, "agent");
-        if (!agent) {
-          throw badRequest("Agent not found");
-        }
-        if (agent.workspaceId !== workspaceId) {
-          throw badRequest("Agent does not belong to this workspace");
-        }
+        await requireAgentInWorkspace(db, workspaceId, agentId);
 
         const schedules: Array<{
           id: string;

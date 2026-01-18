@@ -169,9 +169,14 @@ const buildCronExpression = (values: {
   }
 
   if (values.frequency === "hourly") {
-    const minute = isValidNumber(values.minuteOfHour, 0, 59)
-      ? values.minuteOfHour
-      : DEFAULT_MINUTE;
+    let minute = values.minuteOfHour;
+    if (!isValidNumber(minute, 0, 59)) {
+      console.warn(
+        "AgentScheduleModal: Invalid minuteOfHour value for hourly schedule; falling back to DEFAULT_MINUTE.",
+        { minuteOfHour: values.minuteOfHour }
+      );
+      minute = DEFAULT_MINUTE;
+    }
     return `${minute} * * * *`;
   }
 

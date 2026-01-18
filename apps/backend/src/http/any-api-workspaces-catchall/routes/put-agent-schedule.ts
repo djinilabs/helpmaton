@@ -3,13 +3,15 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import {
+  DUE_PARTITION,
+  DISABLED_PARTITION,
+  buildAgentSchedulePk,
+} from "../../../utils/agentSchedule";
 import { getNextRunAtEpochSeconds } from "../../../utils/cron";
 import { validateBody } from "../../utils/bodyValidation";
 import { updateAgentScheduleSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
-
-const DUE_PARTITION = "due";
-const DISABLED_PARTITION = "disabled";
 
 /**
  * @openapi
@@ -91,7 +93,11 @@ export const registerPutAgentSchedule = (app: express.Application) => {
         const workspaceId = req.params.workspaceId;
         const agentId = req.params.agentId;
         const scheduleId = req.params.scheduleId;
-        const schedulePk = `agent-schedules/${workspaceId}/${agentId}/${scheduleId}`;
+        const schedulePk = buildAgentSchedulePk(
+          workspaceId,
+          agentId,
+          scheduleId
+        );
 
         const schedule = await db["agent-schedule"].get(
           schedulePk,
@@ -122,7 +128,7 @@ export const registerPutAgentSchedule = (app: express.Application) => {
         }
 
         const shouldRecomputeNextRunAt =
-          cronExpression !== undefined || enabled === true;
+          cronExpression !== undefined || (enabled === true && !schedule.enabled);
         if (shouldRecomputeNextRunAt) {
           const finalCronExpression =
             cronExpression ?? schedule.cronExpression;

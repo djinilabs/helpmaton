@@ -24,17 +24,20 @@ interface ScheduleItemProps {
   onEdit: (scheduleId: string) => void;
 }
 
+const formatUtcFromDate = (date: Date): string =>
+  date.toISOString().replace("T", " ").replace("Z", " UTC");
+
 const formatUtc = (timestampSeconds: number | null): string => {
   if (!timestampSeconds) return "Never";
   const date = new Date(timestampSeconds * 1000);
-  return date.toISOString().replace("T", " ").replace("Z", " UTC");
+  return formatUtcFromDate(date);
 };
 
 const formatUtcIso = (value: string | null): string => {
   if (!value) return "Never";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toISOString().replace("T", " ").replace("Z", " UTC");
+  return formatUtcFromDate(date);
 };
 
 const padTwo = (value: number) => String(value).padStart(2, "0");

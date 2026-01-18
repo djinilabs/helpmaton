@@ -3,6 +3,7 @@ import express from "express";
 
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
+import { buildAgentSchedulePk } from "../../../utils/agentSchedule";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -63,7 +64,11 @@ export const registerGetAgentSchedule = (app: express.Application) => {
         const workspaceId = req.params.workspaceId;
         const agentId = req.params.agentId;
         const scheduleId = req.params.scheduleId;
-        const schedulePk = `agent-schedules/${workspaceId}/${agentId}/${scheduleId}`;
+        const schedulePk = buildAgentSchedulePk(
+          workspaceId,
+          agentId,
+          scheduleId
+        );
 
         const schedule = await db["agent-schedule"].get(
           schedulePk,

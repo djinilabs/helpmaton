@@ -9,6 +9,8 @@ import {
   trackSuccessfulRequest,
   validateSubscriptionAndLimits,
 } from "../../http/utils/generationRequestTracking";
+// eslint-disable-next-line import/order
+import { MODEL_NAME } from "../../http/utils/agentUtils";
 import { buildConversationMessagesFromObserver } from "../../http/utils/llmObserver";
 import { convertTextToUIMessage } from "../../http/utils/messageConversion";
 import {
@@ -16,6 +18,7 @@ import {
   cleanupRequestTimeout,
 } from "../../http/utils/requestTimeout";
 import { database } from "../../tables";
+import { buildAgentSchedulePk } from "../../utils/agentSchedule";
 import {
   buildConversationErrorInfo,
   startConversation,
@@ -90,7 +93,11 @@ async function processScheduleExecution(record: SQSRecord): Promise<void> {
   }
 
   const { scheduleId, workspaceId, agentId } = message;
-  const schedulePk = `agent-schedules/${workspaceId}/${agentId}/${scheduleId}`;
+  const schedulePk = buildAgentSchedulePk(
+    workspaceId,
+    agentId,
+    scheduleId
+  );
 
   console.log("[Schedule Queue] Processing schedule execution:", {
     scheduleId,
@@ -166,7 +173,7 @@ async function processScheduleExecution(record: SQSRecord): Promise<void> {
     const finalModelName =
       typeof agent.modelName === "string"
         ? agent.modelName
-        : "openrouter/gemini-2.0-flash-exp";
+        : MODEL_NAME;
 
     const userMessage = convertTextToUIMessage(prompt);
     const messagesForLogging = agentResult.observerEvents

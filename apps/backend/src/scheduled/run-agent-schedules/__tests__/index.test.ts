@@ -45,6 +45,9 @@ describe("run-agent-schedules", () => {
   });
 
   it("enqueues due schedules and updates nextRunAt", async () => {
+    const dateNowSpy = vi
+      .spyOn(Date, "now")
+      .mockReturnValue(1710000000 * 1000);
     const schedule = {
       pk: "agent-schedules/workspace-1/agent-1/schedule-1",
       sk: "schedule",
@@ -78,6 +81,10 @@ describe("run-agent-schedules", () => {
         IndexName: "byNextRunAt",
       })
     );
+    expect(mockGetNextRunAtEpochSeconds).toHaveBeenCalledWith(
+      schedule.cronExpression,
+      new Date(schedule.nextRunAt * 1000)
+    );
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         pk: schedule.pk,
@@ -94,5 +101,6 @@ describe("run-agent-schedules", () => {
         enqueuedAt: expect.any(String),
       },
     });
+    dateNowSpy.mockRestore();
   });
 });

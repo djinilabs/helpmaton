@@ -2,11 +2,11 @@ import { queues } from "@architect/functions";
 import type { ScheduledEvent } from "aws-lambda";
 
 import { database } from "../../tables";
+import { DUE_PARTITION } from "../../utils/agentSchedule";
 import { getNextRunAtEpochSeconds } from "../../utils/cron";
 import { handlingScheduledErrors } from "../../utils/handlingErrors";
 import { Sentry, ensureError } from "../../utils/sentry";
 
-const DUE_PARTITION = "due";
 const MAX_SCHEDULES_PER_RUN = 100;
 const QUEUE_NAME = "agent-schedule-queue";
 
@@ -91,10 +91,16 @@ export const handler = handlingScheduledErrors(
       }
 
       try {
-        const nextRunAt = getNextRunAtEpochSeconds(
+        let nextRunAt = getNextRunAtEpochSeconds(
           cronExpression,
-          new Date()
+          new Date(schedule.nextRunAt * 1000)
         );
+        while (nextRunAt <= now) {
+          nextRunAt = getNextRunAtEpochSeconds(
+            cronExpression,
+            new Date(nextRunAt * 1000)
+          );
+        }
 
         await queues.publish({
           name: QUEUE_NAME,
