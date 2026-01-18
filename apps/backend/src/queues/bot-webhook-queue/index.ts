@@ -6,6 +6,8 @@ import type { SQSEvent } from "aws-lambda";
 import { updateDiscordMessage } from "../../http/any-api-webhooks-000type-000workspaceId-000integrationId/services/discordResponse";
 import { updateSlackMessage } from "../../http/any-api-webhooks-000type-000workspaceId-000integrationId/services/slackResponse";
 import { callAgentNonStreaming } from "../../http/utils/agentCallNonStreaming";
+// eslint-disable-next-line import/order
+import { executeWithRequestLimits } from "../../http/utils/nonStreamingRequestLimits";
 import { reconstructToolCallsFromResults } from "../../http/utils/generationToolReconstruction";
 import { buildConversationMessagesFromObserver } from "../../http/utils/llmObserver";
 import { convertTextToUIMessage } from "../../http/utils/messageConversion";
@@ -155,18 +157,19 @@ async function processDiscordTask(
       generationStartTime = Date.now();
       generationStartedAt = new Date().toISOString();
       // Call agent
-      agentResult = await callAgentNonStreaming(
+      agentResult = await executeWithRequestLimits({
         workspaceId,
         agentId,
-        messageText,
-        {
-          modelReferer: `${baseUrl}/api/webhooks/discord`,
-          conversationId: conversationId || channelId,
-          context,
-          endpointType: "webhook",
-          abortSignal: requestTimeout.signal,
-        }
-      );
+        endpoint: "webhook",
+        execute: () =>
+          callAgentNonStreaming(workspaceId, agentId, messageText, {
+            modelReferer: `${baseUrl}/api/webhooks/discord`,
+            conversationId: conversationId || channelId,
+            context,
+            endpointType: "webhook",
+            abortSignal: requestTimeout.signal,
+          }),
+      });
     } finally {
       cleanupRequestTimeout(requestTimeout);
     }
@@ -781,19 +784,20 @@ async function processSlackTask(
     try {
       generationStartTime = Date.now();
       generationStartedAt = new Date().toISOString();
-      agentResult = await callAgentNonStreaming(
+      agentResult = await executeWithRequestLimits({
         workspaceId,
         agentId,
-        messageText,
-        {
-          modelReferer: `${baseUrl}/api/webhooks/slack`,
-          conversationId: conversationId || threadTs || messageTs,
-          context,
-          endpointType: "webhook",
-          conversationHistory,
-          abortSignal: requestTimeout.signal,
-        }
-      );
+        endpoint: "webhook",
+        execute: () =>
+          callAgentNonStreaming(workspaceId, agentId, messageText, {
+            modelReferer: `${baseUrl}/api/webhooks/slack`,
+            conversationId: conversationId || threadTs || messageTs,
+            context,
+            endpointType: "webhook",
+            conversationHistory,
+            abortSignal: requestTimeout.signal,
+          }),
+      });
     } finally {
       cleanupRequestTimeout(requestTimeout);
     }

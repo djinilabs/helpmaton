@@ -96,3 +96,8 @@ export async function trackSuccessfulRequest(
   }
 }
 
+/**
+ * Runs a non-streaming execution with subscription limit validation
+ * and tracks the request after successful completion.
+ */
+

@@ -2,6 +2,7 @@ import type { SQSEvent } from "aws-lambda";
 import { z } from "zod";
 
 import { callAgentInternal } from "../../http/utils/agentUtils";
+import { executeWithRequestLimits } from "../../http/utils/nonStreamingRequestLimits";
 import { database } from "../../tables";
 import { trackDelegation } from "../../utils/conversationLogger";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
@@ -252,18 +253,25 @@ async function processDelegationTask(
       const requestTimeout = createRequestTimeout();
 
       try {
-        const delegationResult = await callAgentInternal(
+        const delegationResult = await executeWithRequestLimits({
           workspaceId,
-          targetAgentId,
-          taskMessage,
-          callDepth,
-          maxDepth,
-          context,
-          0, // timeoutMs deprecated, using abortSignal instead
-          conversationId, // Pass conversationId from message if available
-          callingAgentId, // Use callingAgentId as conversationOwnerAgentId for tracking
-          requestTimeout.signal
-        );
+          agentId: targetAgentId,
+          endpoint: "test",
+          execute: () =>
+            callAgentInternal(
+              workspaceId,
+              targetAgentId,
+              taskMessage,
+              callDepth,
+              maxDepth,
+              context,
+              0, // timeoutMs deprecated, using abortSignal instead
+              conversationId, // Pass conversationId from message if available
+              callingAgentId, // Use callingAgentId as conversationOwnerAgentId for tracking
+              requestTimeout.signal
+            ),
+          shouldTrack: (value) => value.shouldTrackRequest,
+        });
         result = delegationResult.response;
         targetAgentConversationId = delegationResult.targetAgentConversationId;
       } finally {

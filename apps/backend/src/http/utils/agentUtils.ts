@@ -812,12 +812,17 @@ export async function callAgentInternal(
   conversationId?: string,
   conversationOwnerAgentId?: string, // Agent ID that owns the conversation (for delegation tracking)
   abortSignal?: AbortSignal
-): Promise<{ response: string; targetAgentConversationId: string }> {
+): Promise<{
+  response: string;
+  targetAgentConversationId: string;
+  shouldTrackRequest: boolean;
+}> {
   // Check depth limit
   if (callDepth >= maxDepth) {
     return {
       response: `Error: Maximum delegation depth (${maxDepth}) reached. Cannot delegate further.`,
       targetAgentConversationId: randomUUID(), // Generate a conversation ID even for errors
+      shouldTrackRequest: false,
     };
   }
 
@@ -838,6 +843,7 @@ export async function callAgentInternal(
     return {
       response: `Error: Target agent ${targetAgentId} not found.`,
       targetAgentConversationId: targetAgentConversationId,
+      shouldTrackRequest: false,
     };
   }
 
@@ -845,6 +851,7 @@ export async function callAgentInternal(
     return {
       response: `Error: Target agent ${targetAgentId} does not belong to this workspace.`,
       targetAgentConversationId: targetAgentConversationId,
+      shouldTrackRequest: false,
     };
   }
 
@@ -1114,6 +1121,7 @@ export async function callAgentInternal(
 
   let reservationId: string | undefined;
   let llmCallAttempted = false;
+  let shouldTrackRequest = false;
   let result: Awaited<ReturnType<typeof generateText>> | undefined;
   let tokenUsage: ReturnType<typeof extractTokenUsage> | undefined;
 
@@ -1198,6 +1206,7 @@ export async function callAgentInternal(
 
     // LLM call succeeded - mark as attempted
     llmCallAttempted = true;
+    shouldTrackRequest = true;
 
     // Extract token usage, generation IDs, and costs for credit adjustment
     const extractionResult = extractTokenUsageAndCosts(
@@ -1393,6 +1402,7 @@ export async function callAgentInternal(
     return {
       response: result.text,
       targetAgentConversationId,
+      shouldTrackRequest,
     };
   } catch (error) {
     // Handle errors based on when they occurred
@@ -1570,6 +1580,7 @@ export async function callAgentInternal(
         error instanceof Error ? error.message : String(error)
       }`,
       targetAgentConversationId: targetAgentConversationId || randomUUID(),
+      shouldTrackRequest: llmCallAttempted,
     };
   }
 }
