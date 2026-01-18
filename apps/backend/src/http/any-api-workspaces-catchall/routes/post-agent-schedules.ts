@@ -11,6 +11,7 @@ import {
   buildAgentSchedulePk,
 } from "../../../utils/agentSchedule";
 import { getNextRunAtEpochSeconds } from "../../../utils/cron";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { requireAgentInWorkspace } from "../../utils/agentScheduleAccess";
 import { validateBody } from "../../utils/bodyValidation";
 import { createAgentScheduleSchema } from "../../utils/schemas/workspaceSchemas";
@@ -127,6 +128,18 @@ export const registerPostAgentSchedules = (app: express.Application) => {
         };
 
         await db["agent-schedule"].create(scheduleRecord);
+
+        trackBusinessEvent(
+          "agent_schedule",
+          "created",
+          {
+            workspace_id: workspaceId,
+            agent_id: agentId,
+            schedule_id: scheduleId,
+            enabled,
+          },
+          req
+        );
 
         res.status(201).json({
           id: scheduleId,
