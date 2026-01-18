@@ -233,6 +233,7 @@ export async function createMcpServerTools(
     "hubspot",
     "slack",
     "stripe",
+    "salesforce",
   ];
 
   // First pass: collect all valid servers
@@ -627,6 +628,32 @@ export async function createMcpServerTools(
         searchChargesTool as ReturnType<typeof createMcpServerTool>;
       tools[`stripe_get_metrics${suffix}`] =
         getMetricsTool as ReturnType<typeof createMcpServerTool>;
+    } else if (
+      server.authType === "oauth" &&
+      server.serviceType === "salesforce"
+    ) {
+      const {
+        createSalesforceListObjectsTool,
+        createSalesforceDescribeObjectTool,
+        createSalesforceQueryTool,
+      } = await import("./salesforceTools");
+
+      const listObjectsTool = createSalesforceListObjectsTool(
+        workspaceId,
+        serverId
+      );
+      const describeTool = createSalesforceDescribeObjectTool(
+        workspaceId,
+        serverId
+      );
+      const queryTool = createSalesforceQueryTool(workspaceId, serverId);
+
+      tools[`salesforce_list_objects${suffix}`] =
+        listObjectsTool as ReturnType<typeof createMcpServerTool>;
+      tools[`salesforce_describe_object${suffix}`] =
+        describeTool as ReturnType<typeof createMcpServerTool>;
+      tools[`salesforce_query${suffix}`] =
+        queryTool as ReturnType<typeof createMcpServerTool>;
     } else if (server.serviceType === "posthog") {
       const {
         createPosthogListProjectsTool,

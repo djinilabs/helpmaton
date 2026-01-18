@@ -609,6 +609,52 @@ Once connected, agents can use the following HubSpot tools:
 - HubSpot OAuth tokens are refreshed automatically when expired
 - The integration is read-only; only GET/search operations are performed
 
+### Salesforce Integration
+
+```json
+{
+  "name": "My Salesforce Org",
+  "authType": "oauth",
+  "serviceType": "salesforce",
+  "config": {}
+}
+```
+
+**Setup Requirements**:
+
+1. Create a Salesforce Connected App:
+   - Go to Salesforce Setup → App Manager
+   - Create or open a Connected App
+   - Enable OAuth Settings
+   - Add redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/salesforce/callback`
+   - Add OAuth scopes:
+     - `api`
+     - `refresh_token`
+     - `offline_access`
+   - Save and copy the Consumer Key and Consumer Secret
+
+2. Configure Environment Variables:
+   - Set `SALESFORCE_OAUTH_CLIENT_ID` to your Salesforce Consumer Key
+   - Set `SALESFORCE_OAUTH_CLIENT_SECRET` to your Salesforce Consumer Secret
+   - Ensure `OAUTH_REDIRECT_BASE_URL` is set correctly
+
+3. Connect Your Salesforce Account:
+   - After creating the MCP server, click "Connect" to authorize the integration
+
+**Available Tools**:
+
+Once connected, agents can use the following Salesforce tools:
+
+- `salesforce_list_objects_{serverName}` - List standard and custom objects in the org
+- `salesforce_describe_object_{serverName}` - Describe fields and relationships for an object
+- `salesforce_query_{serverName}` - Execute SOQL queries (read-only)
+
+**Important Notes**:
+
+- Salesforce returns an `instance_url` during token exchange, and all API calls must use that instance URL (not `login.salesforce.com`)
+- The integration follows a discovery-first workflow: list objects → describe object → query
+- The tools are read-only; only GET requests are performed
+
 ### Slack Integration
 
 ```json

@@ -495,6 +495,43 @@ describe("toolMetadata", () => {
         ).toBe(true);
       });
 
+      it("should include Salesforce tools when OAuth-connected server is enabled", () => {
+        const mcpServers: McpServerInfo[] = [
+          {
+            id: "server-1",
+            name: "My Salesforce",
+            serviceType: "salesforce",
+            authType: "oauth",
+            oauthConnected: true,
+          },
+        ];
+
+        const options: ToolListOptions = {
+          ...baseOptions,
+          agent: {
+            ...baseOptions.agent,
+            enabledMcpServerIds: ["server-1"],
+          },
+          enabledMcpServers: mcpServers,
+        };
+
+        const result = generateToolList(options);
+
+        const mcpGroup = result.find((g) => g.category === "MCP Server Tools");
+        expect(mcpGroup).toBeDefined();
+
+        const salesforceTools = mcpGroup?.tools.filter((t) =>
+          t.name.startsWith("salesforce_")
+        );
+        expect(salesforceTools?.length).toBeGreaterThan(0);
+        expect(
+          salesforceTools?.some((t) => t.name === "salesforce_list_objects")
+        ).toBe(true);
+        expect(
+          salesforceTools?.some((t) => t.name === "salesforce_query")
+        ).toBe(true);
+      });
+
       it("should include Slack tools when OAuth-connected server is enabled", () => {
         const mcpServers: McpServerInfo[] = [
           {

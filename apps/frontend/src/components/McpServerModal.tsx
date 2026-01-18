@@ -31,6 +31,7 @@ type McpServerType =
   | "github"
   | "linear"
   | "hubspot"
+  | "salesforce"
   | "slack"
   | "stripe"
   | "posthog"
@@ -94,6 +95,13 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     icon: BuildingOfficeIcon,
   },
   {
+    value: "salesforce",
+    name: "Salesforce",
+    description:
+      "Query Salesforce CRM data using SOQL. List objects, describe schemas, and run read-only queries.",
+    icon: BuildingOfficeIcon,
+  },
+  {
     value: "slack",
     name: "Slack",
     description:
@@ -150,6 +158,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     | "github"
     | "linear"
     | "hubspot"
+    | "salesforce"
     | "slack"
     | "stripe"
     | "posthog"
@@ -219,6 +228,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           server.serviceType === "hubspot"
         ) {
           setMcpType("hubspot");
+          // OAuth servers don't have authType in the UI
+        } else if (
+          server.authType === "oauth" &&
+          server.serviceType === "salesforce"
+        ) {
+          setMcpType("salesforce");
           // OAuth servers don't have authType in the UI
         } else if (
           server.authType === "oauth" &&
@@ -363,6 +378,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             | "github"
             | "linear"
             | "hubspot"
+            | "salesforce"
             | "slack"
             | "stripe"
             | "posthog";
@@ -386,6 +402,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server?.serviceType === "github" ||
             server?.serviceType === "linear" ||
             server?.serviceType === "hubspot" ||
+          server?.serviceType === "salesforce" ||
             server?.serviceType === "slack" ||
             server?.serviceType === "stripe");
         const isPosthogServer = server?.serviceType === "posthog";
@@ -562,6 +579,20 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server_id: result.id,
             auth_type: "oauth",
             service_type: "hubspot",
+          });
+        } else if (mcpType === "salesforce") {
+          // Salesforce - OAuth-based
+          const result = await createServer.mutateAsync({
+            name: name.trim(),
+            authType: "oauth",
+            serviceType: "salesforce",
+            config: {}, // Empty config for OAuth servers (credentials set via OAuth flow)
+          });
+          trackEvent("mcp_server_created", {
+            workspace_id: workspaceId,
+            server_id: result.id,
+            auth_type: "oauth",
+            service_type: "salesforce",
           });
         } else if (mcpType === "slack") {
           // Slack - OAuth-based
@@ -764,6 +795,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   Linear account via OAuth (read-only access).
                 </p>
               )}
+              {mcpType === "salesforce" && (
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  After creating the server, you&apos;ll need to connect your
+                  Salesforce account via OAuth (read-only access).
+                </p>
+              )}
               {mcpType === "posthog" && (
                 <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
                   You&apos;ll be prompted for a PostHog personal API key and
@@ -917,6 +954,14 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
                     This is a Linear MCP server. OAuth connection is managed
                     separately.
+                  </p>
+                </div>
+              ) : server.authType === "oauth" &&
+                server.serviceType === "salesforce" ? (
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                    This is a Salesforce MCP server. OAuth connection is
+                    managed separately.
                   </p>
                 </div>
               ) : (
