@@ -15,6 +15,7 @@ import {
   parseCronExpression,
   type ScheduleFrequency,
 } from "../utils/scheduleCron";
+import { trackEvent } from "../utils/tracking";
 
 const FREQUENCY_OPTIONS: Array<{
   value: ScheduleFrequency;
@@ -123,18 +124,34 @@ export const AgentScheduleModal: FC<AgentScheduleModalProps> = ({
 
     try {
       if (isEditing && scheduleId) {
-        await updateSchedule.mutateAsync({
+        const updatedSchedule = await updateSchedule.mutateAsync({
           name: name.trim(),
           cronExpression: cronExpression.trim(),
           prompt: prompt.trim(),
           enabled,
         });
+        trackEvent("agent_schedule_updated", {
+          workspace_id: workspaceId,
+          agent_id: agentId,
+          schedule_id: updatedSchedule.id,
+          frequency,
+          enabled: updatedSchedule.enabled,
+          is_custom: frequency === "custom",
+        });
       } else {
-        await createSchedule.mutateAsync({
+        const createdSchedule = await createSchedule.mutateAsync({
           name: name.trim(),
           cronExpression: cronExpression.trim(),
           prompt: prompt.trim(),
           enabled,
+        });
+        trackEvent("agent_schedule_created", {
+          workspace_id: workspaceId,
+          agent_id: agentId,
+          schedule_id: createdSchedule.id,
+          frequency,
+          enabled: createdSchedule.enabled,
+          is_custom: frequency === "custom",
         });
       }
       handleClose();

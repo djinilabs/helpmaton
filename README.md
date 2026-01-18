@@ -134,6 +134,10 @@ Comprehensive token usage tracking across all dimensions: prompt tokens, complet
 
 **Error Tracking**: Conversations automatically persist and display errors when LLM calls fail, including detailed error messages, stack traces, provider information, and metadata. Error badges in conversation lists and detailed error views help you quickly identify and debug issues.
 
+### Evaluation & Quality Control
+
+Configure eval judges to score conversations, track outcomes, and validate agent behavior. Sampling controls let you run evaluations on a subset of traffic to balance insight with cost.
+
 ### Trial & Free Access
 
 Request trial credits to test the platform risk-free. The free plan includes 1 workspace and 1 agent with 7-day access, perfect for evaluation. After the trial period, agents are blocked until you upgrade to a paid plan.

@@ -9,6 +9,7 @@ import {
   buildAgentSchedulePk,
 } from "../../../utils/agentSchedule";
 import { getNextRunAtEpochSeconds } from "../../../utils/cron";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
 import { updateAgentScheduleSchema } from "../../utils/schemas/workspaceSchemas";
 import { handleError, requireAuth, requirePermission } from "../middleware";
@@ -150,6 +151,22 @@ export const registerPutAgentSchedule = (app: express.Application) => {
         if (!updatedSchedule) {
           throw resourceGone("Schedule not found after update");
         }
+
+        trackBusinessEvent(
+          "agent_schedule",
+          "updated",
+          {
+            workspace_id: workspaceId,
+            agent_id: agentId,
+            schedule_id: updatedSchedule.scheduleId,
+            enabled: updatedSchedule.enabled,
+            name_updated: name !== undefined,
+            prompt_updated: prompt !== undefined,
+            cron_expression_updated: cronExpression !== undefined,
+            enabled_updated: enabled !== undefined,
+          },
+          req
+        );
 
         res.json({
           id: updatedSchedule.scheduleId,

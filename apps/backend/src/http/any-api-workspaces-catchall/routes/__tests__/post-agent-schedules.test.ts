@@ -15,12 +15,14 @@ const {
   mockGetNextRunAtEpochSeconds,
   mockEnsureWorkspaceSubscription,
   mockCheckAgentScheduleLimit,
+  mockTrackBusinessEvent,
 } = vi.hoisted(() => ({
   mockRandomUUID: vi.fn(),
   mockDatabase: vi.fn(),
   mockGetNextRunAtEpochSeconds: vi.fn(),
   mockEnsureWorkspaceSubscription: vi.fn(),
   mockCheckAgentScheduleLimit: vi.fn(),
+  mockTrackBusinessEvent: vi.fn(),
 }));
 
 vi.mock("crypto", () => ({
@@ -39,6 +41,10 @@ vi.mock("../../../../utils/cron", () => ({
 vi.mock("../../../../utils/subscriptionUtils", () => ({
   ensureWorkspaceSubscription: mockEnsureWorkspaceSubscription,
   checkAgentScheduleLimit: mockCheckAgentScheduleLimit,
+}));
+
+vi.mock("../../../../utils/tracking", () => ({
+  trackBusinessEvent: mockTrackBusinessEvent,
 }));
 
 import { registerPostAgentSchedules } from "../post-agent-schedules";
@@ -132,6 +138,17 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
       "subscription-123",
       workspaceId,
       agentId
+    );
+    expect(mockTrackBusinessEvent).toHaveBeenCalledWith(
+      "agent_schedule",
+      "created",
+      expect.objectContaining({
+        workspace_id: workspaceId,
+        agent_id: agentId,
+        schedule_id: scheduleId,
+        enabled: true,
+      }),
+      req
     );
     expect(mockGetNextRunAtEpochSeconds).toHaveBeenCalledWith(
       "0 0 * * *",
