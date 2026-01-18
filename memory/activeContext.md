@@ -6,6 +6,7 @@
 
 **Latest Work**:
 
+- **Production evals investigation**: Checked CloudWatch logs for HelpmatonProduction; webhook handler is enqueueing evals, but `agent-eval-queue` fails at runtime with `Cannot find module '@lancedb/lancedb'` from `utils/vectordb/readClient.ts`, so eval execution aborts before results are emitted.
 - **E2E copy selector fixes**: Updated workspace detail page object labels (team/spending) and reran `pnpm test:e2e` with all tests passing.
 - **E2E selector updates for UI copy**: Updated Playwright page object selectors and assertions to match new dashboard/workspace/assistants labels; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **UI copy refresh for non-technical users**: Simplified wording and added helper text across core frontend pages and modals (Home, Workspaces, Workspace/Agent details, Integrations, Settings, Subscription, API docs, widget preview, 404). Updated section titles and warnings to be clearer; ran `pnpm lint --fix` and `pnpm typecheck`.
