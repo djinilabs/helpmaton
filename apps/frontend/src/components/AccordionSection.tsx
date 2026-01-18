@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FC, ReactNode } from "react";
 
 import { LazyAccordionContent } from "./LazyAccordionContent";
@@ -21,13 +21,14 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const innerContentRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLButtonElement>(null);
+  const hasMountedRef = useRef(false);
   const previousExpandedRef = useRef<boolean>(false);
   const referencePointRef = useRef<{
     scrollY: number;
     elementTop: number;
   } | null>(null);
   const [maxHeight, setMaxHeight] = useState<number>(0);
-  const getStickyNavOffset = () => {
+  const getStickyNavOffset = useCallback(() => {
     const navElement = document.querySelector("nav.sticky") as HTMLElement | null;
     if (!navElement) {
       return 0;
@@ -36,7 +37,25 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
     const navHeight = navElement.getBoundingClientRect().height;
     const padding = 8;
     return navHeight + padding;
-  };
+  }, []);
+  const scrollHeaderIntoView = useCallback(
+    (behavior: ScrollBehavior) => {
+      if (!headerRef.current) {
+        return;
+      }
+
+      const rect = headerRef.current.getBoundingClientRect();
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const stickyOffset = getStickyNavOffset();
+      const targetScroll = scrollTop + rect.top - stickyOffset;
+
+      window.scrollTo({
+        top: Math.max(0, targetScroll),
+        behavior,
+      });
+    },
+    [getStickyNavOffset]
+  );
 
   // Measure content height when expanded or when content changes
   // Use ResizeObserver to handle dynamic content and ensure accurate measurements
@@ -79,6 +98,18 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
   useEffect(() => {
     const wasExpanded = previousExpandedRef.current;
     previousExpandedRef.current = isExpanded;
+
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      if (isExpanded) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            scrollHeaderIntoView("smooth");
+          });
+        });
+      }
+      return;
+    }
 
     // Only handle scroll position changes when state actually changes
     if (wasExpanded === isExpanded) {
@@ -142,18 +173,8 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
         // Use requestAnimationFrame to ensure DOM is fully settled after transition
         requestAnimationFrame(() => {
           if (headerRef.current) {
-            // Calculate scroll position to place header below sticky nav
-            const rect = headerRef.current.getBoundingClientRect();
-            const scrollTop =
-              window.scrollY || document.documentElement.scrollTop;
-            const stickyOffset = getStickyNavOffset();
-            const targetScroll = scrollTop + rect.top - stickyOffset;
-
             // Scroll to position header below the sticky nav
-            window.scrollTo({
-              top: Math.max(0, targetScroll), // Ensure we don't scroll to negative position
-              behavior: "smooth",
-            });
+            scrollHeaderIntoView("smooth");
           }
         });
       }
@@ -166,7 +187,7 @@ export const AccordionSection: FC<AccordionSectionProps> = ({
       }
       clearTimeout(transitionTimeout);
     };
-  }, [isExpanded]);
+  }, [isExpanded, scrollHeaderIntoView]);
 
   return (
     <div className="mb-4 rounded-2xl border border-neutral-200 bg-white shadow-medium dark:border-neutral-700 dark:bg-neutral-900">
