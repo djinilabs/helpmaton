@@ -12,6 +12,7 @@ import {
   getDefaultModelForProvider,
   type Provider,
 } from "../utils/modelConfig";
+import { trackEvent } from "../utils/tracking";
 
 import { AvatarSelector } from "./AvatarSelector";
 import { ModelPricesDialog } from "./ModelPricesDialog";
@@ -375,12 +376,19 @@ export const AgentModal: FC<AgentModalProps> = ({
 
     try {
       if (isEditing) {
-        await updateAgent.mutateAsync({
+        const updatedAgent = await updateAgent.mutateAsync({
           name: name.trim(),
           systemPrompt: systemPrompt.trim(),
           notificationChannelId: notificationChannelId || null,
           modelName: modelName || null,
           avatar: avatar || null,
+        });
+        trackEvent("agent_updated", {
+          workspace_id: workspaceId,
+          agent_id: updatedAgent.id || agent?.id,
+          model_name: updatedAgent.modelName || modelName || undefined,
+          has_notification_channel: !!notificationChannelId,
+          has_avatar: !!avatar,
         });
         handleClose();
       } else {
@@ -390,6 +398,13 @@ export const AgentModal: FC<AgentModalProps> = ({
           notificationChannelId: notificationChannelId || null,
           modelName: modelName || null,
           avatar: avatar || null,
+        });
+        trackEvent("agent_created", {
+          workspace_id: workspaceId,
+          agent_id: createdAgent.id,
+          model_name: createdAgent.modelName || modelName || undefined,
+          has_notification_channel: !!notificationChannelId,
+          has_avatar: !!avatar,
         });
         handleClose();
         navigate(`/workspaces/${workspaceId}/agents/${createdAgent.id}`);

@@ -8,12 +8,17 @@ import {
   createMockDatabase,
 } from "../../../utils/__tests__/test-helpers";
 
-const { mockRandomUUID, mockDatabase, mockGetNextRunAtEpochSeconds } =
-  vi.hoisted(() => ({
-    mockRandomUUID: vi.fn(),
-    mockDatabase: vi.fn(),
-    mockGetNextRunAtEpochSeconds: vi.fn(),
-  }));
+const {
+  mockRandomUUID,
+  mockDatabase,
+  mockGetNextRunAtEpochSeconds,
+  mockTrackBusinessEvent,
+} = vi.hoisted(() => ({
+  mockRandomUUID: vi.fn(),
+  mockDatabase: vi.fn(),
+  mockGetNextRunAtEpochSeconds: vi.fn(),
+  mockTrackBusinessEvent: vi.fn(),
+}));
 
 vi.mock("crypto", () => ({
   randomUUID: mockRandomUUID,
@@ -26,6 +31,10 @@ vi.mock("../../../../tables", () => ({
 vi.mock("../../../../utils/cron", () => ({
   getNextRunAtEpochSeconds: mockGetNextRunAtEpochSeconds,
   isValidCronExpression: vi.fn().mockReturnValue(true),
+}));
+
+vi.mock("../../../../utils/tracking", () => ({
+  trackBusinessEvent: mockTrackBusinessEvent,
 }));
 
 import { registerPostAgentSchedules } from "../post-agent-schedules";
@@ -109,6 +118,17 @@ describe("POST /api/workspaces/:workspaceId/agents/:agentId/schedules", () => {
 
     await handler(req as never, res as never, next);
 
+    expect(mockTrackBusinessEvent).toHaveBeenCalledWith(
+      "agent_schedule",
+      "created",
+      expect.objectContaining({
+        workspace_id: workspaceId,
+        agent_id: agentId,
+        schedule_id: scheduleId,
+        enabled: true,
+      }),
+      req
+    );
     expect(mockGetNextRunAtEpochSeconds).toHaveBeenCalledWith(
       "0 0 * * *",
       expect.any(Date)

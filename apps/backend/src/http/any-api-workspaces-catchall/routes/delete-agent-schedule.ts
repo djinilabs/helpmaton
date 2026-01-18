@@ -4,6 +4,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { buildAgentSchedulePk } from "../../../utils/agentSchedule";
+import { trackBusinessEvent } from "../../../utils/tracking";
 import { handleError, requireAuth, requirePermission } from "../middleware";
 
 /**
@@ -89,6 +90,17 @@ export const registerDeleteAgentSchedule = (app: express.Application) => {
         }
 
         await db["agent-schedule"].delete(schedulePk, "schedule");
+
+        trackBusinessEvent(
+          "agent_schedule",
+          "deleted",
+          {
+            workspace_id: workspaceId,
+            agent_id: agentId,
+            schedule_id: scheduleId,
+          },
+          req
+        );
 
         res.status(204).send();
       } catch (error) {
