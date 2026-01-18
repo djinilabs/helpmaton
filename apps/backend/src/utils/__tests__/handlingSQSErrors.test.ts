@@ -115,10 +115,10 @@ describe("handlingSQSErrors", () => {
 
       // Handler should be called once per record with single-record events
       expect(handler).toHaveBeenCalledTimes(2);
-      expect(handler).toHaveBeenNthCalledWith(1, {
+      expect(handler).toHaveBeenCalledWith({
         Records: [mockEvent.Records[0]],
       });
-      expect(handler).toHaveBeenNthCalledWith(2, {
+      expect(handler).toHaveBeenCalledWith({
         Records: [mockEvent.Records[1]],
       });
       expect(result).toEqual({
@@ -140,11 +140,10 @@ describe("handlingSQSErrors", () => {
 
   describe("partial batch failures", () => {
     it("should return batchItemFailures for failed messages", async () => {
-      // Handler returns msg-1 as failed for first record, empty for second
-      const handler = vi
-        .fn()
-        .mockResolvedValueOnce(["msg-1"])
-        .mockResolvedValueOnce([]);
+      // Handler returns msg-1 as failed, empty for others
+      const handler = vi.fn(async (event) =>
+        event.Records[0]?.messageId === "msg-1" ? ["msg-1"] : []
+      );
       const wrappedHandler = handlingSQSErrors(handler);
 
       const result = await wrappedHandler(mockEvent);
@@ -159,11 +158,10 @@ describe("handlingSQSErrors", () => {
     });
 
     it("should log warning for failed messages", async () => {
-      // Handler returns msg-1 as failed for first record, empty for second
-      const handler = vi
-        .fn()
-        .mockResolvedValueOnce(["msg-1"])
-        .mockResolvedValueOnce([]);
+      // Handler returns msg-1 as failed, empty for others
+      const handler = vi.fn(async (event) =>
+        event.Records[0]?.messageId === "msg-1" ? ["msg-1"] : []
+      );
       const wrappedHandler = handlingSQSErrors(handler);
 
       await wrappedHandler(mockEvent);
@@ -186,10 +184,9 @@ describe("handlingSQSErrors", () => {
 
     it("should handle multiple failed messages", async () => {
       // Handler returns each message as failed
-      const handler = vi
-        .fn()
-        .mockResolvedValueOnce(["msg-1"])
-        .mockResolvedValueOnce(["msg-2"]);
+      const handler = vi.fn(async (event) => [
+        event.Records[0]?.messageId || "unknown",
+      ]);
       const wrappedHandler = handlingSQSErrors(handler);
 
       const result = await wrappedHandler(mockEvent);
@@ -230,10 +227,12 @@ describe("handlingSQSErrors", () => {
     it("should log error details when handler throws", async () => {
       const error = new Error("Unexpected error");
       // Handler throws for first record, succeeds for second
-      const handler = vi
-        .fn()
-        .mockRejectedValueOnce(error)
-        .mockResolvedValueOnce([]);
+      const handler = vi.fn(async (event) => {
+        if (event.Records[0]?.messageId === "msg-1") {
+          throw error;
+        }
+        return [];
+      });
       const wrappedHandler = handlingSQSErrors(handler);
 
       await wrappedHandler(mockEvent);
@@ -254,10 +253,12 @@ describe("handlingSQSErrors", () => {
       const { captureException } = await import("@sentry/node");
       const error = new Error("Unexpected error");
       // Handler throws for first record, succeeds for second
-      const handler = vi
-        .fn()
-        .mockRejectedValueOnce(error)
-        .mockResolvedValueOnce([]);
+      const handler = vi.fn(async (event) => {
+        if (event.Records[0]?.messageId === "msg-1") {
+          throw error;
+        }
+        return [];
+      });
       const wrappedHandler = handlingSQSErrors(handler);
 
       await wrappedHandler(mockEvent);
@@ -350,10 +351,9 @@ describe("handlingSQSErrors", () => {
     it("should handle handler returning undefined message IDs", async () => {
       // Handler returns msg-1 as failed for first record, empty for second
       // (handler returns the messageId of the failed record)
-      const handler = vi
-        .fn()
-        .mockResolvedValueOnce(["msg-1"])
-        .mockResolvedValueOnce([]);
+      const handler = vi.fn(async (event) =>
+        event.Records[0]?.messageId === "msg-1" ? ["msg-1"] : []
+      );
       const wrappedHandler = handlingSQSErrors(handler);
 
       const result = await wrappedHandler(mockEvent);
