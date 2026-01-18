@@ -40,6 +40,17 @@ const spendingLimitSchema = z
   })
   .strict();
 
+// Summarization prompt overrides per temporal grain
+const summarizationPromptsSchema = z
+  .object({
+    daily: z.string().nullable().optional(),
+    weekly: z.string().nullable().optional(),
+    monthly: z.string().nullable().optional(),
+    quarterly: z.string().nullable().optional(),
+    yearly: z.string().nullable().optional(),
+  })
+  .strict();
+
 /**
  * Workspace schemas
  */
@@ -72,6 +83,7 @@ export const createAgentSchema = z
     modelName: z.string().nullable().optional(),
     clientTools: z.array(clientToolSchema).optional(),
     avatar: z.string().nullable().optional(),
+    summarizationPrompts: summarizationPromptsSchema.optional(),
   })
   .strict();
 
@@ -97,6 +109,7 @@ export const updateAgentSchema = z
     fetchWebProvider: z.string().optional(),
     enableExaSearch: z.boolean().optional(),
     clientTools: z.array(clientToolSchema).optional(),
+    summarizationPrompts: summarizationPromptsSchema.optional(),
     widgetConfig: z
       .object({
         enabled: z.boolean().default(false),

@@ -136,7 +136,12 @@ import { useStreamUrl } from "../hooks/useStreamUrl";
 import { useToast } from "../hooks/useToast";
 import { useAgentUsage, useAgentDailyUsage } from "../hooks/useUsage";
 import { useWorkspace } from "../hooks/useWorkspaces";
-import type { ClientTool, Conversation } from "../utils/api";
+import type {
+  ClientTool,
+  Conversation,
+  SummarizationPromptGrain,
+  SummarizationPromptsInput,
+} from "../utils/api";
 import {
   listIntegrations,
   deleteIntegration,
@@ -144,6 +149,10 @@ import {
 } from "../utils/api";
 import { getDefaultAvatar } from "../utils/avatarUtils";
 import { type DateRangePreset, getDateRange } from "../utils/dateRanges";
+import {
+  DEFAULT_SUMMARIZATION_PROMPTS,
+  getEffectiveSummarizationPrompts,
+} from "../utils/memoryPrompts";
 import {
   getModelsForProvider,
   getDefaultModelForProvider,
@@ -205,6 +214,22 @@ const PERMISSION_LEVELS = {
   READ: 1,
   WRITE: 2,
   OWNER: 3,
+};
+
+const SUMMARIZATION_PROMPT_GRAINS: SummarizationPromptGrain[] = [
+  "daily",
+  "weekly",
+  "monthly",
+  "quarterly",
+  "yearly",
+];
+
+const SUMMARIZATION_PROMPT_LABELS: Record<SummarizationPromptGrain, string> = {
+  daily: "Daily summaries",
+  weekly: "Weekly summaries",
+  monthly: "Monthly summaries",
+  quarterly: "Quarterly summaries",
+  yearly: "Yearly summaries",
 };
 
 const AgentDataLoader: FC<{ workspaceId: string; agentId: string }> = ({
@@ -467,6 +492,10 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
     () => agent?.enableMemorySearch ?? false
   );
 
+  const [summarizationPrompts, setSummarizationPrompts] = useState<
+    Record<SummarizationPromptGrain, string>
+  >(() => getEffectiveSummarizationPrompts(agent?.summarizationPrompts));
+
   // Use agent prop directly for enableSearchDocuments, with local state for editing
   const [enableSearchDocuments, setEnableSearchDocuments] = useState<boolean>(
     () => agent?.enableSearchDocuments ?? false
@@ -725,6 +754,19 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       setEnableMemorySearch(currentValue);
     }
   }, [agent?.id, agent?.enableMemorySearch]);
+
+  const prevSummarizationPromptsRef = useRef(agent?.summarizationPrompts);
+  useEffect(() => {
+    const currentValue = agent?.summarizationPrompts;
+    const currentSerialized = JSON.stringify(currentValue ?? {});
+    const prevSerialized = JSON.stringify(
+      prevSummarizationPromptsRef.current ?? {}
+    );
+    if (currentSerialized !== prevSerialized) {
+      prevSummarizationPromptsRef.current = currentValue;
+      setSummarizationPrompts(getEffectiveSummarizationPrompts(currentValue));
+    }
+  }, [agent?.id, agent?.summarizationPrompts]);
 
   // Synchronize enableSearchDocuments state with agent prop using useEffect
   const prevEnableSearchDocumentsRef = useRef<boolean | undefined>(
@@ -1100,6 +1142,44 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
       // Sync local state with updated agent data
       prevEnableMemorySearchRef.current = updated.enableMemorySearch;
       setEnableMemorySearch(updated.enableMemorySearch ?? false);
+    } catch {
+      // Error is handled by toast in the hook
+    }
+  };
+
+  const handleSummarizationPromptChange = (
+    grain: SummarizationPromptGrain,
+    value: string
+  ) => {
+    setSummarizationPrompts((prev) => ({
+      ...prev,
+      [grain]: value,
+    }));
+  };
+
+  const handleResetSummarizationPrompt = (grain: SummarizationPromptGrain) => {
+    setSummarizationPrompts((prev) => ({
+      ...prev,
+      [grain]: DEFAULT_SUMMARIZATION_PROMPTS[grain],
+    }));
+  };
+
+  const handleSaveSummarizationPrompts = async () => {
+    try {
+      const payload: SummarizationPromptsInput = {};
+      for (const grain of SUMMARIZATION_PROMPT_GRAINS) {
+        const value = summarizationPrompts[grain]?.trim() ?? "";
+        const defaultValue = DEFAULT_SUMMARIZATION_PROMPTS[grain].trim();
+        payload[grain] = value && value !== defaultValue ? value : null;
+      }
+
+      const updated = await updateAgent.mutateAsync({
+        summarizationPrompts: payload,
+      });
+      prevSummarizationPromptsRef.current = updated.summarizationPrompts;
+      setSummarizationPrompts(
+        getEffectiveSummarizationPrompts(updated.summarizationPrompts)
+      );
     } catch {
       // Error is handled by toast in the hook
     }
@@ -1821,6 +1901,83 @@ const AgentDetailContent: FC<AgentDetailContentProps> = ({
               <AgentMemoryRecords workspaceId={workspaceId} agentId={agentId} />
             </LazyAccordionContent>
           </AccordionSection>
+
+          {canEdit && (
+            <AccordionSection
+              id="summarization-prompts"
+              title={
+                <>
+                  <WrenchScrewdriverIcon className="mr-2 inline-block size-5" />
+                  SUMMARIZATION PROMPTS
+                </>
+              }
+              isExpanded={expandedSection === "summarization-prompts"}
+              onToggle={() => toggleSection("summarization-prompts")}
+            >
+              <LazyAccordionContent
+                isExpanded={expandedSection === "summarization-prompts"}
+              >
+                <div className="space-y-4">
+                  <p className="text-sm opacity-75 dark:text-neutral-300">
+                    Customize the prompts used to summarize this agent&apos;s
+                    memory for each time period. If a prompt matches the default,
+                    the default will be used and stored prompts will be cleared.
+                  </p>
+                  <div className="space-y-4">
+                    {SUMMARIZATION_PROMPT_GRAINS.map((grain) => {
+                      const currentValue = summarizationPrompts[grain] ?? "";
+                      const isDefault =
+                        currentValue.trim() ===
+                        DEFAULT_SUMMARIZATION_PROMPTS[grain].trim();
+                      return (
+                        <div key={grain} className="space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <label className="text-sm font-semibold dark:text-neutral-300">
+                              {SUMMARIZATION_PROMPT_LABELS[grain]} prompt
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-full border border-neutral-200 px-2 py-0.5 text-xs font-semibold text-neutral-600 dark:border-neutral-700 dark:text-neutral-300">
+                                {isDefault ? "Default" : "Customized"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleResetSummarizationPrompt(grain)
+                                }
+                                className="rounded-lg border-2 border-neutral-300 bg-white px-2.5 py-1 text-xs font-medium transition-colors hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:hover:bg-neutral-800"
+                              >
+                                Use default
+                              </button>
+                            </div>
+                          </div>
+                          <textarea
+                            value={currentValue}
+                            onChange={(e) =>
+                              handleSummarizationPromptChange(
+                                grain,
+                                e.target.value
+                              )
+                            }
+                            rows={6}
+                            className="w-full rounded-xl border-2 border-neutral-300 bg-white px-4 py-2.5 text-neutral-900 transition-all duration-200 focus:border-primary-500 focus:outline-none focus:ring-4 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={handleSaveSummarizationPrompts}
+                    disabled={updateAgent.isPending}
+                    className="rounded-xl bg-gradient-primary px-4 py-2.5 font-semibold text-white transition-all duration-200 hover:shadow-colored disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {updateAgent.isPending
+                      ? "Saving..."
+                      : "Save Summarization Prompts"}
+                  </button>
+                </div>
+              </LazyAccordionContent>
+            </AccordionSection>
+          )}
 
           {/* Memory Search Tool Section */}
           {canEdit && (

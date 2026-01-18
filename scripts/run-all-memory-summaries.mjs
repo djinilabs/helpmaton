@@ -69,7 +69,7 @@ async function getWorkspaceApiKey(workspaceId, provider = "google") {
 /**
  * Summarize working memory into daily summaries for an agent
  */
-async function summarizeDaily(agentId, workspaceId) {
+async function summarizeDaily(agentId, workspaceId, summarizationPrompts) {
   console.log(`[Daily] Starting summarization for agent ${agentId}`);
 
   const yesterday = new Date();
@@ -100,7 +100,12 @@ async function summarizeDaily(agentId, workspaceId) {
   const content = workingMemory.map((record) => record.content);
 
   // Summarize with LLM
-  const summary = await summarizeWithLLM(content, "daily", workspaceId);
+  const summary = await summarizeWithLLM(
+    content,
+    "daily",
+    workspaceId,
+    summarizationPrompts
+  );
 
   if (!summary || summary.trim().length === 0) {
     console.log(`[Daily] Agent ${agentId}: Empty summary, skipping`);
@@ -146,7 +151,7 @@ async function summarizeDaily(agentId, workspaceId) {
 /**
  * Summarize daily summaries into weekly summaries for an agent
  */
-async function summarizeWeekly(agentId, workspaceId) {
+async function summarizeWeekly(agentId, workspaceId, summarizationPrompts) {
   console.log(`[Weekly] Starting summarization for agent ${agentId}`);
 
   const now = new Date();
@@ -171,7 +176,12 @@ async function summarizeWeekly(agentId, workspaceId) {
   const content = daySummaries.map((record) => record.content);
 
   // Summarize
-  const summary = await summarizeWithLLM(content, "weekly", workspaceId);
+  const summary = await summarizeWithLLM(
+    content,
+    "weekly",
+    workspaceId,
+    summarizationPrompts
+  );
 
   if (!summary || summary.trim().length === 0) {
     console.log(`[Weekly] Agent ${agentId}: Empty summary, skipping`);
@@ -216,7 +226,7 @@ async function summarizeWeekly(agentId, workspaceId) {
 /**
  * Summarize weekly summaries into monthly summaries for an agent
  */
-async function summarizeMonthly(agentId, workspaceId) {
+async function summarizeMonthly(agentId, workspaceId, summarizationPrompts) {
   console.log(`[Monthly] Starting summarization for agent ${agentId}`);
 
   const now = new Date();
@@ -244,7 +254,12 @@ async function summarizeMonthly(agentId, workspaceId) {
   const content = weekSummaries.map((record) => record.content);
 
   // Summarize
-  const summary = await summarizeWithLLM(content, "monthly", workspaceId);
+  const summary = await summarizeWithLLM(
+    content,
+    "monthly",
+    workspaceId,
+    summarizationPrompts
+  );
 
   if (!summary || summary.trim().length === 0) {
     console.log(`[Monthly] Agent ${agentId}: Empty summary, skipping`);
@@ -289,7 +304,7 @@ async function summarizeMonthly(agentId, workspaceId) {
 /**
  * Summarize monthly summaries into quarterly summaries for an agent
  */
-async function summarizeQuarterly(agentId, workspaceId) {
+async function summarizeQuarterly(agentId, workspaceId, summarizationPrompts) {
   console.log(`[Quarterly] Starting summarization for agent ${agentId}`);
 
   const now = new Date();
@@ -319,7 +334,12 @@ async function summarizeQuarterly(agentId, workspaceId) {
   const content = monthSummaries.map((record) => record.content);
 
   // Summarize
-  const summary = await summarizeWithLLM(content, "quarterly", workspaceId);
+  const summary = await summarizeWithLLM(
+    content,
+    "quarterly",
+    workspaceId,
+    summarizationPrompts
+  );
 
   if (!summary || summary.trim().length === 0) {
     console.log(`[Quarterly] Agent ${agentId}: Empty summary, skipping`);
@@ -364,7 +384,7 @@ async function summarizeQuarterly(agentId, workspaceId) {
 /**
  * Summarize quarterly summaries into yearly summaries for an agent
  */
-async function summarizeYearly(agentId, workspaceId) {
+async function summarizeYearly(agentId, workspaceId, summarizationPrompts) {
   console.log(`[Yearly] Starting summarization for agent ${agentId}`);
 
   const now = new Date();
@@ -394,7 +414,12 @@ async function summarizeYearly(agentId, workspaceId) {
   const content = quarterSummaries.map((record) => record.content);
 
   // Summarize
-  const summary = await summarizeWithLLM(content, "yearly", workspaceId);
+  const summary = await summarizeWithLLM(
+    content,
+    "yearly",
+    workspaceId,
+    summarizationPrompts
+  );
 
   if (!summary || summary.trim().length === 0) {
     console.log(`[Yearly] Agent ${agentId}: Empty summary, skipping`);
@@ -439,18 +464,22 @@ async function summarizeYearly(agentId, workspaceId) {
 /**
  * Run all summarizations for a single agent
  */
-async function runAllSummarizationsForAgent(agentId, workspaceId) {
+async function runAllSummarizationsForAgent(
+  agentId,
+  workspaceId,
+  summarizationPrompts
+) {
   console.log(
     `\n=== Processing agent ${agentId} in workspace ${workspaceId} ===`
   );
 
   try {
     // Run summarizations in order: daily -> weekly -> monthly -> quarterly -> yearly
-    await summarizeDaily(agentId, workspaceId);
-    await summarizeWeekly(agentId, workspaceId);
-    await summarizeMonthly(agentId, workspaceId);
-    await summarizeQuarterly(agentId, workspaceId);
-    await summarizeYearly(agentId, workspaceId);
+    await summarizeDaily(agentId, workspaceId, summarizationPrompts);
+    await summarizeWeekly(agentId, workspaceId, summarizationPrompts);
+    await summarizeMonthly(agentId, workspaceId, summarizationPrompts);
+    await summarizeQuarterly(agentId, workspaceId, summarizationPrompts);
+    await summarizeYearly(agentId, workspaceId, summarizationPrompts);
 
     console.log(`✅ Completed all summarizations for agent ${agentId}\n`);
   } catch (error) {
@@ -530,7 +559,11 @@ async function main() {
           try {
             const agentId = agent.pk.replace(`agents/${workspaceId}/`, "");
 
-            await runAllSummarizationsForAgent(agentId, workspaceId);
+            await runAllSummarizationsForAgent(
+              agentId,
+              workspaceId,
+              agent.summarizationPrompts
+            );
             processedAgents++;
           } catch (error) {
             console.error(

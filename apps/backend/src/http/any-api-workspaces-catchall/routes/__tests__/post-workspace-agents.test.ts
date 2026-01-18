@@ -3,6 +3,7 @@ import express from "express";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
  
+import * as summarizeMemory from "../../../../utils/memory/summarizeMemory";
 import {
   createMockRequest,
   createMockResponse,
@@ -62,7 +63,13 @@ describe("POST /api/workspaces/:workspaceId/agents", () => {
       next: express.NextFunction
     ) => {
       try {
-        const { name, systemPrompt, modelName, clientTools } = req.body;
+        const {
+          name,
+          systemPrompt,
+          modelName,
+          clientTools,
+          summarizationPrompts,
+        } = req.body;
         if (!name || typeof name !== "string") {
           throw badRequest("name is required and must be a string");
         }
@@ -137,12 +144,16 @@ describe("POST /api/workspaces/:workspaceId/agents", () => {
         }
 
         // Create agent entity
+        const normalizedSummarizationPrompts =
+          summarizeMemory.normalizeSummarizationPrompts(summarizationPrompts);
+
         const agent = await db.agent.create({
           pk: agentPk,
           sk: agentSk,
           workspaceId,
           name,
           systemPrompt,
+          summarizationPrompts: normalizedSummarizationPrompts,
           provider: "google",
           modelName:
             typeof modelName === "string" && modelName.trim()
@@ -315,6 +326,120 @@ describe("POST /api/workspaces/:workspaceId/agents", () => {
         clientTools: mockClientTools,
       })
     );
+  });
+
+  it("should normalize summarization prompts on create", async () => {
+    const agentId = "agent-789";
+    mockRandomUUID.mockReturnValue(agentId);
+
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    mockEnsureWorkspaceSubscription.mockResolvedValue("sub-123");
+    mockCheckSubscriptionLimits.mockResolvedValue(undefined);
+
+    const mockAgent = {
+      pk: `agents/workspace-123/${agentId}`,
+      sk: "agent",
+      workspaceId: "workspace-123",
+      name: "Test Agent",
+      systemPrompt: "You are a helpful assistant",
+      summarizationPrompts: { daily: "Custom daily prompt" },
+      provider: "google",
+      modelName: undefined,
+      clientTools: undefined,
+      createdBy: "users/user-123",
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    const mockAgentCreate = vi.fn().mockResolvedValue(mockAgent);
+    mockDb.agent.create = mockAgentCreate;
+
+    const normalizeSpy = vi.spyOn(
+      summarizeMemory,
+      "normalizeSummarizationPrompts"
+    );
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: "workspaces/workspace-123",
+      params: {
+        workspaceId: "workspace-123",
+      },
+      body: {
+        name: "Test Agent",
+        systemPrompt: "You are a helpful assistant",
+        summarizationPrompts: {
+          daily: "  Custom daily prompt  ",
+          weekly: "",
+          monthly: null,
+        },
+      },
+    });
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    await callRouteHandler(req, res, next);
+
+    expect(normalizeSpy).toHaveBeenCalledWith({
+      daily: "  Custom daily prompt  ",
+      weekly: "",
+      monthly: null,
+    });
+    const createArgs = mockAgentCreate.mock.calls[0][0];
+    expect(createArgs.summarizationPrompts).toEqual({
+      daily: "Custom daily prompt",
+    });
+  });
+
+  it("should drop empty summarization prompts on create", async () => {
+    const agentId = "agent-999";
+    mockRandomUUID.mockReturnValue(agentId);
+
+    const mockDb = createMockDatabase();
+    mockDatabase.mockResolvedValue(mockDb);
+
+    mockEnsureWorkspaceSubscription.mockResolvedValue("sub-123");
+    mockCheckSubscriptionLimits.mockResolvedValue(undefined);
+
+    const mockAgent = {
+      pk: `agents/workspace-123/${agentId}`,
+      sk: "agent",
+      workspaceId: "workspace-123",
+      name: "Test Agent",
+      systemPrompt: "You are a helpful assistant",
+      provider: "google",
+      modelName: undefined,
+      clientTools: undefined,
+      createdBy: "users/user-123",
+      createdAt: "2024-01-01T00:00:00Z",
+    };
+
+    const mockAgentCreate = vi.fn().mockResolvedValue(mockAgent);
+    mockDb.agent.create = mockAgentCreate;
+
+    const req = createMockRequest({
+      userRef: "users/user-123",
+      workspaceResource: "workspaces/workspace-123",
+      params: {
+        workspaceId: "workspace-123",
+      },
+      body: {
+        name: "Test Agent",
+        systemPrompt: "You are a helpful assistant",
+        summarizationPrompts: {
+          daily: "   ",
+          weekly: null,
+        },
+      },
+    });
+    const res = createMockResponse();
+    const next = createMockNext();
+
+    await callRouteHandler(req, res, next);
+
+    const createArgs = mockAgentCreate.mock.calls[0][0];
+    expect(createArgs.summarizationPrompts).toBeUndefined();
   });
 
   it("should throw badRequest when name is missing", async () => {

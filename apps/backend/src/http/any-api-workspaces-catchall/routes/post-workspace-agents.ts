@@ -6,6 +6,7 @@ import express from "express";
 import { database } from "../../../tables";
 import { PERMISSION_LEVELS } from "../../../tables/schema";
 import { getRandomAvatar, isValidAvatar } from "../../../utils/avatarUtils";
+import { normalizeSummarizationPrompts } from "../../../utils/memory/summarizeMemory";
 import {
   checkSubscriptionLimits,
   ensureWorkspaceSubscription,
@@ -107,7 +108,17 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
     async (req, res, next) => {
       try {
         const body = validateBody(req.body, createAgentSchema);
-        const { name, systemPrompt, notificationChannelId, modelName, clientTools, avatar } = body;
+        const {
+          name,
+          systemPrompt,
+          notificationChannelId,
+          modelName,
+          clientTools,
+          avatar,
+          summarizationPrompts,
+        } = body;
+        const normalizedSummarizationPrompts =
+          normalizeSummarizationPrompts(summarizationPrompts);
 
         const db = await database();
         const workspaceResource = req.workspaceResource;
@@ -184,6 +195,7 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           workspaceId,
           name,
           systemPrompt,
+          summarizationPrompts: normalizedSummarizationPrompts,
           provider: "openrouter", // Always use openrouter (only supported provider)
           notificationChannelId:
             notificationChannelId !== undefined && notificationChannelId !== null
@@ -215,6 +227,7 @@ export const registerPostWorkspaceAgents = (app: express.Application) => {
           id: agentId,
           name: agent.name,
           systemPrompt: agent.systemPrompt,
+          summarizationPrompts: agent.summarizationPrompts,
           provider: agent.provider,
           modelName: agent.modelName ?? null,
           delegatableAgentIds: agent.delegatableAgentIds ?? [],

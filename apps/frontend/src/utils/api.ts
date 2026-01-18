@@ -68,10 +68,34 @@ export interface ClientTool {
   parameters: Record<string, unknown>; // JSON Schema
 }
 
+export type SummarizationPromptGrain =
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "quarterly"
+  | "yearly";
+
+export interface SummarizationPrompts {
+  daily?: string;
+  weekly?: string;
+  monthly?: string;
+  quarterly?: string;
+  yearly?: string;
+}
+
+export interface SummarizationPromptsInput {
+  daily?: string | null;
+  weekly?: string | null;
+  monthly?: string | null;
+  quarterly?: string | null;
+  yearly?: string | null;
+}
+
 export interface Agent {
   id: string;
   name: string;
   systemPrompt: string;
+  summarizationPrompts?: SummarizationPrompts;
   notificationChannelId?: string;
   delegatableAgentIds?: string[];
   enabledMcpServerIds?: string[];
@@ -115,6 +139,7 @@ export interface CreateAgentInput {
   modelName?: string | null;
   clientTools?: ClientTool[];
   avatar?: string | null;
+  summarizationPrompts?: SummarizationPromptsInput;
 }
 
 export interface UpdateAgentInput {
@@ -136,6 +161,7 @@ export interface UpdateAgentInput {
   fetchWebProvider?: "tavily" | "jina" | "scrape" | null;
   enableExaSearch?: boolean;
   clientTools?: ClientTool[];
+  summarizationPrompts?: SummarizationPromptsInput;
   spendingLimits?: SpendingLimit[];
   temperature?: number | null;
   topP?: number | null;
