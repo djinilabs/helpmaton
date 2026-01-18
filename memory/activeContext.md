@@ -2,9 +2,11 @@
 
 ## Current Status
 
-**Status**: HubSpot MCP OAuth Integration Complete ✅
+**Status**: Slack MCP OAuth Integration Complete ✅
 
 **Latest Work**:
+
+- **Slack MCP OAuth integration**: Added Slack OAuth MCP server support with bot-token scopes, Slack API client, MCP tools (list channels, channel history, post message), tool metadata, UI wiring, and OAuth callbacks. Updated schemas, docs, env passthroughs, and added unit tests for OAuth, client, tools, and metadata. Ran `pnpm typecheck` and `pnpm lint --fix`.
 
 - **E2E copy selector fixes**: Updated workspace detail page object labels (team/spending) and reran `pnpm test:e2e` with all tests passing.
 - **E2E selector updates for UI copy**: Updated Playwright page object selectors and assertions to match new dashboard/workspace/assistants labels; ran `pnpm lint --fix` and `pnpm typecheck`.
