@@ -17,6 +17,8 @@
 - **Staging weekday test**: Agent tests now ask for day of week, require `get_datetime` tool invocation, and assert reply matches the expected weekday. Ran `pnpm lint --fix`.
 - **Delegation check**: Script now verifies the delegator agent has `delegatableAgentIds` configured before running delegation tests. Ran `pnpm lint --fix`.
 - **Webhook logging fallback**: Webhook handler now falls back to assistant message logging when observer messages lack assistant content to preserve tool calls/text in conversations. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Test cleanup guard**: Staging test script now only deletes the workspace after a fully successful run to avoid SQS eval errors during failures; lint ran.
+- **Conversation correlation marker**: Staging tests now include a unique marker in prompts and require it in replies to ensure conversation records match the current run; lint ran.
 - **PostHog flush gating**: Ensured deprecated `HttpHandler` responses flush PostHog/Sentry before responding and added unit coverage; ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Sentry backend tracing**: Switched backend Sentry to `@sentry/aws-serverless` with 100% prod sampling, added Lambda/SQS/scheduled spans, and manual S3 spans for aws-lite calls. Added span tests and updated analytics docs. Ran `pnpm lint --fix` and `pnpm --filter backend test --run`; `pnpm typecheck` failed in `apps/frontend/vite.config.ts` with Vite type mismatch (pre-existing).
 - **Agent utils test fix**: Added missing `initSentry` export to Sentry mock in `agentUtils` tests. Ran `pnpm typecheck` and `pnpm lint --fix`.

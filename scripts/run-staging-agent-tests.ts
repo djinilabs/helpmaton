@@ -738,7 +738,8 @@ async function main() {
   const authSecret = requireValue(process.env.AUTH_SECRET, "AUTH_SECRET");
   const modelName = args.model ?? DEFAULT_MODEL_NAME;
   const expectedWeekday = getExpectedWeekday();
-  const replyText = args.reply ?? expectedWeekday;
+  const runMarker = `HM_TEST_${crypto.randomUUID()}`;
+  const replyMarker = args.reply ?? runMarker;
   const creditsUsd = args.credits
     ? Number(args.credits)
     : DEFAULT_CREDITS_USD;
@@ -829,6 +830,7 @@ async function main() {
   await assertApiAccess(apiBaseUrl, authHeader);
 
   let workspaceId: string | undefined;
+  let runSucceeded = false;
   try {
     logStep("Creating workspace");
     const workspaceResponse = await fetchJson<{ id: string }>(
@@ -877,10 +879,12 @@ async function main() {
     );
 
     const userQuestion =
-      "What day of the week is today? Use the get_datetime tool and include the ISO timestamp in your response.";
+      "What day of the week is today? Use the get_datetime tool and include the ISO timestamp in your response. " +
+      `Include this marker in your reply: ${replyMarker}.`;
     const replyInstruction =
       `You MUST call get_datetime before answering. ` +
-      `Include the exact ISO 8601 timestamp from the tool output and the weekday "${expectedWeekday}" in your reply. ` +
+      `Include the exact ISO 8601 timestamp from the tool output, the weekday "${expectedWeekday}", ` +
+      `and this marker "${replyMarker}" in your reply. ` +
       `If you do not call get_datetime, reply with "ERROR".`;
 
     logStep("Creating agents");
@@ -1064,17 +1068,25 @@ async function main() {
         body: JSON.stringify([{ role: "user", content: userQuestion }]),
       }
     );
-    await waitForConversation(
+    const testConversation = await waitForConversation(
       docClient,
       tables.conversations,
       workspaceId,
       helloAgentId,
       testConversationId,
       "test",
-      replyText,
+      replyMarker,
       DATETIME_TOOL_NAME,
       timeoutMs
     );
+    const testReply = extractAssistantReply(
+      (testConversation as { messages?: unknown[] }).messages ?? []
+    );
+    if (!testReply?.includes(expectedWeekday)) {
+      throw new Error(
+        `Test reply missing weekday "${expectedWeekday}": ${testReply ?? "empty"}`
+      );
+    }
 
     logStep("Testing streaming endpoint");
     const streamConversationId = crypto.randomUUID();
@@ -1090,17 +1102,25 @@ async function main() {
         body: JSON.stringify([{ role: "user", content: userQuestion }]),
       }
     );
-    await waitForConversation(
+    const streamConversation = await waitForConversation(
       docClient,
       tables.conversations,
       workspaceId,
       helloAgentId,
       streamConversationId,
       "stream",
-      replyText,
+      replyMarker,
       DATETIME_TOOL_NAME,
       timeoutMs
     );
+    const streamReply = extractAssistantReply(
+      (streamConversation as { messages?: unknown[] }).messages ?? []
+    );
+    if (!streamReply?.includes(expectedWeekday)) {
+      throw new Error(
+        `Stream reply missing weekday "${expectedWeekday}": ${streamReply ?? "empty"}`
+      );
+    }
 
     logStep("Testing webhook endpoint");
     const webhookResponse = await fetchText(
@@ -1113,7 +1133,7 @@ async function main() {
         body: userQuestion,
       }
     );
-    if (!webhookResponse.data.includes(replyText)) {
+    if (!webhookResponse.data.includes(replyMarker)) {
       throw new Error("Webhook response did not contain expected reply");
     }
     const webhookConversation = await waitForConversationByType(
@@ -1121,7 +1141,7 @@ async function main() {
       tables.conversations,
       helloAgentId,
       "webhook",
-      null,
+      replyMarker,
       null,
       timeoutMs
     );
@@ -1159,9 +1179,14 @@ async function main() {
     const webhookReply = extractAssistantReply(
       webhookMessages ?? []
     );
-    if (!webhookReply || !webhookReply.includes(replyText)) {
+    if (!webhookReply || !webhookReply.includes(replyMarker)) {
       throw new Error(
-        `Webhook reply mismatch. Expected "${replyText}", got "${webhookReply ?? "empty"}"`
+        `Webhook reply mismatch. Expected "${replyMarker}", got "${webhookReply ?? "empty"}"`
+      );
+    }
+    if (!webhookReply.includes(expectedWeekday)) {
+      throw new Error(
+        `Webhook reply missing weekday "${expectedWeekday}": ${webhookReply}`
       );
     }
 
@@ -1187,15 +1212,23 @@ async function main() {
       delegateAgentId,
       timeoutMs
     );
-    await waitForConversationByType(
+    const delegationConversation = await waitForConversationByType(
       docClient,
       tables.conversations,
       delegateAgentId,
       "test",
-      replyText,
+      replyMarker,
       DATETIME_TOOL_NAME,
       timeoutMs
     );
+    const delegationReply = extractAssistantReply(
+      (delegationConversation as { messages?: unknown[] }).messages ?? []
+    );
+    if (!delegationReply?.includes(expectedWeekday)) {
+      throw new Error(
+        `Delegation reply missing weekday "${expectedWeekday}": ${delegationReply ?? "empty"}`
+      );
+    }
 
     logStep("Testing eval queue");
     await waitForEvalResult(
@@ -1234,15 +1267,23 @@ async function main() {
         }),
       })
     );
-    await waitForConversationByType(
+    const scheduleConversation = await waitForConversationByType(
       docClient,
       tables.conversations,
       helloAgentId,
       "scheduled",
-      replyText,
+      replyMarker,
       DATETIME_TOOL_NAME,
       timeoutMs
     );
+    const scheduleReply = extractAssistantReply(
+      (scheduleConversation as { messages?: unknown[] }).messages ?? []
+    );
+    if (!scheduleReply?.includes(expectedWeekday)) {
+      throw new Error(
+        `Scheduled reply missing weekday "${expectedWeekday}": ${scheduleReply ?? "empty"}`
+      );
+    }
 
     logStep("Testing temporal grain queue via direct SQS message");
     const factId = crypto.randomUUID();
@@ -1292,8 +1333,9 @@ async function main() {
     console.log("ℹ️  Skipping Slack bot-webhook test (disabled in CI).");
 
     console.log("\n✅ Staging agent tests completed successfully.");
+    runSucceeded = true;
   } finally {
-    if (workspaceId && !keepResources) {
+    if (workspaceId && runSucceeded && !keepResources) {
       logStep(`Cleaning up workspace ${workspaceId}`);
       try {
         await fetchText(
@@ -1311,7 +1353,7 @@ async function main() {
       }
     } else if (workspaceId) {
       console.log(
-        `ℹ️  KEEP_STAGING_TEST_RESOURCES set; leaving workspace ${workspaceId}`
+        `ℹ️  Skipping cleanup; leaving workspace ${workspaceId}`
       );
     }
   }
