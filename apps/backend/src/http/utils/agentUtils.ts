@@ -71,9 +71,6 @@ const CLEANUP_INTERVAL_MS = 60 * 1000; // Clean up at most once per minute to av
 
 // Track last cleanup time to throttle cleanup frequency
 let lastCleanupTimestamp = 0;
-// Track periodic cleanup interval handle for singleton pattern
-let periodicCleanupInterval: NodeJS.Timeout | undefined;
-
 /**
  * Clean up expired cache entries
  * This prevents memory leaks in high-traffic scenarios
@@ -109,32 +106,6 @@ function cleanupExpiredCacheEntries(force: boolean = false): void {
   }
 }
 
-/**
- * Initialize periodic cleanup to catch expired entries even when cache operations are infrequent
- * Uses singleton pattern to avoid creating multiple intervals
- */
-function initializePeriodicCleanup(): void {
-  // Only create interval if it doesn't exist (singleton pattern)
-  if (periodicCleanupInterval !== undefined) {
-    return;
-  }
-
-  // Run cleanup every TTL period to ensure expired entries are removed
-  periodicCleanupInterval = setInterval(() => {
-    cleanupExpiredCacheEntries(true); // Force cleanup on periodic runs
-  }, CACHE_TTL_MS);
-
-  // Clear interval on process exit (though Lambda handles this automatically)
-  if (typeof process !== "undefined" && process.on) {
-    process.on("SIGTERM", () => {
-      if (periodicCleanupInterval) {
-        clearInterval(periodicCleanupInterval);
-        periodicCleanupInterval = undefined;
-      }
-    });
-  }
-}
-
 function getCachedAgent(
   workspaceId: string,
   agentId: string
@@ -158,8 +129,6 @@ function setCachedAgent(
 ): void {
   const key = `${workspaceId}:${agentId}`;
   agentMetadataCache.set(key, { agent, timestamp: Date.now() });
-  // Initialize periodic cleanup on first cache write
-  initializePeriodicCleanup();
   // Clean up expired entries to prevent memory leaks (throttled to avoid excessive cleanup)
   cleanupExpiredCacheEntries();
 }
@@ -501,6 +470,17 @@ export function createSearchDocumentsTool(
           error: error instanceof Error ? error.message : String(error),
           arguments: { query: typedArgs.query, topN: typedArgs.topN },
         });
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "agent-tool",
+        tool: "search_documents",
+      },
+      extra: {
+        workspaceId,
+        query: typedArgs.query,
+        topN: typedArgs.topN,
+      },
+    });
         return errorMessage;
       }
     },
@@ -626,6 +606,16 @@ export function createSendNotificationTool(
               : undefined,
           },
         });
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "agent-tool",
+          tool: "send_notification",
+        },
+        extra: {
+          workspaceId,
+          channelId,
+        },
+      });
         return errorMessage;
       }
     },
@@ -678,6 +668,12 @@ export function createGetDatetimeTool() {
           toolName: "get_datetime",
           error: error instanceof Error ? error.message : String(error),
         });
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "agent-tool",
+          tool: "get_datetime",
+        },
+      });
         return errorMessage;
       }
     },
@@ -786,6 +782,16 @@ export function createSendEmailTool(workspaceId: string) {
             }`,
           },
         });
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "agent-tool",
+          tool: "send_email",
+        },
+        extra: {
+          workspaceId,
+          to,
+        },
+      });
         return errorMessage;
       }
     },
@@ -1079,6 +1085,18 @@ export async function callAgentInternal(
         "[callAgentInternal] Could not fetch existing conversation messages:",
         error instanceof Error ? error.message : String(error)
       );
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "agent-delegation",
+          operation: "fetch-conversation",
+        },
+        extra: {
+          workspaceId,
+          targetAgentId,
+          conversationId,
+        },
+        level: "warning",
+      });
     }
   }
 
@@ -1167,6 +1185,7 @@ export async function callAgentInternal(
       systemPromptLength: targetAgent.systemPrompt.length,
       messagesCount: modelMessagesWithKnowledge.length,
       toolsCount: tools ? Object.keys(tools).length : 0,
+      hasAbortSignal: Boolean(abortSignal || timeoutMs > 0),
       ...generateOptions,
     });
     // Log tool definitions before LLM call
@@ -1262,6 +1281,18 @@ export async function callAgentInternal(
             tokenUsage,
           }
         );
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            context: "credit-management",
+            operation: "adjust-reservation",
+          },
+          extra: {
+            workspaceId,
+            targetAgentId,
+            reservationId,
+          },
+          level: "warning",
+        });
       }
     } else if (
       reservationId &&
@@ -1493,6 +1524,17 @@ export async function callAgentInternal(
               "[callAgentInternal] Error adjusting reservation after error:",
               adjustError
             );
+            Sentry.captureException(ensureError(adjustError), {
+              tags: {
+                context: "credit-management",
+                operation: "adjust-reservation-after-error",
+              },
+              extra: {
+                workspaceId,
+                targetAgentId,
+                reservationId,
+              },
+            });
           }
         } else {
           // No token usage available - assume reserved credits were consumed
@@ -1514,6 +1556,12 @@ export async function callAgentInternal(
               "[callAgentInternal] Error deleting reservation:",
               deleteError
             );
+            Sentry.captureException(ensureError(deleteError), {
+              tags: {
+                context: "credit-management",
+                operation: "delete-reservation-after-error",
+              },
+            });
           }
         }
       }
@@ -1523,6 +1571,16 @@ export async function callAgentInternal(
       `[callAgentInternal] Error calling agent ${targetAgentId}:`,
       error
     );
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "agent-delegation",
+        operation: "call-agent",
+      },
+      extra: {
+        workspaceId,
+        targetAgentId,
+      },
+    });
 
     // Try to log failed delegation in target agent's conversation
     if (message) {
@@ -1572,6 +1630,17 @@ export async function callAgentInternal(
           "[callAgentInternal] Failed to log error conversation:",
           logError
         );
+        Sentry.captureException(ensureError(logError), {
+          tags: {
+            context: "agent-delegation",
+            operation: "log-error-conversation",
+          },
+          extra: {
+            workspaceId,
+            targetAgentId,
+          },
+          level: "warning",
+        });
       }
     }
 
@@ -2004,6 +2073,15 @@ export function createListAgentsTool(
         return formatAgentList(validAgents, workspaceId);
       } catch (error) {
         console.error("Error in list_agents tool:", error);
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            context: "agent-tool",
+            tool: "list_agents",
+          },
+          extra: {
+            workspaceId,
+          },
+        });
         return `Error listing agents: ${
           error instanceof Error ? error.message : String(error)
         }`;
@@ -2147,6 +2225,17 @@ export function createCallAgentTool(
             error: "Query matching failed",
             query,
             errorMessage,
+          });
+          Sentry.captureException(ensureError(error), {
+            tags: {
+              context: "agent-tool",
+              tool: "call_agent",
+              operation: "query-matching",
+            },
+            extra: {
+              workspaceId,
+              query,
+            },
           });
           return errorMessage;
         }
@@ -2338,6 +2427,17 @@ export function createCallAgentTool(
               : undefined,
           },
         });
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            context: "agent-tool",
+            tool: "call_agent",
+            operation: "execute",
+          },
+          extra: {
+            workspaceId,
+            agentId,
+          },
+        });
 
         // Log delegation metrics (failed)
         // Note: agentId is guaranteed to be a non-empty string at this point
@@ -2472,9 +2572,21 @@ export function createCallAgentAsyncTool(
             return `Error: No agent found matching query "${query}" with sufficient confidence. Available agents:\n\n${formattedAgentList}\n\nPlease use an agentId from the list above or try a more specific query.`;
           }
         } catch (error) {
-          return `Error finding agent by query: ${
+          const errorMessage = `Error finding agent by query: ${
             error instanceof Error ? error.message : String(error)
           }`;
+          Sentry.captureException(ensureError(error), {
+            tags: {
+              context: "agent-tool",
+              tool: "call_agent_async",
+              operation: "query-matching",
+            },
+            extra: {
+              workspaceId,
+              query,
+            },
+          });
+          return errorMessage;
         }
       }
 
@@ -2614,6 +2726,17 @@ export function createCallAgentAsyncTool(
           error: error instanceof Error ? error.message : String(error),
           arguments: { agentId, query, message },
         });
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            context: "agent-tool",
+            tool: "call_agent_async",
+            operation: "execute",
+          },
+          extra: {
+            workspaceId,
+            agentId,
+          },
+        });
         return errorMessage;
       }
     },
@@ -2680,9 +2803,20 @@ export function createCheckDelegationStatusTool(workspaceId: string) {
 
         return statusMessage;
       } catch (error) {
-        return `Error checking task status: ${
+        const errorMessage = `Error checking task status: ${
           error instanceof Error ? error.message : String(error)
         }`;
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            context: "agent-tool",
+            tool: "check_delegation_status",
+          },
+          extra: {
+            workspaceId,
+            taskId,
+          },
+        });
+        return errorMessage;
       }
     },
   });

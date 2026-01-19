@@ -170,6 +170,19 @@ export async function handleStreamingError(
   });
 
   const errorToLog = normalizeByokError(error);
+  Sentry.captureException(ensureError(errorToLog), {
+    tags: {
+      context: "stream-error-handling",
+      operation: "handle-stream-error",
+      endpoint: context.endpointType,
+    },
+    extra: {
+      workspaceId: context.workspaceId,
+      agentId: context.agentId,
+      conversationId: context.conversationId,
+    },
+    level: "warning",
+  });
 
   // Handle BYOK authentication errors
   if (isByokAuthenticationError(error, context.usesByok)) {
@@ -236,6 +249,19 @@ export async function handleResultExtractionError(
   context: StreamRequestContext,
   responseStream: HttpResponseStream
 ): Promise<boolean> {
+  Sentry.captureException(ensureError(resultError), {
+    tags: {
+      context: "stream-error-handling",
+      operation: "result-extraction",
+      endpoint: context.endpointType,
+    },
+    extra: {
+      workspaceId: context.workspaceId,
+      agentId: context.agentId,
+      conversationId: context.conversationId,
+    },
+    level: "warning",
+  });
   if (isByokAuthenticationError(resultError, context.usesByok)) {
     const errorToLog = normalizeByokError(resultError);
     await persistConversationError(context, errorToLog);

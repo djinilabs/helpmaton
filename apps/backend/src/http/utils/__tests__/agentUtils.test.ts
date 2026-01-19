@@ -5,13 +5,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock dependencies using vi.hoisted
-const { mockDatabase, mockQueues, mockTrackDelegation } = vi.hoisted(() => {
+const { mockDatabase, mockQueues, mockTrackDelegation, mockSentryCapture } =
+  vi.hoisted(() => {
   return {
     mockDatabase: vi.fn(),
     mockQueues: {
       publish: vi.fn(),
     },
     mockTrackDelegation: vi.fn(),
+    mockSentryCapture: vi.fn(),
   };
 });
 
@@ -26,6 +28,15 @@ vi.mock("@architect/functions", () => ({
 vi.mock("../../../utils/conversationLogger", () => ({
   extractTokenUsage: vi.fn(),
   trackDelegation: mockTrackDelegation,
+}));
+
+vi.mock("../../../utils/sentry", () => ({
+  initSentry: vi.fn(),
+  Sentry: {
+    captureException: mockSentryCapture,
+  },
+  ensureError: (error: unknown) =>
+    error instanceof Error ? error : new Error(String(error)),
 }));
 
 // Mock generateText and other AI SDK functions that callAgentInternal uses
@@ -510,6 +521,27 @@ describe("agentUtils - Agent List Formatting", () => {
         expect(descriptionMatch[1].length).toBeLessThanOrEqual(203); // 200 + "..."
       }
     });
+
+    it("should report list_agents errors to Sentry", async () => {
+      const error = new Error("Database unavailable");
+      (mockDb.agent.get as ReturnType<typeof vi.fn>).mockRejectedValue(error);
+
+      const tool = createListAgentsTool("test-workspace", ["agent-error"]);
+      const result = await (
+        tool as unknown as { execute: () => Promise<string> }
+      ).execute();
+
+      expect(result).toContain("Error listing agents");
+      expect(mockSentryCapture).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            context: "agent-tool",
+            tool: "list_agents",
+          }),
+        })
+      );
+    });
   });
 });
 
@@ -624,6 +656,40 @@ describe("agentUtils - Delegation Tools", () => {
         expect(result).toContain("Error: No agent found matching query");
         expect(result).toContain("Available agents");
       }
+    });
+
+    it("should report query matching errors to Sentry", async () => {
+      const error = new Error("DB down");
+      (mockDb.agent.get as ReturnType<typeof vi.fn>).mockRejectedValue(error);
+
+      const tool = createCallAgentTool(
+        "test-workspace",
+        ["error-agent"],
+        "calling-agent",
+        0,
+        3
+      );
+
+      const result = await (
+        tool as unknown as {
+          execute: (args: unknown) => Promise<string>;
+        }
+      ).execute({
+        query: "find agent",
+        message: "Test message",
+      });
+
+      expect(result).toContain("Error finding agent by query");
+      expect(mockSentryCapture).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          tags: expect.objectContaining({
+            context: "agent-tool",
+            tool: "call_agent",
+            operation: "query-matching",
+          }),
+        })
+      );
     });
   });
 

@@ -23,7 +23,8 @@ export async function processNonStreamingResponse(
   model: Awaited<ReturnType<typeof createModel>>,
   messages: unknown[],
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Tools have varying types
-  tools?: Record<string, any>
+  tools?: Record<string, any>,
+  abortSignal?: AbortSignal
 ): Promise<ProcessResponseResult> {
   // Extract text, tool calls, and tool results from generateText result
   // result from generateText has totalUsage property
@@ -64,7 +65,8 @@ export async function processNonStreamingResponse(
       messages,
       toolCalls,
       toolResults,
-      tools
+      tools,
+      abortSignal
     );
     if (continuationResult) {
       // Aggregate token usage from initial and continuation calls

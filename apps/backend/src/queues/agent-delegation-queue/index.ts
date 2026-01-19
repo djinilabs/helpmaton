@@ -6,6 +6,7 @@ import { executeWithRequestLimits } from "../../http/utils/nonStreamingRequestLi
 import { database } from "../../tables";
 import { trackDelegation } from "../../utils/conversationLogger";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
+import { Sentry, ensureError } from "../../utils/sentry";
 import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
 
 // Exponential backoff configuration for delegation retries
@@ -166,6 +167,20 @@ async function trackDelegationSafely(
       callingAgentId,
       conversationId,
       taskId,
+    });
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "agent-delegation",
+        operation: "track-delegation",
+      },
+      extra: {
+        workspaceId,
+        callingAgentId,
+        targetAgentId,
+        conversationId,
+        taskId,
+      },
+      level: "warning",
     });
   }
 }

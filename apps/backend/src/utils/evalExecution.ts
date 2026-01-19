@@ -4,6 +4,10 @@ import type { ModelMessage } from "ai";
 import { adjustCreditsAfterLLMCall } from "../http/utils/generationCreditManagement";
 import { extractTokenUsageAndCosts } from "../http/utils/generationTokenExtraction";
 import { createModel } from "../http/utils/modelFactory";
+import {
+  createRequestTimeout,
+  cleanupRequestTimeout,
+} from "../http/utils/requestTimeout";
 
 import { validateCreditsAndLimitsAndReserve } from "./creditValidation";
 import type { UIMessage } from "./messageTypes";
@@ -309,10 +313,21 @@ Please provide your evaluation as a JSON object following the specified format.`
   );
 
   // Make LLM call
-  const result = await generateText({
-    model: model as unknown as Parameters<typeof generateText>[0]["model"],
-    messages,
+  console.log("[Eval Execution] generateText arguments:", {
+    model: judge.modelName,
+    messagesCount: messages.length,
   });
+  const requestTimeout = createRequestTimeout();
+  let result: Awaited<ReturnType<typeof generateText>>;
+  try {
+    result = await generateText({
+      model: model as unknown as Parameters<typeof generateText>[0]["model"],
+      messages,
+      abortSignal: requestTimeout.signal,
+    });
+  } finally {
+    cleanupRequestTimeout(requestTimeout);
+  }
 
   // Extract token usage and costs
   const extractionResult = extractTokenUsageAndCosts(

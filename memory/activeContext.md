@@ -6,6 +6,12 @@
 
 **Latest Work**:
 
+- **Agent utils test fix**: Added missing `initSentry` export to Sentry mock in `agentUtils` tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Lambda async cleanup**: Replaced bot-webhook queue thinking message intervals with awaited periodic loops, removed background agent cache cleanup interval, and ensured legacy HttpHandler error flushing completes before responding. Added `runPeriodicTask` helper + tests. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Abort/timeout coverage updates**: Added timeout cleanup for stream OPTIONS path and extended abort signals to continuation, eval, prompt generation, and memory summarization LLM calls. `pnpm typecheck` failed in `apps/backend/src/utils/handlingErrors.ts` (unrelated), `pnpm lint --fix` passed.
+- **Agent generation error reporting**: Added Sentry capture to agent generation error paths (tools, delegation, streaming, bot webhooks, schedules) where errors were previously only logged, plus unit tests for tool error reporting. Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **LLM call argument logging**: Added structured logging for all LLM generate/stream calls (agent calls, delegation, streaming, continuation, prompt generation, evals, memory summarization). Ran `pnpm typecheck` and `pnpm lint --fix`.
+- **Production sync generation check**: Reviewed HelpmatonProduction logs + DynamoDB. Webhook handler and delegation queue are running; `call_agent_async` tasks are created and completed with results stored in `agent-delegation-tasks`, and conversations are stored under `agent-conversations` (`webhook` for calling agent, `test` for delegated agent). No handler errors in last 24h; only scrape tool 404s.
 - **Accordion scroll offset**: Adjusted accordion scroll positioning to account for sticky nav height so expanded sections align below the nav on workspace/agent detail pages. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Accordion auto-scroll on load**: Added initial-load scroll for persisted expanded accordions so pages jump to the open section. Ran `pnpm typecheck` and `pnpm lint --fix`.
 - **Discord /credit admin notifications**: Added Mailgun emails to workspace owners when the Discord `/credit` command succeeds, with helper + tests. Ran `pnpm typecheck`, `pnpm lint --fix`, and `pnpm --filter backend test`.

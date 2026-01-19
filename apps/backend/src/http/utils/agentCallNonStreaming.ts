@@ -6,6 +6,7 @@ import type {
   TokenUsage,
 } from "../../utils/conversationLogger";
 import type { UIMessage } from "../../utils/messageTypes";
+import { Sentry, ensureError } from "../../utils/sentry";
 import type { AugmentedContext } from "../../utils/workspaceCreditContext";
 
 import { setupAgentAndTools, type AgentSetupOptions } from "./agentSetup";
@@ -118,6 +119,18 @@ export async function callAgentNonStreaming(
         "[callAgentNonStreaming] Could not fetch existing conversation messages:",
         error instanceof Error ? error.message : String(error)
       );
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "agent-non-streaming",
+          operation: "fetch-conversation",
+        },
+        extra: {
+          workspaceId,
+          agentId,
+          conversationId: options?.conversationId,
+        },
+        level: "warning",
+      });
     }
   }
 
@@ -205,6 +218,16 @@ export async function callAgentNonStreaming(
     );
 
     // Generate response
+    console.log("[Non-Streaming Handler] generateText arguments:", {
+      workspaceId,
+      agentId,
+      model: finalModelName,
+      systemPromptLength: agent.systemPrompt.length,
+      messagesCount: modelMessagesWithKnowledge.length,
+      toolsCount: tools ? Object.keys(tools).length : 0,
+      hasAbortSignal: Boolean(options?.abortSignal),
+      ...generateOptions,
+    });
     llmCallAttempted = true;
     result = await generateText({
       model: model as unknown as Parameters<typeof generateText>[0]["model"],
@@ -300,7 +323,8 @@ export async function callAgentNonStreaming(
     agent,
     model,
     modelMessages,
-    tools
+    tools,
+    options?.abortSignal
   );
 
   // Use token usage from processedResult if available (includes continuation tokens),

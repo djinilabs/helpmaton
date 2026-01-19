@@ -67,6 +67,18 @@ async function persistScheduleConversationError(params: {
       agentId: params.agentId,
       conversationId: params.conversationId,
     });
+    Sentry.captureException(ensureError(logError), {
+      tags: {
+        context: "agent-schedule-queue",
+        operation: "persist-error",
+      },
+      extra: {
+        workspaceId: params.workspaceId,
+        agentId: params.agentId,
+        conversationId: params.conversationId,
+      },
+      level: "warning",
+    });
   }
 }
 

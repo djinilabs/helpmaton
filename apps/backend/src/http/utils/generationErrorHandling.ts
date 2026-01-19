@@ -7,6 +7,7 @@ import {
   SpendingLimitExceededError,
 } from "../../utils/creditErrors";
 import { isAuthenticationError } from "../../utils/handlingErrors";
+import { Sentry, ensureError } from "../../utils/sentry";
 
 /**
  * Endpoint type for logging context
@@ -133,6 +134,17 @@ export async function handleCreditErrors(
         `[${endpoint} Handler] Failed to send error notification:`,
         emailError
       );
+      Sentry.captureException(ensureError(emailError), {
+        tags: {
+          context: "generation-error-handling",
+          operation: "send-credit-notification",
+          endpoint,
+        },
+        extra: {
+          workspaceId,
+        },
+        level: "warning",
+      });
     }
 
     return {
@@ -159,6 +171,17 @@ export async function handleCreditErrors(
         `[${endpoint} Handler] Failed to send error notification:`,
         emailError
       );
+      Sentry.captureException(ensureError(emailError), {
+        tags: {
+          context: "generation-error-handling",
+          operation: "send-spending-limit-notification",
+          endpoint,
+        },
+        extra: {
+          workspaceId,
+        },
+        level: "warning",
+      });
     }
 
     return {

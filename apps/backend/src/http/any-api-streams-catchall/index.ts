@@ -192,6 +192,7 @@ const internalHandler = async (
       console.log("[Stream Handler] Handling OPTIONS request");
       await writeChunkToStream(responseStream, "");
       responseStream.end();
+      cleanupRequestTimeout(requestTimeout);
       return;
     }
 

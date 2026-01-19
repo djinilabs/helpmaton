@@ -1,6 +1,10 @@
 import { generateText } from "ai";
 
 import { createModel } from "../../http/utils/modelFactory";
+import {
+  createRequestTimeout,
+  cleanupRequestTimeout,
+} from "../../http/utils/requestTimeout";
 import type { TemporalGrain } from "../vectordb/types";
 
 export type SummarizationPromptGrain =
@@ -143,16 +147,28 @@ export async function summarizeWithLLM(
   );
 
   // Generate summary
-  const result = await generateText({
-    model: model as unknown as Parameters<typeof generateText>[0]["model"],
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: `Please summarize the following information:\n\n${combinedContent}`,
-      },
-    ],
+  console.log("[Memory Summarization] generateText arguments:", {
+    model: "default",
+    systemPromptLength: systemPrompt.length,
+    messagesCount: 1,
   });
+  const requestTimeout = createRequestTimeout();
+  let result: Awaited<ReturnType<typeof generateText>>;
+  try {
+    result = await generateText({
+      model: model as unknown as Parameters<typeof generateText>[0]["model"],
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: `Please summarize the following information:\n\n${combinedContent}`,
+        },
+      ],
+      abortSignal: requestTimeout.signal,
+    });
+  } finally {
+    cleanupRequestTimeout(requestTimeout);
+  }
 
   return result.text.trim();
 }

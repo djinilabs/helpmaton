@@ -12,6 +12,10 @@ import { generateToolList } from "../../../utils/toolMetadata";
 import { trackBusinessEvent } from "../../../utils/tracking";
 import { validateBody } from "../../utils/bodyValidation";
 import { createModel } from "../../utils/modelFactory";
+import {
+  createRequestTimeout,
+  cleanupRequestTimeout,
+} from "../../utils/requestTimeout";
 import { generatePromptRequestSchema } from "../../utils/schemas/requestSchemas";
 import { extractUserId } from "../../utils/session";
 import { handleError, requireAuth, requirePermission } from "../middleware";
@@ -317,18 +321,30 @@ export const registerPostGeneratePrompt = (app: express.Application) => {
         );
 
         // Generate the prompt
-        const result = await generateText({
-          model: model as unknown as Parameters<
-            typeof generateText
-          >[0]["model"],
-          system: PROMPT_GENERATOR_SYSTEM_PROMPT,
-          messages: [
-            {
-              role: "user",
-              content: `Generate a system prompt for an AI agent with the following goal:\n\n${goal.trim()}${existingPromptContext}${toolsContext}`,
-            },
-          ],
+        console.log("[Prompt Generation] generateText arguments:", {
+          model: "default",
+          systemPromptLength: PROMPT_GENERATOR_SYSTEM_PROMPT.length,
+          messagesCount: 1,
         });
+        const requestTimeout = createRequestTimeout();
+        let result: Awaited<ReturnType<typeof generateText>>;
+        try {
+          result = await generateText({
+            model: model as unknown as Parameters<
+              typeof generateText
+            >[0]["model"],
+            system: PROMPT_GENERATOR_SYSTEM_PROMPT,
+            messages: [
+              {
+                role: "user",
+                content: `Generate a system prompt for an AI agent with the following goal:\n\n${goal.trim()}${existingPromptContext}${toolsContext}`,
+              },
+            ],
+            abortSignal: requestTimeout.signal,
+          });
+        } finally {
+          cleanupRequestTimeout(requestTimeout);
+        }
 
         const generatedPrompt = result.text.trim();
 

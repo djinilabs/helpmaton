@@ -16,16 +16,19 @@ import {
   formatToolResultMessage,
 } from "../../http/utils/toolFormatting";
 import { database } from "../../tables";
+// eslint-disable-next-line import/order
 import {
   BotWebhookTaskMessageSchema,
   type BotWebhookTaskMessage,
 } from "../../utils/botWebhookQueue";
+import { runPeriodicTask } from "../../utils/asyncTasks";
 import {
   startConversation,
   updateConversation,
 } from "../../utils/conversationLogger";
 import { handlingSQSErrors } from "../../utils/handlingSQSErrors";
 import type { UIMessage } from "../../utils/messageTypes";
+import { Sentry, ensureError } from "../../utils/sentry";
 import { trackEvent } from "../../utils/tracking";
 import { getCurrentSQSContext } from "../../utils/workspaceCreditContext";
 
@@ -93,6 +96,19 @@ async function processDiscordTask(
       "[Bot Webhook Queue] Error posting initial Discord message:",
       error
     );
+    Sentry.captureException(ensureError(error), {
+      tags: {
+        context: "bot-webhook-queue",
+        platform: "discord",
+        operation: "post-initial-message",
+      },
+      extra: {
+        workspaceId,
+        agentId,
+        integrationId: message.integrationId,
+      },
+      level: "warning",
+    });
   }
 
   // Helper to update the Discord message with elapsed time
@@ -115,20 +131,57 @@ async function processDiscordTask(
         "[Bot Webhook Queue] Error updating Discord thinking message:",
         error
       );
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "bot-webhook-queue",
+          platform: "discord",
+          operation: "update-thinking-message",
+        },
+        extra: {
+          workspaceId,
+          agentId,
+          integrationId: message.integrationId,
+        },
+        level: "warning",
+      });
     }
   }
 
-  // Start background task to update message periodically
-  const updateInterval = setInterval(() => {
-    if (!isComplete) {
-      updateDiscordThinkingMessage().catch((error) => {
-        console.error(
-          "[Bot Webhook Queue] Error in Discord update interval:",
-          error
-        );
+  const updateLoopAbortController = new AbortController();
+  const updateLoopPromise = runPeriodicTask({
+    intervalMs: 1500,
+    task: updateDiscordThinkingMessage,
+    shouldContinue: () => !isComplete,
+    signal: updateLoopAbortController.signal,
+    onError: (error) => {
+      console.error(
+        "[Bot Webhook Queue] Error in Discord update interval:",
+        error
+      );
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "bot-webhook-queue",
+          platform: "discord",
+          operation: "update-interval",
+        },
+        extra: {
+          workspaceId,
+          agentId,
+          integrationId: message.integrationId,
+        },
+        level: "warning",
       });
+    },
+  });
+
+  const stopThinkingUpdates = async (): Promise<void> => {
+    if (isComplete) {
+      return;
     }
-  }, 1500);
+    isComplete = true;
+    updateLoopAbortController.abort();
+    await updateLoopPromise;
+  };
 
   try {
     // Get base URL for model referer (used for logging/tracking)
@@ -174,12 +227,7 @@ async function processDiscordTask(
       cleanupRequestTimeout(requestTimeout);
     }
 
-    // Stop the interval and mark as complete
-    clearInterval(updateInterval);
-    isComplete = true;
-
-    // Wait a bit to ensure any pending interval updates complete
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await stopThinkingUpdates();
 
     // Update with complete response
     const responseText = agentResult.text || "No response generated.";
@@ -483,6 +531,19 @@ async function processDiscordTask(
           conversationId: finalConversationId,
         }
       );
+      Sentry.captureException(ensureError(conversationError), {
+        tags: {
+          context: "bot-webhook-queue",
+          platform: "discord",
+          operation: "log-conversation",
+        },
+        extra: {
+          workspaceId,
+          agentId,
+          conversationId: finalConversationId,
+        },
+        level: "warning",
+      });
     }
 
     // Update lastUsedAt
@@ -502,12 +563,7 @@ async function processDiscordTask(
       response_length: responseText.length,
     });
   } catch (error) {
-    // Stop the interval and mark as complete
-    clearInterval(updateInterval);
-    isComplete = true;
-
-    // Wait a bit to ensure any pending interval updates complete
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await stopThinkingUpdates();
 
     // Update with error
     try {
@@ -522,6 +578,19 @@ async function processDiscordTask(
         "[Bot Webhook Queue] Error updating Discord message with error:",
         updateError
       );
+      Sentry.captureException(ensureError(updateError), {
+        tags: {
+          context: "bot-webhook-queue",
+          platform: "discord",
+          operation: "update-error-message",
+        },
+        extra: {
+          workspaceId,
+          agentId,
+          integrationId: message.integrationId,
+        },
+        level: "warning",
+      });
     }
 
     // Track failed processing
@@ -620,20 +689,57 @@ async function processSlackTask(
         "[Bot Webhook Queue] Error updating Slack thinking message:",
         error
       );
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "bot-webhook-queue",
+          platform: "slack",
+          operation: "update-thinking-message",
+        },
+        extra: {
+          workspaceId,
+          agentId,
+          integrationId: message.integrationId,
+        },
+        level: "warning",
+      });
     }
   }
 
-  // Start background task to update message periodically
-  const updateInterval = setInterval(() => {
-    if (!isComplete) {
-      updateSlackThinkingMessage().catch((error) => {
-        console.error(
-          "[Bot Webhook Queue] Error in Slack update interval:",
-          error
-        );
+  const updateLoopAbortController = new AbortController();
+  const updateLoopPromise = runPeriodicTask({
+    intervalMs: 1500,
+    task: updateSlackThinkingMessage,
+    shouldContinue: () => !isComplete,
+    signal: updateLoopAbortController.signal,
+    onError: (error) => {
+      console.error(
+        "[Bot Webhook Queue] Error in Slack update interval:",
+        error
+      );
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "bot-webhook-queue",
+          platform: "slack",
+          operation: "update-interval",
+        },
+        extra: {
+          workspaceId,
+          agentId,
+          integrationId: message.integrationId,
+        },
+        level: "warning",
       });
+    },
+  });
+
+  const stopThinkingUpdates = async (): Promise<void> => {
+    if (isComplete) {
+      return;
     }
-  }, 1500);
+    isComplete = true;
+    updateLoopAbortController.abort();
+    await updateLoopPromise;
+  };
 
   // Get base URL for model referer (used for logging/tracking)
   // Falls back to BASE_URL if WEBHOOK_BASE_URL is not set
@@ -769,6 +875,19 @@ async function processSlackTask(
         "[Bot Webhook Queue] Error fetching message history:",
         error
       );
+      Sentry.captureException(ensureError(error), {
+        tags: {
+          context: "bot-webhook-queue",
+          platform: "slack",
+          operation: "fetch-message-history",
+        },
+        extra: {
+          workspaceId,
+          agentId,
+          integrationId: message.integrationId,
+        },
+        level: "warning",
+      });
     }
   }
 
@@ -802,12 +921,7 @@ async function processSlackTask(
       cleanupRequestTimeout(requestTimeout);
     }
 
-    // Stop the interval and mark as complete
-    clearInterval(updateInterval);
-    isComplete = true;
-
-    // Wait a bit to ensure any pending interval updates complete
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await stopThinkingUpdates();
 
     // Update with complete response
     const responseText = agentResult.text || "No response generated.";
@@ -1106,6 +1220,19 @@ async function processSlackTask(
         agentId,
         conversationId: finalConversationId,
       });
+      Sentry.captureException(ensureError(conversationError), {
+        tags: {
+          context: "bot-webhook-queue",
+          platform: "slack",
+          operation: "log-conversation",
+        },
+        extra: {
+          workspaceId,
+          agentId,
+          conversationId: finalConversationId,
+        },
+        level: "warning",
+      });
     }
 
     // Update lastUsedAt
@@ -1125,12 +1252,7 @@ async function processSlackTask(
       response_length: responseText.length,
     });
   } catch (error) {
-    // Stop the interval and mark as complete
-    clearInterval(updateInterval);
-    isComplete = true;
-
-    // Wait a bit to ensure any pending interval updates complete
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await stopThinkingUpdates();
 
     // Update with error
     try {
@@ -1145,6 +1267,19 @@ async function processSlackTask(
         "[Bot Webhook Queue] Error updating Slack message with error:",
         updateError
       );
+      Sentry.captureException(ensureError(updateError), {
+        tags: {
+          context: "bot-webhook-queue",
+          platform: "slack",
+          operation: "update-error-message",
+        },
+        extra: {
+          workspaceId,
+          agentId,
+          integrationId: message.integrationId,
+        },
+        level: "warning",
+      });
     }
 
     // Track failed processing
@@ -1209,6 +1344,16 @@ export const handler = handlingSQSErrors(
           `[Bot Webhook Queue] Error processing message ${messageId}:`,
           error
         );
+        Sentry.captureException(ensureError(error), {
+          tags: {
+            context: "bot-webhook-queue",
+            operation: "process-message",
+          },
+          extra: {
+            messageId,
+            messageBody: record.body,
+          },
+        });
         failedMessageIds.push(messageId);
       }
     }

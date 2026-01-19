@@ -519,9 +519,7 @@ export const handlingHttpErrors = (userHandler: HttpHandler): HttpHandler => {
      * This handler type does not support workspace credit transactions.
      * Use HttpAsyncHandler instead for credit transaction support.
      */
-    // Note: HttpHandler is synchronous, so we can't augment context here
-    // This handler type is deprecated in favor of HttpAsyncHandler
-    // For now, we'll just pass through without credit transaction support
+    // Note: HttpHandler is deprecated, so we keep this wrapper minimal
     try {
       userHandler(req, res, next);
     } catch (error) {
@@ -536,15 +534,6 @@ export const handlingHttpErrors = (userHandler: HttpHandler): HttpHandler => {
             statusCode: boomed.output.statusCode,
           },
         });
-        // Note: This is a synchronous handler, so we can't await the flush.
-        // The flush will run in the background, but Lambda may terminate before it completes.
-        // This is a limitation of the synchronous handler pattern.
-        flushSentry().catch((flushError) => {
-          console.error("[Sentry] Error flushing events:", flushError);
-        });
-        flushPostHog().catch((flushError) => {
-          console.error("[PostHog] Error flushing events:", flushError);
-        });
       } else {
         console.warn(boomed);
       }
@@ -557,10 +546,35 @@ export const handlingHttpErrors = (userHandler: HttpHandler): HttpHandler => {
         stringHeaders[key] = String(value);
       }
 
-      res({
-        statusCode,
-        headers: stringHeaders,
-        body: JSON.stringify(payload),
+      const respondWithFlush = async (): Promise<void> => {
+        if (boomed.isServer) {
+          await Promise.all([flushSentry(), flushPostHog()]).catch(
+            (flushError) => {
+              console.error(
+                "[PostHog/Sentry] Error flushing events:",
+                flushError
+              );
+            }
+          );
+        }
+
+        res({
+          statusCode,
+          headers: stringHeaders,
+          body: JSON.stringify(payload),
+        });
+      };
+
+      respondWithFlush().catch((flushError) => {
+        console.error(
+          "[PostHog/Sentry] Failed to flush before response:",
+          flushError
+        );
+        res({
+          statusCode,
+          headers: stringHeaders,
+          body: JSON.stringify(payload),
+        });
       });
     }
   };

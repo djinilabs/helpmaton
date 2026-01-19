@@ -40,6 +40,17 @@ export async function pipeAIStreamToResponse(
     ? createStreamObserverCallbacks(observer)
     : undefined;
 
+  console.log("[Stream Handler] streamText arguments:", {
+    model:
+      typeof agent.modelName === "string" ? agent.modelName : "default",
+    systemPromptLength: agent.systemPrompt.length,
+    messagesCount: modelMessages.length,
+    toolsCount: tools ? Object.keys(tools).length : 0,
+    hasAbortSignal: Boolean(abortSignal),
+    hasObserverCallbacks: Boolean(observerCallbacks),
+    ...generateOptions,
+  });
+
   const streamResult = streamText({
     model: model as unknown as Parameters<typeof streamText>[0]["model"],
     system: agent.systemPrompt,
@@ -136,6 +147,19 @@ export async function pipeAIStreamToResponse(
               } catch {
                 console.error("[Stream Handler] Error parsing JSON:", line);
                 // Not JSON or parsing failed, skip text extraction
+                Sentry.captureException(
+                  ensureError(new Error("Failed to parse stream JSON chunk")),
+                  {
+                    tags: {
+                      context: "stream-ai-pipeline",
+                      operation: "parse-stream-chunk",
+                    },
+                    extra: {
+                      lineSnippet: line.substring(0, 200),
+                    },
+                    level: "warning",
+                  }
+                );
               }
             }
           }

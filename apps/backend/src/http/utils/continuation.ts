@@ -62,7 +62,8 @@ export async function handleToolContinuation(
   toolCalls: unknown[],
   toolResults: unknown[],
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Tools have varying types
-  tools?: Record<string, any>
+  tools?: Record<string, any>,
+  abortSignal?: AbortSignal
 ): Promise<ContinuationResult | null> {
   const continuationInstructions = buildContinuationInstructions(
     toolResults.filter(
@@ -157,6 +158,7 @@ export async function handleToolContinuation(
         model: modelNameForLog,
         systemPromptLength: continuationSystemPrompt.length,
         messagesCount: continuationModelMessages.length,
+        toolsCount: tools ? Object.keys(tools).length : 0,
         ...generateOptions,
       }
     );
@@ -171,6 +173,7 @@ export async function handleToolContinuation(
       messages: continuationModelMessages,
       tools,
       ...generateOptions,
+      ...(abortSignal && { abortSignal }),
     });
   } catch (error) {
     console.error("[Agent Test Handler] Error in generateText continuation:", {
