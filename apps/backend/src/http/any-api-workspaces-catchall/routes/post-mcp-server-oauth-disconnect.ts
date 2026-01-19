@@ -76,11 +76,16 @@ export const registerPostMcpServerOauthDisconnect = (
           );
         }
 
-        // Clear OAuth tokens from config, but keep serviceType
-        const updatedConfig: Record<string, unknown> = {};
-        if (server.serviceType) {
-          updatedConfig.serviceType = server.serviceType;
-        }
+        // Clear OAuth tokens from config but preserve other fields (ex: Zendesk subdomain)
+        const updatedConfig: Record<string, unknown> = {
+          ...(server.config as Record<string, unknown>),
+        };
+        delete updatedConfig.accessToken;
+        delete updatedConfig.refreshToken;
+        delete updatedConfig.expiresAt;
+        delete updatedConfig.email;
+        delete updatedConfig.instanceUrl;
+        delete updatedConfig.adminId;
 
         await db["mcp-server"].update({
           pk,

@@ -34,6 +34,7 @@ type McpServerType =
   | "salesforce"
   | "slack"
   | "intercom"
+  | "zendesk"
   | "stripe"
   | "posthog"
   | "custom";
@@ -117,6 +118,13 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     icon: ChatBubbleLeftRightIcon,
   },
   {
+    value: "zendesk",
+    name: "Zendesk",
+    description:
+      "Search tickets, read ticket threads, draft private replies, and search Help Center articles.",
+    icon: ChatBubbleLeftRightIcon,
+  },
+  {
     value: "stripe",
     name: "Stripe",
     description:
@@ -169,6 +177,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     | "salesforce"
     | "slack"
     | "intercom"
+    | "zendesk"
     | "stripe"
     | "posthog"
     | "custom"
@@ -180,6 +189,9 @@ export const McpServerModal: FC<McpServerModalProps> = ({
   const [password, setPassword] = useState("");
   const [posthogRegion, setPosthogRegion] = useState<"us" | "eu">("us");
   const [posthogApiKey, setPosthogApiKey] = useState("");
+  const [zendeskSubdomain, setZendeskSubdomain] = useState("");
+  const [zendeskClientId, setZendeskClientId] = useState("");
+  const [zendeskClientSecret, setZendeskClientSecret] = useState("");
 
   const posthogBaseUrls = {
     us: "https://us.posthog.com",
@@ -258,6 +270,16 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           // OAuth servers don't have authType in the UI
         } else if (
           server.authType === "oauth" &&
+          server.serviceType === "zendesk"
+        ) {
+          setMcpType("zendesk");
+          setZendeskSubdomain("");
+          setZendeskClientId("");
+          // Client secret should not be surfaced; leave blank
+          setZendeskClientSecret("");
+          // OAuth servers don't have authType in the UI
+        } else if (
+          server.authType === "oauth" &&
           server.serviceType === "stripe"
         ) {
           setMcpType("stripe");
@@ -276,6 +298,9 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         setUsername("");
         setPassword("");
         setPosthogApiKey("");
+        setZendeskSubdomain("");
+        setZendeskClientId("");
+        setZendeskClientSecret("");
       } else {
         setName("");
         setMcpType("google-drive"); // Default to Google Drive for new servers
@@ -286,6 +311,9 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         setPassword("");
         setPosthogRegion("us");
         setPosthogApiKey("");
+        setZendeskSubdomain("");
+        setZendeskClientId("");
+        setZendeskClientSecret("");
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -301,6 +329,9 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     setPassword("");
     setPosthogRegion("us");
     setPosthogApiKey("");
+    setZendeskSubdomain("");
+    setZendeskClientId("");
+    setZendeskClientSecret("");
     onClose();
   };
 
@@ -315,6 +346,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
   }, [isOpen, registerDialog, unregisterDialog]);
 
   const isPosthogType = mcpType === "posthog";
+  const isZendeskType = mcpType === "zendesk";
   const isOAuthType = mcpType !== "custom" && mcpType !== "posthog";
   const selectedPosthogBaseUrl = posthogBaseUrls[posthogRegion];
 
@@ -360,17 +392,48 @@ export const McpServerModal: FC<McpServerModalProps> = ({
       }
     }
 
+    if (isZendeskType) {
+      if (!isEditing) {
+        if (
+          !zendeskSubdomain.trim() ||
+          !zendeskClientId.trim() ||
+          !zendeskClientSecret.trim()
+        ) {
+          return;
+        }
+      } else {
+        const hasSubdomain = !!zendeskSubdomain.trim();
+        const hasClientId = !!zendeskClientId.trim();
+        if ((hasSubdomain || hasClientId) && (!hasSubdomain || !hasClientId)) {
+          return;
+        }
+      }
+    }
+
     try {
       const config: {
         apiKey?: string;
         headerValue?: string;
         username?: string;
         password?: string;
+        subdomain?: string;
+        clientId?: string;
+        clientSecret?: string;
       } = {};
 
       if (isPosthogType) {
         if (posthogApiKey.trim()) {
           config.apiKey = posthogApiKey.trim();
+        }
+      } else if (isZendeskType) {
+        if (zendeskSubdomain.trim()) {
+          config.subdomain = zendeskSubdomain.trim();
+        }
+        if (zendeskClientId.trim()) {
+          config.clientId = zendeskClientId.trim();
+        }
+        if (zendeskClientSecret.trim()) {
+          config.clientSecret = zendeskClientSecret.trim();
         }
       } else if (authType === "header") {
         config.headerValue = headerValue.trim();
@@ -396,6 +459,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             | "salesforce"
             | "slack"
             | "intercom"
+            | "zendesk"
             | "stripe"
             | "posthog";
           config?: typeof config;
@@ -421,8 +485,11 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           server?.serviceType === "salesforce" ||
             server?.serviceType === "slack" ||
           server?.serviceType === "stripe" ||
-          server?.serviceType === "intercom");
+          server?.serviceType === "intercom" ||
+          server?.serviceType === "zendesk");
         const isPosthogServer = server?.serviceType === "posthog";
+        const isZendeskServer =
+          server?.authType === "oauth" && server?.serviceType === "zendesk";
 
         // OAuth servers can only update name (OAuth connection is managed separately)
         // Custom MCP servers can update URL and auth
@@ -443,14 +510,18 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             updatedFields.push("region");
           }
         }
-        // Only include config for custom MCP servers
-        if (!isOAuthServer && !isPosthogServer) {
+        // Only include config for custom MCP servers or Zendesk OAuth config
+        if ((!isOAuthServer && !isPosthogServer) || isZendeskServer) {
           // Only include config if:
           // 1. Auth type changed (need new credentials for new auth type)
           // 2. User provided new credentials (non-empty values)
           const authTypeChanged = server && authType !== server.authType;
           const hasNewCredentials =
-            authType === "header"
+            isZendeskServer
+              ? !!zendeskSubdomain.trim() ||
+                !!zendeskClientId.trim() ||
+                !!zendeskClientSecret.trim()
+              : authType === "header"
               ? !!headerValue.trim()
               : authType === "basic"
               ? !!username.trim() && !!password.trim()
@@ -460,20 +531,30 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             // If auth type changed, we need to build config for the new auth type
             if (authTypeChanged) {
               const newConfig: typeof config = {};
-              if (authType === "header") {
+              if (isZendeskServer) {
+                if (zendeskSubdomain.trim()) {
+                  newConfig.subdomain = zendeskSubdomain.trim();
+                }
+                if (zendeskClientId.trim()) {
+                  newConfig.clientId = zendeskClientId.trim();
+                }
+                if (zendeskClientSecret.trim()) {
+                  newConfig.clientSecret = zendeskClientSecret.trim();
+                }
+              } else if (authType === "header") {
                 newConfig.headerValue = headerValue.trim();
               } else if (authType === "basic") {
                 newConfig.username = username.trim();
                 newConfig.password = password.trim();
               }
               // Only set config if authType is not "none"
-              if (authType !== "none") {
+              if (authType !== "none" || isZendeskServer) {
                 updateData.config = newConfig;
               }
             } else {
               // Auth type didn't change, use the config we built above
               // Only set config if authType is not "none"
-              if (authType !== "none") {
+              if (authType !== "none" || isZendeskServer) {
                 updateData.config = config;
               }
             }
@@ -639,6 +720,23 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             auth_type: "oauth",
             service_type: "intercom",
           });
+        } else if (mcpType === "zendesk") {
+          const result = await createServer.mutateAsync({
+            name: name.trim(),
+            authType: "oauth",
+            serviceType: "zendesk",
+            config: {
+              subdomain: zendeskSubdomain.trim(),
+              clientId: zendeskClientId.trim(),
+              clientSecret: zendeskClientSecret.trim(),
+            },
+          });
+          trackEvent("mcp_server_created", {
+            workspace_id: workspaceId,
+            server_id: result.id,
+            auth_type: "oauth",
+            service_type: "zendesk",
+          });
         } else if (mcpType === "stripe") {
           // Stripe - OAuth-based
           const result = await createServer.mutateAsync({
@@ -737,6 +835,11 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                       type="button"
                       onClick={() => {
                         setMcpType(serverType.value);
+                        if (serverType.value !== "zendesk") {
+                          setZendeskSubdomain("");
+                          setZendeskClientId("");
+                          setZendeskClientSecret("");
+                        }
                         // Reset auth type when switching
                         if (isOAuthType) {
                           setAuthType("none");
@@ -836,6 +939,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
                   After creating the server, you&apos;ll need to connect your
                   Intercom admin account via OAuth.
+                </p>
+              )}
+              {mcpType === "zendesk" && (
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  Provide your Zendesk subdomain and OAuth client credentials.
+                  After creating the server, you&apos;ll connect via OAuth.
                 </p>
               )}
               {mcpType === "posthog" && (
@@ -943,6 +1052,76 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             </>
           )}
 
+          {mcpType === "zendesk" && (
+            <>
+              <div>
+                <label
+                  htmlFor="zendeskSubdomain"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                >
+                  Zendesk Subdomain *
+                </label>
+                <input
+                  id="zendeskSubdomain"
+                  type="text"
+                  value={zendeskSubdomain}
+                  onChange={(e) => setZendeskSubdomain(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  placeholder="yourcompany"
+                  required={!isEditing}
+                />
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  Use the subdomain from your Zendesk URL (e.g. the
+                  &quot;yourcompany&quot; in
+                  https://yourcompany.zendesk.com).
+                </p>
+              </div>
+              <div>
+                <label
+                  htmlFor="zendeskClientId"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                >
+                  OAuth Client ID *
+                </label>
+                <input
+                  id="zendeskClientId"
+                  type="text"
+                  value={zendeskClientId}
+                  onChange={(e) => setZendeskClientId(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  placeholder="zendesk_client_id"
+                  required={!isEditing}
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="zendeskClientSecret"
+                  className="mb-2 block text-sm font-medium text-neutral-700 dark:text-neutral-300"
+                >
+                  OAuth Client Secret {!isEditing ? "*" : ""}
+                </label>
+                <input
+                  id="zendeskClientSecret"
+                  type="password"
+                  value={zendeskClientSecret}
+                  onChange={(e) => setZendeskClientSecret(e.target.value)}
+                  className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-2.5 font-mono text-neutral-900 transition-colors focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50 dark:focus:border-primary-500 dark:focus:ring-primary-400"
+                  placeholder={
+                    isEditing
+                      ? "Leave empty to keep existing secret"
+                      : "zendesk_client_secret"
+                  }
+                  required={!isEditing}
+                />
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  Create a Zendesk OAuth client with scopes
+                  &quot;tickets:read&quot;, &quot;tickets:write&quot;, and
+                  &quot;help_center:read&quot;.
+                </p>
+              </div>
+            </>
+          )}
+
           {isEditing && server && (
             <>
               {server.serviceType === "posthog" ? null : server.authType === "oauth" &&
@@ -1007,6 +1186,14 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
                     This is an Intercom MCP server. OAuth connection is
                     managed separately.
+                  </p>
+                </div>
+              ) : server.authType === "oauth" &&
+                server.serviceType === "zendesk" ? (
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                    This is a Zendesk MCP server. OAuth connection is managed
+                    separately.
                   </p>
                 </div>
               ) : (

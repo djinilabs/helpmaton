@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Status**: Intercom MCP integration complete ✅
+**Status**: Zendesk MCP integration complete ✅
 
 **Latest Work**:
 
@@ -14,6 +14,8 @@
 - **CI staging test workflow**: Moved staging agent tests into `.github/workflows/staging-agent-tests.yml` triggered after successful `Deploy PR` workflow completion; removed test step from `deploy-pr.yml`; disabled Slack bot-webhook test in CI; set `AUTH_SECRET` env from `secrets.STAGING_AUTH_SECRET`.
 - **Staging test env loading**: Script now loads root `.env` via `dotenv` for easier local runs.
 - **Staging auth preflight**: Script now validates API access before creating workspace and allows optional `AUTH_TOKEN` override.
+- **Zendesk MCP integration**: Added Zendesk OAuth flow using subdomain + client credentials stored per MCP server, Zendesk API client + tools (ticket search, comments, draft private note, Help Center search), tool metadata/UI wiring, schema updates, docs, and unit tests. Preserved Zendesk config on OAuth connect/disconnect. Ran `pnpm lint --fix` and `pnpm typecheck`.
+
 - **Intercom MCP integration**: Added Intercom OAuth flow with admin ID capture, Intercom API client + MCP tools for contacts/conversations (read/write), tool metadata/UI wiring, schemas, env/workflow updates, docs, and unit tests. Ran `pnpm --filter backend test --run intercom`, `pnpm lint --fix`, and `pnpm typecheck`.
 
 - **Staging schedule queue test**: Added FIFO `MessageGroupId` and `MessageDeduplicationId` to schedule queue SQS send in `run-staging-agent-tests.ts`. Ran `pnpm typecheck` and `pnpm lint --fix`.

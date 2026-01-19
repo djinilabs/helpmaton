@@ -1459,6 +1459,7 @@ export interface McpServer {
     | "stripe"
     | "salesforce"
     | "intercom"
+    | "zendesk"
     | "posthog";
   oauthConnected?: boolean;
   createdAt: string;
@@ -1482,12 +1483,16 @@ export interface CreateMcpServerInput {
     | "stripe"
     | "salesforce"
     | "intercom"
+    | "zendesk"
     | "posthog";
   config?: {
     apiKey?: string;
     headerValue?: string;
     username?: string;
     password?: string;
+    subdomain?: string;
+    clientId?: string;
+    clientSecret?: string;
   };
 }
 
@@ -1508,12 +1513,16 @@ export interface UpdateMcpServerInput {
     | "stripe"
     | "salesforce"
     | "intercom"
+    | "zendesk"
     | "posthog";
   config?: {
     apiKey?: string;
     headerValue?: string;
     username?: string;
     password?: string;
+    subdomain?: string;
+    clientId?: string;
+    clientSecret?: string;
   };
 }
 
