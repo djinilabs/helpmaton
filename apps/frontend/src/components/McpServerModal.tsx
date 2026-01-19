@@ -393,10 +393,6 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     }
 
     if (isZendeskType) {
-      const hasAnyZendeskInput =
-        !!zendeskSubdomain.trim() ||
-        !!zendeskClientId.trim() ||
-        !!zendeskClientSecret.trim();
       if (!isEditing) {
         if (
           !zendeskSubdomain.trim() ||
@@ -405,8 +401,10 @@ export const McpServerModal: FC<McpServerModalProps> = ({
         ) {
           return;
         }
-      } else if (hasAnyZendeskInput) {
-        if (!zendeskSubdomain.trim() || !zendeskClientId.trim()) {
+      } else {
+        const hasSubdomain = !!zendeskSubdomain.trim();
+        const hasClientId = !!zendeskClientId.trim();
+        if ((hasSubdomain || hasClientId) && (!hasSubdomain || !hasClientId)) {
           return;
         }
       }

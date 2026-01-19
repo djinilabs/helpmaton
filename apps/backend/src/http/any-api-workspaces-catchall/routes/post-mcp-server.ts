@@ -150,6 +150,12 @@ export const registerPostMcpServer = (app: express.Application) => {
                 "config.subdomain, config.clientId, and config.clientSecret are required for Zendesk OAuth"
               );
             }
+            const zendeskSubdomainPattern = /^[a-zA-Z0-9-]+$/;
+            if (!zendeskSubdomainPattern.test(config.subdomain)) {
+              throw badRequest(
+                "config.subdomain must contain only alphanumeric characters and hyphens"
+              );
+            }
           }
           // Config should be empty initially (OAuth connection happens via separate flow)
           // But we allow it to be empty or contain serviceType

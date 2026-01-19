@@ -247,6 +247,12 @@ export const registerPutMcpServer = (app: express.Application) => {
               "config.subdomain, config.clientId, and config.clientSecret are required for Zendesk OAuth"
             );
           }
+          const zendeskSubdomainPattern = /^[a-zA-Z0-9-]+$/;
+          if (!zendeskSubdomainPattern.test(subdomain)) {
+            throw badRequest(
+              "config.subdomain must contain only alphanumeric characters and hyphens"
+            );
+          }
         }
 
         // Update server
