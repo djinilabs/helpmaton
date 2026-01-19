@@ -33,6 +33,7 @@ type McpServerType =
   | "hubspot"
   | "salesforce"
   | "slack"
+  | "intercom"
   | "stripe"
   | "posthog"
   | "custom";
@@ -109,6 +110,13 @@ const MCP_SERVER_TYPES: McpServerTypeMetadata[] = [
     icon: ChatBubbleLeftRightIcon,
   },
   {
+    value: "intercom",
+    name: "Intercom",
+    description:
+      "Read and reply to conversations, and manage contacts as an admin.",
+    icon: ChatBubbleLeftRightIcon,
+  },
+  {
     value: "stripe",
     name: "Stripe",
     description:
@@ -160,6 +168,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
     | "hubspot"
     | "salesforce"
     | "slack"
+    | "intercom"
     | "stripe"
     | "posthog"
     | "custom"
@@ -240,6 +249,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
           server.serviceType === "slack"
         ) {
           setMcpType("slack");
+          // OAuth servers don't have authType in the UI
+        } else if (
+          server.authType === "oauth" &&
+          server.serviceType === "intercom"
+        ) {
+          setMcpType("intercom");
           // OAuth servers don't have authType in the UI
         } else if (
           server.authType === "oauth" &&
@@ -380,6 +395,7 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             | "hubspot"
             | "salesforce"
             | "slack"
+            | "intercom"
             | "stripe"
             | "posthog";
           config?: typeof config;
@@ -404,7 +420,8 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             server?.serviceType === "hubspot" ||
           server?.serviceType === "salesforce" ||
             server?.serviceType === "slack" ||
-            server?.serviceType === "stripe");
+          server?.serviceType === "stripe" ||
+          server?.serviceType === "intercom");
         const isPosthogServer = server?.serviceType === "posthog";
 
         // OAuth servers can only update name (OAuth connection is managed separately)
@@ -608,6 +625,20 @@ export const McpServerModal: FC<McpServerModalProps> = ({
             auth_type: "oauth",
             service_type: "slack",
           });
+        } else if (mcpType === "intercom") {
+          // Intercom - OAuth-based
+          const result = await createServer.mutateAsync({
+            name: name.trim(),
+            authType: "oauth",
+            serviceType: "intercom",
+            config: {}, // Empty config for OAuth servers (credentials set via OAuth flow)
+          });
+          trackEvent("mcp_server_created", {
+            workspace_id: workspaceId,
+            server_id: result.id,
+            auth_type: "oauth",
+            service_type: "intercom",
+          });
         } else if (mcpType === "stripe") {
           // Stripe - OAuth-based
           const result = await createServer.mutateAsync({
@@ -801,6 +832,12 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                   Salesforce account via OAuth (read-only access).
                 </p>
               )}
+              {mcpType === "intercom" && (
+                <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
+                  After creating the server, you&apos;ll need to connect your
+                  Intercom admin account via OAuth.
+                </p>
+              )}
               {mcpType === "posthog" && (
                 <p className="mt-1.5 text-xs text-neutral-600 dark:text-neutral-300">
                   You&apos;ll be prompted for a PostHog personal API key and
@@ -961,6 +998,14 @@ export const McpServerModal: FC<McpServerModalProps> = ({
                 <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
                   <p className="text-sm text-neutral-700 dark:text-neutral-300">
                     This is a Salesforce MCP server. OAuth connection is
+                    managed separately.
+                  </p>
+                </div>
+              ) : server.authType === "oauth" &&
+                server.serviceType === "intercom" ? (
+                <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800">
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                    This is an Intercom MCP server. OAuth connection is
                     managed separately.
                   </p>
                 </div>

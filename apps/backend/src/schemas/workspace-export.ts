@@ -507,6 +507,7 @@ const mcpServerSchema = z
         "slack",
         "stripe",
         "salesforce",
+        "intercom",
         "posthog",
       ])
       .optional()

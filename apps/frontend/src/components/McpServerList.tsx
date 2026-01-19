@@ -112,6 +112,8 @@ const McpServerItem: FC<McpServerItemProps> = ({
       ? "Salesforce"
       : server.serviceType === "slack"
       ? "Slack"
+      : server.serviceType === "intercom"
+      ? "Intercom"
       : server.serviceType === "stripe"
       ? "Stripe"
       : server.serviceType === "posthog"

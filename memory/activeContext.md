@@ -2,7 +2,7 @@
 
 ## Current Status
 
-**Status**: Salesforce MCP integration complete ✅
+**Status**: Intercom MCP integration complete ✅
 
 **Latest Work**:
 
@@ -14,6 +14,8 @@
 - **CI staging test workflow**: Moved staging agent tests into `.github/workflows/staging-agent-tests.yml` triggered after successful `Deploy PR` workflow completion; removed test step from `deploy-pr.yml`; disabled Slack bot-webhook test in CI; set `AUTH_SECRET` env from `secrets.STAGING_AUTH_SECRET`.
 - **Staging test env loading**: Script now loads root `.env` via `dotenv` for easier local runs.
 - **Staging auth preflight**: Script now validates API access before creating workspace and allows optional `AUTH_TOKEN` override.
+- **Intercom MCP integration**: Added Intercom OAuth flow with admin ID capture, Intercom API client + MCP tools for contacts/conversations (read/write), tool metadata/UI wiring, schemas, env/workflow updates, docs, and unit tests. Ran `pnpm --filter backend test --run intercom`, `pnpm lint --fix`, and `pnpm typecheck`.
+
 - **SQS commit error handling**: Stopped rethrowing commit failures in `handlingSQSErrors`, now logs + reports to Sentry while keeping partial batch failures; added unit test coverage. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **Staging weekday test**: Agent tests now ask for day of week, require `get_datetime` tool invocation, and assert reply matches the expected weekday. Ran `pnpm lint --fix`.
 - **Delegation check**: Script now verifies the delegator agent has `delegatableAgentIds` configured before running delegation tests. Ran `pnpm lint --fix`.

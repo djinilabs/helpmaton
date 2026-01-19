@@ -702,6 +702,57 @@ Once connected, agents can use the following Slack tools:
 - The Slack app must be installed in the workspace and invited to private channels to read them
 - Message history is returned as plain text to reduce token usage
 
+### Intercom Integration
+
+```json
+{
+  "name": "My Intercom Workspace",
+  "authType": "oauth",
+  "serviceType": "intercom",
+  "config": {}
+}
+```
+
+**Setup Requirements**:
+
+1. Create an Intercom app:
+   - Go to the Intercom Developer Hub and open your app
+   - Enable OAuth and add redirect URI: `{OAUTH_REDIRECT_BASE_URL}/api/mcp/oauth/intercom/callback`
+   - Enable the scopes:
+     - `read_conversations`
+     - `write_conversations`
+     - `read_users`
+     - `write_users`
+     - `read_admins`
+   - Copy the client ID and client secret
+
+2. Configure Environment Variables:
+   - Set `INTERCOM_OAUTH_CLIENT_ID` to your Intercom OAuth client ID
+   - Set `INTERCOM_OAUTH_CLIENT_SECRET` to your Intercom OAuth client secret
+   - Ensure `OAUTH_REDIRECT_BASE_URL` is set correctly
+
+3. Connect Your Intercom Account:
+   - After creating the MCP server, click "Connect" to authorize the integration
+   - Use an Intercom admin account to ensure replies are sent as an admin
+
+**Available Tools**:
+
+Once connected, agents can use the following Intercom tools:
+
+- `intercom_list_contacts_{serverName}` - List contacts with pagination
+- `intercom_get_contact_{serverName}` - Get a contact by ID
+- `intercom_search_contacts_{serverName}` - Search contacts using Intercom search queries
+- `intercom_update_contact_{serverName}` - Update a contact by ID
+- `intercom_list_conversations_{serverName}` - List conversations with pagination
+- `intercom_get_conversation_{serverName}` - Get a conversation by ID
+- `intercom_search_conversations_{serverName}` - Search conversations using Intercom search queries
+- `intercom_reply_conversation_{serverName}` - Reply to or update conversations as an admin
+
+**Important Notes**:
+
+- Intercom OAuth does not provide refresh tokens; reconnect if the token is revoked
+- Replies are sent using the admin account that completed OAuth
+
 ### Stripe Integration
 
 ```json
