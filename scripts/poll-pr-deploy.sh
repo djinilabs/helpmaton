@@ -42,7 +42,7 @@ while true; do
     exit 1
   fi
 
-  RUN_JSON="$(gh run list --workflow "Deploy PR" --branch "$HEAD_BRANCH" --limit 1 --json status,conclusion,displayTitle,createdAt,updatedAt,htmlUrl)"
+RUN_JSON="$(gh run list --workflow "Deploy PR" --branch "$HEAD_BRANCH" --limit 1 --json status,conclusion,displayTitle,createdAt,updatedAt,url)"
   RUN_COUNT="$(echo "$RUN_JSON" | jq 'length')"
   if [[ "$RUN_COUNT" -eq 0 ]]; then
     echo "No Deploy PR runs found yet. Waiting..."
@@ -52,7 +52,7 @@ while true; do
 
   STATUS="$(echo "$RUN_JSON" | jq -r '.[0].status')"
   CONCLUSION="$(echo "$RUN_JSON" | jq -r '.[0].conclusion')"
-  URL="$(echo "$RUN_JSON" | jq -r '.[0].htmlUrl')"
+URL="$(echo "$RUN_JSON" | jq -r '.[0].url')"
   UPDATED_AT="$(echo "$RUN_JSON" | jq -r '.[0].updatedAt')"
 
   echo "Deploy PR status: ${STATUS} (conclusion: ${CONCLUSION}) at ${UPDATED_AT}"
