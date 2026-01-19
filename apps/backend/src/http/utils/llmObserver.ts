@@ -356,6 +356,34 @@ export function createLlmObserver(): LlmObserver {
         }
       }
 
+      if (Array.isArray(resultAny?.toolCalls)) {
+        for (const toolCall of resultAny.toolCalls) {
+          if (toolCall?.toolCallId && toolCall?.toolName) {
+            recordEvent({
+              type: "tool-call",
+              timestamp: nowIso(),
+              toolCallId: toolCall.toolCallId,
+              toolName: toolCall.toolName,
+              args: toolCall.input ?? toolCall.args ?? {},
+            });
+          }
+        }
+      }
+
+      if (Array.isArray(resultAny?.toolResults)) {
+        for (const toolResult of resultAny.toolResults) {
+          if (toolResult?.toolCallId && toolResult?.toolName) {
+            recordEvent({
+              type: "tool-result",
+              timestamp: nowIso(),
+              toolCallId: toolResult.toolCallId,
+              toolName: toolResult.toolName,
+              result: normalizeToolResultValue(toolResult),
+            });
+          }
+        }
+      }
+
       const text =
         typeof resultAny.text === "string"
           ? resultAny.text
@@ -593,6 +621,7 @@ export function wrapToolsWithObserver<TTools extends Record<string, unknown>>(
 export function buildConversationMessagesFromObserver(params: {
   observerEvents: LlmObserverEvent[];
   fallbackInputMessages?: UIMessage[];
+  fallbackAssistantText?: string;
   assistantMeta: {
     tokenUsage?: AssistantTokenUsage;
     modelName?: string;
@@ -602,7 +631,12 @@ export function buildConversationMessagesFromObserver(params: {
     generationTimeMs?: number;
   };
 }): UIMessage[] {
-  const { observerEvents, fallbackInputMessages, assistantMeta } = params;
+  const {
+    observerEvents,
+    fallbackInputMessages,
+    fallbackAssistantText,
+    assistantMeta,
+  } = params;
 
   const inputEvent = observerEvents.find(
     (event) => event.type === "input-messages"
@@ -719,6 +753,17 @@ export function buildConversationMessagesFromObserver(params: {
   }
 
   flushTextBuffer();
+
+  const hasAssistantText = content.some(
+    (item) => typeof item === "object" && item.type === "text"
+  );
+  if (
+    !hasAssistantText &&
+    typeof fallbackAssistantText === "string" &&
+    fallbackAssistantText.trim().length > 0
+  ) {
+    content.push({ type: "text", text: fallbackAssistantText });
+  }
 
   const assistantMessage: UIMessage = {
     role: "assistant",

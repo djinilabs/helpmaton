@@ -368,6 +368,80 @@ function extractAssistantReply(messages: unknown[]): string | null {
   return null;
 }
 
+function getMessageSignature(message: unknown): string {
+  if (!message || typeof message !== "object") {
+    return String(message);
+  }
+  const record = message as {
+    role?: string;
+    content?: unknown;
+    name?: string;
+    toolName?: string;
+    toolCallId?: string;
+  };
+  return JSON.stringify({
+    role: record.role ?? null,
+    name: record.name ?? null,
+    toolName: record.toolName ?? null,
+    toolCallId: record.toolCallId ?? null,
+    content: record.content ?? null,
+  });
+}
+
+function assertNoDuplicateMessages(messages: unknown[], context: string): void {
+  if (!Array.isArray(messages)) {
+    return;
+  }
+  let lastSignature: string | null = null;
+  for (const message of messages) {
+    const signature = getMessageSignature(message);
+    if (lastSignature !== null && signature === lastSignature) {
+      throw new Error(`Duplicate consecutive messages detected in ${context}`);
+    }
+    lastSignature = signature;
+  }
+}
+
+function assertNoDuplicateToolCalls(messages: unknown[], context: string): void {
+  if (!Array.isArray(messages)) {
+    return;
+  }
+  for (const message of messages) {
+    if (!message || typeof message !== "object") {
+      continue;
+    }
+    const content = (message as { content?: unknown }).content;
+    if (!Array.isArray(content)) {
+      continue;
+    }
+    const toolCallSignatures = new Set<string>();
+    for (const item of content) {
+      if (!item || typeof item !== "object") {
+        continue;
+      }
+      if ((item as { type?: string }).type !== "tool-call") {
+        continue;
+      }
+      const toolCall = item as {
+        toolCallId?: string;
+        toolName?: string;
+        args?: unknown;
+      };
+      const signature = JSON.stringify({
+        toolCallId: toolCall.toolCallId ?? null,
+        toolName: toolCall.toolName ?? null,
+        args: toolCall.args ?? null,
+      });
+      if (toolCallSignatures.has(signature)) {
+        throw new Error(
+          `Duplicate tool calls detected in ${context}: ${signature}`
+        );
+      }
+      toolCallSignatures.add(signature);
+    }
+  }
+}
+
 function hasToolInvocation(messages: unknown[], toolName: string): boolean {
   const toolOutputMarker =
     toolName === DATETIME_TOOL_NAME ? "Current date and time:" : null;
@@ -471,6 +545,14 @@ async function waitForConversation(
           `Conversation ${conversationId} failed: ${item.error.message ?? "unknown"}`
         );
       }
+      assertNoDuplicateMessages(
+        item.messages ?? [],
+        `conversation ${conversationId}`
+      );
+      assertNoDuplicateToolCalls(
+        item.messages ?? [],
+        `conversation ${conversationId}`
+      );
       if (item.conversationType !== expectedType) {
         throw new Error(
           `Conversation ${conversationId} type mismatch: expected ${expectedType}, got ${item.conversationType ?? "unknown"}`
@@ -535,6 +617,14 @@ async function waitForConversationByType(
       if (item.conversationType !== expectedType) {
         continue;
       }
+      assertNoDuplicateMessages(
+        item.messages ?? [],
+        `${expectedType} conversation`
+      );
+      assertNoDuplicateToolCalls(
+        item.messages ?? [],
+        `${expectedType} conversation`
+      );
       if (expectedToolName) {
         if (!hasToolInvocation(item.messages ?? [], expectedToolName)) {
           continue;

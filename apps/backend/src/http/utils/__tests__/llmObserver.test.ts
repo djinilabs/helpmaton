@@ -123,6 +123,35 @@ describe("buildConversationMessagesFromObserver", () => {
     expect(messages[0].role).toBe("user");
     expect(messages[1].role).toBe("assistant");
   });
+
+  it("adds fallback assistant text when observer has no text", () => {
+    const events: LlmObserverEvent[] = [
+      {
+        type: "input-messages",
+        timestamp: "2025-01-01T00:00:00.000Z",
+        messages: [{ role: "user", content: "hello" }],
+      },
+    ];
+
+    const messages = buildConversationMessagesFromObserver({
+      observerEvents: events,
+      fallbackAssistantText: "fallback response",
+      assistantMeta: {
+        provider: "openrouter",
+      },
+    });
+
+    expect(messages).toHaveLength(2);
+    const assistantMessage = messages[1];
+    expect(assistantMessage.role).toBe("assistant");
+    expect(Array.isArray(assistantMessage.content)).toBe(true);
+    if (Array.isArray(assistantMessage.content)) {
+      expect(assistantMessage.content).toContainEqual({
+        type: "text",
+        text: "fallback response",
+      });
+    }
+  });
 });
 
 describe("llmObserver helpers", () => {
@@ -163,6 +192,40 @@ describe("llmObserver helpers", () => {
     expect(
       events.some(
         (event) => event.type === "assistant-text" && event.text === "done"
+      )
+    ).toBe(true);
+  });
+
+  it("records tool calls and results from result arrays", () => {
+    const observer = createLlmObserver();
+    observer.recordFromResult({
+      toolCalls: [
+        {
+          toolCallId: "call-2",
+          toolName: "search_memory",
+          input: { query: "notes" },
+        },
+      ],
+      toolResults: [
+        {
+          toolCallId: "call-2",
+          toolName: "search_memory",
+          result: "ok",
+        },
+      ],
+      text: "finished",
+    });
+
+    const events = observer.getEvents();
+    expect(
+      events.some(
+        (event) => event.type === "tool-call" && event.toolCallId === "call-2"
+      )
+    ).toBe(true);
+    expect(
+      events.some(
+        (event) =>
+          event.type === "tool-result" && event.toolCallId === "call-2"
       )
     ).toBe(true);
   });
