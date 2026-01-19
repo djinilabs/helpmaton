@@ -2,9 +2,11 @@
 
 ## Current Status
 
-**Status**: Salesforce MCP integration complete ✅
+**Status**: Intercom MCP integration complete ✅
 
 **Latest Work**:
+
+- **Intercom MCP integration**: Added Intercom OAuth flow with admin ID capture, Intercom API client + MCP tools for contacts/conversations (read/write), tool metadata/UI wiring, schemas, env/workflow updates, docs, and unit tests. Ran `pnpm --filter backend test --run intercom`, `pnpm lint --fix`, and `pnpm typecheck`.
 
 - **SQS commit error handling**: Stopped rethrowing commit failures in `handlingSQSErrors`, now logs + reports to Sentry while keeping partial batch failures; added unit test coverage. Ran `pnpm lint --fix` and `pnpm typecheck`.
 - **PostHog flush gating**: Ensured deprecated `HttpHandler` responses flush PostHog/Sentry before responding and added unit coverage; ran `pnpm lint --fix` and `pnpm typecheck`.

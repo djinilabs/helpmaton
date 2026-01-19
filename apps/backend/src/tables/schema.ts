@@ -349,6 +349,7 @@ export const tableSchemas = {
         "slack",
         "stripe",
         "salesforce",
+        "intercom",
         "posthog",
       ])
       .optional(), // service type (defaults to "external" for backward compatibility)

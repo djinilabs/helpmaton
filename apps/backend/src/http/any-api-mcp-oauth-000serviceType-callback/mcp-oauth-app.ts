@@ -105,6 +105,7 @@ export const createApp: () => express.Application = () => {
           "slack",
           "stripe",
           "salesforce",
+          "intercom",
         ]);
 
         if (!allowedServiceTypes.has(serviceType)) {
@@ -205,6 +206,7 @@ export const createApp: () => express.Application = () => {
           expiresAt: string;
           email?: string;
           instanceUrl?: string;
+          adminId?: string;
         };
         try {
           if (serviceType === "google-drive") {
@@ -257,6 +259,11 @@ export const createApp: () => express.Application = () => {
               "../../utils/oauth/mcp/salesforce"
             );
             tokenInfo = await exchangeSalesforceCode(code);
+          } else if (serviceType === "intercom") {
+            const { exchangeIntercomCode } = await import(
+              "../../utils/oauth/mcp/intercom"
+            );
+            tokenInfo = await exchangeIntercomCode(code);
           } else {
             throw new Error(`Unsupported service type: ${serviceType}`);
           }
@@ -324,6 +331,9 @@ export const createApp: () => express.Application = () => {
         }
         if (tokenInfo.instanceUrl) {
           config.instanceUrl = String(tokenInfo.instanceUrl);
+        }
+        if (tokenInfo.adminId) {
+          config.adminId = String(tokenInfo.adminId);
         }
 
         // Update MCP server config with OAuth tokens
