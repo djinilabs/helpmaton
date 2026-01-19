@@ -1304,6 +1304,8 @@ You must respond with valid JSON only. Do not include markdown formatting like \
           workspaceId,
           agentId: helloAgentId,
         }),
+        MessageGroupId: `${helloAgentId}-schedule`,
+        MessageDeduplicationId: crypto.randomUUID(),
       })
     );
     const scheduleConversation = await waitForConversationByType(
